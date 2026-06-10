@@ -25,6 +25,6 @@ export const getInspectionTasksByProject = (projectId: number) => {
   return request.get<ApiResponse<InspectionTask[]>, ApiResponse<InspectionTask[]>>(`/inspection-tasks/project/${projectId}`)
 }
 
-export const completeInspection = (id: number, data: { result: string; issues?: string; rectificationDeadline?: string }) => {
+export const completeInspection = (id: number, data: { result: string; issues?: string; rectificationDeadline?: string; handler?: string }) => {
   return request.patch<ApiResponse<InspectionTask>, ApiResponse<InspectionTask>>(`/inspection-tasks/${id}/complete`, data)
 }

@@ -30,6 +30,7 @@ const Reports = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<number>()
   const [selectedMonth, setSelectedMonth] = useState<string>(dayjs().format('YYYY-MM'))
   const [materialData, setMaterialData] = useState<MaterialCost[]>([])
+  const [materialTotalAmount, setMaterialTotalAmount] = useState<number>(0)
   const [monthlyData, setMonthlyData] = useState<any>(null)
   const [projectSummaryData, setProjectSummaryData] = useState<any>(null)
 
@@ -54,7 +55,8 @@ const Reports = () => {
         projectId: selectedProjectId,
         month: selectedMonth
       })
-      setMaterialData(Array.isArray(response.data) ? response.data : [])
+      setMaterialData(response.data.materials || [])
+      setMaterialTotalAmount(response.data.totalAmount || 0)
     } catch (error) {
       console.error('加载材料成本报表失败', error)
       message.error('加载材料成本报表失败')
@@ -115,7 +117,7 @@ const Reports = () => {
     { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true }
   ]
 
-  const totalMaterialCost = materialData.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0)
+  const totalMaterialCost = materialTotalAmount
 
   const items = [
     {
@@ -297,7 +299,7 @@ const Reports = () => {
                   <Card>
                     <Statistic
                       title="项目预算"
-                      value={projectSummaryData.totalPrice || 0}
+                      value={projectSummaryData.project?.totalPrice || 0}
                       precision={2}
                       prefix="¥"
                     />
@@ -307,7 +309,7 @@ const Reports = () => {
                   <Card>
                     <Statistic
                       title="材料成本"
-                      value={projectSummaryData.totalMaterialCost || 0}
+                      value={projectSummaryData.summary?.materialTotalCost || 0}
                       precision={2}
                       prefix="¥"
                     />
@@ -316,8 +318,8 @@ const Reports = () => {
                 <Col span={8}>
                   <Card>
                     <Statistic
-                      title="售后费用"
-                      value={projectSummaryData.totalAfterSalesCost || 0}
+                      title="合同总额"
+                      value={projectSummaryData.summary?.totalContractAmount || 0}
                       precision={2}
                       prefix="¥"
                     />
@@ -328,22 +330,22 @@ const Reports = () => {
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="设计方案" value={projectSummaryData.designPlanCount || 0} suffix="个" />
+                    <Statistic title="设计方案" value={projectSummaryData.summary?.designPlanCount || 0} suffix="个" />
                   </Card>
                 </Col>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="合同数量" value={projectSummaryData.contractCount || 0} suffix="份" />
+                    <Statistic title="合同数量" value={projectSummaryData.summary?.contractCount || 0} suffix="份" />
                   </Card>
                 </Col>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="施工阶段" value={projectSummaryData.constructionStageCount || 0} suffix="个" />
+                    <Statistic title="施工阶段" value={projectSummaryData.summary?.constructionStageCount || 0} suffix="个" />
                   </Card>
                 </Col>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="节点照片" value={projectSummaryData.stagePhotoCount || 0} suffix="张" />
+                    <Statistic title="节点照片" value={projectSummaryData.summary?.stagePhotoCount || 0} suffix="张" />
                   </Card>
                 </Col>
               </Row>
@@ -351,22 +353,22 @@ const Reports = () => {
               <Row gutter={[16, 16]}>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="客户反馈" value={projectSummaryData.feedbackCount || 0} suffix="条" />
+                    <Statistic title="客户反馈" value={projectSummaryData.summary?.customerFeedbackCount || 0} suffix="条" />
                   </Card>
                 </Col>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="巡检任务" value={projectSummaryData.inspectionCount || 0} suffix="个" />
+                    <Statistic title="巡检任务" value={projectSummaryData.summary?.inspectionTaskCount || 0} suffix="个" />
                   </Card>
                 </Col>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="售后工单" value={projectSummaryData.afterSalesCount || 0} suffix="个" />
+                    <Statistic title="售后工单" value={projectSummaryData.summary?.afterSalesCount || 0} suffix="个" />
                   </Card>
                 </Col>
                 <Col span={6}>
                   <Card>
-                    <Statistic title="延期提醒" value={projectSummaryData.delayReminderCount || 0} suffix="条" />
+                    <Statistic title="延期提醒" value={projectSummaryData.summary?.delayReminderCount || 0} suffix="条" />
                   </Card>
                 </Col>
               </Row>

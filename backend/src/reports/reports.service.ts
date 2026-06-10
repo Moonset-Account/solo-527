@@ -39,11 +39,16 @@ export class ReportsService {
   ) {}
 
   async getMaterialCostReport(projectId?: number, month?: string): Promise<any> {
-    const materials = await this.materialCostService.getMonthlyCostReport(projectId, month);
-    
+    const result = await this.materialCostService.findAll(
+      { page: 1, pageSize: 1000 } as any,
+      projectId,
+      month,
+    );
+
+    const materials = result.list;
     let totalAmount = 0;
-    materials.forEach((item) => {
-      totalAmount += parseFloat(item.totalAmount || 0);
+    materials.forEach((item: any) => {
+      totalAmount += parseFloat(item.totalPrice || 0);
     });
 
     return {
@@ -120,11 +125,21 @@ export class ReportsService {
       relations: ['customer'],
     });
 
+    const newProjects = projects.filter((p) => p.startDate && p.startDate >= startDate && p.startDate <= endDate);
+    const completedProjects = projects.filter((p) => p.status === 'COMPLETED');
+
     const materialCosts = await this.materialCostRepository.find({
       where: { purchaseDate: Between(startDate, endDate) },
     });
 
     const totalMaterialCost = materialCosts.reduce((sum, m) => sum + parseFloat(m.totalPrice as any), 0);
+
+    const contracts = await this.contractService.findByDateRange(startDate, endDate);
+    const totalContractAmount = contracts.reduce((sum, c) => sum + parseFloat(c.amount as any), 0);
+
+    const feedbacks = await this.customerFeedbackService.findByDateRange(startDate, endDate);
+    const inspections = await this.inspectionTaskService.findByDateRange(startDate, endDate);
+    const afterSalesList = await this.afterSalesService.findByDateRange(startDate, endDate);
 
     const projectSummaries = [];
     for (const project of projects) {
@@ -148,7 +163,13 @@ export class ReportsService {
     return {
       month,
       totalProjects: projects.length,
+      newProjects: newProjects.length,
+      completedProjects: completedProjects.length,
+      totalContractAmount,
       totalMaterialCost,
+      totalFeedbacks: feedbacks.length,
+      totalInspections: inspections.length,
+      totalAfterSales: afterSalesList.length,
       statusCounts,
       projects: projectSummaries,
     };

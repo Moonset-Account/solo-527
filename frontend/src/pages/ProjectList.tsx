@@ -123,6 +123,7 @@ const ProjectList = () => {
       const values = await form.validateFields()
       const projectData = {
         ...values,
+        totalPrice: values.totalPrice !== undefined && values.totalPrice !== '' ? Number(values.totalPrice) : undefined,
         startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : undefined,
         endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
         actualEndDate: values.actualEndDate ? values.actualEndDate.format('YYYY-MM-DD') : undefined

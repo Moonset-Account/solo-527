@@ -181,7 +181,8 @@ const Inspection = () => {
     completeForm.setFieldsValue({
       result: record.result,
       issues: record.issues,
-      rectificationDeadline: record.rectificationDeadline
+      rectificationDeadline: record.rectificationDeadline ? dayjs(record.rectificationDeadline) : undefined,
+      handler: record.handler
     })
     setCompleteModalVisible(true)
   }
@@ -193,7 +194,8 @@ const Inspection = () => {
         await completeInspection(detailItem.id, {
           result: values.result,
           issues: values.issues,
-          rectificationDeadline: values.rectificationDeadline
+          rectificationDeadline: values.rectificationDeadline?.format('YYYY-MM-DD') || undefined,
+          handler: values.handler
         })
         message.success('巡检完成')
         setCompleteModalVisible(false)
@@ -442,17 +444,22 @@ const Inspection = () => {
         confirmLoading={loading}
       >
         <Form form={completeForm} layout="vertical">
-          <Form.Item name="result" label="巡检结果" rules={[{ required: true, message: '请选择巡检结果' }]}>
-            <Select placeholder="请选择巡检结果">
-              <Option value="PASS">通过</Option>
-              <Option value="FAIL">不通过</Option>
-            </Select>
-          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item name="result" label="巡检结果" rules={[{ required: true, message: '请选择巡检结果' }]}>
+              <Select placeholder="请选择巡检结果">
+                <Option value="PASS">通过</Option>
+                <Option value="FAIL">不通过</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="handler" label="处理人">
+              <Input placeholder="请输入处理人" />
+            </Form.Item>
+          </div>
           <Form.Item name="issues" label="发现问题">
             <TextArea rows={4} placeholder="请描述发现的问题" />
           </Form.Item>
           <Form.Item name="rectificationDeadline" label="整改期限">
-            <TextArea rows={3} placeholder="请填写整改要求" />
+            <DatePicker style={{ width: '100%' }} placeholder="请选择整改期限" />
           </Form.Item>
         </Form>
       </Modal>

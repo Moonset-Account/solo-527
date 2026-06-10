@@ -177,7 +177,7 @@ const AfterSalesPage = () => {
       if (detailItem) {
         await processAfterSales(detailItem.id, {
           solution: values.solution,
-          cost: values.cost,
+          cost: values.cost !== undefined && values.cost !== '' ? Number(values.cost) : undefined,
           handler: values.handler
         })
         message.success('处理成功')

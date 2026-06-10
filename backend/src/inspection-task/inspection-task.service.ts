@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { InspectionTask } from './inspection-task.entity';
 import { CreateInspectionTaskDto } from './dto/create-inspection-task.dto';
 import { UpdateInspectionTaskDto } from './dto/update-inspection-task.dto';
@@ -55,6 +55,16 @@ export class InspectionTaskService {
   async findByProjectId(projectId: number): Promise<InspectionTask[]> {
     return this.inspectionTaskRepository.find({
       where: { projectId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByDateRange(startDate: string, endDate: string): Promise<InspectionTask[]> {
+    return this.inspectionTaskRepository.find({
+      where: [
+        { planDate: Between(startDate, endDate) },
+        { actualDate: Between(startDate, endDate) },
+      ],
       order: { createdAt: 'DESC' },
     });
   }

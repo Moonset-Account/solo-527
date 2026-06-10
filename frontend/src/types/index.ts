@@ -226,22 +226,50 @@ export interface ProcessRecord {
   description?: string
 }
 
+export interface MaterialCostReport {
+  month?: string
+  projectId?: number
+  materials: MaterialCost[]
+  totalAmount: number
+}
+
 export interface MonthlySummary {
   month: string
-  totalRevenue: number
-  totalCost: number
-  totalProfit: number
-  projectCount: number
+  totalProjects: number
+  newProjects: number
+  completedProjects: number
+  totalContractAmount: number
+  totalMaterialCost: number
+  totalFeedbacks: number
+  totalInspections: number
+  totalAfterSales: number
+  statusCounts: Record<string, number>
+  projects: Array<{
+    projectId: number
+    projectName: string
+    projectNo: string
+    customerName?: string
+    status: string
+    totalPrice?: number
+    materialCost: number
+  }>
 }
 
 export interface ProjectSummary {
-  projectId: number
-  projectName: string
-  totalRevenue: number
-  materialCost: number
-  laborCost: number
-  otherCost: number
-  totalCost: number
-  profit: number
-  profitMargin: number
+  project: Project
+  summary: {
+    designPlanCount: number
+    contractCount: number
+    houseSurveyCount: number
+    constructionStageCount: number
+    completedStageCount: number
+    progress: number
+    customerFeedbackCount: number
+    afterSalesCount: number
+    inspectionTaskCount: number
+    delayReminderCount: number
+    stagePhotoCount: number
+    materialTotalCost: number
+    totalContractAmount: number
+  }
 }

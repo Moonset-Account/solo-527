@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { AfterSales } from './after-sales.entity';
 import { CreateAfterSalesDto } from './dto/create-after-sales.dto';
 import { UpdateAfterSalesDto } from './dto/update-after-sales.dto';
@@ -55,6 +55,13 @@ export class AfterSalesService {
   async findByProjectId(projectId: number): Promise<AfterSales[]> {
     return this.afterSalesRepository.find({
       where: { projectId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByDateRange(startDate: string, endDate: string): Promise<AfterSales[]> {
+    return this.afterSalesRepository.find({
+      where: { reportTime: Between(new Date(startDate), new Date(endDate + ' 23:59:59')) },
       order: { createdAt: 'DESC' },
     });
   }

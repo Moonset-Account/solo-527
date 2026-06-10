@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { CustomerFeedback } from './customer-feedback.entity';
 import { CreateCustomerFeedbackDto } from './dto/create-customer-feedback.dto';
 import { UpdateCustomerFeedbackDto } from './dto/update-customer-feedback.dto';
@@ -52,6 +52,13 @@ export class CustomerFeedbackService {
   async findByProjectId(projectId: number): Promise<CustomerFeedback[]> {
     return this.feedbackRepository.find({
       where: { projectId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByDateRange(startDate: string, endDate: string): Promise<CustomerFeedback[]> {
+    return this.feedbackRepository.find({
+      where: { feedbackTime: Between(new Date(startDate), new Date(endDate + ' 23:59:59')) },
       order: { createdAt: 'DESC' },
     });
   }

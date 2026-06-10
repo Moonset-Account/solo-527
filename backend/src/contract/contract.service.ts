@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Contract } from './contract.entity';
 import { CreateContractDto } from './dto/create-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
@@ -47,6 +47,13 @@ export class ContractService {
   async findByProjectId(projectId: number): Promise<Contract[]> {
     return this.contractRepository.find({
       where: { projectId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByDateRange(startDate: string, endDate: string): Promise<Contract[]> {
+    return this.contractRepository.find({
+      where: { signDate: Between(startDate, endDate) },
       order: { createdAt: 'DESC' },
     });
   }

@@ -43,7 +43,8 @@ import {
   getConstructionStageList,
   createConstructionStage,
   updateConstructionStage,
-  deleteConstructionStage
+  deleteConstructionStage,
+  getConstructionStagesByProject
 } from '@/api/construction'
 import {
   getStagePhotoList,
@@ -67,6 +68,7 @@ const { TextArea } = Input
 const ConstructionManagement = () => {
   const [activeTab, setActiveTab] = useState('stages')
   const [stages, setStages] = useState<ConstructionStage[]>([])
+  const [photoStages, setPhotoStages] = useState<ConstructionStage[]>([])
   const [photos, setPhotos] = useState<StagePhoto[]>([])
   const [feedbacks, setFeedbacks] = useState<CustomerFeedback[]>([])
   const [reminders, setReminders] = useState<DelayReminder[]>([])
@@ -221,6 +223,7 @@ const ConstructionManagement = () => {
       const values = await stageForm.validateFields()
       const data = {
         ...values,
+        order: values.order !== undefined && values.order !== '' ? Number(values.order) : undefined,
         startDate: values.startDate?.format('YYYY-MM-DD') || undefined,
         endDate: values.endDate?.format('YYYY-MM-DD') || undefined,
         actualStartDate: values.actualStartDate?.format('YYYY-MM-DD') || undefined,
@@ -242,8 +245,20 @@ const ConstructionManagement = () => {
     }
   }
 
+  const handlePhotoProjectChange = async (projectId: number) => {
+    try {
+      const response = await getConstructionStagesByProject(projectId)
+      setPhotoStages(response.data || [])
+      photoForm.setFieldsValue({ stageId: undefined })
+    } catch (error) {
+      console.error('加载施工阶段失败', error)
+      message.error('加载施工阶段失败')
+    }
+  }
+
   const handleAddPhoto = () => {
     photoForm.resetFields()
+    setPhotoStages([])
     setPhotoModalVisible(true)
   }
 
@@ -613,9 +628,21 @@ const ConstructionManagement = () => {
       >
         <Form form={photoForm} layout="vertical">
           <Form.Item name="projectId" label="关联项目" rules={[{ required: true, message: '请选择项目' }]}>
-            <Select placeholder="请选择项目" showSearch optionFilterProp="children">
+            <Select
+              placeholder="请选择项目"
+              showSearch
+              optionFilterProp="children"
+              onChange={handlePhotoProjectChange}
+            >
               {projects.map(p => (
                 <Option key={p.id} value={p.id}>{p.name}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="stageId" label="施工阶段" rules={[{ required: true, message: '请选择施工阶段' }]}>
+            <Select placeholder="请选择施工阶段" showSearch optionFilterProp="children">
+              {photoStages.map(s => (
+                <Option key={s.id} value={s.id}>{s.name}</Option>
               ))}
             </Select>
           </Form.Item>

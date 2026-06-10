@@ -147,6 +147,7 @@ const SalesEntry = () => {
       const values = await designForm.validateFields()
       const data = {
         ...values,
+        estimatedPrice: values.estimatedPrice !== undefined && values.estimatedPrice !== '' ? Number(values.estimatedPrice) : undefined,
         handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }
       
@@ -196,6 +197,7 @@ const SalesEntry = () => {
       const values = await contractForm.validateFields()
       const data = {
         ...values,
+        amount: values.amount !== undefined && values.amount !== '' ? Number(values.amount) : undefined,
         signDate: values.signDate?.format('YYYY-MM-DD') || '',
         handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }
@@ -246,6 +248,8 @@ const SalesEntry = () => {
       const values = await surveyForm.validateFields()
       const data = {
         ...values,
+        area: values.area !== undefined && values.area !== '' ? Number(values.area) : undefined,
+        floor: values.floor !== undefined && values.floor !== '' ? Number(values.floor) : undefined,
         surveyDate: values.surveyDate?.format('YYYY-MM-DD') || undefined,
         handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }

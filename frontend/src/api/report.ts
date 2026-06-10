@@ -1,8 +1,8 @@
 import request from './request'
-import type { MaterialCost, MonthlySummary, ProjectSummary, ApiResponse } from '@/types'
+import type { MaterialCostReport, MonthlySummary, ProjectSummary, ApiResponse } from '@/types'
 
 export const getMaterialCostReport = (params?: Record<string, unknown>) => {
-  return request.get<ApiResponse<MaterialCost[]>, ApiResponse<MaterialCost[]>>('/reports/material-cost', { params })
+  return request.get<ApiResponse<MaterialCostReport>, ApiResponse<MaterialCostReport>>('/reports/material-cost', { params })
 }
 
 export const getMonthlySummary = (month: string) => {
