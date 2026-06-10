@@ -268,7 +268,7 @@ export default function ExceptionsPage() {
       <Modal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        title={detailData?.exception?.title || '异常详情'}
+        title={detailData?.title || '异常详情'}
         size="xl"
       >
         {detailData && (
@@ -276,12 +276,12 @@ export default function ExceptionsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-500 mb-1">异常类型</p>
-                <Badge variant="outline">{getExceptionTypeLabel(detailData.exception.type)}</Badge>
+                <Badge variant="outline">{getExceptionTypeLabel(detailData.type)}</Badge>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">当前状态</p>
-                <Badge className={getExceptionStatusColor(detailData.exception.status)}>
-                  {getExceptionStatusLabel(detailData.exception.status)}
+                <Badge className={getExceptionStatusColor(detailData.status)}>
+                  {getExceptionStatusLabel(detailData.status)}
                 </Badge>
               </div>
             </div>
@@ -289,33 +289,33 @@ export default function ExceptionsPage() {
             <div>
               <p className="text-sm text-gray-500 mb-2 font-medium">影响范围</p>
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-red-800">{detailData.exception.impact_scope}</p>
+                <p className="text-red-800">{detailData.impact_scope}</p>
               </div>
             </div>
 
-            {detailData.exception.handling_path && (
+            {detailData.handling_path && (
               <div>
                 <p className="text-sm text-gray-500 mb-2 font-medium">处理路径</p>
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <p className="text-blue-800">{detailData.exception.handling_path}</p>
+                  <p className="text-blue-800">{detailData.handling_path}</p>
                 </div>
               </div>
             )}
 
-            {detailData.exception.review_notes && (
+            {detailData.review_notes && (
               <div>
                 <p className="text-sm text-gray-500 mb-2 font-medium">复盘备注</p>
                 <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                  <p className="text-green-800">{detailData.exception.review_notes}</p>
+                  <p className="text-green-800">{detailData.review_notes}</p>
                 </div>
               </div>
             )}
 
-            {detailData.exception.close_reason && (
+            {detailData.close_reason && (
               <div>
                 <p className="text-sm text-gray-500 mb-2 font-medium">关闭原因</p>
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                  <p className="text-gray-800">{detailData.exception.close_reason}</p>
+                  <p className="text-gray-800">{detailData.close_reason}</p>
                 </div>
               </div>
             )}
@@ -353,12 +353,12 @@ export default function ExceptionsPage() {
               <Button variant="ghost" className="flex-1" onClick={() => setIsDetailModalOpen(false)}>
                 关闭
               </Button>
-              {detailData.exception.status !== 'closed' && (
+              {detailData.status !== 'closed' && (
                 <Button
                   variant="secondary"
                   className="flex-1"
                   onClick={() => {
-                    setSelectedException(detailData.exception);
+                    setSelectedException(detailData);
                     setIsCloseModalOpen(true);
                   }}
                 >

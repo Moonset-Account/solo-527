@@ -40,7 +40,7 @@ export function PhotoGallery() {
               className="group relative overflow-hidden rounded-2xl cursor-pointer aspect-[4/3] card-hover"
             >
               <Image
-                src={photo.url}
+                src={photo.image_url}
                 alt={photo.title}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-110"
@@ -76,7 +76,7 @@ export function PhotoGallery() {
             <div className="max-w-5xl max-h-[80vh] relative" onClick={(e) => e.stopPropagation()}>
               <div className="relative w-[90vw] max-w-4xl aspect-video">
                 <Image
-                  src={photos[selectedPhoto].url}
+                  src={photos[selectedPhoto].image_url}
                   alt={photos[selectedPhoto].title}
                   fill
                   className="object-contain"

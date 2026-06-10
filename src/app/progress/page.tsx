@@ -66,7 +66,7 @@ export default function ProgressPage() {
                                 }`}
                               >
                                 <Image
-                                  src={photo.url}
+                                  src={photo.image_url}
                                   alt={photo.description || '探访照片'}
                                   fill
                                   className="object-cover transition-transform duration-700 group-hover:scale-110"

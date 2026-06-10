@@ -70,7 +70,7 @@ export function Timeline() {
                         {visit.photos.slice(1, 4).map((photo) => (
                           <div key={photo.id} className="w-16 h-16 rounded-lg overflow-hidden relative">
                             <Image
-                              src={photo.url}
+                              src={photo.image_url}
                               alt={photo.description || ''}
                               fill
                               className="object-cover"
