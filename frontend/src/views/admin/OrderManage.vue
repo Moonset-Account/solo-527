@@ -99,16 +99,17 @@
         </el-form-item>
         <el-form-item label="支付状态">
           <el-select v-model="filterForm.payStatus" placeholder="全部" clearable style="width: 140px">
-            <el-option label="待支付" value="pending" />
-            <el-option label="已支付" value="paid" />
-            <el-option label="已退款" value="refunded" />
+            <el-option label="待支付" :value="0" />
+            <el-option label="已支付" :value="1" />
+            <el-option label="已退款" :value="2" />
           </el-select>
         </el-form-item>
         <el-form-item label="佣金状态">
           <el-select v-model="filterForm.commissionStatus" placeholder="全部" clearable style="width: 140px">
-            <el-option label="正常" value="normal" />
-            <el-option label="争议中" value="dispute" />
-            <el-option label="已关闭" value="closed" />
+            <el-option label="待结算" :value="1" />
+            <el-option label="已结算" :value="2" />
+            <el-option label="争议中" :value="3" />
+            <el-option label="已取消" :value="4" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -177,7 +178,7 @@
         <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="row.commissionStatus !== 'dispute' && row.payStatus === 'paid'"
+              v-if="row.commissionStatus === 1 && row.payStatus === 1"
               type="warning"
               link
               size="small"
@@ -186,7 +187,7 @@
               <el-icon><Warning /></el-icon>争议
             </el-button>
             <el-button
-              v-if="row.commissionStatus === 'dispute'"
+              v-if="row.commissionStatus === 3"
               type="primary"
               link
               size="small"
@@ -380,31 +381,32 @@ const closeDisputeForm = reactive({
 
 const payStatusTag = (status) => {
   const map = {
-    pending: { type: 'warning', text: '待支付' },
-    paid: { type: 'success', text: '已支付' },
-    refunded: { type: 'info', text: '已退款' }
+    0: { type: 'warning', text: '待支付' },
+    1: { type: 'success', text: '已支付' },
+    2: { type: 'info', text: '已退款' }
   }
   return map[status] || { type: 'info', text: status }
 }
 
 const commissionStatusTag = (status) => {
   const map = {
-    normal: { type: 'success', text: '正常' },
-    dispute: { type: 'danger', text: '争议中' },
-    closed: { type: 'info', text: '已关闭' }
+    1: { type: 'warning', text: '待结算' },
+    2: { type: 'success', text: '已结算' },
+    3: { type: 'danger', text: '争议中' },
+    4: { type: 'info', text: '已取消' }
   }
   return map[status] || { type: 'info', text: status }
 }
 
 const mockOrders = () => [
-  { id: 1, orderNo: 'ORD2026060800101', userName: '张三', type: 'course', amount: 299.00, payStatus: 'paid', commissionStatus: 'normal', createdAt: '2026-06-08 10:12:30' },
-  { id: 2, orderNo: 'ORD2026060800097', userName: '李四', type: 'member', amount: 599.00, payStatus: 'paid', commissionStatus: 'dispute', createdAt: '2026-06-08 09:45:18' },
-  { id: 3, orderNo: 'ORD2026060700156', userName: '王五', type: 'course', amount: 399.00, payStatus: 'paid', commissionStatus: 'normal', createdAt: '2026-06-07 20:30:45' },
-  { id: 4, orderNo: 'ORD2026060700142', userName: '赵六', type: 'course', amount: 199.00, payStatus: 'refunded', commissionStatus: 'closed', createdAt: '2026-06-07 18:22:10' },
-  { id: 5, orderNo: 'ORD2026060700128', userName: '钱七', type: 'course', amount: 1299.00, payStatus: 'paid', commissionStatus: 'dispute', createdAt: '2026-06-07 16:08:52' },
-  { id: 6, orderNo: 'ORD2026060600201', userName: '孙八', type: 'member', amount: 1999.00, payStatus: 'paid', commissionStatus: 'normal', createdAt: '2026-06-06 14:30:25' },
-  { id: 7, orderNo: 'ORD2026060600188', userName: '周九', type: 'course', amount: 0, payStatus: 'pending', commissionStatus: 'normal', createdAt: '2026-06-06 11:15:40' },
-  { id: 8, orderNo: 'ORD2026060500235', userName: '吴十', type: 'course', amount: 499.00, payStatus: 'paid', commissionStatus: 'normal', createdAt: '2026-06-05 21:05:18' }
+  { id: 1, orderNo: 'ORD2026060800101', userName: '张三', type: 'course', amount: 299.00, payStatus: 1, commissionStatus: 1, createdAt: '2026-06-08 10:12:30' },
+  { id: 2, orderNo: 'ORD2026060800097', userName: '李四', type: 'member', amount: 599.00, payStatus: 1, commissionStatus: 3, createdAt: '2026-06-08 09:45:18' },
+  { id: 3, orderNo: 'ORD2026060700156', userName: '王五', type: 'course', amount: 399.00, payStatus: 1, commissionStatus: 1, createdAt: '2026-06-07 20:30:45' },
+  { id: 4, orderNo: 'ORD2026060700142', userName: '赵六', type: 'course', amount: 199.00, payStatus: 2, commissionStatus: 4, createdAt: '2026-06-07 18:22:10' },
+  { id: 5, orderNo: 'ORD2026060700128', userName: '钱七', type: 'course', amount: 1299.00, payStatus: 1, commissionStatus: 3, createdAt: '2026-06-07 16:08:52' },
+  { id: 6, orderNo: 'ORD2026060600201', userName: '孙八', type: 'member', amount: 1999.00, payStatus: 1, commissionStatus: 2, createdAt: '2026-06-06 14:30:25' },
+  { id: 7, orderNo: 'ORD2026060600188', userName: '周九', type: 'course', amount: 0, payStatus: 0, commissionStatus: 1, createdAt: '2026-06-06 11:15:40' },
+  { id: 8, orderNo: 'ORD2026060500235', userName: '吴十', type: 'course', amount: 499.00, payStatus: 1, commissionStatus: 1, createdAt: '2026-06-05 21:05:18' }
 ]
 
 const mockContributions = () => [
@@ -421,13 +423,27 @@ const loadOrderList = async () => {
     const query = route.query.orderNo
     const params = {
       page: pagination.page,
-      pageSize: pagination.pageSize,
+      size: pagination.pageSize,
       ...filterForm
     }
     if (query) params.orderNo = query
     const res = await adminGetOrderList(params)
-    orderList.value = res.data?.list || mockOrders()
-    pagination.total = res.data?.total || 128
+    const data = res.data || {}
+    const records = data.records || data.list || []
+    orderList.value = records.map(item => {
+      const order = item.order || item
+      return {
+        id: order.id,
+        orderNo: order.orderNo,
+        userName: item.user?.nickname || item.userName || '--',
+        type: order.orderType || item.type || 'course',
+        amount: Number(order.payAmount || order.amount || 0),
+        payStatus: order.payStatus ?? item.payStatus,
+        commissionStatus: order.commissionStatus ?? item.commissionStatus,
+        createdAt: order.createdAt || item.createdAt
+      }
+    })
+    pagination.total = data.total || 0
   } catch (e) {
     orderList.value = mockOrders()
     pagination.total = 128
@@ -480,9 +496,10 @@ const submitDispute = async () => {
       remark: disputeForm.remark
     })
     const order = orderList.value.find(o => o.id === disputeForm.orderId)
-    if (order) order.commissionStatus = 'dispute'
+    if (order) order.commissionStatus = 3
     ElMessage.success('争议已发起')
     disputeDialogVisible.value = false
+    loadContribution()
   } catch (e) {
     const msg = e?.response?.data?.message || e?.message || '争议发起失败'
     ElMessage.error(msg)
@@ -510,7 +527,9 @@ const submitCloseDispute = async () => {
       remark: closeDisputeForm.remark
     })
     const order = orderList.value.find(o => o.id === closeDisputeForm.orderId)
-    if (order) order.commissionStatus = 'closed'
+    if (order) {
+      order.commissionStatus = closeDisputeForm.result === 'uphold' ? 1 : 4
+    }
     ElMessage.success('争议已关闭')
     closeDisputeDialogVisible.value = false
     loadContribution()

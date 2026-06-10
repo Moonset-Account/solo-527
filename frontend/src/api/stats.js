@@ -37,6 +37,6 @@ export const getDisputeOrderList = (params) => {
   return request({
     url: '/order/list',
     method: 'get',
-    params: { pageNum: params.page || 1, pageSize: params.size || 10, commissionStatus: 2 }
+    params: { pageNum: params.page || 1, pageSize: params.size || 10, commissionStatus: 3 }
   })
 }

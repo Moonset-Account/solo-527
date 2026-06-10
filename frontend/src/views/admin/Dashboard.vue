@@ -27,21 +27,30 @@
           </div>
           <div v-if="drilldownType === stat.key" class="drilldown-section">
             <div class="drilldown-header">
-              <span class="drilldown-title">明细数据</span>
+              <span class="drilldown-title">汇总数据</span>
+            </div>
+            <div class="drilldown-summary">
+              <div v-for="item in getDrilldownSummary(stat.key)" :key="item.label" class="summary-item">
+                <div class="summary-label">{{ item.label }}</div>
+                <div class="summary-value">{{ item.value }}</div>
+              </div>
+            </div>
+            <div class="drilldown-header" style="margin-top:12px">
+              <span class="drilldown-title">单据明细</span>
               <el-button type="primary" link size="small" @click.stop="exportData(stat.key)">
                 导出
               </el-button>
             </div>
-            <el-table :data="getDrilldownData(stat.key)" size="small" class="drilldown-table">
-              <el-table-column prop="name" label="名称" min-width="140" />
-              <el-table-column prop="count" label="数量" width="100" />
-              <el-table-column prop="amount" label="金额" width="120">
+            <el-table :data="getDrilldownDetails(stat.key)" size="small" class="drilldown-table">
+              <el-table-column prop="orderNo" label="订单号" min-width="160" />
+              <el-table-column prop="userName" label="用户" min-width="100" />
+              <el-table-column prop="courseTitle" label="课程" min-width="140" />
+              <el-table-column prop="amount" label="金额" width="100">
                 <template #default="{ row }">
-                  <span v-if="row.amount !== undefined">¥{{ row.amount?.toFixed?.(2) || row.amount }}</span>
-                  <span v-else>-</span>
+                  ¥{{ Number(row.amount || 0).toFixed(2) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="date" label="日期" width="120" />
+              <el-table-column prop="payTime" label="支付时间" width="160" />
             </el-table>
           </div>
         </el-card>
@@ -132,6 +141,19 @@ const chartPeriod = ref('month')
 
 const drilldownType = ref('')
 
+const drilldownSummary = reactive({
+  students: [],
+  courses: [],
+  orders: [],
+  revenue: []
+})
+const drilldownDetails = reactive({
+  students: [],
+  courses: [],
+  orders: [],
+  revenue: []
+})
+
 const statsCards = reactive([
   {
     key: 'students',
@@ -185,13 +207,6 @@ const statsCards = reactive([
 
 const disputeOrders = ref([])
 
-const drilldownData = reactive({
-  students: [],
-  courses: [],
-  orders: [],
-  revenue: []
-})
-
 const formatNumber = (num) => {
   if (num >= 10000) {
     return (num / 10000).toFixed(1) + 'w'
@@ -221,23 +236,53 @@ const loadDrilldownData = async (key) => {
     const data = res.data || {}
     const stats = data.stats || []
     const details = data.orderDetails || []
-    drilldownData[key] = stats.map(s => ({
-      name: s.label || s.courseTitle || s.nickname || '--',
-      count: s.orderCount || 0,
-      amount: Number(s.revenue || 0),
-      commission: Number(s.commission || 0),
-      userCount: s.userCount || 0,
-      date: s.label || '--'
-    }))
-    if (details.length > 0) {
-      drilldownData[key + '_details'] = details
+
+    const totalCount = stats.reduce((sum, s) => sum + (s.orderCount || 0), 0)
+    const totalAmount = stats.reduce((sum, s) => sum + Number(s.revenue || 0), 0)
+    const totalCommission = stats.reduce((sum, s) => sum + Number(s.commission || 0), 0)
+    const totalUsers = stats.reduce((sum, s) => sum + (s.userCount || 0), 0)
+
+    drilldownSummary[key] = [
+      { label: '分组数', value: stats.length },
+      { label: '订单数', value: totalCount },
+      { label: '总金额', value: '¥' + totalAmount.toFixed(2) },
+      { label: '佣金', value: '¥' + totalCommission.toFixed(2) }
+    ]
+    if (key === 'students') {
+      drilldownSummary[key] = [
+        { label: '学员数', value: stats.length },
+        { label: '订单数', value: totalCount },
+        { label: '总金额', value: '¥' + totalAmount.toFixed(2) }
+      ]
     }
+    if (key === 'courses') {
+      drilldownSummary[key] = [
+        { label: '课程数', value: stats.length },
+        { label: '订单数', value: totalCount },
+        { label: '总金额', value: '¥' + totalAmount.toFixed(2) }
+      ]
+    }
+
+    drilldownDetails[key] = details.map(d => {
+      const order = d.order || {}
+      const user = d.user || {}
+      const course = d.course || {}
+      return {
+        orderNo: order.orderNo || '--',
+        userName: user.nickname || user.username || '--',
+        courseTitle: course.title || '--',
+        amount: Number(order.payAmount || order.amount || 0),
+        payTime: order.payTime || '--'
+      }
+    })
   } catch (e) {
-    drilldownData[key] = []
+    drilldownSummary[key] = []
+    drilldownDetails[key] = []
   }
 }
 
-const getDrilldownData = (key) => drilldownData[key] || []
+const getDrilldownSummary = (key) => drilldownSummary[key] || []
+const getDrilldownDetails = (key) => drilldownDetails[key] || []
 
 const exportData = (key) => {
   ElMessage.success(`正在导出${statsCards.find(s => s.key === key)?.label}数据`)
@@ -291,12 +336,12 @@ const renderChart = async () => {
   let rates = []
 
   try {
-    const res = await getCourseCompletionRates({})
+    const res = await getCourseCompletionRates({ dimension: 'user' })
     const data = res.data || {}
-    const chapterStats = data.chapterStats || []
-    if (chapterStats.length > 0) {
-      courseNames = chapterStats.map(d => d.chapterTitle || d.label || '--')
-      rates = chapterStats.map(d => parseFloat(d.completionRate) || 0)
+    const list = data.courseStats || []
+    if (list.length > 0) {
+      courseNames = list.map(d => d.courseTitle || '--')
+      rates = list.map(d => parseFloat(d.progress) || 0)
     }
   } catch (e) {
   }
@@ -531,6 +576,32 @@ onBeforeUnmount(() => {
 .drilldown-table {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.drilldown-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.summary-item {
+  background: #f5f7fa;
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .dispute-alert {
