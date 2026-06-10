@@ -130,6 +130,8 @@ model User {
   notifications   Notification[]
   downloads       DownloadTask[]
   capacityReports CoachCapacityReport[]
+  bookingLogs     BookingLog[]     @relation("LogOperators")
+  checkInRecords  CheckInRecord[]  @relation("CheckInOperators")
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -312,6 +314,7 @@ model BookingLog {
   bookingId Int
   booking   Booking  @relation(fields: [bookingId], references: [id])
   operatorId Int?
+  operator  User?    @relation("LogOperators", fields: [operatorId], references: [id])
   action    String
   oldStatus String?
   newStatus String?
@@ -396,6 +399,7 @@ model CheckInRecord {
   actualDuration Int?
   method         String?
   operatorId     Int?
+  operator       User?              @relation("CheckInOperators", fields: [operatorId], references: [id])
   remark         String?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt

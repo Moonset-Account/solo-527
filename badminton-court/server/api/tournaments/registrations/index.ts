@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
 
       await prisma.tournamentRegistration.update({ where: { id }, data: { status: 0 } })
       const currentCount = await prisma.tournamentRegistration.count({ where: { tournamentId: reg.tournamentId, status: 1 } })
-      await prisma.tournament.update({ where: { id: reg.tournamentId }, data: { currentPlayers: Math.max(0, currentCount) })
+      await prisma.tournament.update({ where: { id: reg.tournamentId }, data: { currentPlayers: Math.max(0, currentCount) } })
 
       return successResponse(null, '已取消报名')
     }

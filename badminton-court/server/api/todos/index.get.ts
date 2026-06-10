@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
           court: { select: { id: true, courtNumber: true, name: true, location: true } },
           staff: { select: { id: true, realName: true } },
           payments: { orderBy: { createdAt: 'desc' }, take: 1, select: { id: true, status: true, method: true, paidAt: true, paidAmount: true } },
-          coachAssignments: { include: { coach: { include: { user: { select: { realName: true, phone: true } } } } },
+          coachAssignments: { include: { coach: { include: { user: { select: { realName: true, phone: true } } } } } },
           tournament: { select: { id: true, name: true } },
           checkIns: { take: 1, orderBy: { checkInTime: 'desc' } }
         },

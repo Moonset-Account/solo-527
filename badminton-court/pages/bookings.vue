@@ -397,7 +397,8 @@ async function updateStatus(b: any, action: string) {
 
 function abnormalAction(b: any) {
   abnormalModal.value = b
-  abnormalForm = { reason: 'OTHER', remark: '' }
+  abnormalForm.reason = 'OTHER'
+  abnormalForm.remark = ''
 }
 
 async function submitAbnormal() {
@@ -412,7 +413,8 @@ async function submitAbnormal() {
 
 function payAction(b: any) {
   payModal.value = b
-  payForm = { method: 'WECHAT', paidAmount: Number(b.actualAmount) }
+  payForm.method = 'WECHAT'
+  payForm.paidAmount = Number(b.actualAmount)
 }
 
 async function submitPay() {

@@ -9,8 +9,8 @@ const statusMap: Record<string, BookingStatus[]> = {
   cancel: ['PENDING', 'CONFIRMED'],
   pay: ['PENDING', 'CONFIRMED'],
   checkin: ['PAID', 'CONFIRMED'],
-  complete: ['CHECKED_IN', 'IN_USE'],
-  abnormal: ['PENDING', 'CONFIRMED', 'PAID', 'CHECKED_IN', 'IN_USE']
+  complete: ['CHECKED_IN'],
+  abnormal: ['PENDING', 'CONFIRMED', 'PAID', 'CHECKED_IN']
 }
 
 const actionSchema = z.object({
