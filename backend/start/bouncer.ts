@@ -8,7 +8,7 @@
 |
 */
 
-import { Bouncer } from '@adonisjs/bouncer/build/standalone'
+import { Bouncer } from '@ioc:Adonis/Addons/Bouncer'
 import WorkOrderPolicy from 'App/Policies/WorkOrderPolicy'
 import UserPolicy from 'App/Policies/UserPolicy'
 

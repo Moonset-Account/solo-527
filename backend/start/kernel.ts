@@ -12,7 +12,6 @@ import Server from '@ioc:Adonis/Core/Server'
 
 Server.middleware.register([
   () => import('@ioc:Adonis/Core/BodyParser'),
-  () => import('@ioc:Adonis/Addons/Shield'),
   () => import('App/Middleware/SilentAuth'),
 ])
 
@@ -21,4 +20,5 @@ Server.middleware.registerNamed({
   guest: () => import('App/Middleware/Guest'),
   role: () => import('App/Middleware/Role'),
   log: () => import('App/Middleware/OperationLog'),
+  bouncer: () => import('@ioc:Adonis/Addons/Bouncer'),
 })

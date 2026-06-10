@@ -1,4 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import WorkOrder from 'App/Models/WorkOrder'
 import WorkOrderMaterial from 'App/Models/WorkOrderMaterial'
 import WorkOrderValidator from 'App/Validators/WorkOrder/WorkOrderValidator'
@@ -195,14 +196,14 @@ export default class WorkOrdersController {
       const workOrder = await WorkOrder.findOrFail(params.id)
       const oldStatus = workOrder.status
 
-      const statusSchema = schema => schema.create({
+      const statusSchema = schema.create({
         status: schema.enum([
           'pending', 'scheduled', 'in_production', 'completed', 'delayed', 'cancelled'
         ]),
         remark: schema.string.optional(),
       })
 
-      const data = await request.validate({ schema: statusSchema(schema) })
+      const data = await request.validate({ schema: statusSchema })
 
       workOrder.status = data.status
 
@@ -259,6 +260,6 @@ export default class WorkOrdersController {
       })
     } catch (error) {
       return response.notFound({ message: '工单不存在' })
-    })
+    }
   }
 }
