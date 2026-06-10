@@ -258,7 +258,7 @@ public class StudyService {
                 LambdaQueryWrapper<StudyProgress> progWrapper = new LambdaQueryWrapper<>();
                 progWrapper.eq(StudyProgress::getUserId, targetUserId)
                         .eq(StudyProgress::getCourseId, course.getId())
-                        .eq(StudyProgress::isCompleted, 1);
+                        .eq(StudyProgress::getIsCompleted, 1);
                 int cc = studyProgressMapper.selectCount(progWrapper).intValue();
                 completedChapters += cc;
 

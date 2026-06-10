@@ -484,10 +484,8 @@ const submitDispute = async () => {
     ElMessage.success('争议已发起')
     disputeDialogVisible.value = false
   } catch (e) {
-    const order = orderList.value.find(o => o.id === disputeForm.orderId)
-    if (order) order.commissionStatus = 'dispute'
-    ElMessage.success('争议已发起')
-    disputeDialogVisible.value = false
+    const msg = e?.response?.data?.message || e?.message || '争议发起失败'
+    ElMessage.error(msg)
   } finally {
     disputeSubmitting.value = false
   }
@@ -517,11 +515,8 @@ const submitCloseDispute = async () => {
     closeDisputeDialogVisible.value = false
     loadContribution()
   } catch (e) {
-    const order = orderList.value.find(o => o.id === closeDisputeForm.orderId)
-    if (order) order.commissionStatus = 'closed'
-    ElMessage.success('争议已关闭')
-    closeDisputeDialogVisible.value = false
-    loadContribution()
+    const msg = e?.response?.data?.message || e?.message || '关闭争议失败'
+    ElMessage.error(msg)
   } finally {
     closeSubmitting.value = false
   }

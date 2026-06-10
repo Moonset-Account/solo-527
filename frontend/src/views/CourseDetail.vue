@@ -259,12 +259,11 @@ import {
 import { useUserStore } from '@/store/user'
 import {
   getCourseDetail,
-  getCourseChapters,
-  getTrialChapters,
-  getMemberBenefits,
-  purchaseCourse
+  getChapterList,
+  getBenefitList,
+  createOrder
 } from '@/api/course'
-import { getStudyProgress, getCheckinCalendar, getCheckinList } from '@/api/study'
+import { getCompletionRate, checkIn, getCheckInList } from '@/api/study'
 
 const route = useRoute()
 const router = useRouter()
@@ -332,25 +331,18 @@ const loadCourseDetail = async () => {
 
 const loadChapters = async () => {
   try {
-    const res = await getCourseChapters(courseId.value)
-    chapters.value = res.data || []
+    const res = await getChapterList(courseId.value)
+    const all = res.data || []
+    chapters.value = all
+    trialChapters.value = all.filter(c => c.isPreview === 1 || c.isPreview === true)
   } catch (e) {
     console.error('获取章节列表失败', e)
   }
 }
 
-const loadTrialChapters = async () => {
-  try {
-    const res = await getTrialChapters(courseId.value)
-    trialChapters.value = res.data || []
-  } catch (e) {
-    trialChapters.value = []
-  }
-}
-
 const loadMemberBenefits = async () => {
   try {
-    const res = await getMemberBenefits(courseId.value)
+    const res = await getBenefitList()
     memberBenefits.value = res.data?.length ? res.data : defaultBenefits
   } catch (e) {
     memberBenefits.value = defaultBenefits
@@ -359,8 +351,8 @@ const loadMemberBenefits = async () => {
 
 const loadStudyProgress = async () => {
   try {
-    const res = await getStudyProgress(courseId.value)
-    studyProgress.value = res.data?.progress || 0
+    const res = await getCompletionRate({ dimension: 'user', courseId: courseId.value })
+    studyProgress.value = res.data?.courseStats?.find?.(s => s.courseId == courseId.value)?.progress || 0
   } catch (e) {
     studyProgress.value = 0
   }
@@ -368,12 +360,14 @@ const loadStudyProgress = async () => {
 
 const loadCheckinData = async () => {
   try {
-    const calRes = await getCheckinCalendar(courseId.value, { days: 30 })
-    calendarDays.value = calRes.data?.days || generateCalendarDays()
-    checkinDays.value = calendarDays.value.filter(d => d.checked).length
-
-    const listRes = await getCheckinList(courseId.value, { page: 1, pageSize: 10 })
-    checkinList.value = listRes.data?.list || []
+    const listRes = await getCheckInList({})
+    const checkIns = listRes.data || []
+    const checkedDates = new Set(checkIns.map(c => String(c.checkDate || c.createdAt).slice(0, 10)))
+    const days = generateCalendarDays()
+    days.forEach(d => { d.checked = checkedDates.has(d.date) })
+    calendarDays.value = days
+    checkinDays.value = days.filter(d => d.checked).length
+    checkinList.value = checkIns
   } catch (e) {
     calendarDays.value = generateCalendarDays()
     checkinDays.value = calendarDays.value.filter(d => d.checked).length
@@ -387,13 +381,38 @@ const handlePurchase = async () => {
     return
   }
   try {
-    await purchaseCourse(courseId.value, {})
+    await createOrder({
+      courseId: Number(courseId.value),
+      orderType: courseDetail.value?.memberFree || courseDetail.value?.isMemberOnly ? 'MEMBER' : 'COURSE',
+      amount: courseDetail.value?.price || 0,
+      inviteCode: ''
+    })
     ElMessage.success('购买成功')
     isPurchased.value = true
-    loadCourseDetail()
-    loadStudyProgress()
+    await loadCourseDetail()
+    await loadStudyProgress()
   } catch (e) {
-    ElMessage.error(e.message || '购买失败')
+    const msg = e?.response?.data?.message || e?.message || '购买失败'
+    ElMessage.error(msg)
+  }
+}
+
+const handleCheckIn = async () => {
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  try {
+    await checkIn({
+      courseId: Number(courseId.value),
+      studyDuration: 0,
+      remark: `打卡：${courseDetail.value?.title || ''}`
+    })
+    ElMessage.success('打卡成功')
+    await loadCheckinData()
+  } catch (e) {
+    const msg = e?.response?.data?.message || e?.message || '打卡失败'
+    ElMessage.error(msg)
   }
 }
 
@@ -412,7 +431,6 @@ const playChapter = (chapter) => {
 onMounted(() => {
   loadCourseDetail()
   loadChapters()
-  loadTrialChapters()
   loadMemberBenefits()
   if (userStore.isLoggedIn) {
     loadStudyProgress()

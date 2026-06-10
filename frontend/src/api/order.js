@@ -2,7 +2,7 @@ import request from './request'
 
 export const createOrder = (data) => {
   return request({
-    url: '/orders',
+    url: '/order/create',
     method: 'post',
     data
   })
@@ -10,86 +10,85 @@ export const createOrder = (data) => {
 
 export const getOrderList = (params) => {
   return request({
-    url: '/orders',
+    url: '/order/list',
     method: 'get',
-    params
+    params: {
+      pageNum: params.page || 1,
+      pageSize: params.size || 10,
+      payStatus: params.payStatus,
+      commissionStatus: params.commissionStatus,
+      orderType: params.orderType,
+      userId: params.userId
+    }
   })
 }
 
-export const getOrderDetail = (orderId) => {
+export const getOrderDetail = (id) => {
   return request({
-    url: `/orders/${orderId}`,
+    url: `/order/${id}`,
     method: 'get'
   })
 }
 
-export const payOrder = (orderId, data) => {
+export const paymentCallback = (orderNo, payStatus, payMethod) => {
   return request({
-    url: `/orders/${orderId}/pay`,
+    url: '/order/callback',
     method: 'post',
-    data
+    params: { orderNo, payStatus, payMethod }
   })
 }
 
 export const adminGetOrderList = (params) => {
-  return request({
-    url: '/admin/orders',
-    method: 'get',
-    params
-  })
+  return getOrderList(params)
 }
 
-export const adminGetOrderDetail = (orderId) => {
+export const adminTriggerCommissionDispute = (data) => {
   return request({
-    url: `/admin/orders/${orderId}`,
-    method: 'get'
-  })
-}
-
-export const adminUpdateOrderStatus = (orderId, data) => {
-  return request({
-    url: `/admin/orders/${orderId}/status`,
+    url: '/order/commission-dispute',
     method: 'put',
     data
   })
 }
 
-export const adminCreateCommissionDispute = (orderId, data) => {
+export const adminConfirmCommissionDispute = (orderId, resolve) => {
   return request({
-    url: `/admin/orders/${orderId}/commission-dispute`,
-    method: 'post',
-    data
+    url: '/order/commission-confirm',
+    method: 'put',
+    params: { orderId, resolve }
+  })
+}
+
+export const adminSettleCommission = (referrerId) => {
+  return request({
+    url: `/order/settle/${referrerId}`,
+    method: 'post'
+  })
+}
+
+export const getRepurchaseStats = (referrerId) => {
+  return request({
+    url: '/order/repurchase-stats',
+    method: 'get',
+    params: referrerId ? { referrerId } : {}
+  })
+}
+
+export const adminCreateCommissionDispute = (data) => {
+  return adminTriggerCommissionDispute({
+    orderId: data.orderId,
+    note: data.reason || data.remark || data.note || ''
   })
 }
 
 export const adminCloseCommissionDispute = (orderId, data) => {
-  return request({
-    url: `/admin/orders/${orderId}/commission-dispute/close`,
-    method: 'post',
-    data
-  })
-}
-
-export const adminGetDisputeOrders = (params) => {
-  return request({
-    url: '/admin/orders/disputes',
-    method: 'get',
-    params
-  })
-}
-
-export const adminGetCommissionStats = (params) => {
-  return request({
-    url: '/admin/orders/commission-stats',
-    method: 'get',
-    params
-  })
+  const resolve = data?.result === 'uphold' || data?.resolve === true
+  return adminConfirmCommissionDispute(orderId, resolve)
 }
 
 export const adminGetRepurchaseContribution = (params) => {
-  return request({
-    url: '/admin/orders/repurchase-contribution',
-    method: 'get',
-    params
-  })
+  return getRepurchaseStats(params?.referrerId)
+}
+
+export const adminGetDisputeOrders = (params) => {
+  return getOrderList({ ...params, commissionStatus: 2 })
 }

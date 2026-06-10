@@ -1,54 +1,71 @@
 import request from './request'
 
-export const adminGetUserList = (params) => {
+export const getUserList = (params) => {
   return request({
-    url: '/admin/users',
+    url: '/user/list',
+    method: 'get',
+    params: {
+      pageNum: params.page || 1,
+      pageSize: params.size || 10,
+      keyword: params.keyword,
+      role: params.role
+    }
+  })
+}
+
+export const getUser = (id) => {
+  return request({
+    url: `/user/${id}`,
+    method: 'get'
+  })
+}
+
+export const updateUser = (id, data) => {
+  return request({
+    url: `/user/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+export const getNotificationList = (params) => {
+  return request({
+    url: '/notification/list',
     method: 'get',
     params
   })
 }
 
-export const adminGetUserDetail = (userId) => {
+export const getUnreadNotificationCount = () => {
   return request({
-    url: `/admin/users/${userId}`,
+    url: '/notification/unread-count',
     method: 'get'
   })
 }
 
-export const adminUpdateUserRole = (userId, data) => {
+export const markNotificationRead = (ids) => {
   return request({
-    url: `/admin/users/${userId}/role`,
+    url: '/notification/read',
     method: 'put',
-    data
+    data: { ids }
   })
 }
 
+export const adminGetUserList = (params) => getUserList(params)
+
+export const adminUpdateUserRole = (userId, data) => {
+  const role = typeof data === 'string' ? data : data.role
+  return updateUser(userId, { role })
+}
+
 export const adminUpdateUserMembership = (userId, data) => {
-  return request({
-    url: `/admin/users/${userId}/membership`,
-    method: 'put',
-    data
-  })
+  const memberExpireTime = data?.expireDate || data?.memberExpireTime
+  return updateUser(userId, { memberExpireTime })
 }
 
 export const adminDeleteUser = (userId) => {
   return request({
-    url: `/admin/users/${userId}`,
+    url: `/user/${userId}`,
     method: 'delete'
-  })
-}
-
-export const adminGetRoleList = () => {
-  return request({
-    url: '/admin/roles',
-    method: 'get'
-  })
-}
-
-export const adminUpdateUserStatus = (userId, data) => {
-  return request({
-    url: `/admin/users/${userId}/status`,
-    method: 'put',
-    data
   })
 }

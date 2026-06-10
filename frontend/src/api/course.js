@@ -2,59 +2,76 @@ import request from './request'
 
 export const getCourseList = (params) => {
   return request({
-    url: '/courses',
+    url: '/course/list',
     method: 'get',
-    params
+    params: {
+      pageNum: params.page || 1,
+      pageSize: params.size || 10,
+      category: params.category,
+      keyword: params.keyword,
+      status: params.status
+    }
   })
 }
 
 export const getCourseDetail = (id) => {
   return request({
-    url: `/courses/${id}`,
+    url: `/course/${id}`,
     method: 'get'
   })
 }
 
-export const getCourseChapters = (courseId) => {
+export const getHomeData = () => {
   return request({
-    url: `/courses/${courseId}/chapters`,
+    url: '/course/home',
     method: 'get'
   })
 }
 
-export const getTrialChapters = (courseId) => {
+export const getChapterList = (courseId) => {
   return request({
-    url: `/courses/${courseId}/trial-chapters`,
+    url: '/chapter/list',
+    method: 'get',
+    params: { courseId }
+  })
+}
+
+export const getChapter = (id) => {
+  return request({
+    url: `/chapter/${id}`,
     method: 'get'
   })
 }
 
-export const getMemberBenefits = (courseId) => {
+export const getBenefitList = () => {
   return request({
-    url: `/courses/${courseId}/member-benefits`,
+    url: '/benefit/list',
     method: 'get'
   })
 }
 
-export const purchaseCourse = (courseId, data) => {
+export const getUserBenefits = () => {
   return request({
-    url: `/courses/${courseId}/purchase`,
+    url: '/benefit/user-benefits',
+    method: 'get'
+  })
+}
+
+export const createOrder = (data) => {
+  return request({
+    url: '/order/create',
     method: 'post',
     data
   })
 }
 
 export const adminGetCourseList = (params) => {
-  return request({
-    url: '/admin/courses',
-    method: 'get',
-    params
-  })
+  return getCourseList(params)
 }
 
 export const adminCreateCourse = (data) => {
   return request({
-    url: '/admin/courses',
+    url: '/course',
     method: 'post',
     data
   })
@@ -62,69 +79,102 @@ export const adminCreateCourse = (data) => {
 
 export const adminUpdateCourse = (id, data) => {
   return request({
-    url: `/admin/courses/${id}`,
+    url: `/course/${id}`,
     method: 'put',
     data
   })
 }
 
-export const adminDeleteCourse = (id) => {
+export const adminUpdateCourseStatus = (id, status) => {
   return request({
-    url: `/admin/courses/${id}`,
-    method: 'delete'
-  })
-}
-
-export const adminToggleCourseStatus = (id, status) => {
-  return request({
-    url: `/admin/courses/${id}/status`,
+    url: `/course/${id}/status`,
     method: 'put',
-    data: { status }
+    params: { status }
   })
 }
 
 export const adminGetChapters = (courseId) => {
-  return request({
-    url: `/admin/courses/${courseId}/chapters`,
-    method: 'get'
-  })
+  return getChapterList(courseId)
 }
 
-export const adminCreateChapter = (courseId, data) => {
+export const adminCreateChapter = (data) => {
   return request({
-    url: `/admin/courses/${courseId}/chapters`,
+    url: '/chapter',
     method: 'post',
     data
   })
 }
 
-export const adminUpdateChapter = (courseId, chapterId, data) => {
+export const adminUpdateChapter = (id, data) => {
   return request({
-    url: `/admin/courses/${courseId}/chapters/${chapterId}`,
+    url: `/chapter/${id}`,
     method: 'put',
     data
   })
 }
 
-export const adminDeleteChapter = (courseId, chapterId) => {
+export const adminDeleteChapter = (id) => {
   return request({
-    url: `/admin/courses/${courseId}/chapters/${chapterId}`,
+    url: `/chapter/${id}`,
     method: 'delete'
   })
 }
 
-export const adminSortChapters = (courseId, data) => {
+export const adminSetPreview = (id, isPreview, previewDuration) => {
   return request({
-    url: `/admin/courses/${courseId}/chapters/sort`,
+    url: '/chapter/preview',
+    method: 'put',
+    params: { id, isPreview, previewDuration }
+  })
+}
+
+export const adminSetTrialChapter = (courseId, chapterId, data) => {
+  return adminSetPreview(chapterId, data.isPreview ? 1 : 0, data.previewDuration)
+}
+
+export const adminUpdateChapterOrder = (courseId, orderList) => {
+  return request({
+    url: '/chapter/order',
+    method: 'put',
+    params: { courseId },
+    data: orderList
+  })
+}
+
+export const adminSortChapters = (courseId, data) => {
+  return adminUpdateChapterOrder(courseId, data)
+}
+
+export const adminToggleCourseStatus = (id, status) => {
+  return adminUpdateCourseStatus(id, status)
+}
+
+export const adminDeleteCourse = (id) => {
+  return request({
+    url: `/course/${id}`,
+    method: 'delete'
+  })
+}
+
+export const adminCreateBenefit = (data) => {
+  return request({
+    url: '/benefit',
+    method: 'post',
+    data
+  })
+}
+
+export const adminUpdateBenefit = (id, data) => {
+  return request({
+    url: `/benefit/${id}`,
     method: 'put',
     data
   })
 }
 
-export const adminSetTrialChapter = (courseId, chapterId, data) => {
+export const adminDeleteBenefit = (id) => {
   return request({
-    url: `/admin/courses/${courseId}/chapters/${chapterId}/trial`,
-    method: 'put',
-    data
+    url: `/benefit/${id}`,
+    method: 'delete'
   })
 }

@@ -1,75 +1,40 @@
 import request from './request'
 
-export const getContinueLearning = () => {
+export const getContinueStudy = () => {
   return request({
     url: '/study/continue',
     method: 'get'
   })
 }
 
-export const getStudyProgress = (courseId) => {
+export const updateProgress = (data) => {
   return request({
-    url: `/study/course/${courseId}/progress`,
-    method: 'get'
-  })
-}
-
-export const getChapterProgress = (chapterId) => {
-  return request({
-    url: `/study/chapter/${chapterId}/progress`,
-    method: 'get'
-  })
-}
-
-export const updateChapterProgress = (chapterId, data) => {
-  return request({
-    url: `/study/chapter/${chapterId}/progress`,
-    method: 'put',
-    data
-  })
-}
-
-export const markChapterComplete = (chapterId) => {
-  return request({
-    url: `/study/chapter/${chapterId}/complete`,
-    method: 'post'
-  })
-}
-
-export const getCheckinCalendar = (courseId, params) => {
-  return request({
-    url: `/study/course/${courseId}/checkin-calendar`,
-    method: 'get',
-    params
-  })
-}
-
-export const getCheckinList = (courseId, params) => {
-  return request({
-    url: `/study/course/${courseId}/checkin-list`,
-    method: 'get',
-    params
-  })
-}
-
-export const checkin = (courseId, data) => {
-  return request({
-    url: `/study/course/${courseId}/checkin`,
+    url: '/study/progress',
     method: 'post',
     data
   })
 }
 
-export const getMyCourses = () => {
+export const getCompletionRate = (params) => {
   return request({
-    url: '/study/my-courses',
-    method: 'get'
+    url: '/study/completion-rate',
+    method: 'get',
+    params
   })
 }
 
-export const getLastStudyChapter = (courseId) => {
+export const checkIn = (data) => {
   return request({
-    url: `/study/course/${courseId}/last-chapter`,
-    method: 'get'
+    url: '/study/check-in',
+    method: 'post',
+    data
+  })
+}
+
+export const getCheckInList = (params) => {
+  return request({
+    url: '/study/checkin-list',
+    method: 'get',
+    params
   })
 }

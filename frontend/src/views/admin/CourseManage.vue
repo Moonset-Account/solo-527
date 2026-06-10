@@ -70,7 +70,7 @@
             <el-tag v-else type="success" effect="plain">免费</el-tag>
             <div>
               <el-tag v-if="row.isMemberOnly" type="warning" size="small" effect="dark">
-                <el-icon><StarFilled /></el-icon>会员
+                <el-icon><Crown /></el-icon>会员
               </el-tag>
             </div>
           </template>
@@ -92,7 +92,7 @@
         <el-table-column label="操作" width="260" align="center" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleManageChapters(row)">
-              <el-icon><Collection /></el-icon>章节管理
+              <el-icon><IconList /></el-icon>章节管理
             </el-button>
             <el-button type="primary" link size="small" @click="handleEdit(row)">
               <el-icon><Edit /></el-icon>编辑
@@ -398,13 +398,15 @@ const handleManageChapters = (row) => {
 }
 
 const toggleStatus = async (row, val) => {
+  const oldVal = row.status
   try {
-    await adminToggleCourseStatus(row.id, val ? 'published' : 'draft')
-    row.status = val ? 'published' : 'draft'
+    await adminToggleCourseStatus(row.id, val ? 1 : 0)
+    row.status = val ? 1 : 0
     ElMessage.success(val ? '课程已上架' : '课程已下架')
   } catch (e) {
-    row.statusSwitch = !val
-    ElMessage.error(e.message || '操作失败')
+    row.status = oldVal
+    const msg = e?.response?.data?.message || e?.message || '操作失败'
+    ElMessage.error(msg)
   }
 }
 

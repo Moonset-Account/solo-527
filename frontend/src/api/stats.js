@@ -1,84 +1,78 @@
 import request from './request'
 
-export const getDashboardOverview = () => {
+export const getOverview = () => {
   return request({
-    url: '/admin/stats/dashboard-overview',
+    url: '/stats/overview',
     method: 'get'
   })
 }
 
-export const getTotalStudents = () => {
+export const getDrilldown = (params) => {
   return request({
-    url: '/admin/stats/total-students',
-    method: 'get'
+    url: '/stats/drilldown',
+    method: 'get',
+    params
   })
 }
 
-export const getTotalCourses = () => {
+export const getCommissionReport = (params) => {
   return request({
-    url: '/admin/stats/total-courses',
-    method: 'get'
+    url: '/stats/commission',
+    method: 'get',
+    params
   })
 }
 
-export const getTodayOrders = () => {
-  return request({
-    url: '/admin/stats/today-orders',
-    method: 'get'
-  })
-}
-
-export const getMonthlyRevenue = () => {
-  return request({
-    url: '/admin/stats/monthly-revenue',
-    method: 'get'
-  })
-}
+export const getDashboardOverview = getOverview
+export const getTotalStudents = () => getOverview()
+export const getTotalCourses = () => getOverview()
+export const getTodayOrders = () => getOverview()
+export const getMonthlyRevenue = () => getOverview()
 
 export const getCourseCompletionRates = (params) => {
   return request({
-    url: '/admin/stats/course-completion-rates',
+    url: '/study/completion-rate',
     method: 'get',
-    params
+    params: { ...params, dimension: 'course' }
   })
 }
 
 export const getDisputeOrderList = (params) => {
   return request({
-    url: '/admin/stats/dispute-orders',
+    url: '/order/list',
     method: 'get',
-    params
+    params: { ...params, pageNum: params.page || 1, pageSize: params.size || 20, commissionStatus: 2 }
   })
 }
 
 export const getRevenueOrderDetails = (params) => {
   return request({
-    url: '/admin/stats/revenue-order-details',
+    url: '/stats/drilldown',
     method: 'get',
-    params
+    params: { ...params, dimension: 'day' }
   })
 }
 
 export const getOrderOrderDetails = (params) => {
   return request({
-    url: '/admin/stats/order-order-details',
+    url: '/stats/drilldown',
     method: 'get',
-    params
+    params: { ...params, dimension: 'day' }
   })
 }
 
 export const getStudentUserDetails = (params) => {
   return request({
-    url: '/admin/stats/student-user-details',
+    url: '/stats/drilldown',
     method: 'get',
-    params
+    params: { ...params, dimension: 'user' }
   })
 }
 
 export const getCourseCourseDetails = (params) => {
   return request({
-    url: '/admin/stats/course-course-details',
+    url: '/stats/drilldown',
     method: 'get',
-    params
+    params: { ...params, dimension: 'course' }
   })
 }

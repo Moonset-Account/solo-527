@@ -56,20 +56,8 @@ const handleLogin = async () => {
     const redirect = route.query.redirect || '/'
     router.push(redirect)
   } catch (e) {
-    const mockUsers = {
-      admin: { id: 1, username: 'admin', nickname: '超级管理员', role: 'ADMIN', avatar: '' },
-      teacher01: { id: 2, username: 'teacher01', nickname: '张老师', role: 'TEACHER', avatar: '' },
-      member01: { id: 3, username: 'member01', nickname: '李学员', role: 'MEMBER', avatar: '' }
-    }
-    if (mockUsers[form.username]) {
-      userStore.setToken('mock-token-' + Date.now())
-      userStore.setUserInfo(mockUsers[form.username])
-      ElMessage.success('登录成功（Mock模式）')
-      const redirect = route.query.redirect || '/'
-      router.push(redirect)
-    } else {
-      ElMessage.error('用户名或密码错误')
-    }
+    const msg = e?.response?.data?.message || e?.message || '用户名或密码错误'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }

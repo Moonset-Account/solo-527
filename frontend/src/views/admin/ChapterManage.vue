@@ -328,12 +328,13 @@ const handleDelete = async (row) => {
     chapterList.value = chapterList.value.filter(c => c.id !== row.id)
     ElMessage.success('删除成功')
   } catch (e) {
-    chapterList.value = chapterList.value.filter(c => c.id !== row.id)
-    ElMessage.success('删除成功')
+    const msg = e?.response?.data?.message || e?.message || '删除失败'
+    ElMessage.error(msg)
   }
 }
 
 const handleTrialToggle = async (element, val) => {
+  const oldVal = !val
   if (val && !element.trialDuration) {
     element.trialDuration = Math.min(5, element.duration)
   }
@@ -344,7 +345,9 @@ const handleTrialToggle = async (element, val) => {
     })
     ElMessage.success(val ? '已开启试看' : '已关闭试看')
   } catch (e) {
-    ElMessage.success(val ? '已开启试看' : '已关闭试看')
+    element.isTrial = oldVal
+    const msg = e?.response?.data?.message || e?.message || '试看设置失败'
+    ElMessage.error(msg)
   }
 }
 
@@ -354,7 +357,10 @@ const updateTrialDuration = async (element) => {
       isTrial: true,
       trialDuration: element.trialDuration
     })
+    ElMessage.success('试看时长已更新')
   } catch (e) {
+    const msg = e?.response?.data?.message || e?.message || '更新失败'
+    ElMessage.error(msg)
   }
 }
 
@@ -364,7 +370,8 @@ const onDragEnd = async () => {
     await adminSortChapters(selectedCourseId.value, { orderIds })
     ElMessage.success('排序已更新')
   } catch (e) {
-    ElMessage.success('排序已更新')
+    const msg = e?.response?.data?.message || e?.message || '排序更新失败'
+    ElMessage.error(msg)
   }
 }
 

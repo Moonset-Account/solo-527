@@ -1,65 +1,84 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getToken, setToken, removeToken, getUserInfo, setUserInfo, removeUserInfo } from '@/utils/auth'
-import { login, getUserInfo as fetchUserInfo, logout as apiLogout } from '@/api'
+import { getToken, setToken, removeToken, getUserInfo as loadUserInfo, setUserInfo as persistUserInfo, removeUserInfo } from '@/utils/auth'
+import { login, getCurrentUser } from '@/api'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(getToken())
-  const userInfo = ref(getUserInfo())
+  const userInfo = ref(loadUserInfo())
 
   const isLoggedIn = computed(() => !!token.value)
+  const userRole = computed(() => userInfo.value?.role || 'MEMBER')
+  const isAdmin = computed(() => userRole.value === 'ADMIN')
+  const isTeacher = computed(() => userRole.value === 'TEACHER' || userRole.value === 'ADMIN')
 
-  const doLogin = async (loginData) => {
-    try {
-      const res = await login(loginData)
-      token.value = res.data.token
-      setToken(res.data.token)
-      if (res.data.userInfo) {
-        userInfo.value = res.data.userInfo
-        setUserInfo(res.data.userInfo)
-      }
-      return res
-    } catch (error) {
-      throw error
+  const setToken = (newToken) => {
+    token.value = newToken
+    if (newToken) {
+      setToken(newToken)
+    } else {
+      removeToken()
     }
   }
 
-  const fetchCurrentUserInfo = async () => {
-    try {
-      const res = await fetchUserInfo()
-      userInfo.value = res.data
-      setUserInfo(res.data)
-      return res
-    } catch (error) {
-      throw error
+  const setUserInfo = (info) => {
+    userInfo.value = info
+    if (info) {
+      persistUserInfo(info)
+    } else {
+      removeUserInfo()
     }
+  }
+
+  const login = async (loginData) => {
+    const res = await login(loginData)
+    const { token: tokenVal, userInfo: userVal } = res.data || {}
+    if (tokenVal) setToken(tokenVal)
+    if (userVal) setUserInfo(userVal)
+    if (tokenVal && !userVal) {
+      try {
+        await fetchCurrentUser()
+      } catch (_) {}
+    }
+    return res
+  }
+
+  const fetchCurrentUser = async () => {
+    const res = await getCurrentUser()
+    setUserInfo(res.data)
+    return res
   }
 
   const updateUserInfo = (info) => {
-    userInfo.value = { ...userInfo.value, ...info }
-    setUserInfo(userInfo.value)
+    const merged = { ...(userInfo.value || {}), ...info }
+    setUserInfo(merged)
   }
 
   const logout = async () => {
-    try {
-      await apiLogout()
-    } catch (error) {
-      console.error('Logout API error:', error)
-    } finally {
-      token.value = ''
-      userInfo.value = null
-      removeToken()
-      removeUserInfo()
-    }
+    token.value = ''
+    userInfo.value = null
+    removeToken()
+    removeUserInfo()
+  }
+
+  const hasRole = (roles) => {
+    if (!roles || roles.length === 0) return true
+    return roles.includes(userRole.value)
   }
 
   return {
     token,
     userInfo,
     isLoggedIn,
-    doLogin,
-    fetchCurrentUserInfo,
+    userRole,
+    isAdmin,
+    isTeacher,
+    login,
+    setToken,
+    setUserInfo,
+    fetchCurrentUser,
     updateUserInfo,
-    logout
+    logout,
+    hasRole
   }
 })

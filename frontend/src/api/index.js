@@ -17,30 +17,41 @@ export const register = (data) => {
 }
 
 export const logout = () => {
-  return request({
-    url: '/auth/logout',
-    method: 'post'
-  })
+  return Promise.resolve({ success: true })
 }
 
-export const getUserInfo = () => {
+export const getCurrentUser = () => {
   return request({
-    url: '/user/info',
+    url: '/auth/me',
     method: 'get'
   })
 }
 
-export const updateUserInfo = (data) => {
+export const getMemberInfo = () => {
   return request({
-    url: '/user/update',
+    url: '/user/member-info',
+    method: 'get'
+  })
+}
+
+export const updateUser = (id, data) => {
+  return request({
+    url: `/user/${id}`,
     method: 'put',
     data
   })
 }
 
+export const getUser = (id) => {
+  return request({
+    url: `/user/${id}`,
+    method: 'get'
+  })
+}
+
 export const getCourseList = (params) => {
   return request({
-    url: '/courses',
+    url: '/course/list',
     method: 'get',
     params
   })
@@ -48,104 +59,14 @@ export const getCourseList = (params) => {
 
 export const getCourseDetail = (id) => {
   return request({
-    url: `/courses/${id}`,
+    url: `/course/${id}`,
     method: 'get'
   })
 }
 
-export const getCategoryList = () => {
+export const getHomeData = () => {
   return request({
-    url: '/categories',
+    url: '/course/home',
     method: 'get'
-  })
-}
-
-export const getUserCourses = () => {
-  return request({
-    url: '/user/courses',
-    method: 'get'
-  })
-}
-
-export const enrollCourse = (courseId) => {
-  return request({
-    url: `/courses/${courseId}/enroll`,
-    method: 'post'
-  })
-}
-
-export const getDashboardStats = () => {
-  return request({
-    url: '/admin/dashboard/stats',
-    method: 'get'
-  })
-}
-
-export const getUserManagementList = (params) => {
-  return request({
-    url: '/admin/users',
-    method: 'get',
-    params
-  })
-}
-
-export const updateUserRole = (userId, data) => {
-  return request({
-    url: `/admin/users/${userId}/role`,
-    method: 'put',
-    data
-  })
-}
-
-export const deleteUser = (userId) => {
-  return request({
-    url: `/admin/users/${userId}`,
-    method: 'delete'
-  })
-}
-
-export const createCourse = (data) => {
-  return request({
-    url: '/admin/courses',
-    method: 'post',
-    data
-  })
-}
-
-export const updateCourse = (id, data) => {
-  return request({
-    url: `/admin/courses/${id}`,
-    method: 'put',
-    data
-  })
-}
-
-export const deleteCourse = (id) => {
-  return request({
-    url: `/admin/courses/${id}`,
-    method: 'delete'
-  })
-}
-
-export const createCategory = (data) => {
-  return request({
-    url: '/admin/categories',
-    method: 'post',
-    data
-  })
-}
-
-export const updateCategory = (id, data) => {
-  return request({
-    url: `/admin/categories/${id}`,
-    method: 'put',
-    data
-  })
-}
-
-export const deleteCategory = (id) => {
-  return request({
-    url: `/admin/categories/${id}`,
-    method: 'delete'
   })
 }

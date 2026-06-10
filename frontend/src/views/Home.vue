@@ -148,8 +148,8 @@ import {
   User
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
-import { getCourseList, purchaseCourse } from '@/api/course'
-import { getContinueLearning } from '@/api/study'
+import { getCourseList, createOrder } from '@/api/course'
+import { getContinueStudy } from '@/api/study'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -170,8 +170,9 @@ const progressColor = computed(() => {
 
 const loadContinueLearning = async () => {
   try {
-    const res = await getContinueLearning()
-    continueLearning.value = res.data || null
+    const res = await getContinueStudy()
+    const list = res.data || []
+    continueLearning.value = Array.isArray(list) && list.length > 0 ? list[0] : null
   } catch (e) {
     console.error('获取继续学习数据失败', e)
   }
@@ -179,7 +180,7 @@ const loadContinueLearning = async () => {
 
 const loadCourseList = async () => {
   try {
-    const res = await getCourseList({ page: 1, pageSize: 8 })
+    const res = await getCourseList({ page: 1, size: 8 })
     courseList.value = res.data?.list || []
   } catch (e) {
     console.error('获取课程列表失败', e)
@@ -196,11 +197,17 @@ const handleBuy = async (course) => {
     return
   }
   try {
-    const res = await purchaseCourse(course.id, {})
+    await createOrder({
+      courseId: course.id,
+      orderType: course.isMemberOnly ? 'MEMBER' : 'COURSE',
+      amount: course.price,
+      inviteCode: ''
+    })
     ElMessage.success(course.isMemberOnly ? '已解锁会员课程' : '购买成功')
     goToCourseDetail(course.id)
   } catch (e) {
-    ElMessage.error(e.message || '操作失败')
+    const msg = e?.response?.data?.message || e?.message || '操作失败'
+    ElMessage.error(msg)
   }
 }
 

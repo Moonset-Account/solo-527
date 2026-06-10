@@ -250,17 +250,17 @@ const pagination = reactive({
 const userList = ref([])
 
 const roleOptions = [
-  { value: 'ADMIN', label: '管理员', icon: Avatar, type: 'danger' },
+  { value: 'ADMIN', label: '管理员', icon: UserFilled, type: 'danger' },
   { value: 'TEACHER', label: '讲师', icon: User, type: 'primary' },
-  { value: 'MEMBER', label: '普通会员', icon: Medal, type: 'warning' },
+  { value: 'MEMBER', label: '普通会员', icon: Star, type: 'warning' },
   { value: 'USER', label: '普通用户', icon: User, type: 'info' }
 ]
 
 const roleTag = (role) => {
   const map = {
-    ADMIN: { type: 'danger', text: 'ADMIN', icon: Avatar },
+    ADMIN: { type: 'danger', text: 'ADMIN', icon: UserFilled },
     TEACHER: { type: 'primary', text: 'TEACHER', icon: User },
-    MEMBER: { type: 'warning', text: 'MEMBER', icon: Medal },
+    MEMBER: { type: 'warning', text: 'MEMBER', icon: Star },
     USER: { type: 'info', text: 'USER', icon: User }
   }
   return map[role] || { type: 'info', text: role, icon: User }
@@ -319,15 +319,16 @@ const resetFilter = () => {
 }
 
 const handleChangeRole = async (row, newRole) => {
+  const oldRole = row.role
   try {
     await adminUpdateUserRole(row.id, { role: newRole })
     row.role = newRole
     const roleLabel = roleOptions.find(r => r.value === newRole)?.label || newRole
     ElMessage.success(`角色已更新为：${roleLabel}`)
   } catch (e) {
-    row.role = newRole
-    const roleLabel = roleOptions.find(r => r.value === newRole)?.label || newRole
-    ElMessage.success(`角色已更新为：${roleLabel}`)
+    row.role = oldRole
+    const msg = e?.response?.data?.message || e?.message || '角色更新失败'
+    ElMessage.error(msg)
   }
 }
 
@@ -383,13 +384,8 @@ const submitMembership = async () => {
     ElMessage.success(membershipForm.isMember ? '会员设置成功' : '已取消会员')
     membershipDialogVisible.value = false
   } catch (e) {
-    const user = userList.value.find(u => u.id === membershipForm.userId)
-    if (user) {
-      user.isMember = membershipForm.isMember
-      user.memberExpireDate = membershipForm.isMember ? membershipForm.expireDate : null
-    }
-    ElMessage.success(membershipForm.isMember ? '会员设置成功' : '已取消会员')
-    membershipDialogVisible.value = false
+    const msg = e?.response?.data?.message || e?.message || '会员设置失败'
+    ElMessage.error(msg)
   } finally {
     membershipSubmitting.value = false
   }
@@ -401,8 +397,8 @@ const handleDelete = async (row) => {
     userList.value = userList.value.filter(u => u.id !== row.id)
     ElMessage.success('删除成功')
   } catch (e) {
-    userList.value = userList.value.filter(u => u.id !== row.id)
-    ElMessage.success('删除成功')
+    const msg = e?.response?.data?.message || e?.message || '删除失败'
+    ElMessage.error(msg)
   }
 }
 
