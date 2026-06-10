@@ -3,6 +3,7 @@
 import { db, DEFAULT_USER_ID } from '@/lib/db-adapter';
 import type { Plan, Subscription, Invoice, ChangeLog } from '@/types';
 import { addDays, format, startOfDay } from 'date-fns';
+import { revalidatePath } from 'next/cache';
 
 export type BillingCycle = 'MONTHLY' | 'YEARLY';
 
@@ -238,6 +239,10 @@ export async function subscribeToPlan(
       RENEW: `${plan.name} 已续订，账单已生成`,
     };
 
+    revalidatePath('/');
+    revalidatePath('/pricing');
+    revalidatePath('/billing');
+
     return {
       success: true,
       data: {
@@ -283,6 +288,10 @@ export async function cancelSubscription(
       result: 'pending_end_of_period',
       changedBy: userId,
     });
+
+    revalidatePath('/');
+    revalidatePath('/pricing');
+    revalidatePath('/billing');
 
     return {
       success: true,
