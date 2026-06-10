@@ -8,7 +8,7 @@ import { User, UserDocument, UserRole } from './user.schema';
 export class UsersService {
   constructor(@InjectModel('User') private userModel: Model<UserDocument>) {}
 
-  async create(createUserDto: Partial<User> & { username: string; password: string }): Promise<User> {
+  async create(createUserDto: Partial<User> & { username: string; password: string }): Promise<UserDocument> {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     const user = new this.userModel({
       ...createUserDto,
@@ -17,11 +17,11 @@ export class UsersService {
     return user.save();
   }
 
-  async findAll(query: any = {}): Promise<User[]> {
+  async findAll(query: any = {}): Promise<UserDocument[]> {
     return this.userModel.find(query).select('-password').exec();
   }
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: string): Promise<UserDocument | null> {
     return this.userModel.findById(id).select('-password').exec();
   }
 
@@ -29,7 +29,7 @@ export class UsersService {
     return this.userModel.findOne({ username }).exec();
   }
 
-  async update(id: string, updateUserDto: Partial<User>): Promise<User | null> {
+  async update(id: string, updateUserDto: Partial<User>): Promise<UserDocument | null> {
     if (updateUserDto.password) {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     }
@@ -39,11 +39,11 @@ export class UsersService {
       .exec();
   }
 
-  async remove(id: string): Promise<User | null> {
+  async remove(id: string): Promise<UserDocument | null> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
 
-  async findTechnicians(): Promise<User[]> {
+  async findTechnicians(): Promise<UserDocument[]> {
     return this.userModel
       .find({ role: UserRole.TECHNICIAN, isActive: true })
       .select('-password')

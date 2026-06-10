@@ -31,6 +31,14 @@ export class SettingsController {
     return this.settingsService.findByKey(key);
   }
 
+  @Put('batch')
+  batchUpdate(
+    @Body() settings: Array<{ key: string; value: string }>,
+    @CurrentUser('_id') userId: string,
+  ) {
+    return this.settingsService.batchUpdate(settings, userId);
+  }
+
   @Put(':key')
   update(
     @Param('key') key: string,
@@ -38,13 +46,5 @@ export class SettingsController {
     @CurrentUser('_id') userId: string,
   ) {
     return this.settingsService.update(key, body.value, userId);
-  }
-
-  @Put('batch')
-  batchUpdate(
-    @Body() settings: Array<{ key: string; value: string }>,
-    @CurrentUser('_id') userId: string,
-  ) {
-    return this.settingsService.batchUpdate(settings, userId);
   }
 }

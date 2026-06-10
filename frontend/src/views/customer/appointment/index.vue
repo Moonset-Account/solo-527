@@ -298,11 +298,11 @@ function selectTime(time) {
 }
 
 function nextStep() {
-  if (currentStep.value === 1) {
+  if (currentStep.value === 0) {
     loadTechnicians()
-    if (selectedDate.value) {
-      loadTimeSlots()
-    }
+  }
+  if (currentStep.value === 1 && selectedDate.value) {
+    loadTimeSlots()
   }
   currentStep.value++
 }

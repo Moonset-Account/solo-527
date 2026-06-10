@@ -3,8 +3,11 @@ import { AppModule } from '../app.module';
 import { UsersService } from '../modules/users/users.service';
 import { UserRole } from '../modules/users/user.schema';
 import { ServicesService } from '../modules/services/services.service';
+import { ServiceStatus } from '../modules/services/service.schema';
 import { TechniciansService } from '../modules/technicians/technicians.service';
+import { TechnicianStatus } from '../modules/technicians/technician.schema';
 import { MembershipsService } from '../modules/memberships/memberships.service';
+import { MembershipStatus, MembershipType } from '../modules/memberships/membership.schema';
 import { RemindersService } from '../modules/reminders/reminders.service';
 import { DictionaryService } from '../modules/dictionary/dictionary.service';
 import { ReminderType, ReminderLevel, ReminderCategory } from '../modules/reminders/reminder-rule.schema';
@@ -38,14 +41,14 @@ async function bootstrap() {
   const services = await servicesService.findAll();
   if (services.length === 0) {
     const defaultServices = [
-      { name: '基础美甲', description: '基础指甲护理和上色', price: 98, duration: 60, category: '美甲', sort: 1, status: 'active' },
-      { name: '法式美甲', description: '经典法式美甲', price: 168, duration: 90, category: '美甲', sort: 2, status: 'active' },
-      { name: '光疗甲', description: '持久光疗美甲', price: 268, duration: 120, category: '美甲', sort: 3, status: 'active' },
-      { name: '美甲延长', description: '指甲延长服务', price: 368, duration: 150, category: '美甲', sort: 4, status: 'active' },
-      { name: '美睫嫁接', description: '自然款美睫', price: 198, duration: 90, category: '美睫', sort: 1, status: 'active' },
-      { name: '浓密美睫', description: '浓密款美睫', price: 298, duration: 120, category: '美睫', sort: 2, status: 'active' },
-      { name: '手部护理', description: '深度手部护理', price: 128, duration: 60, category: '手足护理', sort: 1, status: 'active' },
-      { name: '足部护理', description: '深度足部护理', price: 168, duration: 75, category: '手足护理', sort: 2, status: 'active' },
+      { name: '基础美甲', description: '基础指甲护理和上色', price: 98, duration: 60, category: '美甲', sort: 1, status: ServiceStatus.ACTIVE },
+      { name: '法式美甲', description: '经典法式美甲', price: 168, duration: 90, category: '美甲', sort: 2, status: ServiceStatus.ACTIVE },
+      { name: '光疗甲', description: '持久光疗美甲', price: 268, duration: 120, category: '美甲', sort: 3, status: ServiceStatus.ACTIVE },
+      { name: '美甲延长', description: '指甲延长服务', price: 368, duration: 150, category: '美甲', sort: 4, status: ServiceStatus.ACTIVE },
+      { name: '美睫嫁接', description: '自然款美睫', price: 198, duration: 90, category: '美睫', sort: 1, status: ServiceStatus.ACTIVE },
+      { name: '浓密美睫', description: '浓密款美睫', price: 298, duration: 120, category: '美睫', sort: 2, status: ServiceStatus.ACTIVE },
+      { name: '手部护理', description: '深度手部护理', price: 128, duration: 60, category: '手足护理', sort: 1, status: ServiceStatus.ACTIVE },
+      { name: '足部护理', description: '深度足部护理', price: 168, duration: 75, category: '手足护理', sort: 2, status: ServiceStatus.ACTIVE },
     ];
     
     for (const service of defaultServices) {
@@ -59,7 +62,7 @@ async function bootstrap() {
   const technicians = await techniciansService.findAll();
   if (technicians.length === 0) {
     const allServices = await servicesService.findAll();
-    const serviceIds = allServices.map(s => s._id.toString());
+    const serviceIds = allServices.map(s => String(s._id));
     
     const defaultTechnicians = [
       {
@@ -72,7 +75,7 @@ async function bootstrap() {
         workStartTime: '09:00',
         workEndTime: '18:00',
         workDays: [1, 2, 3, 4, 5, 6],
-        status: 'active',
+        status: TechnicianStatus.ACTIVE,
         sort: 1,
       },
       {
@@ -85,7 +88,7 @@ async function bootstrap() {
         workStartTime: '10:00',
         workEndTime: '19:00',
         workDays: [1, 2, 3, 4, 5, 6, 0],
-        status: 'active',
+        status: TechnicianStatus.ACTIVE,
         sort: 2,
       },
       {
@@ -98,7 +101,7 @@ async function bootstrap() {
         workStartTime: '09:00',
         workEndTime: '18:00',
         workDays: [1, 2, 3, 4, 5],
-        status: 'active',
+        status: TechnicianStatus.ACTIVE,
         sort: 3,
       },
     ];
@@ -116,32 +119,32 @@ async function bootstrap() {
     const defaultMemberships = [
       {
         name: '美甲10次卡',
-        type: 'times',
+        type: MembershipType.TIMES,
         price: 880,
         originalPrice: 980,
         totalTimes: 10,
         description: '基础美甲10次卡，有效期1年',
-        status: 'active',
+        status: MembershipStatus.ACTIVE,
         sort: 1,
       },
       {
         name: '储值卡1000元',
-        type: 'amount',
+        type: MembershipType.AMOUNT,
         price: 1000,
         originalPrice: 1000,
         totalAmount: 1200,
         description: '储值1000送200，全场通用',
-        status: 'active',
+        status: MembershipStatus.ACTIVE,
         sort: 2,
       },
       {
         name: '季卡',
-        type: 'duration',
+        type: MembershipType.DURATION,
         price: 1980,
         originalPrice: 2980,
         durationDays: 90,
         description: '季度卡，不限次数基础护理',
-        status: 'active',
+        status: MembershipStatus.ACTIVE,
         sort: 3,
       },
     ];

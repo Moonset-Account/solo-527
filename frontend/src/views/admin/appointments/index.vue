@@ -206,7 +206,6 @@ import {
 } from '@/api/appointments'
 import { getActiveServices } from '@/api/services'
 import { getActiveTechnicians } from '@/api/technicians'
-import { checkIn } from '@/api/checkin'
 import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 

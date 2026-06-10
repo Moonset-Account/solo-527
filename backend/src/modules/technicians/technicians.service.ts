@@ -7,12 +7,12 @@ import { Technician, TechnicianDocument, TechnicianStatus } from './technician.s
 export class TechniciansService {
   constructor(@InjectModel('Technician') private technicianModel: Model<TechnicianDocument>) {}
 
-  async create(createTechnicianDto: Partial<Technician>): Promise<Technician> {
+  async create(createTechnicianDto: Partial<Technician>): Promise<TechnicianDocument> {
     const technician = new this.technicianModel(createTechnicianDto);
     return technician.save();
   }
 
-  async findAll(query: any = {}): Promise<Technician[]> {
+  async findAll(query: any = {}): Promise<TechnicianDocument[]> {
     const filter: any = {};
     if (query.status) {
       filter.status = query.status;
@@ -20,28 +20,28 @@ export class TechniciansService {
     return this.technicianModel.find(filter).sort({ sort: 1, createdAt: -1 }).exec();
   }
 
-  async findActive(): Promise<Technician[]> {
+  async findActive(): Promise<TechnicianDocument[]> {
     return this.technicianModel.find({ status: TechnicianStatus.ACTIVE }).sort({ sort: 1 }).exec();
   }
 
-  async findById(id: string): Promise<Technician | null> {
+  async findById(id: string): Promise<TechnicianDocument | null> {
     return this.technicianModel.findById(id).exec();
   }
 
-  async findByServiceId(serviceId: string): Promise<Technician[]> {
+  async findByServiceId(serviceId: string): Promise<TechnicianDocument[]> {
     return this.technicianModel.find({
       status: TechnicianStatus.ACTIVE,
       serviceIds: serviceId,
     }).exec();
   }
 
-  async update(id: string, updateTechnicianDto: Partial<Technician>): Promise<Technician | null> {
+  async update(id: string, updateTechnicianDto: Partial<Technician>): Promise<TechnicianDocument | null> {
     return this.technicianModel
       .findByIdAndUpdate(id, updateTechnicianDto, { new: true })
       .exec();
   }
 
-  async remove(id: string): Promise<Technician | null> {
+  async remove(id: string): Promise<TechnicianDocument | null> {
     return this.technicianModel.findByIdAndDelete(id).exec();
   }
 }

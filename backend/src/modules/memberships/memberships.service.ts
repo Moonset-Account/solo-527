@@ -16,12 +16,12 @@ export class MembershipsService {
     @InjectModel('CustomerMembership') private customerMembershipModel: Model<CustomerMembershipDocument>,
   ) {}
 
-  async create(createMembershipDto: Partial<Membership>): Promise<Membership> {
+  async create(createMembershipDto: Partial<Membership>): Promise<MembershipDocument> {
     const membership = new this.membershipModel(createMembershipDto);
     return membership.save();
   }
 
-  async findAll(query: any = {}): Promise<Membership[]> {
+  async findAll(query: any = {}): Promise<MembershipDocument[]> {
     const filter: any = {};
     if (query.status) {
       filter.status = query.status;
@@ -32,25 +32,25 @@ export class MembershipsService {
     return this.membershipModel.find(filter).sort({ sort: 1, createdAt: -1 }).exec();
   }
 
-  async findActive(): Promise<Membership[]> {
+  async findActive(): Promise<MembershipDocument[]> {
     return this.membershipModel.find({ status: MembershipStatus.ACTIVE }).sort({ sort: 1 }).exec();
   }
 
-  async findById(id: string): Promise<Membership | null> {
+  async findById(id: string): Promise<MembershipDocument | null> {
     return this.membershipModel.findById(id).exec();
   }
 
-  async update(id: string, updateMembershipDto: Partial<Membership>): Promise<Membership | null> {
+  async update(id: string, updateMembershipDto: Partial<Membership>): Promise<MembershipDocument | null> {
     return this.membershipModel
       .findByIdAndUpdate(id, updateMembershipDto, { new: true })
       .exec();
   }
 
-  async remove(id: string): Promise<Membership | null> {
+  async remove(id: string): Promise<MembershipDocument | null> {
     return this.membershipModel.findByIdAndDelete(id).exec();
   }
 
-  async sellMembership(sellDto: any, userId: string): Promise<CustomerMembership> {
+  async sellMembership(sellDto: any, userId: string): Promise<CustomerMembershipDocument> {
     const { membershipId, customerId, customerName } = sellDto;
 
     const membership = await this.membershipModel.findById(membershipId);
@@ -77,14 +77,14 @@ export class MembershipsService {
     return customerMembership.save();
   }
 
-  async getCustomerMemberships(customerId: string): Promise<CustomerMembership[]> {
+  async getCustomerMemberships(customerId: string): Promise<CustomerMembershipDocument[]> {
     return this.customerMembershipModel
       .find({ customerId })
       .sort({ createdAt: -1 })
       .exec();
   }
 
-  async useMembership(id: string, times?: number, amount?: number): Promise<CustomerMembership | null> {
+  async useMembership(id: string, times?: number, amount?: number): Promise<CustomerMembershipDocument | null> {
     const customerMembership = await this.customerMembershipModel.findById(id);
     if (!customerMembership) {
       throw new NotFoundException('顾客会员卡不存在');
@@ -123,11 +123,11 @@ export class MembershipsService {
     return customerMembership.save();
   }
 
-  async findCustomerMembershipById(id: string): Promise<CustomerMembership | null> {
+  async findCustomerMembershipById(id: string): Promise<CustomerMembershipDocument | null> {
     return this.customerMembershipModel.findById(id).exec();
   }
 
-  async getAllCustomerMemberships(query: any = {}): Promise<CustomerMembership[]> {
+  async getAllCustomerMemberships(query: any = {}): Promise<CustomerMembershipDocument[]> {
     const filter: any = {};
     if (query.customerId) {
       filter.customerId = query.customerId;
