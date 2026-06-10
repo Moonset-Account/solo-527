@@ -38,6 +38,7 @@ interface Order {
   totalShipped: number
   fulfillmentRate: number
   shipments: Shipment[]
+  createdAt: string
 }
 
 interface SortingOrderOption {

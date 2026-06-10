@@ -51,7 +51,11 @@ export default function Declarations() {
   const [statusFilter, setStatusFilter] = useState('')
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<Declaration | null>(null)
-  const [editForm, setEditForm] = useState({ status: '', remark: '', result: '' })
+  const [editForm, setEditForm] = useState<{
+    status: 'complete' | 'missing' | 'processing'
+    remark: string
+    result: string
+  }>({ status: 'missing', remark: '', result: '' })
 
   const loadData = () => {
     fetchList('/api/declarations').then((data) => { if (data) setDeclarations(data) }).catch(() => {})
@@ -69,7 +73,11 @@ export default function Declarations() {
 
   const openEdit = (item: Declaration) => {
     setEditItem(item)
-    setEditForm({ status: item.status, remark: item.remark || '', result: item.result || '' })
+    setEditForm({
+      status: item.status as 'complete' | 'missing' | 'processing',
+      remark: item.remark || '',
+      result: item.result || '',
+    })
     setEditModalOpen(true)
   }
 
@@ -166,7 +174,16 @@ export default function Declarations() {
       <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="编辑申报材料" size="lg">
         <div className="space-y-4">
           <FormField label="状态">
-            <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="input-field">
+            <select
+              value={editForm.status}
+              onChange={(e) =>
+                setEditForm({
+                  ...editForm,
+                  status: e.target.value as 'complete' | 'missing' | 'processing',
+                })
+              }
+              className="input-field"
+            >
               {statusEditOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}

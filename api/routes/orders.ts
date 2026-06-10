@@ -32,12 +32,13 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       const shipments = await Shipment.find({ orderId: item._id })
       const totalShipped = shipments.reduce((sum, s) => sum + s.quantity, 0)
       const fulfillmentRate = item.quantity > 0 ? Math.round((totalShipped / item.quantity) * 10000) / 100 : 0
+      const varietyIdObj = item.varietyId as any
       return {
         id: item._id,
         orderNo: item.orderNo,
         customer: item.customer,
-        varietyId: item.varietyId?._id,
-        variety: item.varietyId?.name || '',
+        varietyId: varietyIdObj?._id,
+        variety: varietyIdObj?.name || '',
         quantity: item.quantity,
         unit: item.unit || 'kg',
         unitPrice: item.unitPrice,
@@ -67,12 +68,17 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
 
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const entry = await Order.findById(req.params.id).populate('varietyId')
+    const entry: any = await Order.findById(req.params.id).populate('varietyId')
     if (!entry) {
       res.status(404).json({ success: false, error: 'Order not found' })
       return
     }
-    const shipments = await Shipment.find({ orderId: entry._id }).populate('sortingOrderId', 'orderNo variety')
+    const shipments = await Shipment.find({ orderId: entry._id })
+      .populate({
+        path: 'sortingOrderId',
+        select: 'orderNo harvestId',
+        populate: { path: 'harvestId', select: 'varietyId', populate: { path: 'varietyId', select: 'name' } },
+      })
     const totalShipped = shipments.reduce((sum, s) => sum + s.quantity, 0)
     const fulfillmentRate = entry.quantity > 0 ? Math.round((totalShipped / entry.quantity) * 10000) / 100 : 0
     const shipmentsData = shipments.map((s: any) => ({
@@ -80,17 +86,18 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       orderId: s.orderId,
       sortingOrderId: s.sortingOrderId?._id,
       sortingOrderNo: s.sortingOrderId?.orderNo || '',
-      sortingOrderVariety: s.sortingOrderId?.variety || '',
+      sortingOrderVariety: s.sortingOrderId?.harvestId?.varietyId?.name || '',
       quantity: s.quantity,
       trackingNo: s.trackingNo,
       shipDate: s.shipDate,
     }))
+    const varietyIdObj = entry.varietyId as any
     const data = {
       id: entry._id,
       orderNo: entry.orderNo,
       customer: entry.customer,
-      varietyId: entry.varietyId?._id,
-      variety: entry.varietyId?.name || '',
+      varietyId: varietyIdObj?._id,
+      variety: varietyIdObj?.name || '',
       quantity: entry.quantity,
       unit: entry.unit || 'kg',
       unitPrice: entry.unitPrice,
