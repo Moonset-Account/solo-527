@@ -30,6 +30,8 @@ import {
   formatDateTime,
   REMINDER_LEVEL_COLORS,
   REMINDER_LEVEL_NAMES,
+  REMINDER_STATUS_COLORS,
+  REMINDER_STATUS_LABELS,
 } from '@/utils';
 import type { Reminder, ReminderLevel, ReminderStatus } from '@/types';
 
@@ -77,10 +79,10 @@ export default function ReminderList() {
     fetchReminders(params);
   };
 
-  const handleAcknowledge = async (id: string) => {
+  const handleStartProcessing = async (id: string) => {
     try {
-      await handleReminder(id, 'acknowledged');
-      message.success('已确认');
+      await handleReminder(id, 'processing');
+      message.success('已开始处理');
       fetchUnreadCount();
     } catch {
       message.error('操作失败');
@@ -91,6 +93,16 @@ export default function ReminderList() {
     try {
       await handleReminder(id, 'resolved');
       message.success('已解决');
+      fetchUnreadCount();
+    } catch {
+      message.error('操作失败');
+    }
+  };
+
+  const handleIgnore = async (id: string) => {
+    try {
+      await handleReminder(id, 'ignored');
+      message.success('已忽略');
       fetchUnreadCount();
     } catch {
       message.error('操作失败');
@@ -135,8 +147,8 @@ export default function ReminderList() {
     },
     {
       title: '内容',
-      dataIndex: 'message',
-      key: 'message',
+      dataIndex: 'content',
+      key: 'content',
       ellipsis: true,
     },
     {
@@ -144,31 +156,33 @@ export default function ReminderList() {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: ReminderStatus) => {
-        const statusMap: Record<ReminderStatus, { color: string; text: string }> = {
-          pending: { color: 'red', text: '待处理' },
-          acknowledged: { color: 'orange', text: '已确认' },
-          resolved: { color: 'green', text: '已解决' },
-          escalated: { color: 'purple', text: '已升级' },
-        };
-        return <Tag color={statusMap[status].color}>{statusMap[status].text}</Tag>;
-      },
+      render: (status: ReminderStatus) => (
+        <Tag className={REMINDER_STATUS_COLORS[status]}>
+          {REMINDER_STATUS_LABELS[status]}
+        </Tag>
+      ),
     },
     {
-      title: '时限',
-      dataIndex: 'due_at',
-      key: 'due_at',
+      title: '处理时限',
+      dataIndex: 'time_limit',
+      key: 'time_limit',
       width: 180,
-      render: (date: string, record: Reminder) => (
+      render: (date: string | undefined, record: Reminder) => (
         <div>
-          <div className={`text-sm ${record.is_overdue ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-            <ClockCircleOutlined className="mr-1" />
-            {formatDateTime(date)}
-          </div>
-          {record.is_overdue && (
-            <div className="text-xs text-red-500">
-              已逾期 {dayjs().diff(dayjs(date), 'hour')} 小时
-            </div>
+          {date ? (
+            <>
+              <div className={`text-sm ${record.is_overdue ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                <ClockCircleOutlined className="mr-1" />
+                {formatDateTime(date)}
+              </div>
+              {record.is_overdue && (
+                <div className="text-xs text-red-500">
+                  已逾期 {dayjs().diff(dayjs(date), 'hour')} 小时
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-gray-400">-</span>
           )}
         </div>
       ),
@@ -183,25 +197,34 @@ export default function ReminderList() {
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 280,
       render: (_: unknown, record: Reminder) => (
         <Space>
           {record.status === 'pending' && (
             <Button
               type="link"
               icon={<CheckOutlined />}
-              onClick={() => handleAcknowledge(record.id)}
+              onClick={() => handleStartProcessing(record.id)}
             >
-              确认
+              开始处理
             </Button>
           )}
-          {record.status !== 'resolved' && (
+          {record.status === 'processing' && (
             <Button
               type="link"
               icon={<CheckCircleOutlined />}
               onClick={() => handleResolve(record.id)}
             >
-              解决
+              标记解决
+            </Button>
+          )}
+          {record.status === 'pending' && (
+            <Button
+              type="link"
+              danger
+              onClick={() => handleIgnore(record.id)}
+            >
+              忽略
             </Button>
           )}
           <Button
@@ -309,9 +332,9 @@ export default function ReminderList() {
               onChange={(value) => setFilters({ ...filters, status: value })}
             >
               <Option value="pending">待处理</Option>
-              <Option value="acknowledged">已确认</Option>
+              <Option value="processing">处理中</Option>
               <Option value="resolved">已解决</Option>
-              <Option value="escalated">已升级</Option>
+              <Option value="ignored">已忽略</Option>
             </Select>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -392,7 +415,7 @@ export default function ReminderList() {
                       text={REMINDER_LEVEL_NAMES[selectedReminder.level]}
                     />
                   </div>
-                  <p className="text-gray-600">{selectedReminder.message}</p>
+                  <p className="text-gray-600">{selectedReminder.content}</p>
                 </div>
                 {selectedReminder.is_overdue && (
                   <Tag color="red" className="animate-pulse">已逾期</Tag>
@@ -402,15 +425,18 @@ export default function ReminderList() {
 
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="状态">
-                {selectedReminder.status === 'pending' && <Tag color="red">待处理</Tag>}
-                {selectedReminder.status === 'acknowledged' && <Tag color="orange">已确认</Tag>}
-                {selectedReminder.status === 'resolved' && <Tag color="green">已解决</Tag>}
-                {selectedReminder.status === 'escalated' && <Tag color="purple">已升级</Tag>}
+                <Tag className={REMINDER_STATUS_COLORS[selectedReminder.status]}>
+                  {REMINDER_STATUS_LABELS[selectedReminder.status]}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="处理时限">
-                <div className={selectedReminder.is_overdue ? 'text-red-600 font-medium' : ''}>
-                  {formatDateTime(selectedReminder.due_at)}
-                </div>
+                {selectedReminder.time_limit ? (
+                  <div className={selectedReminder.is_overdue ? 'text-red-600 font-medium' : ''}>
+                    {formatDateTime(selectedReminder.time_limit)}
+                  </div>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {formatDateTime(selectedReminder.created_at)}
@@ -418,14 +444,19 @@ export default function ReminderList() {
               <Descriptions.Item label="关联规则">
                 {selectedReminder.rule_name || '-'}
               </Descriptions.Item>
-              {selectedReminder.acknowledged_at && (
-                <Descriptions.Item label="确认时间" span={2}>
-                  {formatDateTime(selectedReminder.acknowledged_at)}
+              {selectedReminder.handled_at && (
+                <Descriptions.Item label="处理时间" span={2}>
+                  {formatDateTime(selectedReminder.handled_at)}
                 </Descriptions.Item>
               )}
-              {selectedReminder.resolved_at && (
-                <Descriptions.Item label="解决时间" span={2}>
-                  {formatDateTime(selectedReminder.resolved_at)}
+              {selectedReminder.handled_by_name && (
+                <Descriptions.Item label="处理人" span={2}>
+                  {selectedReminder.handled_by_name}
+                </Descriptions.Item>
+              )}
+              {selectedReminder.handle_notes && (
+                <Descriptions.Item label="处理备注" span={2}>
+                  {selectedReminder.handle_notes}
                 </Descriptions.Item>
               )}
             </Descriptions>
@@ -435,14 +466,14 @@ export default function ReminderList() {
                 <Button
                   type="primary"
                   onClick={() => {
-                    handleAcknowledge(selectedReminder.id);
+                    handleStartProcessing(selectedReminder.id);
                     setShowDetailDrawer(false);
                   }}
                 >
-                  确认提醒
+                  开始处理
                 </Button>
               )}
-              {selectedReminder.status !== 'resolved' && (
+              {selectedReminder.status === 'processing' && (
                 <Button
                   type="primary"
                   onClick={() => {
@@ -451,6 +482,17 @@ export default function ReminderList() {
                   }}
                 >
                   标记解决
+                </Button>
+              )}
+              {selectedReminder.status === 'pending' && (
+                <Button
+                  danger
+                  onClick={() => {
+                    handleIgnore(selectedReminder.id);
+                    setShowDetailDrawer(false);
+                  }}
+                >
+                  忽略
                 </Button>
               )}
               <Button onClick={() => setShowDetailDrawer(false)}>关闭</Button>

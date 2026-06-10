@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import type { ReminderLevel } from '@/types';
+import type { ReminderLevel, ReminderStatus } from '@/types';
 
 export const REMINDER_LEVEL_COLORS: Record<ReminderLevel, string> = {
   1: '#E53935',
@@ -13,6 +13,20 @@ export const REMINDER_LEVEL_NAMES: Record<ReminderLevel, string> = {
   2: '高',
   3: '中',
   4: '低',
+};
+
+export const REMINDER_STATUS_COLORS: Record<ReminderStatus, string> = {
+  pending: 'bg-red-100 text-red-800',
+  processing: 'bg-orange-100 text-orange-800',
+  resolved: 'bg-green-100 text-green-800',
+  ignored: 'bg-gray-100 text-gray-800',
+};
+
+export const REMINDER_STATUS_LABELS: Record<ReminderStatus, string> = {
+  pending: '待处理',
+  processing: '处理中',
+  resolved: '已解决',
+  ignored: '已忽略',
 };
 
 export const INVENTORY_STATUS_LABELS: Record<string, string> = {

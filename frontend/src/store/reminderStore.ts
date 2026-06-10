@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import api from '@/api';
-import type { Reminder, ReminderRule } from '@/types';
+import type { Reminder, ReminderRule, ReminderStatus } from '@/types';
 
 interface ReminderState {
   reminders: Reminder[];
@@ -13,7 +13,7 @@ interface ReminderState {
   fetchReminders: (params?: Record<string, unknown>) => Promise<void>;
   fetchRules: (params?: Record<string, unknown>) => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
-  handleReminder: (id: string, status: string, notes?: string) => Promise<void>;
+  handleReminder: (id: string, status: ReminderStatus, notes?: string) => Promise<void>;
   createRule: (data: Partial<ReminderRule>) => Promise<void>;
   updateRule: (id: string, data: Partial<ReminderRule>) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;

@@ -247,37 +247,48 @@ export interface ReminderRule {
   name: string;
   description: string;
   trigger_type: string;
-  trigger_condition: Record<string, unknown>;
+  trigger_type_display?: string;
   level: ReminderLevel;
+  level_display?: string;
   time_limit_minutes: number;
+  trigger_condition: Record<string, unknown>;
+  conditions: Record<string, unknown>;
+  actions: unknown[];
   escalation_level?: ReminderLevel;
   is_active: boolean;
   color: string;
-  created_by: string;
+  created_by?: string;
+  created_by_name?: string;
   created_at: string;
   updated_at: string;
 }
 
-export type ReminderStatus = 'pending' | 'acknowledged' | 'resolved' | 'escalated';
+export type ReminderStatus = 'pending' | 'processing' | 'resolved' | 'ignored';
 
 export interface Reminder {
   id: string;
-  rule: string;
+  rule?: string;
   rule_name?: string;
   level: ReminderLevel;
+  level_display?: string;
+  color: string;
   title: string;
-  message: string;
+  content: string;
   status: ReminderStatus;
+  status_display?: string;
   related_type?: string;
+  related_type_display?: string;
   related_id?: string;
+  time_limit?: string;
   is_overdue: boolean;
-  due_at: string;
-  acknowledged_at?: string;
-  acknowledged_by?: string;
-  resolved_at?: string;
-  resolved_by?: string;
-  escalated_at?: string;
+  remaining_minutes?: number;
+  escalated: boolean;
+  original_level?: ReminderLevel;
   created_at: string;
+  handled_by?: string;
+  handled_by_name?: string;
+  handled_at?: string;
+  handle_notes?: string;
 }
 
 export interface AuditLog {

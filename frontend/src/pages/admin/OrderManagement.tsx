@@ -141,8 +141,8 @@ export default function OrderManagement() {
   const columns = [
     {
       title: '订单号',
-      dataIndex: 'order_number',
-      key: 'order_number',
+      dataIndex: 'order_no',
+      key: 'order_no',
       render: (text: string) => <span className="font-medium">{text}</span>,
     },
     {

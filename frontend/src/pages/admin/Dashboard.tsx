@@ -150,7 +150,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between w-full">
                         <span className="font-medium">{order.order_no}</span>
                         <Tag className={ORDER_STATUS_COLORS[order.status]}>
-                          {ORDER_STATUS_LABELS[order.status]}
+                          {order.status_display || ORDER_STATUS_LABELS[order.status]}
                         </Tag>
                       </div>
                     }
@@ -208,7 +208,7 @@ export default function Dashboard() {
                     }
                     description={
                       <div className="text-sm text-gray-500">
-                        <p>{reminder.message}</p>
+                        <p>{reminder.content}</p>
                       </div>
                     }
                   />
