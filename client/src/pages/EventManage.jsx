@@ -26,7 +26,9 @@ import {
   StopOutlined,
   HistoryOutlined,
   RollbackOutlined,
-  TeamOutlined
+  TeamOutlined,
+  ToolOutlined,
+  FileTextOutlined
 } from '@ant-design/icons'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
@@ -94,6 +96,11 @@ const EventManage = () => {
   const [logs, setLogs] = useState([])
   const [logLoading, setLogLoading] = useState(false)
   const [currentEventId, setCurrentEventId] = useState(null)
+
+  const [facilityModal, setFacilityModal] = useState(false)
+  const [facilityForm] = Form.useForm()
+  const [facilityLoading, setFacilityLoading] = useState(false)
+  const [facilityEventId, setFacilityEventId] = useState(null)
 
   const [searchForm] = Form.useForm()
 
@@ -348,6 +355,39 @@ const EventManage = () => {
     setAssignModal(true)
   }
 
+  const handleProcessFacilityDamage = (record) => {
+    setFacilityEventId(record.id)
+    facilityForm.resetFields()
+    facilityForm.setFieldsValue({
+      serviceDate: dayjs()
+    })
+    setFacilityModal(true)
+  }
+
+  const handleFacilitySubmit = async () => {
+    try {
+      const values = await facilityForm.validateFields()
+      setFacilityLoading(true)
+
+      const postData = {
+        ...values,
+        serviceDate: values.serviceDate ? dayjs(values.serviceDate).format('YYYY-MM-DD') : undefined
+      }
+
+      await request.post(`/events/${facilityEventId}/process-facility-damage`, postData)
+      message.success('设施损坏处理成功，志愿服务数据已回写')
+      setFacilityModal(false)
+      fetchEvents()
+      if (detailDrawer && currentEvent && currentEvent.id === facilityEventId) {
+        handleViewDetail({ id: facilityEventId })
+      }
+    } catch (error) {
+      console.error('设施损坏处理失败:', error)
+    } finally {
+      setFacilityLoading(false)
+    }
+  }
+
   const columns = [
     {
       title: '事件标题',
@@ -415,7 +455,7 @@ const EventManage = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 260,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -431,6 +471,16 @@ const EventManage = () => {
           >
             分派
           </Button>
+          {record.type === 'FACILITY_DAMAGE' && record.status !== 'CLOSED' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<ToolOutlined />}
+              onClick={() => handleProcessFacilityDamage(record)}
+            >
+              设施处理
+            </Button>
+          )}
           <Button
             type="link"
             size="small"
@@ -646,6 +696,11 @@ const EventManage = () => {
                           <p style={{ margin: '4px 0', color: '#666', fontSize: 12 }}>
                             操作人：{log.operatorName}
                           </p>
+                          {log.failureReason && (
+                            <p style={{ margin: '4px 0', color: 'red', fontSize: 12 }}>
+                              失败原因：{log.failureReason}
+                            </p>
+                          )}
                           <p style={{ margin: '4px 0', color: '#999', fontSize: 12 }}>
                             {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                           </p>
@@ -653,6 +708,41 @@ const EventManage = () => {
                       )
                     }))}
                   />
+                </div>
+              )}
+
+              {currentEvent.type === 'FACILITY_DAMAGE' && (
+                <div style={{ marginTop: 24 }}>
+                  <h4>志愿服务记录</h4>
+                  {currentEvent.volunteerServices && currentEvent.volunteerServices.length > 0 ? (
+                    currentEvent.volunteerServices.map((vs, idx) => (
+                      <Card key={vs.id} size="small" style={{ marginBottom: 8 }}>
+                        <Descriptions column={2} size="small">
+                          <Descriptions.Item label="志愿者">{vs.volunteerName}</Descriptions.Item>
+                          <Descriptions.Item label="联系电话">{vs.volunteerPhone}</Descriptions.Item>
+                          <Descriptions.Item label="服务时长">{vs.serviceHours} 小时</Descriptions.Item>
+                          <Descriptions.Item label="服务日期">
+                            {dayjs(vs.serviceDate).format('YYYY-MM-DD')}
+                          </Descriptions.Item>
+                          {vs.description && (
+                            <Descriptions.Item label="服务描述" span={2}>
+                              {vs.description}
+                            </Descriptions.Item>
+                          )}
+                        </Descriptions>
+                      </Card>
+                    ))
+                  ) : (
+                    <p style={{ color: '#999' }}>暂无志愿服务记录</p>
+                  )}
+                </div>
+              )}
+
+              {currentEvent.type === 'FACILITY_DAMAGE' && currentEvent.status !== 'CLOSED' && (
+                <div style={{ marginTop: 16, textAlign: 'right' }}>
+                  <Button type="primary" icon={<ToolOutlined />} onClick={() => handleProcessFacilityDamage(currentEvent)}>
+                    处理设施损坏
+                  </Button>
                 </div>
               )}
             </div>
@@ -694,6 +784,72 @@ const EventManage = () => {
                 </Option>
               ))}
             </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="设施损坏处理 - 志愿服务回写"
+        open={facilityModal}
+        onOk={handleFacilitySubmit}
+        onCancel={() => setFacilityModal(false)}
+        confirmLoading={facilityLoading}
+        okText="提交"
+        cancelText="取消"
+        width={500}
+      >
+        <Form form={facilityForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="volunteerName"
+                label="志愿者姓名"
+                rules={[{ required: true, message: '请输入志愿者姓名' }]}
+              >
+                <Input placeholder="请输入志愿者姓名" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="volunteerPhone"
+                label="联系电话"
+                rules={[
+                  { required: true, message: '请输入联系电话' },
+                  { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
+                ]}
+              >
+                <Input placeholder="请输入联系电话" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="serviceHours"
+                label="服务时长（小时）"
+                rules={[
+                  { required: true, message: '请输入服务时长' },
+                  { type: 'number', min: 0.5, message: '服务时长至少0.5小时' }
+                ]}
+              >
+                <Input.Number placeholder="0.0" style={{ width: '100%' }} min={0.5} step={0.5} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="serviceDate"
+                label="服务日期"
+                rules={[{ required: true, message: '请选择服务日期' }]}
+              >
+                <DatePicker style={{ width: '100%' }} placeholder="请选择日期" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item
+            name="description"
+            label="服务描述"
+          >
+            <TextArea rows={3} placeholder="请输入服务描述（选填）" maxLength={500} showCount />
           </Form.Item>
         </Form>
       </Modal>
