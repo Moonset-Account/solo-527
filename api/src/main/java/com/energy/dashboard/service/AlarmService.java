@@ -7,9 +7,9 @@ import java.util.Map;
 
 public interface AlarmService {
 
-    PageResult<Alarm> getList(Map<String, Object> params);
+    PageResult<Map<String, Object>> getList(Map<String, Object> params);
 
-    Alarm getById(Long id);
+    Map<String, Object> getById(Long id);
 
     Alarm confirm(Long id);
 

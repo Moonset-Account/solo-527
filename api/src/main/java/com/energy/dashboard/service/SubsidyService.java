@@ -7,11 +7,11 @@ import java.util.Map;
 
 public interface SubsidyService {
 
-    PageResult<Subsidy> getList(Map<String, Object> params);
+    PageResult<Map<String, Object>> getList(Map<String, Object> params);
 
-    Subsidy getById(Long id);
+    Map<String, Object> getById(Long id);
 
     Subsidy create(Subsidy subsidy);
 
-    Subsidy approve(Long id, Map<String, Object> data);
+    Map<String, Object> approve(Long id, Map<String, Object> data);
 }

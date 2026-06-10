@@ -17,12 +17,12 @@ public class AlarmController {
     private AlarmService alarmService;
 
     @GetMapping
-    public Result<PageResult<Alarm>> getList(@RequestParam Map<String, Object> params) {
+    public Result<PageResult<Map<String, Object>>> getList(@RequestParam Map<String, Object> params) {
         return Result.success(alarmService.getList(params));
     }
 
     @GetMapping("/{id}")
-    public Result<Alarm> getById(@PathVariable Long id) {
+    public Result<Map<String, Object>> getById(@PathVariable Long id) {
         return Result.success(alarmService.getById(id));
     }
 

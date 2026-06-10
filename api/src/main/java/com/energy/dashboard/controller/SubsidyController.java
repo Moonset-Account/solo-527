@@ -17,12 +17,12 @@ public class SubsidyController {
     private SubsidyService subsidyService;
 
     @GetMapping
-    public Result<PageResult<Subsidy>> getList(@RequestParam Map<String, Object> params) {
+    public Result<PageResult<Map<String, Object>>> getList(@RequestParam Map<String, Object> params) {
         return Result.success(subsidyService.getList(params));
     }
 
     @GetMapping("/{id}")
-    public Result<Subsidy> getById(@PathVariable Long id) {
+    public Result<Map<String, Object>> getById(@PathVariable Long id) {
         return Result.success(subsidyService.getById(id));
     }
 
@@ -32,7 +32,7 @@ public class SubsidyController {
     }
 
     @PostMapping("/{id}/approve")
-    public Result<Subsidy> approve(@PathVariable Long id, @RequestBody Map<String, Object> data) {
+    public Result<Map<String, Object>> approve(@PathVariable Long id, @RequestBody Map<String, Object> data) {
         return Result.success(subsidyService.approve(id, data));
     }
 }

@@ -1,7 +1,6 @@
 package com.energy.dashboard.controller;
 
 import com.energy.dashboard.common.Result;
-import com.energy.dashboard.entity.EnergyData;
 import com.energy.dashboard.service.EnergyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +21,7 @@ public class EnergyController {
     }
 
     @GetMapping("/curve")
-    public Result<List<EnergyData>> getCurve(
+    public Result<List<Map<String, Object>>> getCurve(
             @RequestParam(defaultValue = "day") String period,
             @RequestParam(required = false) Long zoneId) {
         return Result.success(energyService.getCurve(period, zoneId));

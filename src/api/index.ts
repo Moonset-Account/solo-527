@@ -15,7 +15,7 @@ import type {
   UserInfo,
 } from '@/types'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 const http = axios.create({
   baseURL: '/api',
@@ -31,8 +31,25 @@ http.interceptors.request.use((config) => {
 })
 
 http.interceptors.response.use(
-  (response) => response.data,
-  (error) => Promise.reject(error),
+  (response) => {
+    if (response.config.responseType === 'blob') {
+      return response.data
+    }
+    const body = response.data
+    if (body && typeof body === 'object' && 'code' in body && 'data' in body) {
+      if (body.code !== 200) {
+        return Promise.reject(new Error(body.message || '请求失败'))
+      }
+      return body.data
+    }
+    return body
+  },
+  (error) => {
+    if (error.response?.data?.message) {
+      return Promise.reject(new Error(error.response.data.message))
+    }
+    return Promise.reject(error)
+  },
 )
 
 const mockZones: Zone[] = [
@@ -454,7 +471,7 @@ export const dataApi = {
 
       return { total: items.length, items }
     }
-    return http.get('/data/query', { params })
+    return http.post('/data/query', params)
   },
 
   export: async (params: DataQueryParams): Promise<Blob> => {
@@ -465,7 +482,7 @@ export const dataApi = {
       const rows = result.items.map((i) => `${i.time},${i.meterNo},${i.zoneName},${i.value},${i.unit}`).join('\n')
       return new Blob([header + rows], { type: 'text/csv;charset=utf-8;' })
     }
-    return http.get('/data/export', { params, responseType: 'blob' })
+    return http.post('/data/export', params, { responseType: 'blob' })
   },
 }
 
@@ -527,7 +544,10 @@ export const authApi = {
       const user = users[username] || users['operator']
       return { token: `mock-jwt-token-${user.role}-${Date.now()}`, user }
     }
-    return http.post('/auth/login', { username, password: _password })
+    return http.post('/auth/login', { username, password: _password }).then((data: any) => ({
+      token: data.token,
+      user: { id: 1, username: data.username, role: data.role, realName: data.realName },
+    }))
   },
 
   logout: async (): Promise<void> => {

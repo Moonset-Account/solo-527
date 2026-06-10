@@ -7,9 +7,9 @@ import java.util.Map;
 
 public interface MeterService {
 
-    PageResult<Meter> getList(Map<String, Object> params);
+    PageResult<Map<String, Object>> getList(Map<String, Object> params);
 
-    Meter getById(Long id);
+    Map<String, Object> getById(Long id);
 
     Meter create(Meter meter);
 

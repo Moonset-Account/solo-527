@@ -17,7 +17,7 @@ public class MeterController {
     private MeterService meterService;
 
     @GetMapping
-    public Result<PageResult<Meter>> getList(@RequestParam Map<String, Object> params) {
+    public Result<PageResult<Map<String, Object>>> getList(@RequestParam Map<String, Object> params) {
         return Result.success(meterService.getList(params));
     }
 
@@ -27,7 +27,7 @@ public class MeterController {
     }
 
     @GetMapping("/{id}")
-    public Result<Meter> getById(@PathVariable Long id) {
+    public Result<Map<String, Object>> getById(@PathVariable Long id) {
         return Result.success(meterService.getById(id));
     }
 
