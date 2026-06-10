@@ -1,0 +1,61 @@
+{
+  "app": {
+    "name": "GlobalShop",
+    "version": "Version {version} (build {build})",
+    "copyright": "© 2025 GlobalShop Inc. All rights reserved."
+  },
+  "auth": {
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "register": "Create Account",
+    "forgotPassword": "Forgot your password?",
+    "welcome": "Welcome back, {username}!",
+    "loginFailed": "Invalid credentials for user {email}. Please try again or reset your password.",
+    "twoFactorPrompt": "Enter the 6-digit code sent to {deviceName}."
+  },
+  "cart": {
+    "empty": "Your shopping cart is empty.",
+    "itemsCount": "You have {count, plural, one {1 item} other {# items}} in your cart.",
+    "subtotal": "Subtotal: {amount}",
+    "checkout": "Proceed to Checkout",
+    "removeItem": "Remove {productName} from cart"
+  },
+  "checkout": {
+    "shippingAddress": "Shipping Address",
+    "paymentMethod": "Payment Method",
+    "orderSummary": "Order Summary",
+    "estimatedDelivery": "Estimated delivery: {date} ({days} business days)",
+    "confirmPurchase": "Confirm Purchase of {productCount} items for {totalAmount}"
+  },
+  "errors": {
+    "network": "A network error occurred. Please check your connection and try again.",
+    "notFound": "The page you are looking for does not exist.",
+    "serverError": "Internal server error. Our team has been notified and is working on a fix.",
+    "permissionDenied": "You do not have permission to access this resource."
+  },
+  "user": {
+    "profile": {
+      "displayName": "Display Name",
+      "email": "Email Address",
+      "bio": "Short bio (max 200 characters)",
+      "saveChanges": "Save Changes",
+      "settings": "Account Settings"
+    },
+    "notifications": {
+      "emailEnabled": "Email notifications",
+      "pushEnabled": "Push notifications",
+      "marketingOptIn": "Receive marketing emails about new features and promotions"
+    }
+  },
+  "search": {
+    "placeholder": "Search products, categories, brands...",
+    "noResults": "No results found for \"{query}\". Try different keywords or browse categories.",
+    "resultsCount": "Showing {from}-{to} of {total} results for \"{query}\"",
+    "filters": {
+      "priceRange": "Price Range",
+      "category": "Category",
+      "brand": "Brand",
+      "rating": "Minimum Rating"
+    }
+  }
+}

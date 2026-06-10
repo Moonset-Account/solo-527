@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-06-10T05:05:42.107Z",
+  "version": "1.0.0",
+  "baseLocale": "en",
+  "targetLocales": [
+    "zh-CN",
+    "ja",
+    "ko",
+    "de"
+  ],
+  "summary": {
+    "totalBaseKeys": 39,
+    "totalTargetKeys": {
+      "zh-CN": 40,
+      "ja": 38,
+      "ko": 39,
+      "de": 41
+    },
+    "missingCount": {
+      "zh-CN": 0,
+      "ja": 1,
+      "ko": 0,
+      "de": 0
+    },
+    "extraCount": {
+      "zh-CN": 1,
+      "ja": 0,
+      "ko": 0,
+      "de": 2
+    },
+    "placeholderMismatchCount": {
+      "zh-CN": 2,
+      "ja": 1,
+      "ko": 1,
+      "de": 0
+    },
+    "lengthIssueCount": {
+      "zh-CN": 0,
+      "ja": 0,
+      "ko": 0,
+      "de": 0
+    },
+    "statusIssueCount": {
+      "zh-CN": 0,
+      "ja": 0,
+      "ko": 0,
+      "de": 0
+    },
+    "completionRate": {
+      "zh-CN": 100,
+      "ja": 97.4,
+      "ko": 100,
+      "de": 100
+    }
+  },
+  "missingKeys": [
+    {
+      "key": "user.profile.settings",
+      "baseValue": {
+        "value": "Account Settings"
+      },
+      "missingIn": [
+        "ja"
+      ]
+    }
+  ],
+  "extraKeys": [
+    {
+      "key": "legacy.oldFeatureName",
+      "locale": "zh-CN",
+      "value": {
+        "value": "这个键只在 zh-CN 中存在，是多余的"
+      }
+    },
+    {
+      "key": "experimental.betaFeatureLabel",
+      "locale": "de",
+      "value": {
+        "value": "Nur in de vorhanden - Beta-Funktion"
+      }
+    },
+    {
+      "key": "experimental.earlyAccessHint",
+      "locale": "de",
+      "value": {
+        "value": "Dieses Feld ist eine zusätzliche Schlüssel, die nicht im Basis-English existiert."
+      }
+    }
+  ],
+  "placeholderMismatches": [
+    {
+      "key": "cart.itemsCount",
+      "locale": "zh-CN",
+      "basePlaceholders": [],
+      "targetPlaceholders": [
+        "count"
+      ],
+      "baseValue": "You have {count, plural, one {1 item} other {# items}} in y…",
+      "targetValue": "您的购物车中有 {count} 件商品。"
+    },
+    {
+      "key": "search.noResults",
+      "locale": "zh-CN",
+      "basePlaceholders": [
+        "query"
+      ],
+      "targetPlaceholders": [
+        "keyword"
+      ],
+      "baseValue": "No results found for \"{query}\". Try different keywords or b…",
+      "targetValue": "未找到与「{keyword}」相关的结果。请尝试其他关键词或浏览分类。"
+    },
+    {
+      "key": "cart.itemsCount",
+      "locale": "ja",
+      "basePlaceholders": [],
+      "targetPlaceholders": [
+        "count"
+      ],
+      "baseValue": "You have {count, plural, one {1 item} other {# items}} in y…",
+      "targetValue": "カートには {count} 個の商品があります。"
+    },
+    {
+      "key": "cart.itemsCount",
+      "locale": "ko",
+      "basePlaceholders": [],
+      "targetPlaceholders": [
+        "count"
+      ],
+      "baseValue": "You have {count, plural, one {1 item} other {# items}} in y…",
+      "targetValue": "장바구니에 {count}개의 상품이 있습니다."
+    }
+  ],
+  "lengthIssues": [],
+  "statusIssues": [],
+  "valueDiffs": []
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/i18n-diff-checker",
+  "_comment": "本地化项目经理常用配置：基准英文，检查4种语言；默认保守模式，仅缺失/多余/占位符；长度/状态按需开启",
+  "base": "en",
+  "locales": ["zh-CN", "ja", "ko", "de"],
+  "localeDir": "./examples/locales",
+  "filePattern": "{locale}.json",
+  "checks": {
+    "missing": true,
+    "extra": true,
+    "placeholder": true,
+    "length": false,
+    "status": false,
+    "valueDiff": false
+  },
+  "placeholderPattern": "\\{(\\w+)\\}",
+  "length": {
+    "maxRatio": 1.5,
+    "minRatio": 0.7,
+    "minThreshold": 10
+  },
+  "status": {
+    "requireApproved": false,
+    "warnOnDraft": true
+  },
+  "severity": {
+    "missingKey": "error",
+    "extraKey": "warning",
+    "placeholderMismatch": "error",
+    "lengthExceeded": "warning",
+    "lengthTooShort": "info",
+    "unapprovedStatus": "warning",
+    "draftStatus": "info",
+    "deprecatedStatus": "warning"
+  },
+  "concurrency": 4,
+  "retry": {
+    "maxRetries": 3,
+    "delay": 200
+  },
+  "failOn": "error",
+  "report": {
+    "format": "human",
+    "csv": {
+      "exportMissing": true,
+      "columns": ["key", "baseValue", "status", "comment", "locales"]
+    }
+  }
+}

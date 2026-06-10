@@ -1,0 +1,71 @@
+{
+  "app": {
+    "name": "글로벌샵",
+    "version": "버전 {version} (빌드 {build})",
+    "copyright": "© 2025 GlobalShop Inc. 판권 소유."
+  },
+  "auth": {
+    "login": "로그인",
+    "logout": "로그아웃",
+    "register": "계정 만들기",
+    "forgotPassword": "비밀번호를 잊으셨나요?",
+    "welcome": "다시 오신 것을 환영합니다, {username}님!",
+    "loginFailed": "사용자 {email}의 자격 증명이 유효하지 않습니다. 다시 시도하거나 비밀번호를 재설정하세요.",
+    "twoFactorPrompt": "{deviceName}으로 전송된 6자리 코드를 입력하세요."
+  },
+  "cart": {
+    "empty": "장바구니가 비어 있습니다.",
+    "itemsCount": "장바구니에 {count}개의 상품이 있습니다.",
+    "subtotal": "소계: {amount}",
+    "checkout": "결제하기",
+    "removeItem": "장바구니에서 {productName} 제거"
+  },
+  "checkout": {
+    "shippingAddress": "배송 주소",
+    "paymentMethod": "결제 수단",
+    "orderSummary": "주문 요약",
+    "estimatedDelivery": "예상 배송일: {date} (영업일 {days}일)",
+    "confirmPurchase": "{totalAmount}에 {productCount}개 상품 구매 확정"
+  },
+  "errors": {
+    "network": "네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도하세요.",
+    "notFound": "찾으시는 페이지가 존재하지 않습니다.",
+    "serverError": "내부 서버 오류. 팀에 통지되었으며 수정 중입니다.",
+    "permissionDenied": "이 리소스에 액세스할 권한이 없습니다."
+  },
+  "user": {
+    "profile": {
+      "displayName": {
+        "value": "표시 이름",
+        "status": "approved"
+      },
+      "email": {
+        "value": "이메일 주소",
+        "status": "approved"
+      },
+      "bio": {
+        "value": "간단한 소개 (최대 200자)",
+        "status": "deprecated",
+        "comment": "2025 Q4에 제거 예정 - profile.description으로 이전"
+      },
+      "saveChanges": "변경 사항 저장",
+      "settings": "계정 설정"
+    },
+    "notifications": {
+      "emailEnabled": "이메일 알림",
+      "pushEnabled": "푸시 알림",
+      "marketingOptIn": "새 기능과 프로모션에 대한 마케팅 이메일 수신"
+    }
+  },
+  "search": {
+    "placeholder": "상품, 카테고리, 브랜드 등 검색…",
+    "noResults": "\"{query}\"에 대한 결과를 찾을 수 없습니다. 다른 키워드를 시도하거나 카테고리를 둘러보세요.",
+    "resultsCount": "\"{query}\"에 대한 결과 {from}-{to} / 총 {total}",
+    "filters": {
+      "priceRange": "가격 범위",
+      "category": "카테고리",
+      "brand": "브랜드",
+      "rating": "최소 평점"
+    }
+  }
+}

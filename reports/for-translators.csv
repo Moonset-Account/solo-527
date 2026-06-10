@@ -1,0 +1,6 @@
+key,baseValue,baseStatus,comment,locales,type
+user.profile.settings,Account Settings,,,ja,missing
+cart.itemsCount,"You have {count, plural, one {1 item} other {# items}} in y…",,缺失占位符:  / 目标有: count,zh-CN,placeholder_mismatch
+search.noResults,"No results found for ""{query}"". Try different keywords or b…",,缺失占位符: query / 目标有: keyword,zh-CN,placeholder_mismatch
+cart.itemsCount,"You have {count, plural, one {1 item} other {# items}} in y…",,缺失占位符:  / 目标有: count,ja,placeholder_mismatch
+cart.itemsCount,"You have {count, plural, one {1 item} other {# items}} in y…",,缺失占位符:  / 目标有: count,ko,placeholder_mismatch

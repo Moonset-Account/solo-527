@@ -1,0 +1,60 @@
+{
+  "name": "i18n-diff-checker",
+  "version": "1.0.0",
+  "description": "多语言文案差异检查器 - 检查JSON语言包的键对齐、占位符、长度与审核状态",
+  "main": "dist/index.js",
+  "bin": {
+    "i18n-diff": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && esbuild src/cli.ts --bundle --platform=node --target=node18 --outfile=dist/cli.js && esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js",
+    "build:watch": "tsc -w",
+    "dev": "ts-node src/cli.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build",
+    "demo": "ts-node src/cli.ts --config examples/i18n-diff.config.json"
+  },
+  "keywords": [
+    "i18n",
+    "internationalization",
+    "localization",
+    "translation",
+    "diff",
+    "json",
+    "cli",
+    "l10n"
+  ],
+  "author": "Localization PM Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.1.0",
+    "cosmiconfig": "^8.3.6",
+    "csv-stringify": "^6.4.4",
+    "p-limit": "^4.0.0",
+    "picocolors": "^1.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "esbuild": "^0.19.8",
+    "eslint": "^8.54.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0"
+  }
+}

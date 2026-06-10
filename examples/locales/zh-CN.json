@@ -1,0 +1,79 @@
+{
+  "app": {
+    "name": "环球商店",
+    "version": "版本 {version}（构建 {build}）",
+    "copyright": "© 2025 环球商店有限公司 保留所有权利。"
+  },
+  "auth": {
+    "login": "登录",
+    "logout": "退出登录",
+    "register": "创建账户",
+    "welcome": "欢迎回来，{username}！",
+    "loginFailed": "用户 {email} 的凭据无效。请重试或重置密码。",
+    "twoFactorPrompt": "请输入发送到 {deviceName} 的6位验证码。",
+    "forgotPassword": "忘记密码？"
+  },
+  "cart": {
+    "empty": "您的购物车是空的。",
+    "itemsCount": "您的购物车中有 {count} 件商品。",
+    "subtotal": "小计：{amount}",
+    "checkout": "前往结算",
+    "removeItem": "从购物车中移除 {productName}"
+  },
+  "checkout": {
+    "shippingAddress": "收货地址",
+    "paymentMethod": "付款方式",
+    "orderSummary": "订单摘要",
+    "estimatedDelivery": "预计送达日期：{date}（约 {days} 个工作日）",
+    "confirmPurchase": "确认购买 {productCount} 件商品，总计 {totalAmount}"
+  },
+  "errors": {
+    "network": "网络错误。请检查您的连接并重试。",
+    "notFound": "您查找的页面不存在。",
+    "serverError": "服务器内部错误。我们的团队已收到通知，正在修复。",
+    "permissionDenied": "您没有权限访问此资源。"
+  },
+  "user": {
+    "profile": {
+      "displayName": {
+        "value": "展示名称",
+        "status": "approved",
+        "updated_at": "2025-11-15T10:30:00Z",
+        "translator": "wang.ling"
+      },
+      "email": {
+        "value": "电子邮箱地址",
+        "status": "approved"
+      },
+      "bio": {
+        "value": "简短个人简介（最多200字）",
+        "status": "needs_review",
+        "comment": "不确定此处是否应该直接译为「字符」而非「字」"
+      },
+      "saveChanges": "保存更改",
+      "settings": "账户设置"
+    },
+    "notifications": {
+      "emailEnabled": "邮件通知",
+      "pushEnabled": "推送通知",
+      "marketingOptIn": {
+        "value": "接收关于新功能和促销活动的营销邮件",
+        "status": "draft"
+      }
+    }
+  },
+  "search": {
+    "placeholder": "搜索商品、分类、品牌…",
+    "noResults": "未找到与「{keyword}」相关的结果。请尝试其他关键词或浏览分类。",
+    "resultsCount": "正在显示「{query}」的第 {from}-{to} 条（共 {total} 条）结果",
+    "filters": {
+      "priceRange": "价格区间",
+      "category": "分类",
+      "brand": "品牌",
+      "rating": "最低评分"
+    }
+  },
+  "legacy": {
+    "oldFeatureName": "这个键只在 zh-CN 中存在，是多余的"
+  }
+}

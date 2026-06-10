@@ -1,0 +1,60 @@
+{
+  "app": {
+    "name": "グローバルショップ",
+    "version": "バージョン {version}（ビルド {build}）",
+    "copyright": "© 2025 GlobalShop Inc. All rights reserved."
+  },
+  "auth": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "register": "アカウントを作成",
+    "forgotPassword": "パスワードをお忘れですか？",
+    "welcome": "おかえりなさい、{username}さん！",
+    "loginFailed": "ユーザー {email} の認証情報が無効です。再試行するかパスワードをリセットしてください。",
+    "twoFactorPrompt": "{deviceName} に送信された6桁のコードを入力してください。"
+  },
+  "cart": {
+    "empty": "ショッピングカートは空です。",
+    "itemsCount": "カートには {count} 個の商品があります。",
+    "subtotal": "小計: {amount}",
+    "checkout": "お会計へ進む",
+    "removeItem": "カートから {productName} を削除"
+  },
+  "checkout": {
+    "shippingAddress": "配送先住所",
+    "paymentMethod": "お支払い方法",
+    "orderSummary": "注文の概要",
+    "estimatedDelivery": "お届け予定: {date}（{days}営業日）",
+    "confirmPurchase": "合計 {totalAmount} で {productCount} 点の商品の購入を確定"
+  },
+  "errors": {
+    "network": "ネットワークエラーが発生しました。接続を確認して再試行してください。",
+    "notFound": "お探しのページは存在しません。",
+    "serverError": "サーバー内部エラー。チームに通知され、修正に取り組んでいます。",
+    "permissionDenied": "このリソースにアクセスする権限がありません。"
+  },
+  "user": {
+    "profile": {
+      "displayName": "表示名",
+      "email": "メールアドレス",
+      "bio": "短い自己紹介（最大200文字）",
+      "saveChanges": "変更を保存"
+    },
+    "notifications": {
+      "emailEnabled": "メール通知",
+      "pushEnabled": "プッシュ通知",
+      "marketingOptIn": "新機能やプロモーションに関するマーケティングメールを受け取る"
+    }
+  },
+  "search": {
+    "placeholder": "商品、カテゴリ、ブランドなどを検索…",
+    "noResults": "「{query}」の結果は見つかりませんでした。キーワードを変えるかカテゴリを参照してください。",
+    "resultsCount": "「{query}」の {from}～{to} 件目（全 {total} 件）を表示中",
+    "filters": {
+      "priceRange": "価格帯",
+      "category": "カテゴリ",
+      "brand": "ブランド",
+      "rating": "最低評価"
+    }
+  }
+}

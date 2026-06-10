@@ -1,0 +1,65 @@
+{
+  "app": {
+    "name": "GlobalShop",
+    "version": "Version {version} (Build {build})",
+    "copyright": "© 2025 GlobalShop Inc. Alle Rechte vorbehalten."
+  },
+  "auth": {
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "register": "Konto erstellen",
+    "forgotPassword": "Passwort vergessen?",
+    "welcome": "Willkommen zurück, {username}!",
+    "loginFailed": "Ungültige Anmeldedaten für Benutzer {email}. Bitte versuchen Sie es erneut oder setzen Sie Ihr Passwort zurück.",
+    "twoFactorPrompt": "Geben Sie den 6-stelligen Code ein, der an {deviceName} gesendet wurde."
+  },
+  "cart": {
+    "empty": "Ihr Einkaufswagen ist leer.",
+    "itemsCount": "Sie haben {count, plural, one {1 Artikel} other {# Artikel}} in Ihrem Einkaufswagen.",
+    "subtotal": "Zwischensumme: {amount}",
+    "checkout": "Zur Kasse gehen",
+    "removeItem": "{productName} aus dem Einkaufswagen entfernen"
+  },
+  "checkout": {
+    "shippingAddress": "Lieferadresse",
+    "paymentMethod": "Zahlungsmethode",
+    "orderSummary": "Bestellübersicht",
+    "estimatedDelivery": "Voraussichtliche Lieferung: {date} ({days} Werktage)",
+    "confirmPurchase": "Kauf von {productCount} Artikeln für insgesamt {totalAmount} bestätigen"
+  },
+  "errors": {
+    "network": "Ein Netzwerkfehler ist aufgetreten. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "notFound": "Die gesuchte Seite existiert nicht.",
+    "serverError": "Interner Serverfehler. Unser Team wurde benachrichtigt und arbeitet an einer Behebung.",
+    "permissionDenied": "Sie sind nicht berechtigt, auf diese Ressource zuzugreifen."
+  },
+  "user": {
+    "profile": {
+      "displayName": "Anzeigename",
+      "email": "E-Mail-Adresse",
+      "bio": "Kurze Biografie (max. 200 Zeichen)",
+      "saveChanges": "Änderungen speichern",
+      "settings": "Kontoeinstellungen"
+    },
+    "notifications": {
+      "emailEnabled": "E-Mail-Benachrichtigungen",
+      "pushEnabled": "Push-Benachrichtigungen",
+      "marketingOptIn": "Marketing-E-Mails zu neuen Funktionen und Werbeaktionen erhalten"
+    }
+  },
+  "search": {
+    "placeholder": "Produkte, Kategorien, Marken durchsuchen…",
+    "noResults": "Keine Ergebnisse für \"{query}\" gefunden. Versuchen Sie andere Suchbegriffe oder durchsuchen Sie Kategorien.",
+    "resultsCount": "Zeige {from}-{to} von {total} Ergebnissen für \"{query}\"",
+    "filters": {
+      "priceRange": "Preisspanne",
+      "category": "Kategorie",
+      "brand": "Marke",
+      "rating": "Mindestbewertung"
+    }
+  },
+  "experimental": {
+    "betaFeatureLabel": "Nur in de vorhanden - Beta-Funktion",
+    "earlyAccessHint": "Dieses Feld ist eine zusätzliche Schlüssel, die nicht im Basis-English existiert."
+  }
+}
