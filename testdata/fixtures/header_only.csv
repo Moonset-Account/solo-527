@@ -1,0 +1,1 @@
+order_id,user_id,product_sku,quantity,unit_price,total_amount,order_date,status,payment_method,shipping_address,is_gift

@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "businessLine": "finance",
+  "name": "财务对账 Schema",
+  "description": "财务每日账单与交易流水的导入校验",
+  "delimiter": ",",
+  "hasHeader": true,
+  "primaryKeys": ["txn_id"],
+  "columns": [
+    {"name": "txn_id", "type": "string", "required": true, "primaryKey": true, "pattern": "^TXN[0-9A-Z]{12}$"},
+    {"name": "account_id", "type": "string", "required": true},
+    {"name": "txn_type", "type": "enum", "required": true, "enumValues": ["INCOME","EXPENSE","TRANSFER","REFUND","ADJUST"]},
+    {"name": "amount", "type": "float", "required": true},
+    {"name": "currency", "type": "enum", "enumValues": ["CNY","USD","EUR","HKD","JPY"], "required": true},
+    {"name": "txn_date", "type": "date", "required": true, "dateFormats": ["2006-01-02 15:04:05","2006-01-02"]},
+    {"name": "counterparty", "type": "string", "nullable": true},
+    {"name": "memo", "type": "string", "nullable": true},
+    {"name": "reconciled", "type": "bool", "required": true}
+  ]
+}

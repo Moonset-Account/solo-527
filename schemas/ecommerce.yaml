@@ -1,0 +1,70 @@
+version: "1.0"
+businessLine: ecommerce
+name: 电商订单 Schema
+description: 电商业务订单导入数据的校验规则
+delimiter: ","
+hasHeader: true
+encoding: utf-8
+primaryKeys:
+  - order_id
+columns:
+  - name: order_id
+    type: string
+    required: true
+    primaryKey: true
+    pattern: "^ORD[0-9]{8,}$"
+  - name: user_id
+    type: string
+    required: true
+    pattern: "^USR[0-9]{6,}$"
+  - name: product_sku
+    type: string
+    required: true
+  - name: quantity
+    type: int
+    required: true
+    min: 1
+    max: 9999
+  - name: unit_price
+    type: float
+    required: true
+    min: 0
+  - name: total_amount
+    type: float
+    required: true
+    min: 0
+  - name: order_date
+    type: date
+    required: true
+    dateFormats:
+      - "2006-01-02"
+      - "2006-01-02 15:04:05"
+      - "2006/01/02"
+  - name: status
+    type: enum
+    required: true
+    enumValues:
+      - PENDING
+      - PAID
+      - SHIPPED
+      - DELIVERED
+      - CANCELLED
+      - REFUNDED
+  - name: payment_method
+    type: enum
+    enumValues:
+      - ALIPAY
+      - WECHAT
+      - CREDIT_CARD
+      - DEBIT_CARD
+      - COD
+  - name: shipping_address
+    type: string
+    nullable: true
+  - name: is_gift
+    type: bool
+    nullable: true
+ignoreRules:
+  - ruleIds: [W001]
+    columns: [shipping_address]
+    reason: 配送地址可为空，由前端另行补全

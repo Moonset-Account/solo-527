@@ -1,0 +1,54 @@
+version: "1.0"
+businessLine: usercenter
+name: 用户中心资料 Schema
+description: 用户注册与资料导入，列名全部使用中文
+delimiter: ","
+hasHeader: true
+primaryKeys:
+  - 用户ID
+columns:
+  - name: 用户ID
+    type: string
+    required: true
+    primaryKey: true
+  - name: 手机号
+    type: string
+    required: true
+    pattern: "^1[3-9]\\d{9}$"
+  - name: 电子邮箱
+    type: string
+    nullable: true
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+  - name: 用户等级
+    type: enum
+    enumValues:
+      - 普通
+      - 银卡
+      - 金卡
+      - 钻石
+    required: true
+  - name: 注册日期
+    type: date
+    required: true
+    dateFormats:
+      - "2006-01-02"
+      - "2006年01月02日"
+  - name: 积分余额
+    type: int
+    min: 0
+    max: 1000000
+  - name: 是否VIP
+    type: bool
+    nullable: true
+  - name: 所属城市
+    type: string
+    nullable: true
+  - name: 最近登录时间
+    type: date
+    nullable: true
+    dateFormats:
+      - "2006-01-02 15:04:05"
+ignoreRules:
+  - ruleIds: [W001]
+    columns: ["电子邮箱", "所属城市", "最近登录时间"]
+    reason: 这些字段允许为空
