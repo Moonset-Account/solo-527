@@ -11,7 +11,7 @@ import { AfterSales } from '../after-sales/after-sales.entity';
 
 export interface ProcessRecord {
   id: number;
-  type: 'DESIGN_PLAN' | 'INSPECTION_TASK' | 'AFTER_SALES';
+  type: 'DESIGN' | 'INSPECTION' | 'AFTERSALES';
   title: string;
   status: string;
   handler: string;
@@ -109,7 +109,7 @@ export class ProjectService {
     designPlans.forEach((plan) => {
       records.push({
         id: plan.id,
-        type: 'DESIGN_PLAN',
+        type: 'DESIGN',
         title: plan.name,
         status: plan.status,
         handler: plan.handler || '',
@@ -121,7 +121,7 @@ export class ProjectService {
     inspectionTasks.forEach((task) => {
       records.push({
         id: task.id,
-        type: 'INSPECTION_TASK',
+        type: 'INSPECTION',
         title: task.title,
         status: task.status,
         handler: task.handler || task.inspector || '',
@@ -133,7 +133,7 @@ export class ProjectService {
     afterSales.forEach((sale) => {
       records.push({
         id: sale.id,
-        type: 'AFTER_SALES',
+        type: 'AFTERSALES',
         title: sale.title,
         status: sale.status,
         handler: sale.handler || '',

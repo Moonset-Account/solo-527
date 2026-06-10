@@ -191,13 +191,16 @@ const Inspection = () => {
     try {
       const values = await completeForm.validateFields()
       if (detailItem) {
-        await completeInspection(detailItem.id, {
+        const response = await completeInspection(detailItem.id, {
           result: values.result,
           issues: values.issues,
           rectificationDeadline: values.rectificationDeadline?.format('YYYY-MM-DD') || undefined,
           handler: values.handler
         })
         message.success('巡检完成')
+        if (response.data?.needNotifyProjectManager) {
+          message.warning('已自动提醒项目经理处理巡检不合格问题')
+        }
         setCompleteModalVisible(false)
         setDrawerVisible(false)
         loadData()

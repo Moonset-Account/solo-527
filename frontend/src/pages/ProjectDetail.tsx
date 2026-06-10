@@ -135,7 +135,15 @@ const ProjectDetail = () => {
 
   const handleExport = async () => {
     try {
-      await exportProjectData(projectId)
+      const blob = await exportProjectData(projectId)
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `project-${projectId}-archive-${Date.now()}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
       message.success('导出成功')
     } catch (error) {
       console.error('导出失败', error)

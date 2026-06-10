@@ -1,6 +1,8 @@
 import request from './request'
 import type { InspectionTask, PaginatedResponse, ApiResponse } from '@/types'
 
+export type CompleteInspectionResponse = InspectionTask & { needNotifyProjectManager?: boolean }
+
 export const getInspectionTaskList = (params?: Record<string, unknown>) => {
   return request.get<ApiResponse<PaginatedResponse<InspectionTask>>, ApiResponse<PaginatedResponse<InspectionTask>>>('/inspection-tasks', { params })
 }
@@ -26,5 +28,5 @@ export const getInspectionTasksByProject = (projectId: number) => {
 }
 
 export const completeInspection = (id: number, data: { result: string; issues?: string; rectificationDeadline?: string; handler?: string }) => {
-  return request.patch<ApiResponse<InspectionTask>, ApiResponse<InspectionTask>>(`/inspection-tasks/${id}/complete`, data)
+  return request.patch<ApiResponse<CompleteInspectionResponse>, ApiResponse<CompleteInspectionResponse>>(`/inspection-tasks/${id}/complete`, data)
 }

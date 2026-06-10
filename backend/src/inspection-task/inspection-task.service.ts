@@ -9,6 +9,8 @@ import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
 import { InspectionResult } from '../common/enums/inspection-result.enum';
 import { InspectionStatus } from '../common/enums/inspection-status.enum';
 import { ProjectService } from '../project/project.service';
+import { DelayReminderService } from '../delay-reminder/delay-reminder.service';
+import { DelayReminderStatus } from '../common/enums/delay-reminder-status.enum';
 
 @Injectable()
 export class InspectionTaskService {
@@ -16,6 +18,7 @@ export class InspectionTaskService {
     @InjectRepository(InspectionTask)
     private inspectionTaskRepository: Repository<InspectionTask>,
     private projectService: ProjectService,
+    private delayReminderService: DelayReminderService,
   ) {}
 
   async findAll(paginationDto: PaginationDto, projectId?: number, status?: string): Promise<PaginatedResult<InspectionTask>> {
@@ -118,6 +121,13 @@ export class InspectionTaskService {
   }
 
   private async notifyProjectManager(task: InspectionTask): Promise<void> {
-    console.log(`通知项目经理：巡检任务 "${task.title}" 不合格，请及时处理。`);
+    await this.delayReminderService.create({
+      projectId: task.projectId,
+      stageId: task.stageId,
+      reason: `巡检不合格：${task.title} - ${task.issues || '无详细说明'}`,
+      days: 0,
+      status: DelayReminderStatus.PENDING,
+      handler: task.inspector || undefined,
+    });
   }
 }
