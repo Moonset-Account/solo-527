@@ -7,6 +7,7 @@ import { DeliveryRequirement } from './delivery-requirement.entity';
 import { ProductionProgress } from './production-progress.entity';
 import { QualityInspection } from './quality-inspection.entity';
 import { MaterialShortage } from './material-shortage.entity';
+import { MaterialCost } from './material-cost.entity';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'in_production' | 'quality_check' | 'completed' | 'cancelled';
 
@@ -86,4 +87,7 @@ export class Order extends BaseEntity {
 
   @OneToMany(() => MaterialShortage, shortage => shortage.order)
   materialShortages: MaterialShortage[];
+
+  @OneToMany(() => MaterialCost, cost => cost.order)
+  materialCosts: MaterialCost[];
 }

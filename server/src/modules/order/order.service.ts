@@ -146,7 +146,18 @@ export class OrderService extends BaseCrudService<Order> {
         'productionProgress',
         'productionProgress.productionNode',
         'productionProgress.team',
+        'qualityInspections',
+        'materialShortages',
+        'materialCosts',
       ],
+      order: {
+        processes: { sortOrder: 'ASC' } as any,
+        deliveryRequirements: { sortOrder: 'ASC' } as any,
+        productionProgress: { sortOrder: 'ASC' } as any,
+        qualityInspections: { createdAt: 'DESC' } as any,
+        materialShortages: { createdAt: 'DESC' } as any,
+        materialCosts: { costDate: 'DESC' } as any,
+      } as any,
     });
     if (!order) {
       throw new BadRequestException('订单不存在');
