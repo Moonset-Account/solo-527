@@ -144,8 +144,10 @@ export class GitService {
   }
 
   buildLocalProtectionRules(): BranchProtectionRule[] {
+    const mk = (r: Omit<BranchProtectionRule, 'source'>): BranchProtectionRule =>
+      ({ ...r, source: 'local-inference' });
     return [
-      {
+      mk({
         pattern: 'main',
         requiresApprovingReviews: true,
         requiredApprovingReviewCount: 1,
@@ -153,8 +155,8 @@ export class GitService {
         allowsDeletions: false,
         allowsForcePushes: false,
         restrictsPushes: true,
-      },
-      {
+      }),
+      mk({
         pattern: 'master',
         requiresApprovingReviews: true,
         requiredApprovingReviewCount: 1,
@@ -162,39 +164,39 @@ export class GitService {
         allowsDeletions: false,
         allowsForcePushes: false,
         restrictsPushes: true,
-      },
-      {
+      }),
+      mk({
         pattern: 'release/*',
         requiresApprovingReviews: true,
         requiresStatusChecks: true,
         allowsDeletions: false,
         allowsForcePushes: false,
         restrictsPushes: true,
-      },
-      {
+      }),
+      mk({
         pattern: 'hotfix/*',
         requiresApprovingReviews: false,
         requiresStatusChecks: true,
         allowsDeletions: false,
         allowsForcePushes: false,
         restrictsPushes: false,
-      },
-      {
+      }),
+      mk({
         pattern: 'develop',
         requiresApprovingReviews: true,
         requiresStatusChecks: true,
         allowsDeletions: false,
         allowsForcePushes: false,
         restrictsPushes: true,
-      },
-      {
+      }),
+      mk({
         pattern: 'v*.*',
         requiresApprovingReviews: false,
         requiresStatusChecks: false,
         allowsDeletions: false,
         allowsForcePushes: false,
         restrictsPushes: true,
-      },
+      }),
     ];
   }
 

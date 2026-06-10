@@ -133,27 +133,38 @@ async function ensureAheadBehindFilled(
 ): Promise<BranchInfo[]> {
   if (!github || !github.isAvailable()) return branches;
   const missing = branches.filter(
-    (b) => b.name !== defaultBranch && b.aheadOfDefault === 0 && b.behindDefault === 0
+    (b) => b.name !== defaultBranch && b.compareFailed === undefined && b.aheadOfDefault === 0 && b.behindDefault === 0
   );
-  if (missing.length === 0) return branches;
+  const alreadyFailed = branches.filter((b) => b.compareFailed === true && b.name !== defaultBranch);
 
-  console.warn(
-    chalk.cyan(
-      `🔍 补算 ${missing.length} 个分支的 ahead/behind（GitHub Compare API）...`
-    )
-  );
+  if (missing.length === 0 && alreadyFailed.length === 0) return branches;
+
+  if (missing.length > 0) {
+    console.warn(
+      chalk.cyan(
+        `🔍 补算 ${missing.length} 个分支的 ahead/behind（GitHub Compare API）...`
+      )
+    );
+  }
 
   await Promise.allSettled(
     missing.map(async (b) => {
       const compare = await github.compareCommits(defaultBranch, b.name);
       b.aheadOfDefault = compare.ahead;
       b.behindDefault = compare.behind;
-      if (compare.status === 'identical' || compare.status === 'behind') {
+      b.compareStatus = compare.status;
+      b.compareFailed = compare.failed;
+
+      if (compare.failed) {
+        b.isMerged = false;
+      } else if (compare.status === 'identical' || compare.status === 'behind') {
+        b.isMerged = true;
+      } else if (compare.ahead === 0 && compare.behind > 0) {
         b.isMerged = true;
       } else if (compare.ahead === 0 && compare.behind === 0) {
         b.isMerged = true;
-      } else if (compare.ahead === 0) {
-        b.isMerged = true;
+      } else {
+        b.isMerged = false;
       }
     })
   );
@@ -247,9 +258,12 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
       console.log(chalk.cyan(`GitHub 仓库: ${ctx.githubOwner}/${ctx.githubRepo}${flag}`));
     }
     if (github?.isAvailable()) {
-      console.log(chalk.green('✓ GitHub API 已连接（可获取 PR / 真实保护规则）'));
+      const auth = (github as any).isAuthenticated && (github as any).isAuthenticated()
+        ? '已认证'
+        : '匿名访问（速率限制 60 次/小时，建议配置 GITHUB_TOKEN）';
+      console.log(chalk.green(`✓ GitHub API 已连接（${auth}）`));
     } else if (ctx.githubOwner && ctx.githubRepo) {
-      console.log(chalk.yellow('⚠️  未配置 GITHUB_TOKEN，无法获取 PR 和真实保护规则'));
+      console.log(chalk.yellow('⚠️  无法初始化 GitHub API，请检查仓库标识是否正确'));
     } else if (!ctx.localRepoPath) {
       console.log(chalk.yellow('⚠️  无法解析 GitHub 仓库信息，将只能使用本地推断规则'));
     }
@@ -274,17 +288,21 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
   if (!json) console.log(chalk.cyan('\n🔍 正在读取分支保护规则...'));
   const protectionRules = await obtainProtectionRules(ctx, git, github);
   const protectedBranchNames = protectionRules.map((r) => r.pattern);
-  const realProtectionFromApi = protectionRules.filter((r) => !['main', 'master', 'develop', 'release/*', 'hotfix/*', 'v*.*'].includes(r.pattern));
+  const realProtectionFromApi = protectionRules.filter((r) => r.source === 'github-api');
+  const localInferenceRules = protectionRules.filter((r) => r.source === 'local-inference');
   if (!json) {
     const realCount = realProtectionFromApi.length;
-    const localCount = protectionRules.length - realCount;
+    const localCount = localInferenceRules.length;
     console.log(
       chalk.green(
-        `  ✓ 加载 ${protectionRules.length} 条规则（真实 API: ${realCount}，本地推断: ${localCount}）`
+        `  ✓ 加载 ${protectionRules.length} 条规则（真实 API[source=github-api]: ${realCount}，本地推断[source=local-inference]: ${localCount}）`
       )
     );
     if (protectedBranchNames.length > 0) {
       console.log(chalk.gray(`    规则列表: ${protectedBranchNames.slice(0, 8).join(', ')}${protectedBranchNames.length > 8 ? ` 等${protectedBranchNames.length}条` : ''}`));
+    }
+    if (realCount > 0) {
+      console.log(chalk.gray(`    API 真实规则: ${realProtectionFromApi.map((r) => r.pattern).join(', ')}`));
     }
   }
 
@@ -404,12 +422,21 @@ function printDataIntegrityReport(ctx: {
   const total = ctx.branches.length;
   const hasCommitDate = ctx.branches.filter((b) => b.lastCommit.date !== '').length;
   const hasCommitAuthor = ctx.branches.filter((b) => b.lastCommit.authorName !== '').length;
+  const compareFailed = ctx.branches.filter(
+    (b) => b.name !== ctx.defaultBranch && b.compareFailed === true
+  );
+  const compareUnattempted = ctx.branches.filter(
+    (b) => b.name !== ctx.defaultBranch && b.compareFailed === undefined && b.aheadOfDefault === 0 && b.behindDefault === 0 && !b.isMerged
+  );
   const hasAheadCalc = ctx.branches.filter(
-    (b) => b.name === ctx.defaultBranch || b.aheadOfDefault !== 0 || b.behindDefault !== 0 || b.isMerged === true
+    (b) => b.name === ctx.defaultBranch
+      || (b.compareFailed === false && (b.aheadOfDefault !== 0 || b.behindDefault !== 0 || b.isMerged === true))
   ).length;
+  const unmergedBranches = ctx.analyzed.filter((b) => b.aheadOfDefault > 0);
   const prBranches = ctx.prMap.size;
   const prTotal = Array.from(ctx.prMap.values()).reduce((s, a) => s + a.length, 0);
   const realApiRules = ctx.realProtectionFromApi.length;
+  const localInference = ctx.protectionRules.filter((r) => r.source === 'local-inference').length;
   const allRules = ctx.protectionRules.length;
 
   let allComplete = true;
@@ -450,18 +477,37 @@ function printDataIntegrityReport(ctx: {
 
   item(
     '④ 真实保护规则',
-    `${allRules} 条（其中 ${realApiRules} 条来自 GitHub 真实 API，${allRules - realApiRules} 条为本地名称推断）`,
+    `${allRules} 条（[source=github-api]: ${realApiRules} 条，[source=local-inference]: ${localInference} 条）`,
     realApiRules > 0 || !ctx.github?.isAvailable(),
     ctx.github?.isAvailable() && realApiRules === 0
       ? '未读取到 GitHub 真实保护规则（可能仓库未配置任何保护规则，或 Token 权限不足）'
       : undefined
   );
 
+  const item5Ok = compareFailed.length === 0 && (hasAheadCalc === total || total === 0);
+  let item5Detail = `${hasAheadCalc}/${total} 个分支 Compare 成功；共 ${unmergedBranches.length} 个分支存在未合并提交`;
+  if (compareFailed.length > 0) {
+    item5Detail += chalk.red(`；${compareFailed.length} 个分支 Compare 失败${compareFailed.length <= 5 ? ': ' + compareFailed.map(b => b.name).join(', ') : `: ${compareFailed.slice(0, 5).join(', ')} 等${compareFailed.length}个`}`);
+  }
+  if (compareUnattempted.length > 0) {
+    item5Detail += chalk.yellow(`；${compareUnattempted.length} 个分支未计算（请配置 Token 或检查网络）`);
+  }
+  const item5Warns: string[] = [];
+  if (compareFailed.length > 0) {
+    item5Warns.push(`${compareFailed.length} 个分支 Compare 失败，已显式标记 isMerged=false，不会静默当作已合并。失败分支: ${compareFailed.slice(0, 10).map(b => b.name).join(', ')}${compareFailed.length > 10 ? '...' : ''}`);
+  }
+  if (compareUnattempted.length > 0) {
+    item5Warns.push(`${compareUnattempted.length} 个分支未做 Compare，建议配置 GITHUB_TOKEN 以获取准确 ahead/behind`);
+  }
+  if (total > 0 && hasAheadCalc !== total && compareFailed.length === 0 && compareUnattempted.length === 0) {
+    item5Warns.push(`${total - hasAheadCalc} 个分支未能计算 ahead/behind`);
+  }
+
   item(
     '⑤ 未合并提交计算',
-    `${hasAheadCalc}/${total} 个分支计算了 ahead/behind；共 ${ctx.analyzed.filter((b) => b.aheadOfDefault > 0).length} 个分支存在未合并提交`,
-    hasAheadCalc === total,
-    `${total - hasAheadCalc} 个分支未能计算 ahead/behind`
+    item5Detail,
+    item5Ok,
+    item5Warns.length > 0 ? item5Warns.join('；') : undefined
   );
 
   console.log();
@@ -469,6 +515,17 @@ function printDataIntegrityReport(ctx: {
     console.log(chalk.green('  ✓ 以上 5 项关键信息在本次 scan 中全部齐备 ✓'));
   }
   console.log();
+
+  if (compareFailed.length > 0) {
+    console.log(chalk.bold.red('⚠️  Compare 失败分支详细清单（已按未合并处理，不会静默当作已合并）：'));
+    for (const b of compareFailed.slice(0, 20)) {
+      console.log(chalk.red(`  • ${b.name} [status: ${b.compareStatus || 'unknown'}]`));
+    }
+    if (compareFailed.length > 20) {
+      console.log(chalk.gray(`  ... 等 ${compareFailed.length} 个分支，请检查速率限制或网络连接`));
+    }
+    console.log();
+  }
 
   return { allComplete, warnings };
 }

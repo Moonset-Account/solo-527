@@ -15,6 +15,8 @@ export interface BranchInfo {
   isMerged: boolean;
   isProtected: boolean;
   protectionRule?: BranchProtectionRule;
+  compareFailed?: boolean;
+  compareStatus?: string;
 }
 
 export interface BranchProtectionRule {
@@ -26,6 +28,7 @@ export interface BranchProtectionRule {
   allowsDeletions: boolean;
   allowsForcePushes: boolean;
   restrictsPushes: boolean;
+  source: 'github-api' | 'local-inference';
 }
 
 export interface PullRequestInfo {

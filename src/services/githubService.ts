@@ -16,6 +16,7 @@ export class GitHubService {
   private octokit: Octokit | null = null;
   private owner: string = '';
   private repo: string = '';
+  private token: string | undefined = undefined;
 
   constructor(
     repoInputOrOwner: string,
@@ -39,10 +40,15 @@ export class GitHubService {
 
     this.owner = owner;
     this.repo = name;
+    this.token = token;
 
-    if (token && this.owner && this.repo) {
+    if (this.owner && this.repo) {
       try {
-        this.octokit = new Octokit({ auth: token });
+        const octoOpts: ConstructorParameters<typeof Octokit>[0] = {};
+        if (token) {
+          octoOpts.auth = token;
+        }
+        this.octokit = new Octokit(octoOpts);
       } catch (err: any) {
         console.warn(`GitHub API 初始化失败: ${err.message}`);
         this.octokit = null;
@@ -62,6 +68,10 @@ export class GitHubService {
 
   isAvailable(): boolean {
     return this.octokit !== null && this.owner !== '' && this.repo !== '';
+  }
+
+  isAuthenticated(): boolean {
+    return this.isAvailable() && !!this.token;
   }
 
   getRepoInfo(): { owner: string; name: string } {
@@ -146,16 +156,29 @@ export class GitHubService {
           `🔍 正在使用 GitHub Compare API 计算 ${allBranches.length} 个分支的 ahead/behind（可能较慢）...`
         );
         const enrichTasks = allBranches.map(async (branch) => {
-          if (branch.name === result.defaultBranch) return branch;
+          if (branch.name === result.defaultBranch) {
+            branch.compareStatus = 'default';
+            branch.compareFailed = false;
+            return branch;
+          }
           const compare = await this.compareCommits(result.defaultBranch, branch.name);
           branch.aheadOfDefault = compare.ahead;
           branch.behindDefault = compare.behind;
-          if (compare.status === 'identical') {
+          branch.compareStatus = compare.status;
+          branch.compareFailed = compare.failed;
+
+          if (compare.failed) {
+            branch.isMerged = false;
+          } else if (compare.status === 'identical') {
             branch.isMerged = true;
-          } else if (compare.status === 'behind' || (compare.ahead === 0 && compare.behind > 0)) {
+          } else if (compare.status === 'behind') {
+            branch.isMerged = true;
+          } else if (compare.ahead === 0 && compare.behind > 0) {
             branch.isMerged = true;
           } else if (compare.ahead === 0 && compare.behind === 0) {
             branch.isMerged = true;
+          } else {
+            branch.isMerged = false;
           }
           return branch;
         });
@@ -171,9 +194,9 @@ export class GitHubService {
   async compareCommits(
     baseBranch: string,
     headBranch: string
-  ): Promise<{ ahead: number; behind: number; status: string }> {
+  ): Promise<{ ahead: number; behind: number; status: string; failed: boolean }> {
     if (!this.octokit || !this.owner || !this.repo) {
-      return { ahead: 0, behind: 0, status: 'unknown' };
+      return { ahead: 0, behind: 0, status: 'unavailable', failed: true };
     }
 
     try {
@@ -189,15 +212,18 @@ export class GitHubService {
         ahead: data.ahead_by || 0,
         behind: data.behind_by || 0,
         status: data.status || 'unknown',
+        failed: false,
       };
     } catch (err: any) {
       const msg = err?.message || String(err);
       if (msg.includes('rate limit')) {
         console.warn(`⚠️  GitHub API 速率限制: 无法比较 ${baseBranch}...${headBranch}`);
       } else if (msg.includes('404')) {
-        console.warn(`⚠️  无法比较 ${baseBranch}...${headBranch}: 分支或引用不存在`);
+        console.warn(`⚠️  无法比较 ${baseBranch}...${headBranch}: 分支或引用不存在 (404)`);
+      } else {
+        console.warn(`⚠️  Compare 失败 ${baseBranch}...${headBranch}: ${msg}`);
       }
-      return { ahead: 0, behind: 0, status: 'error' };
+      return { ahead: 0, behind: 0, status: 'error', failed: true };
     }
   }
 
@@ -376,6 +402,7 @@ export class GitHubService {
             allowsDeletions: data.allow_deletions?.enabled || false,
             allowsForcePushes: data.allow_force_pushes?.enabled || false,
             restrictsPushes: !!data.restrictions,
+            source: 'github-api',
           });
         } catch {
           continue;
