@@ -61,7 +61,7 @@ export default function FarmRecordDetail() {
     if (!id) return
     const result = await reviewExecute(`/api/farm-records/${id}/review`, {
       method: 'POST',
-      body: JSON.stringify({ action, remark }),
+      body: JSON.stringify({ status: action, remark }),
     })
     if (result) {
       execute(`/api/farm-records/${id}`).then((d) => {

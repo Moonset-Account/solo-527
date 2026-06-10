@@ -94,7 +94,7 @@ export default function App() {
           />
           <Route
             path="/traceability/:batchNo"
-            element={<Placeholder title="溯源查询" />}
+            element={<Traceability />}
           />
           <Route
             element={
@@ -116,14 +116,14 @@ export default function App() {
             <Route path="/harvests" element={<Harvests />} />
             <Route path="/harvests/new" element={<HarvestForm />} />
             <Route path="/harvests/:id" element={<HarvestDetail />} />
-            <Route path="/sorting-orders" element={<Placeholder title="分拣订单" />} />
-            <Route path="/sorting-orders/new" element={<Placeholder title="新建分拣订单" />} />
-            <Route path="/sorting-orders/:id" element={<Placeholder title="分拣订单详情" />} />
-            <Route path="/orders" element={<Placeholder title="订单履约" />} />
-            <Route path="/orders/new" element={<Placeholder title="新建订单" />} />
-            <Route path="/orders/:id" element={<Placeholder title="订单详情" />} />
-            <Route path="/declarations" element={<Placeholder title="申报材料" />} />
-            <Route path="/declarations/:id" element={<Placeholder title="申报材料详情" />} />
+            <Route path="/sorting-orders" element={<SortingOrders />} />
+            <Route path="/sorting-orders/new" element={<SortingOrderForm />} />
+            <Route path="/sorting-orders/:id" element={<SortingOrderDetail />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/orders/new" element={<OrderForm />} />
+            <Route path="/orders/:id" element={<OrderDetail />} />
+            <Route path="/declarations" element={<Declarations />} />
+            <Route path="/declarations/:id" element={<DeclarationDetail />} />
             <Route path="/admin/roles" element={<Roles />} />
             <Route path="/admin/logs" element={<Logs />} />
             <Route path="/admin/export" element={<Export />} />

@@ -98,4 +98,32 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response): Prom
   }
 })
 
+router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' })
+      return
+    }
+    const user = await User.findById(userId).populate('role')
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' })
+      return
+    }
+    const roleDoc = user.role as any
+    res.json({
+      success: true,
+      data: {
+        id: user._id,
+        username: user.username,
+        name: user.name,
+        role: roleDoc?.name || '',
+        permissions: roleDoc?.permissions || [],
+      },
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 export default router
