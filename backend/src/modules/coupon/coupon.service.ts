@@ -51,7 +51,7 @@ export class CouponService {
   }
 
   async findAll(params: any = {}) {
-    const { page = 1, pageSize = 20, keyword, type, status, startDate, endDate, responsiblePerson, storeId } = params;
+    const { page = 1, pageSize = 20, keyword, type, status, startDate, endDate, responsiblePerson, storeId, memberId } = params;
     const query: any = {};
 
     if (keyword) {
@@ -64,6 +64,7 @@ export class CouponService {
     }
     if (type) query.type = type;
     if (status) query.status = status;
+    if (memberId) query.memberId = new Types.ObjectId(memberId);
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);

@@ -24,7 +24,7 @@ export class ReportController {
   }
 
   @Get('member-growth')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.BRAND_OPERATOR)
   async getMemberGrowth(
     @Query('startDate') startDate?: string,
@@ -39,7 +39,7 @@ export class ReportController {
   }
 
   @Get('reach')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.BRAND_OPERATOR)
   async getReachReport(
     @Query('startDate') startDate?: string,

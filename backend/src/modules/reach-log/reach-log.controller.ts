@@ -38,7 +38,7 @@ export class ReachLogController {
   }
 
   @Get('failed')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.BRAND_OPERATOR)
   async getFailedLogs(
     @Query('page') page?: number,

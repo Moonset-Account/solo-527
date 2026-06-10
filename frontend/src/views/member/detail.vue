@@ -243,7 +243,7 @@ async function loadActivities() {
 
 async function loadCoupons() {
   try {
-    const res = await request.get('/coupons', { params: { pageSize: 50 } })
+    const res = await request.get('/coupons', { params: { memberId: memberId.value, type: 'repurchase', pageSize: 50 } })
     couponList.value = res.list
   } catch (e) { console.error(e) }
 }

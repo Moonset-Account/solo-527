@@ -19,9 +19,10 @@ export class CouponController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('responsiblePerson') responsiblePerson?: string,
+    @Query('memberId') memberId?: string,
     @CurrentUser() user?: any,
   ) {
-    const params: any = { page, pageSize, keyword, type, status, startDate, endDate, responsiblePerson };
+    const params: any = { page, pageSize, keyword, type, status, startDate, endDate, responsiblePerson, memberId };
     if (user.role === UserRole.STORE_GUIDE && user.storeId) {
       params.storeId = user.storeId;
     }
