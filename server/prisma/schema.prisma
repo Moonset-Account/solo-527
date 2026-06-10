@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("GRID_WORKER")
+  gridId    Int?
+  grid      Grid?    @relation(fields: [gridId], references: [id])
+  avatar    String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reportedEvents  Event[] @relation("Reporter")
+  assignedEvents  Event[] @relation("Assignee")
+  operationLogs   OperationLog[]
+  notifications   Notification[]
+}
+
+model Grid {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  area        String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users     User[]
+  events    Event[]
+  facilities Facility[]
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  type      String?
+  contact   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events Event[]
+}
+
+model Event {
+  id           Int         @id @default(autoincrement())
+  title        String
+  description  String?
+  type         String
+  level        String
+  status       String      @default("PENDING")
+  location     String
+  latitude     Float?
+  longitude    Float?
+  gridId       Int
+  grid         Grid        @relation(fields: [gridId], references: [id])
+  reporterId   Int
+  reporter     User        @relation("Reporter", fields: [reporterId], references: [id])
+  assigneeId   Int?
+  assignee     User?       @relation("Assignee", fields: [assigneeId], references: [id])
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  images       String?
+  isEffective  Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  completedAt  DateTime?
+
+  volunteerServices VolunteerService[]
+  operationLogs     OperationLog[]
+  notifications     Notification[]
+}
+
+model VolunteerService {
+  id             Int      @id @default(autoincrement())
+  eventId        Int
+  event          Event    @relation(fields: [eventId], references: [id])
+  volunteerName  String
+  volunteerPhone String
+  serviceHours   Float
+  serviceDate    DateTime
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model OperationLog {
+  id            Int      @id @default(autoincrement())
+  eventId       Int?
+  event         Event?   @relation(fields: [eventId], references: [id])
+  action        String
+  operatorId    Int
+  operator      User     @relation(fields: [operatorId], references: [id])
+  operatorName  String
+  details       String?
+  status        String   @default("SUCCESS")
+  failureReason String?
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String
+  type      String   @default("SYSTEM")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  eventId   Int?
+  event     Event?   @relation(fields: [eventId], references: [id])
+}
+
+model Facility {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  type        String
+  location    String
+  latitude    Float?
+  longitude   Float?
+  gridId      Int
+  grid        Grid     @relation(fields: [gridId], references: [id])
+  status      String   @default("NORMAL")
+  image       String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
