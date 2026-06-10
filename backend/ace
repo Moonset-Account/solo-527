@@ -1,0 +1,19 @@
+/*
+|--------------------------------------------------------------------------
+| Adonis Ace Configuration
+|--------------------------------------------------------------------------
+*/
+import { resolve } from 'path'
+import { register } from 'ts-node'
+
+register({
+  project: resolve(__dirname, './tsconfig.json'),
+  transpileOnly: true,
+})
+
+require('@adonisjs/core/build/standalone').Ace
+  .handle(process.argv.slice(2))
+  .catch((error: any) => {
+    console.log(error.stack)
+    process.exit(1)
+  })

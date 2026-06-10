@@ -1,0 +1,37 @@
+{
+  "types": ["./adonisrc.ts"],
+  "commands": ["./commands", "@adonisjs/core/build/commands", "@adonisjs/repl/build/commands", "@adonisjs/lucid/build/commands", "@adonisjs/auth/build/commands"],
+  "exceptionHandlerNamespace": "App/Exceptions/Handler",
+  "aliases": {
+    "App": "app",
+    "Config": "config",
+    "Database": "database",
+    "Contracts": "contracts"
+  },
+  "preloads": ["./start/routes", "./start/kernel"],
+  "providers": [
+    "./providers/AppProvider",
+    "@adonisjs/core",
+    "@adonisjs/lucid",
+    "@adonisjs/redis",
+    "@adonisjs/auth"
+  ],
+  "metaFiles": ["./resources/views/**/*.edge", "./public/**"],
+  "tests": {
+    "suites": [{ "name": "functional", "files": ["tests/functional/**/*.spec(.ts|.js)"] }]
+  },
+  "raw": {
+    "domains": {
+      "mail": "smtp"
+    }
+  },
+  "namespaces": {
+    "controllers": "App/Controllers/Http",
+    "models": "App/Models",
+    "exceptions": "App/Exceptions",
+    "middleware": "App/Middleware",
+    "validators": "App/Validators",
+    "events": "App/Events",
+    "listeners": "App/Listeners"
+  }
+}
