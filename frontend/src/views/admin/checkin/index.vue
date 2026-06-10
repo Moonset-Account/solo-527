@@ -160,10 +160,14 @@
           <el-input-number
             v-model="completeForm.membershipDeduction"
             :min="completeForm.paymentMethod === 'membership' ? 1 : 0"
+            :max="getMembershipDeductionMax()"
             :step="getMembershipDeductionStep()"
             :precision="getMembershipDeductionPrecision()"
             style="width: 100%"
           />
+          <span v-if="currentCustomerMembership()?.remainingTimes != null" class="deduction-hint">
+            最多可用 {{ currentCustomerMembership().remainingTimes }} 次
+          </span>
         </el-form-item>
         <el-form-item label="支付方式" required>
           <el-radio-group v-model="completeForm.paymentMethod">
@@ -251,6 +255,14 @@ function getMembershipDeductionPrecision() {
   return 2
 }
 
+function getMembershipDeductionMax() {
+  const cm = currentCustomerMembership()
+  if (!cm) return undefined
+  if (cm.remainingTimes != null) return cm.remainingTimes
+  if (cm.remainingAmount != null) return cm.remainingAmount
+  return undefined
+}
+
 watch(
   () => completeForm.customerMembershipId,
   (newVal) => {
@@ -274,6 +286,12 @@ watch(
   (newVal) => {
     if (newVal === 'membership' && customerMemberships.value.length === 0) {
       ElMessage.warning('该顾客暂无可用会员卡，请先为顾客办理会员卡')
+    }
+    if (newVal !== 'membership' && completeForm.customerMembershipId) {
+      const cm = currentCustomerMembership()
+      if (cm && cm.remainingTimes != null) {
+        completeForm.membershipDeduction = 0
+      }
     }
     if (newVal !== 'membership') {
       completeForm.membershipDeduction = 0
@@ -372,6 +390,17 @@ async function confirmComplete() {
     if (!completeForm.membershipDeduction || completeForm.membershipDeduction <= 0) {
       ElMessage.warning('支付方式为会员卡时必须输入正数抵扣值')
       return
+    }
+    const cm = currentCustomerMembership()
+    if (cm && cm.remainingTimes != null) {
+      if (!Number.isInteger(completeForm.membershipDeduction)) {
+        ElMessage.warning('次卡抵扣次数必须为整数')
+        return
+      }
+      if (completeForm.membershipDeduction > cm.remainingTimes) {
+        ElMessage.warning(`抵扣次数不能超过剩余次数（剩余${cm.remainingTimes}次）`)
+        return
+      }
     }
   }
 
@@ -485,6 +514,12 @@ onMounted(() => {
 
   .filter-card {
     margin-bottom: 20px;
+  }
+
+  .deduction-hint {
+    margin-left: 12px;
+    font-size: 12px;
+    color: #909399;
   }
 }
 </style>

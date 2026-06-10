@@ -146,10 +146,14 @@ export class CheckinService {
       }
 
       if (customerMembership.remainingTimes != null) {
-        if (customerMembership.remainingTimes < 1) {
-          throw new BadRequestException('会员卡剩余次数不足');
+        const deductTimes = Math.floor(completeData.membershipDeduction);
+        if (!Number.isInteger(completeData.membershipDeduction) || deductTimes <= 0) {
+          throw new BadRequestException('次卡抵扣次数必须为正整数');
         }
-        await this.membershipsService.useMembership(completeData.customerMembershipId, 1);
+        if (customerMembership.remainingTimes < deductTimes) {
+          throw new BadRequestException(`会员卡剩余次数不足（剩余${customerMembership.remainingTimes}次，需扣减${deductTimes}次）`);
+        }
+        await this.membershipsService.useMembership(completeData.customerMembershipId, deductTimes);
       } else if (customerMembership.remainingAmount != null) {
         if (customerMembership.remainingAmount < completeData.membershipDeduction) {
           throw new BadRequestException('会员卡剩余金额不足');
@@ -165,10 +169,14 @@ export class CheckinService {
       }
 
       if (customerMembership.remainingTimes != null) {
-        if (customerMembership.remainingTimes < 1) {
-          throw new BadRequestException('会员卡剩余次数不足');
+        const deductTimes = Math.floor(completeData.membershipDeduction);
+        if (!Number.isInteger(completeData.membershipDeduction) || deductTimes <= 0) {
+          throw new BadRequestException('次卡抵扣次数必须为正整数');
         }
-        await this.membershipsService.useMembership(completeData.customerMembershipId, 1);
+        if (customerMembership.remainingTimes < deductTimes) {
+          throw new BadRequestException(`会员卡剩余次数不足（剩余${customerMembership.remainingTimes}次，需扣减${deductTimes}次）`);
+        }
+        await this.membershipsService.useMembership(completeData.customerMembershipId, deductTimes);
       } else if (customerMembership.remainingAmount != null) {
         if (customerMembership.remainingAmount < completeData.membershipDeduction) {
           throw new BadRequestException('会员卡剩余金额不足');
