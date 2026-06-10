@@ -209,21 +209,34 @@ class CheckResult:
         }
 
     def exit_code(self) -> int:
-        """基于问题类型计算退出码。保守策略：任何 ERROR 都非零。"""
-        error_types: set[IssueType] = {i.type for i in self.issues
-                                       if i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL)}
-        if not error_types and self.summary.passed:
-            return 0
-        if len(error_types) > 1:
-            return 5
-        mapping = {
-            IssueType.MISSING_FILE: 2,
-            IssueType.HASH_MISMATCH: 3,
-            IssueType.EXPIRED_BACKUP: 4,
-        }
-        for t in error_types:
-            if t in mapping:
-                return mapping[t]
-        if self.summary.errors_count > 0:
+        """基于问题类型和严格模式计算退出码。
+
+        保守策略：
+        * 有任何 ERROR/CRITICAL => 非零（按类型映射：2缺失/3哈希/4过期/5多问题/1其他）
+        * strict=True 且有 WARNING 但无 ERROR => 退出码 1（保守失败）
+        * 其余情况 => 0
+        """
+        errors: list[CheckIssue] = [i for i in self.issues
+                                    if i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL)]
+        error_types: set[IssueType] = {i.type for i in errors}
+
+        if errors:
+            if len(error_types) > 1:
+                return 5
+            mapping = {
+                IssueType.MISSING_FILE: 2,
+                IssueType.HASH_MISMATCH: 3,
+                IssueType.EXPIRED_BACKUP: 4,
+            }
+            for t in error_types:
+                if t in mapping:
+                    return mapping[t]
             return 1
+
+        # 无 ERROR/CRITICAL：检查 strict 模式下是否存在 WARNING
+        if not self.summary.passed:
+            warnings = [i for i in self.issues if i.severity == IssueSeverity.WARNING]
+            if warnings:
+                return 1
+
         return 0

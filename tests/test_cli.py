@@ -254,3 +254,134 @@ class TestEndToEnd:
             cwd=str(Path(__file__).resolve().parent.parent),
         )
         assert r.returncode == 0
+
+    # ------------------------------------------------------------------
+    # 新增验收：严格模式下 WARNING 也要失败（问题1+2）
+    # ------------------------------------------------------------------
+
+    def test_strict_missing_retention_returns_nonzero(self, run_cli, backup_dir: Path,
+                                                      good_manifest_path: Path,
+                                                      tmp_path: Path):
+        """严格模式：清单去掉 retention_days，不加 --retention => 应退出码 1。"""
+        data = json.loads(good_manifest_path.read_text(encoding="utf-8"))
+        del data["retention_days"]
+        p = tmp_path / "m-no-ret.json"
+        p.write_text(json.dumps(data), encoding="utf-8")
+        code, out, err = run_cli(
+            str(backup_dir),
+            "--manifest", str(p),
+            "--strict",
+            "--hash", "none",
+        )
+        # 缺少 retention 只有 WARNING，但严格模式 => 非零
+        assert code == 1
+        assert "保留周期" in (out + err) or "retention" in (out + err).lower()
+
+    def test_strict_missing_required_hash_returns_nonzero(self, run_cli, backup_dir: Path,
+                                                          tmp_path: Path):
+        """严格模式：清单只给 md5，指定 --hash sha256 => WARNING 导致退出码 1。"""
+        # 构造一个只带 md5 的清单
+        files = []
+        for f in sorted(backup_dir.rglob("*")):
+            if not f.is_file():
+                continue
+            from backup_checker.utils import compute_file_hash
+            files.append({
+                "path": f.relative_to(backup_dir).as_posix(),
+                "size": f.stat().st_size,
+                "hashes": {"md5": compute_file_hash(f, "md5")},  # 只有 md5
+            })
+        m = {
+            "version": "1.0",
+            "created_at": __import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc
+            ).isoformat(),
+            "retention_days": 30,
+            "files": files,
+        }
+        p = tmp_path / "m-md5-only.json"
+        p.write_text(json.dumps(m), encoding="utf-8")
+        code, out, err = run_cli(
+            str(backup_dir),
+            "--manifest", str(p),
+            "--hash", "sha256",  # 要求 sha256，但清单没有
+            "--strict",
+            "-v",  # 为了触发“缺少哈希”的 warning
+        )
+        assert code == 1
+
+    def test_no_strict_warning_passes(self, run_cli, backup_dir: Path,
+                                      good_manifest_path: Path, tmp_path: Path):
+        """宽松模式：只有 WARNING 时仍返回 0。"""
+        data = json.loads(good_manifest_path.read_text(encoding="utf-8"))
+        del data["retention_days"]
+        p = tmp_path / "m-no-ret.json"
+        p.write_text(json.dumps(data), encoding="utf-8")
+        code, out, err = run_cli(
+            str(backup_dir),
+            "--manifest", str(p),
+            "--no-strict",
+            "--hash", "none",
+        )
+        assert code == 0
+
+    # ------------------------------------------------------------------
+    # 新增验收：JSON 模式保持 stdout 纯净（问题3）
+    # ------------------------------------------------------------------
+
+    def test_json_stdout_pure_with_issues(self, run_cli, backup_dir: Path,
+                                          bad_manifest_path: Path, tmp_path: Path):
+        """--format json + 有问题 + 默认 stdout 告警：stdout 应可直接 json.loads。"""
+        code, stdout, stderr = run_cli(
+            str(backup_dir),
+            "--manifest", str(bad_manifest_path),
+            "--format", "json",
+            "--retention", "365d",
+            "--notify", "stdout",
+        )
+        # 1) stdout 必须是纯净的 JSON，可直接解析
+        assert stdout.strip() != ""
+        data = json.loads(stdout)
+        assert "tool" in data and "summary" in data
+        # 2) 告警文本应在 stderr，不在 stdout
+        assert "备份完整性检查报告" not in stdout
+        assert "问题清单" not in stdout
+        # 3) stderr 可能包含重定向提示或告警内容
+        combined = stderr
+        assert ("JSON 模式" in combined) or ("备份完整性检查报告" in combined)
+
+    def test_json_stdout_pure_success(self, run_cli, backup_dir: Path,
+                                      good_manifest_path: Path):
+        """--format json + 全通过：stdout 必须可直接 json.loads，不含文本。"""
+        code, stdout, stderr = run_cli(
+            str(backup_dir),
+            "--manifest", str(good_manifest_path),
+            "--format", "json",
+            "--retention", "365d",
+            "--notify", "stdout",
+        )
+        assert code == 0
+        data = json.loads(stdout)
+        assert data["summary"]["passed"] is True
+        assert "备份完整性检查报告" not in stdout
+        assert "检查状态" not in stdout
+
+    def test_json_with_output_file_no_redirect(self, run_cli, backup_dir: Path,
+                                               bad_manifest_path: Path,
+                                               tmp_path: Path):
+        """--format json + --output：不涉及 stdout 纯净性，告警可按原配置。"""
+        out_file = tmp_path / "r.json"
+        code, stdout, stderr = run_cli(
+            str(backup_dir),
+            "--manifest", str(bad_manifest_path),
+            "--format", "json",
+            "--retention", "365d",
+            "--output", str(out_file),
+            "--notify", "stdout",
+        )
+        # 报告应写入文件
+        assert out_file.exists()
+        data = json.loads(out_file.read_text(encoding="utf-8"))
+        assert data["summary"]["missing_files"] == 1
+        # 退出码非零（有问题）
+        assert code != 0

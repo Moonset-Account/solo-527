@@ -411,9 +411,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     checker = BackupChecker(config)
     result = checker.run_all_checks()
 
-    # 告警通知
+    # ------------------------------------------------------------------
+    # 告警通知：避免污染 JSON 输出
+    # ------------------------------------------------------------------
+    notify_target = config.notify
+    notify_path = config.notify_target
+    json_to_stdout = (
+        config.output_format == OutputFormat.JSON
+        and config.output_path is None
+    )
+    if json_to_stdout and notify_target == NotifyTarget.STDOUT:
+        # JSON + stdout 报告 => 将告警重定向到 stderr，保持 JSON 可直接解析
+        notify_target = NotifyTarget.STDERR
+        if not config.quiet:
+            sys.stderr.write(
+                "[info] JSON 模式：告警已重定向到 stderr，stdout 保持纯净 JSON\n"
+            )
+
     try:
-        with Notifier(config.notify, config.notify_target) as notifier:
+        with Notifier(notify_target, notify_path) as notifier:
             notifier.notify(result)
     except Exception:  # pragma: no cover - 防御性
         logging.getLogger("backup_checker").exception("通知发送失败")

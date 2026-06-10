@@ -283,12 +283,15 @@ class BackupChecker:
                 continue
             expected_hash = mf.hashes.get(algo)
             if expected_hash is None:
-                if algo in {"sha256", "md5"} or cfg.verbose >= 1:
+                # 保守策略：只要用户明确指定了非 none 的算法且清单未提供，就告警
+                # （sha256/md5 总是告警；其他算法在严格或 verbose 模式下也告警）
+                if algo in {"sha256", "md5"} or cfg.strict or cfg.verbose >= 1:
                     self.result.add_issue(CheckIssue(
                         type=IssueType.MANIFEST_ERROR,
                         severity=IssueSeverity.WARNING,
-                        message=f"清单中未提供 {algo} 哈希，跳过：{mf.path}",
+                        message=f"清单中未提供 {algo} 哈希，跳过哈希校验：{mf.path}",
                         file_path=mf.path,
+                        location=f"files[].hashes.{algo}",
                     ))
                 detail["hash"] = None
                 detail["expected_hash"] = None
