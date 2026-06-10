@@ -158,11 +158,11 @@ class AuthService:
             self.db.add(account)
         return UserOut.model_validate(user)
 
-    async def init_default_admin(self) -> None:
+    async def init_default_admin(self) -> MessageOut:
         stmt = select(models.User).where(models.User.role == "ADMIN")
         result = await self.db.execute(stmt)
         if result.scalar_one_or_none():
-            return
+            return MessageOut(message="管理员账户已存在，跳过创建")
         user = models.User(
             email=settings.init_admin_email.lower(),
             password_hash=hash_password(settings.init_admin_password),
@@ -171,6 +171,7 @@ class AuthService:
         )
         self.db.add(user)
         await self.db.commit()
+        return MessageOut(message=f"默认管理员已创建: {settings.init_admin_email} / {settings.init_admin_password}")
 
 
 class BillService:
@@ -593,4 +594,16 @@ class TransactionService:
         if txn.amount - txn.matched_amount <= Decimal("0.01"): txn.match_status = "MATCHED"
         else: txn.match_status = "PARTIAL"
         if bill.id not in (txn.matched_bill_ids or []):
-            txn.matched_bill_ids = list(txn.matched_bill_ids) + [bill.id]
+            txn.matched_bill_ids = list(txn.matched_bill_ids or []) + [bill.id]
+        if match_type == "MANUAL":
+            anomaly_stmt = select(models.Anomaly).where(and_(
+                models.Anomaly.related_entity_type == "TXN",
+                models.Anomaly.related_entity_id == txn.id,
+                models.Anomaly.status.in_(["OPEN", "IN_PROGRESS"]),
+            ))
+            anomalies = (await self.db.execute(anomaly_stmt)).scalars().all()
+            for a in anomalies:
+                a.status = "RESOLVED"
+                a.resolved_at = datetime.now(timezone.utc)
+                a.resolution_note = f"人工匹配账单 {bill.bill_no}"
+                a.resolved_by_id = self.operator.id

@@ -16,7 +16,7 @@
           <span class="ni-badge">{{ unpaid_count }}</span>
         {% endif %}
       </a>
-      <a class="nav-item {% if active_nav == 'pay' %}active{% endif %}" href="{{ url_for('client_bills_page', status='UNPAID') }}" style="{% if active_nav == 'pay' %}border-left-color:#779bbf;background:rgba(119,155,191,.18){% endif %}">
+      <a class="nav-item {% if active_nav == 'pay' %}active{% endif %}" href="{{ url_for('client_bills_page') }}?status=UNPAID" style="{% if active_nav == 'pay' %}border-left-color:#779bbf;background:rgba(119,155,191,.18){% endif %}">
         <svg class="ni-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
         <span class="ni-text">在线支付</span>
       </a>

@@ -11,19 +11,22 @@ P = TypeVar("P")
 T = TypeVar("T")
 
 BillStatus = Literal["DRAFT", "ISSUED", "PARTIAL", "PAID", "OVERDUE", "VOID"]
-InvoiceStatus = Literal["PENDING", "APPROVED", "ISSUING", "ISSUED", "MAILED", "ERROR"]
+InvoiceStatus = Literal["PENDING", "APPROVED", "REJECTED", "ISSUING", "ISSUED", "MAILED", "SENT", "ERROR"]
 InvoiceType = Literal["VAT_SPECIAL", "VAT_NORMAL", "ELECTRONIC"]
-TxnMatchStatus = Literal["UNMATCHED", "PARTIAL", "MATCHED", "ANOMALY"]
+TxnMatchStatus = Literal["UNMATCHED", "PARTIAL", "PARTIAL_MATCHED", "MATCHED", "FULLY_MATCHED", "MANUAL_MATCHED", "ANOMALY", "CONFLICT"]
 MatchType = Literal["AUTO", "MANUAL", "PREPAID"]
 PrepaidTxnType = Literal["RECHARGE", "DEDUCT", "REFUND", "ADJUST"]
-AnomalyType = Literal["TXN_UNMATCHED", "INVOICE_ERROR", "AMOUNT_DIFF", "OVERDUE_LIMIT", "FORECAST_WARN"]
+AnomalyType = Literal["TXN_UNMATCHED", "INVOICE_ERROR", "AMOUNT_DIFF", "AMOUNT_MISMATCH", "OVERDUE", "OVERDUE_LIMIT", "FORECAST_WARN"]
 AnomalySeverity = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-AnomalyStatus = Literal["OPEN", "PROCESSING", "RESOLVED", "IGNORED"]
+AnomalyStatus = Literal["OPEN", "IN_PROGRESS", "PROCESSING", "RESOLVED", "IGNORED", "CLOSED"]
 UserRole = Literal["ADMIN", "CLIENT"]
-ExportType = Literal["CASHFLOW", "INVOICE_ERRORS", "CHANGE_LOG", "BILL_DETAIL", "RECONCILIATION"]
-ExportStatus = Literal["PENDING", "PROCESSING", "COMPLETED", "FAILED"]
+ExportType = Literal["CASHFLOW", "CASH_FLOW", "INVOICE_ERRORS", "CHANGE_LOG", "AUDIT_CHANGES", "BILL_DETAIL", "RECONCILIATION"]
+ExportStatus = Literal["PENDING", "PROCESSING", "DONE", "COMPLETED", "FAILED"]
 AuditEntity = Literal["BILL", "INVOICE", "TXN", "CLIENT", "PREPAID"]
 ForecastImpact = Literal["INCREASE", "DECREASE", "NONE"]
+ReminderType = Literal["BEFORE_DUE", "OVERDUE_DAILY", "OVERDUE_WEEKLY"]
+ReminderChannel = Literal["EMAIL", "IN_APP", "SMS"]
+ReminderStatus = Literal["PENDING", "SENT", "FAILED"]
 
 
 def format_currency(v: Any) -> str:

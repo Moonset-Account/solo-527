@@ -78,10 +78,10 @@
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">📊 交易流水</h3>
-        <span class="text-xs text-muted">最近 {{ txns | length }} 条</span>
+        <span class="text-xs text-muted">最近 {{ txns.total }} 条</span>
       </div>
       <div class="card-body" style="padding:0;max-height:520px;overflow-y:auto">
-        {% if txns and txns | length > 0 %}
+        {% if txns and txns.items | length > 0 %}
           <table class="table" style="border:none">
             <thead>
               <tr>
@@ -93,7 +93,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for t in txns %}
+              {% for t in txns.items %}
                 <tr>
                   <td style="white-space:nowrap">{{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '—' }}</td>
                   <td>

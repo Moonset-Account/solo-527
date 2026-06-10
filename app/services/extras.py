@@ -29,18 +29,26 @@ from app.schemas import (
     ExportStatus,
     ExportTaskOut,
     ExportType,
+    ForecastItem,
     InvoiceCreateIn,
     InvoiceError,
     InvoiceOut,
     InvoiceStatus,
     InvoiceType,
+    KPIData,
     MessageOut,
     PaginatedOut,
     PaginationIn,
     PrepaidAccountOut,
     PrepaidTxnOut,
     PrepaidTxnType,
+    ReminderType,
     SessionUser,
+    TodayTasks,
+    TopAnomalyItem,
+    TopClientItem,
+    TrendPoint,
+    AgingBucket,
 )
 from app.services import AnomalyService
 
@@ -398,7 +406,7 @@ class DashboardService:
             # entity_no: 按类型从相关表取
             en = a.related_entity_id
             amt: Optional[Decimal] = None
-            desc = a.title
+            anom_desc = a.title
             if a.type in ("TXN_UNMATCHED", "AMOUNT_DIFF"):
                 try:
                     if en:
@@ -410,7 +418,7 @@ class DashboardService:
                             en_str, amt_r, cp = r
                             en = en_str
                             amt = _to_decimal(amt_r)
-                            desc = cp or a.title or a.description or ""
+                            anom_desc = cp or a.title or a.description or ""
                 except Exception:
                     pass
             elif a.type == "INVOICE_ERROR":
@@ -423,7 +431,7 @@ class DashboardService:
                             en_str, amt_r = r
                             en = en_str
                             amt = _to_decimal(amt_r)
-                            desc = (a.description or a.title or "")
+                            anom_desc = (a.description or a.title or "")
                 except Exception:
                     pass
             elif a.type == "OVERDUE" or a.type.startswith("OVERDUE"):
@@ -438,7 +446,7 @@ class DashboardService:
                             en_str, amt_r, cname = r
                             en = en_str
                             amt = _to_decimal(amt_r)
-                            desc = cname
+                            anom_desc = cname
                 except Exception:
                     pass
             sev = None
@@ -449,7 +457,7 @@ class DashboardService:
                 pass
             top_anomalies.append(TopAnomalyItem(
                 type=str(a.type), severity=sev, entity_no=(str(en) if en else None),
-                amount=amt, description=(desc or "")[:60],
+                amount=amt, description=(anom_desc or "")[:60],
                 created_at=a.created_at.isoformat() if a.created_at else None,
             ))
 
@@ -621,6 +629,33 @@ class ExportService:
             await self.db.commit()
             return None
 
+    async def _mark_failed(self, task_id: UUID, error: str) -> None:
+        stmt = select(models.ExportTask).where(models.ExportTask.id == task_id)
+        task = (await self.db.execute(stmt)).scalar_one_or_none()
+        if task:
+            task.status = "FAILED"
+            task.error_message = error
+            task.completed_at = datetime.now(timezone.utc)
+            await self.db.flush()
+
+    async def retry_task(self, task_id: UUID) -> Optional[ExportTaskOut]:
+        stmt = select(models.ExportTask).where(and_(
+            models.ExportTask.id == task_id, models.ExportTask.created_by == self.operator.id,
+        ))
+        task = (await self.db.execute(stmt)).scalar_one_or_none()
+        if not task:
+            return None
+        task.status = "PENDING"
+        task.started_at = None
+        task.completed_at = None
+        task.error_message = None
+        task.file_name = None
+        task.file_size = None
+        task.row_count = None
+        await self.db.commit()
+        await self.db.refresh(task)
+        return ExportTaskOut.model_validate(task)
+
     async def get_download_path(self, task_id: UUID) -> Optional[Path]:
         stmt = select(models.ExportTask).where(and_(
             models.ExportTask.id == task_id, models.ExportTask.created_by == self.operator.id,
@@ -767,10 +802,10 @@ class MockDataService:
             ))
 
         reminder_tmpl = [
-            (ReminderType.BEFORE_DUE, 7, "EMAIL"),
-            (ReminderType.BEFORE_DUE, 3, "EMAIL"),
-            (ReminderType.BEFORE_DUE, 1, "EMAIL"),
-            (ReminderType.OVERDUE_DAILY, None, "IN_APP"),
+            ("BEFORE_DUE", 7, "EMAIL"),
+            ("BEFORE_DUE", 3, "EMAIL"),
+            ("BEFORE_DUE", 1, "EMAIL"),
+            ("OVERDUE_DAILY", None, "IN_APP"),
         ]
         for type_name, days, ch in reminder_tmpl:
             bills = (await self.db.execute(select(models.Bill).where(models.Bill.status != "PAID").limit(5))).scalars().all()

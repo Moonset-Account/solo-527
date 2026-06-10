@@ -308,7 +308,7 @@
         <div class="f-row"><span>到期账单</span><b>{{ s.forecast_90.bills_count }} 笔</b></div>
         <div class="f-row"><span>按合同新增</span><b>¥{{ "{:,.2f}".format(s.forecast_90.overdue_expected) }}</b></div>
         <div class="f-row"><span>按概率折扣</span><b>×{{ (s.forecast_90.prepaid_offset / (s.forecast_30.total_expected + 1)) | round(2) if s.forecast_30.total_expected else 0.68 }}</b></div>
-        <div class="f-row"><span>预期净现金</span><b>+¥{{ "{:,.2f}".format(s.forecast_90.total_expected * 0.78) }}</b></div>
+        <div class="f-row"><span>预期净现金</span><b>+¥{{ "{:,.2f}".format((s.forecast_90.total_expected | float) * 0.78) }}</b></div>
       </div>
     </div>
     <div class="chart-box" id="chart-forecast" style="margin-top:22px;"></div>
