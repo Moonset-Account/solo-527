@@ -163,6 +163,7 @@ impl TodoItem {
 pub struct ExportReport {
     pub generated_at: String,
     pub total_parsed: usize,
+    pub total_after_filter: usize,
     pub total_after_dedup: usize,
     pub duplicates_removed: usize,
     pub files_scanned: Vec<PathBuf>,
@@ -197,13 +198,33 @@ pub struct DueDateFilter {
 
 impl DueDateFilter {
     pub fn matches(&self, due: &Option<DueDate>, reference: NaiveDate) -> bool {
-        let due_date = match due {
+        let (due_date, is_overdue_tag) = match due {
             None => return false,
             Some(d) => match d.to_naive_date(reference) {
-                None => return matches!(d, DueDate::Overdue),
-                Some(d) => d,
+                None => {
+                    let is_ov = matches!(d, DueDate::Overdue);
+                    if !is_ov {
+                        return false;
+                    }
+                    // DueDate::Overdue 只在明确查询逾期时才通过：
+                    //   1. 没有 exactly
+                    //   2. 没有 after
+                    //   3. before 存在且 before < reference (即查"在 reference 之前到期 ≈ 逾期)
+                    if self.exactly.is_some() {
+                        return false;
+                    }
+                    if self.after.is_some() {
+                        return false;
+                    }
+                    match self.before {
+                        Some(b) if b < reference => return true,
+                        _ => return false,
+                    }
+                }
+                Some(d) => (d, false),
             },
         };
+        let _ = is_overdue_tag;
 
         if let Some(before) = self.before {
             if due_date > before {

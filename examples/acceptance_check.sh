@@ -166,8 +166,10 @@ done
 # 3.3 summary 数值正确
 if command -v python3 &>/dev/null; then
     TOTAL=$(python3 -c "import json; d=json.load(open('$TMPDIR/out.json')); print(d['summary']['total_parsed'])")
+    AFTER_FILTER=$(python3 -c "import json; d=json.load(open('$TMPDIR/out.json')); print(d['summary']['total_after_filter'])")
     AFTER=$(python3 -c "import json; d=json.load(open('$TMPDIR/out.json')); print(d['summary']['total_after_dedup'])")
     DUP=$(python3 -c "import json; d=json.load(open('$TMPDIR/out.json')); print(d['summary']['duplicates_removed'])")
+    EXPECTED_DUP=$((AFTER_FILTER - AFTER))
 
     # 8 tasks total (写周报/修复bug/已完成/进行中/重复Ax3/买牛奶)
     # after dedup 6 (3 重复任务 A 去重为 1, 去掉 2)
@@ -185,6 +187,11 @@ if command -v python3 &>/dev/null; then
         pass "JSON summary.duplicates_removed = $DUP (期望 2)"
     else
         fail "JSON summary.duplicates_removed = $DUP (期望 2)"
+    fi
+    if [ "$DUP" = "$EXPECTED_DUP" ]; then
+        pass "JSON summary.duplicates_removed 与 (total_after_filter - total_after_dedup) 一致: $DUP = $AFTER_FILTER - $AFTER"
+    else
+        fail "JSON summary 不一致: duplicates_removed($DUP) != total_after_filter($AFTER_FILTER) - total_after_dedup($AFTER)"
     fi
 fi
 
@@ -205,6 +212,22 @@ if command -v python3 &>/dev/null; then
         pass "--tag bug 过滤后 JSON 有 $COUNT 条记录"
     else
         fail "--tag bug 过滤后 JSON 应有 >=1 条, 实际=$COUNT"
+    fi
+    # 关键验证：过滤后场景下，duplicates_removed 不得把被过滤掉的任务算进去
+    S_TOTAL=$(python3 -c "import json; d=json.load(open('$TMPDIR/bug.json')); print(d['summary']['total_parsed'])")
+    S_AF=$(python3 -c "import json; d=json.load(open('$TMPDIR/bug.json')); print(d['summary']['total_after_filter'])")
+    S_AD=$(python3 -c "import json; d=json.load(open('$TMPDIR/bug.json')); print(d['summary']['total_after_dedup'])")
+    S_DUP=$(python3 -c "import json; d=json.load(open('$TMPDIR/bug.json')); print(d['summary']['duplicates_removed'])")
+    EXPECTED_DUP=$((S_AF - S_AD))
+    if [ "$S_DUP" = "$EXPECTED_DUP" ]; then
+        pass "--tag 过滤后 duplicates_removed 正确: $S_DUP = total_after_filter($S_AF) - total_after_dedup($S_AD)"
+    else
+        fail "--tag 过滤后 duplicates_removed 错误: $S_DUP 期望=$EXPECTED_DUP (全部解析=$S_TOTAL, 过滤后=$S_AF, 输出=$S_AD)"
+    fi
+    if [ "$S_AD" = "$COUNT" ]; then
+        pass "--tag 过滤后 total_after_dedup 与 items 长度一致 ($S_AD == $COUNT)"
+    else
+        fail "不一致: total_after_dedup=$S_AD 但 len(items)=$COUNT"
     fi
 fi
 

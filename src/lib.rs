@@ -96,6 +96,7 @@ pub fn run_scan(args: &ScanArgs) -> Result<ExportReport> {
         path.as_deref(),
         args.dry_run,
         total_parsed,
+        total_before_dedup,
     )?;
 
     Ok(report)

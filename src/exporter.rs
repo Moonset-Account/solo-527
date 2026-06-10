@@ -12,11 +12,13 @@ pub fn export(
     output_path: Option<&Path>,
     dry_run: bool,
     total_parsed: usize,
+    total_after_filter: usize,
 ) -> Result<ExportReport> {
-    let duplicates_removed = total_parsed - items.len();
+    let duplicates_removed = total_after_filter - items.len();
     let report = ExportReport {
         generated_at: Local::now().format("%Y-%m-%dT%H:%M:%S%z").to_string(),
         total_parsed,
+        total_after_filter,
         total_after_dedup: items.len(),
         duplicates_removed,
         files_scanned,
@@ -90,6 +92,7 @@ fn to_json_value(report: &ExportReport) -> serde_json::Value {
         "generated_at": report.generated_at,
         "summary": {
             "total_parsed": report.total_parsed,
+            "total_after_filter": report.total_after_filter,
             "total_after_dedup": report.total_after_dedup,
             "duplicates_removed": report.duplicates_removed,
             "files_scanned_count": report.files_scanned.len(),
@@ -119,9 +122,10 @@ fn render_stdout_string(report: &ExportReport) -> Result<String> {
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     ));
     out.push_str(&format!(
-        "扫描文件: {} 个  |  解析待办: {}  |  去重后: {}  |  去除重复: {}\n",
+        "扫描文件: {} 个  |  解析待办: {}  |  过滤后: {}  |  去重后: {}  |  去除重复: {}\n",
         report.files_scanned.len(),
         report.total_parsed,
+        report.total_after_filter,
         report.total_after_dedup,
         report.duplicates_removed
     ));
@@ -195,9 +199,10 @@ fn render_markdown(report: &ExportReport) -> Result<String> {
     ));
     out.push_str(&format!("## 概览\n\n"));
     out.push_str(&format!(
-        "| 指标 | 数值 |\n| --- | --- |\n| 扫描文件 | {} |\n| 解析待办 | {} |\n| 去重后 | {} |\n| 去除重复 | {} |\n\n",
+        "| 指标 | 数值 |\n| --- | --- |\n| 扫描文件 | {} |\n| 解析待办 | {} |\n| 过滤后 | {} |\n| 去重后 | {} |\n| 去除重复 | {} |\n\n",
         report.files_scanned.len(),
         report.total_parsed,
+        report.total_after_filter,
         report.total_after_dedup,
         report.duplicates_removed
     ));
@@ -321,6 +326,7 @@ mod tests {
             ExportFormat::Json,
             None,
             false,
+            1,
             1,
         )
         .unwrap();

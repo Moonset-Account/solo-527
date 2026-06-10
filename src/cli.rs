@@ -36,16 +36,16 @@ impl Shell {
     after_help = "\
 示例：
   # 扫描当前目录下所有 Markdown 文件并输出到控制台
-  note2task --from .
+  note2task scan --from .
 
   # 仅显示 #bug 标签的待办，导出为 JSON
-  note2task --from notes/ --tag bug --export json
+  note2task scan --from notes/ --tag bug --export json
 
   # 显示本周到期且优先级1的任务，JSON 输出到文件
-  note2task --from . --due-before this-week --priority 1 --export json:tasks.json
+  note2task scan --from . --due week --priority 1 --export json:tasks.json
 
   # 只预览不写入文件
-  note2task --from . --dry-run
+  note2task scan --from . --dry-run
 
   # 生成 bash shell completion
   note2task completions bash > ~/.bash_completion.d/note2task
