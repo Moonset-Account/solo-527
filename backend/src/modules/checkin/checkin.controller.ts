@@ -30,14 +30,14 @@ export class CheckinController {
     return this.checkinService.getTodayStats();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.checkinService.findById(id);
-  }
-
   @Get('appointment/:appointmentId')
   findByAppointmentId(@Param('appointmentId') appointmentId: string) {
     return this.checkinService.findByAppointmentId(appointmentId);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.checkinService.findById(id);
   }
 
   @Patch(':id/checkin')

@@ -25,14 +25,14 @@ export class CashierController {
     return this.cashierService.getDailyStats(date || new Date().toISOString().split('T')[0]);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cashierService.findById(id);
-  }
-
   @Get('order/:orderNo')
   findByOrderNo(@Param('orderNo') orderNo: string) {
     return this.cashierService.findByOrderNo(orderNo);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.cashierService.findById(id);
   }
 
   @Post(':id/refund')

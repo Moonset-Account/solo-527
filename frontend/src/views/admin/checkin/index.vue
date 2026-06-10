@@ -136,7 +136,7 @@
         </el-form-item>
         <el-form-item label="会员卡抵扣">
           <el-select
-            v-model="completeForm.membershipId"
+            v-model="completeForm.customerMembershipId"
             placeholder="选择会员卡（可选）"
             clearable
             style="width: 100%"
@@ -144,10 +144,13 @@
             <el-option
               v-for="m in customerMemberships"
               :key="m._id"
-              :label="m.membershipName + ' (剩余:' + (m.remainingTimes || m.remainingAmount) + ')'"
+              :label="m.membershipName + (m.remainingTimes != null ? ' (剩余:' + m.remainingTimes + '次)' : ' (余额:¥' + m.remainingAmount + ')')"
               :value="m._id"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="completeForm.customerMembershipId" label="抵扣金额/次数">
+          <el-input-number v-model="completeForm.membershipDeduction" :min="0" style="width: 100%" />
         </el-form-item>
         <el-form-item label="支付方式" required>
           <el-radio-group v-model="completeForm.paymentMethod">
@@ -206,7 +209,7 @@ const submitting = ref(false)
 const completeForm = reactive({
   discountAmount: 0,
   actualAmount: 0,
-  membershipId: '',
+  customerMembershipId: '',
   membershipDeduction: 0,
   paymentMethod: 'wechat',
   remark: '',
@@ -270,7 +273,7 @@ async function handleComplete(row) {
   currentRecord.value = row
   completeForm.discountAmount = 0
   completeForm.actualAmount = row.totalAmount
-  completeForm.membershipId = ''
+  completeForm.customerMembershipId = ''
   completeForm.membershipDeduction = 0
   completeForm.paymentMethod = 'wechat'
   completeForm.remark = ''
@@ -304,7 +307,7 @@ async function confirmComplete() {
       type: 'service',
       customerId: currentRecord.value.customerId,
       customerName: currentRecord.value.customerName,
-      appointmentId: currentRecord.value._id,
+      appointmentId: currentRecord.value.appointmentId,
       items: currentRecord.value.services?.map(s => ({
         id: s.serviceId,
         name: s.serviceName,

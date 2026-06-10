@@ -6,16 +6,22 @@ import {
   CheckinRecordDocument,
   CheckinStatus,
 } from './checkin.schema';
+import { AppointmentsService } from '../appointments/appointments.service';
+import { MembershipsService } from '../memberships/memberships.service';
 
 @Injectable()
 export class CheckinService {
   constructor(
     @InjectModel('CheckinRecord') private checkinModel: Model<CheckinRecordDocument>,
+    private appointmentsService: AppointmentsService,
+    private membershipsService: MembershipsService,
   ) {}
 
-  async createFromAppointment(appointment: any, userId: string, userName: string): Promise<CheckinRecord> {
+  async createFromAppointment(appointment: any, userId: string, userName: string): Promise<CheckinRecordDocument> {
+    const appointmentId = typeof appointment._id === 'object' ? appointment._id.toString() : appointment._id;
+
     const existing = await this.checkinModel.findOne({
-      appointmentId: appointment._id,
+      appointmentId,
       status: { $in: [CheckinStatus.PENDING, CheckinStatus.CHECKED_IN] },
     }).exec();
 
@@ -24,7 +30,7 @@ export class CheckinService {
     }
 
     const checkinRecord = new this.checkinModel({
-      appointmentId: appointment._id,
+      appointmentId,
       customerId: appointment.customerId,
       customerName: appointment.customerName,
       customerPhone: appointment.customerPhone,
@@ -35,14 +41,19 @@ export class CheckinService {
       appointmentTime: appointment.startTime,
       totalAmount: appointment.totalPrice,
       actualAmount: appointment.totalPrice,
-      status: CheckinStatus.PENDING,
+      status: CheckinStatus.CHECKED_IN,
+      checkinTime: new Date(),
       checkedInBy: userId,
     });
 
-    return checkinRecord.save();
+    const saved = await checkinRecord.save();
+
+    await this.appointmentsService.checkIn(appointmentId, userId);
+
+    return saved;
   }
 
-  async findAll(query: any = {}): Promise<CheckinRecord[]> {
+  async findAll(query: any = {}): Promise<CheckinRecordDocument[]> {
     const filter: any = {};
     
     if (query.status) {
@@ -70,15 +81,15 @@ export class CheckinService {
     return this.checkinModel.find(filter).sort({ createdAt: -1 }).exec();
   }
 
-  async findById(id: string): Promise<CheckinRecord | null> {
+  async findById(id: string): Promise<CheckinRecordDocument | null> {
     return this.checkinModel.findById(id).exec();
   }
 
-  async findByAppointmentId(appointmentId: string): Promise<CheckinRecord | null> {
+  async findByAppointmentId(appointmentId: string): Promise<CheckinRecordDocument | null> {
     return this.checkinModel.findOne({ appointmentId }).exec();
   }
 
-  async checkin(id: string, userId: string): Promise<CheckinRecord | null> {
+  async checkin(id: string, userId: string): Promise<CheckinRecordDocument | null> {
     const record = await this.checkinModel.findById(id);
     if (!record) {
       throw new NotFoundException('核销记录不存在');
@@ -92,7 +103,11 @@ export class CheckinService {
     record.checkinTime = new Date();
     record.checkedInBy = userId;
 
-    return record.save();
+    const saved = await record.save();
+
+    await this.appointmentsService.checkIn(record.appointmentId, userId);
+
+    return saved;
   }
 
   async complete(
@@ -100,14 +115,14 @@ export class CheckinService {
     completeData: {
       actualAmount: number;
       discountAmount?: number;
-      membershipId?: string;
+      customerMembershipId?: string;
       membershipDeduction?: number;
       paymentMethod: string;
       remark?: string;
     },
     userId: string,
     userName: string,
-  ): Promise<CheckinRecord | null> {
+  ): Promise<CheckinRecordDocument | null> {
     const record = await this.checkinModel.findById(id);
     if (!record) {
       throw new NotFoundException('核销记录不存在');
@@ -117,11 +132,26 @@ export class CheckinService {
       throw new BadRequestException('当前状态不可完成');
     }
 
+    if (completeData.customerMembershipId && completeData.membershipDeduction) {
+      const customerMembership = await this.membershipsService.findCustomerMembershipById(completeData.customerMembershipId);
+      if (!customerMembership) {
+        throw new NotFoundException('顾客会员卡不存在');
+      }
+
+      if (customerMembership.remainingTimes != null && customerMembership.remainingTimes > 0) {
+        await this.membershipsService.useMembership(completeData.customerMembershipId, 1);
+      } else if (customerMembership.remainingAmount != null && customerMembership.remainingAmount > 0) {
+        await this.membershipsService.useMembership(completeData.customerMembershipId, undefined, completeData.membershipDeduction);
+      } else {
+        throw new BadRequestException('会员卡余额或次数不足');
+      }
+    }
+
     record.status = CheckinStatus.COMPLETED;
     record.checkoutTime = new Date();
     record.actualAmount = completeData.actualAmount;
     record.discountAmount = completeData.discountAmount;
-    record.membershipId = completeData.membershipId;
+    record.membershipId = completeData.customerMembershipId;
     record.membershipDeduction = completeData.membershipDeduction;
     record.paymentMethod = completeData.paymentMethod;
     record.remark = completeData.remark;
@@ -129,10 +159,14 @@ export class CheckinService {
     record.cashierId = userId;
     record.cashierName = userName;
 
-    return record.save();
+    const saved = await record.save();
+
+    await this.appointmentsService.complete(record.appointmentId, userId);
+
+    return saved;
   }
 
-  async cancel(id: string, userId: string): Promise<CheckinRecord | null> {
+  async cancel(id: string, userId: string): Promise<CheckinRecordDocument | null> {
     const record = await this.checkinModel.findById(id);
     if (!record) {
       throw new NotFoundException('核销记录不存在');
