@@ -1,0 +1,16 @@
+{
+  "name": "procurement-platform",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w @app/web\" \"npm run dev -w @app/api\"",
+    "build": "npm run build -w @app/api && npm run build -w @app/web",
+    "start": "concurrently -n web,api -c cyan,magenta \"npm run start -w @app/web\" \"npm run start -w @app/api\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}
