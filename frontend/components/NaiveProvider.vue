@@ -1,18 +1,12 @@
-import { NConfigProvider, NMessageProvider, NDialogProvider } from 'naive-ui'
-import { defineComponent, h, provide } from 'vue'
+<template>
+  <n-config-provider>
+    <n-message-provider>
+      <n-dialog-provider>
+        <slot />
+      </n-dialog-provider>
+    </n-message-provider>
+  </n-config-provider>
+</template>
 
-export default defineComponent({
-  name: 'NaiveProvider',
-  setup(_, { slots }) {
-    return () =>
-      h(NConfigProvider, null, {
-        default: () =>
-          h(NMessageProvider, null, {
-            default: () =>
-              h(NDialogProvider, null, {
-                default: () => slots.default?.(),
-              }),
-          }),
-      })
-  },
-})
+<script setup lang="ts">
+</script>

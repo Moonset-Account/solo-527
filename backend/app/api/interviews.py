@@ -50,10 +50,21 @@ def get_my_interviews(
         app_ids = [a.id for a in apps]
         if not app_ids:
             return []
-        return InterviewService.list(db, application_id=None).filter(
-            Interview.application_id.in_(app_ids)
-        ).all() if hasattr(InterviewService.list(db), 'filter') else []
+        from sqlalchemy import or_
+        interviews = InterviewService.list(db)
+        return [i for i in interviews if i.application_id in app_ids]
     return []
+
+
+@router.get("/check/conflict", response_model=InterviewConflictResponse)
+def check_interview_conflict(
+    start_time: datetime,
+    end_time: datetime,
+    interviewer_ids: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
+):
+    return InterviewService.check_conflict(db, start_time, end_time, interviewer_ids)
 
 
 @router.get("/{interview_id}", response_model=InterviewResponse)
@@ -66,17 +77,6 @@ def get_interview(
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
     return interview
-
-
-@router.get("/check/conflict", response_model=InterviewConflictResponse)
-def check_interview_conflict(
-    start_time: datetime,
-    end_time: datetime,
-    interviewer_ids: str = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
-):
-    return InterviewService.check_conflict(db, start_time, end_time, interviewer_ids)
 
 
 @router.post("", response_model=InterviewResponse)

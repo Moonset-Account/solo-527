@@ -30,7 +30,7 @@
             <n-button quaternary @click="goTodos">
               <template #icon>
                 <n-icon>
-                  <Notifications />
+                  <BellOutlined />
                 </n-icon>
               </template>
               待办
@@ -55,8 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, h } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   HomeOutlined,
   UserOutlined,
@@ -65,17 +65,14 @@ import {
   CalendarOutlined,
   BookOutlined,
   SettingOutlined,
-  Notifications,
+  BellOutlined,
   DownOutlined,
-  UserAddOutlined,
-  AuditOutlined,
 } from '@vicons/antd'
 import { useAuthStore } from '~/stores/auth'
 import api from '~/utils/api'
 
 const authStore = useAuthStore()
 const route = useRoute()
-const router = useRouter()
 
 const collapsed = ref(false)
 const todoCount = ref(0)
@@ -178,7 +175,7 @@ const menuOptions = computed(() => {
     {
       label: '待办中心',
       key: 'todos',
-      icon: renderIcon(Notifications),
+      icon: renderIcon(BellOutlined),
     },
   ]
   if (authStore.isAdmin) {
@@ -214,15 +211,13 @@ const userOptions = computed(() => [
   {
     label: '退出登录',
     key: 'logout',
-    icon: renderIcon(Notifications),
+    icon: renderIcon(BellOutlined),
   },
 ])
 
 function renderIcon(icon: any) {
   return () => h(icon)
 }
-
-import { h } from 'vue'
 
 function handleMenuClick(key: string) {
   const routes: Record<string, string> = {

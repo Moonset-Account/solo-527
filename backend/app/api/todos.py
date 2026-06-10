@@ -64,6 +64,45 @@ def get_my_escalated_todos(
     return TodoService.get_escalated_todos(db, current_user.id, skip=skip, limit=limit)
 
 
+@router.get("/reminder-rules", response_model=List[ReminderRuleResponse])
+def list_reminder_rules(
+    rule_type: str = None,
+    is_active: bool = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
+):
+    return ReminderRuleService.list(db, rule_type=rule_type, is_active=is_active)
+
+
+@router.post("/reminder-rules", response_model=ReminderRuleResponse)
+def create_reminder_rule(
+    rule_in: ReminderRuleCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    return ReminderRuleService.create(db, rule_in, current_user)
+
+
+@router.put("/reminder-rules/{rule_id}", response_model=ReminderRuleResponse)
+def update_reminder_rule(
+    rule_id: int,
+    rule_in: ReminderRuleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    return ReminderRuleService.update(db, rule_id, rule_in, current_user)
+
+
+@router.delete("/reminder-rules/{rule_id}")
+def delete_reminder_rule(
+    rule_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    ReminderRuleService.delete(db, rule_id)
+    return {"message": "Reminder rule deleted successfully"}
+
+
 @router.get("/{todo_id}", response_model=TodoResponse)
 def get_todo(
     todo_id: int,
@@ -112,42 +151,3 @@ def escalate_todo(
     current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
 ):
     return TodoService.escalate(db, todo_id, reason, current_user)
-
-
-@router.get("/reminder-rules", response_model=List[ReminderRuleResponse])
-def list_reminder_rules(
-    rule_type: str = None,
-    is_active: bool = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.ADMIN, UserRole.RECRUITER)),
-):
-    return ReminderRuleService.list(db, rule_type=rule_type, is_active=is_active)
-
-
-@router.post("/reminder-rules", response_model=ReminderRuleResponse)
-def create_reminder_rule(
-    rule_in: ReminderRuleCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.ADMIN)),
-):
-    return ReminderRuleService.create(db, rule_in, current_user)
-
-
-@router.put("/reminder-rules/{rule_id}", response_model=ReminderRuleResponse)
-def update_reminder_rule(
-    rule_id: int,
-    rule_in: ReminderRuleUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.ADMIN)),
-):
-    return ReminderRuleService.update(db, rule_id, rule_in, current_user)
-
-
-@router.delete("/reminder-rules/{rule_id}")
-def delete_reminder_rule(
-    rule_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.ADMIN)),
-):
-    ReminderRuleService.delete(db, rule_id)
-    return {"message": "Reminder rule deleted successfully"}
