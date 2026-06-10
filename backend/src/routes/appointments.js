@@ -185,7 +185,9 @@ router.post('/', async (req, res, next) => {
         operationLogs: {
           create: {
             operation: 'create',
-            remark: '创建预约',
+            fieldName: 'status',
+            oldValue: null,
+            newValue: 'pending',
             operatorName: operatorName || '系统',
           },
         },
@@ -205,7 +207,7 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const appointmentId = parseInt(req.params.id)
-    const { status, remark, operatorName, ...otherData } = req.body
+    const { status, remark, operatorName, chiefComplaint, source, isReturnVisit: returnVisitFlag } = req.body
 
     const oldAppointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -215,7 +217,10 @@ router.put('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Appointment not found' })
     }
 
-    const updateData = { ...otherData }
+    const updateData = {}
+    if (chiefComplaint !== undefined) updateData.chiefComplaint = chiefComplaint
+    if (source !== undefined) updateData.source = source
+    if (returnVisitFlag !== undefined) updateData.isReturnVisit = returnVisitFlag
 
     if (status && status !== oldAppointment.status) {
       updateData.status = status
@@ -265,6 +270,19 @@ router.put('/:id', async (req, res, next) => {
             },
           })
         }
+      }
+
+      if (status === 'confirmed' && oldAppointment.status === 'pending') {
+        updateData.operationLogs.create = [
+          updateData.operationLogs.create,
+          {
+            operation: 'confirm',
+            fieldName: 'status',
+            oldValue: oldAppointment.status,
+            newValue: 'confirmed',
+            operatorName: operatorName || '系统',
+          },
+        ]
       }
     }
 

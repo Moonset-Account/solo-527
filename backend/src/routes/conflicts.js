@@ -107,20 +107,65 @@ router.put('/:id/resolve', async (req, res, next) => {
 
     if (action === 'cancel' && appointmentIdsToCancel?.length > 0) {
       for (const apptId of appointmentIdsToCancel) {
-        await prisma.appointment.update({
+        const oldAppt = await prisma.appointment.findUnique({
           where: { id: apptId },
-          data: {
-            status: 'cancelled',
-            statusHistory: {
-              create: {
-                fromStatus: 'confirmed',
-                toStatus: 'cancelled',
-                remark: `号源冲突处理: ${resolutionNote || '调整号源'}`,
-                operatorName: resolverName || '负责人',
+        })
+
+        if (oldAppt && oldAppt.status !== 'cancelled') {
+          await prisma.appointment.update({
+            where: { id: apptId },
+            data: {
+              status: 'cancelled',
+              statusHistory: {
+                create: {
+                  fromStatus: oldAppt.status,
+                  toStatus: 'cancelled',
+                  remark: `号源冲突处理: ${resolutionNote || '调整号源'}`,
+                  operatorName: resolverName || '负责人',
+                },
+              },
+              operationLogs: {
+                create: {
+                  operation: 'conflict_cancel',
+                  fieldName: 'status',
+                  oldValue: oldAppt.status,
+                  newValue: 'cancelled',
+                  operatorName: resolverName || '负责人',
+                },
               },
             },
-          },
-        })
+          })
+
+          if (oldAppt.timeSlotId) {
+            const slot = await prisma.timeSlot.findUnique({
+              where: { id: oldAppt.timeSlotId },
+            })
+            if (slot) {
+              await prisma.timeSlot.update({
+                where: { id: oldAppt.timeSlotId },
+                data: {
+                  bookedCount: { decrement: 1 },
+                  status: 'available',
+                  statusHistory: {
+                    create: {
+                      fromStatus: slot.status,
+                      toStatus: 'available',
+                      remark: `号源冲突处理释放: ${resolutionNote || '调整号源'}`,
+                      operatorName: resolverName || '负责人',
+                    },
+                  },
+                },
+              })
+            }
+            await prisma.schedule.update({
+              where: { id: oldAppt.scheduleId },
+              data: {
+                bookedSlots: { decrement: 1 },
+                status: 'active',
+              },
+            })
+          }
+        }
       }
     }
 

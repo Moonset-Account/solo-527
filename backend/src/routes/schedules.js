@@ -141,7 +141,7 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
-    const { status, remark, operatorName } = req.body
+    const { status, remark, operatorName, startTime, endTime, shiftType, totalSlots } = req.body
     const scheduleId = parseInt(req.params.id)
 
     const oldSchedule = await prisma.schedule.findUnique({
@@ -152,19 +152,27 @@ router.put('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Schedule not found' })
     }
 
+    const scheduleData = {}
+    if (startTime !== undefined) scheduleData.startTime = startTime
+    if (endTime !== undefined) scheduleData.endTime = endTime
+    if (shiftType !== undefined) scheduleData.shiftType = shiftType
+    if (totalSlots !== undefined) scheduleData.totalSlots = totalSlots
+    if (status !== undefined) scheduleData.status = status
+
+    if (status && status !== oldSchedule.status) {
+      scheduleData.statusHistory = {
+        create: {
+          fromStatus: oldSchedule.status,
+          toStatus: status,
+          remark: remark || '更新排班状态',
+          operatorName: operatorName || '系统',
+        },
+      }
+    }
+
     const schedule = await prisma.schedule.update({
       where: { id: scheduleId },
-      data: {
-        ...req.body,
-        statusHistory: status && status !== oldSchedule.status ? {
-          create: {
-            fromStatus: oldSchedule.status,
-            toStatus: status,
-            remark: remark || '更新排班状态',
-            operatorName: operatorName || '系统',
-          },
-        } : undefined,
-      },
+      data: scheduleData,
     })
 
     res.json(schedule)
@@ -217,7 +225,7 @@ router.post('/batch', async (req, res, next) => {
 
 router.put('/slots/:slotId', async (req, res, next) => {
   try {
-    const { status, remark, operatorName } = req.body
+    const { status, remark, operatorName, maxPatients } = req.body
     const slotId = parseInt(req.params.slotId)
 
     const oldSlot = await prisma.timeSlot.findUnique({
@@ -228,19 +236,24 @@ router.put('/slots/:slotId', async (req, res, next) => {
       return res.status(404).json({ error: 'Time slot not found' })
     }
 
+    const slotData = {}
+    if (maxPatients !== undefined) slotData.maxPatients = maxPatients
+    if (status !== undefined) slotData.status = status
+
+    if (status && status !== oldSlot.status) {
+      slotData.statusHistory = {
+        create: {
+          fromStatus: oldSlot.status,
+          toStatus: status,
+          remark: remark || '更新号源状态',
+          operatorName: operatorName || '系统',
+        },
+      }
+    }
+
     const slot = await prisma.timeSlot.update({
       where: { id: slotId },
-      data: {
-        ...req.body,
-        statusHistory: status && status !== oldSlot.status ? {
-          create: {
-            fromStatus: oldSlot.status,
-            toStatus: status,
-            remark: remark || '更新号源状态',
-            operatorName: operatorName || '系统',
-          },
-        } : undefined,
-      },
+      data: slotData,
     })
 
     res.json(slot)

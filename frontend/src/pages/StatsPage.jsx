@@ -18,6 +18,7 @@ import {
 } from 'antd'
 import {
   RiseOutlined,
+  CheckCircleOutlined,
   CalendarOutlined,
   UserOutlined,
   ClockCircleOutlined,

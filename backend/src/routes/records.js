@@ -58,6 +58,10 @@ router.post('/', async (req, res, next) => {
   try {
     const { appointmentId, patientId, doctorId, diagnosis, treatment, summary, prescription, cost, operatorName } = req.body
 
+    const oldAppt = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    })
+
     const record = await prisma.medicalRecord.create({
       data: {
         appointmentId,
@@ -78,10 +82,31 @@ router.post('/', async (req, res, next) => {
       },
     })
 
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status: 'completed' },
-    })
+    if (oldAppt && oldAppt.status !== 'completed') {
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: 'completed',
+          statusHistory: {
+            create: {
+              fromStatus: oldAppt.status,
+              toStatus: 'completed',
+              remark: '就诊完成，病历已填写',
+              operatorName: operatorName || '系统',
+            },
+          },
+          operationLogs: {
+            create: {
+              operation: 'complete',
+              fieldName: 'status',
+              oldValue: oldAppt.status,
+              newValue: 'completed',
+              operatorName: operatorName || '系统',
+            },
+          },
+        },
+      })
+    }
 
     res.status(201).json(record)
   } catch (err) {
@@ -92,12 +117,19 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const recordId = parseInt(req.params.id)
-    const { operatorName, ...otherData } = req.body
+    const { operatorName, diagnosis, treatment, summary, prescription, cost } = req.body
+
+    const updateData = {}
+    if (diagnosis !== undefined) updateData.diagnosis = diagnosis
+    if (treatment !== undefined) updateData.treatment = treatment
+    if (summary !== undefined) updateData.summary = summary
+    if (prescription !== undefined) updateData.prescription = prescription
+    if (cost !== undefined) updateData.cost = cost ? parseFloat(cost) : null
 
     const record = await prisma.medicalRecord.update({
       where: { id: recordId },
       data: {
-        ...otherData,
+        ...updateData,
         statusHistory: {
           create: {
             status: 'revised',

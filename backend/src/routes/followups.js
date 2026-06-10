@@ -89,7 +89,7 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const followUpId = parseInt(req.params.id)
-    const { status, result, actualDate, remark, operatorName, ...otherData } = req.body
+    const { status, result, actualDate, remark, operatorName, type, content, planDate } = req.body
 
     const oldFollowUp = await prisma.followUp.findUnique({
       where: { id: followUpId },
@@ -99,8 +99,10 @@ router.put('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Follow-up not found' })
     }
 
-    const updateData = { ...otherData }
-
+    const updateData = {}
+    if (type !== undefined) updateData.type = type
+    if (content !== undefined) updateData.content = content
+    if (planDate !== undefined) updateData.planDate = new Date(planDate)
     if (result !== undefined) updateData.result = result
     if (actualDate !== undefined) updateData.actualDate = actualDate ? new Date(actualDate) : null
 
