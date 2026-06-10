@@ -397,7 +397,7 @@ fn modify_spec_for_diff(spec: &OpenAPISpec) -> OpenAPISpec {
     if let Some(ref mut comp) = modified.components {
         if let Some(user_schema) = comp.schemas.get_mut("SimpleUser") {
             if let Some(ref mut props) = user_schema.properties {
-                props.remove("age");
+                props.shift_remove("age");
                 if let Some(role_schema) = props.get_mut("role") {
                     role_schema.enum_values = Some(vec![
                         serde_json::Value::String("admin".to_string()),

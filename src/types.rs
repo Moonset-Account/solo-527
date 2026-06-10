@@ -2,9 +2,11 @@ use serde::{Deserialize, Serialize};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpenAPISpec {
+    #[serde(default)]
     pub openapi: String,
+    #[serde(default)]
     pub info: Info,
     #[serde(default)]
     pub servers: Vec<Server>,
@@ -16,9 +18,11 @@ pub struct OpenAPISpec {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Info {
+    #[serde(default)]
     pub title: String,
+    #[serde(default)]
     pub version: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -26,7 +30,7 @@ pub struct Info {
     pub contact: Option<Contact>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Contact {
     #[serde(default)]
     pub name: Option<String>,
@@ -36,15 +40,17 @@ pub struct Contact {
     pub url: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Server {
+    #[serde(default)]
     pub url: String,
     #[serde(default)]
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Tag {
+    #[serde(default)]
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -93,7 +99,7 @@ impl PathItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Operation {
-    #[serde(default)]
+    #[serde(default, rename = "operationId")]
     pub operation_id: Option<String>,
     #[serde(default)]
     pub summary: Option<String>,
@@ -103,7 +109,7 @@ pub struct Operation {
     pub tags: Vec<String>,
     #[serde(default)]
     pub parameters: Vec<Parameter>,
-    #[serde(default)]
+    #[serde(default, rename = "requestBody")]
     pub request_body: Option<RequestBody>,
     #[serde(default)]
     pub responses: BTreeMap<String, Response>,
@@ -113,10 +119,11 @@ pub struct Operation {
     pub security: Vec<BTreeMap<String, Vec<String>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Parameter {
+    #[serde(default)]
     pub name: String,
-    #[serde(rename = "in")]
+    #[serde(default, rename = "in")]
     pub location: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -128,7 +135,7 @@ pub struct Parameter {
     pub schema: Option<Schema>,
     #[serde(default, rename = "type")]
     pub param_type: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "enum")]
     pub enum_values: Option<Vec<serde_json::Value>>,
 }
 
@@ -138,16 +145,17 @@ impl Parameter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RequestBody {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
     pub required: bool,
+    #[serde(default)]
     pub content: BTreeMap<String, MediaType>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MediaType {
     #[serde(default)]
     pub schema: Option<Schema>,
@@ -157,7 +165,7 @@ pub struct MediaType {
     pub examples: BTreeMap<String, Example>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Example {
     #[serde(default)]
     pub summary: Option<String>,
@@ -167,8 +175,9 @@ pub struct Example {
     pub value: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Response {
+    #[serde(default)]
     pub description: String,
     #[serde(default)]
     pub headers: BTreeMap<String, Header>,
@@ -178,7 +187,7 @@ pub struct Response {
     pub links: BTreeMap<String, Link>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Header {
     #[serde(default)]
     pub description: Option<String>,
@@ -190,13 +199,15 @@ pub struct Header {
     pub schema: Option<Schema>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Link {
+    #[serde(default, rename = "operationRef")]
     pub operation_ref: Option<String>,
+    #[serde(default, rename = "operationId")]
     pub operation_id: Option<String>,
     #[serde(default)]
     pub parameters: BTreeMap<String, serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, rename = "requestBody")]
     pub request_body: Option<serde_json::Value>,
     #[serde(default)]
     pub description: Option<String>,
@@ -212,15 +223,15 @@ pub struct Components {
     pub parameters: BTreeMap<String, Parameter>,
     #[serde(default)]
     pub headers: BTreeMap<String, Header>,
-    #[serde(default)]
+    #[serde(default, rename = "requestBodies")]
     pub request_bodies: BTreeMap<String, RequestBody>,
-    #[serde(default)]
+    #[serde(default, rename = "securitySchemes")]
     pub security_schemes: BTreeMap<String, SecurityScheme>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SecurityScheme {
-    #[serde(rename = "type")]
+    #[serde(default, rename = "type")]
     pub scheme_type: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -231,11 +242,11 @@ pub struct SecurityScheme {
     pub location: Option<String>,
     #[serde(default)]
     pub scheme: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "bearerFormat")]
     pub bearer_format: Option<String>,
     #[serde(default)]
     pub flows: Option<OAuthFlows>,
-    #[serde(default)]
+    #[serde(default, rename = "openIdConnectUrl")]
     pub open_id_connect_url: Option<String>,
 }
 
@@ -251,12 +262,15 @@ pub struct OAuthFlows {
     pub authorization_code: Option<OAuthFlow>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OAuthFlow {
+    #[serde(default, rename = "authorizationUrl")]
     pub authorization_url: String,
+    #[serde(default, rename = "tokenUrl")]
     pub token_url: String,
-    #[serde(default)]
+    #[serde(default, rename = "refreshUrl")]
     pub refresh_url: Option<String>,
+    #[serde(default)]
     pub scopes: BTreeMap<String, String>,
 }
 
@@ -294,27 +308,27 @@ pub struct Schema {
     pub minimum: Option<f64>,
     #[serde(default)]
     pub maximum: Option<f64>,
-    #[serde(default)]
+    #[serde(default, rename = "exclusiveMinimum")]
     pub exclusive_minimum: Option<bool>,
-    #[serde(default)]
+    #[serde(default, rename = "exclusiveMaximum")]
     pub exclusive_maximum: Option<bool>,
-    #[serde(default)]
+    #[serde(default, rename = "minLength")]
     pub min_length: Option<u64>,
-    #[serde(default)]
+    #[serde(default, rename = "maxLength")]
     pub max_length: Option<u64>,
     #[serde(default)]
     pub pattern: Option<String>,
-    #[serde(default)]
+    #[serde(default, rename = "minItems")]
     pub min_items: Option<u64>,
-    #[serde(default)]
+    #[serde(default, rename = "maxItems")]
     pub max_items: Option<u64>,
-    #[serde(default)]
+    #[serde(default, rename = "uniqueItems")]
     pub unique_items: Option<bool>,
-    #[serde(default)]
+    #[serde(default, rename = "minProperties")]
     pub min_properties: Option<u64>,
-    #[serde(default)]
+    #[serde(default, rename = "maxProperties")]
     pub max_properties: Option<u64>,
-    #[serde(default)]
+    #[serde(default, rename = "additionalProperties")]
     pub additional_properties: Option<serde_json::Value>,
     #[serde(default)]
     pub default: Option<serde_json::Value>,
@@ -362,8 +376,9 @@ impl std::fmt::Display for SchemaType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Discriminator {
+    #[serde(default, rename = "propertyName")]
     pub property_name: String,
     #[serde(default)]
     pub mapping: Option<BTreeMap<String, String>>,

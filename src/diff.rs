@@ -834,13 +834,23 @@ impl ChangeDetector {
         endpoints: &mut HashSet<String>,
     ) {
         match (&old_op.request_body, &new_op.request_body) {
-            (None, Some(_)) => {
+            (None, Some(new_rb)) => {
+                let ct = if new_rb.required {
+                    ChangeType::RequestBodyRequiredChanged
+                } else {
+                    ChangeType::RequestBodyAdded
+                };
                 self.add_change(
-                    ChangeType::RequestBodyAdded,
+                    ct,
                     path,
                     Some(method),
                     None,
-                    format!("Request body added to {} {}", method.to_uppercase(), path),
+                    format!(
+                        "Request body added to {} {}{}",
+                        method.to_uppercase(),
+                        path,
+                        if new_rb.required { " (required)" } else { "" }
+                    ),
                     None,
                     None,
                     changes,

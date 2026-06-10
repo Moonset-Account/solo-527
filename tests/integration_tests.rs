@@ -318,3 +318,129 @@ fn test_version_metadata_change() {
     });
     assert!(version_change.is_some());
 }
+
+#[test]
+fn test_new_required_request_body_is_breaking() {
+    let old_yaml = r#"
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0.0"
+paths:
+  /items:
+    post:
+      operationId: createItem
+      responses:
+        "201":
+          description: Created
+"#;
+    let new_yaml = r#"
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "2.0.0"
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Created
+"#;
+
+    let old = OpenAPIParser::parse_yaml(old_yaml).unwrap();
+    let new = OpenAPIParser::parse_yaml(new_yaml).unwrap();
+
+    let detector = ChangeDetector::with_default_config();
+    let result = detector.detect(&old, &new);
+
+    let rb_change = result.changes.iter().find(|c| {
+        matches!(c.change_type, diff::ChangeType::RequestBodyRequiredChanged)
+            && c.method.as_deref() == Some("POST")
+            && c.path == "/items"
+    });
+    assert!(
+        rb_change.is_some(),
+        "Should detect RequestBodyRequiredChanged for new required body"
+    );
+    assert_eq!(
+        rb_change.unwrap().severity,
+        diff::ChangeSeverity::Breaking,
+        "New required requestBody MUST be Breaking severity"
+    );
+    assert!(
+        result.has_breaking_changes(),
+        "Diff must have breaking changes when required requestBody added"
+    );
+}
+
+#[test]
+fn test_new_optional_request_body_is_info() {
+    let old_yaml = r#"
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0.0"
+paths:
+  /search:
+    post:
+      operationId: searchItems
+      responses:
+        "200":
+          description: OK
+"#;
+    let new_yaml = r#"
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "2.0.0"
+paths:
+  /search:
+    post:
+      operationId: searchItems
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+"#;
+
+    let old = OpenAPIParser::parse_yaml(old_yaml).unwrap();
+    let new = OpenAPIParser::parse_yaml(new_yaml).unwrap();
+
+    let detector = ChangeDetector::with_default_config();
+    let result = detector.detect(&old, &new);
+
+    let rb_change = result.changes.iter().find(|c| {
+        matches!(c.change_type, diff::ChangeType::RequestBodyAdded)
+            && c.method.as_deref() == Some("POST")
+            && c.path == "/search"
+    });
+    assert!(
+        rb_change.is_some(),
+        "Should detect RequestBodyAdded for new optional body"
+    );
+    assert_eq!(
+        rb_change.unwrap().severity,
+        diff::ChangeSeverity::Info,
+        "New optional requestBody should be Info severity"
+    );
+    let only_optional_rb_added = !result.has_breaking_changes();
+    assert!(
+        only_optional_rb_added,
+        "Adding only an optional requestBody should NOT produce breaking changes"
+    );
+}
