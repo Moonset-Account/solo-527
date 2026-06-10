@@ -34,7 +34,7 @@ export function Timeline() {
                   <div className={`relative overflow-hidden rounded-2xl aspect-video shadow-xl group ${index % 2 === 0 ? 'lg:mr-12' : 'lg:ml-12'}`}>
                     {visit.photos && visit.photos[0] && (
                       <Image
-                        src={visit.photos[0].url}
+                        src={visit.photos[0].image_url}
                         alt={visit.location}
                         fill
                         className="object-cover transition-transform duration-700 group-hover:scale-105"

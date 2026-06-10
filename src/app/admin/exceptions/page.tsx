@@ -167,15 +167,19 @@ export default function ExceptionsPage() {
                       <Badge variant="outline">
                         {getExceptionTypeLabel(exception.type)}
                       </Badge>
-                      {exception.parent_exception_id && (
-                        <button
-                          onClick={() => handleTraceToOriginal(exception.parent_exception_id)}
-                          className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
-                        >
-                          <LinkIcon className="w-3 h-3" />
-                          追溯原单
-                        </button>
-                      )}
+                      {(() => {
+                        const parentId = exception.parent_exception_id;
+                        if (!parentId) return null;
+                        return (
+                          <button
+                            onClick={() => handleTraceToOriginal(parentId)}
+                            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+                          >
+                            <LinkIcon className="w-3 h-3" />
+                            追溯原单
+                          </button>
+                        );
+                      })()}
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
@@ -271,7 +275,9 @@ export default function ExceptionsPage() {
         title={detailData?.title || '异常详情'}
         size="xl"
       >
-        {detailData && (
+        {detailData && (() => {
+          const logs = detailData.logs ?? [];
+          return (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -320,16 +326,16 @@ export default function ExceptionsPage() {
               </div>
             )}
 
-            {detailData.logs && detailData.logs.length > 0 && (
+            {logs.length > 0 && (
               <div>
                 <p className="text-sm text-gray-500 mb-4 font-medium">处理日志</p>
                 <div className="relative pl-8">
                   <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200" />
-                  {detailData.logs.map((log, index) => (
+                  {logs.map((log, index) => (
                     <div key={log.id} className="relative pb-6 last:pb-0">
                       <div className={`absolute left-[-22px] w-4 h-4 rounded-full border-4 ${
                         index === 0 ? 'bg-primary-500 border-primary-200' :
-                        index === detailData.logs.length - 1 ? 'bg-green-500 border-green-200' :
+                        index === logs.length - 1 ? 'bg-green-500 border-green-200' :
                         'bg-blue-500 border-blue-200'
                       }`} />
                       <div className="bg-gray-50 rounded-xl p-4">
@@ -367,7 +373,7 @@ export default function ExceptionsPage() {
               )}
             </div>
           </div>
-        )}
+        )})()}
       </Modal>
 
       <Modal
