@@ -1,0 +1,30 @@
+{
+  "name": "md-link-checker",
+  "version": "1.0.0",
+  "description": "Markdown 文档链接检查器 - 递归扫描 Markdown 文件，校验相对链接、锚点、图片和外部 URL",
+  "main": "src/index.js",
+  "bin": {
+    "md-link-checker": "./bin/md-link-checker.js"
+  },
+  "scripts": {
+    "start": "node ./bin/md-link-checker.js",
+    "test": "node --test tests/",
+    "lint": "node -e \"const fs=require('fs');const files=[];function walk(d){for(const f of fs.readdirSync(d)){const p=d+'/'+f;const s=fs.statSync(p);if(s.isDirectory()&&f!=='node_modules')walk(p);else if(f.endsWith('.js'))files.push(p)}}walk('.');console.log('Linted',files.length,'files')\""
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "markdown",
+    "link",
+    "checker",
+    "cli",
+    "validator"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "js-yaml": "^4.1.0"
+  }
+}

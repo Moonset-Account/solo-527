@@ -1,0 +1,34 @@
+# Markdown 文档链接检查器 - YAML 配置示例
+# 文件名可以是: .mdlinkcheckerrc.yaml 或 .mdlinkcheckerrc.yml
+
+root: ./fixtures
+timeout: 5000
+format: text
+concurrency: 8
+recursive: true
+fileExtensions:
+  - .md
+  - .markdown
+
+checkAnchors: true
+checkExternal: true
+checkImages: true
+
+ignore:
+  - "https://example.com/*"
+  - "mailto:*"
+
+ignorePatterns:
+  - "^https?://localhost"
+  - "^https?://127\\.0\\.0\\.1"
+  - "^javascript:"
+
+ignoreFiles:
+  - "CHANGELOG.md"
+  - "**/archive/**"
+
+logLevel: info
+verbose: false
+quiet: false
+confirmDangerous: true
+dryRun: false

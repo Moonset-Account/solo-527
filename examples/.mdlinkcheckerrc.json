@@ -1,0 +1,27 @@
+{
+  "root": "./fixtures",
+  "timeout": 3000,
+  "format": "text",
+  "concurrency": 4,
+  "recursive": true,
+  "fileExtensions": [".md", ".markdown"],
+  "checkAnchors": true,
+  "checkExternal": false,
+  "checkImages": true,
+  "ignore": [
+    "https://example.com/*",
+    "node_modules/**"
+  ],
+  "ignorePatterns": [
+    "^https?://localhost",
+    "^https?://127\\.0\\.0\\.1"
+  ],
+  "ignoreFiles": [
+    "CHANGELOG.md"
+  ],
+  "logLevel": "info",
+  "verbose": false,
+  "quiet": false,
+  "confirmDangerous": true,
+  "dryRun": false
+}
