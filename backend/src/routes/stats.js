@@ -1,6 +1,6 @@
 const express = require('express')
 const dayjs = require('dayjs')
-const prisma = require('../prisma')
+const { prisma, refreshReturnVisitStatsForDate, upsertReturnVisitStats } = require('../prisma')
 
 const router = express.Router()
 
@@ -42,52 +42,97 @@ router.get('/overview', async (req, res, next) => {
 
 router.get('/return-visit', async (req, res, next) => {
   try {
-    const { clinicId, doctorId, period = 'month', startDate, endDate } = req.query
+    const { clinicId, doctorId, period = 'month', startDate, endDate, refresh } = req.query
 
-    const where = { status: 'completed' }
-    if (clinicId) where.clinicId = parseInt(clinicId)
-    if (doctorId) where.doctorId = parseInt(doctorId)
-    if (startDate) where.appointDate = { ...where.appointDate, gte: new Date(startDate) }
-    if (endDate) where.appointDate = { ...where.appointDate, lte: new Date(endDate) }
-
-    const appointments = await prisma.appointment.findMany({
-      where,
-      select: {
-        appointDate: true,
-        isReturnVisit: true,
-        doctorId: true,
-        clinicId: true,
-      },
-      orderBy: { appointDate: 'asc' },
-    })
-
-    const statsByDate = {}
-    for (const appt of appointments) {
-      let key
-      const date = dayjs(appt.appointDate)
-      if (period === 'day') {
-        key = date.format('YYYY-MM-DD')
-      } else if (period === 'week') {
-        key = date.startOf('week').format('YYYY-MM-DD')
-      } else {
-        key = date.format('YYYY-MM')
-      }
-
-      if (!statsByDate[key]) {
-        statsByDate[key] = { total: 0, return: 0 }
-      }
-      statsByDate[key].total++
-      if (appt.isReturnVisit) statsByDate[key].return++
+    if (refresh === '1') {
+      const today = new Date()
+      await refreshReturnVisitStatsForDate(
+        today,
+        clinicId ? parseInt(clinicId) : undefined,
+        doctorId ? parseInt(doctorId) : undefined
+      )
     }
 
-    const chartData = Object.entries(statsByDate)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, data]) => ({
-        date,
+    const where = { periodType: period }
+    if (clinicId) where.clinicId = parseInt(clinicId)
+    if (doctorId) where.doctorId = parseInt(doctorId)
+    if (startDate) where.periodStart = { ...where.periodStart, gte: dayjs(startDate).startOf(period).toDate() }
+    if (endDate) where.periodStart = { ...where.periodStart, lte: dayjs(endDate).endOf(period).toDate() }
+
+    let statsRecords = await prisma.returnVisitStats.findMany({
+      where,
+      orderBy: { periodStart: 'asc' },
+    })
+
+    if (statsRecords.length === 0) {
+      const fallbackWhere = { status: 'completed' }
+      if (clinicId) fallbackWhere.clinicId = parseInt(clinicId)
+      if (doctorId) fallbackWhere.doctorId = parseInt(doctorId)
+      if (startDate) fallbackWhere.appointDate = { ...fallbackWhere.appointDate, gte: new Date(startDate) }
+      if (endDate) fallbackWhere.appointDate = { ...fallbackWhere.appointDate, lte: new Date(endDate) }
+
+      const appointments = await prisma.appointment.findMany({
+        where: fallbackWhere,
+        select: {
+          appointDate: true,
+          isReturnVisit: true,
+          doctorId: true,
+          clinicId: true,
+        },
+        orderBy: { appointDate: 'asc' },
+      })
+
+      const statsByDate = {}
+      for (const appt of appointments) {
+        let key
+        const date = dayjs(appt.appointDate)
+        if (period === 'day') {
+          key = date.format('YYYY-MM-DD')
+        } else if (period === 'week') {
+          key = date.startOf('week').format('YYYY-MM-DD')
+        } else {
+          key = date.format('YYYY-MM')
+        }
+
+        if (!statsByDate[key]) {
+          statsByDate[key] = { total: 0, return: 0, dateObj: date.startOf(period).toDate() }
+        }
+        statsByDate[key].total++
+        if (appt.isReturnVisit) statsByDate[key].return++
+      }
+
+      const records = Object.entries(statsByDate).map(([key, data]) => ({
+        periodStart: data.dateObj,
+        date: key,
         total: data.total,
         return: data.return,
         rate: data.total > 0 ? parseFloat(((data.return / data.total) * 100).toFixed(1)) : 0,
       }))
+
+      for (const rec of records) {
+        try {
+          await upsertReturnVisitStats({
+            periodType: period,
+            periodStart: rec.periodStart,
+            clinicId: clinicId ? parseInt(clinicId) : undefined,
+            doctorId: doctorId ? parseInt(doctorId) : undefined,
+          })
+        } catch (e) {
+        }
+      }
+
+      statsRecords = await prisma.returnVisitStats.findMany({
+        where,
+        orderBy: { periodStart: 'asc' },
+      })
+    }
+
+    const chartData = statsRecords.map((r) => ({
+      date: dayjs(r.periodStart).format(period === 'day' ? 'YYYY-MM-DD' : period === 'week' ? 'YYYY-MM-DD' : 'YYYY-MM'),
+      total: r.totalVisits,
+      return: r.returnVisits,
+      rate: r.returnRate,
+    }))
 
     res.json(chartData)
   } catch (err) {

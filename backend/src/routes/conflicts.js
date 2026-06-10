@@ -1,5 +1,5 @@
 const express = require('express')
-const prisma = require('../prisma')
+const { prisma, refreshReturnVisitStatsForDate } = require('../prisma')
 
 const router = express.Router()
 
@@ -72,14 +72,13 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { timeSlotId, conflictType, description, involvedAppointments } = req.body
+    const { timeSlotId, conflictType, description } = req.body
 
     const conflict = await prisma.slotConflict.create({
       data: {
         timeSlotId,
         conflictType,
         description,
-        involvedAppointments: involvedAppointments || [],
       },
     })
 
@@ -247,9 +246,27 @@ router.put('/:id/resolve', async (req, res, next) => {
         resolutionNote,
         resolverName,
         resolvedAt: new Date(),
-        involvedAppointments: action === 'cancel' ? validCancelIds : undefined,
       },
     })
+
+    const refreshPromises = []
+    const refreshedSlots = new Set()
+    for (const apptId of validCancelIds) {
+      const appt = await prisma.appointment.findUnique({
+        where: { id: apptId },
+        select: { appointDate: true, clinicId: true, doctorId: true },
+      })
+      if (appt) {
+        const key = `${appt.clinicId}-${appt.doctorId}-${appt.appointDate.toDateString()}`
+        if (!refreshedSlots.has(key)) {
+          refreshedSlots.add(key)
+          refreshPromises.push(
+            refreshReturnVisitStatsForDate(appt.appointDate, appt.clinicId, appt.doctorId)
+          )
+        }
+      }
+    }
+    const refreshedStats = refreshPromises.length > 0 ? await Promise.all(refreshPromises) : []
 
     res.json({
       ...updatedConflict,
@@ -257,7 +274,8 @@ router.put('/:id/resolve', async (req, res, next) => {
         cancelledAppointments: validCancelIds.length,
         updatedTimeSlots: changedSlotIds.size,
         updatedSchedules: changedScheduleIds.size,
-        note: '复诊率统计将自动按最新预约状态聚合计算',
+        refreshedReturnVisitStats: refreshedStats.flat().length,
+        note: '复诊率统计记录已按日期、诊所、医生 upsert 更新',
       },
     })
   } catch (err) {

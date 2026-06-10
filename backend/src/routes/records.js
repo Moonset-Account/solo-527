@@ -1,5 +1,5 @@
 const express = require('express')
-const prisma = require('../prisma')
+const { prisma, refreshReturnVisitStatsForDate } = require('../prisma')
 
 const router = express.Router()
 
@@ -106,6 +106,11 @@ router.post('/', async (req, res, next) => {
           },
         },
       })
+
+      try {
+        await refreshReturnVisitStatsForDate(oldAppt.appointDate, oldAppt.clinicId, oldAppt.doctorId)
+      } catch (e) {
+      }
     }
 
     res.status(201).json(record)

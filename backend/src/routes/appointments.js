@@ -1,6 +1,6 @@
 const express = require('express')
 const dayjs = require('dayjs')
-const prisma = require('../prisma')
+const { prisma, refreshReturnVisitStatsForDate } = require('../prisma')
 
 const router = express.Router()
 
@@ -294,6 +294,20 @@ router.put('/:id', async (req, res, next) => {
         doctor: true,
       },
     })
+
+    if (
+      (status && (status === 'completed' || status === 'cancelled')) ||
+      returnVisitFlag !== undefined
+    ) {
+      try {
+        await refreshReturnVisitStatsForDate(
+          oldAppointment.appointDate,
+          oldAppointment.clinicId,
+          oldAppointment.doctorId
+        )
+      } catch (e) {
+      }
+    }
 
     res.json(appointment)
   } catch (err) {
