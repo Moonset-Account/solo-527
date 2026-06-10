@@ -3,7 +3,10 @@
     <div class="page-header">
       <h2>路线规划</h2>
       <div class="header-actions">
-        <button class="btn btn-primary" @click="loadRoutes">
+        <button class="btn btn-primary" @click="openCreateModal">
+          ➕ 调整路线
+        </button>
+        <button class="btn btn-default" @click="loadRoutes">
           🔄 刷新
         </button>
       </div>
@@ -131,6 +134,126 @@
         </div>
       </div>
     </AppModal>
+
+    <AppModal v-model:visible="createModalVisible" title="调整路线" width="700px">
+      <div class="create-route-form">
+        <div class="form-row">
+          <div class="form-item full">
+            <label>选择订单 <span class="required">*</span></label>
+            <div class="order-select-wrapper">
+              <select v-model="createForm.orderId" class="order-select">
+                <option value="">请选择订单</option>
+                <option v-for="order in selectableOrders" :key="order.id" :value="order.id">
+                  {{ order.orderNo }} - {{ order.customer?.companyName || '未知客户' }}
+                </option>
+              </select>
+              <button
+                v-if="!loadingOrders"
+                class="btn btn-text btn-sm refresh-orders-btn"
+                @click="loadSelectableOrders"
+              >
+                刷新
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <h4>途经点明细</h4>
+            <button class="btn btn-text btn-sm" @click="addWaypoint">
+              ➕ 添加途经点
+            </button>
+          </div>
+          <div class="waypoints-editor">
+            <div
+              v-for="(point, index) in createForm.waypoints"
+              :key="index"
+              class="waypoint-editor-item"
+            >
+              <div class="waypoint-index">{{ index + 1 }}</div>
+              <div class="waypoint-fields">
+                <div class="form-item">
+                  <label>类型</label>
+                  <select v-model="point.type">
+                    <option value="waypoint">途经点</option>
+                    <option value="pickup">取货点</option>
+                    <option value="delivery">送货点</option>
+                  </select>
+                </div>
+                <div class="form-item">
+                  <label>地址</label>
+                  <input v-model="point.address" placeholder="请输入地址" />
+                </div>
+                <div class="form-item">
+                  <label>经度</label>
+                  <input v-model.number="point.lng" type="number" step="0.000001" placeholder="经度" />
+                </div>
+                <div class="form-item">
+                  <label>纬度</label>
+                  <input v-model.number="point.lat" type="number" step="0.000001" placeholder="纬度" />
+                </div>
+              </div>
+              <div class="waypoint-actions">
+                <button
+                  class="btn btn-text btn-sm"
+                  @click="moveWaypointUp(index)"
+                  :disabled="index === 0"
+                >
+                  ↑
+                </button>
+                <button
+                  class="btn btn-text btn-sm"
+                  @click="moveWaypointDown(index)"
+                  :disabled="index === createForm.waypoints.length - 1"
+                >
+                  ↓
+                </button>
+                <button
+                  class="btn btn-text btn-sm danger"
+                  @click="removeWaypoint(index)"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+            <div v-if="createForm.waypoints.length === 0" class="empty-waypoints">
+              暂无途经点，点击上方"添加途经点"按钮添加
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-item">
+            <label>总距离（米）</label>
+            <input
+              v-model.number="createForm.totalDistanceMeters"
+              type="number"
+              placeholder="请输入总距离"
+            />
+          </div>
+          <div class="form-item">
+            <label>预计耗时（分钟）</label>
+            <input
+              v-model.number="createForm.totalMinutes"
+              type="number"
+              placeholder="请输入预计耗时"
+            />
+          </div>
+        </div>
+
+        <div class="form-item full">
+          <label>备注说明</label>
+          <textarea v-model="createForm.remark" placeholder="请输入调整原因或备注（可选）" rows="3"></textarea>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-default" @click="closeCreateModal">取消</button>
+        <button class="btn btn-primary" @click="submitCreate" :disabled="submitting">
+          {{ submitting ? '提交中...' : '确认提交' }}
+        </button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
@@ -145,9 +268,21 @@ const { pageInfo, setTotal, reset } = usePagination(10)
 const routeList = ref<any[]>([])
 const detailModalVisible = ref(false)
 const currentRoute = ref<any>(null)
+const createModalVisible = ref(false)
+const submitting = ref(false)
+const loadingOrders = ref(false)
+const selectableOrders = ref<any[]>([])
 
 const searchForm = reactive({
   keyword: '',
+})
+
+const createForm = reactive({
+  orderId: '',
+  totalDistanceMeters: 0,
+  totalMinutes: 0,
+  remark: '',
+  waypoints: [] as any[],
 })
 
 const waypoints = computed(() => {
@@ -179,6 +314,22 @@ const loadRoutes = async () => {
   }
 }
 
+const loadSelectableOrders = async () => {
+  loadingOrders.value = true
+  try {
+    const res: any = await request('/orders', {
+      query: { pageSize: 100, status: 'ACCEPTED,ASSIGNED,PICKED_UP,IN_TRANSIT,ARRIVED' }
+    })
+    if (res.code === 0) {
+      selectableOrders.value = res.data.list
+    }
+  } catch (e) {
+    console.error('加载订单失败', e)
+  } finally {
+    loadingOrders.value = false
+  }
+}
+
 const handleSearch = () => {
   reset()
   loadRoutes()
@@ -193,6 +344,94 @@ const handleReset = () => {
 const viewRoute = (route: any) => {
   currentRoute.value = route
   detailModalVisible.value = true
+}
+
+const openCreateModal = () => {
+  createForm.orderId = ''
+  createForm.totalDistanceMeters = 0
+  createForm.totalMinutes = 0
+  createForm.remark = ''
+  createForm.waypoints = []
+  createModalVisible.value = true
+  if (selectableOrders.value.length === 0) {
+    loadSelectableOrders()
+  }
+}
+
+const closeCreateModal = () => {
+  createModalVisible.value = false
+}
+
+const addWaypoint = () => {
+  createForm.waypoints.push({
+    type: 'waypoint',
+    address: '',
+    lng: 0,
+    lat: 0,
+  })
+}
+
+const removeWaypoint = (index: number) => {
+  createForm.waypoints.splice(index, 1)
+}
+
+const moveWaypointUp = (index: number) => {
+  if (index === 0) return
+  const temp = createForm.waypoints[index]
+  createForm.waypoints[index] = createForm.waypoints[index - 1]
+  createForm.waypoints[index - 1] = temp
+}
+
+const moveWaypointDown = (index: number) => {
+  if (index === createForm.waypoints.length - 1) return
+  const temp = createForm.waypoints[index]
+  createForm.waypoints[index] = createForm.waypoints[index + 1]
+  createForm.waypoints[index + 1] = temp
+}
+
+const submitCreate = async () => {
+  if (!createForm.orderId) {
+    alert('请选择订单')
+    return
+  }
+  if (createForm.waypoints.length === 0) {
+    alert('请至少添加一个途经点')
+    return
+  }
+  if (!createForm.totalDistanceMeters) {
+    alert('请输入总距离')
+    return
+  }
+  if (!createForm.totalMinutes) {
+    alert('请输入预计耗时')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const res: any = await request('/routes/create', {
+      method: 'POST',
+      body: {
+        orderId: createForm.orderId,
+        waypointsJson: createForm.waypoints,
+        totalDistanceMeters: createForm.totalDistanceMeters,
+        totalMinutes: createForm.totalMinutes,
+        remark: createForm.remark,
+      },
+    })
+    if (res.code === 0) {
+      alert('路线调整成功')
+      closeCreateModal()
+      loadRoutes()
+    } else {
+      alert(res.message || '创建失败')
+    }
+  } catch (e: any) {
+    console.error('创建路线失败', e)
+    alert(e?.data?.message || '创建失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 const getOptimizedByLabel = (type: string) => {
@@ -322,6 +561,141 @@ onMounted(() => {
     padding: 12px;
     background: #fafafa;
     border-radius: 4px;
+  }
+}
+
+.create-route-form {
+  .required {
+    color: $error;
+  }
+
+  .order-select-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+
+    .order-select {
+      flex: 1;
+    }
+
+    .refresh-orders-btn {
+      flex-shrink: 0;
+    }
+  }
+
+  .form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+
+    .form-item {
+      flex: 1;
+      margin-bottom: 0;
+
+      &.full {
+        flex: none;
+        width: 100%;
+      }
+    }
+  }
+
+  .form-section {
+    margin-bottom: 16px;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+
+      h4 {
+        font-size: 14px;
+        font-weight: 600;
+        color: $text-primary;
+        margin: 0;
+      }
+    }
+  }
+
+  .waypoints-editor {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    background: #fafafa;
+    border-radius: 6px;
+
+    .waypoint-editor-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: #fff;
+      border: 1px solid $border-light;
+      border-radius: 6px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .waypoint-index {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: $primary;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 6px;
+      }
+
+      .waypoint-fields {
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+
+        .form-item {
+          margin-bottom: 0;
+
+          label {
+            font-size: 12px;
+          }
+        }
+      }
+
+      .waypoint-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex-shrink: 0;
+
+        .btn {
+          padding: 4px 8px;
+          font-size: 12px;
+
+          &.danger {
+            color: $error;
+          }
+
+          &:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+
+    .empty-waypoints {
+      padding: 40px;
+      text-align: center;
+      color: $text-tertiary;
+      font-size: 13px;
+    }
   }
 }
 </style>
