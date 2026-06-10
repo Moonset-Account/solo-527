@@ -9,7 +9,7 @@ import type { LoggerConfig } from '@ioc:Adonis/Core/Logger'
 import type { ProfilerConfig } from '@ioc:Adonis/Core/Profiler'
 import type { ValidatorConfig } from '@ioc:Adonis/Core/Validator'
 
-export const appKey: string = Env.get('APP_KEY')
+export const appKey = Env.get('APP_KEY')
 
 export const http: ServerConfig = {
   useAsyncLocalStorage: false,
@@ -21,7 +21,7 @@ export const http: ServerConfig = {
     secure: false,
     sameSite: false,
   },
-  trustProxy: proxyAddr.compile('loopback'),
+  trustProxy: proxyAddr.compile('loopback') as any,
   etag: false,
   generateRequestId: false,
   allowMethodSpoofing: false,

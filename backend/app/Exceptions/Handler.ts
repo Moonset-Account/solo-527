@@ -5,7 +5,7 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 export default class ExceptionHandler extends BaseExceptionHandler {
   protected logger = Logger
 
-  protected async handle(error: any, ctx: HttpContextContract) {
+  public async handle(error: any, ctx: HttpContextContract) {
     if (error.code === 'E_VALIDATION_FAILURE') {
       return ctx.response.status(422).json({
         message: '数据验证失败',

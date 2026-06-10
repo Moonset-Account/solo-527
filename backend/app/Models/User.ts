@@ -68,7 +68,7 @@ export default class User extends BaseModel {
 
   public async hasRole(slug: string): Promise<boolean> {
     const roles = await this.related('roles').query()
-    return roles.some((role) => role.slug === slug)
+    return roles.some((role: Role) => role.slug === slug)
   }
 
   public async isAdmin(): Promise<boolean> {

@@ -8,8 +8,8 @@
 declare module '@ioc:Adonis/Core/Drive' {
   interface DisksList {
     local: {
-      config: LocalDriverConfig
-      implementation: LocalDriverContract
+      config: import('@ioc:Adonis/Core/Drive').LocalDriverConfig
+      implementation: import('@ioc:Adonis/Core/Drive').LocalDriverContract
     }
   }
 }

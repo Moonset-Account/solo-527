@@ -8,13 +8,9 @@
 |
 */
 
-import Bouncer from '@ioc:Adonis/Addons/Bouncer'
-import WorkOrderPolicy from 'App/Policies/WorkOrderPolicy'
-import UserPolicy from 'App/Policies/UserPolicy'
+export const policies: Record<string, string> = {
+  workOrder: 'App/Policies/WorkOrderPolicy',
+  user: 'App/Policies/UserPolicy',
+}
 
-export const { actions } = Bouncer
-
-export const { policies } = Bouncer.registerPolicies({
-  workOrder: WorkOrderPolicy,
-  user: UserPolicy,
-})
+export const actions: Record<string, any> = {}
