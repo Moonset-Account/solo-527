@@ -1,0 +1,6 @@
+export enum AfterSalesStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  CLOSED = 'CLOSED',
+}
