@@ -329,8 +329,118 @@ public class OrderService {
     }
 
     public Map<String, Object> getRepurchaseStats(Long referrerId) {
+        Map<String, Object> result = new HashMap<>();
+
         if (referrerId == null) {
-            referrerId = SecurityUtils.getCurrentUserId();
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            SysUser currentUser = currentUserId != null ? sysUserMapper.selectById(currentUserId) : null;
+            boolean isAdmin = currentUser != null
+                    && ("ADMIN".equals(currentUser.getRole()) || "TEACHER".equals(currentUser.getRole()));
+
+            if (isAdmin) {
+                LambdaQueryWrapper<UserOrder> allWrapper = new LambdaQueryWrapper<>();
+                allWrapper.isNotNull(UserOrder::getReferrerId)
+                        .eq(UserOrder::getPayStatus, 1);
+                List<UserOrder> allOrders = userOrderMapper.selectList(allWrapper);
+
+                Map<Long, List<UserOrder>> referrerMap = new HashMap<>();
+                for (UserOrder order : allOrders) {
+                    referrerMap.computeIfAbsent(order.getReferrerId(), k -> new ArrayList<>()).add(order);
+                }
+
+                List<Map<String, Object>> contributionList = new ArrayList<>();
+                BigDecimal globalTotalCommission = BigDecimal.ZERO;
+                BigDecimal globalFirstOrderAmount = BigDecimal.ZERO;
+                BigDecimal globalRepurchaseAmount = BigDecimal.ZERO;
+                int globalRecommendCount = 0;
+
+                for (Map.Entry<Long, List<UserOrder>> entry : referrerMap.entrySet()) {
+                    Long rid = entry.getKey();
+                    List<UserOrder> refOrders = entry.getValue();
+
+                    SysUser referrer = sysUserMapper.selectById(rid);
+
+                    Map<Long, List<UserOrder>> refUserOrderMap = new HashMap<>();
+                    for (UserOrder o : refOrders) {
+                        refUserOrderMap.computeIfAbsent(o.getUserId(), k -> new ArrayList<>()).add(o);
+                    }
+
+                    int invitedUsers = refUserOrderMap.size();
+                    globalRecommendCount += invitedUsers;
+                    int refRepurchaseUsers = 0;
+                    int refRepurchaseOrders = 0;
+                    BigDecimal refTotalAmount = BigDecimal.ZERO;
+                    BigDecimal refFirstOrderAmount = BigDecimal.ZERO;
+                    BigDecimal refCommission = BigDecimal.ZERO;
+
+                    for (Map.Entry<Long, List<UserOrder>> userEntry : refUserOrderMap.entrySet()) {
+                        List<UserOrder> userOrders = userEntry.getValue();
+                        userOrders.sort((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()));
+                        for (int i = 0; i < userOrders.size(); i++) {
+                            BigDecimal amt = userOrders.get(i).getPayAmount() != null
+                                    ? userOrders.get(i).getPayAmount() : BigDecimal.ZERO;
+                            if (i == 0) {
+                                refFirstOrderAmount = refFirstOrderAmount.add(amt);
+                                globalFirstOrderAmount = globalFirstOrderAmount.add(amt);
+                            } else {
+                                refRepurchaseOrders++;
+                                globalRepurchaseAmount = globalRepurchaseAmount.add(amt);
+                            }
+                            refTotalAmount = refTotalAmount.add(amt);
+                        }
+                        if (userOrders.size() > 1) {
+                            refRepurchaseUsers++;
+                        }
+                    }
+
+                    for (UserOrder o : refOrders) {
+                        if (o.getCommissionAmount() != null && o.getCommissionStatus() != 4) {
+                            refCommission = refCommission.add(o.getCommissionAmount());
+                            globalTotalCommission = globalTotalCommission.add(o.getCommissionAmount());
+                        }
+                    }
+
+                    double refRepurchaseRate = invitedUsers > 0 ? (double) refRepurchaseUsers / invitedUsers * 100 : 0;
+                    BigDecimal refTotalContribution = refFirstOrderAmount.add(new BigDecimal(refRepurchaseOrders).multiply(new BigDecimal("500")));
+
+                    Map<String, Object> contrib = new HashMap<>();
+                    contrib.put("referrerId", rid);
+                    contrib.put("referrerName", referrer != null ? referrer.getNickname() : "未知");
+                    contrib.put("referrerAvatar", referrer != null ? referrer.getAvatar() : null);
+                    contrib.put("recommendCount", invitedUsers);
+                    contrib.put("firstOrderAmount", refFirstOrderAmount);
+                    contrib.put("repurchaseAmount", globalRepurchaseAmount);
+                    contrib.put("totalContribution", refTotalContribution);
+                    contrib.put("repurchaseRate", String.format("%.2f", refRepurchaseRate));
+                    contrib.put("commission", refCommission);
+                    contrib.put("repurchaseUsers", refRepurchaseUsers);
+                    contrib.put("repurchaseOrders", refRepurchaseOrders);
+                    contributionList.add(contrib);
+                }
+
+                contributionList.sort((a, b) ->
+                        new BigDecimal(b.get("totalContribution").toString())
+                                .compareTo(new BigDecimal(a.get("totalContribution").toString())));
+
+                int totalInvitedAll = referrerMap.values().stream()
+                        .mapToInt(List::size).sum();
+                double overallRepurchaseRate = globalRecommendCount > 0
+                        ? contributionList.stream().mapToInt(c -> (int) c.getOrDefault("repurchaseUsers", 0)).sum()
+                                * 100.0 / globalRecommendCount : 0;
+
+                result.put("scope", "admin");
+                result.put("referrerCount", referrerMap.size());
+                result.put("totalInvitedUsers", totalInvitedAll);
+                result.put("repurchaseRate", String.format("%.2f", overallRepurchaseRate) + "%");
+                result.put("totalCommission", globalTotalCommission);
+                result.put("firstOrderAmountTotal", globalFirstOrderAmount);
+                result.put("repurchaseAmountTotal", globalRepurchaseAmount);
+                result.put("contributionList", contributionList);
+
+                return result;
+            }
+
+            referrerId = currentUserId;
         }
 
         LambdaQueryWrapper<UserOrder> wrapper = new LambdaQueryWrapper<>();
@@ -363,7 +473,6 @@ public class OrderService {
 
         double repurchaseRate = totalUsers > 0 ? (double) repurchaseUsers / totalUsers * 100 : 0;
 
-        Map<String, Object> result = new HashMap<>();
         result.put("totalInvitedUsers", totalUsers);
         result.put("repurchaseUsers", repurchaseUsers);
         result.put("repurchaseOrders", repurchaseOrders);

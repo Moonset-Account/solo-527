@@ -166,63 +166,134 @@ public class StudyService {
         Map<String, Object> result = new HashMap<>();
 
         if ("course".equals(dimension)) {
-            result.put("dimension", "course");
-            result.put("courseId", courseId);
+            if (courseId != null) {
+                result.put("dimension", "course");
+                result.put("courseId", courseId);
 
-            Course course = courseMapper.selectById(courseId);
-            if (course != null) {
-                result.put("courseTitle", course.getTitle());
-                result.put("totalChapters", course.getTotalChapters());
-            }
-
-            LambdaQueryWrapper<Chapter> chapterWrapper = new LambdaQueryWrapper<>();
-            chapterWrapper.eq(Chapter::getCourseId, courseId);
-            List<Chapter> chapters = chapterMapper.selectList(chapterWrapper);
-
-            List<Map<String, Object>> chapterStats = new ArrayList<>();
-            for (Chapter chapter : chapters) {
-                LambdaQueryWrapper<StudyProgress> progressWrapper = new LambdaQueryWrapper<>();
-                progressWrapper.eq(StudyProgress::getCourseId, courseId)
-                        .eq(StudyProgress::getChapterId, chapter.getId());
-                List<StudyProgress> progresses = studyProgressMapper.selectList(progressWrapper);
-
-                long totalLearners = progresses.size();
-                long completedLearners = progresses.stream()
-                        .filter(p -> p.getIsCompleted() != null && p.getIsCompleted() == 1)
-                        .count();
-
-                double completionRate = totalLearners > 0 ? (double) completedLearners / totalLearners * 100 : 0;
-
-                Map<String, Object> chapterStat = new HashMap<>();
-                chapterStat.put("chapterId", chapter.getId());
-                chapterStat.put("chapterTitle", chapter.getTitle());
-                chapterStat.put("totalLearners", totalLearners);
-                chapterStat.put("completedLearners", completedLearners);
-                chapterStat.put("completionRate", String.format("%.2f", completionRate) + "%");
-                chapterStats.add(chapterStat);
-            }
-            result.put("chapterStats", chapterStats);
-
-            LambdaQueryWrapper<UserOrder> orderWrapper = new LambdaQueryWrapper<>();
-            orderWrapper.eq(UserOrder::getCourseId, courseId)
-                    .eq(UserOrder::getPayStatus, 1);
-            Long totalBuyers = userOrderMapper.selectCount(orderWrapper);
-
-            long courseCompleted = 0;
-            Set<Long> userIds = new HashSet<>();
-            for (UserOrder order : userOrderMapper.selectList(orderWrapper)) {
-                userIds.add(order.getUserId());
-            }
-            for (Long uid : userIds) {
-                int progress = getCourseProgress(uid, courseId);
-                if (progress >= 80) {
-                    courseCompleted++;
+                Course course = courseMapper.selectById(courseId);
+                if (course != null) {
+                    result.put("courseTitle", course.getTitle());
+                    result.put("totalChapters", course.getTotalChapters());
                 }
+
+                LambdaQueryWrapper<Chapter> chapterWrapper = new LambdaQueryWrapper<>();
+                chapterWrapper.eq(Chapter::getCourseId, courseId);
+                List<Chapter> chapters = chapterMapper.selectList(chapterWrapper);
+
+                List<Map<String, Object>> chapterStats = new ArrayList<>();
+                for (Chapter chapter : chapters) {
+                    LambdaQueryWrapper<StudyProgress> progressWrapper = new LambdaQueryWrapper<>();
+                    progressWrapper.eq(StudyProgress::getCourseId, courseId)
+                            .eq(StudyProgress::getChapterId, chapter.getId());
+                    List<StudyProgress> progresses = studyProgressMapper.selectList(progressWrapper);
+
+                    long totalLearners = progresses.size();
+                    long completedLearners = progresses.stream()
+                            .filter(p -> p.getIsCompleted() != null && p.getIsCompleted() == 1)
+                            .count();
+
+                    double completionRate = totalLearners > 0 ? (double) completedLearners / totalLearners * 100 : 0;
+
+                    Map<String, Object> chapterStat = new HashMap<>();
+                    chapterStat.put("chapterId", chapter.getId());
+                    chapterStat.put("chapterTitle", chapter.getTitle());
+                    chapterStat.put("totalLearners", totalLearners);
+                    chapterStat.put("completedLearners", completedLearners);
+                    chapterStat.put("completionRate", String.format("%.2f", completionRate) + "%");
+                    chapterStats.add(chapterStat);
+                }
+                result.put("chapterStats", chapterStats);
+
+                LambdaQueryWrapper<UserOrder> orderWrapper = new LambdaQueryWrapper<>();
+                orderWrapper.eq(UserOrder::getCourseId, courseId)
+                        .eq(UserOrder::getPayStatus, 1);
+                Long totalBuyers = userOrderMapper.selectCount(orderWrapper);
+
+                long courseCompleted = 0;
+                Set<Long> userIds = new HashSet<>();
+                for (UserOrder order : userOrderMapper.selectList(orderWrapper)) {
+                    userIds.add(order.getUserId());
+                }
+                for (Long uid : userIds) {
+                    int progress = getCourseProgress(uid, courseId);
+                    if (progress >= 80) {
+                        courseCompleted++;
+                    }
+                }
+                double courseCompletionRate = totalBuyers > 0 ? (double) courseCompleted / totalBuyers * 100 : 0;
+                result.put("totalBuyers", totalBuyers);
+                result.put("courseCompleted", courseCompleted);
+                result.put("courseCompletionRate", String.format("%.2f", courseCompletionRate) + "%");
+
+            } else {
+                result.put("dimension", "course");
+                result.put("scope", "all");
+
+                LambdaQueryWrapper<Course> allCourseWrapper = new LambdaQueryWrapper<>();
+                allCourseWrapper.eq(Course::getStatus, 1);
+                List<Course> allCourses = courseMapper.selectList(allCourseWrapper);
+
+                List<Map<String, Object>> courseStats = new ArrayList<>();
+                long globalTotalChapters = 0;
+                long globalCompletedChapters = 0;
+                long globalTotalBuyers = 0;
+                long globalCourseCompleted = 0;
+
+                for (Course course : allCourses) {
+                    Long cid = course.getId();
+
+                    LambdaQueryWrapper<Chapter> chWrapper = new LambdaQueryWrapper<>();
+                    chWrapper.eq(Chapter::getCourseId, cid);
+                    long chCount = chapterMapper.selectCount(chWrapper);
+                    globalTotalChapters += chCount;
+
+                    LambdaQueryWrapper<StudyProgress> progWrapper = new LambdaQueryWrapper<>();
+                    progWrapper.eq(StudyProgress::getCourseId, cid)
+                            .eq(StudyProgress::getIsCompleted, 1);
+                    long cc = studyProgressMapper.selectCount(progWrapper);
+                    globalCompletedChapters += cc;
+
+                    LambdaQueryWrapper<UserOrder> orderWrapper = new LambdaQueryWrapper<>();
+                    orderWrapper.eq(UserOrder::getCourseId, cid)
+                            .eq(UserOrder::getPayStatus, 1);
+                    Long totalBuyers = userOrderMapper.selectCount(orderWrapper);
+                    globalTotalBuyers += totalBuyers;
+
+                    Set<Long> buyerIds = new HashSet<>();
+                    long courseCompleted = 0;
+                    for (UserOrder order : userOrderMapper.selectList(orderWrapper)) {
+                        buyerIds.add(order.getUserId());
+                    }
+                    for (Long uid : buyerIds) {
+                        if (getCourseProgress(uid, cid) >= 80) {
+                            courseCompleted++;
+                        }
+                    }
+                    globalCourseCompleted += courseCompleted;
+
+                    double avgProgress = chCount > 0 ? (double) cc / chCount * 100 : 0;
+
+                    Map<String, Object> courseStat = new HashMap<>();
+                    courseStat.put("courseId", cid);
+                    courseStat.put("courseTitle", course.getTitle());
+                    courseStat.put("totalChapters", chCount);
+                    courseStat.put("completedChapters", cc);
+                    courseStat.put("totalBuyers", totalBuyers);
+                    courseStat.put("courseCompleted", courseCompleted);
+                    courseStat.put("progress", String.format("%.2f", avgProgress));
+                    courseStat.put("completionRate", String.format("%.2f", totalBuyers > 0 ? (double) courseCompleted / totalBuyers * 100 : 0) + "%");
+                    courseStats.add(courseStat);
+                }
+
+                result.put("courseStats", courseStats);
+                result.put("totalCourses", allCourses.size());
+                result.put("totalChapters", globalTotalChapters);
+                result.put("completedChapters", globalCompletedChapters);
+                result.put("totalBuyers", globalTotalBuyers);
+                result.put("courseCompleted", globalCourseCompleted);
+                double overallRate = globalTotalChapters > 0 ? (double) globalCompletedChapters / globalTotalChapters * 100 : 0;
+                result.put("overallCompletionRate", String.format("%.2f", overallRate) + "%");
             }
-            double courseCompletionRate = totalBuyers > 0 ? (double) courseCompleted / totalBuyers * 100 : 0;
-            result.put("totalBuyers", totalBuyers);
-            result.put("courseCompleted", courseCompleted);
-            result.put("courseCompletionRate", String.format("%.2f", courseCompletionRate) + "%");
 
         } else if ("user".equals(dimension)) {
             Long targetUserId = userId != null ? userId : SecurityUtils.getCurrentUserId();

@@ -25,11 +25,15 @@ export const getCommissionReport = (params) => {
 
 export const getDashboardOverview = getOverview
 
-export const getCourseCompletionRates = (params) => {
+export const getCourseCompletionRates = (params = {}) => {
+  const queryParams = { ...params }
+  if (!queryParams.dimension) {
+    queryParams.dimension = 'course'
+  }
   return request({
     url: '/study/completion-rate',
     method: 'get',
-    params: { ...params, dimension: 'course' }
+    params: queryParams
   })
 }
 

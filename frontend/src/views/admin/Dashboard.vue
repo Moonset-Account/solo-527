@@ -336,12 +336,12 @@ const renderChart = async () => {
   let rates = []
 
   try {
-    const res = await getCourseCompletionRates({ dimension: 'user' })
+    const res = await getCourseCompletionRates({ dimension: 'course' })
     const data = res.data || {}
     const list = data.courseStats || []
     if (list.length > 0) {
       courseNames = list.map(d => d.courseTitle || '--')
-      rates = list.map(d => parseFloat(d.progress) || 0)
+      rates = list.map(d => parseFloat(d.progress) || parseFloat(d.completionRate) || 0)
     }
   } catch (e) {
   }

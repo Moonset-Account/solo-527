@@ -455,7 +455,19 @@ const loadOrderList = async () => {
 const loadContribution = async () => {
   try {
     const res = await adminGetRepurchaseContribution()
-    contributionList.value = res.data || mockContributions()
+    const data = res.data || {}
+    const list = data.contributionList || data.list || []
+    contributionList.value = list.length > 0 ? list.map(c => ({
+      referrerName: c.referrerName || '--',
+      recommendCount: Number(c.recommendCount || 0),
+      firstOrderAmount: Number(c.firstOrderAmount || 0),
+      repurchaseAmount: Number(c.repurchaseAmount || 0),
+      totalContribution: Number(c.totalContribution || 0),
+      repurchaseRate: parseFloat(c.repurchaseRate || 0),
+      commission: Number(c.commission || 0),
+      repurchaseUsers: c.repurchaseUsers,
+      repurchaseOrders: c.repurchaseOrders
+    })) : mockContributions()
   } catch (e) {
     contributionList.value = mockContributions()
   }
