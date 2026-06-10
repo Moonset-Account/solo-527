@@ -161,7 +161,7 @@ const OrderList: React.FC = () => {
     try {
       const filterCriteria: Record<string, any> = { ...queryParams };
       if (selectedRowKeys.length > 0) {
-        filterCriteria.ids = selectedRowKeys;
+        filterCriteria.ids = selectedRowKeys.map(String);
       }
       await exportOrders(filterCriteria, '管理员', 'admin');
       message.success('导出成功，正在下载文件...');

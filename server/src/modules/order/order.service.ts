@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, Between } from 'typeorm';
+import { Repository, FindOptionsWhere, Between, In } from 'typeorm';
 import { Order, OrderProcess, DeliveryRequirement, ProductionProgress, ProductionNode } from '../../entities';
 import { BaseCrudService } from '../../common/services/base-crud.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -51,6 +51,9 @@ export interface OrderQueryDto extends PaginationDto {
   endDate?: Date;
   urgentLevel?: number;
   salespersonId?: string;
+  keyword?: string;
+  ids?: string[];
+  id?: string;
 }
 
 @Injectable()
@@ -72,27 +75,64 @@ export class OrderService extends BaseCrudService<Order> {
   }
 
   async findAllWithFilters(query: OrderQueryDto) {
-    const where: FindOptionsWhere<Order> = {};
+    const qb = this.repository.createQueryBuilder('order');
+
+    if (query.ids && query.ids.length > 0) {
+      qb.andWhere('order.id IN (:...ids)', { ids: query.ids });
+    }
+
+    if (query.id) {
+      qb.andWhere('order.id = :id', { id: query.id });
+    }
 
     if (query.customerId) {
-      where.customerId = query.customerId;
-    }
-    if (query.status) {
-      where.status = query.status as any;
-    }
-    if (query.urgentLevel !== undefined && query.urgentLevel !== null) {
-      where.urgentLevel = query.urgentLevel;
-    }
-    if (query.salespersonId) {
-      where.salespersonId = query.salespersonId;
-    }
-    if (query.startDate && query.endDate) {
-      where.orderDate = Between(new Date(query.startDate), new Date(query.endDate));
-    } else if (query.startDate) {
-      where.orderDate = Between(new Date(query.startDate), new Date());
+      qb.andWhere('order.customerId = :customerId', { customerId: query.customerId });
     }
 
-    return this.findAll(query, where);
+    if (query.status) {
+      qb.andWhere('order.status = :status', { status: query.status });
+    }
+
+    if (query.urgentLevel !== undefined && query.urgentLevel !== null) {
+      qb.andWhere('order.urgentLevel = :urgentLevel', { urgentLevel: query.urgentLevel });
+    }
+
+    if (query.salespersonId) {
+      qb.andWhere('order.salespersonId = :salespersonId', { salespersonId: query.salespersonId });
+    }
+
+    if (query.startDate && query.endDate) {
+      qb.andWhere('order.orderDate BETWEEN :startDate AND :endDate', {
+        startDate: new Date(query.startDate),
+        endDate: new Date(query.endDate),
+      });
+    } else if (query.startDate) {
+      qb.andWhere('order.orderDate >= :startDate', { startDate: new Date(query.startDate) });
+    }
+
+    if (query.keyword) {
+      qb.andWhere('order.orderNo ILIKE :keyword', { keyword: `%${query.keyword}%` });
+    }
+
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const skip = (page - 1) * pageSize;
+
+    qb.skip(skip).take(pageSize);
+
+    const sortBy = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'DESC';
+    qb.orderBy(`order.${sortBy}`, sortOrder as any);
+
+    const [list, total] = await qb.getManyAndCount();
+
+    return {
+      list,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findOneWithRelations(id: string): Promise<Order> {

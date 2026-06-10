@@ -146,7 +146,7 @@ const OrderDetail: React.FC = () => {
   const handleExport = async () => {
     if (!order) return;
     try {
-      await exportOrders({ id: order.id, orderNo: order.orderNo }, '管理员', 'admin');
+      await exportOrders({ id: order.id }, '管理员', 'admin');
       message.success('导出成功，正在下载文件...');
     } catch (error) {
       message.error('导出失败');

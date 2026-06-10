@@ -116,7 +116,11 @@ export class OrderExportService {
     }));
     const exportFields = columns.map(c => c.key);
 
-    const ordersResult = await this.orderService.findAllWithFilters(dto.filterCriteria);
+    const ordersResult = await this.orderService.findAllWithFilters({
+      ...dto.filterCriteria,
+      page: 1,
+      pageSize: 100000,
+    });
     const orders = ordersResult.list;
 
     const rows = orders.map(order => {
