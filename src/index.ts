@@ -14,7 +14,8 @@ function buildSharedOptions<T>(y: Argv<T>) {
     .option('repo', {
       type: 'string',
       demandOption: true,
-      describe: 'Git 仓库本地路径或 GitHub 仓库地址 (owner/name)',
+      describe:
+        'Git 仓库本地路径 / GitHub URL / owner/name（本地路径会自动从 remote 解析 GitHub 仓库以获取 PR）',
       alias: 'r',
     })
     .option('days', {
@@ -48,6 +49,15 @@ function buildSharedOptions<T>(y: Argv<T>) {
       type: 'string',
       default: 'origin',
       describe: '远端名称 (默认: origin)',
+    })
+    .option('github-owner', {
+      type: 'string',
+      describe:
+        '显式指定 GitHub 仓库 owner（当本地 remote 不是 GitHub 或使用 owner/repo 模式时覆盖自动解析）',
+    })
+    .option('github-repo', {
+      type: 'string',
+      describe: '显式指定 GitHub 仓库名（与 --github-owner 配合使用）',
     })
     .help('help')
     .alias('help', 'h')
@@ -105,6 +115,8 @@ async function main() {
           token: argv.token as string | undefined,
           defaultBranch: argv.defaultBranch as string | undefined,
           remote: argv.remote as string | undefined,
+          githubOwner: argv.githubOwner as string | undefined,
+          githubRepo: argv.githubRepo as string | undefined,
         };
         await runScan(params);
       } catch (err) {
@@ -121,7 +133,7 @@ async function main() {
         .option('confirm', {
           type: 'boolean',
           default: false,
-          describe: '确认后进入删除流程（仍需人工二次确认，除非 --auto-approve）',
+          describe: '（必需）确认后进入删除流程：先生成计划，列出分支+提交人+PR，再经人工确认才执行删除',
         })
         .option('auto-approve', {
           type: 'boolean',
@@ -130,7 +142,7 @@ async function main() {
         })
         .option('output-file', {
           type: 'string',
-          describe: '将删除计划保存为 JSON 文件路径',
+          describe: '将删除计划保存为 JSON 文件路径（仅 --confirm 时生效）',
           alias: 'o',
         }),
     async (argv: any) => {
@@ -143,6 +155,8 @@ async function main() {
           token: argv.token as string | undefined,
           defaultBranch: argv.defaultBranch as string | undefined,
           remote: argv.remote as string | undefined,
+          githubOwner: argv.githubOwner as string | undefined,
+          githubRepo: argv.githubRepo as string | undefined,
           confirm: argv.confirm as boolean,
           autoApprove: argv.autoApprove as boolean,
           outputFile: argv.outputFile as string | undefined,
@@ -175,7 +189,7 @@ async function main() {
         .option('include-plan', {
           type: 'boolean',
           default: false,
-          describe: '同时包含删除计划数据',
+          describe: '同时包含删除计划数据（会启用 plan 的 --confirm 逻辑）',
         }),
     async (argv: any) => {
       try {
@@ -188,6 +202,8 @@ async function main() {
           token: argv.token as string | undefined,
           defaultBranch: argv.defaultBranch as string | undefined,
           remote: argv.remote as string | undefined,
+          githubOwner: argv.githubOwner as string | undefined,
+          githubRepo: argv.githubRepo as string | undefined,
           output: argv.output as string,
           format: (formatStr === 'markdown' ? 'md' : formatStr) as 'json' | 'csv' | 'md',
           includePlan: argv.includePlan as boolean | undefined,

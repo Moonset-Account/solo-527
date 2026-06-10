@@ -133,6 +133,8 @@ export interface ScanParams {
   token?: string;
   defaultBranch?: string;
   remote?: string;
+  githubOwner?: string;
+  githubRepo?: string;
 }
 
 export interface PlanParams extends ScanParams {
@@ -148,3 +150,11 @@ export interface ExportParams extends ScanParams {
 }
 
 export type CommandName = 'scan' | 'plan' | 'export';
+
+export interface ResolvedRepoContext {
+  localRepoPath: string | null;
+  githubOwner: string | null;
+  githubRepo: string | null;
+  remoteUrl: string | null;
+  autoDetected: boolean;
+}

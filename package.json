@@ -7,10 +7,16 @@
     "git-clean": "dist/index.js"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "dev": "bun run src/index.ts",
+    "dev:node": "tsx src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "build:node": "tsc -p tsconfig.json",
+    "start": "bun run dist/index.js",
+    "start:node": "node dist/index.js",
+    "typecheck": "bunx --bun tsc --noEmit 2>/dev/null || npx tsc --noEmit"
+  },
+  "bun": {
+    "main": "src/index.ts"
   },
   "dependencies": {
     "@octokit/rest": "^20.0.2",
@@ -20,6 +26,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/node": "^20.10.0",
     "@types/yargs": "^17.0.32",
     "tsx": "^4.7.0",

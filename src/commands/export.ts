@@ -15,6 +15,8 @@ export async function runExport(params: ExportParams): Promise<void> {
     token: params.token,
     defaultBranch: params.defaultBranch,
     remote: params.remote,
+    githubOwner: params.githubOwner,
+    githubRepo: params.githubRepo,
   };
 
   Formatter.printHeader(`📤 导出报告 (${params.format.toUpperCase()})`);
