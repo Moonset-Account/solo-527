@@ -15,11 +15,26 @@ import { ActivityModule } from './modules/activity/activity.module';
 import { ReachLogModule } from './modules/reach-log/reach-log.module';
 import { ReportModule } from './modules/report/report.module';
 import { EnvModule } from './modules/env/env.module';
+import { DataFixService } from './common/services/data-fix.service';
+import { Member, MemberSchema } from './modules/member/member.schema';
+import { Coupon, CouponSchema } from './modules/coupon/coupon.schema';
+import { PointsRecord, PointsRecordSchema } from './modules/points/points.schema';
+import { RedeemRecord, RedeemRecordSchema } from './modules/redeem/redeem.schema';
+import { ActivityRecord, ActivityRecordSchema } from './modules/activity/activity.schema';
+import { ReachLog, ReachLogSchema } from './modules/reach-log/reach-log.schema';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/qinghe_member'),
+    MongooseModule.forFeature([
+      { name: Member.name, schema: MemberSchema },
+      { name: Coupon.name, schema: CouponSchema },
+      { name: PointsRecord.name, schema: PointsRecordSchema },
+      { name: RedeemRecord.name, schema: RedeemRecordSchema },
+      { name: ActivityRecord.name, schema: ActivityRecordSchema },
+      { name: ReachLog.name, schema: ReachLogSchema },
+    ]),
     CacheModule.registerAsync({
       isGlobal: true,
       useFactory: () => ({
@@ -43,5 +58,6 @@ import { EnvModule } from './modules/env/env.module';
     ReportModule,
     EnvModule,
   ],
+  providers: [DataFixService],
 })
 export class AppModule {}
