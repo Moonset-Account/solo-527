@@ -75,7 +75,9 @@ export class OrderService extends BaseCrudService<Order> {
   }
 
   async findAllWithFilters(query: OrderQueryDto) {
-    const qb = this.repository.createQueryBuilder('order');
+    const qb = this.repository.createQueryBuilder('order')
+      .leftJoinAndSelect('order.customer', 'customer')
+      .leftJoinAndSelect('order.salesperson', 'salesperson');
 
     if (query.ids && query.ids.length > 0) {
       qb.andWhere('order.id IN (:...ids)', { ids: query.ids });
