@@ -7,7 +7,11 @@ Route::get('/', function () {
     return redirect()->route('dashboard.index');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::get('/login', [App\Http\Controllers\AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login.post');
+Route::post('/logout', [App\Http\Controllers\AuthController::class, 'logout'])->name('logout');
+
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard.index');
     Route::post('/dashboard/data', [App\Http\Controllers\DashboardController::class, 'showData'])->name('dashboard.data');
 

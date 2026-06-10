@@ -69,6 +69,7 @@ class DatabaseSeeder extends Seeder
             'name' => '销售总监',
             'email' => 'director@example.com',
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
         ]);
         $director->roles()->attach($directorRole);
 
@@ -76,6 +77,7 @@ class DatabaseSeeder extends Seeder
             'name' => '业务分析师',
             'email' => 'analyst@example.com',
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
         ]);
         $analyst->roles()->attach($analystRole);
 
@@ -83,6 +85,7 @@ class DatabaseSeeder extends Seeder
             'name' => '系统管理员',
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
+            'email_verified_at' => now(),
         ]);
         $admin->roles()->attach($adminRole);
 
