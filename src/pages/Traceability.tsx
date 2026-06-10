@@ -11,6 +11,11 @@ const gradeConfig: Record<string, { label: string; color: string }> = {
   first: { label: '一级', color: 'bg-primary-600 text-white' },
   second: { label: '二级', color: 'bg-moss-dark text-white' },
   third: { label: '三级', color: 'bg-earth text-white' },
+  特级: { label: '特级', color: 'bg-accent-500 text-white' },
+  一级: { label: '一级', color: 'bg-primary-600 text-white' },
+  二级: { label: '二级', color: 'bg-moss-dark text-white' },
+  三级: { label: '三级', color: 'bg-earth text-white' },
+  等外: { label: '等外', color: 'bg-gray-500 text-white' },
 }
 
 const farmTypeIcons: Record<string, React.ElementType> = {
@@ -23,6 +28,48 @@ const farmTypeLabels: Record<string, string> = {
   pruning: '修剪', weeding: '除草', other: '其他',
 }
 
+interface TraceHarvest {
+  _id: string
+  batchNo: string
+  harvestDate: string
+  quantity: number
+  unit: string
+  qualityGrade?: string
+  plotId?: { name: string; area: number; location: string }
+  varietyId?: { name: string; category: string }
+  harvester?: { name: string }
+}
+
+interface TraceFarmRecord {
+  _id: string
+  type: string
+  content: string
+  operateDate: string
+  operator?: { name: string }
+}
+
+interface TraceSortingGrade {
+  grade: string
+  quantity: number
+  unit: string
+}
+
+interface TraceSortingOrder {
+  _id: string
+  orderNo: string
+  createdAt: string
+  grades: TraceSortingGrade[]
+  sorter?: { name: string }
+}
+
+interface TraceShipment {
+  _id: string
+  shipDate: string
+  trackingNo: string
+  quantity: number
+  orderId?: { customer: string }
+}
+
 interface TraceData {
   batchNo: string
   qrCodeUrl: string
@@ -30,7 +77,7 @@ interface TraceData {
   variety: { name: string; category: string }
   harvest: { harvestDate: string; quantity: number; unit: string; qualityGrade: string; harvester: string }
   farmRecords: { type: string; content: string; operateDate: string; operator: string }[]
-  sortingOrders: { sortedDate: string; sortedBy: string; grades: { grade: string; quantity: number; unit: string }[] }[]
+  sortingOrders: { sortedDate: string; sortedBy: string; grades: TraceSortingGrade[] }[]
   shipments: { shippedDate: string; destination: string; carrier: string }[]
 }
 
@@ -42,8 +89,56 @@ export default function Traceability() {
   useEffect(() => {
     if (batchNo) {
       fetch(`/api/traceability/${batchNo}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => setTrace(d))
+        .then((r) => r.ok ? r.json() : null)
+        .then((res) => {
+          if (!res || !res.success || !res.data) {
+            setTrace(null)
+            return
+          }
+          const d = res.data
+          const harvest: TraceHarvest = d.harvest || {}
+          const farmRecords: TraceFarmRecord[] = d.farmRecords || []
+          const sortingOrders: TraceSortingOrder[] = d.sortingOrders || []
+          const shipments: TraceShipment[] = d.shipments || []
+
+          const transformed: TraceData = {
+            batchNo: harvest.batchNo || batchNo,
+            qrCodeUrl: '',
+            plot: {
+              name: harvest.plotId?.name || '',
+              area: harvest.plotId?.area || 0,
+              location: harvest.plotId?.location || '',
+            },
+            variety: {
+              name: harvest.varietyId?.name || '',
+              category: harvest.varietyId?.category || '苹果',
+            },
+            harvest: {
+              harvestDate: harvest.harvestDate || '',
+              quantity: harvest.quantity || 0,
+              unit: harvest.unit || 'kg',
+              qualityGrade: harvest.qualityGrade || '二级',
+              harvester: harvest.harvester?.name || '',
+            },
+            farmRecords: farmRecords.map((fr) => ({
+              type: fr.type,
+              content: fr.content,
+              operateDate: fr.operateDate,
+              operator: fr.operator?.name || '',
+            })),
+            sortingOrders: sortingOrders.map((so) => ({
+              sortedDate: so.createdAt,
+              sortedBy: so.sorter?.name || '',
+              grades: so.grades || [],
+            })),
+            shipments: shipments.map((s) => ({
+              shippedDate: s.shipDate,
+              destination: s.orderId?.customer || '',
+              carrier: s.trackingNo || '',
+            })),
+          }
+          setTrace(transformed)
+        })
         .catch(() => {})
         .finally(() => setLoading(false))
     }
@@ -69,7 +164,7 @@ export default function Traceability() {
     )
   }
 
-  const grade = gradeConfig[trace.harvest.qualityGrade] || gradeConfig.third
+  const grade = gradeConfig[trace.harvest.qualityGrade] || gradeConfig.二级
 
   return (
     <div className="min-h-screen bg-cream-light">
@@ -178,7 +273,7 @@ export default function Traceability() {
                 <span className="text-gray-400">{s.shippedDate?.slice(0, 10)}</span>
                 <span className="mx-1.5 text-gray-300">→</span>
                 <span className="text-gray-700">{s.destination}</span>
-                <span className="text-gray-400 ml-2">({s.carrier})</span>
+                {s.carrier && <span className="text-gray-400 ml-2">(单号：{s.carrier})</span>}
               </div>
             ))}
           </section>

@@ -25,8 +25,30 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     const filter: any = {}
     if (req.query.status) filter.status = req.query.status
     if (req.query.customer) filter.customer = { $regex: req.query.customer as string, $options: 'i' }
-    const data = await Order.find(filter).sort({ createdAt: -1 })
-    res.json({ success: true, data })
+    const list = await Order.find(filter)
+      .populate('varietyId', 'name')
+      .sort({ createdAt: -1 })
+    const data = list.map(async (item: any) => {
+      const shipments = await Shipment.find({ orderId: item._id })
+      const totalShipped = shipments.reduce((sum, s) => sum + s.quantity, 0)
+      const fulfillmentRate = item.quantity > 0 ? Math.round((totalShipped / item.quantity) * 10000) / 100 : 0
+      return {
+        id: item._id,
+        orderNo: item.orderNo,
+        customer: item.customer,
+        varietyId: item.varietyId?._id,
+        variety: item.varietyId?.name || '',
+        quantity: item.quantity,
+        unit: item.unit || 'kg',
+        unitPrice: item.unitPrice,
+        status: item.status,
+        deadline: item.deadline,
+        fulfillmentRate,
+        createdAt: item.createdAt,
+      }
+    })
+    const resolved = await Promise.all(data)
+    res.json({ success: true, data: resolved })
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message })
   }
@@ -50,7 +72,36 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ success: false, error: 'Order not found' })
       return
     }
-    res.json({ success: true, data: entry })
+    const shipments = await Shipment.find({ orderId: entry._id }).populate('sortingOrderId', 'orderNo variety')
+    const totalShipped = shipments.reduce((sum, s) => sum + s.quantity, 0)
+    const fulfillmentRate = entry.quantity > 0 ? Math.round((totalShipped / entry.quantity) * 10000) / 100 : 0
+    const shipmentsData = shipments.map((s: any) => ({
+      id: s._id,
+      orderId: s.orderId,
+      sortingOrderId: s.sortingOrderId?._id,
+      sortingOrderNo: s.sortingOrderId?.orderNo || '',
+      sortingOrderVariety: s.sortingOrderId?.variety || '',
+      quantity: s.quantity,
+      trackingNo: s.trackingNo,
+      shipDate: s.shipDate,
+    }))
+    const data = {
+      id: entry._id,
+      orderNo: entry.orderNo,
+      customer: entry.customer,
+      varietyId: entry.varietyId?._id,
+      variety: entry.varietyId?.name || '',
+      quantity: entry.quantity,
+      unit: entry.unit || 'kg',
+      unitPrice: entry.unitPrice,
+      status: entry.status,
+      deadline: entry.deadline,
+      totalShipped,
+      fulfillmentRate,
+      shipments: shipmentsData,
+      createdAt: entry.createdAt,
+    }
+    res.json({ success: true, data })
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message })
   }

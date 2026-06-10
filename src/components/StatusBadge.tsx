@@ -23,8 +23,9 @@ const colorMap: Record<BadgeType, Record<string, string>> = {
   },
   sorting: {
     pending: 'bg-amber-100 text-amber-700',
-    in_progress: 'bg-blue-100 text-blue-700',
+    sorting: 'bg-blue-100 text-blue-700',
     completed: 'bg-green-100 text-green-700',
+    inspected: 'bg-purple-100 text-purple-700',
     cancelled: 'bg-gray-100 text-gray-500',
   },
   order: {
@@ -36,10 +37,9 @@ const colorMap: Record<BadgeType, Record<string, string>> = {
     returned: 'bg-gray-100 text-gray-500',
   },
   declaration: {
-    draft: 'bg-gray-100 text-gray-600',
-    submitted: 'bg-blue-100 text-blue-700',
-    approved: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
+    complete: 'bg-green-100 text-green-700',
+    missing: 'bg-red-100 text-red-700',
+    processing: 'bg-blue-100 text-blue-700',
   },
   plot: {
     active: 'bg-green-100 text-green-700',
@@ -55,6 +55,8 @@ const colorMap: Record<BadgeType, Record<string, string>> = {
 const statusLabelMap: Record<string, string> = {
   planned: '已计划',
   in_progress: '进行中',
+  sorting: '分拣中',
+  inspected: '已质检',
   completed: '已完成',
   cancelled: '已取消',
   pending: '待处理',
@@ -68,6 +70,8 @@ const statusLabelMap: Record<string, string> = {
   draft: '草稿',
   submitted: '已提交',
   approved: '已通过',
+  complete: '齐全',
+  missing: '缺失',
   active: '种植中',
   fallow: '休耕',
   preparing: '备耕',

@@ -12,36 +12,32 @@ import { cn } from '@/lib/utils'
 interface Declaration {
   id: string
   name: string
-  batchNo: string
-  status: string
+  harvestId: string
+  status: 'complete' | 'missing' | 'processing'
   remark: string
   result: string
   deadline: string
+  createdAt: string
 }
 
 interface DeclStats {
-  approved: number
-  draft: number
-  submitted: number
-  rejected: number
+  total: number
+  complete: number
+  missing: number
+  processing: number
 }
-
-const mockDeclarations: Declaration[] = [
-  { id: '1', name: '农药残留检测报告', batchNo: 'CS-20260610-001', status: 'approved', remark: '已检测合格', result: '合格', deadline: '2026-06-15' },
-  { id: '2', name: '产地证明', batchNo: 'CS-20260610-002', status: 'submitted', remark: '等待审核', result: '', deadline: '2026-06-16' },
-  { id: '3', name: '质量检验报告', batchNo: 'CS-20260609-001', status: 'draft', remark: '待补充数据', result: '', deadline: '2026-06-18' },
-  { id: '4', name: '出口检疫证书', batchNo: 'CS-20260608-002', status: 'rejected', remark: '材料不齐全', result: '驳回补充', deadline: '2026-06-12' },
-  { id: '5', name: '有机认证报告', batchNo: 'CS-20260611-001', status: 'approved', remark: '已认证', result: '通过', deadline: '2026-06-20' },
-]
-
-const mockStats: DeclStats = { approved: 2, draft: 1, submitted: 1, rejected: 1 }
 
 const statusOptions = [
   { value: '', label: '全部状态' },
-  { value: 'draft', label: '草稿' },
-  { value: 'submitted', label: '已提交' },
-  { value: 'approved', label: '已通过' },
-  { value: 'rejected', label: '已驳回' },
+  { value: 'complete', label: '齐全' },
+  { value: 'missing', label: '缺失' },
+  { value: 'processing', label: '处理中' },
+]
+
+const statusEditOptions = [
+  { value: 'complete', label: '齐全' },
+  { value: 'missing', label: '缺失' },
+  { value: 'processing', label: '处理中' },
 ]
 
 export default function Declarations() {
@@ -50,16 +46,20 @@ export default function Declarations() {
   const { execute: fetchStats } = useApi<DeclStats>()
   const { execute: updateDecl } = useApi<Declaration>()
 
-  const [declarations, setDeclarations] = useState<Declaration[]>(mockDeclarations)
-  const [stats, setStats] = useState<DeclStats>(mockStats)
+  const [declarations, setDeclarations] = useState<Declaration[]>([])
+  const [stats, setStats] = useState<DeclStats>({ total: 0, complete: 0, missing: 0, processing: 0 })
   const [statusFilter, setStatusFilter] = useState('')
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<Declaration | null>(null)
   const [editForm, setEditForm] = useState({ status: '', remark: '', result: '' })
 
-  useEffect(() => {
+  const loadData = () => {
     fetchList('/api/declarations').then((data) => { if (data) setDeclarations(data) }).catch(() => {})
     fetchStats('/api/declarations/stats').then((data) => { if (data) setStats(data) }).catch(() => {})
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   const filtered = declarations.filter((d) => {
@@ -69,7 +69,7 @@ export default function Declarations() {
 
   const openEdit = (item: Declaration) => {
     setEditItem(item)
-    setEditForm({ status: item.status, remark: item.remark, result: item.result })
+    setEditForm({ status: item.status, remark: item.remark || '', result: item.result || '' })
     setEditModalOpen(true)
   }
 
@@ -82,25 +82,26 @@ export default function Declarations() {
     if (result) {
       setDeclarations(declarations.map((d) => d.id === editItem.id ? { ...d, ...editForm } : d))
       setEditModalOpen(false)
+      loadData()
     }
   }
 
   const statCards = [
-    { label: '已通过', value: stats.approved, color: 'bg-green-100 text-green-700' },
-    { label: '待处理', value: stats.submitted + stats.draft, color: 'bg-amber-100 text-amber-700' },
-    { label: '已驳回', value: stats.rejected, color: 'bg-red-100 text-red-700' },
+    { label: '齐全', value: stats.complete, color: 'bg-green-100 text-green-700' },
+    { label: '处理中', value: stats.processing, color: 'bg-blue-100 text-blue-700' },
+    { label: '缺失', value: stats.missing, color: 'bg-red-100 text-red-700' },
   ]
 
   const columns = [
     { key: 'name', label: '材料名称' },
-    { key: 'batchNo', label: '关联批次' },
+    { key: 'harvestId', label: '关联采收', render: (row: Declaration) => row.harvestId || '-' },
     {
       key: 'status', label: '状态',
       render: (row: Declaration) => <StatusBadge status={row.status} type="declaration" />,
     },
-    { key: 'remark', label: '备注' },
-    { key: 'result', label: '处理结果' },
-    { key: 'deadline', label: '截止日期' },
+    { key: 'remark', label: '备注', render: (row: Declaration) => row.remark || '-' },
+    { key: 'result', label: '处理结果', render: (row: Declaration) => row.result || '-' },
+    { key: 'deadline', label: '截止日期', render: (row: Declaration) => row.deadline ? new Date(row.deadline).toLocaleDateString('zh-CN') : '-' },
     {
       key: 'actions', label: '操作',
       render: (row: Declaration) => (
@@ -166,10 +167,9 @@ export default function Declarations() {
         <div className="space-y-4">
           <FormField label="状态">
             <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="input-field">
-              <option value="draft">草稿</option>
-              <option value="submitted">已提交</option>
-              <option value="approved">已通过</option>
-              <option value="rejected">已驳回</option>
+              {statusEditOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </FormField>
           <FormField label="备注">
