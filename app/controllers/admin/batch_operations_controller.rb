@@ -17,6 +17,6 @@ class Admin::BatchOperationsController < ApplicationController
   end
 
   def show
-    @batch_op = BatchOperation.includes(:user, audit_logs: :user).find(params[:id])
+    @batch_operation = BatchOperation.includes(:user, audit_logs: :user).find(params[:id])
   end
 end

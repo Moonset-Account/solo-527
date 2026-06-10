@@ -3,9 +3,9 @@ class Admin::RevenueAnomaliesController < ApplicationController
   before_action :require_admin
 
   def index
-    @anomalies = RevenueAnomaly.includes(:event, :order, :user).recent
-    @anomalies = @anomalies.where(status: params[:status]) if params[:status].present?
-    @anomalies = @anomalies.where(anomaly_type: params[:anomaly_type]) if params[:anomaly_type].present?
+    @revenue_anomalies = RevenueAnomaly.includes(:event, :order, :user, :resolved_by).recent
+    @revenue_anomalies = @revenue_anomalies.where(status: params[:status]) if params[:status].present?
+    @revenue_anomalies = @revenue_anomalies.where(anomaly_type: params[:anomaly_type]) if params[:anomaly_type].present?
   end
 
   def update

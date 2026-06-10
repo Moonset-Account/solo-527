@@ -7,8 +7,15 @@ class Admin::AttendanceController < ApplicationController
     @selected_event = params[:event_id].present? ? Event.find(params[:event_id]) : @events.first
     if @selected_event
       @attendance_rate = AttendanceService.new.attendance_rate(@selected_event)
-      @registrations = @selected_event.registrations.approved.includes(:attendance, :user)
+      @registrations = @selected_event.registrations.approved.includes(:attendance, :user, :schedule, :event)
+      @attendances = Attendance.where(registration: @selected_event.registrations.approved)
+        .includes(registration: [:user, :schedule, :event])
+        .order(created_at: :desc)
       @alerts = AttendanceAlert.where(event: @selected_event).recent
+      @open_alerts_count = @alerts.open.count
+    else
+      @attendances = Attendance.none
+      @open_alerts_count = 0
     end
   end
 

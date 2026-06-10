@@ -3,8 +3,8 @@ class Admin::AttendanceAlertsController < ApplicationController
   before_action :require_admin
 
   def index
-    @alerts = AttendanceAlert.includes(:event, :schedule).recent
-    @alerts = @alerts.where(status: params[:status]) if params[:status].present?
+    @attendance_alerts = AttendanceAlert.includes(:event, :schedule).recent
+    @attendance_alerts = @attendance_alerts.where(status: params[:status]) if params[:status].present?
   end
 
   def update
