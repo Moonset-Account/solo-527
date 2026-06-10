@@ -95,6 +95,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 
 const selectedOrderId = ref('')
@@ -148,9 +150,8 @@ const pathPoints = computed(() => {
 
 const loadOrders = async () => {
   try {
-    const res: any = await $fetch('/api/orders', {
-      query: { pageSize: 50, status: 'IN_TRANSIT' },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/orders', {
+      query: { pageSize: 50, status: 'IN_TRANSIT' }
     })
     if (res.code === 0) {
       orderList.value = res.data.list
@@ -167,9 +168,8 @@ const loadLocations = async () => {
   }
 
   try {
-    const res: any = await $fetch('/api/tracking/locations', {
-      query: { orderId: selectedOrderId.value, pageSize: 200 },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/tracking/locations', {
+      query: { orderId: selectedOrderId.value, pageSize: 200 }
     })
     if (res.code === 0) {
       locationList.value = res.data.list

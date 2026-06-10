@@ -143,6 +143,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -177,9 +179,8 @@ const loadViews = async () => {
       params.status = searchForm.status
     }
 
-    const res: any = await $fetch('/api/processing', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/processing', {
+      query: params
     })
     if (res.code === 0) {
       viewList.value = res.data.list
@@ -226,9 +227,8 @@ const viewDetail = (view: any) => {
 
 const viewNotes = async (view: any) => {
   try {
-    const res: any = await $fetch('/api/processing/notes', {
-      query: { viewId: view.id, pageSize: 50 },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/processing/notes', {
+      query: { viewId: view.id, pageSize: 50 }
     })
     if (res.code === 0) {
       noteList.value = res.data.list

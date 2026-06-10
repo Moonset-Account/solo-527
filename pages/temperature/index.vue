@@ -130,6 +130,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -170,9 +172,8 @@ const chartPointList = computed(() => {
 
 const loadOrders = async () => {
   try {
-    const res: any = await $fetch('/api/orders', {
-      query: { orderType: 'COLD_CHAIN', pageSize: 50 },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/orders', {
+      query: { orderType: 'COLD_CHAIN', pageSize: 50 }
     })
     if (res.code === 0) {
       coldChainOrders.value = res.data.list
@@ -195,9 +196,8 @@ const loadRecords = async () => {
       params.isAlert = filterAlert.value
     }
 
-    const res: any = await $fetch('/api/temperature/records', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/temperature/records', {
+      query: params
     })
     if (res.code === 0) {
       recordList.value = res.data.list

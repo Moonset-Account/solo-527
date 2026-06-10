@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
         fromStatus: 'PENDING_ACCEPT',
         toStatus: 'ACCEPTED',
         eventType: 'ACCEPT',
-        operatorId: BigInt(auth.userId),
+        userId: BigInt(auth.userId),
         operatorType: 'USER',
         remark: '调度员确认接单',
       },

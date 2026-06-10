@@ -137,6 +137,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate, formatDistance, formatDuration } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -165,9 +167,8 @@ const loadRoutes = async () => {
       params.keyword = searchForm.keyword
     }
 
-    const res: any = await $fetch('/api/routes', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/routes', {
+      query: params
     })
     if (res.code === 0) {
       routeList.value = res.data.list

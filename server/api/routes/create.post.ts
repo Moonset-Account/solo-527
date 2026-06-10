@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
       data: {
         orderId: BigInt(orderId),
         eventType: 'ROUTE_CHANGE',
-        operatorId: BigInt(auth.userId),
+        userId: BigInt(auth.userId),
         operatorType: 'USER',
         remark: `路线调整 V${newVersion}：${remark || '手动调整路线'}`,
       },

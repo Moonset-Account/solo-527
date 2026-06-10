@@ -215,6 +215,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate, formatMoney, formatDistance, formatDuration } = useFormatter()
 
 const route = useRoute()
@@ -226,9 +228,7 @@ const availableRiders = ref<any[]>([])
 
 const loadOrder = async () => {
   try {
-    const res: any = await $fetch(`/api/orders/${route.params.id}`, {
-      headers: useRequestHeaders(['cookie'])
-    })
+    const res: any = await request(`/orders/${route.params.id}`)
     if (res.code === 0) {
       order.value = res.data
     }
@@ -239,9 +239,8 @@ const loadOrder = async () => {
 
 const loadRiders = async () => {
   try {
-    const res: any = await $fetch('/api/riders', {
-      query: { status: 'ONLINE,BUSY' },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/riders', {
+      query: { status: 'ONLINE,BUSY' }
     })
     if (res.code === 0) {
       availableRiders.value = res.data.list || []
@@ -259,9 +258,8 @@ const handleAccept = async () => {
   if (!confirm('确定要接单吗？')) return
 
   try {
-    const res: any = await $fetch(`/api/orders/${order.value.id}/accept`, {
-      method: 'POST',
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request(`/orders/${order.value.id}/accept`, {
+      method: 'POST'
     })
     if (res.code === 0) {
       alert('接单成功')
@@ -286,14 +284,13 @@ const confirmAssign = async () => {
   }
 
   try {
-    const res: any = await $fetch(`/api/dispatch/assign`, {
+    const res: any = await request(`/dispatch/assign`, {
       method: 'POST',
       body: {
         orderId: order.value.id,
         riderId: selectedRiderId.value,
         reason: assignReason.value,
-      },
-      headers: useRequestHeaders(['cookie'])
+      }
     })
     if (res.code === 0) {
       alert('分派成功')

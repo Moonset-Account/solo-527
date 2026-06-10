@@ -168,6 +168,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -208,9 +210,8 @@ const loadOrders = async () => {
       params.status = activeTab.value
     }
 
-    const res: any = await $fetch('/api/dispatch/orders', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/dispatch/orders', {
+      query: params
     })
     if (res.code === 0) {
       orderList.value = res.data.list
@@ -223,9 +224,8 @@ const loadOrders = async () => {
 
 const loadRiders = async () => {
   try {
-    const res: any = await $fetch('/api/riders', {
-      query: { status: 'ONLINE,BUSY,REST', pageSize: 50 },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/riders', {
+      query: { status: 'ONLINE,BUSY,REST', pageSize: 50 }
     })
     if (res.code === 0) {
       riderList.value = res.data.list
@@ -238,9 +238,7 @@ const loadRiders = async () => {
 
 const loadStats = async () => {
   try {
-    const res: any = await $fetch('/api/dashboard/stats', {
-      headers: useRequestHeaders(['cookie'])
-    })
+    const res: any = await request('/dashboard/stats')
     if (res.code === 0) {
       stats.pending = res.data.pendingOrders
       stats.assigned = res.data.inTransitOrders
@@ -279,14 +277,13 @@ const confirmAssign = async () => {
   }
 
   try {
-    const res: any = await $fetch('/api/dispatch/assign', {
+    const res: any = await request('/dispatch/assign', {
       method: 'POST',
       body: {
         orderId: selectedOrder.value.id,
         riderId: selectedRiderId.value,
         reason: assignReason.value,
-      },
-      headers: useRequestHeaders(['cookie'])
+      }
     })
     if (res.code === 0) {
       alert('操作成功')

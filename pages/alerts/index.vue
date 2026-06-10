@@ -224,6 +224,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -253,9 +255,8 @@ const loadAlerts = async () => {
       ...searchForm,
     }
 
-    const res: any = await $fetch('/api/alerts', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/alerts', {
+      query: params
     })
     if (res.code === 0) {
       alertList.value = res.data.list
@@ -268,9 +269,8 @@ const loadAlerts = async () => {
 
 const loadStats = async () => {
   try {
-    const res: any = await $fetch('/api/alerts', {
-      query: { pageSize: 100 },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/alerts', {
+      query: { pageSize: 100 }
     })
     if (res.code === 0) {
       const list = res.data.list
@@ -306,10 +306,9 @@ const handleAcknowledge = async (alert: any) => {
   if (!confirm('确认处理此告警？')) return
 
   try {
-    const res: any = await $fetch(`/api/alerts/${alert.id}/action`, {
+    const res: any = await request(`/alerts/${alert.id}/action`, {
       method: 'POST',
-      body: { action: 'acknowledge' },
-      headers: useRequestHeaders(['cookie'])
+      body: { action: 'acknowledge' }
     })
     if (res.code === 0) {
       alert('确认成功')
@@ -336,10 +335,9 @@ const confirmResolve = async () => {
   }
 
   try {
-    const res: any = await $fetch(`/api/alerts/${currentAlert.value.id}/action`, {
+    const res: any = await request(`/alerts/${currentAlert.value.id}/action`, {
       method: 'POST',
-      body: { action: 'resolve', resolution: resolveText.value },
-      headers: useRequestHeaders(['cookie'])
+      body: { action: 'resolve', resolution: resolveText.value }
     })
     if (res.code === 0) {
       alert('处理成功')

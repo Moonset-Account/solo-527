@@ -182,6 +182,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate, formatDateOnly, formatMoney, formatDuration } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -196,13 +198,12 @@ const searchForm = reactive({
 
 const loadReports = async () => {
   try {
-    const res: any = await $fetch('/api/reports', {
+    const res: any = await request('/reports', {
       query: {
         page: pageInfo.page,
         pageSize: pageInfo.pageSize,
         status: searchForm.status,
-      },
-      headers: useRequestHeaders(['cookie'])
+      }
     })
     if (res.code === 0) {
       reportList.value = res.data.list
@@ -227,9 +228,7 @@ const handleReset = () => {
 
 const viewDetail = async (report: any) => {
   try {
-    const res: any = await $fetch(`/api/reports/${report.id}`, {
-      headers: useRequestHeaders(['cookie'])
-    })
+    const res: any = await request(`/reports/${report.id}`)
     if (res.code === 0) {
       currentReport.value = res.data
       detailVisible.value = true

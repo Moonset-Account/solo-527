@@ -124,6 +124,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -140,13 +142,12 @@ const searchForm = reactive({
 const loadOrders = async () => {
   loading.value = true
   try {
-    const res: any = await $fetch('/api/orders', {
+    const res: any = await request('/orders', {
       query: {
         page: pageInfo.page,
         pageSize: pageInfo.pageSize,
         ...searchForm,
-      },
-      headers: useRequestHeaders(['cookie'])
+      }
     })
     if (res.code === 0) {
       orderList.value = res.data.list
@@ -185,9 +186,8 @@ const handleAccept = async (order: any) => {
   if (!confirm(`确定要接单【${order.orderNo}】吗？`)) return
 
   try {
-    const res: any = await $fetch(`/api/orders/${order.id}/accept`, {
-      method: 'POST',
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request(`/orders/${order.id}/accept`, {
+      method: 'POST'
     })
     if (res.code === 0) {
       alert('接单成功')

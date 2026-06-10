@@ -104,6 +104,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -117,13 +119,12 @@ const searchForm = reactive({
 
 const loadRiders = async () => {
   try {
-    const res: any = await $fetch('/api/riders', {
+    const res: any = await request('/riders', {
       query: {
         page: pageInfo.page,
         pageSize: pageInfo.pageSize,
         ...searchForm,
-      },
-      headers: useRequestHeaders(['cookie'])
+      }
     })
     if (res.code === 0) {
       riderList.value = res.data.list

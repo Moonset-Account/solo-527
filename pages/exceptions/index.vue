@@ -237,6 +237,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -274,9 +276,8 @@ const loadExceptions = async () => {
       params.docId = searchForm.docId
     }
 
-    const res: any = await $fetch('/api/exceptions', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/exceptions', {
+      query: params
     })
     if (res.code === 0) {
       exceptionList.value = res.data.list
@@ -289,9 +290,8 @@ const loadExceptions = async () => {
 
 const loadStats = async () => {
   try {
-    const res: any = await $fetch('/api/exceptions', {
-      query: { pageSize: 100 },
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/exceptions', {
+      query: { pageSize: 100 }
     })
     if (res.code === 0) {
       const list = res.data.list
@@ -332,13 +332,12 @@ const handleProcess = (exc: any) => {
 
 const confirmProcess = async () => {
   try {
-    const res: any = await $fetch(`/api/exceptions/${currentException.value.id}/update`, {
+    const res: any = await request(`/exceptions/${currentException.value.id}/update`, {
       method: 'POST',
       body: {
         status: processForm.status,
         handlerRemark: processForm.remark,
-      },
-      headers: useRequestHeaders(['cookie'])
+      }
     })
     if (res.code === 0) {
       alert('处理成功')

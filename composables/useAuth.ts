@@ -102,5 +102,5 @@ export function useRequest() {
     },
   })
 
-  return { request }
+  return request
 }

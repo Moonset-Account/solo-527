@@ -128,13 +128,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+const request = useRequest()
+
 const stats = ref<any>({})
 
 const loadStats = async () => {
   try {
-    const res: any = await $fetch('/api/dashboard/stats', {
-      headers: useRequestHeaders(['cookie'])
-    })
+    const res: any = await request('/dashboard/stats')
     if (res.code === 0) {
       stats.value = res.data
     }

@@ -224,6 +224,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 
+const request = useRequest()
+
 const { formatDate, formatMoney } = useFormatter()
 const { pageInfo, setTotal, reset } = usePagination(10)
 
@@ -248,9 +250,8 @@ const loadClaims = async () => {
       params.orderId = searchForm.keyword
     }
 
-    const res: any = await $fetch('/api/claims', {
-      query: params,
-      headers: useRequestHeaders(['cookie'])
+    const res: any = await request('/claims', {
+      query: params
     })
     if (res.code === 0) {
       claimList.value = res.data.list
@@ -276,9 +277,7 @@ const handleReset = () => {
 
 const viewDetail = async (claim: any) => {
   try {
-    const res: any = await $fetch(`/api/claims/${claim.id}`, {
-      headers: useRequestHeaders(['cookie'])
-    })
+    const res: any = await request(`/claims/${claim.id}`)
     if (res.code === 0) {
       currentClaim.value = res.data
       detailVisible.value = true

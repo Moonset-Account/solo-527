@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
         fromStatus: order.status,
         toStatus: 'ASSIGNED',
         eventType: previousRiderId ? 'REASSIGN' : 'ASSIGN',
-        operatorId: BigInt(auth.userId),
+        userId: BigInt(auth.userId),
         operatorType: 'USER',
         remark: previousRiderId ? `改派骑手：${rider.realName}` : `分派骑手：${rider.realName}`,
       },
