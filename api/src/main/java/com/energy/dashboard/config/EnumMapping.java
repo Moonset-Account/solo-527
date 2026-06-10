@@ -1,5 +1,8 @@
 package com.energy.dashboard.config;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class EnumMapping {
 
     public static String mapMeterStatus(String dbStatus) {
@@ -12,6 +15,16 @@ public class EnumMapping {
         }
     }
 
+    public static String reverseMeterStatus(String frontStatus) {
+        if (frontStatus == null) return null;
+        switch (frontStatus) {
+            case "online": return "online";
+            case "offline": return "offline";
+            case "fault": return "warning";
+            default: return null;
+        }
+    }
+
     public static String mapAlarmLevel(String dbLevel) {
         if (dbLevel == null) return "info";
         switch (dbLevel) {
@@ -19,6 +32,16 @@ public class EnumMapping {
             case "medium": return "warning";
             case "low": return "info";
             default: return "info";
+        }
+    }
+
+    public static String reverseAlarmLevel(String frontLevel) {
+        if (frontLevel == null) return null;
+        switch (frontLevel) {
+            case "critical": return "high";
+            case "warning": return "medium";
+            case "info": return "low";
+            default: return null;
         }
     }
 
@@ -33,6 +56,17 @@ public class EnumMapping {
         }
     }
 
+    public static String reverseAlarmType(String frontType) {
+        if (frontType == null) return null;
+        switch (frontType) {
+            case "peak_anomaly": return "over_limit";
+            case "communication_loss": return "communication_failure";
+            case "data_anomaly": return "abnormal_reading";
+            case "device_fault": return "equipment_fault";
+            default: return null;
+        }
+    }
+
     public static String mapSyncStatus(String dbStatus) {
         if (dbStatus == null) return "pending";
         switch (dbStatus) {
@@ -41,6 +75,17 @@ public class EnumMapping {
             case "pending": return "pending";
             case "running": return "running";
             default: return "pending";
+        }
+    }
+
+    public static String reverseSyncStatus(String frontStatus) {
+        if (frontStatus == null) return null;
+        switch (frontStatus) {
+            case "success": return "completed";
+            case "failed": return "failed";
+            case "pending": return "pending";
+            case "running": return "running";
+            default: return null;
         }
     }
 
@@ -54,6 +99,19 @@ public class EnumMapping {
         }
     }
 
+    public static List<String> reverseSyncType(String frontType) {
+        if ("meter_reading".equals(frontType)) {
+            return Arrays.asList("manual", "scheduled");
+        }
+        if ("meter_config".equals(frontType)) {
+            return Arrays.asList("manual", "scheduled");
+        }
+        if ("alarm_sync".equals(frontType)) {
+            return Arrays.asList("manual", "scheduled");
+        }
+        return null;
+    }
+
     public static String mapSyncFailCategory(String dbCategory) {
         if (dbCategory == null) return "unknown";
         switch (dbCategory) {
@@ -65,6 +123,16 @@ public class EnumMapping {
             case "data":
                 return "data";
             default: return "unknown";
+        }
+    }
+
+    public static List<String> reverseSyncFailCategory(String frontCategory) {
+        if (frontCategory == null) return null;
+        switch (frontCategory) {
+            case "network": return Arrays.asList("communication", "timeout");
+            case "config": return Arrays.asList("equipment");
+            case "data": return Arrays.asList("data");
+            default: return null;
         }
     }
 }

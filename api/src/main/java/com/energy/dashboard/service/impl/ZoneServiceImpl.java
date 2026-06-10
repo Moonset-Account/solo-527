@@ -170,22 +170,31 @@ public class ZoneServiceImpl implements ZoneService {
         Map<String, Object> result = new HashMap<>();
 
         List<Long> meterIds = getMeterIdsForZone(zoneId);
+        if (meterIds.isEmpty()) {
+            result.put("usage", 0.0);
+            result.put("curve", new ArrayList<>());
+            return result;
+        }
+
         double usage = getTotalUsageForZone(zoneId);
         result.put("usage", Math.round(usage * 10.0) / 10.0);
 
+        if (usage == 0.0) {
+            result.put("curve", new ArrayList<>());
+            return result;
+        }
+
         List<Map<String, Object>> curve = new ArrayList<>();
-        if (!meterIds.isEmpty()) {
-            LocalDate today = LocalDate.now();
-            int days = Math.min(today.getDayOfMonth(), 30);
-            for (int d = 1; d <= days; d++) {
-                LocalDate date = today.withDayOfMonth(d);
-                double val = sumUsage(date.atStartOfDay(), date.plusDays(1).atStartOfDay(), meterIds);
-                Map<String, Object> point = new HashMap<>();
-                point.put("time", date.toString());
-                point.put("value", BigDecimal.valueOf(Math.round(val * 10.0) / 10.0));
-                point.put("isPeak", false);
-                curve.add(point);
-            }
+        LocalDate today = LocalDate.now();
+        int days = Math.min(today.getDayOfMonth(), 30);
+        for (int d = 1; d <= days; d++) {
+            LocalDate date = today.withDayOfMonth(d);
+            double val = sumUsage(date.atStartOfDay(), date.plusDays(1).atStartOfDay(), meterIds);
+            Map<String, Object> point = new HashMap<>();
+            point.put("time", date.toString());
+            point.put("value", BigDecimal.valueOf(Math.round(val * 10.0) / 10.0));
+            point.put("isPeak", false);
+            curve.add(point);
         }
 
         result.put("curve", curve);

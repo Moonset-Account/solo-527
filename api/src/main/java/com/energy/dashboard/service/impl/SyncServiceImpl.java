@@ -91,16 +91,17 @@ public class SyncServiceImpl implements SyncService {
         int pageSize = toInt(params.get("pageSize"), 10);
 
         QueryWrapper<SyncTask> wrapper = new QueryWrapper<>();
-        if (params.containsKey("status")) {
-            String status = (String) params.get("status");
-            if ("success".equals(status)) {
-                wrapper.eq("status", "completed");
-            } else {
-                wrapper.eq("status", status);
+        if (params.containsKey("status") && params.get("status") != null && !params.get("status").toString().trim().isEmpty()) {
+            String dbStatus = EnumMapping.reverseSyncStatus(params.get("status").toString().trim());
+            if (dbStatus != null) {
+                wrapper.eq("status", dbStatus);
             }
         }
-        if (params.containsKey("type")) {
-            wrapper.eq("type", params.get("type"));
+        if (params.containsKey("type") && params.get("type") != null && !params.get("type").toString().trim().isEmpty()) {
+            List<String> dbTypes = EnumMapping.reverseSyncType(params.get("type").toString().trim());
+            if (dbTypes != null && !dbTypes.isEmpty()) {
+                wrapper.in("type", dbTypes);
+            }
         }
         if (params.containsKey("meterNo") && params.get("meterNo") != null && !params.get("meterNo").toString().trim().isEmpty()) {
             String meterNoFilter = params.get("meterNo").toString().trim();

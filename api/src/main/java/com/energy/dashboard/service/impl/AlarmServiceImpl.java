@@ -87,14 +87,20 @@ public class AlarmServiceImpl implements AlarmService {
         int pageSize = toInt(params.get("pageSize"), 10);
 
         QueryWrapper<Alarm> wrapper = new QueryWrapper<>();
-        if (params.containsKey("status")) {
+        if (params.containsKey("status") && params.get("status") != null && !params.get("status").toString().isEmpty()) {
             wrapper.eq("status", params.get("status"));
         }
-        if (params.containsKey("level")) {
-            wrapper.eq("level", params.get("level"));
+        if (params.containsKey("level") && params.get("level") != null && !params.get("level").toString().isEmpty()) {
+            String dbLevel = EnumMapping.reverseAlarmLevel(params.get("level").toString());
+            if (dbLevel != null) {
+                wrapper.eq("level", dbLevel);
+            }
         }
-        if (params.containsKey("type")) {
-            wrapper.eq("type", params.get("type"));
+        if (params.containsKey("type") && params.get("type") != null && !params.get("type").toString().isEmpty()) {
+            String dbType = EnumMapping.reverseAlarmType(params.get("type").toString());
+            if (dbType != null) {
+                wrapper.eq("type", dbType);
+            }
         }
         if (params.containsKey("startTime") && params.get("startTime") != null) {
             wrapper.ge("occurred_at", params.get("startTime"));

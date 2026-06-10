@@ -33,24 +33,6 @@ public class DataQueryController {
     @Autowired
     private ZoneMapper zoneMapper;
 
-    private List<Long> resolveMeterIds(Long zoneId, Long meterId) {
-        List<Long> meterIds = new ArrayList<>();
-        if (meterId != null) {
-            meterIds.add(meterId);
-            return meterIds;
-        }
-        if (zoneId != null) {
-            QueryWrapper<Meter> mw = new QueryWrapper<>();
-            mw.eq("zone_id", zoneId);
-            List<Meter> meters = meterMapper.selectList(mw);
-            for (Meter m : meters) {
-                meterIds.add(m.getId());
-            }
-            return meterIds;
-        }
-        return meterIds;
-    }
-
     private String formatTime(LocalDateTime t, String granularity) {
         if ("month".equals(granularity)) {
             return t.format(DateTimeFormatter.ofPattern("yyyy-MM"));
@@ -66,6 +48,13 @@ public class DataQueryController {
             return "electricity";
         }
         return frontDataType != null ? frontDataType : "electricity";
+    }
+
+    private Map<String, Object> emptyResult() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", 0);
+        result.put("items", new ArrayList<>());
+        return result;
     }
 
     @PostMapping("/query")
@@ -95,7 +84,24 @@ public class DataQueryController {
             end = LocalDateTime.parse(endTime + "T23:59:59");
         }
 
-        List<Long> meterIds = resolveMeterIds(zoneId, meterId);
+        List<Long> meterIds = new ArrayList<>();
+        if (meterId != null) {
+            Meter m = meterMapper.selectById(meterId);
+            if (m == null) {
+                return Result.success(emptyResult());
+            }
+            meterIds.add(meterId);
+        } else if (zoneId != null) {
+            QueryWrapper<Meter> mw = new QueryWrapper<>();
+            mw.eq("zone_id", zoneId);
+            List<Meter> meters = meterMapper.selectList(mw);
+            if (meters.isEmpty()) {
+                return Result.success(emptyResult());
+            }
+            for (Meter m : meters) {
+                meterIds.add(m.getId());
+            }
+        }
 
         QueryWrapper<EnergyData> wrapper = new QueryWrapper<>();
         wrapper.ge("recorded_at", start).lt("recorded_at", end);
@@ -106,6 +112,9 @@ public class DataQueryController {
         wrapper.orderByAsc("recorded_at");
 
         List<EnergyData> rawData = energyDataMapper.selectList(wrapper);
+        if (rawData.isEmpty()) {
+            return Result.success(emptyResult());
+        }
 
         Map<Long, Meter> meterCache = new HashMap<>();
         Map<Long, Zone> zoneCache = new HashMap<>();
@@ -138,43 +147,39 @@ public class DataQueryController {
             timeMeterValues.computeIfAbsent(timeKey, k -> new HashMap<>()).put(mId, sum);
         }
 
+        String zoneNameStr = "全园区";
+        if (zoneId != null) {
+            Zone z = zoneMapper.selectById(zoneId);
+            if (z != null) zoneNameStr = z.getName() != null ? z.getName() : "";
+        }
+
         List<Map<String, Object>> items = new ArrayList<>();
         for (Map.Entry<String, BigDecimal> entry : timeTotals.entrySet()) {
             String timeKey = entry.getKey();
             BigDecimal totalValue = entry.getValue();
-
-            String meterNoStr = "ALL";
-            String zoneNameStr = "全园区";
             String unit = timeUnit.getOrDefault(timeKey, "kWh");
 
             if (meterId != null) {
                 Meter m = meterCache.computeIfAbsent(meterId, mid -> meterMapper.selectById(mid));
+                String meterNoStr = "";
+                String rowZoneName = zoneNameStr;
                 if (m != null) {
                     meterNoStr = m.getMeterNo() != null ? m.getMeterNo() : "";
                     if (m.getZoneId() != null) {
                         Zone z = zoneCache.computeIfAbsent(m.getZoneId(), zid -> zoneMapper.selectById(zid));
-                        if (z != null) zoneNameStr = z.getName() != null ? z.getName() : "";
+                        if (z != null) rowZoneName = z.getName() != null ? z.getName() : "";
                     }
                 }
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("time", timeKey);
                 row.put("meterNo", meterNoStr);
-                row.put("zoneName", zoneNameStr);
+                row.put("zoneName", rowZoneName);
                 Map<Long, BigDecimal> mv = timeMeterValues.get(timeKey);
                 row.put("value", mv != null && mv.containsKey(meterId) ? mv.get(meterId) : totalValue);
                 row.put("unit", unit);
                 items.add(row);
-            } else if (zoneId != null) {
-                Zone z = zoneCache.computeIfAbsent(zoneId, zid -> zoneMapper.selectById(zid));
-                if (z != null) zoneNameStr = z.getName() != null ? z.getName() : "";
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("time", timeKey);
-                row.put("meterNo", meterNoStr);
-                row.put("zoneName", zoneNameStr);
-                row.put("value", totalValue);
-                row.put("unit", unit);
-                items.add(row);
             } else {
+                String meterNoStr = "ALL";
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("time", timeKey);
                 row.put("meterNo", meterNoStr);
@@ -194,8 +199,7 @@ public class DataQueryController {
 
     @PostMapping("/export")
     public void export(@RequestBody Map<String, Object> params, HttpServletResponse response) throws Exception {
-        Result<Map<String, Object>> queryResult = query(params);
-        Map<String, Object> data = queryResult.getData();
+        Map<String, Object> data = query(params).getData();
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
 

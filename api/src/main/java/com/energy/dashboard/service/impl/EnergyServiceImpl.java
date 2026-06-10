@@ -102,6 +102,32 @@ public class EnergyServiceImpl implements EnergyService {
             return points;
         }
 
+        LocalDateTime rangeStart;
+        LocalDateTime rangeEnd = LocalDateTime.now();
+
+        if ("day".equals(period) || "today".equals(period)) {
+            rangeStart = LocalDate.now().atStartOfDay();
+        } else if ("yesterday".equals(period)) {
+            rangeStart = LocalDate.now().minusDays(1).atStartOfDay();
+            rangeEnd = LocalDate.now().atStartOfDay();
+        } else if ("week".equals(period)) {
+            rangeStart = LocalDate.now().minusDays(6).atStartOfDay();
+        } else if ("month".equals(period)) {
+            rangeStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        } else {
+            rangeStart = LocalDate.now().atStartOfDay();
+        }
+
+        QueryWrapper<EnergyData> checkWrapper = new QueryWrapper<>();
+        checkWrapper.eq("data_type", ENERGY_TYPE)
+                .in("meter_id", meterIds)
+                .ge("recorded_at", rangeStart)
+                .lt("recorded_at", rangeEnd);
+        Long count = energyDataMapper.selectCount(checkWrapper);
+        if (count == null || count == 0) {
+            return points;
+        }
+
         if ("day".equals(period) || "today".equals(period)) {
             LocalDate today = LocalDate.now();
             int currentHour = LocalDateTime.now().getHour();
