@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useAppStore } from '@/lib/store'
 import { Topic, TOPIC_STATUS_MAP } from '@/lib/types'
@@ -25,7 +25,12 @@ const PLATFORM_OPTIONS = ['抖音', '小红书', 'B站', '视频号']
 const TAG_OPTIONS = ['夏季', '饮品', '新品', '周年庆', '幕后', '品牌', '抹茶', '测评', '咖啡', '教程', '拉花', '溯源', '有机', '纪录片', '办公室', '下午茶', '种草', '联名', '开箱', '限定', '冷萃', 'Vlog', '制作']
 
 export default function TopicsPage() {
-  const { topics, profiles, updateTopicStatus, currentUserId, addTimelineEvent } = useAppStore()
+  const store = useAppStore()
+  const { topics, profiles, updateTopicStatus, currentUserId, addTimelineEvent } = store
+
+  useEffect(() => {
+    store.hydrateTopics()
+  }, [])
 
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -115,14 +120,12 @@ export default function TopicsPage() {
   const handleApprove = (topic: Topic) => {
     updateTopicStatus(topic.id, 'approved', currentUserId)
     addTimelineEvent({
-      id: `tl-approve-${topic.id}-${Date.now()}`,
       topic_id: topic.id,
       event_type: 'topic_approved',
       actor_id: currentUserId,
       actor_name: profiles.find((p) => p.id === currentUserId)?.display_name || '',
       description: `审批通过选题：${topic.title}`,
       metadata: {},
-      created_at: new Date().toISOString(),
     })
   }
 

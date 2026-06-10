@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Task, TASK_STATUS_MAP, TaskType, TaskStatus } from '@/lib/types'
-import { formatDate, generateId } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { UserPlus, Play, CheckCircle, Video, Film, Users } from 'lucide-react'
 
 const TASK_TYPE_CONFIG: Record<TaskType, { label: string; color: string; bg: string; border: string }> = {
@@ -50,14 +50,12 @@ export default function TasksPage() {
       status: 'assigned',
     })
     addTimelineEvent({
-      id: generateId(),
       topic_id: task.topic_id,
       event_type: 'task_assigned',
       actor_id: currentUserId,
       actor_name: profiles.find((p) => p.id === currentUserId)?.display_name || '',
       description: `分派${TASK_TYPE_CONFIG[task.type].label}任务给${person.display_name}`,
       metadata: { task_type: task.type },
-      created_at: new Date().toISOString(),
     })
     setAssigningTaskId(null)
   }
@@ -72,14 +70,12 @@ export default function TasksPage() {
     updateTask(task.id, { status: next })
     if (next === 'completed') {
       addTimelineEvent({
-        id: generateId(),
         topic_id: task.topic_id,
         event_type: 'task_completed',
         actor_id: currentUserId,
         actor_name: profiles.find((p) => p.id === currentUserId)?.display_name || '',
         description: `完成${TASK_TYPE_CONFIG[task.type].label}任务`,
         metadata: { task_type: task.type },
-        created_at: new Date().toISOString(),
       })
     }
   }

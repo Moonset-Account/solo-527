@@ -1,11 +1,11 @@
 'use client'
 
-import { use } from 'react'
+import { use, useEffect } from 'react'
 import Link from 'next/link'
 import { useAppStore } from '@/lib/store'
 import { TOPIC_STATUS_MAP, TASK_STATUS_MAP } from '@/lib/types'
 import { TIMELINE_ICON_MAP } from '@/lib/utils'
-import { formatDate, formatDateTime, generateId } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import {
   ArrowLeft,
   PlusCircle,
@@ -47,9 +47,18 @@ export default function TopicDetailPage({ params }: { params: Promise<{ id: stri
     updateTopicStatus,
     addScript,
     addTimelineEvent,
+    loadTopicScripts,
+    loadTopicTimeline,
     profiles,
     currentUserId,
   } = useAppStore()
+
+  const topicId = id
+
+  useEffect(() => {
+    loadTopicScripts(topicId)
+    loadTopicTimeline(topicId)
+  }, [topicId])
 
   const topic = getTopicById(id)
   const timeline = getTimelineByTopicId(id)
@@ -72,53 +81,35 @@ export default function TopicDetailPage({ params }: { params: Promise<{ id: stri
 
   const currentUser = profiles.find((p) => p.id === currentUserId)
 
-  const handleApprove = () => {
-    updateTopicStatus(id, 'approved', currentUserId)
+  const handleApprove = async () => {
+    await updateTopicStatus(id, 'approved', currentUserId)
     addTimelineEvent({
-      id: generateId(),
       topic_id: id,
       event_type: 'topic_approved',
       actor_id: currentUserId,
       actor_name: currentUser?.display_name || '',
       description: `审批通过选题：${topic.title}`,
       metadata: {},
-      created_at: new Date().toISOString(),
     })
-    const scriptId = generateId()
-    addScript({
-      id: scriptId,
+    await addScript({
       topic_id: id,
       content: '',
       version: 1,
       status: 'draft',
       author_id: currentUserId,
       author_name: currentUser?.display_name || '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    addTimelineEvent({
-      id: generateId(),
-      topic_id: id,
-      event_type: 'script_submitted',
-      actor_id: currentUserId,
-      actor_name: currentUser?.display_name || '',
-      description: '创建脚本 v1',
-      metadata: { version: 1 },
-      created_at: new Date().toISOString(),
     })
   }
 
-  const handleReject = () => {
-    updateTopicStatus(id, 'rejected', currentUserId)
+  const handleReject = async () => {
+    await updateTopicStatus(id, 'rejected', currentUserId)
     addTimelineEvent({
-      id: generateId(),
       topic_id: id,
       event_type: 'topic_rejected',
       actor_id: currentUserId,
       actor_name: currentUser?.display_name || '',
       description: `驳回选题：${topic.title}`,
       metadata: {},
-      created_at: new Date().toISOString(),
     })
   }
 

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAppStore } from '@/lib/store'
-import { generateId } from '@/lib/utils'
 import { ArrowLeft, Plus, X } from 'lucide-react'
 
 const BRAND_OPTIONS = ['茶研悦色', '醇香咖啡']
@@ -12,7 +11,7 @@ const PLATFORM_OPTIONS = ['抖音', '小红书', 'B站', '视频号']
 
 export default function NewTopicPage() {
   const router = useRouter()
-  const { addTopic, addTimelineEvent, profiles, currentUserId } = useAppStore()
+  const { addTopic, profiles, currentUserId } = useAppStore()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -38,15 +37,12 @@ export default function NewTopicPage() {
     setTags((prev) => prev.filter((t) => t !== tag))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !brandLine) return
 
-    const now = new Date().toISOString()
     const currentUser = profiles.find((p) => p.id === currentUserId)
-    const topicId = generateId()
 
     const newTopic = {
-      id: topicId,
       title: title.trim(),
       description: description.trim(),
       brand_line: brandLine,
@@ -58,21 +54,9 @@ export default function NewTopicPage() {
       creator_name: currentUser?.display_name || '',
       reviewer_id: null,
       reviewer_name: null,
-      created_at: now,
-      updated_at: now,
     }
 
-    addTopic(newTopic)
-    addTimelineEvent({
-      id: generateId(),
-      topic_id: topicId,
-      event_type: 'topic_created',
-      actor_id: currentUserId,
-      actor_name: currentUser?.display_name || '',
-      description: `创建选题：${title.trim()}`,
-      metadata: {},
-      created_at: now,
-    })
+    await addTopic(newTopic)
 
     router.push('/topics')
   }

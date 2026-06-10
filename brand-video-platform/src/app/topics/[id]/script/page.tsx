@@ -4,13 +4,12 @@ import { use, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAppStore } from '@/lib/store'
-import { generateId } from '@/lib/utils'
 import { ArrowLeft, Save, Send } from 'lucide-react'
 
 export default function ScriptEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { getTopicById, getScriptsByTopicId, addScript, addTimelineEvent, profiles, currentUserId } = useAppStore()
+  const { getTopicById, getScriptsByTopicId, addScript, profiles, currentUserId } = useAppStore()
 
   const topic = getTopicById(id)
   const existingScripts = getScriptsByTopicId(id)
@@ -38,31 +37,14 @@ export default function ScriptEditPage({ params }: { params: Promise<{ id: strin
 
   const currentUser = profiles.find((p) => p.id === currentUserId)
 
-  const handleSave = (status: 'draft' | 'submitted') => {
-    const now = new Date().toISOString()
-    const scriptId = generateId()
-
-    addScript({
-      id: scriptId,
+  const handleSave = async (status: 'draft' | 'submitted') => {
+    await addScript({
       topic_id: id,
       content,
       version: nextVersion,
       status,
       author_id: currentUserId,
       author_name: currentUser?.display_name || '',
-      created_at: now,
-      updated_at: now,
-    })
-
-    addTimelineEvent({
-      id: generateId(),
-      topic_id: id,
-      event_type: status === 'submitted' ? 'script_submitted' : 'script_submitted',
-      actor_id: currentUserId,
-      actor_name: currentUser?.display_name || '',
-      description: status === 'submitted' ? `提交脚本 v${nextVersion}` : `保存脚本 v${nextVersion} 草稿`,
-      metadata: { version: nextVersion },
-      created_at: now,
     })
 
     router.push(`/topics/${id}`)
