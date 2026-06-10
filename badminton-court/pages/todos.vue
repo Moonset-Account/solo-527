@@ -114,10 +114,10 @@
                       <span class="text-xs text-gray-400">/ 原价 ¥{{ Number(selected.data?.booking?.originalPrice||0).toFixed(2) }}</span>
                     </div>
                     <div class="mt-2 flex gap-1.5">
-                      <span class="badge" :class="selected.data?.booking?.payment?.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">
-                        {{ selected.data?.booking?.payment ? selected.data.booking.payment.status : '未创建支付' }}
+                      <span class="badge" :class="selected.data?.booking?.payments?.[0]?.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">
+                        {{ selected.data?.booking?.payments?.[0] ? selected.data.booking.payments[0].status : '未创建支付' }}
                       </span>
-                      <span v-if="selected.data?.booking?.payment" class="text-xs text-gray-500">{{ selected.data.booking.payment.method }}</span>
+                      <span v-if="selected.data?.booking?.payments?.[0]" class="text-xs text-gray-500">{{ selected.data.booking.payments[0].method }}</span>
                     </div>
                   </div>
                 </div>

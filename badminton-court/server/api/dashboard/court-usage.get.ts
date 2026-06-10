@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
       },
       include: {
         customer: { select: { id: true, realName: true, phone: true, username: true } },
-        payment: true
+        payments: { orderBy: { createdAt: 'desc' }, take: 1 }
       },
       orderBy: { startTime: 'asc' }
     })

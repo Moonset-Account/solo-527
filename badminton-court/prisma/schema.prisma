@@ -124,7 +124,7 @@ model User {
   staffBookings   Booking[]        @relation("StaffBookings")
   payments        Payment[]
   tournamentRegs  TournamentRegistration[]
-  checkIns        CheckInRecord[]
+  checkIns        CheckInRecord[]   @relation("UserCheckIns")
   deviceFaults    DeviceFault[]    @relation("ReporterFaults")
   faultHandlers   DeviceFault[]    @relation("HandlerFaults")
   notifications   Notification[]
@@ -169,12 +169,13 @@ model Court {
   facilities   String?
   imageUrl     String?
   sortOrder    Int           @default(0)
-  prices       CourtPrice[]
-  bookings     Booking[]
-  checkIns     CheckInRecord[]
-  tournaments  Tournament[]
-  deviceFaults DeviceFault[]
-  createdAt    DateTime      @default(now())
+  prices         CourtPrice[]
+  bookings       Booking[]
+  checkIns       CheckInRecord[]  @relation("CourtCheckIns")
+  tournaments    Tournament[]
+  deviceFaults   DeviceFault[]
+  courtUsageLogs CourtUsageLog[] @relation("CourtUsageLogs")
+  createdAt      DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@index([status])
@@ -233,11 +234,12 @@ model Booking {
   abnormalRemark   String?
   tournamentId     Int?
   tournament       Tournament?      @relation(fields: [tournamentId], references: [id])
-  payment          Payment?
-  checkIns         CheckInRecord[]
+  payments         Payment[]         @relation("BookingPayments")
+  checkIns         CheckInRecord[]   @relation("BookingCheckIns")
   coachAssignments CoachAssignment[]
   reminders        BookingReminder[]
   logs             BookingLog[]
+  courtUsageLogs   CourtUsageLog[]  @relation("BookingUsageLogs")
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -269,12 +271,12 @@ model CoachAssignment {
 model Payment {
   id             Int            @id @default(autoincrement())
   paymentNo      String         @unique
-  bookingId      Int?           @unique
-  booking        Booking?       @relation(fields: [bookingId], references: [id])
+  bookingId      Int?
+  booking        Booking?       @relation("BookingPayments", fields: [bookingId], references: [id])
   userId         Int
   user           User           @relation(fields: [userId], references: [id])
   tournamentRegId Int?
-  tournamentReg  TournamentRegistration? @relation(fields: [tournamentRegId], references: [id])
+  tournamentReg  TournamentRegistration? @relation("TournamentRegPayments", fields: [tournamentRegId], references: [id])
   amount         Decimal        @db.Decimal(10, 2)
   paidAmount     Decimal        @default(0) @db.Decimal(10, 2)
   refundAmount   Decimal        @default(0) @db.Decimal(10, 2)
@@ -288,6 +290,7 @@ model Payment {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
+  @@index([bookingId])
   @@index([userId])
   @@index([status])
 }
@@ -343,7 +346,7 @@ model Tournament {
   category      String?
   bookings      Booking[]
   registrations TournamentRegistration[]
-  checkIns      CheckInRecord[]
+  checkIns      CheckInRecord[]   @relation("TournamentCheckIns")
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -364,8 +367,8 @@ model TournamentRegistration {
   groupNumber  String?
   status       Int          @default(1)
   registeredAt DateTime     @default(now())
-  payment      Payment?
-  checkIn      CheckInRecord?
+  payments     Payment[]     @relation("TournamentRegPayments")
+  checkIn      CheckInRecord? @relation("TournamentRegCheckIns")
   remark       String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -378,15 +381,15 @@ model CheckInRecord {
   id             Int                @id @default(autoincrement())
   checkInNo      String             @unique
   bookingId      Int?
-  booking        Booking?           @relation(fields: [bookingId], references: [id])
-  tournamentRegId Int?
-  tournamentReg  TournamentRegistration? @relation(fields: [tournamentRegId], references: [id])
+  booking        Booking?           @relation("BookingCheckIns", fields: [bookingId], references: [id])
+  tournamentRegId Int?              @unique
+  tournamentReg  TournamentRegistration? @relation("TournamentRegCheckIns", fields: [tournamentRegId], references: [id])
   userId         Int
-  user           User               @relation(fields: [userId], references: [id])
+  user           User               @relation("UserCheckIns", fields: [userId], references: [id])
   courtId        Int?
-  court          Court?             @relation(fields: [courtId], references: [id])
+  court          Court?             @relation("CourtCheckIns", fields: [courtId], references: [id])
   tournamentId   Int?
-  tournament     Tournament?        @relation(fields: [tournamentId], references: [id])
+  tournament     Tournament?        @relation("TournamentCheckIns", fields: [tournamentId], references: [id])
   status         CheckInStatus      @default(PENDING)
   checkInTime    DateTime?
   checkOutTime   DateTime?
@@ -463,9 +466,9 @@ model CoachCapacityReport {
 model CourtUsageLog {
   id          Int       @id @default(autoincrement())
   courtId     Int
-  court       Court     @relation(fields: [courtId], references: [id])
+  court       Court     @relation("CourtUsageLogs", fields: [courtId], references: [id])
   bookingId   Int?
-  booking     Booking?  @relation(fields: [bookingId], references: [id])
+  booking     Booking?  @relation("BookingUsageLogs", fields: [bookingId], references: [id])
   usageDate   DateTime
   startTime   String
   endTime     String

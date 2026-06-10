@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
         customer: { select: { id: true, realName: true, phone: true, username: true } },
         court: { select: { id: true, courtNumber: true, name: true, location: true } },
         staff: { select: { id: true, realName: true } },
-        payment: true,
+        payments: { orderBy: { createdAt: 'desc' }, take: 1 },
         coachAssignments: { include: { coach: { include: { user: true } } } },
         checkIns: { orderBy: { createdAt: 'desc' }, take: 1 },
         tournament: { select: { id: true, name: true } },

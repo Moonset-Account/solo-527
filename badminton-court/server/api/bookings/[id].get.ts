@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
         customer: { select: { id: true, realName: true, phone: true, username: true, balance: true, email: true } },
         court: { include: { prices: { orderBy: [{ weekDay: 'asc' }, { startTime: 'asc' }] } } },
         staff: { select: { id: true, realName: true, phone: true } },
-        payment: true,
+        payments: { orderBy: { createdAt: 'desc' } },
         coachAssignments: { include: { coach: { include: { user: true } } } },
         checkIns: { orderBy: { createdAt: 'desc' }, include: { operator: { select: { id: true, realName: true } } } },
         tournament: { select: { id: true, name: true, startDate: true, endDate: true } },

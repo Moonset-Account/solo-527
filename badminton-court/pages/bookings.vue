@@ -264,9 +264,9 @@
                 <div class="border-t pt-2 flex justify-between font-semibold text-base"><span>应收总额</span><span class="text-red-600">¥{{ Number(detail.actualAmount).toFixed(2) }}</span></div>
                 <div class="flex justify-between"><span class="text-gray-500">已收金额</span><span class="text-green-600 font-medium">¥{{ Number(detail.paidAmount).toFixed(2) }}</span></div>
                 <div class="flex justify-between"><span class="text-gray-500">待收金额</span><span :class="(detail.actualAmount - detail.paidAmount) > 0 ? 'text-orange-600 font-medium' : 'text-green-600'">¥{{ (Number(detail.actualAmount) - Number(detail.paidAmount)).toFixed(2) }}</span></div>
-                <div v-if="detail.payment" class="bg-gray-50 rounded-lg p-3 mt-2">
-                  <div class="text-xs text-gray-500">支付单号: {{ detail.payment.paymentNo }}</div>
-                  <div class="text-xs">方式: <span class="font-medium">{{ detail.payment.method }}</span> · 状态: <span class="badge" :class="detail.payment.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">{{ detail.payment.status }}</span></div>
+                <div v-if="detail.payments?.[0]" class="bg-gray-50 rounded-lg p-3 mt-2">
+                  <div class="text-xs text-gray-500">支付单号: {{ detail.payments[0].paymentNo }}</div>
+                  <div class="text-xs">方式: <span class="font-medium">{{ detail.payments[0].method }}</span> · 状态: <span class="badge" :class="detail.payments[0].status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">{{ detail.payments[0].status }}</span></div>
                 </div>
               </div>
 

@@ -1,10 +1,10 @@
 import prisma from '../../utils/prisma'
 import { requireAuth } from '../../utils/auth'
-import { successResponse, errorResponse, generateOrderNo } from '../../utils/helpers'
+import { successResponse, errorResponse, generateOrderNo, paginate, dateToStr } from '../../utils/helpers'
 import XLSX from 'xlsx'
 import fs from 'fs'
 import path from 'path'
-import { dateToStr } from '../../utils/helpers'
+
 
 const EXPORT_TYPES = ['bookings', 'checkins', 'tournaments', 'capacity', 'revenue', 'faults']
 
@@ -33,7 +33,7 @@ async function generateExcel(type: string, params: any, userId: number): Promise
         include: {
           customer: { select: { realName: true, phone: true } },
           court: { select: { courtNumber: true, name: true } },
-          payment: true
+          payments: { orderBy: { createdAt: 'desc' }, take: 1 }
         },
         orderBy: { bookingDate: 'desc' }
       })
@@ -49,7 +49,7 @@ async function generateExcel(type: string, params: any, userId: number): Promise
         Number(b.originalPrice),
         Number(b.paidAmount || 0),
         b.status,
-        b.payment?.status || '未支付',
+        b.payments?.[0]?.status || '未支付',
         b.remark || ''
       ])
       if (date) fileName += `_${date}`
@@ -86,7 +86,7 @@ async function generateExcel(type: string, params: any, userId: number): Promise
     }
     case 'capacity': {
       const list = await prisma.coachCapacityReport.findMany({
-        include: { coach: { include: { user: { select: { realName: true } } } },
+        include: { coach: { include: { user: { select: { realName: true } } } } },
         orderBy: { reportDate: 'desc' }
       })
       headers = ['教练', '周开始', '周结束', '计划产能(小时)', '实际使用', '总时长', '培训时长', '学员数', '收入', '设备故障影响(小时)', '利用率%']

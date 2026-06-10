@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
         include: {
           user: { select: { id: true, realName: true, phone: true, username: true } },
           tournament: { select: { id: true, name: true, startDate: true } },
-          payment: true,
+          payments: { orderBy: { createdAt: 'desc' }, take: 1 },
           checkIn: true
         },
         orderBy: { registeredAt: 'asc' }
