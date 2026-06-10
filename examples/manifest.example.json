@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "created_at": "2026-06-01T02:00:00Z",
+  "retention_days": 30,
+  "comment": "示例清单 - 用于展示 backup-checker 的基本用法",
+  "files": [
+    {
+      "path": "data/database.sql.gz",
+      "size": 10485760,
+      "modified": "2026-06-01T02:00:00Z",
+      "hashes": {
+        "md5": "placeholder_md5_for_database",
+        "sha1": "placeholder_sha1_for_database",
+        "sha256": "placeholder_sha256_for_database",
+        "sha512": "placeholder_sha512_for_database"
+      }
+    },
+    {
+      "path": "config/app.yaml",
+      "size": 2048,
+      "modified": "2026-06-01T02:00:01Z",
+      "hashes": {
+        "sha256": "placeholder_sha256_for_app_yaml"
+      }
+    },
+    {
+      "path": "logs/backup.log",
+      "size": 524288,
+      "modified": "2026-06-01T02:00:05Z",
+      "hashes": {
+        "sha256": "placeholder_sha256_for_backup_log"
+      }
+    },
+    {
+      "path": "readme.txt",
+      "size": 128,
+      "modified": "2026-06-01T02:00:00Z",
+      "hashes": {
+        "sha256": "placeholder_sha256_for_readme"
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "created_at": "2026-06-10T04:51:02.325625+00:00",
+  "retention_days": 30,
+  "comment": "run-example.sh 自动生成",
+  "files": [
+    {
+      "path": "config/app.yaml",
+      "size": 38,
+      "modified": "2026-06-10T04:51:02.231913+00:00",
+      "hashes": {
+        "sha256": "0be249df94b1f8557b68b11f2100ee8cdbf01f0a4e41bd6721401ea07cb3111f",
+        "md5": "e7daeeb621b252a61db1d9ff4894fbba"
+      }
+    },
+    {
+      "path": "data/database.sql.gz",
+      "size": 40,
+      "modified": "2026-06-10T04:51:02.227239+00:00",
+      "hashes": {
+        "sha256": "d9b1c584028df4f5fffdbaa7200242c12cc5298a17788d432b627e5367ec903e",
+        "md5": "7f62161f2c7d1b45fc97269865a463f0"
+      }
+    },
+    {
+      "path": "logs/backup.log",
+      "size": 79,
+      "modified": "2026-06-10T04:51:02.232621+00:00",
+      "hashes": {
+        "sha256": "21409f80a125cf9a6aaa7c23f67ccc550337b975c6922f71dfa9ee2f45ad3974",
+        "md5": "4e783d7afce0a95268c22f4e78c2f67b"
+      }
+    },
+    {
+      "path": "readme.txt",
+      "size": 13,
+      "modified": "2026-06-10T04:51:02.223690+00:00",
+      "hashes": {
+        "sha256": "879c82301637e185df21d6477751cee4a159c4eb772824a5c88a3498a6891dcc",
+        "md5": "c2059c38989ddb7c174a2548b159bb60"
+      }
+    }
+  ]
+}

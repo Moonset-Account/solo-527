@@ -1,0 +1,127 @@
+{
+  "tool": {
+    "name": "backup-checker",
+    "version": "1.0.0"
+  },
+  "config": {
+    "backup_dir": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/sample-backup",
+    "manifest_path": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/manifest.generated.json",
+    "hash_algorithm": "sha256",
+    "retention_days": 365,
+    "dry_run": false,
+    "strict": true,
+    "verbose": 0,
+    "quiet": false,
+    "notify": "stdout",
+    "notify_target": null,
+    "output_format": "json",
+    "output_path": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/report.example.json"
+  },
+  "manifest": {
+    "version": "1.0",
+    "created_at": "2026-06-10T04:51:02.325625+00:00",
+    "retention_days": 30,
+    "files": [
+      {
+        "path": "config/app.yaml",
+        "size": 38,
+        "modified": "2026-06-10T04:51:02.231913+00:00",
+        "hashes": {
+          "sha256": "0be249df94b1f8557b68b11f2100ee8cdbf01f0a4e41bd6721401ea07cb3111f",
+          "md5": "e7daeeb621b252a61db1d9ff4894fbba"
+        }
+      },
+      {
+        "path": "data/database.sql.gz",
+        "size": 40,
+        "modified": "2026-06-10T04:51:02.227239+00:00",
+        "hashes": {
+          "sha256": "d9b1c584028df4f5fffdbaa7200242c12cc5298a17788d432b627e5367ec903e",
+          "md5": "7f62161f2c7d1b45fc97269865a463f0"
+        }
+      },
+      {
+        "path": "logs/backup.log",
+        "size": 79,
+        "modified": "2026-06-10T04:51:02.232621+00:00",
+        "hashes": {
+          "sha256": "21409f80a125cf9a6aaa7c23f67ccc550337b975c6922f71dfa9ee2f45ad3974",
+          "md5": "4e783d7afce0a95268c22f4e78c2f67b"
+        }
+      },
+      {
+        "path": "readme.txt",
+        "size": 13,
+        "modified": "2026-06-10T04:51:02.223690+00:00",
+        "hashes": {
+          "sha256": "879c82301637e185df21d6477751cee4a159c4eb772824a5c88a3498a6891dcc",
+          "md5": "c2059c38989ddb7c174a2548b159bb60"
+        }
+      }
+    ]
+  },
+  "summary": {
+    "total_files": 4,
+    "checked_files": 4,
+    "missing_files": 0,
+    "hash_mismatches": 0,
+    "size_mismatches": 0,
+    "expired": false,
+    "issues_count": 0,
+    "errors_count": 0,
+    "warnings_count": 0,
+    "passed": true
+  },
+  "issues": [],
+  "file_details": [
+    {
+      "manifest_path": "config/app.yaml",
+      "local_path": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/sample-backup/config/app.yaml",
+      "expected_size": 38,
+      "exists": true,
+      "checked": true,
+      "actual_size": 38,
+      "hash_algorithm": "sha256",
+      "expected_hash": "0be249df94b1f8557b68b11f2100ee8cdbf01f0a4e41bd6721401ea07cb3111f",
+      "actual_hash": "0be249df94b1f8557b68b11f2100ee8cdbf01f0a4e41bd6721401ea07cb3111f"
+    },
+    {
+      "manifest_path": "data/database.sql.gz",
+      "local_path": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/sample-backup/data/database.sql.gz",
+      "expected_size": 40,
+      "exists": true,
+      "checked": true,
+      "actual_size": 40,
+      "hash_algorithm": "sha256",
+      "expected_hash": "d9b1c584028df4f5fffdbaa7200242c12cc5298a17788d432b627e5367ec903e",
+      "actual_hash": "d9b1c584028df4f5fffdbaa7200242c12cc5298a17788d432b627e5367ec903e"
+    },
+    {
+      "manifest_path": "logs/backup.log",
+      "local_path": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/sample-backup/logs/backup.log",
+      "expected_size": 79,
+      "exists": true,
+      "checked": true,
+      "actual_size": 79,
+      "hash_algorithm": "sha256",
+      "expected_hash": "21409f80a125cf9a6aaa7c23f67ccc550337b975c6922f71dfa9ee2f45ad3974",
+      "actual_hash": "21409f80a125cf9a6aaa7c23f67ccc550337b975c6922f71dfa9ee2f45ad3974"
+    },
+    {
+      "manifest_path": "readme.txt",
+      "local_path": "/Volumes/TraeProjects/trae-solo-generated-projects/question-408/examples/sample-backup/readme.txt",
+      "expected_size": 13,
+      "exists": true,
+      "checked": true,
+      "actual_size": 13,
+      "hash_algorithm": "sha256",
+      "expected_hash": "879c82301637e185df21d6477751cee4a159c4eb772824a5c88a3498a6891dcc",
+      "actual_hash": "879c82301637e185df21d6477751cee4a159c4eb772824a5c88a3498a6891dcc"
+    }
+  ],
+  "timing": {
+    "started_at": "2026-06-10T04:51:02.598302+00:00",
+    "finished_at": "2026-06-10T04:51:02.599289+00:00",
+    "duration_seconds": 0.001
+  }
+}

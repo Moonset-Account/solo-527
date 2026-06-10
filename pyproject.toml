@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backup-checker"
+version = "1.0.0"
+description = "备份完整性检查器 - 校验备份文件完整性、检测缺失、过期提示并导出报告的命令行工具"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "DevOps Team", email = "devops@example.com"}
+]
+keywords = ["backup", "integrity", "checksum", "verification", "cli"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: System :: Monitoring",
+    "Topic :: Utilities",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+backup-checker = "backup_checker.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/example/backup-checker"
+Documentation = "https://backup-checker.example.com"
+Issues = "https://github.com/example/backup-checker/issues"
+
+[tool.setuptools.packages.find]
+include = ["backup_checker*"]
+
+[tool.setuptools.package-data]
+backup_checker = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
