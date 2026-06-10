@@ -227,18 +227,18 @@ INSERT INTO `subsidy` (`type`, `amount`, `source_document_no`, `remark`, `create
 ('节能改造', 35000.00, 'DOC-S-005', 'B区教学楼智能电表升级补贴', 'admin', '2024-05-01 00:00:00', NULL, NULL, 'pending');
 
 INSERT INTO `sync_task` (`type`, `meter_id`, `status`, `triggered_at`, `completed_at`, `duration`, `fail_reason`, `friendly_fail_reason`, `fail_category`, `retry_count`, `created_at`) VALUES
-('manual', 1, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:00', 60000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
-('scheduled', 2, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:05', 65000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
-('manual', 3, 'failed', '2024-06-14 08:00:00', '2024-06-14 08:01:00', 60000, 'ConnectionRefusedException: Modbus connection refused', '设备通讯连接被拒绝，请检查设备电源及线路', 'communication', 2, '2024-06-14 08:00:00'),
-('scheduled', 4, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:10', 70000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
-('scheduled', 5, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:20', 80000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
-('scheduled', 6, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:15', 75000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
-('scheduled', 7, 'completed', '2024-06-15 10:00:00', '2024-06-15 10:00:45', 45000, NULL, NULL, NULL, 0, '2024-06-15 10:00:00'),
-('manual', 8, 'failed', '2024-06-15 10:00:00', '2024-06-15 10:01:00', 60000, 'TimeoutException: Read timeout after 30000ms', '数据读取超时，设备可能响应缓慢', 'timeout', 1, '2024-06-15 10:00:00'),
-('scheduled', 9, 'completed', '2024-06-15 10:00:00', '2024-06-15 10:00:50', 50000, NULL, NULL, NULL, 0, '2024-06-15 10:00:00'),
-('manual', 11, 'failed', '2024-06-15 09:00:00', '2024-06-15 09:01:30', 90000, 'ChecksumException: Data checksum mismatch', '数据校验失败，传输数据可能存在干扰', 'data', 3, '2024-06-15 09:00:00'),
-('scheduled', 12, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:00', 60000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
-('manual', 13, 'failed', '2024-06-15 08:00:00', '2024-06-15 08:00:30', 30000, 'DeviceNotRespondingException: No response from device', '设备无响应，请检查设备状态', 'equipment', 2, '2024-06-15 08:00:00');
+('meter_reading', 1, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:00', 60000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
+('meter_reading', 2, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:05', 65000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
+('meter_reading', 3, 'failed', '2024-06-14 08:00:00', '2024-06-14 08:01:00', 60000, 'ConnectionRefusedException: Modbus connection refused', '设备通讯连接被拒绝，请检查设备电源及线路', 'communication', 2, '2024-06-14 08:00:00'),
+('meter_config', 4, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:10', 70000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
+('meter_config', 5, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:20', 80000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
+('alarm_sync', 6, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:15', 75000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
+('alarm_sync', 7, 'completed', '2024-06-15 10:00:00', '2024-06-15 10:00:45', 45000, NULL, NULL, NULL, 0, '2024-06-15 10:00:00'),
+('meter_reading', 8, 'failed', '2024-06-15 10:00:00', '2024-06-15 10:01:00', 60000, 'TimeoutException: Read timeout after 30000ms', '数据读取超时，设备可能响应缓慢', 'timeout', 1, '2024-06-15 10:00:00'),
+('meter_config', 9, 'completed', '2024-06-15 10:00:00', '2024-06-15 10:00:50', 50000, NULL, NULL, NULL, 0, '2024-06-15 10:00:00'),
+('alarm_sync', 11, 'failed', '2024-06-15 09:00:00', '2024-06-15 09:01:30', 90000, 'ChecksumException: Data checksum mismatch', '数据校验失败，传输数据可能存在干扰', 'data', 3, '2024-06-15 09:00:00'),
+('meter_reading', 12, 'completed', '2024-06-15 10:30:00', '2024-06-15 10:31:00', 60000, NULL, NULL, NULL, 0, '2024-06-15 10:30:00'),
+('meter_reading', 13, 'failed', '2024-06-15 08:00:00', '2024-06-15 08:00:30', 30000, 'DeviceNotRespondingException: No response from device', '设备无响应，请检查设备状态', 'equipment', 2, '2024-06-15 08:00:00');
 
 INSERT INTO `sync_retry_log` (`sync_task_id`, `retry_at`, `success`, `message`) VALUES
 (3, '2024-06-14 09:00:00', 0, 'Retry 1: Connection still refused'),

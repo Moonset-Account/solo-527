@@ -98,9 +98,9 @@ public class SyncServiceImpl implements SyncService {
             }
         }
         if (params.containsKey("type") && params.get("type") != null && !params.get("type").toString().trim().isEmpty()) {
-            List<String> dbTypes = EnumMapping.reverseSyncType(params.get("type").toString().trim());
-            if (dbTypes != null && !dbTypes.isEmpty()) {
-                wrapper.in("type", dbTypes);
+            String dbType = EnumMapping.reverseSyncType(params.get("type").toString().trim());
+            if (dbType != null && !dbType.isEmpty()) {
+                wrapper.eq("type", dbType);
             }
         }
         if (params.containsKey("meterNo") && params.get("meterNo") != null && !params.get("meterNo").toString().trim().isEmpty()) {

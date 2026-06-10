@@ -91,25 +91,11 @@ public class EnumMapping {
 
     public static String mapSyncType(String dbType) {
         if (dbType == null) return "meter_reading";
-        switch (dbType) {
-            case "manual":
-            case "scheduled":
-                return "meter_reading";
-            default: return "meter_reading";
-        }
+        return dbType;
     }
 
-    public static List<String> reverseSyncType(String frontType) {
-        if ("meter_reading".equals(frontType)) {
-            return Arrays.asList("manual", "scheduled");
-        }
-        if ("meter_config".equals(frontType)) {
-            return Arrays.asList("manual", "scheduled");
-        }
-        if ("alarm_sync".equals(frontType)) {
-            return Arrays.asList("manual", "scheduled");
-        }
-        return null;
+    public static String reverseSyncType(String frontType) {
+        return frontType;
     }
 
     public static String mapSyncFailCategory(String dbCategory) {
