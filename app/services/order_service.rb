@@ -33,7 +33,7 @@ class OrderService
     raise "订单状态不允许支付" unless order.pending?
     ActiveRecord::Base.transaction do
       order.update!(status: :paid, paid_at: Time.current)
-      order.tickets.each { |t| t.update!(status: :valid) }
+      order.tickets.each { |t| t.update!(status: :active) }
     end
     AuditLogService.new.log(action: "order_paid", auditable: order, user: @user)
     order

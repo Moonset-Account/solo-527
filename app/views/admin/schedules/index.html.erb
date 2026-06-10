@@ -3,12 +3,22 @@
 <div class="space-y-6">
   <div class="flex items-center justify-between">
     <h2 class="text-2xl font-bold">分组赛程</h2>
-    <div class="flex gap-3">
+    <div class="flex gap-3 items-start">
+      <div class="flex flex-col gap-2">
+        <% if @saved_filters.any? %>
+          <div class="text-xs text-gray-500">已保存筛选：</div>
+          <div class="flex gap-2 flex-wrap">
+            <% @saved_filters.each do |f| %>
+              <%= link_to f.name, admin_schedules_path(f.conditions), class: "px-2 py-1 text-xs bg-[#16162a] border border-gray-700 rounded hover:bg-[#6C3CE1]/20 hover:text-[#6C3CE1] transition-colors" %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
       <%= form_with url: admin_schedules_path, method: :get, class: "flex gap-2" do |f| %>
         <%= f.select :event_id, options_from_collection_for_select(Event.all, :id, :title, params[:event_id]), prompt: "全部演出", class: "px-3 py-1.5 bg-[#16162a] border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
         <%= f.submit "筛选", class: "px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-sm text-gray-200 rounded-lg transition-colors cursor-pointer" %>
       <% end %>
-      <%= button_to "保存筛选条件", admin_saved_filters_path, method: :post, params: { saved_filter: { filterable_type: "Schedule", name: "赛程筛选-#{Time.current.strftime('%H%M')}", conditions: { event_id: params[:event_id] } } }, class: "px-3 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors cursor-pointer" %>
+      <%= button_to "保存筛选条件", admin_saved_filters_path, method: :post, params: { saved_filter: { filterable_type: "Schedule", name: "赛程筛选-#{params[:event_id] ? Event.find(params[:event_id]).title : '全部'}", conditions: { event_id: params[:event_id] } } }, class: "px-3 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors cursor-pointer" %>
       <%= link_to "新增赛程", new_admin_schedule_path, class: "px-4 py-2 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white text-sm rounded-lg transition-colors" %>
     </div>
   </div>

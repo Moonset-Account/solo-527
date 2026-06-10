@@ -4,9 +4,9 @@ class BatchOperation < ApplicationRecord
 
   validates :operation_type, presence: true
   validates :target_type, presence: true
-  validates :status, presence: true, inclusion: { in: %w[pending running completed failed] }
+  validates :status, presence: true, inclusion: { in: %w[pending processing completed failed] }
 
-  enum :status, { pending: "pending", running: "running", completed: "completed", failed: "failed" }
+  enum :status, { pending: "pending", processing: "processing", completed: "completed", failed: "failed" }
 
   scope :by_status, ->(status) { where(status: status) }
   scope :by_user, ->(user_id) { where(user_id: user_id) }

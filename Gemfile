@@ -9,6 +9,9 @@ gem "jbuilder"
 gem "bcrypt", "~> 3.1.7"
 gem "sidekiq", "~> 7.0"
 gem "redis", ">= 5.0"
+gem "importmap-rails"
+gem "turbo-rails"
+gem "stimulus-rails"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 gem "bootsnap", require: false
 
