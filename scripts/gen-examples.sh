@@ -18,7 +18,7 @@ cat > examples/schema_users.json <<'SCHEMA'
     {"name": "username", "type": "string", "required": true, "min_length": 2, "max_length": 50},
     {"name": "email", "type": "email", "required": true},
     {"name": "age", "type": "int", "min_value": 0, "max_value": 150},
-    {"name": "role", "type": "enum", "enum_values": ["admin", "editor", "viewer", "guest"},
+    {"name": "role", "type": "enum", "enum_values": ["admin", "editor", "viewer", "guest"]},
     {"name": "status", "type": "enum", "required": true, "enum_values": ["active", "inactive", "suspended"]},
     {"name": "signup_date", "type": "date", "date_format": "2006-01-02"},
     {"name": "website", "type": "url"},

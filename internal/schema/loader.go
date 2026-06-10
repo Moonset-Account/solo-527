@@ -108,14 +108,21 @@ func validate(s *Schema, opts *LoadOptions) error {
 			return fmt.Errorf("字段 '%s' 缺少 'type' 字段\n建议: 支持的类型: string, int, float, bool, date, datetime, email, url, enum, pattern", f.Name)
 		}
 
+		validTypes := map[FieldType]bool{
+			TypeString: true, TypeInt: true, TypeFloat: true,
+			TypeBool: true, TypeDate: true, TypeDateTime: true,
+			TypeEmail: true, TypeURL: true, TypeEnum: true, TypePattern: true,
+		}
+		if !validTypes[f.Type] {
+			return fmt.Errorf("字段 '%s' 的类型 '%s' 不受支持\n建议: 使用以下类型之一: string, int, float, bool, date, datetime, email, url, enum, pattern", f.Name, f.Type)
+		}
+
 		if strict {
-			validTypes := map[FieldType]bool{
-				TypeString: true, TypeInt: true, TypeFloat: true,
-				TypeBool: true, TypeDate: true, TypeDateTime: true,
-				TypeEmail: true, TypeURL: true, TypeEnum: true, TypePattern: true,
+			if f.Description == "" {
+				return fmt.Errorf("严格模式: 字段 '%s' 缺少 'description' 描述\n建议: 为每个字段添加业务说明，方便团队成员理解", f.Name)
 			}
-			if !validTypes[f.Type] {
-				return fmt.Errorf("字段 '%s' 的类型 '%s' 不受支持\n建议: 使用以下类型之一: string, int, float, bool, date, datetime, email, url, enum, pattern", f.Name, f.Type)
+			if s.Version == "" {
+				return fmt.Errorf("严格模式: Schema 缺少 'version' 字段\n建议: 使用语义化版本号 (如 1.0.0) 管理 Schema 变更")
 			}
 		}
 
