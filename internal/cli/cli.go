@@ -12,6 +12,7 @@ import (
 	"github.com/devops/envcheck/internal/output"
 	"github.com/devops/envcheck/internal/types"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type CLI struct {
@@ -39,6 +40,8 @@ type CLI struct {
 
 	compareBase    string
 	compareTargets []string
+
+	changedFlags   map[string]bool
 }
 
 func New() *CLI {
@@ -325,64 +328,84 @@ func (c *CLI) addVersionCmd() {
 	c.rootCmd.AddCommand(cmd)
 }
 
+func (c *CLI) collectChangedFlags(cmd *cobra.Command) {
+	c.changedFlags = make(map[string]bool)
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		c.changedFlags[f.Name] = true
+	})
+	c.rootCmd.PersistentFlags().Visit(func(f *pflag.Flag) {
+		c.changedFlags[f.Name] = true
+	})
+}
+
 func (c *CLI) buildCheckConfigFromCLI() types.CheckConfig {
 	cfg := config.DefaultConfig
+	chg := c.changedFlags
+	if chg == nil {
+		chg = make(map[string]bool)
+	}
 
-	if len(c.envPaths) > 0 {
+	if len(c.envPaths) > 0 || chg["env"] {
 		cfg.EnvPaths = c.envPaths
 	}
-	if c.examplePath != "" {
+	if chg["example"] {
 		cfg.ExamplePath = c.examplePath
 	}
-	if len(c.requiredVars) > 0 {
+	if len(c.requiredVars) > 0 || chg["required-vars"] {
 		cfg.RequiredVars = c.requiredVars
 	}
-	if len(c.maskKeys) > 0 {
+	if len(c.maskKeys) > 0 || chg["mask"] {
 		cfg.MaskKeys = c.maskKeys
 	}
-	if c.maskAll {
-		cfg.MaskAll = true
+	if chg["mask-all"] {
+		cfg.MaskAll = c.maskAll
 	}
-	if c.maskChar != "" && c.maskChar != config.DefaultMaskChar {
+	if chg["mask-char"] {
 		cfg.MaskChar = c.maskChar
 	}
-	if c.maskKeepStart != 0 {
+	if chg["mask-keep-start"] {
 		cfg.MaskKeepStart = c.maskKeepStart
 	}
-	if c.maskKeepEnd != 0 {
+	if chg["mask-keep-end"] {
 		cfg.MaskKeepEnd = c.maskKeepEnd
 	}
-	if c.ci {
-		cfg.CI = true
+	if chg["ci"] {
+		cfg.CI = c.ci
 	}
-	if c.jsonOutput {
-		cfg.JSON = true
+	if chg["json"] {
+		cfg.JSON = c.jsonOutput
 	}
-	if c.strict {
-		cfg.Strict = true
+	if chg["strict"] {
+		cfg.Strict = c.strict
 	}
-	if !c.warnOnExtra {
-		cfg.WarnOnExtra = false
+	if chg["warn-extra"] {
+		cfg.WarnOnExtra = c.warnOnExtra
 	}
-	if !c.failOnMismatch {
-		cfg.FailOnMismatch = false
+	if chg["fail-mismatch"] {
+		cfg.FailOnMismatch = c.failOnMismatch
 	}
-	if !c.failOnMissing {
-		cfg.FailOnMissing = false
+	if chg["fail-missing"] {
+		cfg.FailOnMissing = c.failOnMissing
 	}
-	if c.verbose {
-		cfg.Verbose = true
+	if chg["verbose"] {
+		cfg.Verbose = c.verbose
+		if c.verbose {
+			cfg.Quiet = false
+		}
 	}
-	if c.quiet {
-		cfg.Quiet = true
+	if chg["quiet"] {
+		cfg.Quiet = c.quiet
+		if c.quiet {
+			cfg.Verbose = false
+		}
 	}
-	if c.logLevel != "" && c.logLevel != "info" {
+	if chg["log-level"] {
 		cfg.LogLevel = c.logLevel
 	}
-	if c.compareBase != "" {
+	if chg["compare-base"] {
 		cfg.CompareBase = c.compareBase
 	}
-	if len(c.compareTargets) > 0 {
+	if len(c.compareTargets) > 0 || chg["compare-targets"] {
 		cfg.CompareTargets = c.compareTargets
 	}
 
@@ -393,6 +416,7 @@ func (c *CLI) loadConfig() (*types.CheckConfig, []string, error) {
 	loader := config.NewLoader(c.configPath, c.profile)
 	cliDefaults := c.buildCheckConfigFromCLI()
 	loader.SetCLIDefaults(cliDefaults)
+	loader.SetCLIChanged(c.changedFlags)
 	return loader.Load()
 }
 
@@ -412,6 +436,7 @@ func (c *CLI) setupLogging(cfg *types.CheckConfig) {
 }
 
 func (c *CLI) runCheck(cmd *cobra.Command, args []string) error {
+	c.collectChangedFlags(cmd)
 	cfg, sources, err := c.loadConfig()
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %w", err)
@@ -434,6 +459,7 @@ func (c *CLI) runCheck(cmd *cobra.Command, args []string) error {
 }
 
 func (c *CLI) runDiff(cmd *cobra.Command, args []string) error {
+	c.collectChangedFlags(cmd)
 	cfg, sources, err := c.loadConfig()
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %w", err)
@@ -455,6 +481,7 @@ func (c *CLI) runDiff(cmd *cobra.Command, args []string) error {
 }
 
 func (c *CLI) runList(cmd *cobra.Command, args []string) error {
+	c.collectChangedFlags(cmd)
 	cfg, sources, err := c.loadConfig()
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %w", err)
@@ -476,6 +503,7 @@ func (c *CLI) runList(cmd *cobra.Command, args []string) error {
 }
 
 func (c *CLI) runValidate(cmd *cobra.Command, args []string) error {
+	c.collectChangedFlags(cmd)
 	cfg, sources, err := c.loadConfig()
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %w", err)
@@ -496,16 +524,18 @@ func (c *CLI) runValidate(cmd *cobra.Command, args []string) error {
 }
 
 func (c *CLI) runConfigShow(cmd *cobra.Command, args []string) error {
+	c.collectChangedFlags(cmd)
 	loader := config.NewLoader(c.configPath, c.profile)
 	cliDefaults := c.buildCheckConfigFromCLI()
 	loader.SetCLIDefaults(cliDefaults)
+	loader.SetCLIChanged(c.changedFlags)
 	loader.SetSkipValidation(true)
 	cfg, sources, err := loader.Load()
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %w", err)
 	}
 
-	info := checker.GetConfigInfo(cfg, sources)
+	info := checker.GetConfigInfo(cfg, sources, loader.GetLayers())
 	fmt.Println(info)
 	return nil
 }

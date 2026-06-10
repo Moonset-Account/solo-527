@@ -46,6 +46,16 @@ type MissingVar struct {
 	Comment  string `json:"comment,omitempty"`
 }
 
+type FileResult struct {
+	EnvFile     EnvFile      `json:"env_file"`
+	Diffs       []DiffItem   `json:"diffs"`
+	Missing     []MissingVar `json:"missing"`
+	Extra       []string     `json:"extra"`
+	Summary     Summary      `json:"summary"`
+	ExitCode    int          `json:"exit_code"`
+	Status      string       `json:"status"`
+}
+
 type CheckResult struct {
 	Timestamp     time.Time    `json:"timestamp"`
 	ExitCode      int          `json:"exit_code"`
@@ -57,6 +67,7 @@ type CheckResult struct {
 	Summary       Summary      `json:"summary"`
 	ConfigUsed    string       `json:"config_used,omitempty"`
 	ConfigSources []string     `json:"config_sources,omitempty"`
+	FileResults   []FileResult `json:"file_results,omitempty"`
 }
 
 type Summary struct {

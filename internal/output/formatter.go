@@ -56,10 +56,14 @@ func (f *TextFormatter) Write(w io.Writer, r *types.CheckResult) error {
 	}
 	fmt.Fprintln(w, sep)
 
-	f.writeEnvFiles(w, r)
-	f.writeMissing(w, r)
-	f.writeDiffs(w, r)
-	f.writeExtra(w, r)
+	if len(r.FileResults) > 1 {
+		f.writePerFileResults(w, r)
+	} else {
+		f.writeEnvFiles(w, r)
+		f.writeMissing(w, r)
+		f.writeDiffs(w, r)
+		f.writeExtra(w, r)
+	}
 	f.writeSummary(w, r)
 
 	status := "✓ 通过"
@@ -71,7 +75,18 @@ func (f *TextFormatter) Write(w io.Writer, r *types.CheckResult) error {
 	reset := "\033[0m"
 
 	fmt.Fprintln(w, sep)
-	fmt.Fprintf(w, "  最终状态: %s%s%s  (退出码: %d)\n", statusColor, status, reset, r.ExitCode)
+	fmt.Fprintf(w, "  最终状态: %s%s%s  (退出码: %d)", statusColor, status, reset, r.ExitCode)
+
+	if len(r.FileResults) > 1 {
+		failedCount := 0
+		for _, fr := range r.FileResults {
+			if fr.ExitCode != 0 {
+				failedCount++
+			}
+		}
+		fmt.Fprintf(w, "  [通过 %d/%d 文件]", len(r.FileResults)-failedCount, len(r.FileResults))
+	}
+	fmt.Fprintln(w)
 	fmt.Fprintln(w, sep)
 
 	return nil
@@ -216,6 +231,119 @@ func (f *TextFormatter) writeExtra(w io.Writer, r *types.CheckResult) {
 	sort.Strings(r.Extra)
 	for _, e := range r.Extra {
 		fmt.Fprintf(w, "    • %s\n", e)
+	}
+}
+
+func (f *TextFormatter) writePerFileResults(w io.Writer, r *types.CheckResult) {
+	subSep := strings.Repeat("─", 70)
+
+	fmt.Fprintf(w, "\n  📁 分文件检查结果 (%d 个文件):\n", len(r.FileResults))
+
+	for fi, fr := range r.FileResults {
+		statusIcon := "✅"
+		statusColor := "\033[32m"
+		if fr.ExitCode != 0 {
+			statusIcon = "❌"
+			statusColor = "\033[31m"
+		}
+		reset := "\033[0m"
+
+		fmt.Fprintf(w, "\n  %s\n", subSep)
+		fmt.Fprintf(w, "  [%d/%d] %s%s %s%s\n    路径: %s\n    退出码: %d  |  变量: %d  |  缺失: %d (必填:%d)  |  不匹配: %d  |  多余: %d\n",
+			fi+1, len(r.FileResults),
+			statusColor, statusIcon, fr.EnvFile.Label, reset,
+			fr.EnvFile.Path,
+			fr.ExitCode,
+			len(fr.EnvFile.Vars),
+			fr.Summary.MissingCount, fr.Summary.MissingRequired,
+			fr.Summary.MismatchCount,
+			fr.Summary.ExtraCount)
+
+		if len(fr.Missing) > 0 {
+			misSort := make([]types.MissingVar, len(fr.Missing))
+			copy(misSort, fr.Missing)
+			sort.Slice(misSort, func(i, j int) bool {
+				if misSort[i].Required != misSort[j].Required {
+					return misSort[i].Required
+				}
+				return misSort[i].Key < misSort[j].Key
+			})
+			fmt.Fprintf(w, "\n    ⚠️  缺失变量:\n")
+			for _, m := range misSort {
+				reqTag := "  可选"
+				color := "\033[33m"
+				if m.Required {
+					reqTag = "必填"
+					color = "\033[31m"
+				}
+				fmt.Fprintf(w, "      %s[%s]%s %s", color, reqTag, reset, m.Key)
+				if m.Example != "" {
+					fmt.Fprintf(w, "  (示例: %s)", truncate(m.Example, 35))
+				}
+				fmt.Fprintln(w)
+			}
+		}
+
+		diffIssues := []types.DiffItem{}
+		for _, d := range fr.Diffs {
+			if d.Type != types.DiffMatch || f.ShowMatch {
+				diffIssues = append(diffIssues, d)
+			}
+		}
+		if len(diffIssues) > 0 {
+			sort.Slice(diffIssues, func(i, j int) bool {
+				order := map[types.DiffType]int{
+					types.DiffMissing:      0,
+					types.DiffValueMismatch: 1,
+					types.DiffExtra:        2,
+					types.DiffMatch:        3,
+				}
+				oi := order[diffIssues[i].Type]
+				oj := order[diffIssues[j].Type]
+				if oi != oj {
+					return oi < oj
+				}
+				return diffIssues[i].Key < diffIssues[j].Key
+			})
+
+			fmt.Fprintf(w, "\n    🔍 差异:\n")
+			for _, d := range diffIssues {
+				sevColor := "\033[36m"
+				icon := "ℹ"
+				switch d.Severity {
+				case "error":
+					sevColor = "\033[31m"
+					icon = "✗"
+				case "warn":
+					sevColor = "\033[33m"
+					icon = "!"
+				}
+				resetC := "\033[0m"
+				typeLabel := map[types.DiffType]string{
+					types.DiffMissing:       "缺失",
+					types.DiffValueMismatch: "不一致",
+					types.DiffExtra:         "多余",
+					types.DiffMatch:         "匹配",
+				}
+
+				fmt.Fprintf(w, "      %s%s %-30s [%s]%s\n",
+					sevColor, icon, d.Key, typeLabel[d.Type], resetC)
+
+				switch d.Type {
+				case types.DiffValueMismatch:
+					fmt.Fprintf(w, "        \033[31m- 当前:\033[0m %s\n", truncate(d.LeftValue, 50))
+					fmt.Fprintf(w, "        \033[32m+ 期望:\033[0m %s\n", truncate(d.RightValue, 50))
+				case types.DiffMissing:
+					if d.RightValue != "" {
+						fmt.Fprintf(w, "        期望: %s\n", truncate(d.RightValue, 50))
+					}
+				case types.DiffExtra:
+					if d.LeftValue != "" {
+						fmt.Fprintf(w, "        值: %s\n", truncate(d.LeftValue, 50))
+					}
+				}
+			}
+		}
 	}
 }
 

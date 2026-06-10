@@ -29,13 +29,20 @@ var DefaultConfig = types.CheckConfig{
 	MaskPatterns:   []string{"PASSWORD", "SECRET", "TOKEN", "KEY", "CREDENTIAL"},
 }
 
+type ConfigLayer struct {
+	Name    string                 `json:"name"`
+	Changes map[string]interface{} `json:"changes"`
+}
+
 type Loader struct {
 	v              *viper.Viper
 	configPath     string
 	profile        string
 	sources        []string
 	cliDefaults    types.CheckConfig
+	cliChanged     map[string]bool
 	SkipValidation bool
+	layers         []ConfigLayer
 }
 
 func NewLoader(configPath string, profile string) *Loader {
@@ -45,7 +52,93 @@ func NewLoader(configPath string, profile string) *Loader {
 		profile:        profile,
 		sources:        []string{},
 		cliDefaults:    DefaultConfig,
+		cliChanged:     map[string]bool{},
 		SkipValidation: false,
+		layers:         []ConfigLayer{},
+	}
+}
+
+func (l *Loader) SetCLIChanged(changed map[string]bool) {
+	if changed == nil {
+		l.cliChanged = map[string]bool{}
+	} else {
+		l.cliChanged = changed
+	}
+}
+
+func (l *Loader) GetLayers() []ConfigLayer {
+	return l.layers
+}
+
+func (l *Loader) recordLayer(name string, before, after *types.CheckConfig) {
+	changes := map[string]interface{}{}
+	compareCfgFields(before, after, changes)
+	if len(changes) > 0 {
+		l.layers = append(l.layers, ConfigLayer{Name: name, Changes: changes})
+	}
+}
+
+type fieldInfo struct {
+	key   string
+	getFn func(c *types.CheckConfig) interface{}
+}
+
+func getAllFields() []fieldInfo {
+	return []fieldInfo{
+		{"env_paths", func(c *types.CheckConfig) interface{} { return c.EnvPaths }},
+		{"example_path", func(c *types.CheckConfig) interface{} { return c.ExamplePath }},
+		{"required_vars", func(c *types.CheckConfig) interface{} { return c.RequiredVars }},
+		{"mask_keys", func(c *types.CheckConfig) interface{} { return c.MaskKeys }},
+		{"mask_patterns", func(c *types.CheckConfig) interface{} { return c.MaskPatterns }},
+		{"mask_all", func(c *types.CheckConfig) interface{} { return c.MaskAll }},
+		{"mask_char", func(c *types.CheckConfig) interface{} { return c.MaskChar }},
+		{"mask_keep_start", func(c *types.CheckConfig) interface{} { return c.MaskKeepStart }},
+		{"mask_keep_end", func(c *types.CheckConfig) interface{} { return c.MaskKeepEnd }},
+		{"ci", func(c *types.CheckConfig) interface{} { return c.CI }},
+		{"json", func(c *types.CheckConfig) interface{} { return c.JSON }},
+		{"strict", func(c *types.CheckConfig) interface{} { return c.Strict }},
+		{"warn_on_extra", func(c *types.CheckConfig) interface{} { return c.WarnOnExtra }},
+		{"fail_on_mismatch", func(c *types.CheckConfig) interface{} { return c.FailOnMismatch }},
+		{"fail_on_missing", func(c *types.CheckConfig) interface{} { return c.FailOnMissing }},
+		{"verbose", func(c *types.CheckConfig) interface{} { return c.Verbose }},
+		{"quiet", func(c *types.CheckConfig) interface{} { return c.Quiet }},
+		{"log_level", func(c *types.CheckConfig) interface{} { return c.LogLevel }},
+		{"compare_base", func(c *types.CheckConfig) interface{} { return c.CompareBase }},
+		{"compare_targets", func(c *types.CheckConfig) interface{} { return c.CompareTargets }},
+	}
+}
+
+func compareCfgFields(before, after *types.CheckConfig, changes map[string]interface{}) {
+	for _, fi := range getAllFields() {
+		bv := fi.getFn(before)
+		av := fi.getFn(after)
+		if !deepEqualCfgValue(bv, av) {
+			changes[fi.key] = map[string]interface{}{
+				"before": bv,
+				"after":  av,
+			}
+		}
+	}
+}
+
+func deepEqualCfgValue(a, b interface{}) bool {
+	switch va := a.(type) {
+	case []string:
+		vb, ok := b.([]string)
+		if !ok {
+			return false
+		}
+		if len(va) != len(vb) {
+			return false
+		}
+		for i := range va {
+			if va[i] != vb[i] {
+				return false
+			}
+		}
+		return true
+	default:
+		return a == b
 	}
 }
 
@@ -118,7 +211,6 @@ func (l *Loader) loadConfigFile() error {
 			}
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
-		l.sources = append(l.sources, fmt.Sprintf("config-file:%s", absPath))
 		return nil
 	}
 
@@ -272,9 +364,15 @@ func (l *Loader) buildConfig() (*types.CheckConfig, error) {
 		_ = hasAny
 	}
 
+	l.layers = l.layers[:0]
+	defaultSnapshot := *cfg
+	l.recordLayer("默认值 (内置)", &types.CheckConfig{}, &defaultSnapshot)
+
 	configUsed := l.v.ConfigFileUsed()
 	if configUsed != "" {
+		before := *cfg
 		mergeLayer("check")
+		l.recordLayer(fmt.Sprintf("配置文件 check 节 (%s)", filepath.Base(configUsed)), &before, cfg)
 		l.sources = append(l.sources, fmt.Sprintf("config-file:%s", configUsed))
 	}
 
@@ -282,11 +380,14 @@ func (l *Loader) buildConfig() (*types.CheckConfig, error) {
 		profilePrefix := "profiles." + l.profile
 		if l.v.InConfig("profiles") && (l.v.InConfig(profilePrefix+".env-paths") ||
 			l.v.Sub(profilePrefix) != nil) {
+			before := *cfg
 			mergeLayer(profilePrefix)
+			l.recordLayer(fmt.Sprintf("Profile: %s", l.profile), &before, cfg)
 			l.sources = append(l.sources, fmt.Sprintf("profile:%s", l.profile))
 		}
 	}
 
+	envBefore := *cfg
 	if envPaths := os.Getenv(EnvPrefix + "_ENV_PATHS"); envPaths != "" {
 		cfg.EnvPaths = splitAndTrim(envPaths)
 	}
@@ -353,10 +454,23 @@ func (l *Loader) buildConfig() (*types.CheckConfig, error) {
 	}
 
 	if len(envUsed) > 0 {
+		l.recordLayer(fmt.Sprintf("环境变量 (%d 个 ENVCHECK_*)", len(envUsed)), &envBefore, cfg)
 		l.sources = append(l.sources, fmt.Sprintf("env-vars:%s", strings.Join(envUsed, ",")))
 	}
 
+	cliBefore := *cfg
 	l.applyCLIDefaults(cfg)
+
+	cliChanged := false
+	for _, fi := range getAllFields() {
+		if !deepEqualCfgValue(fi.getFn(&cliBefore), fi.getFn(cfg)) {
+			cliChanged = true
+			break
+		}
+	}
+	if cliChanged {
+		l.recordLayer("命令行参数 (CLI)", &cliBefore, cfg)
+	}
 
 	cfg.ConfigPath = l.configPath
 
@@ -370,60 +484,111 @@ func (l *Loader) buildConfig() (*types.CheckConfig, error) {
 }
 
 func (l *Loader) applyCLIDefaults(cfg *types.CheckConfig) {
-	if len(l.cliDefaults.EnvPaths) > 0 {
+	ch := l.cliChanged
+	anySet := false
+
+	if ch["env"] {
 		cfg.EnvPaths = l.cliDefaults.EnvPaths
 		l.sources = append(l.sources, "cli:env-paths")
+		anySet = true
 	}
-	if l.cliDefaults.ExamplePath != "" {
+	if ch["example"] {
 		cfg.ExamplePath = l.cliDefaults.ExamplePath
 		l.sources = append(l.sources, "cli:example-path")
+		anySet = true
 	}
-	if len(l.cliDefaults.RequiredVars) > 0 {
+	if ch["required-vars"] {
 		cfg.RequiredVars = l.cliDefaults.RequiredVars
 		l.sources = append(l.sources, "cli:required-vars")
+		anySet = true
 	}
-	if len(l.cliDefaults.MaskKeys) > 0 {
+	if ch["mask"] {
 		cfg.MaskKeys = append(cfg.MaskKeys, l.cliDefaults.MaskKeys...)
 		l.sources = append(l.sources, "cli:mask-keys")
+		anySet = true
 	}
-	if l.cliDefaults.MaskAll {
-		cfg.MaskAll = true
+	if ch["mask-all"] {
+		cfg.MaskAll = l.cliDefaults.MaskAll
 		l.sources = append(l.sources, "cli:mask-all")
+		anySet = true
 	}
-	if l.cliDefaults.CI {
-		cfg.CI = true
+	if ch["mask-char"] {
+		cfg.MaskChar = l.cliDefaults.MaskChar
+		l.sources = append(l.sources, "cli:mask-char")
+		anySet = true
+	}
+	if ch["mask-keep-start"] {
+		cfg.MaskKeepStart = l.cliDefaults.MaskKeepStart
+		l.sources = append(l.sources, "cli:mask-keep-start")
+		anySet = true
+	}
+	if ch["mask-keep-end"] {
+		cfg.MaskKeepEnd = l.cliDefaults.MaskKeepEnd
+		l.sources = append(l.sources, "cli:mask-keep-end")
+		anySet = true
+	}
+	if ch["ci"] {
+		cfg.CI = l.cliDefaults.CI
 		l.sources = append(l.sources, "cli:ci")
+		anySet = true
 	}
-	if l.cliDefaults.JSON {
-		cfg.JSON = true
+	if ch["json"] {
+		cfg.JSON = l.cliDefaults.JSON
 		l.sources = append(l.sources, "cli:json")
+		anySet = true
 	}
-	if l.cliDefaults.Strict {
-		cfg.Strict = true
+	if ch["strict"] {
+		cfg.Strict = l.cliDefaults.Strict
 		l.sources = append(l.sources, "cli:strict")
+		anySet = true
 	}
-	if l.cliDefaults.Verbose {
-		cfg.Verbose = true
-		cfg.Quiet = false
+	if ch["warn-extra"] {
+		cfg.WarnOnExtra = l.cliDefaults.WarnOnExtra
+		l.sources = append(l.sources, "cli:warn-extra")
+		anySet = true
+	}
+	if ch["fail-mismatch"] {
+		cfg.FailOnMismatch = l.cliDefaults.FailOnMismatch
+		l.sources = append(l.sources, "cli:fail-mismatch")
+		anySet = true
+	}
+	if ch["fail-missing"] {
+		cfg.FailOnMissing = l.cliDefaults.FailOnMissing
+		l.sources = append(l.sources, "cli:fail-missing")
+		anySet = true
+	}
+	if ch["verbose"] {
+		cfg.Verbose = l.cliDefaults.Verbose
+		if l.cliDefaults.Verbose {
+			cfg.Quiet = false
+		}
 		l.sources = append(l.sources, "cli:verbose")
+		anySet = true
 	}
-	if l.cliDefaults.Quiet {
-		cfg.Quiet = true
-		cfg.Verbose = false
+	if ch["quiet"] {
+		cfg.Quiet = l.cliDefaults.Quiet
+		if l.cliDefaults.Quiet {
+			cfg.Verbose = false
+		}
 		l.sources = append(l.sources, "cli:quiet")
+		anySet = true
 	}
-	if l.cliDefaults.CompareBase != "" {
-		cfg.CompareBase = l.cliDefaults.CompareBase
-		l.sources = append(l.sources, "cli:compare-base")
-	}
-	if len(l.cliDefaults.CompareTargets) > 0 {
-		cfg.CompareTargets = l.cliDefaults.CompareTargets
-		l.sources = append(l.sources, "cli:compare-targets")
-	}
-	if l.cliDefaults.LogLevel != "" && l.cliDefaults.LogLevel != DefaultConfig.LogLevel {
+	if ch["log-level"] {
 		cfg.LogLevel = l.cliDefaults.LogLevel
 		l.sources = append(l.sources, "cli:log-level")
+		anySet = true
 	}
+	if ch["compare-base"] {
+		cfg.CompareBase = l.cliDefaults.CompareBase
+		l.sources = append(l.sources, "cli:compare-base")
+		anySet = true
+	}
+	if ch["compare-targets"] {
+		cfg.CompareTargets = l.cliDefaults.CompareTargets
+		l.sources = append(l.sources, "cli:compare-targets")
+		anySet = true
+	}
+	_ = anySet
 }
 
 func validate(cfg *types.CheckConfig) error {
