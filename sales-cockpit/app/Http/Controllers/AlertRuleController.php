@@ -65,7 +65,7 @@ class AlertRuleController extends Controller
 
         $oldValues = $alertRule->toArray();
 
-        DB::transaction(function () use ($alertRule, $validated) {
+        DB::transaction(function () use ($alertRule, $validated, $oldValues) {
             $alertRule->update($validated);
 
             app(AuditService::class)->log(

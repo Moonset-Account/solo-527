@@ -25,11 +25,12 @@ class AlertTriggeredNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $conditionLabel = match ($this->rule->condition_type) {
-            'greater_than' => '大于',
-            'less_than' => '小于',
-            'equals' => '等于',
+            'gt' => '大于',
+            'lt' => '小于',
+            'eq' => '等于',
+            'gte' => '大于等于',
+            'lte' => '小于等于',
             'between' => '介于',
-            'not_equals' => '不等于',
             default => $this->rule->condition_type,
         };
 

@@ -79,7 +79,7 @@ class ReviewRhythmController extends Controller
 
         $oldValues = $reviewRhythm->toArray();
 
-        DB::transaction(function () use ($reviewRhythm, $validated) {
+        DB::transaction(function () use ($reviewRhythm, $validated, $oldValues) {
             $reviewRhythm->update($validated);
 
             app(AuditService::class)->log(

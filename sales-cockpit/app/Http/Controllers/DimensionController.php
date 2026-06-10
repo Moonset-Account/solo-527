@@ -57,7 +57,7 @@ class DimensionController extends Controller
 
         $oldValues = $dimension->toArray();
 
-        DB::transaction(function () use ($dimension, $validated) {
+        DB::transaction(function () use ($dimension, $validated, $oldValues) {
             $dimension->update($validated);
 
             app(AuditService::class)->log(

@@ -56,7 +56,7 @@ class DatasetPermissionController extends Controller
 
         $oldValues = $datasetPermission->toArray();
 
-        DB::transaction(function () use ($datasetPermission, $validated) {
+        DB::transaction(function () use ($datasetPermission, $validated, $oldValues) {
             $datasetPermission->update($validated);
 
             app(AuditService::class)->log(
@@ -79,7 +79,7 @@ class DatasetPermissionController extends Controller
 
         $oldValues = $datasetPermission->toArray();
 
-        DB::transaction(function () use ($datasetPermission) {
+        DB::transaction(function () use ($datasetPermission, $oldValues) {
             $datasetPermission->update(['is_active' => false]);
 
             app(AuditService::class)->log(
