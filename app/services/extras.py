@@ -613,6 +613,113 @@ class ExportService:
             "操作IP": r.operator_ip or "", "变更原因": r.change_reason or "", "操作时间": str(r.created_at),
         } for r in rows]
 
+    async def _rows_for_bill_detail(self, days: int = 90) -> list[dict]:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        stmt = (select(models.Bill, models.Client.name)
+            .join(models.Client, models.Bill.client_id == models.Client.id)
+            .order_by(desc(models.Bill.due_date)).limit(5000))
+        rows = (await self.db.execute(stmt)).all()
+        out: list[dict] = []
+        for bill, client_name in rows:
+            latest_pay = (await self.db.execute(
+                select(models.Payment)
+                .where(models.Payment.bill_id == bill.id)
+                .order_by(desc(models.Payment.matched_at))
+                .limit(1)
+            )).scalar_one_or_none()
+            invoice_errors = (await self.db.execute(
+                select(models.Invoice)
+                .where(models.Invoice.bill_id == bill.id)
+                .order_by(desc(models.Invoice.applied_at))
+                .limit(1)
+            )).scalar_one_or_none()
+            latest_audit = (await self.db.execute(
+                select(models.AuditLog)
+                .where(
+                    models.AuditLog.entity_type == "BILL",
+                    models.AuditLog.entity_id == bill.id,
+                )
+                .order_by(desc(models.AuditLog.created_at))
+                .limit(1)
+            )).scalar_one_or_none()
+            inv_err_text = ""
+            if invoice_errors:
+                v = invoice_errors.validation_errors
+                errs = v.get("errors", []) if isinstance(v, dict) else []
+                if errs:
+                    inv_err_text = "; ".join([f"{e.get('field','')}: {e.get('message','')}" for e in errs[:3]])
+            out.append({
+                "账单编号": bill.bill_no, "客户名称": client_name,
+                "账期": f"{bill.period_start} ~ {bill.period_end}",
+                "出账日期": str(bill.issue_date), "到期日期": str(bill.due_date),
+                "应收金额": float(bill.total_amount), "已收金额": float(bill.paid_amount),
+                "待收金额": float(bill.total_amount - bill.paid_amount),
+                "状态": bill.status, "逾期天数": bill.days_overdue,
+                "最近回款日期": str(latest_pay.matched_at.date()) if latest_pay and latest_pay.matched_at else "",
+                "最近回款金额": float(latest_pay.amount) if latest_pay else 0,
+                "最近回款方式": latest_pay.match_type if latest_pay else "",
+                "发票校验错误": inv_err_text,
+                "最近审计变更字段": latest_audit.field_name if latest_audit else "",
+                "最近审计变更人": latest_audit.operator_name if latest_audit else "",
+                "最近审计变更时间": str(latest_audit.created_at) if latest_audit else "",
+                "最近审计变更原因": latest_audit.change_reason or "" if latest_audit else "",
+            })
+        return out
+
+    async def _rows_for_reconciliation(self, days: int = 60) -> list[dict]:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        stmt = (select(models.Bill, models.Client.name)
+            .join(models.Client, models.Bill.client_id == models.Client.id)
+            .where(or_(
+                models.Bill.created_at >= since,
+                models.Bill.updated_at >= since,
+            ))
+            .order_by(desc(models.Bill.due_date)).limit(5000))
+        rows = (await self.db.execute(stmt)).all()
+        out: list[dict] = []
+        for bill, client_name in rows:
+            total_payments = (await self.db.execute(
+                select(func.sum(models.Payment.amount))
+                .where(models.Payment.bill_id == bill.id)
+            )).scalar_one_or_none() or Decimal("0")
+            unmatched_txn = (await self.db.execute(
+                select(func.count(models.BankTransaction.id))
+                .where(
+                    models.BankTransaction.match_status == "UNMATCHED",
+                    models.BankTransaction.counterparty.ilike(f"%{client_name}%"),
+                )
+            )).scalar_one_or_none() or 0
+            has_invoice_error = (await self.db.execute(
+                select(models.Invoice.id)
+                .where(
+                    models.Invoice.bill_id == bill.id,
+                    models.Invoice.status == "ERROR",
+                )
+                .limit(1)
+            )).scalar_one_or_none() is not None
+            variance = float(bill.total_amount - total_payments)
+            status_text = ""
+            if abs(variance) < 0.01:
+                status_text = "✓ 已对账"
+            elif variance > 0:
+                status_text = f"⚠ 差异 ¥{variance:,.2f}（待收）"
+            else:
+                status_text = f"⚠ 差异 ¥{abs(variance):,.2f}（多收）"
+            out.append({
+                "对账状态": status_text,
+                "账单编号": bill.bill_no, "客户名称": client_name,
+                "账期": f"{bill.period_start} ~ {bill.period_end}",
+                "应收金额": float(bill.total_amount),
+                "已回款金额": float(total_payments),
+                "差异金额": variance,
+                "账单状态": bill.status,
+                "未匹配流水(同名)": unmatched_txn,
+                "发票异常": "是" if has_invoice_error else "否",
+                "到期日期": str(bill.due_date),
+                "逾期天数": bill.days_overdue,
+            })
+        return out
+
     async def execute_task(self, task_id: UUID) -> Optional[Path]:
         stmt = select(models.ExportTask).where(models.ExportTask.id == task_id)
         task = (await self.db.execute(stmt)).scalar_one_or_none()
@@ -631,10 +738,20 @@ class ExportService:
             if isinstance(task.parameters, dict):
                 days = int(task.parameters.get("days", 30))
             rows = await self._rows_for_changelog(days)
+        elif task.type == "BILL_DETAIL":
+            days = 90
+            if isinstance(task.parameters, dict):
+                days = int(task.parameters.get("days", 90))
+            rows = await self._rows_for_bill_detail(days)
+        elif task.type == "RECONCILIATION":
+            days = 60
+            if isinstance(task.parameters, dict):
+                days = int(task.parameters.get("days", 60))
+            rows = await self._rows_for_reconciliation(days)
         try:
             wb = Workbook()
             ws = wb.active
-            ws.title = {"CASHFLOW": "现金流报表", "INVOICE_ERRORS": "发票错误清单", "CHANGE_LOG": "最近变更记录"}.get(task.type, "导出数据")
+            ws.title = {"CASHFLOW": "现金流报表", "INVOICE_ERRORS": "发票错误清单", "CHANGE_LOG": "最近变更记录", "BILL_DETAIL": "账单明细", "RECONCILIATION": "对账报告"}.get(task.type, "导出数据")
             headers = list(rows[0].keys()) if rows else ["空"]
             ws.append(headers)
             header_font = Font(bold=True, color="FFFFFF")

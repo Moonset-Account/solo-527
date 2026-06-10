@@ -50,6 +50,36 @@
     </div>
   </div>
 
+  <div class="grid-2-even section-gap">
+    <div class="card card-accent-amber" style="cursor:pointer" hx-post="{{ url_for('admin_export_create') }}" hx-vals='{"type":"BILL_DETAIL","parameters":{"days":90}}' hx-swap="none" hx-confirm="确认导出最近90天账单明细？" onclick="setTimeout(()=>$dispatch('load'), 500)">
+      <div class="card-body">
+        <div class="flex items-start justify-between mb-sm">
+          <div class="kpi-icon" style="background:var(--qh-amber-100)">📑</div>
+          <span class="badge badge-amber">应收明细</span>
+        </div>
+        <h3 class="card-title" style="font-size:16px">账单明细导出</h3>
+        <p class="text-sm text-muted mt-sm" style="margin:0">按账单汇总应收、已收、待收、最近回款、发票错误及审计变更</p>
+        <div class="mt-md">
+          <button class="btn btn-sm btn-amber btn-block" style="background:var(--qh-amber-600);color:#fff;border-color:var(--qh-amber-600)">立即导出</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-accent-green" style="cursor:pointer" hx-post="{{ url_for('admin_export_create') }}" hx-vals='{"type":"RECONCILIATION","parameters":{"days":60}}' hx-swap="none" hx-confirm="确认导出最近60天对账报告？" onclick="setTimeout(()=>$dispatch('load'), 500)">
+      <div class="card-body">
+        <div class="flex items-start justify-between mb-sm">
+          <div class="kpi-icon" style="background:var(--qh-green-100)">✅</div>
+          <span class="badge badge-green-solid">对账专用</span>
+        </div>
+        <h3 class="card-title" style="font-size:16px">对账报告导出</h3>
+        <p class="text-sm text-muted mt-sm" style="margin:0">自动对账差异、未匹配流水提示、发票异常、应收 vs 实收汇总</p>
+        <div class="mt-md">
+          <button class="btn btn-sm btn-primary btn-block" style="background:var(--qh-green-600);color:#fff;border-color:var(--qh-green-600)">立即导出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header">
       <div>

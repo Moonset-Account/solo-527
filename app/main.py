@@ -1332,7 +1332,6 @@ async def admin_export_create(
     type_map = {
         "CASH_FLOW": "CASHFLOW",
         "AUDIT_CHANGES": "CHANGE_LOG",
-        "RECONCILIATION": "CASHFLOW",
     }
     type_final = type_map.get(type_, type_)
     try:

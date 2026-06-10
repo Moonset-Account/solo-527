@@ -36,7 +36,12 @@
       {% elif e.status == 'COMPLETED' %}
         <span class="badge badge-green-solid">已完成</span>
       {% elif e.status == 'FAILED' %}
-        <span class="badge badge-red-solid">失败</span>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+          <span class="badge badge-red-solid">失败</span>
+          {% if e.error_message %}
+            <span class="text-xs text-red" style="max-width:200px;line-height:1.3;" title="{{ e.error_message }}">⚠ {{ e.error_message | truncate(40, True, '...') }}</span>
+          {% endif %}
+        </div>
       {% else %}
         <span class="badge badge-gray">{{ e.status }}</span>
       {% endif %}
