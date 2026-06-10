@@ -62,6 +62,26 @@ export class ReachLogService {
       await this.reachLogModel.create(records);
       console.log('✅ 默认触达日志已创建');
     }
+    await this.fixMemberReferences();
+  }
+
+  async fixMemberReferences() {
+    const phoneMap = new Map(DEFAULT_MEMBERS.map(m => [m.phone, new Types.ObjectId(m._id)]));
+    const nameMap = new Map(DEFAULT_MEMBERS.map(m => [m.name, new Types.ObjectId(m._id)]));
+    const records = await this.reachLogModel.find({});
+    const bulk = this.reachLogModel.collection.initializeUnorderedBulkOp();
+    let changed = 0;
+    for (const r of records) {
+      const targetId = phoneMap.get(r.memberPhone) || nameMap.get(r.memberName);
+      if (targetId && !r.memberId?.equals(targetId)) {
+        bulk.find({ _id: r._id }).updateOne({ $set: { memberId: targetId } });
+        changed++;
+      }
+    }
+    if (changed > 0) {
+      await bulk.execute();
+      console.log(`🔧 触达日志会员ID纠偏完成，更新 ${changed} 条`);
+    }
   }
 
   async findAll(params: any = {}) {

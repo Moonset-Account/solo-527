@@ -48,6 +48,26 @@ export class CouponService {
       }
       console.log('✅ 默认优惠券数据已创建');
     }
+    await this.fixMemberReferences();
+  }
+
+  async fixMemberReferences() {
+    const phoneMap = new Map(DEFAULT_MEMBERS.map(m => [m.phone, new Types.ObjectId(m._id)]));
+    const nameMap = new Map(DEFAULT_MEMBERS.map(m => [m.name, new Types.ObjectId(m._id)]));
+    const records = await this.couponModel.find({});
+    const bulk = this.couponModel.collection.initializeUnorderedBulkOp();
+    let changed = 0;
+    for (const r of records) {
+      const targetId = phoneMap.get(r.memberPhone) || nameMap.get(r.memberName);
+      if (targetId && !r.memberId?.equals(targetId)) {
+        bulk.find({ _id: r._id }).updateOne({ $set: { memberId: targetId } });
+        changed++;
+      }
+    }
+    if (changed > 0) {
+      await bulk.execute();
+      console.log(`🔧 优惠券会员ID纠偏完成，更新 ${changed} 条`);
+    }
   }
 
   async findAll(params: any = {}) {
