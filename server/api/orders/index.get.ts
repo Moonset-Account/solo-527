@@ -29,7 +29,12 @@ export default defineEventHandler(async (event) => {
   }
 
   if (status) {
-    where.status = status
+    const statusList = status.split(',').map(s => s.trim()).filter(Boolean)
+    if (statusList.length > 1) {
+      where.status = { in: statusList }
+    } else {
+      where.status = statusList[0]
+    }
   }
 
   if (orderType) {
