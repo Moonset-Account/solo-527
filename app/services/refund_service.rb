@@ -3,12 +3,15 @@ class RefundService
     @user = user
   end
 
-  def create_refund(order, reason:)
+  def create_refund(order, reason:, amount: nil)
     raise "该订单不可退票" unless order.paid?
     raise "已存在待处理的退票申请" if order.refunds.pending.exists?
+    refund_amount = amount.present? ? amount.to_d : order.total_amount
+    raise "退款金额不能超过订单金额" if refund_amount > order.total_amount
+    raise "退款金额必须大于0" if refund_amount <= 0
     refund = order.refunds.create!(
       user: @user,
-      amount: order.total_amount,
+      amount: refund_amount,
       reason: reason,
       status: :pending
     )

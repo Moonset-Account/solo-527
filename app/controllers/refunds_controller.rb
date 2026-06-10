@@ -11,12 +11,18 @@ class RefundsController < ApplicationController
 
   def new
     @order = current_user.orders.find(params[:order_id])
+    @refund = @order.refunds.new(amount: @order.total_amount)
   end
 
   def create
-    @order = current_user.orders.find(params[:order_id])
+    refund_params = params[:refund] || params
+    @order = current_user.orders.find(refund_params[:order_id])
     service = RefundService.new(current_user)
-    @refund = service.create_refund(@order, reason: params[:reason])
+    @refund = service.create_refund(
+      @order,
+      reason: refund_params[:reason],
+      amount: refund_params[:amount]
+    )
     redirect_to @refund, notice: "退票申请已提交"
   rescue => e
     redirect_back fallback_location: orders_path, alert: e.message

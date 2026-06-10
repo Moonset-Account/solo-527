@@ -32,10 +32,10 @@
             <tr class="hover:bg-gray-800/50 transition-colors <%= 'bg-red-900/10' if anomaly.open? %>">
               <td class="px-5 py-3 text-sm font-medium <%= 'text-red-400' if anomaly.open? %>"><%= anomaly.anomaly_type %></td>
               <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.event.title %></td>
-              <td class="px-5 py-3 text-sm"><%= anomaly.order.order_no %></td>
+              <td class="px-5 py-3 text-sm"><%= anomaly.order&.order_no || '-' %></td>
               <td class="px-5 py-3 text-sm text-red-400"><%= format_currency(anomaly.amount) %></td>
               <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.description&.truncate(30) %></td>
-              <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.user.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.user&.name || '-' %></td>
               <td class="px-5 py-3 text-sm"><%= status_badge(anomaly.status) %></td>
               <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.detected_at&.strftime("%Y-%m-%d %H:%M") %></td>
               <td class="px-5 py-3 text-sm">
