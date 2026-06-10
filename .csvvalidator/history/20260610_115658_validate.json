@@ -1,0 +1,16 @@
+{
+  "id": "validate_1781063818143956000",
+  "timestamp": "2026-06-10T11:56:58+08:00",
+  "operation": "validate",
+  "schema_file": "examples/schema_users.json",
+  "schema_name": "UserImportSchema",
+  "csv_file": "examples/users_good.csv",
+  "success": true,
+  "total_rows": 5,
+  "error_count": 0,
+  "warning_count": 0,
+  "exit_code": 0,
+  "duration_ms": 1,
+  "user": "xingyaolei",
+  "hostname": "xingyaoleideMacBook-Pro.local"
+}

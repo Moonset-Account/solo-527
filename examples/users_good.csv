@@ -1,0 +1,6 @@
+user_id,username,email,age,role,status,signup_date,website,is_verified,phone
+U001,alice,alice@example.com,28,admin,active,2023-01-15,https://alice.dev,true,13812345678
+U002,bob,bob@example.com,35,editor,active,2023-03-22,https://bob.io,false,13987654321
+U003,charlie,charlie@example.com,22,viewer,inactive,2023-07-10,https://charlie.org,true,13600001111
+U004,diana,diana@example.com,41,editor,active,2022-11-30,https://diana.com,yes,13722223333
+U005,eve,eve@example.com,29,guest,suspended,2024-02-14,,no,13544445555

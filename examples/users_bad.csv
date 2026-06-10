@@ -1,0 +1,6 @@
+user_id,username,email,age,role,status,signup_date,website,is_verified,phone
+U001,alice,alice@example.com,28,admin,active,2023-01-15,https://alice.dev,true,13812345678
+U002,,bob@,abc,SUPERADMIN,2023/03/22,notaurl,maybe,12345
+U001,bob_copy,bob@example.com,35,editor,active,2023-03-22,https://bob.io,false,13987654321
+U004,,bad-email,-10,,suspended,2022-13-40,,,99999
+U006,,another@,200,Viewer,,2023.07.10,https://good.url,Y,13000000000
