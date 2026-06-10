@@ -513,20 +513,25 @@ const ConstructionManagement = () => {
                 <List.Item.Meta
                   title={
                     <Space>
-                      <span>延期提醒</span>
-                      <Tag color="orange">延期 {item.days} 天</Tag>
-                      <Tag color={getStatusColor(item.status)}>{getStatusText(item.status)}</Tag>
+                      {item.reason?.startsWith('巡检不合格') ? (
+                        <Tag color="red">巡检不合格</Tag>
+                      ) : (
+                        <Tag color="orange">延期 {item.days} 天</Tag>
+                      )}
+                      <Tag color={item.status === 'PENDING' ? 'orange' : 'green'}>
+                        {item.status === 'PENDING' ? '待处理' : '已解决'}
+                      </Tag>
                     </Space>
                   }
                   description={
                     <div>
                       <div>项目: {getProjectName(item.projectId)}</div>
                       <div style={{ marginTop: 4 }}>原因: {item.reason || '-'}</div>
+                      <div style={{ marginTop: 4, fontSize: 12, color: '#666' }}>
+                        项目经理：{item.handler || '未指定'}
+                      </div>
                       <div style={{ marginTop: 4, fontSize: 12, color: '#999' }}>
                         提醒时间: {formatDate(item.remindTime || item.createdAt)}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#999' }}>
-                        经手人: {item.handler || '-'}
                       </div>
                     </div>
                   }

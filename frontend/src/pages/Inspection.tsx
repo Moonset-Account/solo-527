@@ -18,7 +18,7 @@ import {
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { InspectionTask, Project, ConstructionStage } from '@/types'
+import type { InspectionTask, Project, ConstructionStage, DelayReminder } from '@/types'
 import { getStatusText, getStatusColor, formatDate, formatDateOnly } from '@/utils'
 import {
   getInspectionTaskList,
@@ -30,6 +30,7 @@ import {
 } from '@/api/inspection'
 import { getProjectList } from '@/api/project'
 import { getConstructionStagesByProject } from '@/api/construction'
+import { getDelayRemindersByProject } from '@/api/delay-reminder'
 import dayjs from 'dayjs'
 
 const { Option } = Select
@@ -49,6 +50,8 @@ const Inspection = () => {
   const [stages, setStages] = useState<ConstructionStage[]>([])
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
   const [statusFilter, setStatusFilter] = useState<string>()
+  const [detailReminders, setDetailReminders] = useState<DelayReminder[]>([])
+  const [reminderLoading, setReminderLoading] = useState(false)
 
   const loadProjects = async () => {
     try {
@@ -169,9 +172,22 @@ const Inspection = () => {
       const response = await getInspectionTaskDetail(record.id)
       setDetailItem(response.data)
       setDrawerVisible(true)
+      loadDetailReminders(record.projectId)
     } catch (error) {
       console.error('获取详情失败', error)
       message.error('获取详情失败')
+    }
+  }
+
+  const loadDetailReminders = async (projectId: number) => {
+    setReminderLoading(true)
+    try {
+      const res = await getDelayRemindersByProject(projectId)
+      setDetailReminders((res.data || []).filter((r: DelayReminder) => r.reason?.startsWith('巡检不合格')))
+    } catch {
+      setDetailReminders([])
+    } finally {
+      setReminderLoading(false)
     }
   }
 
@@ -204,6 +220,7 @@ const Inspection = () => {
         setCompleteModalVisible(false)
         setDrawerVisible(false)
         loadData()
+        loadDetailReminders(detailItem.projectId)
       }
     } catch (error) {
       console.error('处理失败', error)
@@ -433,6 +450,33 @@ const Inspection = () => {
             <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: 4, minHeight: 80 }}>
               {detailItem.rectificationDeadline || '暂无整改要求'}
             </div>
+
+            {detailItem.result === 'FAIL' && (
+              <>
+                <Divider orientation="left">项目经理提醒状态</Divider>
+                {reminderLoading ? (
+                  <div style={{ color: '#999' }}>加载中...</div>
+                ) : detailReminders.length > 0 ? (
+                  detailReminders.map((reminder) => (
+                    <div key={reminder.id} style={{ padding: '12px', background: reminder.status === 'PENDING' ? '#fff7e6' : '#f6ffed', borderRadius: 4, marginBottom: 8, borderLeft: `3px solid ${reminder.status === 'PENDING' ? '#fa8c16' : '#52c41a'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 500 }}>{reminder.reason}</span>
+                        <Tag color={reminder.status === 'PENDING' ? 'orange' : 'green'}>
+                          {reminder.status === 'PENDING' ? '待处理' : '已解决'}
+                        </Tag>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                        项目经理：{reminder.handler || '未指定'}
+                        <span style={{ margin: '0 8px' }}>|</span>
+                        提醒时间：{formatDate(reminder.remindTime || '')}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ color: '#999' }}>暂无关联提醒</div>
+                )}
+              </>
+            )}
           </div>
         )}
       </Drawer>

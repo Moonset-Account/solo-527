@@ -383,27 +383,38 @@ const ProjectDetail = () => {
         {delayReminders.length > 0 ? (
           <List
             dataSource={delayReminders}
-            renderItem={(item) => (
-              <List.Item>
-                <List.Item.Meta
-                  title={
-                    <Space>
-                      <span>延期 {item.days} 天</span>
-                      <Tag color={getStatusColor(item.status)}>{getStatusText(item.status)}</Tag>
-                    </Space>
-                  }
-                  description={
-                    <div>
-                      <p style={{ margin: '4px 0' }}>原因：{item.reason || '暂无'}</p>
-                      <p style={{ margin: '4px 0', color: '#999', fontSize: 12 }}>
-                        提醒时间：{formatDate(item.remindTime || '')}
-                        {item.handler && ` · 处理人：${item.handler}`}
-                      </p>
-                    </div>
-                  }
-                />
-              </List.Item>
-            )}
+            renderItem={(item) => {
+              const isFromInspection = item.reason?.startsWith('巡检不合格')
+              return (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        {isFromInspection ? (
+                          <Tag color="red">巡检不合格</Tag>
+                        ) : (
+                          <Tag color="orange">延期 {item.days} 天</Tag>
+                        )}
+                        <Tag color={item.status === 'PENDING' ? 'orange' : 'green'}>
+                          {item.status === 'PENDING' ? '待处理' : '已解决'}
+                        </Tag>
+                      </Space>
+                    }
+                    description={
+                      <div>
+                        <p style={{ margin: '4px 0' }}>原因：{item.reason || '暂无'}</p>
+                        <p style={{ margin: '4px 0', color: '#666', fontSize: 12 }}>
+                          项目经理：{item.handler || '未指定'}
+                        </p>
+                        <p style={{ margin: '4px 0', color: '#999', fontSize: 12 }}>
+                          提醒时间：{formatDate(item.remindTime || '')}
+                        </p>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )
+            }}
           />
         ) : <Empty description="暂无延期提醒" />}
       </Card>

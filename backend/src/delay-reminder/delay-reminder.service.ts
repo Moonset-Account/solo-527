@@ -55,6 +55,14 @@ export class DelayReminderService {
     });
   }
 
+  async findByProjectAndStage(projectId: number, stageId?: number): Promise<DelayReminder | null> {
+    const where: any = { projectId, status: DelayReminderStatus.PENDING };
+    if (stageId) {
+      where.stageId = stageId;
+    }
+    return this.delayReminderRepository.findOne({ where });
+  }
+
   async create(createDto: CreateDelayReminderDto): Promise<DelayReminder> {
     const reminder = this.delayReminderRepository.create({
       ...createDto,

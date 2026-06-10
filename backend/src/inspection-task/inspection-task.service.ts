@@ -121,13 +121,27 @@ export class InspectionTaskService {
   }
 
   private async notifyProjectManager(task: InspectionTask): Promise<void> {
+    let projectManager: string | undefined;
+    try {
+      const project = await this.projectService.findOne(task.projectId);
+      projectManager = project.projectManager || undefined;
+    } catch {}
+
+    const existing = await this.delayReminderService.findByProjectAndStage(
+      task.projectId,
+      task.stageId,
+    );
+    if (existing) {
+      return;
+    }
+
     await this.delayReminderService.create({
       projectId: task.projectId,
       stageId: task.stageId,
       reason: `巡检不合格：${task.title} - ${task.issues || '无详细说明'}`,
       days: 0,
       status: DelayReminderStatus.PENDING,
-      handler: task.inspector || undefined,
+      handler: projectManager,
     });
   }
 }
