@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ReachLog, ReachLogDocument } from './reach-log.schema';
 import { ReachType, ReachStatus } from '../../common/enums';
+import { DEFAULT_MEMBERS } from '../../common/constants/default-members';
 
 @Injectable()
 export class ReachLogService {
@@ -24,17 +25,11 @@ export class ReachLogService {
         { name: '积分到期提醒', id: 'TPL004' },
         { name: '会员升级通知', id: 'TPL005' },
       ];
-      const members = [
-        { name: '张美丽', phone: '13900000001', id: '650000000000000000000001' },
-        { name: '李小花', phone: '13900000002', id: '650000000000000000000002' },
-        { name: '王芳芳', phone: '13900000003', id: '650000000000000000000003' },
-        { name: '赵雅婷', phone: '13900000004', id: '650000000000000000000004' },
-      ];
       const operators = ['小王', '小李', '系统自动'];
 
       const records = [];
       for (let i = 0; i < 25; i++) {
-        const member = members[Math.floor(Math.random() * members.length)];
+        const member = DEFAULT_MEMBERS[Math.floor(Math.random() * DEFAULT_MEMBERS.length)];
         const type = types[Math.floor(Math.random() * types.length)];
         const tpl = templates[Math.floor(Math.random() * templates.length)];
         const statusIdx = Math.floor(Math.random() * statuses.length);
@@ -44,7 +39,7 @@ export class ReachLogService {
         records.push({
           logNo: `RL${Date.now()}${i.toString().padStart(5, '0')}`,
           type,
-          memberId: new Types.ObjectId(member.id),
+          memberId: new Types.ObjectId(member._id),
           memberName: member.name,
           memberPhone: member.phone,
           templateId: tpl.id,

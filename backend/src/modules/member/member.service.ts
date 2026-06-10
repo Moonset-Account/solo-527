@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Member, MemberDocument } from './member.schema';
 import { MemberLevel } from '../../common/enums';
+import { DEFAULT_MEMBERS } from '../../common/constants/default-members';
 import { LevelService } from '../level/level.service';
 
 @Injectable()
@@ -28,11 +29,13 @@ export class MemberService {
         { memberNo: 'M20240008', name: '周佳怡', phone: '13900000008', level: MemberLevel.PLATINUM, totalPoints: 22000, availablePoints: 8500, totalConsumption: 8500, orderCount: 28, storeId: 'store001', storeName: '青禾美妆-南京路店' },
       ];
       const now = new Date();
-      for (const m of members) {
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i];
         const daysAgo = Math.floor(Math.random() * 365);
         const registerTime = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
         const lastActive = new Date(now.getTime() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000);
         await this.memberModel.create({
+          _id: new Types.ObjectId(DEFAULT_MEMBERS[i]._id),
           ...m,
           registerTime,
           lastActiveTime: lastActive,

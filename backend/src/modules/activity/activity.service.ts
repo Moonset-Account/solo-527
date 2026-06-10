@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ActivityRecord, ActivityRecordDocument } from './activity.schema';
 import { ActivityType } from '../../common/enums';
+import { DEFAULT_MEMBERS } from '../../common/constants/default-members';
 
 @Injectable()
 export class ActivityService {
@@ -15,13 +16,6 @@ export class ActivityService {
     if (count === 0) {
       const now = new Date();
       const types = [ActivityType.LOGIN, ActivityType.PURCHASE, ActivityType.SIGNIN, ActivityType.BROWSE, ActivityType.SHARE];
-      const members = [
-        { name: '张美丽', phone: '13900000001', id: '650000000000000000000001' },
-        { name: '李小花', phone: '13900000002', id: '650000000000000000000002' },
-        { name: '王芳芳', phone: '13900000003', id: '650000000000000000000003' },
-        { name: '赵雅婷', phone: '13900000004', id: '650000000000000000000004' },
-        { name: '陈思琪', phone: '13900000005', id: '650000000000000000000005' },
-      ];
       const products = [
         { name: '水润保湿精华液', id: 'P001' },
         { name: '丝绒哑光口红', id: 'P002' },
@@ -32,7 +26,7 @@ export class ActivityService {
 
       const records = [];
       for (let i = 0; i < 50; i++) {
-        const member = members[Math.floor(Math.random() * members.length)];
+        const member = DEFAULT_MEMBERS[Math.floor(Math.random() * DEFAULT_MEMBERS.length)];
         const typeIdx = Math.floor(Math.random() * types.length);
         const type = types[typeIdx];
         const product = products[Math.floor(Math.random() * products.length)];
@@ -40,7 +34,7 @@ export class ActivityService {
 
         records.push({
           activityNo: `ACT${Date.now()}${i.toString().padStart(5, '0')}`,
-          memberId: new Types.ObjectId(member.id),
+          memberId: new Types.ObjectId(member._id),
           memberName: member.name,
           memberPhone: member.phone,
           type,

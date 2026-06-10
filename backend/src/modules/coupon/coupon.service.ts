@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Coupon, CouponDocument } from './coupon.schema';
 import { CouponStatus, CouponType } from '../../common/enums';
+import { DEFAULT_MEMBERS } from '../../common/constants/default-members';
 
 @Injectable()
 export class CouponService {
@@ -25,18 +26,17 @@ export class CouponService {
         { couponNo: 'CP20240008', name: '复购满150减30券', type: CouponType.REPURCHASE, value: 30, threshold: 150, status: CouponStatus.USED, usedTime: new Date(now.getTime() - 2 * 24 * 3600 * 1000) },
       ];
 
-      const members = ['张美丽', '李小花', '王芳芳', '赵雅婷', '陈思琪', '刘梦瑶', '孙雨萱', '周佳怡'];
-      const phones = ['13900000001', '13900000002', '13900000003', '13900000004', '13900000005', '13900000006', '13900000007', '13900000008'];
       const persons = ['小王', '小李', '小张', '小陈'];
 
       for (let i = 0; i < coupons.length; i++) {
+        const member = DEFAULT_MEMBERS[i % DEFAULT_MEMBERS.length];
         const validFrom = new Date(now.getTime() - Math.floor(Math.random() * 30) * 24 * 3600 * 1000);
         const validTo = new Date(now.getTime() + (30 + Math.floor(Math.random() * 60)) * 24 * 3600 * 1000);
         await this.couponModel.create({
           ...coupons[i],
-          memberId: new Types.ObjectId(),
-          memberName: members[i],
-          memberPhone: phones[i],
+          memberId: new Types.ObjectId(member._id),
+          memberName: member.name,
+          memberPhone: member.phone,
           validFrom,
           validTo,
           storeId: 'store001',

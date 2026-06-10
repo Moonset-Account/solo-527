@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { PointsRecord, PointsRecordDocument } from './points.schema';
 import { PointsType } from '../../common/enums';
+import { DEFAULT_MEMBERS } from '../../common/constants/default-members';
 
 @Injectable()
 export class PointsService {
@@ -16,22 +17,15 @@ export class PointsService {
       const now = new Date();
       const types = [PointsType.EARN, PointsType.CONSUME, PointsType.EARN, PointsType.EARN, PointsType.CONSUME];
       const sources = ['购物消费', '积分兑换', '签到奖励', '活动赠送', '生日双倍'];
-      const members = [
-        { name: '张美丽', phone: '13900000001', id: '650000000000000000000001' },
-        { name: '李小花', phone: '13900000002', id: '650000000000000000000002' },
-        { name: '王芳芳', phone: '13900000003', id: '650000000000000000000003' },
-        { name: '赵雅婷', phone: '13900000004', id: '650000000000000000000004' },
-        { name: '陈思琪', phone: '13900000005', id: '650000000000000000000005' },
-      ];
 
       const records = [];
       for (let i = 0; i < 20; i++) {
-        const member = members[Math.floor(Math.random() * members.length)];
+        const member = DEFAULT_MEMBERS[Math.floor(Math.random() * DEFAULT_MEMBERS.length)];
         const typeIdx = Math.floor(Math.random() * types.length);
         const points = typeIdx === 1 ? -Math.floor(Math.random() * 500 + 50) : Math.floor(Math.random() * 1000 + 10);
         records.push({
           recordNo: `PT${Date.now()}${i.toString().padStart(4, '0')}`,
-          memberId: new Types.ObjectId(member.id),
+          memberId: new Types.ObjectId(member._id),
           memberName: member.name,
           memberPhone: member.phone,
           type: types[typeIdx],

@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { RedeemRecord, RedeemRecordDocument } from './redeem.schema';
 import { RedeemStatus } from '../../common/enums';
+import { DEFAULT_MEMBERS } from '../../common/constants/default-members';
 
 @Injectable()
 export class RedeemService {
@@ -16,23 +17,17 @@ export class RedeemService {
       const now = new Date();
       const benefits = ['生日双倍积分券', '9折折扣券', '50元现金券', '免费试用装', '专属美容服务'];
       const statuses = [RedeemStatus.SUCCESS, RedeemStatus.SUCCESS, RedeemStatus.PENDING, RedeemStatus.FAILED, RedeemStatus.SUCCESS];
-      const members = [
-        { name: '张美丽', phone: '13900000001', id: '650000000000000000000001' },
-        { name: '李小花', phone: '13900000002', id: '650000000000000000000002' },
-        { name: '王芳芳', phone: '13900000003', id: '650000000000000000000003' },
-        { name: '赵雅婷', phone: '13900000004', id: '650000000000000000000004' },
-      ];
       const operators = ['小王', '小李', '小张'];
 
       const records = [];
       for (let i = 0; i < 15; i++) {
-        const member = members[Math.floor(Math.random() * members.length)];
+        const member = DEFAULT_MEMBERS[Math.floor(Math.random() * DEFAULT_MEMBERS.length)];
         const benefitIdx = Math.floor(Math.random() * benefits.length);
         const status = statuses[benefitIdx];
         const redeemTime = new Date(now.getTime() - Math.floor(Math.random() * 60) * 24 * 3600 * 1000);
         records.push({
           redeemNo: `RM${Date.now()}${i.toString().padStart(4, '0')}`,
-          memberId: new Types.ObjectId(member.id),
+          memberId: new Types.ObjectId(member._id),
           memberName: member.name,
           memberPhone: member.phone,
           benefitName: benefits[benefitIdx],
