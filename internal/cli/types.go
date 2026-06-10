@@ -46,6 +46,7 @@ type Config struct {
 	VersionFlag  bool
 	HelpFlag     bool
 	FailOnError  bool
+	JSONFlag     bool
 }
 
 func DefaultConfig() *Config {
@@ -69,6 +70,7 @@ func DefaultConfig() *Config {
 		VersionFlag:  false,
 		HelpFlag:     false,
 		FailOnError:  false,
+		JSONFlag:     false,
 	}
 }
 

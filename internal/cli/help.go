@@ -29,18 +29,19 @@ func FullHelpText() string {
 
 输出控制:
   -f, --format <fmt>        输出格式: text (默认) | json
-  -o, --output <path>       写入文件而非 stdout
-  -n, --top <N>             显示前 N 个错误聚类 (默认 10)
-  -C, --context <N>         每个匹配前后上下文行数 (默认 2)
-  --clusters=<bool>         是否启用错误聚类 (默认 true)
+  -j, --json               等同于 --format json (便捷写法)
+  -o, --output <path>      写入文件而非 stdout
+  -n, --top <N>            显示前 N 个错误聚类 (默认 10)
+  -C, --context <N>          每个匹配前后上下文行数 (默认 2)
+  --clusters=<bool>          是否启用错误聚类 (默认 true)
   -e, --errors-only=<bool>  仅 ERROR/FATAL 级别 (默认 true)
-  --fail-on-errors          发现错误条目时以退出码 99 退出
+  --fail-on-errors         发现错误条目时以退出码 99 退出
 
 杂项:
-  -v, --version             显示版本信息
-  -h, --help                显示此帮助
-  --verbose                 打开详细调试输出
-  --quiet                   只输出报告，不输出进度
+  -v, --version            显示版本信息
+  -h, --help               显示此帮助
+  --verbose                打开详细调试输出
+  -q, --quiet              只输出报告，不输出进度
 
 退出码:
   0   成功，无错误条目 (或关闭 errors-only)
@@ -53,17 +54,20 @@ func FullHelpText() string {
 
 示例:
   # 1) 最近 2 小时的 user-svc 和 order-svc 错误，JSON 导出
-  logsum --since 2h --service user-svc,order-svc -f json -o report.json /var/log/app/*.log
+  logsum --since 2h --service user-svc,order-svc --json -o report.json /var/log/app/*.log
 
   # 2) 指定时间段全量服务，只看 request-id，附 5 行上下文
   logsum --since-time "2026-06-09 09:00:00" --until "2026-06-09 18:00:00" \
          --request-id abc-123 --context 5 /var/log/svc.log
 
-  # 3) 管道 + stderr 重定向，给自动化脚本用
-  kubectl logs -n prod deploy/api | logsum - -f json --fail-on-errors > /tmp/err.json; echo $?
+  # 3) 管道 + stderr 重定向，给自动化脚本用（flags 写在最前）
+  kubectl logs -n prod deploy/api | logsum --json --fail-on-errors - > /tmp/err.json; echo $?
 
   # 4) 只看 WARN 及以上（关闭 errors-only），前 20 聚类
   logsum --level WARN,ERROR,FATAL --errors-only=false -n 20 ./app.log
+
+  # 5) 直接 --json 便捷写法
+  logsum --json ./app.log | jq '.stats'
 
 项目:
   源码及最新文档: https://github.com/backend-ops/logsum

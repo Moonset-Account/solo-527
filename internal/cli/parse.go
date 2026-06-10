@@ -112,6 +112,8 @@ func (p *Parser) registerFlags() {
 
 	fs.StringVar(p.formatStr, "format", "text", "Output format: text or json")
 	fs.StringVar(p.formatStr, "f", "text", "Output format (shorthand)")
+	fs.BoolVar(&cfg.JSONFlag, "json", false, "Shorthand for --format json")
+	fs.BoolVar(&cfg.JSONFlag, "j", false, "Shorthand for --format json (shorthand)")
 
 	fs.StringVar(&cfg.Output, "output", "", "Write output to file instead of stdout")
 	fs.StringVar(&cfg.Output, "o", "", "Write output to file (shorthand)")
@@ -128,6 +130,7 @@ func (p *Parser) registerFlags() {
 
 	fs.BoolVar(&cfg.Verbose, "verbose", false, "Enable verbose output (debug logs)")
 	fs.BoolVar(&cfg.Quiet, "quiet", false, "Suppress all non-essential output")
+	fs.BoolVar(&cfg.Quiet, "q", false, "Suppress all non-essential output (shorthand)")
 
 	fs.BoolVar(&cfg.FailOnError, "fail-on-errors", false, "Exit with code 99 if any errors are found")
 
@@ -137,16 +140,20 @@ func (p *Parser) registerFlags() {
 }
 
 func (p *Parser) Parse(args []string) (*Config, error) {
-	if err := p.flagSet.Parse(args); err != nil {
+	cleanArgs, stdinTokens := preprocessArgs(args)
+	if err := p.flagSet.Parse(cleanArgs); err != nil {
 		return nil, err
 	}
 	cfg := p.cfg
-	cfg.Inputs = p.flagSet.Args()
+	cfg.Inputs = append(p.flagSet.Args(), stdinTokens...)
 
 	if *p.formatStr != "" {
 		cfg.Format = OutputFormat(strings.ToLower(*p.formatStr))
 	} else {
 		cfg.Format = FormatText
+	}
+	if cfg.JSONFlag {
+		cfg.Format = FormatJSON
 	}
 	if *p.sinceStr != "" {
 		t, err := ParseTime(*p.sinceStr)
@@ -164,6 +171,19 @@ func (p *Parser) Parse(args []string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func preprocessArgs(args []string) ([]string, []string) {
+	stdin := make([]string, 0, 1)
+	clean := make([]string, 0, len(args))
+	for _, a := range args {
+		if a == "-" {
+			stdin = append(stdin, a)
+		} else {
+			clean = append(clean, a)
+		}
+	}
+	return clean, stdin
 }
 
 func ParseArgs(args []string, errOut io.Writer) (*Config, error) {

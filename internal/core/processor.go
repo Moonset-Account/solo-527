@@ -10,16 +10,17 @@ import (
 )
 
 type RunStats struct {
-	StartedAt      time.Time
-	FinishedAt     time.Time
-	Inputs         []string
-	TotalLines     int
-	ParsedEntries  int
-	ParseErrors    int
-	MatchedEntries int
-	Filter         *FilterOptions
-	Clusters       *ClusterStats
-	Windows        []*ContextWindow
+	StartedAt       time.Time
+	FinishedAt      time.Time
+	Inputs          []string
+	TotalLines      int
+	ParsedEntries   int
+	ParseErrors     int
+	MatchedEntries  int
+	MatchedErrorCount int
+	Filter          *FilterOptions
+	Clusters        *ClusterStats
+	Windows         []*ContextWindow
 }
 
 type Processor struct {
@@ -144,7 +145,12 @@ func (p *Processor) Run(opts RunOpts) (*RunStats, error) {
 	stats.Filter = opts.Filter
 	matched := ApplyFilter(entries, opts.Filter)
 	stats.MatchedEntries = len(matched)
-	p.logf("matched %d entries after filter", len(matched))
+	for _, e := range matched {
+		if e.Level == logparser.LevelError || e.Level == logparser.LevelFatal {
+			stats.MatchedErrorCount++
+		}
+	}
+	p.logf("matched %d entries after filter (%d ERROR/FATAL)", len(matched), stats.MatchedErrorCount)
 
 	if opts.DoCluster || opts.MaxSamples == 0 {
 		opts.MaxSamples = 5

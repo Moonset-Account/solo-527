@@ -155,7 +155,7 @@ func run(args []string) cli.ExitCode {
 		}
 	}
 
-	if cfg.FailOnError && stats.MatchedEntries > 0 {
+	if cfg.FailOnError && stats.MatchedErrorCount > 0 {
 		return cli.ExitErrorsFound
 	}
 	if stats.MatchedEntries == 0 {
