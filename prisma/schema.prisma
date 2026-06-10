@@ -1,0 +1,363 @@
+// Prisma schema for SaaS Billing Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PlanInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  UNPAID
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  UNCOLLECTIBLE
+  VOID
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum InvoiceItemType {
+  SUBSCRIPTION
+  SETUP_FEE
+  USAGE
+  SEAT
+  DISCOUNT
+  CREDIT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+  FAILED
+}
+
+enum RefundReasonCode {
+  PRICE_TOO_HIGH
+  MISSING_FEATURES
+  CUSTOMER_SERVICE
+  BUGS
+  TOO_COMPLEX
+  BETTER_ALTERNATIVE
+  BUSINESS_NEEDS_CHANGE
+  OTHER
+}
+
+enum ChangeLogType {
+  UPGRADE
+  DOWNGRADE
+  CANCEL
+  REACTIVATE
+  SEAT_CHANGE
+  PLAN_CHANGE
+  TRIAL_CONVERT
+}
+
+enum TrialStatus {
+  ACTIVE
+  EXPIRED
+  CONVERTED
+  CANCELLED
+}
+
+enum ThresholdNotificationType {
+  EMAIL
+  IN_APP
+  BOTH
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  role          UserRole  @default(USER)
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  refunds       Refund[]
+  seats         Seat[]
+  trials        Trial[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Plan {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal        @db.Decimal(10, 2)
+  interval    PlanInterval   @default(MONTHLY)
+  seatLimit   Int            @default(1)
+  trialDays   Int            @default(14)
+  status      PlanStatus     @default(ACTIVE)
+  features    String[]
+  sortOrder   Int            @default(0)
+  isPopular   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  subscriptions    Subscription[]
+  planVersions     PlanVersion[]
+  usageThresholds  UsageThreshold[]
+  trials           Trial[]
+
+  @@index([status])
+  @@index([interval])
+}
+
+model PlanVersion {
+  id        String   @id @default(cuid())
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  price     Decimal  @db.Decimal(10, 2)
+  changes   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([planId])
+}
+
+model Subscription {
+  id                  String              @id @default(cuid())
+  userId              String
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId              String
+  plan                Plan                @relation(fields: [planId], references: [id])
+  status              SubscriptionStatus  @default(INCOMPLETE)
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  trialStart          DateTime?
+  trialEnd            DateTime?
+  trialUsed           Boolean             @default(false)
+  seatsIncluded       Int                 @default(1)
+  cancelAtPeriodEnd   Boolean             @default(false)
+  canceledAt          DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  invoices   Invoice[]
+  seats      Seat[]
+  changeLogs ChangeLog[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId  String?
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+  amount          Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  status          InvoiceStatus @default(DRAFT)
+  dueDate         DateTime?
+  paidAt          DateTime?
+  billingPeriod   String?
+  invoiceNumber   String
+  currency        String        @default("CNY")
+  description     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items    InvoiceItem[]
+  payments Payment[]
+  refunds  Refund[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@index([createdAt])
+}
+
+model InvoiceItem {
+  id          String          @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  quantity    Int             @default(1)
+  type        InvoiceItemType @default(SUBSCRIPTION)
+  unitPrice   Decimal?        @db.Decimal(10, 2)
+  createdAt   DateTime        @default(now())
+
+  @@index([invoiceId])
+  @@index([type])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount      Decimal       @db.Decimal(10, 2)
+  method      String
+  status      PaymentStatus @default(PENDING)
+  transactionId String?
+  failureReason String?
+  createdAt   DateTime      @default(now())
+
+  @@index([invoiceId])
+  @@index([status])
+  @@index([transactionId])
+}
+
+model Seat {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  email          String
+  name           String?
+  role           String?  @default("member")
+  status         String   @default("invited")
+  invitedAt      DateTime @default(now())
+  activatedAt    DateTime?
+  lastActiveAt   DateTime?
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([email])
+  @@index([status])
+}
+
+model Refund {
+  id            String         @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  amount        Decimal        @db.Decimal(10, 2)
+  reasonCode    RefundReasonCode
+  reason        String
+  note          String?
+  status        RefundStatus   @default(PENDING)
+  reviewNote    String?
+  reviewedAt    DateTime?
+  reviewedById  String?
+  processedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([invoiceId])
+  @@index([userId])
+  @@index([status])
+  @@index([reasonCode])
+  @@index([createdAt])
+}
+
+model ChangeLog {
+  id             String        @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  type           ChangeLogType
+  oldPlanId      String?
+  newPlanId      String?
+  oldValue       String?
+  newValue       String?
+  note           String?
+  result         String?
+  changedBy      String?
+  createdAt      DateTime      @default(now())
+
+  @@index([subscriptionId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Trial {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId      String
+  plan        Plan        @relation(fields: [planId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  status      TrialStatus @default(ACTIVE)
+  converted   Boolean     @default(false)
+  convertedAt DateTime?
+  reminderSent Boolean    @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model UsageThreshold {
+  id                 String                  @id @default(cuid())
+  planId             String
+  plan               Plan                    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  metric             String
+  threshold          Int
+  warningPercent     Int                     @default(80)
+  notificationType   ThresholdNotificationType @default(IN_APP)
+  isEnabled          Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@index([planId])
+  @@index([metric])
+}
+
+model BillingRule {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String
+  isEnabled Boolean  @default(true)
+  note      String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([key])
+}
