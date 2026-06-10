@@ -16,7 +16,7 @@ function buildProgram() {
   递归扫描 Markdown 文件，校验相对链接、标题锚点、图片引用和外部 URL。
   支持配置文件、忽略规则、多种输出格式，并可在 CI 中通过退出码判断结果。`
     )
-    .version('1.0.0', '-v, --version', '显示版本号')
+    .version('1.0.0', '-V, --version', '显示版本号')
     .helpOption('-h, --help', '显示此帮助信息')
     .configureOutput({
       outputError: (str, write) => write(str.replace(/^error: /i, ''))
@@ -31,25 +31,27 @@ function buildProgram() {
     .description(
 `扫描目录中的 Markdown 文件并检查所有链接
   示例:
-    md-link-checker scan                                # 扫描当前目录
-    md-link-checker scan --root ./docs --format json    # JSON 输出
-    md-link-checker scan --preview                      # 先预览再确认
+    md-link-checker scan                                      # 扫描当前目录
+    md-link-checker scan --root ./docs --format json          # JSON 输出
+    md-link-checker scan --preview                            # 先预览再确认
     md-link-checker scan --ignore "*.pdf" --ignore-file legacy.md
-    md-link-checker --timeout 10000 --concurrency 16 scan`
+    md-link-checker --timeout 10000 --concurrency 16 scan
+    md-link-checker scan --check-external false               # 离线模式（不请求网络）
+    md-link-checker scan --check-anchors false                # 跳过锚点检查`
     )
     .addOption(new Option('-r, --root <path>', '扫描根目录').default(undefined, 'process.cwd()'))
-    .addOption(new Option('-t, --timeout <ms>', '外部链接超时时间 (毫秒)', parsePositiveInt).default(undefined, '5000'))
+    .addOption(new Option('-t, --timeout <ms>', '外部链接超时时间 (毫秒)').argParser(parsePositiveInt).default(undefined, '5000'))
     .addOption(new Option('-f, --format <fmt>', '输出格式', ['text', 'json', 'markdown']).default(undefined, 'text'))
     .addOption(new Option('-o, --output <file>', '将报告写入文件'))
-    .addOption(new Option('-c, --concurrency <n>', '并发检查数 (外链)', parsePositiveInt).default(undefined, '8'))
-    .addOption(new Option('-i, --ignore <patterns>', '忽略链接 (逗号分隔或多次指定)', collectMulti).argParser((v, p = []) => [...p, ...v.split(',')]))
-    .addOption(new Option('--ignore-pattern <regex>', '忽略链接的正则 (多次指定)', collectMulti))
-    .addOption(new Option('--ignore-file <patterns>', '忽略文件 (逗号分隔)', collectMulti).argParser((v, p = []) => [...p, ...v.split(',')]))
-    .addOption(new Option('--ext <exts>', '扫描的文件扩展名 (逗号分隔)', collectMulti).argParser((v, p = []) => [...p, ...v.split(',')]))
-    .addOption(new Option('--no-check-anchors', '不检查内部锚点 (#xxx)'))
-    .addOption(new Option('--no-check-external', '不检查外部 URL (离线模式)'))
-    .addOption(new Option('--no-check-images', '不检查图片引用'))
-    .addOption(new Option('--no-recursive', '不递归子目录'))
+    .addOption(new Option('-c, --concurrency <n>', '并发检查数 (外链)').argParser(parsePositiveInt).default(undefined, '8'))
+    .addOption(new Option('-i, --ignore <patterns>', '忽略链接 (逗号分隔或多次指定)').argParser((v, p = []) => [...p, ...v.split(',')]))
+    .addOption(new Option('--ignore-pattern <regex>', '忽略链接的正则 (多次指定)').argParser(collectMulti))
+    .addOption(new Option('--ignore-file <patterns>', '忽略文件 (逗号分隔)').argParser((v, p = []) => [...p, ...v.split(',')]))
+    .addOption(new Option('--ext <exts>', '扫描的文件扩展名 (逗号分隔)').argParser((v, p = []) => [...p, ...v.split(',')]))
+    .addOption(new Option('--check-anchors <bool>', '检查内部锚点 (#xxx): true/false (默认读配置文件，回退 true)').argParser(parseBoolArg))
+    .addOption(new Option('--check-external <bool>', '检查外部 URL: true/false (默认读配置文件，回退 true)').argParser(parseBoolArg))
+    .addOption(new Option('--check-images <bool>', '检查图片引用: true/false (默认读配置文件，回退 true)').argParser(parseBoolArg))
+    .addOption(new Option('--recursive <bool>', '递归子目录: true/false (默认读配置文件，回退 true)').argParser(parseBoolArg))
     .addOption(new Option('-n, --dry-run', '只预览不实际执行'))
     .addOption(new Option('-p, --preview', '先显示扫描范围再确认执行'))
     .addOption(new Option('-y, --yes', '危险操作自动确认 (非交互环境使用)'))
@@ -89,16 +91,16 @@ function buildProgram() {
     .addOption(new Option('-C, --config <file>', '指定配置文件路径'))
     .addOption(new Option('-f, --format <fmt>', '输出格式', ['text', 'json']).default('text'))
     .addOption(new Option('--output-format <fmt>', '等同于 --format'))
-    .addOption(new Option('-t, --timeout <ms>', '', parsePositiveInt))
-    .addOption(new Option('--concurrency <n>', '', parsePositiveInt))
-    .addOption(new Option('-i, --ignore <patterns>', '', collectMulti))
-    .addOption(new Option('--ignore-pattern <regex>', '', collectMulti))
-    .addOption(new Option('--ignore-file <patterns>', '', collectMulti))
-    .addOption(new Option('--ext <exts>', '', collectMulti))
-    .addOption(new Option('--check-anchors <bool>'))
-    .addOption(new Option('--check-external <bool>'))
-    .addOption(new Option('--check-images <bool>'))
-    .addOption(new Option('--recursive <bool>'))
+    .addOption(new Option('-t, --timeout <ms>', '').argParser(parsePositiveInt))
+    .addOption(new Option('--concurrency <n>', '').argParser(parsePositiveInt))
+    .addOption(new Option('-i, --ignore <patterns>', '').argParser((v, p = []) => [...p, ...v.split(',')]))
+    .addOption(new Option('--ignore-pattern <regex>', '').argParser(collectMulti))
+    .addOption(new Option('--ignore-file <patterns>', '').argParser((v, p = []) => [...p, ...v.split(',')]))
+    .addOption(new Option('--ext <exts>', '').argParser(collectMulti))
+    .addOption(new Option('--check-anchors <bool>', '').argParser(parseBoolArg))
+    .addOption(new Option('--check-external <bool>', '').argParser(parseBoolArg))
+    .addOption(new Option('--check-images <bool>', '').argParser(parseBoolArg))
+    .addOption(new Option('--recursive <bool>', '').argParser(parseBoolArg))
     .addOption(new Option('--log-level <level>', '', ['debug', 'info', 'warn', 'error', 'silent']))
     .addOption(new Option('-v, --verbose'))
     .addOption(new Option('-q, --quiet'))
@@ -152,6 +154,15 @@ function parsePositiveInt(value) {
     throw new Error(`必须是正整数，收到: ${value}`);
   }
   return parsed;
+}
+
+function parseBoolArg(value) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'boolean') return value;
+  const v = String(value).toLowerCase().trim();
+  if (['true', '1', 'yes', 'y', 'on'].includes(v)) return true;
+  if (['false', '0', 'no', 'n', 'off'].includes(v)) return false;
+  throw new Error(`布尔参数必须是 true/false/1/0，收到: ${value}`);
 }
 
 function collectMulti(value, previous = []) {
