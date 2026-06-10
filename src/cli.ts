@@ -103,10 +103,11 @@ async function main() {
     process.exit(2);
   }
 
-  const opts = program.opts() as CliArgs & {
+  interface ProgramOpts extends CliArgs {
     pattern?: string;
     placeholderPattern?: string;
-  };
+  }
+  const opts = program.opts<ProgramOpts>();
 
   const args: CliArgs = {
     ...opts,
@@ -125,13 +126,14 @@ async function main() {
 
     process.exit(result.exitCode);
   } catch (err) {
-    const message = (err as Error).message;
+    const error = err as Error;
+    const message = error.message;
     console.error('');
     console.error(pc.red(pc.bold('✖ 运行失败')));
     console.error(pc.red(`  ${message}`));
-    if (args.verbose && (err as Error).stack) {
+    if (args.verbose && error.stack) {
       console.error('');
-      console.error(pc.gray((err as Error).stack!));
+      console.error(pc.gray(error.stack));
     }
     console.error('');
     console.error(pc.gray('使用 i18n-diff --help 查看完整帮助'));

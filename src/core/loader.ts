@@ -3,6 +3,15 @@ import { resolve, join } from 'path';
 import type { FlatLocaleFile, Locale, LocaleFile, TranslationValue } from '../types';
 import { withRetry } from '../utils/concurrency';
 
+function isNestedObject(val: unknown): val is LocaleFile {
+  return (
+    typeof val === 'object' &&
+    val !== null &&
+    !('value' in val) &&
+    !('status' in val)
+  );
+}
+
 function normalizeValue(raw: string | TranslationValue): TranslationValue {
   if (typeof raw === 'string') {
     return { value: raw };
@@ -23,15 +32,10 @@ function flattenObject(
 ): FlatLocaleFile {
   for (const [key, val] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (
-      typeof val === 'object' &&
-      val !== null &&
-      !('value' in val) &&
-      !('status' in val)
-    ) {
-      flattenObject(val as LocaleFile, fullKey, result);
+    if (isNestedObject(val)) {
+      flattenObject(val, fullKey, result);
     } else {
-      result[fullKey] = normalizeValue(val as string | TranslationValue);
+      result[fullKey] = normalizeValue(val);
     }
   }
   return result;
@@ -52,6 +56,7 @@ export async function loadLocaleFile(
   const filePath = resolveFilePath(localeDir, filePattern, locale);
 
   return withRetry(
+    // eslint-disable-next-line @typescript-eslint/require-await
     async () => {
       if (!existsSync(filePath)) {
         throw new Error(`语言包文件不存在: ${filePath}`);
@@ -66,7 +71,7 @@ export async function loadLocaleFile(
 
       let parsed: LocaleFile;
       try {
-        parsed = JSON.parse(raw);
+        parsed = JSON.parse(raw) as LocaleFile;
       } catch (err) {
         const match = (err as Error).message.match(/position (\d+)/);
         const pos = match ? parseInt(match[1], 10) : -1;

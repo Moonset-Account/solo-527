@@ -36,7 +36,7 @@ export async function runWithConcurrency<T, R>(
   worker: (item: T, index: number) => Promise<R>,
   concurrency: number
 ): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: R[] = Array.from<R>({ length: items.length });
   let currentIndex = 0;
 
   const safeConcurrency = Math.max(1, Math.min(concurrency, items.length || 1));

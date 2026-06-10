@@ -183,6 +183,7 @@ export function resolveOptions(cliArgs: CliArgs): CheckOptions & { configUsed: s
   if (cliArgs.length !== undefined) opts.includeLength = cliArgs.length;
   if (cliArgs.status !== undefined) opts.includeStatus = cliArgs.status;
   if (cliArgs.valueDiff !== undefined) opts.includeValueDiff = cliArgs.valueDiff;
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (cliArgs.allChecks || (cliArgs as { all?: boolean }).all) {
     opts.includeMissing = true;
     opts.includeExtra = true;
@@ -193,6 +194,7 @@ export function resolveOptions(cliArgs: CliArgs): CheckOptions & { configUsed: s
   }
   if (cliArgs.json) opts.reportFormat = 'json';
   if (cliArgs.csv) opts.reportFormat = 'csv';
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if (cliArgs.md || (cliArgs as { markdown?: boolean }).markdown) opts.reportFormat = 'markdown';
   if (cliArgs.output) opts.outputFile = cliArgs.output;
   if (cliArgs.failOn) opts.failOn = cliArgs.failOn;
@@ -212,7 +214,7 @@ export function resolveOptions(cliArgs: CliArgs): CheckOptions & { configUsed: s
 
   return {
     ...opts,
-    configUsed: fileConfig ? (cliArgs.config || '自动发现的配置文件') : null,
+    configUsed: fileConfig ? (cliArgs.config ?? '自动发现的配置文件') : null,
   };
 }
 

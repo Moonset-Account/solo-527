@@ -14,13 +14,58 @@ import type {
 import { getVersion } from '../config';
 import { getBaseAndTargetKeys } from './loader';
 
-function extractPlaceholders(text: string, pattern: RegExp): string[] {
-  const matches = text.match(new RegExp(pattern.source, pattern.flags));
-  if (!matches) return [];
-  return matches.map((m) => {
-    const exec = new RegExp(pattern.source, pattern.flags.replace('g', '')).exec(m);
-    return exec && exec[1] ? exec[1] : m;
-  });
+export function extractPlaceholders(text: string, pattern: RegExp): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== '{') continue;
+    let depth = 1;
+    let j = i + 1;
+    let nestedContent = '';
+    while (j < text.length && depth > 0) {
+      if (text[j] === '{') depth++;
+      else if (text[j] === '}') {
+        depth--;
+        if (depth === 0) break;
+      }
+      if (depth > 0) nestedContent += text[j];
+      j++;
+    }
+    if (depth === 0 && j > i) {
+      const firstComma = nestedContent.search(/\s*,\s*/);
+      const rawName = firstComma >= 0 ? nestedContent.slice(0, firstComma) : nestedContent;
+      const name = rawName.trim();
+
+      const altPatternMatch = pattern.exec(`{${name}}`);
+      const isValidName = altPatternMatch
+        ? altPatternMatch[1] === name
+        : /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+
+      if (name && isValidName && !seen.has(name)) {
+        seen.add(name);
+        found.push(name);
+      }
+      i = j;
+    }
+  }
+
+  const fallbackNeeded = found.length === 0;
+  if (fallbackNeeded) {
+    const fallbackMatches = text.match(new RegExp(pattern.source, pattern.flags));
+    if (fallbackMatches) {
+      for (const m of fallbackMatches) {
+        const exec = new RegExp(pattern.source, pattern.flags.replace('g', '')).exec(m);
+        const name = exec && exec[1] ? exec[1] : m;
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          found.push(name);
+        }
+      }
+    }
+  }
+
+  return found.sort();
 }
 
 function arraysEqualAsSet(a: string[], b: string[]): boolean {
@@ -181,7 +226,7 @@ export function runAllChecks(params: RunChecksParams): DiffReport {
       for (const key of common) {
         const tv = targetData[key];
         const bv = baseData[key];
-        const status = (tv.status || 'pending') as ReviewStatus;
+        const status = (tv.status ?? 'pending') as ReviewStatus;
         const isUnapproved = options.requireApproved && status !== 'approved';
         const isDeprecated = status === 'deprecated';
         const isDraft = status === 'draft' && options.warnOnDraft;

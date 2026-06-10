@@ -11,16 +11,28 @@ interface PackageJson {
 
 let cachedPkg: PackageJson | null = null;
 
+function getImportMetaUrl(): string | undefined {
+  // @ts-expect-error - import.meta only available in ES modules, handled at runtime
+  if (typeof import.meta !== 'undefined') {
+    // @ts-expect-error - same reason
+    return import.meta?.url as string | undefined;
+  }
+  return undefined;
+}
+
+interface NodeGlobals {
+  __dirname?: string;
+}
+
 function tryFindPackageJson(): string | null {
   let current: string;
-  // @ts-ignore - import.meta only available in ES modules, handled at runtime
-  const metaUrl: string | undefined = typeof import.meta !== 'undefined' ? import.meta?.url : undefined;
+  const metaUrl = getImportMetaUrl();
   if (metaUrl) {
     current = dirname(fileURLToPath(metaUrl));
   } else {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      current = (globalThis as any).__dirname || __dirname;
+      const g = globalThis as unknown as NodeGlobals & { __dirname?: string };
+      current = g.__dirname ?? (typeof __dirname !== 'undefined' ? __dirname : process.cwd());
     } catch {
       current = process.cwd();
     }

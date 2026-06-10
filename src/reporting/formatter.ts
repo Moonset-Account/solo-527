@@ -229,8 +229,8 @@ export function renderCsvReport(report: DiffReport, opts: CheckOptions): string 
     const rows = report.missingKeys.map((mk) => ({
       key: mk.key,
       baseValue: mk.baseValue.value,
-      baseStatus: mk.baseValue.status || '',
-      comment: mk.baseValue.comment || '',
+      baseStatus: mk.baseValue.status ?? '',
+      comment: mk.baseValue.comment ?? '',
       locales: mk.missingIn.join(';'),
       type: 'missing',
     }));
@@ -367,7 +367,7 @@ export function computeExitCode(report: DiffReport, opts: CheckOptions): number 
   const failRank = levelOrder.indexOf(failLevel);
 
   function reaches(r: string | undefined): boolean {
-    const level = (r || 'warning') as SeverityLevel;
+    const level = (r ?? 'warning') as SeverityLevel;
     return levelOrder.indexOf(level) >= failRank;
   }
 
