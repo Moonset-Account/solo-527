@@ -151,20 +151,21 @@
       <div class="card-body">
         <div class="timeline">
           {% for p in payments %}
-            <div class="tl-item {% if p.match_type == 'MANUAL' %}amber{% elif p.match_type == 'PREPAID' %}blue{% endif %}">
+            {% set pay = p.pay %}
+            <div class="tl-item {% if pay.match_type == 'MANUAL' %}amber{% elif pay.match_type == 'PREPAID' %}blue{% endif %}">
               <div class="tl-meta">
-                <span>{{ p.matched_at.strftime('%Y-%m-%d %H:%M') if p.matched_at else p.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                <span class="badge {% if p.match_type == 'AUTO' %}badge-green{% elif p.match_type == 'MANUAL' %}badge-amber{% else %}badge-blue{% endif %}" style="font-size:10.5px">
-                  {% if p.match_type == 'AUTO' %}自动匹配{% elif p.match_type == 'MANUAL' %}人工匹配{% else %}预存抵扣{% endif %}
+                <span>{{ pay.matched_at.strftime('%Y-%m-%d %H:%M') if pay.matched_at else pay.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="badge {% if pay.match_type == 'AUTO' %}badge-green{% elif pay.match_type == 'MANUAL' %}badge-amber{% else %}badge-blue{% endif %}" style="font-size:10.5px">
+                  {% if pay.match_type == 'AUTO' %}自动匹配{% elif pay.match_type == 'MANUAL' %}人工匹配{% else %}预存抵扣{% endif %}
                 </span>
               </div>
-              <div class="tl-title money text-green font-bold" style="font-family:'JetBrains Mono',monospace">+¥{{ "{:,.2f}".format(p.amount) }}</div>
+              <div class="tl-title money text-green font-bold" style="font-family:'JetBrains Mono',monospace">+¥{{ "{:,.2f}".format(pay.amount) }}</div>
               <div class="tl-body">
-                {% if p.transaction_id %}
-                  <div>关联流水：<span class="money" style="font-family:'JetBrains Mono',monospace;">{{ p.transaction_no or '—' }}</span></div>
+                {% if pay.transaction_id %}
+                  <div>关联流水：<span class="money" style="font-family:'JetBrains Mono',monospace;">{{ p.txn_no or '—' }}</span></div>
                 {% endif %}
-                {% if p.remark %}
-                  <div>备注：{{ p.remark }}</div>
+                {% if pay.remark %}
+                  <div>备注：{{ pay.remark }}</div>
                 {% endif %}
               </div>
             </div>

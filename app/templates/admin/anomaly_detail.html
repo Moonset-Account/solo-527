@@ -1,0 +1,138 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "anomalies" %}
+{% block admin_title %}异常详情{% endblock %}
+{% block header_title %}异常详情 · {{ anomaly.code }}{% endblock %}
+{% block header_crumbs %}首页 / 异常中心 / <a href="{{ url_for('admin_anomalies_page') }}">异常列表</a> / {{ anomaly.code }}{% endblock %}
+{% block content %}
+
+<div class="section-gap">
+  <div class="card">
+    <div class="card-body" style="padding:14px 20px">
+      <div class="flex items-center gap-md flex-wrap">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <span class="severity-dot severity-{{ anomaly.severity | lower }}" style="width:10px;height:10px;border-radius:50%;background:{% if anomaly.severity == 'CRITICAL' %}var(--qh-red-600){% elif anomaly.severity == 'HIGH' %}var(--qh-orange-500){% elif anomaly.severity == 'MEDIUM' %}var(--qh-amber-500){% else %}var(--qh-gray-400){% endif %};display:inline-block;"></span>
+          <span class="badge {% if anomaly.severity == 'CRITICAL' %}badge-red-solid{% elif anomaly.severity == 'HIGH' %}badge-red{% elif anomaly.severity == 'MEDIUM' %}badge-amber{% else %}badge-gray{% endif %}">{{ anomaly.severity }}</span>
+          {% if anomaly.status == 'OPEN' %}
+            <span class="badge badge-red">待处理</span>
+          {% elif anomaly.status == 'IN_PROGRESS' %}
+            <span class="badge badge-amber">处理中</span>
+          {% elif anomaly.status == 'RESOLVED' %}
+            <span class="badge badge-green">已解决</span>
+          {% elif anomaly.status == 'IGNORED' %}
+            <span class="badge badge-gray">已忽略</span>
+          {% endif %}
+        </div>
+        <div style="margin-left:auto" class="flex gap-sm">
+          {% if anomaly.status in ('OPEN', 'IN_PROGRESS') %}
+            <button class="btn btn-sm btn-secondary" hx-get="{{ url_for('admin_anomaly_resolve_dialog', anomaly_id=anomaly.id) }}" hx-target="#modal-container" hx-swap="innerHTML">处理异常</button>
+            <button class="btn btn-sm btn-ghost" hx-post="{{ url_for('admin_anomaly_ignore', anomaly_id=anomaly.id) }}" hx-swap="none" hx-confirm="确认忽略此异常？">忽略</button>
+          {% endif %}
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('admin_anomalies_page') }}">返回列表</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-layout fade-in-up">
+  <div class="detail-col">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">异常信息</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px;">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">异常编号</span>
+            <span style="font-weight:600;font-family:'JetBrains Mono',monospace;">{{ anomaly.code }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">异常类型</span>
+            <span class="badge badge-blue">{{ anomaly.type }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">严重程度</span>
+            <span>
+              <span class="severity-dot severity-{{ anomaly.severity | lower }}" style="width:8px;height:8px;border-radius:50%;background:{% if anomaly.severity == 'CRITICAL' %}var(--qh-red-600){% elif anomaly.severity == 'HIGH' %}var(--qh-orange-500){% elif anomaly.severity == 'MEDIUM' %}var(--qh-amber-500){% else %}var(--qh-gray-400){% endif %};display:inline-block;margin-right:6px;"></span>
+              <span style="font-weight:500;">{{ anomaly.severity }}</span>
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">标题</span>
+            <span style="font-weight:600;">{{ anomaly.title }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">发现时间</span>
+            <span>{{ anomaly.detected_at.strftime('%Y-%m-%d %H:%M') if anomaly.detected_at else '—' }}</span>
+          </div>
+          {% if anomaly.resolved_at %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">解决时间</span>
+            <span>{{ anomaly.resolved_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          </div>
+          {% endif %}
+          {% if anomaly.resolution_note %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">处理说明</span>
+            <span>{{ anomaly.resolution_note }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">详细描述</h3>
+      </div>
+      <div class="card-body">
+        <div style="padding:14px 16px;background:var(--qh-red-50);border:1px solid var(--qh-red-200);border-radius:10px;line-height:1.7;color:var(--qh-gray-800);">
+          {{ anomaly.description }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-col">
+    {% if anomaly.metadata %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">相关元数据</h3>
+      </div>
+      <div class="card-body">
+        <pre style="padding:14px;background:var(--qh-gray-50);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;overflow-x:auto;max-height:300px;overflow-y:auto;">{{ anomaly.metadata | tojson }}</pre>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if related_bill %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">关联账单</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px;">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单编号</span>
+            <a href="{{ url_for('admin_bill_detail', bill_id=related_bill.id) }}" style="color:var(--qh-blue-600);font-weight:500;">{{ related_bill.bill_no }}</a>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">客户</span>
+            <span>{{ related_bill.client.name if related_bill.client else '—' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单金额</span>
+            <span style="font-family:'JetBrains Mono',monospace;">¥{{ "{:,.2f}".format(related_bill.total_amount) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">状态</span>
+            <span class="status-tag status-{{ related_bill.status | lower }}">{{ related_bill.status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

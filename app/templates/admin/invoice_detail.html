@@ -1,0 +1,217 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "invoices" %}
+{% block admin_title %}发票详情{% endblock %}
+{% block header_title %}发票详情 · {{ invoice.invoice_no or invoice.id | string | truncate(12, True, '') }}{% endblock %}
+{% block header_crumbs %}首页 / 发票管理 / <a href="{{ url_for('admin_invoices_page') }}">发票列表</a> / {{ invoice.invoice_no or '待开票' }}{% endblock %}
+{% block content %}
+
+<div class="section-gap">
+  <div class="card">
+    <div class="card-body" style="padding:14px 20px">
+      <div class="flex items-center gap-md flex-wrap">
+        <div style="display:flex;gap:12px;align-items:center;">
+          {% if invoice.status == 'PENDING' %}
+            <span class="badge badge-amber">待审核</span>
+          {% elif invoice.status == 'APPROVED' %}
+            <span class="badge badge-blue">已审核</span>
+          {% elif invoice.status == 'ISSUING' %}
+            <span class="badge badge-blue-solid">开票中</span>
+          {% elif invoice.status == 'ISSUED' %}
+            <span class="badge badge-green">已开票</span>
+          {% elif invoice.status == 'MAILED' %}
+            <span class="badge badge-green-solid">已寄送</span>
+          {% elif invoice.status == 'ERROR' %}
+            <span class="badge badge-red-solid">开票失败</span>
+          {% elif invoice.status == 'REJECTED' %}
+            <span class="badge badge-red">已驳回</span>
+          {% else %}
+            <span class="badge badge-gray">{{ invoice.status }}</span>
+          {% endif %}
+          {% if invoice.type == 'VAT_SPECIAL' %}
+            <span class="badge badge-blue-solid">增值税专票</span>
+          {% elif invoice.type == 'VAT_NORMAL' %}
+            <span class="badge badge-blue">增值税普票</span>
+          {% elif invoice.type == 'ELECTRONIC' %}
+            <span class="badge badge-green">电子发票</span>
+          {% endif %}
+        </div>
+        <div style="margin-left:auto" class="flex gap-sm">
+          {% if invoice.status == 'PENDING' %}
+            <button class="btn btn-sm btn-primary" hx-post="{{ url_for('admin_invoice_approve', invoice_id=invoice.id) }}" hx-swap="none" hx-confirm="确认审核通过？">审核通过</button>
+            <button class="btn btn-sm btn-danger" hx-post="{{ url_for('admin_invoice_reject', invoice_id=invoice.id) }}" hx-swap="none" hx-confirm="确认驳回？">驳回</button>
+          {% elif invoice.status == 'APPROVED' %}
+            <button class="btn btn-sm btn-primary" hx-post="{{ url_for('admin_invoice_issue', invoice_id=invoice.id) }}" hx-swap="none">开具发票</button>
+          {% elif invoice.status == 'ISSUED' %}
+            <button class="btn btn-sm btn-secondary" hx-post="{{ url_for('admin_invoice_mail', invoice_id=invoice.id) }}" hx-swap="none">标记寄送</button>
+          {% endif %}
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('admin_invoices_page') }}">返回列表</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-layout fade-in-up">
+  <div class="detail-col">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">发票信息</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">发票编号</span>
+            <span style="font-weight:600;font-family:'JetBrains Mono',monospace;">{{ invoice.invoice_no or '—' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">关联账单</span>
+            {% if invoice.bill %}
+              <a href="{{ url_for('admin_bill_detail', bill_id=invoice.bill.id) }}" style="color:var(--qh-blue-600);font-weight:500;">{{ invoice.bill.bill_no }}</a>
+            {% else %}
+              <span>—</span>
+            {% endif %}
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">开票金额</span>
+            <span style="color:var(--qh-red-600);font-weight:700;font-size:18px;font-family:'JetBrains Mono',monospace;">¥{{ "{:,.2f}".format(invoice.amount) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">申请时间</span>
+            <span>{{ invoice.applied_at.strftime('%Y-%m-%d %H:%M') if invoice.applied_at else '—' }}</span>
+          </div>
+          {% if invoice.issued_at %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">开票时间</span>
+            <span>{{ invoice.issued_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.mailed_at %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">寄送时间</span>
+            <span>{{ invoice.mailed_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.tracking_no %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">快递单号</span>
+            <span style="font-family:'JetBrains Mono',monospace;">{{ invoice.tracking_no }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.remark %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">备注</span>
+            <span>{{ invoice.remark }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">发票校验</h3>
+      </div>
+      <div class="card-body">
+        {% if invoice.validation_errors and invoice.validation_errors | length > 0 %}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {% for err in invoice.validation_errors %}
+              <div style="padding:10px 14px;border-radius:8px;background:{% if err.severity == 'ERROR' %}var(--qh-red-50){% else %}var(--qh-amber-50){% endif %};border:1px solid {% if err.severity == 'ERROR' %}var(--qh-red-200){% else %}var(--qh-amber-200){% endif %};">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="badge {% if err.severity == 'ERROR' %}badge-red-solid{% else %}badge-amber{% endif %}" style="font-size:11px;">{{ err.severity }}</span>
+                  <span style="font-weight:600;">{{ err.field }}</span>
+                  <span style="color:var(--qh-gray-500);font-size:12px;">{{ err.error_code }}</span>
+                </div>
+                <div style="margin-top:4px;font-size:13px;color:var(--qh-gray-700);">{{ err.message }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div style="padding:24px;text-align:center;color:var(--qh-green-600);">
+            <div style="font-size:36px;margin-bottom:8px;">✓</div>
+            <div style="font-weight:600;">发票信息校验通过</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-col">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">购方信息</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px;">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">发票抬头</span>
+            <span style="font-weight:500;">{{ invoice.title }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">纳税人识别号</span>
+            <span style="font-family:'JetBrains Mono',monospace;">{{ invoice.tax_id }}</span>
+          </div>
+          {% if invoice.address %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">地址</span>
+            <span>{{ invoice.address }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.phone %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">电话</span>
+            <span>{{ invoice.phone }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.bank_name %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">开户行</span>
+            <span>{{ invoice.bank_name }}</span>
+          </div>
+          {% endif %}
+          {% if invoice.bank_account %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">银行账号</span>
+            <span style="font-family:'JetBrains Mono',monospace;">{{ invoice.bank_account }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if invoice.bill %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">关联账单概览</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px;">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单编号</span>
+            <a href="{{ url_for('admin_bill_detail', bill_id=invoice.bill.id) }}" style="color:var(--qh-blue-600);font-weight:500;">{{ invoice.bill.bill_no }}</a>
+          </div>
+          {% if invoice.bill.client %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">客户</span>
+            <span>{{ invoice.bill.client.name }}</span>
+          </div>
+          {% endif %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单金额</span>
+            <span style="font-family:'JetBrains Mono',monospace;">¥{{ "{:,.2f}".format(invoice.bill.total_amount) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">已回款</span>
+            <span style="color:var(--qh-green-600);font-family:'JetBrains Mono',monospace;">¥{{ "{:,.2f}".format(invoice.bill.paid_amount) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">状态</span>
+            <span class="status-tag status-{{ invoice.bill.status | lower }}">{{ invoice.bill.status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -104,10 +104,19 @@ class InvoiceService:
         rows = (await self.db.execute(stmt)).scalars().all()
         outs: list[InvoiceOut] = []
         for r in rows:
-            o = InvoiceOut.model_validate(r)
+            o = InvoiceOut.model_validate(r, from_attributes=True)
+            if r.bill:
+                o.bill_no = r.bill.bill_no
             v = r.validation_errors
-            if isinstance(v, dict) and "errors" in v:
-                o.validation_errors = [InvoiceError.model_validate(e) for e in v["errors"]]
+            parsed_errors: list[InvoiceError] = []
+            if isinstance(v, dict):
+                if isinstance(v.get("errors"), list):
+                    for e in v["errors"]:
+                        try:
+                            parsed_errors.append(InvoiceError.model_validate(e))
+                        except Exception:
+                            pass
+            o.validation_errors = parsed_errors
             outs.append(o)
         return _paginate(total, outs, p)
 
@@ -172,7 +181,33 @@ class InvoiceService:
             inv.mailed_at = now
         await self.db.commit()
         await self.db.refresh(inv)
-        return InvoiceOut.model_validate(inv)
+        return self._to_invoice_out(inv)
+
+    def _to_invoice_out(self, inv) -> "InvoiceOut":
+        from app.schemas import InvoiceOut, InvoiceError
+        parsed = []
+        v = inv.validation_errors
+        if isinstance(v, dict) and isinstance(v.get("errors"), list):
+            for e in v["errors"]:
+                try:
+                    parsed.append(InvoiceError.model_validate(e))
+                except Exception:
+                    pass
+        elif isinstance(v, list):
+            for e in v:
+                try:
+                    parsed.append(InvoiceError.model_validate(e))
+                except Exception:
+                    pass
+        return InvoiceOut(
+            id=inv.id, invoice_no=inv.invoice_no, bill_id=inv.bill_id,
+            bill_no=None, client_id=inv.client_id, title=inv.title,
+            tax_id=inv.tax_id, address=inv.address, phone=inv.phone,
+            bank_name=inv.bank_name, bank_account=inv.bank_account,
+            amount=inv.amount, type=inv.type, status=inv.status,
+            validation_errors=parsed, applied_at=inv.applied_at,
+            issued_at=inv.issued_at, mailed_at=inv.mailed_at,
+        )
 
 
 class PrepaidService:

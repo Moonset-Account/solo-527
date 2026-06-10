@@ -1,0 +1,40 @@
+<div class="modal-backdrop" @click.self="$dispatch('close-modal')">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>上传附件</h3>
+      <button class="icon-btn" @click="$dispatch('close-modal')">✕</button>
+    </div>
+    <form method="POST" action="{{ url_for('admin_attachment_upload', bill_id=bill_id) }}" hx-post="{{ url_for('admin_attachment_upload', bill_id=bill_id) }}" hx-swap="outerHTML" hx-target="this .modal" hx-encoding="multipart/form-data">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-item" style="grid-column:span 2;">
+            <label>附件类型</label>
+            <select name="file_type">
+              <option value="CONTRACT">合同文件</option>
+              <option value="INVOICE">发票扫描件</option>
+              <option value="RECONCILIATION">对账单</option>
+              <option value="RECEIPT">银行回单</option>
+              <option value="OTHER">其他附件</option>
+            </select>
+          </div>
+          <div class="form-item" style="grid-column:span 2;">
+            <label>选择文件 (支持 PDF, Excel, Word, 图片, ≤20MB)</label>
+            <div class="drop-zone" style="border:2px dashed var(--qh-gray-300);border-radius:10px;padding:32px;text-align:center;cursor:pointer;" onclick="this.querySelector('input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--qh-green-500)'" ondragleave="this.style.borderColor='var(--qh-gray-300)'">
+              <div style="font-size:36px;margin-bottom:8px;">📎</div>
+              <div style="color:var(--qh-gray-600);">点击或拖拽文件到此处上传</div>
+              <input type="file" name="file" required style="display:none;" accept=".pdf,.xls,.xlsx,.doc,.docx,.jpg,.jpeg,.png,.zip,.rar">
+            </div>
+          </div>
+          <div class="form-item" style="grid-column:span 2;">
+            <label>文件描述 (可选)</label>
+            <textarea name="description" rows="2" placeholder="简要说明这个文件的内容"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" @click="$dispatch('close-modal')">取消</button>
+        <button type="submit" class="btn btn-primary">开始上传</button>
+      </div>
+    </form>
+  </div>
+</div>

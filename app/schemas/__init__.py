@@ -126,8 +126,11 @@ class OrderOut(BaseSchema):
 class BillPriorityTags(BaseSchema):
     invoice_status: Optional[InvoiceStatus] = None
     invoice_requested: bool = False
+    invoice_approved: bool = False
     prepaid_sufficient: bool = True
+    prepaid_has_balance: bool = False
     prepaid_balance: Optional[Decimal] = None
+    cash_impact: ForecastImpact = "NONE"
     forecast_impact: ForecastImpact = "NONE"
     forecast_score: Decimal = Decimal("0")
 
@@ -137,6 +140,7 @@ class BillOut(BaseSchema):
     bill_no: str
     client_id: UUID
     client_name: str = ""
+    client_company_name: Optional[str] = None
     order_id: Optional[UUID] = None
     period_start: date
     period_end: date
@@ -144,11 +148,19 @@ class BillOut(BaseSchema):
     due_date: date
     total_amount: Decimal
     paid_amount: Decimal
-    remaining_amount: Decimal
+    remaining_amount: Decimal = Decimal("0")
     status: BillStatus
-    days_overdue: int
+    days_overdue: int = 0
     created_at: datetime
     priority: BillPriorityTags = BillPriorityTags()
+
+    @property
+    def priority_tags(self) -> BillPriorityTags:
+        return self.priority
+
+    @property
+    def subscription_period(self) -> str:
+        return f"{self.period_start.isoformat()} 至 {self.period_end.isoformat()}"
 
     @property
     def is_overdue(self) -> bool:
@@ -198,6 +210,9 @@ class BillCreateIn(BaseSchema):
 class BillUpdateIn(BaseSchema):
     status: Optional[BillStatus] = None
     due_date: Optional[date] = None
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    issue_date: Optional[date] = None
     total_amount: Optional[Decimal] = Field(default=None, gt=0)
     change_reason: Optional[str] = None
 
@@ -238,6 +253,7 @@ class InvoiceOut(BaseSchema):
     id: UUID
     invoice_no: Optional[str] = None
     bill_id: UUID
+    bill_no: Optional[str] = None
     client_id: UUID
     title: str
     tax_id: str

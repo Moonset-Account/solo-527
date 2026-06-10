@@ -4,7 +4,7 @@ import io
 import json
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal as D
 from pathlib import Path
 from typing import Any, Optional
@@ -95,7 +95,17 @@ def _json_default(obj):
         return float(obj)
     if hasattr(obj, "isoformat"):
         return obj.isoformat()
-    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+    if isinstance(obj, dict):
+        return {k: _json_default(v) if hasattr(v, '__class__') and v.__class__.__name__ not in ('str','int','float','bool','list','dict','NoneType') else v for k, v in obj.items()}
+    if isinstance(obj, (bytes, bytearray)):
+        try:
+            return obj.decode('utf-8')
+        except Exception:
+            return str(obj)
+    try:
+        return str(obj)
+    except Exception:
+        return f"<{obj.__class__.__name__}>"
 
 def _tojson_filter(obj):
     import json
@@ -418,6 +428,7 @@ async def admin_bills_page(
 
 @admin_router.get("/bills/api/list")
 async def admin_bills_list(
+    request: Request,
     page: int = 1, page_size: int = 20,
     keyword: str = "", status: str = "", client_id: str = "",
     invoice_requested: str = "", only_overdue: str = "",
@@ -439,7 +450,7 @@ async def admin_bills_list(
     svc = BillService(db, cache, user, "api")
     result: PaginatedOut[BillOut] = await svc.list(p, f)
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/bill_rows.html",
+        request=request, name="partials/bill_rows.html",
         context={"data": result, "user": user},
     )
 
@@ -493,6 +504,7 @@ async def admin_bill_detail(
 
 @admin_router.post("/bills/{bill_id}/notes")
 async def admin_bill_add_note(
+    request: Request,
     bill_id: UUID,
     content: str = Form(...),
     is_internal: bool = Form(default=True),
@@ -503,8 +515,126 @@ async def admin_bill_add_note(
     svc = BillService(db, cache, user, None)  # type: ignore
     note = await svc.add_note(bill_id, NoteCreateIn(content=content, is_internal=is_internal))
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/note_item.html", context={"note": note},
+        request=request, name="partials/note_item.html", context={"note": note},
     )
+
+
+@admin_router.post("/bills/{bill_id}/edit")
+async def admin_bill_edit(
+    bill_id: UUID,
+    period_start: date = Form(...),
+    period_end: date = Form(...),
+    issue_date: date = Form(...),
+    due_date: date = Form(...),
+    total_amount: Decimal = Form(...),
+    status: BillStatus = Form(...),
+    user: SessionUser = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+    cache: RedisCache = Depends(get_cache),
+):
+    svc = BillService(db, cache, user, "")
+    try:
+        data = BillUpdateIn(
+            period_start=period_start, period_end=period_end,
+            issue_date=issue_date, due_date=due_date,
+            total_amount=total_amount, status=status,
+            change_reason="管理端手动编辑",
+        )
+        updated = await svc.update(bill_id, data)
+        if not updated:
+            return MessageOut(message="账单不存在", code=404)
+        return MessageOut(message="账单已更新")
+    except Exception as e:
+        return MessageOut(message=f"保存失败: {str(e)}", code=500)
+
+
+@admin_router.post("/bills/{bill_id}/payment")
+async def admin_payment_add(
+    bill_id: UUID,
+    amount: Decimal = Form(...),
+    method: str = Form(default="BANK_TRANSFER"),
+    paid_at: Optional[date] = Form(None),
+    transaction_id: Optional[UUID] = Form(None),
+    remark: Optional[str] = Form(default=None),
+    user: SessionUser = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    if amount <= 0:
+        return MessageOut(message="回款金额必须大于0", code=400)
+    bill = (await db.execute(
+        select(models.Bill).where(models.Bill.id == bill_id)
+    )).scalar_one_or_none()
+    if not bill:
+        return MessageOut(message="账单不存在", code=404)
+    remaining = D(bill.total_amount) - D(bill.paid_amount)
+    if amount > remaining + D("0.01"):
+        return MessageOut(message=f"回款金额({amount})超过剩余应收({remaining})", code=400)
+    paid_at_dt = datetime.combine(paid_at or date.today(), datetime.min.time(), tzinfo=datetime.now().astimezone().tzinfo)
+    payment = models.Payment(
+        bill_id=bill_id,
+        transaction_id=transaction_id,
+        amount=amount,
+        match_type="MANUAL",
+        matched_by=user.id,
+        remark=remark,
+        matched_at=paid_at_dt,
+    )
+    db.add(payment)
+    bill.paid_amount = D(bill.paid_amount) + amount
+    new_remaining = D(bill.total_amount) - bill.paid_amount
+    if new_remaining <= D("0.01"):
+        bill.status = "PAID"
+    elif bill.paid_amount > 0 and bill.status in ("DRAFT", "ISSUED", "OVERDUE"):
+        bill.status = "PARTIAL"
+    bill.updated_at = datetime.now(tz=bill.updated_at.tzinfo if bill.updated_at.tzinfo else None)
+    await db.commit()
+    return MessageOut(message=f"已登记回款 ¥{float(amount):,.2f}")
+
+
+@admin_router.post("/bills/{bill_id}/attachments")
+async def admin_attachment_upload(
+    bill_id: UUID,
+    file_type: str = Form(default="OTHER"),
+    file: UploadFile = File(...),
+    description: Optional[str] = Form(default=None),
+    user: SessionUser = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    bill = (await db.execute(
+        select(models.Bill).where(models.Bill.id == bill_id)
+    )).scalar_one_or_none()
+    if not bill:
+        return MessageOut(message="账单不存在", code=404)
+    MAX_SIZE = 20 * 1024 * 1024
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        return MessageOut(message="文件大小超过 20MB 限制", code=400)
+    if len(content) == 0:
+        return MessageOut(message="文件内容为空", code=400)
+    import uuid as _uuid
+    import os, base64
+    store_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "data", "attachments")
+    os.makedirs(store_dir, exist_ok=True)
+    safe_name = f"{_uuid.uuid4().hex}_{file.filename or 'file'}"
+    full_path = os.path.join(store_dir, safe_name)
+    try:
+        with open(full_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        return MessageOut(message=f"保存文件失败: {str(e)}", code=500)
+    att = models.Attachment(
+        bill_id=bill_id,
+        file_type=file_type,
+        filename=safe_name,
+        original_name=file.filename or "uploaded_file",
+        file_size=len(content),
+        mime_type=file.content_type or "application/octet-stream",
+        description=description,
+        uploader_id=user.id,
+    )
+    db.add(att)
+    await db.commit()
+    return MessageOut(message=f"附件已上传: {file.filename or 'file'}")
 
 
 @admin_router.get("/bills/{bill_id}/edit-dialog", response_class=HTMLResponse)
@@ -597,6 +727,7 @@ async def admin_transactions_page(
 
 @admin_router.get("/transactions/api/list")
 async def admin_transactions_list(
+    request: Request,
     page: int = 1,
     page_size: int = 20,
     status: str = "",
@@ -608,7 +739,7 @@ async def admin_transactions_list(
     status_val = status or None
     data = await svc.list(p, status_val)  # type: ignore
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/txn_rows.html",
+        request=request, name="partials/txn_rows.html",
         context={"data": data, "user": user},
     )
 
@@ -645,14 +776,20 @@ async def admin_transactions_auto_match(
 
 
 @admin_router.post("/transactions/{txn_id}/match")
-async def txn_manual_match(
+async def admin_txn_match(
     txn_id: UUID,
     bill_id: UUID = Form(...),
-    amount: float = Form(...),
+    amount: Optional[float] = Form(None),
     user: SessionUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db_session),
 ):
-    return await TransactionService(db, user, "").manual_match(txn_id, UUID(bill_id), D(str(amount)))
+    txn = (await db.execute(
+        select(models.BankTransaction).where(models.BankTransaction.id == txn_id)
+    )).scalar_one_or_none()
+    if not txn:
+        return MessageOut(message="流水不存在", code=404)
+    use_amount = D(str(amount)) if amount else D(txn.amount)
+    return await TransactionService(db, user, "").manual_match(txn_id, bill_id, use_amount)
 
 
 @admin_router.get("/transactions/{txn_id}/match-dialog", response_class=HTMLResponse)
@@ -730,6 +867,7 @@ async def admin_invoices_page(
 
 @admin_router.get("/invoices/api/list")
 async def admin_invoices_list(
+    request: Request,
     page: int = 1,
     page_size: int = 20,
     status: str = "",
@@ -737,9 +875,72 @@ async def admin_invoices_list(
     db: AsyncSession = Depends(get_db_session),
 ):
     p = PaginationIn(page=page, page_size=page_size)
-    data = await InvoiceService(db, user, get_client_ip(request)).list(p, status or None)  # type: ignore
+    try:
+        stmt = select(models.Invoice).options(
+            selectinload(models.Invoice.bill),
+            selectinload(models.Invoice.client),
+        )
+        if status:
+            stmt = stmt.where(models.Invoice.status == status)
+        stmt = stmt.order_by(desc(models.Invoice.applied_at))
+        total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one() or 0
+        stmt = stmt.offset(p.offset).limit(p.limit)
+        rows = (await db.execute(stmt)).scalars().all()
+        outs: list = []
+        for r in rows:
+            try:
+                o = InvoiceOut.model_validate(r, from_attributes=True)
+            except Exception:
+                o = InvoiceOut(
+                    id=r.id,
+                    invoice_no=r.invoice_no,
+                    bill_id=r.bill_id,
+                    bill_no=r.bill.bill_no if r.bill else None,
+                    client_id=r.client_id,
+                    title=r.title,
+                    tax_id=r.tax_id,
+                    address=r.address,
+                    phone=r.phone,
+                    bank_name=r.bank_name,
+                    bank_account=r.bank_account,
+                    amount=r.amount,
+                    type=r.type,
+                    status=r.status,
+                    validation_errors=[],
+                    applied_at=r.applied_at,
+                    issued_at=r.issued_at,
+                    mailed_at=r.mailed_at,
+                )
+            if r.bill and not o.bill_no:
+                o.bill_no = r.bill.bill_no
+            v = r.validation_errors
+            parsed = []
+            if isinstance(v, dict) and isinstance(v.get("errors"), list):
+                for e in v["errors"]:
+                    try:
+                        parsed.append(InvoiceError.model_validate(e))
+                    except Exception:
+                        pass
+            o.validation_errors = parsed
+            outs.append(o)
+        from math import ceil
+        total_pages = max(1, ceil(total / p.page_size))
+        data = PaginatedOut(
+            items=outs,
+            total=total,
+            page=p.page,
+            page_size=p.page_size,
+            total_pages=total_pages,
+            has_next=p.page < total_pages,
+            has_prev=p.page > 1,
+        )
+    except Exception as _e:
+        try:
+            data = await InvoiceService(db, user, get_client_ip(request)).list(p, status or None)  # type: ignore
+        except Exception as _e2:
+            raise HTTPException(status_code=500, detail=f"查询失败: {_e}, {_e2}")
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/invoice_rows.html",
+        request=request, name="partials/invoice_rows.html",
         context={"data": data, "user": user},
     )
 
@@ -844,6 +1045,7 @@ async def admin_prepaid_page(
 
 @admin_router.get("/prepaid/api/list")
 async def admin_prepaid_list(
+    request: Request,
     page: int = 1,
     page_size: int = 20,
     user: SessionUser = Depends(require_admin),
@@ -851,10 +1053,10 @@ async def admin_prepaid_list(
 ):
     p = PaginationIn(page=page, page_size=page_size)
     data: PaginatedOut[PrepaidAccountOut] = await PrepaidService(
-        db, user, get_client_ip(None)  # type: ignore
+        db, user, get_client_ip(request)  # type: ignore
     ).list_accounts(p)
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/prepaid_rows.html",
+        request=request, name="partials/prepaid_rows.html",
         context={"data": data, "user": user},
     )
 
@@ -867,17 +1069,42 @@ async def admin_prepaid_recharge_dialog(
     db: AsyncSession = Depends(get_db_session),
 ):
     acc = (await db.execute(
-        select(models.PrepaidAccount, models.Client.name, models.Client.company_name)
+        select(models.PrepaidAccount, models.Client.name)
         .join(models.Client, models.Client.id == models.PrepaidAccount.client_id)
         .where(models.PrepaidAccount.id == account_id)
     )).one_or_none()
     if not acc:
         raise HTTPException(status_code=404)
-    account, cname, ccompany = acc
+    account, cname = acc
     return templates.TemplateResponse(
         request, "partials/dialog_prepaid_recharge.html",
-        {"account": account, "client_name": cname, "client_company": ccompany},
+        {"account": account, "client_name": cname, "client_company": cname},
     )
+
+
+@admin_router.post("/prepaid/{account_id}/recharge")
+async def admin_prepaid_recharge(
+    account_id: UUID,
+    amount: Decimal = Form(...),
+    method: str = Form(default="BANK_TRANSFER"),
+    recharged_at: Optional[date] = Form(None),
+    remark: Optional[str] = Form(default=None),
+    user: SessionUser = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+):
+    if amount <= 0:
+        return MessageOut(message="充值金额必须大于0", code=400)
+    acc = (await db.execute(
+        select(models.PrepaidAccount).where(models.PrepaidAccount.id == account_id)
+    )).scalar_one_or_none()
+    if not acc:
+        return MessageOut(message="预存账户不存在", code=404)
+    try:
+        svc = PrepaidService(db, user, "")
+        out = await svc.recharge(acc.client_id, amount, remark or "管理端充值")
+        return MessageOut(message=f"预存充值成功 ¥{float(amount):,.2f}，当前余额 ¥{float(out.current_balance):,.2f}")
+    except Exception as e:
+        return MessageOut(message=f"充值失败: {str(e)}", code=500)
 
 
 @admin_router.get("/prepaid/{account_id}", response_class=HTMLResponse)
@@ -941,6 +1168,7 @@ async def admin_anomalies_page(
 
 @admin_router.get("/anomalies/api/list")
 async def admin_anomalies_list(
+    request: Request,
     page: int = 1,
     page_size: int = 20,
     type_filter: str = "",
@@ -954,22 +1182,30 @@ async def admin_anomalies_list(
     sf = status_filter or None
     data = await svc.list(p, tf, sf)  # type: ignore
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/anomaly_rows.html",
+        request=request, name="partials/anomaly_rows.html",
         context={"data": data, "user": user},
     )
 
 
 @admin_router.post("/anomalies/{anomaly_id}/resolve")
-async def anomaly_resolve(
+async def admin_anomaly_resolve(
     anomaly_id: UUID,
-    data: AnomalyResolveIn,
+    action: Optional[str] = Form(default=None),
+    resolution_note: Optional[str] = Form(default=None),
     user: SessionUser = Depends(require_admin),
     db: AsyncSession = Depends(get_db_session),
 ):
-    anom = await AnomalyService(db, user).resolve(anomaly_id, data)
-    if not anom:
-        raise HTTPException(status_code=404)
-    return anom
+    try:
+        data = AnomalyResolveIn(
+            status="RESOLVED",
+            resolved_note=resolution_note or "管理端手动处理",
+        )
+        anom = await AnomalyService(db, user).resolve(anomaly_id, data)
+        if not anom:
+            return MessageOut(message="异常不存在", code=404)
+        return MessageOut(message="异常已处理")
+    except Exception as e:
+        return MessageOut(message=f"处理失败: {str(e)}", code=500)
 
 
 @admin_router.get("/anomalies/{anomaly_id}/resolve-dialog", response_class=HTMLResponse)
@@ -1018,14 +1254,19 @@ async def admin_anomaly_detail(
 ):
     anom = (await db.execute(
         select(models.Anomaly)
-        .options(selectinload(models.Anomaly.related_bill))
         .where(models.Anomaly.id == anomaly_id)
     )).scalar_one_or_none()
     if not anom:
         raise HTTPException(status_code=404)
+    related_bill = None
+    if anom.related_entity_type == "BILL" and anom.related_entity_id:
+        related_bill = (await db.execute(
+            select(models.Bill).options(selectinload(models.Bill.client))
+            .where(models.Bill.id == anom.related_entity_id)
+        )).scalar_one_or_none()
     return templates.TemplateResponse(
         request, "admin/anomaly_detail.html",
-        {"user": user, "anomaly": anom, "active_nav": "anomalies"},
+        {"user": user, "anomaly": anom, "related_bill": related_bill, "active_nav": "anomalies"},
     )
 
 
@@ -1045,6 +1286,7 @@ async def admin_exports_page(
 
 @admin_router.get("/exports/api/list")
 async def admin_exports_list(
+    request: Request,
     page: int = 1,
     page_size: int = 20,
     user: SessionUser = Depends(require_admin),
@@ -1054,7 +1296,7 @@ async def admin_exports_list(
     p = PaginationIn(page=page, page_size=page_size)
     data = await ExportService(db, cache, user).list_tasks(p)
     return templates.TemplateResponse(
-        request=_fake_request(), name="partials/export_rows.html",
+        request=request, name="partials/export_rows.html",
         context={"data": data, "user": user},
     )
 
@@ -1489,8 +1731,15 @@ async def validation_exc_handler(request: Request, exc: ValidationError):
             content=f'<div class="text-red-500 p-2 text-sm">❌ {msg}</div>',
             status_code=422,
         )
+    err_list = []
+    for e in exc.errors():
+        err_list.append({
+            "loc": [str(l) for l in e.get("loc", [])],
+            "msg": e.get("msg", ""),
+            "type": e.get("type", ""),
+        })
     return JSONResponse(
-        {"error": "参数校验失败", "detail": exc.errors(), "code": 422},
+        {"error": "参数校验失败", "detail": err_list, "code": 422},
         status_code=422,
     )
 

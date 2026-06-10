@@ -197,12 +197,15 @@ class BillService:
 
     def _build_priority(self, bill: models.Bill, client: Optional[models.Client]) -> BillPriorityTags:
         inv_status: Optional[str] = None
+        inv_approved = False
         if bill.invoices:
             latest = sorted(bill.invoices, key=lambda x: x.applied_at, reverse=True)
             inv_status = latest[0].status
+            inv_approved = inv_status in ("APPROVED", "ISSUED", "MAILED", "SENT")
         balance = client.prepaid_balance if client else Decimal("0")
         remaining = bill.total_amount - bill.paid_amount
         sufficient = balance >= remaining
+        has_balance = balance > 0
         impact: str = "NONE"
         score = bill.forecast_impact_score
         if bill.days_overdue > 15:
@@ -212,8 +215,11 @@ class BillService:
         return BillPriorityTags(
             invoice_status=inv_status,
             invoice_requested=bill.invoice_requested or bool(bill.invoices),
+            invoice_approved=inv_approved,
             prepaid_sufficient=sufficient,
+            prepaid_has_balance=has_balance,
             prepaid_balance=balance,
+            cash_impact=impact,
             forecast_impact=impact,
             forecast_score=score,
         )
@@ -266,8 +272,10 @@ class BillService:
         rows = (await self.db.execute(stmt)).scalars().all()
         items: list[BillOut] = []
         for b in rows:
-            out = BillOut.model_validate(b)
+            out = BillOut.model_validate(b, from_attributes=True)
+            out.remaining_amount = b.total_amount - b.paid_amount
             out.client_name = b.client.name if b.client else ""
+            out.client_company_name = b.client.name if b.client else None
             out.priority = self._build_priority(b, b.client)
             items.append(out)
         return _paginate(total, items, p)
@@ -312,8 +320,10 @@ class BillService:
         b = (await self.db.execute(stmt)).scalar_one_or_none()
         if not b:
             return None
-        out = BillOut.model_validate(b)
+        out = BillOut.model_validate(b, from_attributes=True)
+        out.remaining_amount = b.total_amount - b.paid_amount
         out.client_name = b.client.name if b.client else ""
+        out.client_company_name = b.client.name if b.client else None
         out.priority = self._build_priority(b, b.client)
         return out
 
@@ -347,6 +357,15 @@ class BillService:
         if data.due_date and data.due_date != bill.due_date:
             await self._write_audit("BILL", bill.id, "due_date", bill.due_date, data.due_date, data.change_reason or "")
             bill.due_date = data.due_date
+        if data.period_start and data.period_start != bill.period_start:
+            await self._write_audit("BILL", bill.id, "period_start", bill.period_start, data.period_start, data.change_reason or "")
+            bill.period_start = data.period_start
+        if data.period_end and data.period_end != bill.period_end:
+            await self._write_audit("BILL", bill.id, "period_end", bill.period_end, data.period_end, data.change_reason or "")
+            bill.period_end = data.period_end
+        if data.issue_date and data.issue_date != bill.issue_date:
+            await self._write_audit("BILL", bill.id, "issue_date", bill.issue_date, data.issue_date, data.change_reason or "")
+            bill.issue_date = data.issue_date
         if data.total_amount and data.total_amount != bill.total_amount:
             await self._write_audit("BILL", bill.id, "total_amount", bill.total_amount, data.total_amount, data.change_reason or "")
             bill.total_amount = data.total_amount
@@ -362,8 +381,11 @@ class BillService:
         self.db.add(note)
         await self.db.commit()
         await self.db.refresh(note)
-        out = NoteOut.model_validate(note)
-        out.author_name = self.operator.name
+        out = NoteOut(
+            id=note.id, bill_id=note.bill_id, content=note.content,
+            is_internal=note.is_internal, author_id=note.author_id,
+            author_name=self.operator.name, created_at=note.created_at,
+        )
         return out
 
     async def get_notes(self, bill_id: UUID) -> list[NoteOut]:
@@ -376,8 +398,11 @@ class BillService:
         rows = (await self.db.execute(stmt)).all()
         results: list[NoteOut] = []
         for n, author_name in rows:
-            out = NoteOut.model_validate(n)
-            out.author_name = author_name
+            out = NoteOut(
+                id=n.id, bill_id=n.bill_id, content=n.content,
+                is_internal=n.is_internal, author_id=n.author_id,
+                author_name=author_name, created_at=n.created_at,
+            )
             results.append(out)
         return results
 

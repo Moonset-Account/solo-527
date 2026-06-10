@@ -1,0 +1,65 @@
+<div class="modal-backdrop" @click.self="$dispatch('close-modal')">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3>流水匹配 · {{ txn.txn_no }}</h3>
+      <button class="icon-btn" @click="$dispatch('close-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="txn-info-card" style="background:var(--qh-blue-50);border-radius:10px;padding:14px;margin-bottom:16px;">
+        <div class="info-row">
+          <div><span class="info-label">户名</span><span style="font-weight:600;">{{ txn.counterparty_name or '—' }}</span></div>
+          <div><span class="info-label">金额</span><span style="color:var(--qh-green-600);font-weight:700;font-size:18px;">¥{{ "{:,.2f}".format(txn.amount) }}</span></div>
+          <div><span class="info-label">日期</span>{{ txn.txn_date }}</div>
+        </div>
+        {% if txn.remark %}
+        <div style="margin-top:8px;"><span class="info-label">备注</span>{{ txn.remark }}</div>
+        {% endif %}
+      </div>
+
+      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <h4 style="margin:0;">选择要匹配的账单</h4>
+        <span class="muted-text">找到 {{ bills | length }} 条未结清账单</span>
+      </div>
+
+      <form method="POST" action="{{ url_for('admin_txn_match', txn_id=txn.id) }}" hx-post="{{ url_for('admin_txn_match', txn_id=txn.id) }}" hx-swap="outerHTML" hx-target="this .modal">
+        <div class="bill-match-list" style="max-height:360px;overflow-y:auto;border:1px solid var(--qh-gray-200);border-radius:10px;">
+          {% if bills %}
+          {% for item in bills %}
+          {% set b = item.bill %}
+          {% set remaining = (b.total_amount - b.paid_amount) %}
+          <label class="bill-match-row" style="display:block;padding:14px 16px;border-bottom:1px solid var(--qh-gray-100);cursor:pointer;" onmouseover="this.style.background='var(--qh-gray-50)'" onmouseout="this.style.background=''">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <input type="radio" name="bill_id" value="{{ b.id }}" {% if loop.first %}checked{% endif %} style="margin-top:4px;">
+              <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <span style="font-weight:600;">{{ b.bill_no }}</span>
+                    <span class="status-tag status-{{ b.status|lower }}" style="margin-left:8px;">{{ b.status }}</span>
+                  </div>
+                  <span style="color:var(--qh-red-600);font-weight:700;">¥{{ "{:,.2f}".format(remaining) }}</span>
+                </div>
+                <div style="margin-top:4px;color:var(--qh-gray-600);font-size:13px;">
+                  {{ item.client_name or '未命名客户' }} · {{ b.period_start }} ~ {{ b.period_end }}
+                </div>
+                <div style="margin-top:4px;font-size:12px;color:var(--qh-gray-500);">
+                  账单总额 ¥{{ "{:,.2f}".format(b.total_amount) }} · 已回款 ¥{{ "{:,.2f}".format(b.paid_amount) }} · 到期日 {{ b.due_date }}
+                </div>
+              </div>
+            </div>
+          </label>
+          {% endfor %}
+          {% else %}
+          <div style="padding:48px 24px;text-align:center;color:var(--qh-gray-500);">
+            📭 当前没有可匹配的未结清账单
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="modal-footer" style="margin:0 -24px -24px;border-top:1px solid var(--qh-gray-100);">
+          <button type="button" class="btn btn-ghost" @click="$dispatch('close-modal')">取消</button>
+          <button type="submit" class="btn btn-primary" {% if not bills %}disabled{% endif %}>确认匹配</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

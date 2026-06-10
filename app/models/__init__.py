@@ -27,7 +27,7 @@ from app.db.session import Base
 UserRole = Enum("ADMIN", "CLIENT", name="user_role", create_constraint=False)
 BillStatus = Enum("DRAFT", "ISSUED", "PARTIAL", "PAID", "OVERDUE", "VOID", name="bill_status", create_constraint=False)
 InvoiceStatus = Enum(
-    "PENDING", "APPROVED", "ISSUING", "ISSUED", "MAILED", "ERROR", name="invoice_status", create_constraint=False
+    "PENDING", "APPROVED", "REJECTED", "ISSUING", "ISSUED", "MAILED", "SENT", "ERROR", name="invoice_status", create_constraint=False
 )
 InvoiceType = Enum("VAT_SPECIAL", "VAT_NORMAL", "ELECTRONIC", name="invoice_type", create_constraint=False)
 TxnMatchStatus = Enum(

@@ -1,0 +1,135 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "transactions" %}
+{% block admin_title %}流水详情{% endblock %}
+{% block header_title %}流水详情 · {{ txn.txn_no }}{% endblock %}
+{% block header_crumbs %}首页 / 流水管理 / <a href="{{ url_for('admin_transactions_page') }}">银行流水</a> / {{ txn.txn_no }}{% endblock %}
+{% block content %}
+
+<div class="section-gap">
+  <div class="card">
+    <div class="card-body" style="padding:14px 20px">
+      <div class="flex items-center gap-md flex-wrap">
+        <div style="display:flex;gap:12px;align-items:center;">
+          {% if txn.match_status == 'MATCHED' %}
+            <span class="badge badge-green-solid">✓ 已匹配</span>
+          {% elif txn.match_status == 'PARTIAL' %}
+            <span class="badge badge-blue">◐ 部分匹配</span>
+          {% elif txn.match_status == 'SUGGESTED' %}
+            <span class="badge badge-amber">⚡ 建议匹配</span>
+          {% else %}
+            <span class="badge badge-gray">○ 未匹配</span>
+          {% endif %}
+          {% if txn.direction == 'IN' %}
+            <span class="badge badge-green">↑ 收入</span>
+          {% else %}
+            <span class="badge badge-red">↓ 支出</span>
+          {% endif %}
+        </div>
+        <div style="margin-left:auto" class="flex gap-sm">
+          {% if txn.match_status != 'MATCHED' %}
+            <button class="btn btn-sm btn-primary" hx-get="{{ url_for('admin_txn_match_dialog', txn_id=txn.id) }}" hx-target="#modal-container" hx-swap="innerHTML">手动匹配</button>
+          {% endif %}
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('admin_transactions_page') }}">返回列表</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-layout fade-in-up">
+  <div class="detail-col">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">流水信息</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px;">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">流水号</span>
+            <span style="font-weight:600;font-family:'JetBrains Mono',monospace;">{{ txn.txn_no }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">交易金额</span>
+            <span style="color:{% if txn.direction == 'IN' %}var(--qh-green-600){% else %}var(--qh-red-600){% endif %};font-weight:700;font-size:20px;font-family:'JetBrains Mono',monospace;">
+              {% if txn.direction == 'IN' %}+{% else %}-{% endif %}¥{{ "{:,.2f}".format(txn.amount) }}
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">交易日期</span>
+            <span>{{ txn.txn_date }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">对方账户</span>
+            <span>{{ txn.counterparty or '—' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">交易摘要</span>
+            <span>{{ txn.summary or '—' }}</span>
+          </div>
+          {% if txn.confidence_score is not none %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">智能匹配置信度</span>
+            <span>
+              <div style="display:inline-block;width:120px;height:8px;background:var(--qh-gray-200);border-radius:4px;vertical-align:middle;margin-right:8px;overflow:hidden;">
+                <div style="height:100%;width:{{ (txn.confidence_score or 0) * 100 }}%;background:{% if txn.confidence_score and txn.confidence_score >= 0.7 %}var(--qh-green-500){% elif txn.confidence_score and txn.confidence_score >= 0.4 %}var(--qh-amber-500){% else %}var(--qh-red-500){% endif %};"></div>
+              </div>
+              {{ '%.0f'|format((txn.confidence_score or 0) * 100) }}%
+            </span>
+          </div>
+          {% endif %}
+          {% if txn.import_batch %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">导入批次</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;">{{ txn.import_batch }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-col">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">匹配记录 · 已匹配 ¥{{ "{:,.2f}".format(txn.matched_amount) }}</h3>
+      </div>
+      <div class="card-body">
+        {% if txn.payments and txn.payments | length > 0 %}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {% for p in txn.payments %}
+              <div style="padding:12px 14px;border-radius:10px;background:var(--qh-gray-50);border:1px solid var(--qh-gray-100);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    {% if p.bill %}
+                      <a href="{{ url_for('admin_bill_detail', bill_id=p.bill.id) }}" style="font-weight:600;color:var(--qh-blue-600);">{{ p.bill.bill_no }}</a>
+                    {% else %}
+                      <span style="font-weight:500;">关联账单</span>
+                    {% endif %}
+                    <span class="badge badge-{{ p.match_type | lower }}" style="margin-left:8px;background:var(--qh-blue-50);color:var(--qh-blue-700);border:1px solid var(--qh-blue-200);font-size:11px;">{{ p.match_type }}</span>
+                  </div>
+                  <span style="color:var(--qh-green-600);font-weight:700;font-family:'JetBrains Mono',monospace;">¥{{ "{:,.2f}".format(p.amount) }}</span>
+                </div>
+                <div style="margin-top:6px;font-size:12px;color:var(--qh-gray-500);display:flex;justify-content:space-between;">
+                  <span>匹配时间: {{ p.matched_at.strftime('%Y-%m-%d %H:%M') if p.matched_at else '—' }}</span>
+                  {% if p.remark %}
+                    <span style="margin-left:12px;">备注: {{ p.remark }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div style="padding:36px;text-align:center;">
+            <div style="font-size:36px;margin-bottom:8px;">📭</div>
+            <div style="color:var(--qh-gray-500);">暂无匹配记录</div>
+            <div style="margin-top:12px;">
+              <button class="btn btn-sm btn-primary" hx-get="{{ url_for('admin_txn_match_dialog', txn_id=txn.id) }}" hx-target="#modal-container" hx-swap="innerHTML">立即匹配账单</button>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
