@@ -2,9 +2,7 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 export default class AuthMiddleware {
   protected async authenticate(auth: HttpContextContract['auth'], guards: any[]) {
-    let guardLastAttempted: string | undefined
     for (let guard of guards) {
-      guardLastAttempted = guard
       if (await auth.use(guard).check()) {
         auth.defaultGuard = guard
         return true

@@ -1,15 +1,7 @@
-/**
- * Config source: https://git.io/JesV9
- *
- * Feel free to let us know via PR, if you find something broken in this config
- * file.
- */
-
 import Env from '@ioc:Adonis/Core/Env'
-import { OrmConfig } from '@ioc:Adonis/Lucid/Orm'
 import { DatabaseConfig } from '@ioc:Adonis/Lucid/Database'
 
-const databaseConfig: DatabaseConfig & { orm: Partial<OrmConfig> } = {
+const databaseConfig: DatabaseConfig = {
   connection: Env.get('DB_CONNECTION', 'pg'),
 
   connections: {
@@ -25,9 +17,6 @@ const databaseConfig: DatabaseConfig & { orm: Partial<OrmConfig> } = {
       healthCheck: true,
       debug: false,
     },
-  },
-
-  orm: {
   },
 }
 

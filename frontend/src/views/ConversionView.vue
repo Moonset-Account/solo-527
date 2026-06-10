@@ -221,7 +221,7 @@ const renderCharts = () => {
       tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.8)', textStyle: { color: '#fff' }, formatter: (p: any) => `${p[0].name}<br/>营收: ¥${p[0].value?.toLocaleString() || 0}` },
       grid: { left: 60, right: 20, top: 30, bottom: 40 },
       xAxis: { type: 'category', data: dates, axisLabel: { color: '#909399', fontSize: 10, rotate: 30 } },
-      yAxis: { type: 'value', axisLabel: { color: '#909399', formatter: val => val >= 1000 ? (val / 1000) + 'k' : val } },
+      yAxis: { type: 'value', axisLabel: { color: '#909399', formatter: (val: number) => val >= 1000 ? (val / 1000) + 'k' : String(val) } },
       series: [{
         type: 'line', smooth: true, symbolSize: 5,
         data: data.map(d => Number(d.revenue || 0)),

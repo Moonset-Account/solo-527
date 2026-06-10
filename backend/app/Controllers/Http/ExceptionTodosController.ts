@@ -57,7 +57,7 @@ export default class ExceptionTodosController {
     })
   }
 
-  public async store({ auth, request, response }: HttpContextContract) {
+  public async store({ request, response }: HttpContextContract) {
     const data = request.only([
       'type', 'title', 'description', 'bookingId', 'customerId',
       'priority', 'assignedTo', 'deadlineAt',

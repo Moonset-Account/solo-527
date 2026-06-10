@@ -1,11 +1,7 @@
-import type { AssetsManagerConfig } from '@ioc:Adonis/Core/AssetsManager'
-
-const assetsConfig: AssetsManagerConfig = {
+const assetsConfig = {
   driver: 'vite',
   publicPath: 'public',
-  scripts: { enabled: false },
-  styles: { enabled: false },
-  buildDirectory: 'public/assets'
+  buildDirectory: 'public/assets',
 }
 
 export default assetsConfig

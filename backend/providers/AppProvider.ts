@@ -5,14 +5,7 @@ export default class AppProvider {
 
   public register() {}
 
-  public async boot() {
-    const Auth = this.app.container.use('Adonis/Addons/Auth')
-    Auth.verifier('app', () => {
-      return {
-        verifyTokens: async (_tokens) => true,
-      }
-    })
-  }
+  public async boot() {}
 
   public async ready() {}
 

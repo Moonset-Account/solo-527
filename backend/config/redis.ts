@@ -1,7 +1,6 @@
-import { RedisConfig } from '@ioc:Adonis/Addons/Redis'
 import Env from '@ioc:Adonis/Core/Env'
 
-const redisConfig: RedisConfig = {
+const redisConfig = {
   connection: Env.get('REDIS_CONNECTION', 'local'),
 
   connections: {

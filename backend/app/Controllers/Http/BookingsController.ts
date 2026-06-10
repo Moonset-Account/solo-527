@@ -85,7 +85,16 @@ export default class BookingsController {
         gender: gender || '',
         age: age ? Number(age) : null,
         medicalHistory: medicalHistory || '',
+        totalBookings: 1,
+        noShowCount: 0,
+        noShowRate: 0,
       })
+    } else {
+      customer.totalBookings = (customer.totalBookings || 0) + 1
+      customer.noShowRate = customer.totalBookings > 0
+        ? customer.noShowCount / customer.totalBookings
+        : 0
+      await customer.save()
     }
 
     const service = await Service.find(serviceId)
@@ -141,7 +150,6 @@ export default class BookingsController {
   public async update({ auth, params, request, response }: HttpContextContract) {
     const booking = await Booking.findOrFail(params.id)
     const changes = request.all()
-    const oldData = booking.toJSON()
     const changedFields: string[] = []
 
     const trackFields = ['staffId', 'serviceId', 'bookingDate', 'startTime', 'endTime', 'status', 'amount', 'paymentStatus', 'remark']
@@ -240,7 +248,7 @@ export default class BookingsController {
 
   public async updateStatus({ auth, params, request, response }: HttpContextContract) {
     const booking = await Booking.findOrFail(params.id)
-    const { status, isNoShow, reason } = request.all()
+    const { status, isNoShow, paymentStatus, reason } = request.all()
 
     const oldStatus = booking.status
     if (status && status !== oldStatus) {
@@ -249,7 +257,7 @@ export default class BookingsController {
         fieldName: 'status',
         oldValue: oldStatus,
         newValue: status,
-        changedBy: auth.user?.id,
+        changedBy: auth.user?.id ?? null,
         changeReason: reason || `状态变更: ${oldStatus} -> ${status}`,
       })
       booking.status = status
@@ -277,6 +285,25 @@ export default class BookingsController {
             await slot.save()
           }
         }
+      }
+    }
+
+    if (paymentStatus && paymentStatus !== booking.paymentStatus) {
+      const oldPaymentStatus = booking.paymentStatus
+      await ChangeHistory.create({
+        bookingId: booking.id,
+        fieldName: 'paymentStatus',
+        oldValue: oldPaymentStatus,
+        newValue: paymentStatus,
+        changedBy: auth.user?.id ?? null,
+        changeReason: reason || `支付状态变更: ${oldPaymentStatus} -> ${paymentStatus}`,
+      })
+      booking.paymentStatus = paymentStatus
+      booking.changeCount = booking.changeCount + 1
+      booking.lastChangedAt = DateTime.now()
+
+      if (paymentStatus === 'paid' && oldPaymentStatus !== 'paid') {
+        booking.paidAt = DateTime.now()
       }
     }
 
@@ -362,22 +389,26 @@ export default class BookingsController {
       return response.badRequest({ message: '请选择上传文件' })
     }
 
-    await file.move(Application.tmpPath('uploads'), {
-      name: `${Date.now()}-${file.clientName}`,
-      overwrite: true,
-    })
+    if (!file.isValid) {
+      return response.badRequest({ message: file.errors?.map(e => e.message).join(', ') || '文件验证失败' })
+    }
 
-    if (!file.isMoved) {
-      return response.internalServerError({ message: file.error?.message })
+    try {
+      await file.move(Application.tmpPath('uploads'), {
+        name: `${Date.now()}-${file.clientName}`,
+        overwrite: true,
+      })
+    } catch {
+      return response.internalServerError({ message: '文件移动失败' })
     }
 
     const attachment = await BookingAttachment.create({
       bookingId: Number(params.id),
       fileName: file.clientName,
       filePath: `/uploads/${file.fileName}`,
-      fileType: file.type || '',
-      fileSize: file.size || 0,
-      uploadedBy: auth.user?.id,
+      fileType: file.extname || '',
+      fileSize: file.size ? Number(file.size) : 0,
+      uploadedBy: auth.user?.id ?? null,
     })
 
     return response.created({ data: attachment, message: '附件上传成功' })

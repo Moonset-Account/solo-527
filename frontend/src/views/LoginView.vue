@@ -9,7 +9,7 @@
       <div class="login-left">
         <div class="logo-area">
           <div class="logo-badge">
-            <el-icon :size="36" color="#fff"><Tooth /></el-icon>
+            <el-icon :size="36" color="#fff"><FirstAidKit /></el-icon>
           </div>
           <h1 class="brand-title">青禾预约候补台</h1>
           <p class="brand-subtitle">专业口腔洁牙预约管理系统</p>
@@ -82,7 +82,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Calendar, DataAnalysis, BellFilled, Tooth, InfoFilled } from '@element-plus/icons-vue'
+import { User, Lock, Calendar, DataAnalysis, BellFilled, FirstAidKit, InfoFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()

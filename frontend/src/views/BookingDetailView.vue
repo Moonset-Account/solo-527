@@ -270,7 +270,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox, ElUpload } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Operation, ArrowDown, Phone, WarningFilled, Plus,
   UploadFilled, Document, Right, ChatDotRound, CircleCheck, Finished,

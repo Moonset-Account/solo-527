@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
@@ -9,13 +9,10 @@ const service: AxiosInstance = axios.create({
 })
 
 service.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     const userStore = useUserStore()
     if (userStore.token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${userStore.token}`,
-      }
+      config.headers.set('Authorization', `Bearer ${userStore.token}`)
     }
     return config
   },

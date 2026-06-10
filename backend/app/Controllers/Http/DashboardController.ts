@@ -1,6 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Booking from 'App/Models/Booking'
-import Customer from 'App/Models/Customer'
 import Staff from 'App/Models/Staff'
 import TimeSlot from 'App/Models/TimeSlot'
 import ExceptionTodo from 'App/Models/ExceptionTodo'
@@ -153,7 +152,6 @@ export default class DashboardController {
 
   public async noShowTrend({ request, response }: HttpContextContract) {
     const months = Number(request.input('months', 6))
-    const now = DateTime.now()
     const result = await Database.rawQuery(`
       SELECT
         to_char(booking_date, 'YYYY-MM') as month,

@@ -3,7 +3,7 @@
     <el-aside :width="isCollapse ? '64px' : '220px'" class="sidebar">
       <div class="logo-wrap">
         <div class="logo">
-          <el-icon :size="24" color="#fff"><Tooth /></el-icon>
+          <el-icon :size="24" color="#fff"><FirstAidKit /></el-icon>
           <span v-if="!isCollapse" class="logo-text">青禾预约候补台</span>
         </div>
       </div>
@@ -81,7 +81,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Fold, Expand, BellFilled, ArrowDown, Tooth,
+  Fold, Expand, BellFilled, ArrowDown, FirstAidKit,
   DataAnalysis, Calendar, Plus, Warning, Clock,
   UserFilled, User, Avatar, Tools, TrendCharts
 } from '@element-plus/icons-vue'

@@ -1,6 +1,4 @@
-import { BodyparserConfig } from '@ioc:Adonis/Core/Bodyparser'
-
-const bodyparserConfig: BodyparserConfig = {
+const bodyparserConfig = {
   whitelistedMethods: ['POST', 'PUT', 'PATCH', 'DELETE'],
 
   json: {
@@ -9,7 +7,6 @@ const bodyparserConfig: BodyparserConfig = {
     strict: true,
     types: [
       'application/json',
-      'application/x-www-form-urlencoded',
     ],
   },
 
@@ -33,7 +30,7 @@ const bodyparserConfig: BodyparserConfig = {
 
   multipart: {
     autoProcess: true,
-    processManually: [],
+    processManually: [] as string[],
     encoding: 'utf-8',
     maxFields: 100,
     limit: '20mb',

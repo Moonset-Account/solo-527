@@ -1,11 +1,12 @@
-import type { AppConfig } from '@ioc:Adonis/Core/Application'
+// @ts-nocheck
+import proxyAddr from 'proxy-addr'
 
-const appConfig: AppConfig = {
+const appConfig = {
   http: {
     allowMethodSpoofing: true,
     subdomainOffset: 2,
     generateRequestId: false,
-    trustProxy: require('proxy-addr').compile('loopback'),
+    trustProxy: proxyAddr.compile('loopback'),
     etag: false,
     jsonpCallbackName: 'callback',
     cookie: {},
