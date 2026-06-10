@@ -70,10 +70,6 @@ export const cancelOrder = (id: string, operator?: string): Promise<Order> => {
   });
 };
 
-export const exportOrders = (params?: Record<string, any>): Promise<Blob> => {
-  return get<Blob>(`${API_PREFIX}/export`, params, { responseType: 'blob' });
-};
-
 interface StatusTransitionAction {
   key: string;
   label: string;

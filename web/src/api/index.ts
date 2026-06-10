@@ -8,4 +8,4 @@ export * from './shortage';
 export * from './customer';
 export * from './system';
 export * from './user';
-export { getExportRecords, getExportRecord, downloadFile } from './export';
+export { getExportRecords, getExportRecord, exportOrders, downloadFile } from './export';

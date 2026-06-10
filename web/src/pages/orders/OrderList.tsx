@@ -24,6 +24,7 @@ import {
   SearchOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Order, OrderStatus, OrderQueryParams, Customer, User } from '@/types';
@@ -34,15 +35,10 @@ import {
   getStatusTransitionActions,
   executeStatusTransition,
   exportOrders,
-  downloadFile,
   getCustomers,
   userApi,
 } from '@/api';
 import OrderForm from './OrderForm';
-
-interface OrderListProps {
-  onViewDetail?: (id: string) => void;
-}
 
 const statusColorMap: Record<OrderStatus, string> = {
   pending: 'default',
@@ -55,7 +51,8 @@ const statusColorMap: Record<OrderStatus, string> = {
 
 const { RangePicker } = DatePicker;
 
-const OrderList: React.FC<OrderListProps> = ({ onViewDetail }) => {
+const OrderList: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
@@ -162,14 +159,12 @@ const OrderList: React.FC<OrderListProps> = ({ onViewDetail }) => {
 
   const handleExport = async () => {
     try {
-      const params: any = { ...queryParams };
+      const filterCriteria: Record<string, any> = { ...queryParams };
       if (selectedRowKeys.length > 0) {
-        params.ids = selectedRowKeys;
+        filterCriteria.ids = selectedRowKeys;
       }
-      const blob = await exportOrders(params);
-      const fileName = `订单导出_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
-      downloadFile(blob, fileName);
-      message.success('导出成功');
+      await exportOrders(filterCriteria, '管理员', 'admin');
+      message.success('导出成功，正在下载文件...');
     } catch (error) {
       message.error('导出失败');
     }
@@ -326,7 +321,7 @@ const OrderList: React.FC<OrderListProps> = ({ onViewDetail }) => {
             size="small"
             type="link"
             icon={<EyeOutlined />}
-            onClick={() => onViewDetail?.(record.id)}
+            onClick={() => navigate(`/orders/${record.id}`)}
           >
             查看
           </Button>

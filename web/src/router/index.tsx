@@ -14,15 +14,15 @@ const Dashboard = lazy(() => import('@/pages/dashboard/Dashboard'));
 const OrderList = lazy(() => import('@/pages/orders/OrderList'));
 const OrderDetail = lazy(() => import('@/pages/orders/OrderDetail'));
 const ProductionNodes = lazy(() => import('@/pages/production/ProductionNodes'));
-const ProductionProgress = lazy(() => import('@/pages/production/ProductionProgress'));
-const TeamManagement = lazy(() => import('@/pages/production/TeamManagement'));
-const TeamSchedules = lazy(() => import('@/pages/production/TeamSchedules'));
+const ProductionProgressList = lazy(() => import('@/pages/production/ProductionProgressList'));
+const TeamList = lazy(() => import('@/pages/production/TeamList'));
+const TeamScheduleList = lazy(() => import('@/pages/production/TeamScheduleList'));
 const MaterialList = lazy(() => import('@/pages/materials/MaterialList'));
-const MaterialCosts = lazy(() => import('@/pages/materials/MaterialCosts'));
+const MaterialCostList = lazy(() => import('@/pages/materials/MaterialCostList'));
 const QualityInspections = lazy(() => import('@/pages/quality/QualityInspections'));
 const MaterialShortages = lazy(() => import('@/pages/shortages/MaterialShortages'));
 const CustomerList = lazy(() => import('@/pages/customers/CustomerList'));
-const PriceLists = lazy(() => import('@/pages/customers/PriceLists'));
+const PriceListPage = lazy(() => import('@/pages/customers/PriceListPage'));
 const SystemConfigs = lazy(() => import('@/pages/system/SystemConfigs'));
 const ExportRecords = lazy(() => import('@/pages/exports/ExportRecords'));
 
@@ -36,15 +36,15 @@ const routes: RouteObject[] = [
       { path: 'orders', element: LazyWrapper(OrderList) },
       { path: 'orders/:id', element: LazyWrapper(OrderDetail) },
       { path: 'production/nodes', element: LazyWrapper(ProductionNodes) },
-      { path: 'production/progress', element: LazyWrapper(ProductionProgress) },
-      { path: 'production/teams', element: LazyWrapper(TeamManagement) },
-      { path: 'production/schedules', element: LazyWrapper(TeamSchedules) },
+      { path: 'production/progress', element: LazyWrapper(ProductionProgressList) },
+      { path: 'production/teams', element: LazyWrapper(TeamList) },
+      { path: 'production/schedules', element: LazyWrapper(TeamScheduleList) },
       { path: 'materials/list', element: LazyWrapper(MaterialList) },
-      { path: 'materials/costs', element: LazyWrapper(MaterialCosts) },
+      { path: 'materials/costs', element: LazyWrapper(MaterialCostList) },
       { path: 'quality/inspections', element: LazyWrapper(QualityInspections) },
       { path: 'shortages', element: LazyWrapper(MaterialShortages) },
       { path: 'customers', element: LazyWrapper(CustomerList) },
-      { path: 'customers/prices', element: LazyWrapper(PriceLists) },
+      { path: 'customers/prices', element: LazyWrapper(PriceListPage) },
       { path: 'system/configs', element: LazyWrapper(SystemConfigs) },
       { path: 'exports/records', element: LazyWrapper(ExportRecords) },
     ],
