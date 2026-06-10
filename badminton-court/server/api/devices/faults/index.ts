@@ -135,8 +135,7 @@ export default defineEventHandler(async (event) => {
         const reportedAt = fault.reportedAt ? new Date(fault.reportedAt) : new Date()
         const now = new Date()
         const actualDurationMs = now.getTime() - reportedAt.getTime()
-        const actualDurationHours = Math.max(0.5, Math.round(actualDurationMs / 3600000 * 10) / 10)
-        const finalHours = newStatus === 'NORMAL' ? actualDurationHours : actualDurationHours
+        const totalDurationHours = Math.max(0.5, Math.round(actualDurationMs / 3600000 * 10) / 10)
 
         for (const coachUserId of coachIds) {
           const coach = await prisma.coachProfile.findFirst({ where: { userId: coachUserId } })
@@ -148,19 +147,24 @@ export default defineEventHandler(async (event) => {
             startOfWeek.setDate(startOfWeek.getDate() + diffToMon)
             const endOfWeek = new Date(startOfWeek.getTime() + 7 * 86400000)
             const reportNo = `RPT-${coach.id}-${startOfWeek.toISOString().slice(0, 10)}`
-            const faultInfo = `${fault.deviceName}:${newStatus}|影响${finalHours}h|${logRemark || ''}`
 
             const existing = await prisma.coachCapacityReport.findUnique({
               where: { coachId_weekStart: { coachId: coach.id, weekStart: startOfWeek } }
             })
             const prevFaults = existing?.deviceFaults ? existing.deviceFaults.split(';;') : []
-            const newFaultEntry = `${fault.faultNo}|${fault.deviceName}|${newStatus}|${finalHours}h|${now.toISOString().slice(0, 16)}`
-            const mergedFaults = [...prevFaults.filter(x => !x.includes(`${fault.faultNo}|`)), newFaultEntry].slice(-10).join(';;')
+            const prevFaultEntry = prevFaults.find(x => x.startsWith(`${fault.faultNo}|`))
+            const prevHoursMatch = prevFaultEntry ? prevFaultEntry.match(/\|(\d+(?:\.\d+)?)h\|/) : null
+            const prevRecordedHours = prevHoursMatch ? Number(prevHoursMatch[1]) : 0
+            const incrementHours = Math.max(0, Math.round((totalDurationHours - prevRecordedHours) * 10) / 10)
+
+            const newFaultEntry = `${fault.faultNo}|${fault.deviceName}|${newStatus}|${totalDurationHours}h|${now.toISOString().slice(0, 16)}`
+            const mergedFaults = [...prevFaults.filter(x => !x.startsWith(`${fault.faultNo}|`)), newFaultEntry].slice(-10).join(';;')
+            const totalFaultHours = Math.round((Number(existing?.faultAffectHours || 0) + incrementHours) * 10) / 10
 
             await prisma.coachCapacityReport.upsert({
               where: { coachId_weekStart: { coachId: coach.id, weekStart: startOfWeek } },
               update: {
-                faultAffectHours: { increment: finalHours },
+                faultAffectHours: totalFaultHours,
                 deviceFaults: mergedFaults,
                 remark: logRemark ? (existing?.remark ? `${existing.remark} ;; ${logRemark}` : logRemark) : undefined,
                 userId: coachUserId,
@@ -173,7 +177,7 @@ export default defineEventHandler(async (event) => {
                 reportDate: now,
                 weekStart: startOfWeek,
                 weekEnd: endOfWeek,
-                faultAffectHours: finalHours,
+                faultAffectHours: totalDurationHours,
                 deviceFaults: mergedFaults,
                 remark: logRemark || undefined
               }
@@ -182,9 +186,9 @@ export default defineEventHandler(async (event) => {
             await prisma.notification.create({
               data: {
                 userId: coachUserId,
-                type: 'COACH_CAPACITY',
+                type: 'SYSTEM_NOTICE',
                 title: '教练产能报表更新',
-                content: `设备 [${fault.deviceName}] ${newStatus === 'NORMAL' ? '已恢复正常' : '维修完成'}，本周产能已记录影响 ${finalHours} 小时：${faultInfo}`,
+                content: `设备 [${fault.deviceName}] ${newStatus === 'NORMAL' ? '已恢复正常' : '维修完成'}，本周产能累计影响 ${totalDurationHours} 小时（本次新增 ${incrementHours}h）`,
                 relatedId: coach.id,
                 relatedType: 'CoachCapacityReport'
               }
