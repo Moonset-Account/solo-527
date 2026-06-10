@@ -132,18 +132,48 @@ export class CheckinService {
       throw new BadRequestException('当前状态不可完成');
     }
 
-    if (completeData.customerMembershipId && completeData.membershipDeduction) {
+    if (completeData.paymentMethod === 'membership') {
+      if (!completeData.customerMembershipId) {
+        throw new BadRequestException('支付方式为会员卡时必须选择顾客会员卡');
+      }
+      if (!completeData.membershipDeduction || completeData.membershipDeduction <= 0) {
+        throw new BadRequestException('支付方式为会员卡时必须输入正数抵扣值');
+      }
+
       const customerMembership = await this.membershipsService.findCustomerMembershipById(completeData.customerMembershipId);
       if (!customerMembership) {
         throw new NotFoundException('顾客会员卡不存在');
       }
 
-      if (customerMembership.remainingTimes != null && customerMembership.remainingTimes > 0) {
+      if (customerMembership.remainingTimes != null) {
+        if (customerMembership.remainingTimes < 1) {
+          throw new BadRequestException('会员卡剩余次数不足');
+        }
         await this.membershipsService.useMembership(completeData.customerMembershipId, 1);
-      } else if (customerMembership.remainingAmount != null && customerMembership.remainingAmount > 0) {
+      } else if (customerMembership.remainingAmount != null) {
+        if (customerMembership.remainingAmount < completeData.membershipDeduction) {
+          throw new BadRequestException('会员卡剩余金额不足');
+        }
         await this.membershipsService.useMembership(completeData.customerMembershipId, undefined, completeData.membershipDeduction);
       } else {
-        throw new BadRequestException('会员卡余额或次数不足');
+        throw new BadRequestException('会员卡数据异常，请联系管理员');
+      }
+    } else if (completeData.customerMembershipId && completeData.membershipDeduction && completeData.membershipDeduction > 0) {
+      const customerMembership = await this.membershipsService.findCustomerMembershipById(completeData.customerMembershipId);
+      if (!customerMembership) {
+        throw new NotFoundException('顾客会员卡不存在');
+      }
+
+      if (customerMembership.remainingTimes != null) {
+        if (customerMembership.remainingTimes < 1) {
+          throw new BadRequestException('会员卡剩余次数不足');
+        }
+        await this.membershipsService.useMembership(completeData.customerMembershipId, 1);
+      } else if (customerMembership.remainingAmount != null) {
+        if (customerMembership.remainingAmount < completeData.membershipDeduction) {
+          throw new BadRequestException('会员卡剩余金额不足');
+        }
+        await this.membershipsService.useMembership(completeData.customerMembershipId, undefined, completeData.membershipDeduction);
       }
     }
 

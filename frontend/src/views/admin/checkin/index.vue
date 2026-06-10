@@ -134,10 +134,13 @@
         <el-form-item label="实收金额" required>
           <el-input-number v-model="completeForm.actualAmount" :min="0" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="会员卡抵扣">
+        <el-form-item
+          label="会员卡抵扣"
+          :required="completeForm.paymentMethod === 'membership'"
+        >
           <el-select
             v-model="completeForm.customerMembershipId"
-            placeholder="选择会员卡（可选）"
+            :placeholder="completeForm.paymentMethod === 'membership' ? '请选择顾客会员卡' : '选择会员卡（可选）'"
             clearable
             style="width: 100%"
           >
@@ -149,8 +152,18 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="completeForm.customerMembershipId" label="抵扣金额/次数">
-          <el-input-number v-model="completeForm.membershipDeduction" :min="0" style="width: 100%" />
+        <el-form-item
+          v-if="completeForm.customerMembershipId"
+          :label="getMembershipDeductionLabel()"
+          :required="completeForm.paymentMethod === 'membership'"
+        >
+          <el-input-number
+            v-model="completeForm.membershipDeduction"
+            :min="completeForm.paymentMethod === 'membership' ? 1 : 0"
+            :step="getMembershipDeductionStep()"
+            :precision="getMembershipDeductionPrecision()"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="支付方式" required>
           <el-radio-group v-model="completeForm.paymentMethod">
@@ -181,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCheckinRecords, checkin, completeCheckin, cancelCheckin, getTodayCheckinStats, createCheckinFromAppointment } from '@/api/checkin'
@@ -214,6 +227,59 @@ const completeForm = reactive({
   paymentMethod: 'wechat',
   remark: '',
 })
+
+const currentCustomerMembership = () => {
+  if (!completeForm.customerMembershipId) return null
+  return customerMemberships.value.find(m => m._id === completeForm.customerMembershipId) || null
+}
+
+function getMembershipDeductionLabel() {
+  const cm = currentCustomerMembership()
+  if (cm && cm.remainingTimes != null) return '抵扣次数'
+  return '抵扣金额'
+}
+
+function getMembershipDeductionStep() {
+  const cm = currentCustomerMembership()
+  if (cm && cm.remainingTimes != null) return 1
+  return 10
+}
+
+function getMembershipDeductionPrecision() {
+  const cm = currentCustomerMembership()
+  if (cm && cm.remainingTimes != null) return 0
+  return 2
+}
+
+watch(
+  () => completeForm.customerMembershipId,
+  (newVal) => {
+    if (newVal) {
+      const cm = customerMemberships.value.find(m => m._id === newVal)
+      if (cm) {
+        if (cm.remainingTimes != null) {
+          completeForm.membershipDeduction = 1
+        } else if (cm.remainingAmount != null) {
+          completeForm.membershipDeduction = Math.min(cm.remainingAmount, completeForm.actualAmount || 0)
+        }
+      }
+    } else {
+      completeForm.membershipDeduction = 0
+    }
+  }
+)
+
+watch(
+  () => completeForm.paymentMethod,
+  (newVal) => {
+    if (newVal === 'membership' && customerMemberships.value.length === 0) {
+      ElMessage.warning('该顾客暂无可用会员卡，请先为顾客办理会员卡')
+    }
+    if (newVal !== 'membership') {
+      completeForm.membershipDeduction = 0
+    }
+  }
+)
 
 function formatDate(date) {
   return dayjs(date).format('YYYY-MM-DD')
@@ -297,6 +363,16 @@ async function confirmComplete() {
   if (!completeForm.paymentMethod) {
     ElMessage.warning('请选择支付方式')
     return
+  }
+  if (completeForm.paymentMethod === 'membership') {
+    if (!completeForm.customerMembershipId) {
+      ElMessage.warning('支付方式为会员卡时必须选择顾客会员卡')
+      return
+    }
+    if (!completeForm.membershipDeduction || completeForm.membershipDeduction <= 0) {
+      ElMessage.warning('支付方式为会员卡时必须输入正数抵扣值')
+      return
+    }
   }
 
   submitting.value = true
