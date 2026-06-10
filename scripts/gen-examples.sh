@@ -14,16 +14,16 @@ cat > examples/schema_users.json <<'SCHEMA'
   "primary_keys": ["user_id"],
   "unique_keys": [["email"]],
   "fields": [
-    {"name": "user_id", "type": "string", "required": true, "unique": true, "description": "用户唯一ID"},
-    {"name": "username", "type": "string", "required": true, "min_length": 2, "max_length": 50},
-    {"name": "email", "type": "email", "required": true},
-    {"name": "age", "type": "int", "min_value": 0, "max_value": 150},
-    {"name": "role", "type": "enum", "enum_values": ["admin", "editor", "viewer", "guest"]},
-    {"name": "status", "type": "enum", "required": true, "enum_values": ["active", "inactive", "suspended"]},
-    {"name": "signup_date", "type": "date", "date_format": "2006-01-02"},
-    {"name": "website", "type": "url"},
-    {"name": "is_verified", "type": "bool"},
-    {"name": "phone", "type": "pattern", "pattern": "^1[3-9][0-9]{9}$"}
+    {"name": "user_id", "type": "string", "required": true, "unique": true, "description": "用户唯一ID，主键"},
+    {"name": "username", "type": "string", "required": true, "min_length": 2, "max_length": 50, "description": "用户昵称，2-50字符"},
+    {"name": "email", "type": "email", "required": true, "description": "用户邮箱，唯一"},
+    {"name": "age", "type": "int", "min_value": 0, "max_value": 150, "description": "年龄，0-150"},
+    {"name": "role", "type": "enum", "enum_values": ["admin", "editor", "viewer", "guest"], "description": "用户角色：管理员/编辑/查看者/访客"},
+    {"name": "status", "type": "enum", "required": true, "enum_values": ["active", "inactive", "suspended"], "description": "账户状态：活跃/未激活/封禁"},
+    {"name": "signup_date", "type": "date", "date_format": "2006-01-02", "description": "注册日期 YYYY-MM-DD"},
+    {"name": "website", "type": "url", "description": "个人主页 URL"},
+    {"name": "is_verified", "type": "bool", "description": "邮箱是否已验证"},
+    {"name": "phone", "type": "pattern", "pattern": "^1[3-9][0-9]{9}$", "description": "中国大陆手机号"}
   ]
 }
 SCHEMA

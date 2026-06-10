@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -99,6 +100,11 @@ func validate(s *Schema, opts *LoadOptions) error {
 		if f.Name == "" {
 			return fmt.Errorf("第 %d 个字段缺少 'name' 字段", i+1)
 		}
+		if strict {
+			if matched, _ := regexp.MatchString(`^[A-Za-z_][A-Za-z0-9_]*$`, f.Name); !matched {
+				return fmt.Errorf("严格模式: 字段名 '%s' 不符合标识符规范\n建议: 仅使用字母/数字/下划线，且以字母或下划线开头", f.Name)
+			}
+		}
 		if seenNames[f.Name] {
 			return fmt.Errorf("字段名重复: '%s'\n建议: 每个字段名必须唯一", f.Name)
 		}
@@ -115,15 +121,6 @@ func validate(s *Schema, opts *LoadOptions) error {
 		}
 		if !validTypes[f.Type] {
 			return fmt.Errorf("字段 '%s' 的类型 '%s' 不受支持\n建议: 使用以下类型之一: string, int, float, bool, date, datetime, email, url, enum, pattern", f.Name, f.Type)
-		}
-
-		if strict {
-			if f.Description == "" {
-				return fmt.Errorf("严格模式: 字段 '%s' 缺少 'description' 描述\n建议: 为每个字段添加业务说明，方便团队成员理解", f.Name)
-			}
-			if s.Version == "" {
-				return fmt.Errorf("严格模式: Schema 缺少 'version' 字段\n建议: 使用语义化版本号 (如 1.0.0) 管理 Schema 变更")
-			}
 		}
 
 		if f.Type == TypeEnum && len(f.EnumValues) == 0 {
@@ -153,6 +150,12 @@ func validate(s *Schema, opts *LoadOptions) error {
 			if !seenNames[f] {
 				return fmt.Errorf("第 %d 组唯一键中的字段 '%s' 不存在", i+1, f)
 			}
+		}
+	}
+
+	if strict {
+		if len(s.PrimaryKeys) == 0 && len(s.UniqueFields()) == 0 && len(s.UniqueKeys) == 0 {
+			return fmt.Errorf("严格模式: Schema 未定义 primary_keys 或 unique 字段\n建议: 为导入数据指定去重键（primary_keys / unique / unique_keys），避免导入时产生重复")
 		}
 	}
 
