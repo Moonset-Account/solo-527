@@ -104,7 +104,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NButton, NSpace } from 'naive-ui'
 import api from '~/utils/api'
 import {
   interviewTypeLabels, interviewStatusLabels, interviewResultLabels,
@@ -189,11 +189,11 @@ const columns = [
     key: 'actions',
     render(row: any) {
       return h(
-        'n-space',
+        NSpace,
         { size: 'small' },
         () => [
-          h('n-button', { size: 'small', onClick: () => openResult(row.id) }, () => '评价'),
-          h('n-button', { size: 'small', type: 'error', onClick: () => cancelInterview(row.id) }, () => '取消'),
+          h(NButton, { size: 'small', onClick: () => openResult(row.id) }, () => '评价'),
+          h(NButton, { size: 'small', type: 'error', onClick: () => cancelInterview(row.id) }, () => '取消'),
         ]
       )
     },

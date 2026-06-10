@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NTag, NButton, NSpace } from 'naive-ui'
 import api from '~/utils/api'
 import { offerStatusLabels } from '~/utils/dict'
 import type { Offer } from '~/types'
@@ -115,7 +115,7 @@ const columns = [
     title: '状态',
     key: 'status',
     render(row: any) {
-      return h('n-tag', { type: statusTypeMap[row.status] }, () => offerStatusLabels[row.status])
+      return h(NTag, { type: statusTypeMap[row.status] }, () => offerStatusLabels[row.status])
     },
   },
   {
@@ -124,11 +124,11 @@ const columns = [
     width: 150,
     render(row: any) {
       return h(
-        'n-space',
+        NSpace,
         { size: 'small' },
         () => [
-          h('n-button', { size: 'small', onClick: () => sendOffer(row.id) }, () => '发送'),
-          h('n-button', { size: 'small', quaternary: true }, () => '编辑'),
+          h(NButton, { size: 'small', onClick: () => sendOffer(row.id) }, () => '发送'),
+          h(NButton, { size: 'small', quaternary: true }, () => '编辑'),
         ]
       )
     },

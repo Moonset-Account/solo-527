@@ -28,11 +28,22 @@
       </n-grid-item>
       <n-grid-item>
         <n-card
-          title="字典项"
           size="small"
           :bordered="false"
-          :extra="selectedType && !selectedType.is_system ? () => h(NButton, { size: 'small', type: 'primary', onClick: () => showItemModal = true }, () => '新增') : null"
         >
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
+              <span>字典项</span>
+              <n-button
+                v-if="selectedType && !selectedType.is_system"
+                size="small"
+                type="primary"
+                @click="showItemModal = true"
+              >
+                新增
+              </n-button>
+            </div>
+          </template>
           <n-table single-column>
             <thead>
               <tr>
@@ -134,8 +145,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue'
-import { useMessage, NButton } from 'naive-ui'
+import { ref, onMounted } from 'vue'
+import { useMessage } from 'naive-ui'
 import api from '~/utils/api'
 import type { DictionaryType, DictionaryItem } from '~/types'
 

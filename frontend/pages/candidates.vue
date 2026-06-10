@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import { SearchOutlined } from '@vicons/antd'
-import { useMessage } from 'naive-ui'
+import { useMessage, NButton } from 'naive-ui'
 import api from '~/utils/api'
 import { formatDate } from '~/utils/dict'
 import type { Candidate } from '~/types'
@@ -73,7 +73,7 @@ const columns = [
     key: 'actions',
     width: 120,
     render(row: any) {
-      return h('n-button', { size: 'small', quaternary: true, onClick: () => viewDetail(row.id) }, () => '详情')
+      return h(NButton, { size: 'small', quaternary: true, onClick: () => viewDetail(row.id) }, () => '详情')
     },
   },
 ]

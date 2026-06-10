@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NTag } from 'naive-ui'
 import api from '~/utils/api'
 import { checkInStatusLabels, formatDateTime } from '~/utils/dict'
 import type { CheckInRecord } from '~/types'
@@ -65,7 +65,7 @@ const columns = [
     title: '状态',
     key: 'status',
     render(row: any) {
-      return h('n-tag', { type: statusTypeMap[row.status] }, () => checkInStatusLabels[row.status])
+      return h(NTag, { type: statusTypeMap[row.status] }, () => checkInStatusLabels[row.status])
     },
   },
   { title: '签到方式', key: 'check_in_method' },

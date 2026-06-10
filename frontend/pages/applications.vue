@@ -112,7 +112,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import { SearchOutlined } from '@vicons/antd'
-import { useMessage } from 'naive-ui'
+import { useMessage, NTag, NButton } from 'naive-ui'
 import api from '~/utils/api'
 import {
   statusLabels, statusColors, stageLabels, formatDateTime,
@@ -163,7 +163,7 @@ const columns = [
     title: '状态',
     key: 'status',
     render(row: any) {
-      return h('n-tag', { type: statusColors[row.status] }, () => statusLabels[row.status])
+      return h(NTag, { type: statusColors[row.status] as any }, () => statusLabels[row.status])
     },
   },
   {
@@ -185,7 +185,7 @@ const columns = [
     title: '操作',
     key: 'actions',
     render(row: any) {
-      return h('n-button', { size: 'small', onClick: () => viewDetail(row.id) }, () => '查看')
+      return h(NButton, { size: 'small', onClick: () => viewDetail(row.id) }, () => '查看')
     },
   },
 ]
