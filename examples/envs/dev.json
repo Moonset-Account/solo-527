@@ -1,0 +1,22 @@
+{
+  "name": "开发环境 (dev)",
+  "description": "本地开发环境配置",
+  "baseUrl": "http://localhost:8080",
+  "variables": {
+    "BASE_URL": "http://localhost:8080",
+    "BEARER_TOKEN": "dev-token-12345",
+    "TEST_USERNAME": "test_user",
+    "TEST_PASSWORD": "test_password_123",
+    "DB_HOST": "localhost",
+    "DB_PORT": "5432",
+    "LOG_LEVEL": "debug"
+  },
+  "auth": {
+    "type": "bearer",
+    "token": "dev-token-12345"
+  },
+  "headers": {
+    "X-Environment": "development",
+    "X-Debug": "true"
+  }
+}

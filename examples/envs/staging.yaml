@@ -1,0 +1,17 @@
+name: 预发环境 (staging)
+description: 预发集成测试环境
+baseUrl: https://staging-api.example.com
+variables:
+  BASE_URL: https://staging-api.example.com
+  BEARER_TOKEN: staging-token-placeholder
+  TEST_USERNAME: staging_tester
+  TEST_PASSWORD: staging_password_2024
+  DB_HOST: staging-db.internal
+  DB_PORT: "5432"
+  LOG_LEVEL: info
+auth:
+  type: bearer
+  token: "{{env.BEARER_TOKEN}}"
+headers:
+  X-Environment: staging
+  X-Client-ID: api-smoke-tester

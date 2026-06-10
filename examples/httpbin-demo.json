@@ -1,0 +1,252 @@
+{
+  "schema": "api-smoke/v1",
+  "name": "HTTPBin 演示集合",
+  "version": "1.0.0",
+  "description": "使用 httpbin.org 进行API冒烟测试演示 - 可直接运行验证工具功能",
+  "baseUrl": "https://httpbin.org",
+  "variables": {
+    "TEST_STRING": "Hello API Smoke Tester",
+    "TEST_NUMBER": 42,
+    "REQUEST_ID": "{{uuid()}}"
+  },
+  "auth": {
+    "type": "none"
+  },
+  "headers": {
+    "X-Test-Request-ID": "{{collection.REQUEST_ID}}",
+    "Accept": "application/json"
+  },
+  "settings": {
+    "timeout": 30000,
+    "retries": 1,
+    "retryDelay": 500
+  },
+  "requests": [
+    {
+      "name": "GET 请求测试",
+      "description": "验证基本 GET 请求功能",
+      "method": "GET",
+      "url": "/get",
+      "tags": ["get", "smoke", "basic"],
+      "queryParams": {
+        "hello": "{{collection.TEST_STRING}}",
+        "num": "{{collection.TEST_NUMBER}}"
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200
+        },
+        {
+          "name": "响应时间应小于5秒",
+          "type": "time",
+          "operator": "lessThan",
+          "expected": 5000
+        },
+        {
+          "name": "args.hello参数正确",
+          "type": "jsonpath",
+          "path": "$.args.hello",
+          "operator": "equals",
+          "expected": "{{collection.TEST_STRING}}"
+        },
+        {
+          "name": "返回体包含url字段",
+          "type": "body",
+          "path": "$.url",
+          "operator": "exists"
+        }
+      ]
+    },
+    {
+      "name": "POST JSON 请求测试",
+      "description": "验证 JSON 请求体功能",
+      "method": "POST",
+      "url": "/post",
+      "tags": ["post", "smoke", "json"],
+      "bodyType": "json",
+      "body": {
+        "message": "{{collection.TEST_STRING}}",
+        "timestamp": "{{timestamp()}}",
+        "nested": {
+          "value": "{{collection.TEST_NUMBER}}",
+          "tags": ["a", "b", "c"]
+        }
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200
+        },
+        {
+          "name": "响应内容类型为JSON",
+          "type": "header",
+          "path": "Content-Type",
+          "operator": "contains",
+          "expected": "application/json"
+        },
+        {
+          "name": "JSON消息回显正确",
+          "type": "jsonpath",
+          "path": "$.json.message",
+          "operator": "equals",
+          "expected": "{{collection.TEST_STRING}}"
+        },
+        {
+          "name": "嵌套字段value正确",
+          "type": "jsonpath",
+          "path": "$.json.nested.value",
+          "operator": "equals",
+          "expected": "42"
+        },
+        {
+          "name": "tags数组包含a",
+          "type": "jsonpath",
+          "path": "$.json.nested.tags",
+          "operator": "includes",
+          "expected": "a"
+        }
+      ]
+    },
+    {
+      "name": "状态码404测试",
+      "method": "GET",
+      "url": "/status/404",
+      "tags": ["status", "negative"],
+      "assertions": [
+        {
+          "name": "状态码应为404",
+          "type": "status",
+          "operator": "equals",
+          "expected": 404
+        }
+      ]
+    },
+    {
+      "name": "Bearer Token 认证测试",
+      "description": "验证 Authorization header 正确传递",
+      "method": "GET",
+      "url": "/bearer",
+      "tags": ["auth", "smoke", "bearer"],
+      "auth": {
+        "type": "bearer",
+        "token": "test-token-abc123xyz"
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200
+        },
+        {
+          "name": "认证成功为true",
+          "type": "jsonpath",
+          "path": "$.authenticated",
+          "operator": "equals",
+          "expected": true
+        },
+        {
+          "name": "token正确",
+          "type": "jsonpath",
+          "path": "$.token",
+          "operator": "equals",
+          "expected": "test-token-abc123xyz"
+        }
+      ]
+    },
+    {
+      "name": "响应头测试",
+      "method": "GET",
+      "url": "/response-headers",
+      "tags": ["headers"],
+      "queryParams": {
+        "X-Custom-Header": "custom_value",
+        "Content-Type": "application/json"
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200或302",
+          "type": "status",
+          "operator": "in",
+          "expected": [200, 302]
+        }
+      ]
+    },
+    {
+      "name": "延迟请求测试(1秒)",
+      "description": "验证超时和响应时间断言",
+      "method": "GET",
+      "url": "/delay/1",
+      "tags": ["slow", "timeout"],
+      "timeout": 10000,
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200
+        },
+        {
+          "name": "响应时间在500ms-5000ms之间",
+          "type": "time",
+          "operator": "greaterThan",
+          "expected": 500
+        }
+      ]
+    }
+  ],
+  "folders": [
+    {
+      "name": "编码与格式",
+      "description": "测试各种编码和响应格式",
+      "requests": [
+        {
+          "name": "Base64编码测试",
+          "method": "GET",
+          "url": "/base64/{{base64('Hello World')}}",
+          "tags": ["encoding", "function"],
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200
+            },
+            {
+              "name": "解码结果正确",
+              "type": "body",
+              "operator": "equals",
+              "expected": "Hello World"
+            }
+          ]
+        },
+        {
+          "name": "HTML响应",
+          "method": "GET",
+          "url": "/html",
+          "tags": ["html", "content-type"],
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200
+            },
+            {
+              "name": "Content-Type包含text/html",
+              "type": "header",
+              "path": "Content-Type",
+              "operator": "contains",
+              "expected": "text/html"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

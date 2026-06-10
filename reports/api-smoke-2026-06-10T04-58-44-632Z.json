@@ -1,0 +1,1344 @@
+{
+  "collection": {
+    "name": "HTTPBin 演示集合",
+    "version": "1.0.0"
+  },
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "totalAssertions": 20,
+    "passedAssertions": 20,
+    "failedAssertions": 0,
+    "duration": 6064,
+    "startedAt": "2026-06-10T04:58:38.525Z",
+    "finishedAt": "2026-06-10T04:58:44.589Z",
+    "successRate": 100
+  },
+  "results": [
+    {
+      "testCase": {
+        "id": "6dcd13aa-3136-42c4-a716-9c1abd96b932",
+        "name": "GET 请求测试",
+        "fullName": "GET 请求测试",
+        "request": {
+          "name": "GET 请求测试",
+          "description": "验证基本 GET 请求功能",
+          "method": "GET",
+          "url": "/get",
+          "tags": [
+            "get",
+            "smoke",
+            "basic"
+          ],
+          "queryParams": {
+            "hello": "{{collection.TEST_STRING}}",
+            "num": "{{collection.TEST_NUMBER}}"
+          },
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200"
+              }
+            },
+            {
+              "name": "响应时间应小于5秒",
+              "type": "time",
+              "operator": "lessThan",
+              "expected": 5000,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "响应时间应小于5秒"
+              }
+            },
+            {
+              "name": "args.hello参数正确",
+              "type": "jsonpath",
+              "path": "$.args.hello",
+              "operator": "equals",
+              "expected": "{{collection.TEST_STRING}}",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "args.hello参数正确"
+              }
+            },
+            {
+              "name": "返回体包含url字段",
+              "type": "body",
+              "path": "$.url",
+              "operator": "exists",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "返回体包含url字段"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/get",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "fe9699c0-e689-4fbb-8030-c25cecb56ef8",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {
+          "hello": "Hello API Smoke Tester",
+          "num": "42"
+        },
+        "assertions": [
+          {
+            "name": "状态码应为200",
+            "type": "status",
+            "operator": "equals",
+            "expected": 200,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200"
+            }
+          },
+          {
+            "name": "响应时间应小于5秒",
+            "type": "time",
+            "operator": "lessThan",
+            "expected": 5000,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "响应时间应小于5秒"
+            }
+          },
+          {
+            "name": "args.hello参数正确",
+            "type": "jsonpath",
+            "path": "$.args.hello",
+            "operator": "equals",
+            "expected": "Hello API Smoke Tester",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "args.hello参数正确"
+            }
+          },
+          {
+            "name": "返回体包含url字段",
+            "type": "body",
+            "path": "$.url",
+            "operator": "exists",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "返回体包含url字段"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "get",
+          "smoke",
+          "basic"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:39 GMT",
+          "content-type": "application/json",
+          "content-length": "486",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": {
+          "args": {
+            "hello": "Hello API Smoke Tester",
+            "num": "42"
+          },
+          "headers": {
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, compress, deflate, br",
+            "Host": "httpbin.org",
+            "User-Agent": "axios/1.17.0",
+            "X-Amzn-Trace-Id": "Root=1-6a28eeff-1df7d5a36be235303264f99f",
+            "X-Test-Request-Id": "fe9699c0-e689-4fbb-8030-c25cecb56ef8"
+          },
+          "origin": "18.183.162.201",
+          "url": "https://httpbin.org/get?hello=Hello+API+Smoke+Tester&num=42"
+        },
+        "responseTime": 877,
+        "size": 405
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 == 200",
+          "duration": 0
+        },
+        {
+          "name": "响应时间应小于5秒",
+          "type": "time",
+          "operator": "lessThan",
+          "expected": 5000,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "响应时间应小于5秒"
+          },
+          "passed": true,
+          "actual": 877,
+          "message": "响应时间验证通过: 877ms < 5000ms",
+          "duration": 0
+        },
+        {
+          "name": "args.hello参数正确",
+          "type": "jsonpath",
+          "path": "$.args.hello",
+          "operator": "equals",
+          "expected": "Hello API Smoke Tester",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "args.hello参数正确"
+          },
+          "passed": true,
+          "actual": "Hello API Smoke Tester",
+          "message": "JSONPath [$.args.hello] 验证通过: \"Hello API Smoke Tester\"",
+          "duration": 4
+        },
+        {
+          "name": "返回体包含url字段",
+          "type": "body",
+          "path": "$.url",
+          "operator": "exists",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "返回体包含url字段"
+          },
+          "passed": true,
+          "actual": "https://httpbin.org/get?hello=Hello+API+Smoke+Tester&num=42",
+          "message": "响应体 [$.url] 验证通过",
+          "duration": 1
+        }
+      ],
+      "retries": 0,
+      "duration": 884
+    },
+    {
+      "testCase": {
+        "id": "124f7e83-12e4-4f34-9062-04299f7d8a43",
+        "name": "POST JSON 请求测试",
+        "fullName": "POST JSON 请求测试",
+        "request": {
+          "name": "POST JSON 请求测试",
+          "description": "验证 JSON 请求体功能",
+          "method": "POST",
+          "url": "/post",
+          "tags": [
+            "post",
+            "smoke",
+            "json"
+          ],
+          "bodyType": "json",
+          "body": {
+            "message": "{{collection.TEST_STRING}}",
+            "timestamp": "{{timestamp()}}",
+            "nested": {
+              "value": "{{collection.TEST_NUMBER}}",
+              "tags": [
+                "a",
+                "b",
+                "c"
+              ]
+            }
+          },
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200"
+              }
+            },
+            {
+              "name": "响应内容类型为JSON",
+              "type": "header",
+              "path": "Content-Type",
+              "operator": "contains",
+              "expected": "application/json",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "响应内容类型为JSON"
+              }
+            },
+            {
+              "name": "JSON消息回显正确",
+              "type": "jsonpath",
+              "path": "$.json.message",
+              "operator": "equals",
+              "expected": "{{collection.TEST_STRING}}",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "JSON消息回显正确"
+              }
+            },
+            {
+              "name": "嵌套字段value正确",
+              "type": "jsonpath",
+              "path": "$.json.nested.value",
+              "operator": "equals",
+              "expected": "42",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "嵌套字段value正确"
+              }
+            },
+            {
+              "name": "tags数组包含a",
+              "type": "jsonpath",
+              "path": "$.json.nested.tags",
+              "operator": "includes",
+              "expected": "a",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "tags数组包含a"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/post",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "f4aa072a-3736-4a50-9bcb-b6d3a22eb257",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {},
+        "resolvedBody": {
+          "message": "Hello API Smoke Tester",
+          "timestamp": "1781067518506",
+          "nested": {
+            "value": "42",
+            "tags": [
+              "a",
+              "b",
+              "c"
+            ]
+          }
+        },
+        "assertions": [
+          {
+            "name": "状态码应为200",
+            "type": "status",
+            "operator": "equals",
+            "expected": 200,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200"
+            }
+          },
+          {
+            "name": "响应内容类型为JSON",
+            "type": "header",
+            "path": "Content-Type",
+            "operator": "contains",
+            "expected": "application/json",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "响应内容类型为JSON"
+            }
+          },
+          {
+            "name": "JSON消息回显正确",
+            "type": "jsonpath",
+            "path": "$.json.message",
+            "operator": "equals",
+            "expected": "Hello API Smoke Tester",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "JSON消息回显正确"
+            }
+          },
+          {
+            "name": "嵌套字段value正确",
+            "type": "jsonpath",
+            "path": "$.json.nested.value",
+            "operator": "equals",
+            "expected": "42",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "嵌套字段value正确"
+            }
+          },
+          {
+            "name": "tags数组包含a",
+            "type": "jsonpath",
+            "path": "$.json.nested.tags",
+            "operator": "includes",
+            "expected": "a",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "tags数组包含a"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "post",
+          "smoke",
+          "json"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:39 GMT",
+          "content-type": "application/json",
+          "content-length": "843",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": {
+          "args": {},
+          "data": "{\"message\":\"Hello API Smoke Tester\",\"timestamp\":\"1781067518506\",\"nested\":{\"value\":\"42\",\"tags\":[\"a\",\"b\",\"c\"]}}",
+          "files": {},
+          "form": {},
+          "headers": {
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, compress, deflate, br",
+            "Content-Length": "109",
+            "Content-Type": "application/json",
+            "Host": "httpbin.org",
+            "User-Agent": "axios/1.17.0",
+            "X-Amzn-Trace-Id": "Root=1-6a28eeff-3f3a9a746c762cdc06a02b00",
+            "X-Test-Request-Id": "f4aa072a-3736-4a50-9bcb-b6d3a22eb257"
+          },
+          "json": {
+            "message": "Hello API Smoke Tester",
+            "nested": {
+              "tags": [
+                "a",
+                "b",
+                "c"
+              ],
+              "value": "42"
+            },
+            "timestamp": "1781067518506"
+          },
+          "origin": "18.183.162.201",
+          "url": "https://httpbin.org/post"
+        },
+        "responseTime": 216,
+        "size": 663
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 == 200",
+          "duration": 0
+        },
+        {
+          "name": "响应内容类型为JSON",
+          "type": "header",
+          "path": "Content-Type",
+          "operator": "contains",
+          "expected": "application/json",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "响应内容类型为JSON"
+          },
+          "passed": true,
+          "actual": "application/json",
+          "message": "响应头 [content-type] 验证通过: \"application/json\"",
+          "duration": 0
+        },
+        {
+          "name": "JSON消息回显正确",
+          "type": "jsonpath",
+          "path": "$.json.message",
+          "operator": "equals",
+          "expected": "Hello API Smoke Tester",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "JSON消息回显正确"
+          },
+          "passed": true,
+          "actual": "Hello API Smoke Tester",
+          "message": "JSONPath [$.json.message] 验证通过: \"Hello API Smoke Tester\"",
+          "duration": 0
+        },
+        {
+          "name": "嵌套字段value正确",
+          "type": "jsonpath",
+          "path": "$.json.nested.value",
+          "operator": "equals",
+          "expected": "42",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "嵌套字段value正确"
+          },
+          "passed": true,
+          "actual": "42",
+          "message": "JSONPath [$.json.nested.value] 验证通过: \"42\"",
+          "duration": 0
+        },
+        {
+          "name": "tags数组包含a",
+          "type": "jsonpath",
+          "path": "$.json.nested.tags",
+          "operator": "includes",
+          "expected": "a",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "tags数组包含a"
+          },
+          "passed": true,
+          "actual": [
+            "a",
+            "b",
+            "c"
+          ],
+          "message": "JSONPath [$.json.nested.tags] 验证通过: [\"a\",\"b\",\"c\"]",
+          "duration": 1
+        }
+      ],
+      "retries": 0,
+      "duration": 218
+    },
+    {
+      "testCase": {
+        "id": "e7e20688-fd90-447c-913e-a41dbd4e7199",
+        "name": "状态码404测试",
+        "fullName": "状态码404测试",
+        "request": {
+          "name": "状态码404测试",
+          "method": "GET",
+          "url": "/status/404",
+          "tags": [
+            "status",
+            "negative"
+          ],
+          "assertions": [
+            {
+              "name": "状态码应为404",
+              "type": "status",
+              "operator": "equals",
+              "expected": 404,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为404"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/status/404",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "7efbf750-2042-4c34-ae32-b355f7cc1255",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {},
+        "assertions": [
+          {
+            "name": "状态码应为404",
+            "type": "status",
+            "operator": "equals",
+            "expected": 404,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为404"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "status",
+          "negative"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 404,
+        "statusText": "NOT FOUND",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:40 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "0",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": "",
+        "responseTime": 442,
+        "size": 0
+      },
+      "assertions": [
+        {
+          "name": "状态码应为404",
+          "type": "status",
+          "operator": "equals",
+          "expected": 404,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为404"
+          },
+          "passed": true,
+          "actual": 404,
+          "message": "状态码验证通过: 404 == 404",
+          "duration": 0
+        }
+      ],
+      "retries": 0,
+      "duration": 443
+    },
+    {
+      "testCase": {
+        "id": "3226e95c-e90c-41a6-8a7b-75d1a1d498f7",
+        "name": "Bearer Token 认证测试",
+        "fullName": "Bearer Token 认证测试",
+        "request": {
+          "name": "Bearer Token 认证测试",
+          "description": "验证 Authorization header 正确传递",
+          "method": "GET",
+          "url": "/bearer",
+          "tags": [
+            "auth",
+            "smoke",
+            "bearer"
+          ],
+          "auth": {
+            "type": "bearer",
+            "token": "test-token-abc123xyz"
+          },
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200"
+              }
+            },
+            {
+              "name": "认证成功为true",
+              "type": "jsonpath",
+              "path": "$.authenticated",
+              "operator": "equals",
+              "expected": true,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "认证成功为true"
+              }
+            },
+            {
+              "name": "token正确",
+              "type": "jsonpath",
+              "path": "$.token",
+              "operator": "equals",
+              "expected": "test-token-abc123xyz",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "token正确"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/bearer",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "b811d8f9-e0d8-4f8d-90a4-935844c7237e",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {},
+        "assertions": [
+          {
+            "name": "状态码应为200",
+            "type": "status",
+            "operator": "equals",
+            "expected": 200,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200"
+            }
+          },
+          {
+            "name": "认证成功为true",
+            "type": "jsonpath",
+            "path": "$.authenticated",
+            "operator": "equals",
+            "expected": true,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "认证成功为true"
+            }
+          },
+          {
+            "name": "token正确",
+            "type": "jsonpath",
+            "path": "$.token",
+            "operator": "equals",
+            "expected": "test-token-abc123xyz",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "token正确"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "auth",
+          "smoke",
+          "bearer"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:40 GMT",
+          "content-type": "application/json",
+          "content-length": "64",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": {
+          "authenticated": true,
+          "token": "test-token-abc123xyz"
+        },
+        "responseTime": 210,
+        "size": 53
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 == 200",
+          "duration": 0
+        },
+        {
+          "name": "认证成功为true",
+          "type": "jsonpath",
+          "path": "$.authenticated",
+          "operator": "equals",
+          "expected": true,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "认证成功为true"
+          },
+          "passed": true,
+          "actual": true,
+          "message": "JSONPath [$.authenticated] 验证通过: true",
+          "duration": 1
+        },
+        {
+          "name": "token正确",
+          "type": "jsonpath",
+          "path": "$.token",
+          "operator": "equals",
+          "expected": "test-token-abc123xyz",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "token正确"
+          },
+          "passed": true,
+          "actual": "test-token-abc123xyz",
+          "message": "JSONPath [$.token] 验证通过: \"test-token-abc123xyz\"",
+          "duration": 0
+        }
+      ],
+      "retries": 0,
+      "duration": 212
+    },
+    {
+      "testCase": {
+        "id": "26088514-603c-46cf-bc14-b9ca0fb9e081",
+        "name": "响应头测试",
+        "fullName": "响应头测试",
+        "request": {
+          "name": "响应头测试",
+          "method": "GET",
+          "url": "/response-headers",
+          "tags": [
+            "headers"
+          ],
+          "queryParams": {
+            "X-Custom-Header": "custom_value",
+            "Content-Type": "application/json"
+          },
+          "assertions": [
+            {
+              "name": "状态码应为200或302",
+              "type": "status",
+              "operator": "in",
+              "expected": [
+                200,
+                302
+              ],
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200或302"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/response-headers",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "e2463a6d-aefc-48dc-839d-b6c48fcf6f1a",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {
+          "X-Custom-Header": "custom_value",
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "name": "状态码应为200或302",
+            "type": "status",
+            "operator": "in",
+            "expected": [
+              200,
+              302
+            ],
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200或302"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "headers"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:41 GMT",
+          "content-type": "application/json",
+          "content-length": "142",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "x-custom-header": "custom_value",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": {
+          "Content-Length": "142",
+          "Content-Type": [
+            "application/json",
+            "application/json"
+          ],
+          "X-Custom-Header": "custom_value"
+        },
+        "responseTime": 851,
+        "size": 112
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200或302",
+          "type": "status",
+          "operator": "in",
+          "expected": [
+            200,
+            302
+          ],
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200或302"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 in 200,302",
+          "duration": 0
+        }
+      ],
+      "retries": 0,
+      "duration": 851
+    },
+    {
+      "testCase": {
+        "id": "c4a202f7-3d5a-4501-9619-05baaeff94ec",
+        "name": "延迟请求测试(1秒)",
+        "fullName": "延迟请求测试(1秒)",
+        "request": {
+          "name": "延迟请求测试(1秒)",
+          "description": "验证超时和响应时间断言",
+          "method": "GET",
+          "url": "/delay/1",
+          "tags": [
+            "slow",
+            "timeout"
+          ],
+          "timeout": 10000,
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200"
+              }
+            },
+            {
+              "name": "响应时间在500ms-5000ms之间",
+              "type": "time",
+              "operator": "greaterThan",
+              "expected": 500,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "响应时间在500ms-5000ms之间"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/delay/1",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "7ed7b5e6-37f6-4321-afc2-c4fbab22c7e5",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {},
+        "assertions": [
+          {
+            "name": "状态码应为200",
+            "type": "status",
+            "operator": "equals",
+            "expected": 200,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200"
+            }
+          },
+          {
+            "name": "响应时间在500ms-5000ms之间",
+            "type": "time",
+            "operator": "greaterThan",
+            "expected": 500,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "响应时间在500ms-5000ms之间"
+            }
+          }
+        ],
+        "timeout": 10000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "slow",
+          "timeout"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:43 GMT",
+          "content-type": "application/json",
+          "content-length": "441",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": {
+          "args": {},
+          "data": "",
+          "files": {},
+          "form": {},
+          "headers": {
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, compress, deflate, br",
+            "Host": "httpbin.org",
+            "User-Agent": "axios/1.17.0",
+            "X-Amzn-Trace-Id": "Root=1-6a28ef01-59436aa83b4598b1114055be",
+            "X-Test-Request-Id": "7ed7b5e6-37f6-4321-afc2-c4fbab22c7e5"
+          },
+          "origin": "18.183.162.201",
+          "url": "https://httpbin.org/delay/1"
+        },
+        "responseTime": 2070,
+        "size": 361
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 == 200",
+          "duration": 0
+        },
+        {
+          "name": "响应时间在500ms-5000ms之间",
+          "type": "time",
+          "operator": "greaterThan",
+          "expected": 500,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "响应时间在500ms-5000ms之间"
+          },
+          "passed": true,
+          "actual": 2070,
+          "message": "响应时间验证通过: 2070ms > 500ms",
+          "duration": 0
+        }
+      ],
+      "retries": 0,
+      "duration": 2071
+    },
+    {
+      "testCase": {
+        "id": "0fb3e1d9-4a56-4ec6-b8f1-ca0b2793a3e6",
+        "name": "Base64编码测试",
+        "fullName": "编码与格式 > Base64编码测试",
+        "folder": "编码与格式",
+        "request": {
+          "name": "Base64编码测试",
+          "method": "GET",
+          "url": "/base64/{{base64('Hello World')}}",
+          "tags": [
+            "encoding",
+            "function"
+          ],
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200"
+              }
+            },
+            {
+              "name": "解码结果正确",
+              "type": "body",
+              "operator": "equals",
+              "expected": "Hello World",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "解码结果正确"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/base64/SGVsbG8gV29ybGQ=",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "da95a654-1e57-43df-8651-097098816d54",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {},
+        "assertions": [
+          {
+            "name": "状态码应为200",
+            "type": "status",
+            "operator": "equals",
+            "expected": 200,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200"
+            }
+          },
+          {
+            "name": "解码结果正确",
+            "type": "body",
+            "operator": "equals",
+            "expected": "Hello World",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "解码结果正确"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "encoding",
+          "function"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:43 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "11",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": "Hello World",
+        "responseTime": 480,
+        "size": 11
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 == 200",
+          "duration": 0
+        },
+        {
+          "name": "解码结果正确",
+          "type": "body",
+          "operator": "equals",
+          "expected": "Hello World",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "解码结果正确"
+          },
+          "passed": true,
+          "actual": "Hello World",
+          "message": "响应体  验证通过",
+          "duration": 0
+        }
+      ],
+      "retries": 0,
+      "duration": 480
+    },
+    {
+      "testCase": {
+        "id": "e79b9739-9b58-41bd-bf0f-5a08fead537a",
+        "name": "HTML响应",
+        "fullName": "编码与格式 > HTML响应",
+        "folder": "编码与格式",
+        "request": {
+          "name": "HTML响应",
+          "method": "GET",
+          "url": "/html",
+          "tags": [
+            "html",
+            "content-type"
+          ],
+          "assertions": [
+            {
+              "name": "状态码应为200",
+              "type": "status",
+              "operator": "equals",
+              "expected": 200,
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "状态码应为200"
+              }
+            },
+            {
+              "name": "Content-Type包含text/html",
+              "type": "header",
+              "path": "Content-Type",
+              "operator": "contains",
+              "expected": "text/html",
+              "errorLocation": {
+                "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+                "assertionName": "Content-Type包含text/html"
+              }
+            }
+          ]
+        },
+        "resolvedUrl": "https://httpbin.org/html",
+        "resolvedHeaders": {
+          "X-Test-Request-ID": "84844410-52f1-4fa2-ba87-a0013db8880e",
+          "Accept": "application/json"
+        },
+        "resolvedQueryParams": {},
+        "assertions": [
+          {
+            "name": "状态码应为200",
+            "type": "status",
+            "operator": "equals",
+            "expected": 200,
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "状态码应为200"
+            }
+          },
+          {
+            "name": "Content-Type包含text/html",
+            "type": "header",
+            "path": "Content-Type",
+            "operator": "contains",
+            "expected": "text/html",
+            "errorLocation": {
+              "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+              "assertionName": "Content-Type包含text/html"
+            }
+          }
+        ],
+        "timeout": 30000,
+        "retries": 1,
+        "retryDelay": 1000,
+        "tags": [
+          "html",
+          "content-type"
+        ],
+        "skip": false,
+        "dependsOn": [],
+        "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json"
+      },
+      "passed": true,
+      "skipped": false,
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "date": "Wed, 10 Jun 2026 04:58:44 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "3741",
+          "connection": "keep-alive",
+          "server": "gunicorn/19.9.0",
+          "access-control-allow-origin": "*",
+          "access-control-allow-credentials": "true"
+        },
+        "data": "<!DOCTYPE html>\n<html>\n  <head>\n  </head>\n  <body>\n      <h1>Herman Melville - Moby-Dick</h1>\n\n      <div>\n        <p>\n          Availing himself of the mild, summer-cool weather that now reigned in these latitudes, and in preparation for the peculiarly active pursuits shortly to be anticipated, Perth, the begrimed, blistered old blacksmith, had not removed his portable forge to the hold again, after concluding his contributory work for Ahab's leg, but still retained it on deck, fast lashed to ringbolts by the foremast; being now almost incessantly invoked by the headsmen, and harpooneers, and bowsmen to do some little job for them; altering, or repairing, or new shaping their various weapons and boat furniture. Often he would be surrounded by an eager circle, all waiting to be served; holding boat-spades, pike-heads, harpoons, and lances, and jealously watching his every sooty movement, as he toiled. Nevertheless, this old man's was a patient hammer wielded by a patient arm. No murmur, no impatience, no petulance did come from him. Silent, slow, and solemn; bowing over still further his chronically broken back, he toiled away, as if toil were life itself, and the heavy beating of his hammer the heavy beating of his heart. And so it was.—Most miserable! A peculiar walk in this old man, a certain slight but painful appearing yawing in his gait, had at an early period of the voyage excited the curiosity of the mariners. And to the importunity of their persisted questionings he had finally given in; and so it came to pass that every one now knew the shameful story of his wretched fate. Belated, and not innocently, one bitter winter's midnight, on the road running between two country towns, the blacksmith half-stupidly felt the deadly numbness stealing over him, and sought refuge in a leaning, dilapidated barn. The issue was, the loss of the extremities of both feet. Out of this revelation, part by part, at last came out the four acts of the gladness, and the one long, and as yet uncatastrophied fifth act of the grief of his life's drama. He was an old man, who, at the age of nearly sixty, had postponedly encountered that thing in sorrow's technicals called ruin. He had been an artisan of famed excellence, and with plenty to do; owned a house and garden; embraced a youthful, daughter-like, loving wife, and three blithe, ruddy children; every Sunday went to a cheerful-looking church, planted in a grove. But one night, under cover of darkness, and further concealed in a most cunning disguisement, a desperate burglar slid into his happy home, and robbed them all of everything. And darker yet to tell, the blacksmith himself did ignorantly conduct this burglar into his family's heart. It was the Bottle Conjuror! Upon the opening of that fatal cork, forth flew the fiend, and shrivelled up his home. Now, for prudent, most wise, and economic reasons, the blacksmith's shop was in the basement of his dwelling, but with a separate entrance to it; so that always had the young and loving healthy wife listened with no unhappy nervousness, but with vigorous pleasure, to the stout ringing of her young-armed old husband's hammer; whose reverberations, muffled by passing through the floors and walls, came up to her, not unsweetly, in her nursery; and so, to stout Labor's iron lullaby, the blacksmith's infants were rocked to slumber. Oh, woe on woe! Oh, Death, why canst thou not sometimes be timely? Hadst thou taken this old blacksmith to thyself ere his full ruin came upon him, then had the young widow had a delicious grief, and her orphans a truly venerable, legendary sire to dream of in their after years; and all of them a care-killing competency.\n        </p>\n      </div>\n  </body>\n</html>",
+        "responseTime": 901,
+        "size": 3741
+      },
+      "assertions": [
+        {
+          "name": "状态码应为200",
+          "type": "status",
+          "operator": "equals",
+          "expected": 200,
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "状态码应为200"
+          },
+          "passed": true,
+          "actual": 200,
+          "message": "状态码验证通过: 200 == 200",
+          "duration": 0
+        },
+        {
+          "name": "Content-Type包含text/html",
+          "type": "header",
+          "path": "Content-Type",
+          "operator": "contains",
+          "expected": "text/html",
+          "errorLocation": {
+            "file": "/Volumes/TraeProjects/trae-solo-generated-projects/question-406/examples/httpbin-demo.json",
+            "assertionName": "Content-Type包含text/html"
+          },
+          "passed": true,
+          "actual": "text/html; charset=utf-8",
+          "message": "响应头 [content-type] 验证通过: \"text/html; charset=utf-8\"",
+          "duration": 0
+        }
+      ],
+      "retries": 0,
+      "duration": 901
+    }
+  ],
+  "cliOptions": {
+    "parallel": 1,
+    "logLevel": "info",
+    "verbose": false,
+    "silent": false,
+    "color": false,
+    "dryRun": false,
+    "bail": false,
+    "retryDelay": 1000,
+    "strictVariables": false,
+    "failOnZeroTests": false,
+    "insecure": false,
+    "followRedirects": true,
+    "collection": "examples/httpbin-demo.json",
+    "junit": "reports/demo.xml",
+    "json": "reports/demo.json",
+    "output": "reports/"
+  }
+}

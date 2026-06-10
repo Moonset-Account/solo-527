@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="api-smoke-test" tests="8" failures="0" skipped="0" time="6.064" timestamp="2026-06-10T04:58:38">
+  <testsuite name="HTTPBin 演示集合" tests="8" failures="0" skipped="0" errors="0" time="6.064" timestamp="2026-06-10T04:58:38">
+    <properties>
+      <property name="collection" value="HTTPBin 演示集合"/>
+      <property name="collection.version" value="1.0.0"/>
+      <property name="success.rate" value="100%"/>
+    </properties>
+    <testcase name="GET 请求测试" classname="HTTPBin 演示集合" time="0.884">
+      <system-out>
+Request: GET https://httpbin.org/get
+Status: HTTP 200 OK
+Response Time: 877ms
+Size: 405 bytes
+Assertions:
+  [✓] status 状态码应为200: 状态码验证通过: 200 == 200
+  [✓] time 响应时间应小于5秒: 响应时间验证通过: 877ms < 5000ms
+  [✓] jsonpath args.hello参数正确: JSONPath [$.args.hello] 验证通过: "Hello API Smoke Tester"
+  [✓] body 返回体包含url字段: 响应体 [$.url] 验证通过
+      </system-out>
+    </testcase>
+    <testcase name="POST JSON 请求测试" classname="HTTPBin 演示集合" time="0.218">
+      <system-out>
+Request: POST https://httpbin.org/post
+Status: HTTP 200 OK
+Response Time: 216ms
+Size: 663 bytes
+Assertions:
+  [✓] status 状态码应为200: 状态码验证通过: 200 == 200
+  [✓] header 响应内容类型为JSON: 响应头 [content-type] 验证通过: "application/json"
+  [✓] jsonpath JSON消息回显正确: JSONPath [$.json.message] 验证通过: "Hello API Smoke Tester"
+  [✓] jsonpath 嵌套字段value正确: JSONPath [$.json.nested.value] 验证通过: "42"
+  [✓] jsonpath tags数组包含a: JSONPath [$.json.nested.tags] 验证通过: ["a","b","c"]
+      </system-out>
+    </testcase>
+    <testcase name="状态码404测试" classname="HTTPBin 演示集合" time="0.443">
+      <system-out>
+Request: GET https://httpbin.org/status/404
+Status: HTTP 404 NOT FOUND
+Response Time: 442ms
+Size: 0 bytes
+Assertions:
+  [✓] status 状态码应为404: 状态码验证通过: 404 == 404
+      </system-out>
+    </testcase>
+    <testcase name="Bearer Token 认证测试" classname="HTTPBin 演示集合" time="0.212">
+      <system-out>
+Request: GET https://httpbin.org/bearer
+Status: HTTP 200 OK
+Response Time: 210ms
+Size: 53 bytes
+Assertions:
+  [✓] status 状态码应为200: 状态码验证通过: 200 == 200
+  [✓] jsonpath 认证成功为true: JSONPath [$.authenticated] 验证通过: true
+  [✓] jsonpath token正确: JSONPath [$.token] 验证通过: "test-token-abc123xyz"
+      </system-out>
+    </testcase>
+    <testcase name="响应头测试" classname="HTTPBin 演示集合" time="0.851">
+      <system-out>
+Request: GET https://httpbin.org/response-headers
+Status: HTTP 200 OK
+Response Time: 851ms
+Size: 112 bytes
+Assertions:
+  [✓] status 状态码应为200或302: 状态码验证通过: 200 in 200,302
+      </system-out>
+    </testcase>
+    <testcase name="延迟请求测试(1秒)" classname="HTTPBin 演示集合" time="2.071">
+      <system-out>
+Request: GET https://httpbin.org/delay/1
+Status: HTTP 200 OK
+Response Time: 2070ms
+Size: 361 bytes
+Assertions:
+  [✓] status 状态码应为200: 状态码验证通过: 200 == 200
+  [✓] time 响应时间在500ms-5000ms之间: 响应时间验证通过: 2070ms > 500ms
+      </system-out>
+    </testcase>
+    <testcase name="编码与格式 &gt; Base64编码测试" classname="编码与格式" time="0.480">
+      <system-out>
+Request: GET https://httpbin.org/base64/SGVsbG8gV29ybGQ=
+Status: HTTP 200 OK
+Response Time: 480ms
+Size: 11 bytes
+Assertions:
+  [✓] status 状态码应为200: 状态码验证通过: 200 == 200
+  [✓] body 解码结果正确: 响应体  验证通过
+      </system-out>
+    </testcase>
+    <testcase name="编码与格式 &gt; HTML响应" classname="编码与格式" time="0.901">
+      <system-out>
+Request: GET https://httpbin.org/html
+Status: HTTP 200 OK
+Response Time: 901ms
+Size: 3741 bytes
+Assertions:
+  [✓] status 状态码应为200: 状态码验证通过: 200 == 200
+  [✓] header Content-Type包含text/html: 响应头 [content-type] 验证通过: "text/html; charset=utf-8"
+      </system-out>
+    </testcase>
+  </testsuite>
+</testsuites>

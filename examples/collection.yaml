@@ -1,0 +1,134 @@
+schema: api-smoke/v1
+name: 用户服务冒烟测试集合 (YAML版)
+version: "1.0.0"
+description: |
+  用户服务核心API冒烟测试用例
+  包含健康检查、登录、用户CRUD等场景
+  使用YAML格式，更易于阅读和编辑
+
+baseUrl: "{{env.BASE_URL}}"
+
+variables:
+  APP_NAME: UserService
+  DEFAULT_ROLE: user
+  TEST_PREFIX: smoke_
+
+auth:
+  type: bearer
+  token: "{{env.BEARER_TOKEN}}"
+  headerPrefix: Bearer
+
+headers:
+  X-App-Name: "{{collection.APP_NAME}}"
+  X-Request-ID: "{{uuid()}}"
+  Accept: application/json
+
+settings:
+  timeout: 30000
+  retries: 2
+  retryDelay: 1000
+  followRedirects: true
+  validateSSL: true
+
+requests:
+  - name: 健康检查接口
+    description: 验证服务是否正常运行
+    method: GET
+    url: /health
+    tags: [health, smoke, fast]
+    auth:
+      type: none
+    timeout: 10000
+    assertions:
+      - name: HTTP状态码应为200
+        type: status
+        operator: equals
+        expected: 200
+      - name: 响应时间应小于2秒
+        type: time
+        operator: lessThan
+        expected: 2000
+      - name: 响应体status字段应为ok
+        type: body
+        path: "$.status"
+        operator: equals
+        expected: ok
+      - name: 响应体应包含version字段
+        type: jsonpath
+        path: "$.version"
+        operator: exists
+      - name: Content-Type应为json
+        type: header
+        path: Content-Type
+        operator: contains
+        expected: application/json
+
+  - name: 用户登录接口
+    description: 使用测试账号登录获取token
+    method: POST
+    url: /api/v1/auth/login
+    tags: [auth, smoke, critical]
+    auth:
+      type: none
+    bodyType: json
+    body:
+      username: "{{env.TEST_USERNAME}}"
+      password: "{{env.TEST_PASSWORD}}"
+      remember_me: true
+    assertions:
+      - name: 登录成功返回200或201
+        type: status
+        operator: in
+        expected: [200, 201]
+      - name: 返回token字段
+        type: jsonpath
+        path: "$.data.token"
+        operator: exists
+      - name: token为非空字符串
+        type: body
+        path: "$.data.token"
+        operator: typeOf
+        expected: string
+      - name: 用户角色为默认角色
+        type: body
+        path: "$.data.user.role"
+        operator: equals
+        expected: "{{collection.DEFAULT_ROLE}}"
+    extract:
+      USER_TOKEN:
+        path: "$.data.token"
+        storeIn: extracted
+      USER_ID:
+        path: "$.data.user.id"
+        storeIn: extracted
+
+folders:
+  - name: 订单模块
+    description: 订单相关API测试
+    variables:
+      ORDER_PREFIX: ORD_
+    headers:
+      X-Module: orders
+    requests:
+      - name: 获取订单列表
+        description: 分页获取当前用户的订单列表
+        method: GET
+        url: /api/v1/orders
+        tags: [orders, smoke]
+        queryParams:
+          page: 1
+          page_size: 10
+          status: all
+        assertions:
+          - name: 订单列表返回成功
+            type: status
+            operator: equals
+            expected: 200
+          - name: 返回数据结构包含items
+            type: jsonpath
+            path: "$.data.items"
+            operator: exists
+          - name: 响应时间小于3秒
+            type: time
+            operator: lessThan
+            expected: 3000
