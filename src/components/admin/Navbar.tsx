@@ -2,15 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { Bell, Search, Menu, X } from 'lucide-react';
-import { mockExceptions, mockPhotos } from '@/lib/mock/data';
+import { getAllPhotos, getAllExceptions } from '@/lib/services/data';
 import { useAuthStore } from '@/lib/store/useAuthStore';
 import Link from 'next/link';
+import type { Photo, ExceptionRecord } from '@/lib/types';
 
 export function Navbar() {
   const { isAuthenticated } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const pendingCount = mockPhotos.filter(p => p.review_status === 'pending').length;
-  const openExceptions = mockExceptions.filter(e => e.status !== 'closed').length;
+  const [pendingCount, setPendingCount] = useState(0);
+  const [openExceptions, setOpenExceptions] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    Promise.all([
+      getAllPhotos('pending'),
+      getAllExceptions(),
+    ]).then(([photos, exceptions]) => {
+      setPendingCount((photos as Photo[]).length);
+      setOpenExceptions((exceptions as ExceptionRecord[]).filter(e => e.status !== 'closed').length);
+    });
+  }, [isAuthenticated]);
+
   const totalAlerts = pendingCount + openExceptions;
 
   if (!isAuthenticated) return null;

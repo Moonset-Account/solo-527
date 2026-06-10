@@ -1,14 +1,26 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { getBudgetWithExpenses, mockSiteSettings } from '@/lib/mock/data';
+import { getBudgetWithExpenses, getSettingByKey } from '@/lib/services/data';
 import { formatCurrency } from '@/lib/utils/format';
+import type { BudgetCategory } from '@/lib/types';
 
 const COLORS = ['#F97316', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'];
 
 export function BudgetChart() {
-  const budgets = getBudgetWithExpenses();
-  const totalBudget = mockSiteSettings.find(s => s.key === 'project_budget')?.value || 750000;
+  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [totalBudget, setTotalBudget] = useState(750000);
+
+  useEffect(() => {
+    Promise.all([
+      getBudgetWithExpenses(),
+      getSettingByKey('project_budget'),
+    ]).then(([budgetsData, budgetValue]) => {
+      setBudgets(budgetsData);
+      if (budgetValue) setTotalBudget(Number(budgetValue));
+    });
+  }, []);
   const totalExpenses = budgets.reduce((sum, b) => sum + (b.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0);
   const remaining = totalBudget - totalExpenses;
   const executeRate = totalBudget > 0 ? Math.round((totalExpenses / totalBudget) * 100) : 0;

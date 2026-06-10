@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Plus, Clock, User, FileText, ChevronRight, Filter, Link as LinkIcon } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
@@ -10,18 +10,20 @@ import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { mockExceptions, getExceptionWithLogs } from '@/lib/mock/data';
+import { getAllExceptions, getExceptionWithLogs, createException, closeException, addExceptionLog } from '@/lib/services/data';
 import { formatDate, getExceptionTypeLabel, getExceptionStatusLabel, getExceptionStatusColor } from '@/lib/utils/format';
 import type { ExceptionRecord } from '@/lib/types';
 
 export default function ExceptionsPage() {
-  const [exceptions, setExceptions] = useState(mockExceptions);
+  const [isLoading, setIsLoading] = useState(true);
+  const [exceptions, setExceptions] = useState<ExceptionRecord[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedException, setSelectedException] = useState<ExceptionRecord | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [closeReason, setCloseReason] = useState('');
+  const [detailData, setDetailData] = useState<ExceptionRecord | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -30,6 +32,20 @@ export default function ExceptionsPage() {
     description: '',
   });
 
+  const loadExceptions = async () => {
+    const data = await getAllExceptions();
+    setExceptions(data);
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      setIsLoading(true);
+      await loadExceptions();
+      setIsLoading(false);
+    };
+    initData();
+  }, []);
+
   const filteredExceptions = statusFilter === 'all'
     ? exceptions
     : exceptions.filter(e => e.status === statusFilter);
@@ -37,59 +53,64 @@ export default function ExceptionsPage() {
   const openCount = exceptions.filter(e => e.status !== 'closed').length;
   const closedCount = exceptions.filter(e => e.status === 'closed').length;
 
-  const handleCreateException = () => {
+  const handleCreateException = async () => {
     if (!formData.title || !formData.impact_scope) return;
 
-    const newException: ExceptionRecord = {
-      id: `exception-${Date.now()}`,
+    await createException({
       title: formData.title,
       type: formData.type as 'material_discrepancy' | 'budget_overrun' | 'other',
-      status: 'pending',
       impact_scope: formData.impact_scope,
-      handling_path: '',
-      review_notes: null,
-      close_reason: null,
-      parent_exception_id: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    });
 
-    setExceptions([newException, ...exceptions]);
+    if (formData.description) {
+      await addExceptionLog('', 'note', formData.description);
+    }
+
     setIsCreateModalOpen(false);
     setFormData({ title: '', type: 'material_discrepancy', impact_scope: '', description: '' });
+    loadExceptions();
   };
 
-  const openDetail = (exception: ExceptionRecord) => {
+  const openDetail = async (exception: ExceptionRecord) => {
     setSelectedException(exception);
+    const detail = await getExceptionWithLogs(exception.id);
+    setDetailData(detail);
     setIsDetailModalOpen(true);
   };
 
-  const handleCloseException = () => {
+  const handleCloseException = async () => {
     if (!closeReason.trim()) {
       alert('请填写关闭原因');
       return;
     }
 
-    setExceptions(exceptions.map(e => e.id === selectedException?.id ? {
-      ...e,
-      status: 'closed' as const,
-      close_reason: closeReason,
-      updated_at: new Date().toISOString(),
-    } : e));
+    if (selectedException) {
+      await closeException(selectedException.id, closeReason);
+    }
 
     setIsCloseModalOpen(false);
     setCloseReason('');
     setIsDetailModalOpen(false);
+    setDetailData(null);
+    loadExceptions();
   };
 
-  const handleTraceToOriginal = (parentId: string) => {
+  const handleTraceToOriginal = async (parentId: string) => {
     const original = exceptions.find(e => e.id === parentId);
     if (original) {
       setSelectedException(original);
+      const detail = await getExceptionWithLogs(original.id);
+      setDetailData(detail);
     }
   };
 
-  const detailData = selectedException ? getExceptionWithLogs(selectedException.id) : null;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

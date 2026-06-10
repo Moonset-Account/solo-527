@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Image, Clock, Wallet, Plus, Edit2, Trash2, GripVertical, Upload, Save } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { mockSiteSettings, mockAchievementPhotos } from '@/lib/mock/data';
+import { getSiteSettings, getAchievementPhotos, updateSiteSetting, createAchievementPhoto, updateAchievementPhoto, deleteAchievementPhoto, toggleAchievementPhoto } from '@/lib/services/data';
 import { formatCurrency } from '@/lib/utils/format';
 import type { SiteSetting, AchievementPhoto } from '@/lib/types';
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<SiteSetting[]>(mockSiteSettings);
-  const [photos, setPhotos] = useState<AchievementPhoto[]>(mockAchievementPhotos);
+  const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<SiteSetting[]>([]);
+  const [photos, setPhotos] = useState<AchievementPhoto[]>([]);
   const [activeTab, setActiveTab] = useState<'photos' | 'service' | 'budget'>('photos');
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<AchievementPhoto | null>(null);
@@ -24,6 +25,24 @@ export default function SettingsPage() {
     description: '',
     sort_order: '0',
   });
+
+  const loadData = async () => {
+    const [settingsData, photosData] = await Promise.all([
+      getSiteSettings(),
+      getAchievementPhotos(),
+    ]);
+    setSettings(settingsData);
+    setPhotos(photosData);
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      setIsLoading(true);
+      await loadData();
+      setIsLoading(false);
+    };
+    initData();
+  }, []);
 
   const getSetting = (key: string) => settings.find(s => s.key === key);
   const updateSetting = (key: string, value: any) => {
@@ -55,40 +74,55 @@ export default function SettingsPage() {
     setIsPhotoModalOpen(true);
   };
 
-  const handleSavePhoto = () => {
+  const handleSavePhoto = async () => {
     if (!photoForm.image_url || !photoForm.title) return;
 
-    const newPhoto: AchievementPhoto = {
-      id: editingPhoto?.id || `photo-${Date.now()}`,
-      image_url: photoForm.image_url,
-      title: photoForm.title,
-      description: photoForm.description || null,
-      sort_order: parseInt(photoForm.sort_order) || 0,
-      is_active: true,
-      created_at: editingPhoto?.created_at || new Date().toISOString(),
-    };
-
     if (editingPhoto) {
-      setPhotos(photos.map(p => p.id === editingPhoto.id ? newPhoto : p));
+      await updateAchievementPhoto(editingPhoto.id, {
+        image_url: photoForm.image_url,
+        title: photoForm.title,
+        description: photoForm.description || null,
+        sort_order: parseInt(photoForm.sort_order) || 0,
+      });
     } else {
-      setPhotos([...photos, newPhoto]);
+      await createAchievementPhoto({
+        image_url: photoForm.image_url,
+        title: photoForm.title,
+        description: photoForm.description || null,
+        sort_order: parseInt(photoForm.sort_order) || 0,
+        is_active: true,
+      });
     }
     setIsPhotoModalOpen(false);
+    loadData();
   };
 
-  const handleDeletePhoto = (id: string) => {
+  const handleDeletePhoto = async (id: string) => {
     if (confirm('确定要删除这张成果照片吗？')) {
-      setPhotos(photos.filter(p => p.id !== id));
+      await deleteAchievementPhoto(id);
+      loadData();
     }
   };
 
-  const handleTogglePhoto = (id: string) => {
-    setPhotos(photos.map(p => p.id === id ? { ...p, is_active: !p.is_active } : p));
+  const handleTogglePhoto = async (id: string) => {
+    await toggleAchievementPhoto(id);
+    loadData();
   };
 
-  const handleSaveAllSettings = () => {
-    alert('设置已保存（模拟）');
+  const handleSaveAllSettings = async () => {
+    for (const setting of settings) {
+      await updateSiteSetting(setting.key, setting.value);
+    }
+    alert('设置已保存');
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   const tabs = [
     { key: 'photos' as const, label: '成果照片', icon: Image, count: photos.filter(p => p.is_active).length },

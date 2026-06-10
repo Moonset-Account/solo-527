@@ -1,29 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, MapPin, Calendar, Eye, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
-import { mockVisits, mockPhotos } from '@/lib/mock/data';
+import { getAllVisits, getAllPhotos } from '@/lib/services/data';
 import { formatDate, getVisitStatusLabel, getVisitStatusColor } from '@/lib/utils/format';
+import type { Visit, Photo } from '@/lib/types';
 
 export default function VisitsPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      const [visitsData, photosData] = await Promise.all([
+        getAllVisits(),
+        getAllPhotos(),
+      ]);
+      setVisits(visitsData);
+      setPhotos(photosData);
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
+
   const filteredVisits = statusFilter === 'all'
-    ? mockVisits
-    : mockVisits.filter(v => v.status === statusFilter);
+    ? visits
+    : visits.filter(v => v.status === statusFilter);
 
   const getPhotoCount = (visitId: string) => {
-    return mockPhotos.filter(p => p.visit_id === visitId).length;
+    return photos.filter(p => p.visit_id === visitId).length;
   };
 
   const getApprovedPhotoCount = (visitId: string) => {
-    return mockPhotos.filter(p => p.visit_id === visitId && p.review_status === 'approved').length;
+    return photos.filter(p => p.visit_id === visitId && p.review_status === 'approved').length;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -56,19 +82,19 @@ export default function VisitsPage() {
         <Card>
           <CardBody>
             <p className="text-sm text-gray-500 mb-1">总探访次数</p>
-            <p className="text-3xl font-bold text-gray-900 font-serif">{mockVisits.length}</p>
+            <p className="text-3xl font-bold text-gray-900 font-serif">{visits.length}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-sm text-gray-500 mb-1">已发布</p>
-            <p className="text-3xl font-bold text-green-600 font-serif">{mockVisits.filter(v => v.status === 'published').length}</p>
+            <p className="text-3xl font-bold text-green-600 font-serif">{visits.filter(v => v.status === 'published').length}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
             <p className="text-sm text-gray-500 mb-1">待审核</p>
-            <p className="text-3xl font-bold text-yellow-600 font-serif">{mockVisits.filter(v => v.status === 'submitted').length}</p>
+            <p className="text-3xl font-bold text-yellow-600 font-serif">{visits.filter(v => v.status === 'submitted').length}</p>
           </CardBody>
         </Card>
       </div>

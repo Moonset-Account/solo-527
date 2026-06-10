@@ -1,21 +1,44 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { BudgetChart } from '@/components/public/BudgetChart';
 import { Wallet, TrendingUp, TrendingDown, Calendar, ArrowUpRight } from 'lucide-react';
-import { getBudgetWithExpenses, mockExpenses, mockDonations, mockSiteSettings } from '@/lib/mock/data';
+import { getBudgetWithExpenses, getAllDonations, getSettingByKey } from '@/lib/services/data';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils/format';
-
-export const metadata = {
-  title: '资金使用 - 阳光助学计划',
-  description: '阳光助学计划资金使用明细，公开透明，每一分钱都有迹可循',
-};
+import type { BudgetCategory, Donation } from '@/lib/types';
 
 export default function FinancePage() {
-  const budgets = getBudgetWithExpenses();
-  const totalBudget = mockSiteSettings.find(s => s.key === 'project_budget')?.value || 750000;
-  const totalExpenses = mockExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const totalDonations = mockDonations.reduce((sum, d) => sum + d.amount, 0);
+  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [totalBudget, setTotalBudget] = useState(750000);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getBudgetWithExpenses(),
+      getAllDonations(),
+      getSettingByKey('project_budget'),
+    ]).then(([budgetsData, donationsData, budgetValue]) => {
+      setBudgets(budgetsData);
+      setDonations(donationsData);
+      if (budgetValue) setTotalBudget(Number(budgetValue));
+      setLoading(false);
+    });
+  }, []);
+
+  const totalExpenses = budgets.reduce((sum, b) => sum + (b.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0);
+  const totalDonations = donations.reduce((sum, d) => sum + d.amount, 0);
   const remaining = totalBudget - totalExpenses;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -128,7 +151,7 @@ export default function FinancePage() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-8 font-serif">捐赠记录</h2>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="divide-y divide-gray-100">
-                    {mockDonations.slice(0, 10).map((donation, index) => (
+                    {donations.slice(0, 10).map((donation) => (
                       <div key={donation.id} className="p-5 hover:bg-gray-50 transition-colors">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
@@ -159,7 +182,7 @@ export default function FinancePage() {
                   </div>
                 </div>
                 <p className="text-center text-gray-500 text-sm mt-4">
-                  共 {formatNumber(mockDonations.length)} 笔捐赠，感谢每一位爱心人士
+                  共 {formatNumber(donations.length)} 笔捐赠，感谢每一位爱心人士
                 </p>
               </div>
             </div>

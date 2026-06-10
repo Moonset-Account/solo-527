@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { mockAchievementPhotos } from '@/lib/mock/data';
+import { getAchievementPhotos } from '@/lib/services/data';
+import type { AchievementPhoto } from '@/lib/types';
 
 export function PhotoGallery() {
   const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<AchievementPhoto[]>([]);
 
-  const photos = mockAchievementPhotos;
+  useEffect(() => {
+    getAchievementPhotos().then(setPhotos);
+  }, []);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();

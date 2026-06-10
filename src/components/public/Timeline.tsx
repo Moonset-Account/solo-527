@@ -1,11 +1,19 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { MapPin, Calendar, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { getPublishedVisitsWithPhotos } from '@/lib/mock/data';
+import { getPublishedVisitsWithPhotos } from '@/lib/services/data';
 import { formatDate } from '@/lib/utils/format';
+import type { Visit } from '@/lib/types';
 
 export function Timeline() {
-  const visits = getPublishedVisitsWithPhotos().slice(0, 3);
+  const [visits, setVisits] = useState<Visit[]>([]);
+
+  useEffect(() => {
+    getPublishedVisitsWithPhotos().then(data => setVisits(data.slice(0, 3)));
+  }, []);
 
   return (
     <section className="py-20 bg-warm-50">

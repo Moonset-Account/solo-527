@@ -1,20 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Search, Filter, ArrowUpRight } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { mockDonations } from '@/lib/mock/data';
+import { getAllDonations } from '@/lib/services/data';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/format';
+import type { Donation } from '@/lib/types';
 
 export default function DonationsPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [donations, setDonations] = useState<Donation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('all');
 
-  const filteredDonations = mockDonations
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      const data = await getAllDonations();
+      setDonations(data);
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
+
+  const filteredDonations = donations
     .filter(d => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -44,19 +57,27 @@ export default function DonationsPage() {
       return true;
     });
 
-  const totalAmount = mockDonations.reduce((sum, d) => sum + d.amount, 0);
-  const thisMonthAmount = mockDonations
+  const totalAmount = donations.reduce((sum, d) => sum + d.amount, 0);
+  const thisMonthAmount = donations
     .filter(d => {
       const now = new Date();
       const date = new Date(d.created_at);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     })
     .reduce((sum, d) => sum + d.amount, 0);
-  const donorCount = new Set(mockDonations.map(d => d.donor_name || 'anonymous')).size;
+  const donorCount = new Set(donations.map(d => d.donor_name || 'anonymous')).size;
 
   const handleExport = () => {
     alert('导出功能：CSV 文件已生成（模拟）');
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -89,7 +110,7 @@ export default function DonationsPage() {
         <Card>
           <CardBody>
             <p className="text-sm text-gray-500 mb-1">捐赠笔数</p>
-            <p className="text-3xl font-bold text-gray-900 font-serif">{mockDonations.length}</p>
+            <p className="text-3xl font-bold text-gray-900 font-serif">{donations.length}</p>
           </CardBody>
         </Card>
         <Card>

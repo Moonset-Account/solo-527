@@ -1,17 +1,32 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { Calendar, MapPin, Clock, ChevronRight } from 'lucide-react';
-import { getPublishedVisitsWithPhotos } from '@/lib/mock/data';
+import { getPublishedVisitsWithPhotos } from '@/lib/services/data';
 import { formatDate } from '@/lib/utils/format';
-
-export const metadata = {
-  title: '项目进展 - 阳光助学计划',
-  description: '查看阳光助学计划的最新进展和探访记录',
-};
+import type { Visit } from '@/lib/types';
 
 export default function ProgressPage() {
-  const visits = getPublishedVisitsWithPhotos();
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getPublishedVisitsWithPhotos().then(data => {
+      setVisits(data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

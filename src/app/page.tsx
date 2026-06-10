@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/public/Header';
 import { Hero } from '@/components/public/Hero';
 import { StatsCard } from '@/components/public/StatsCard';
@@ -7,12 +10,32 @@ import { BudgetChart } from '@/components/public/BudgetChart';
 import { StudentCard } from '@/components/public/StudentCard';
 import { Footer } from '@/components/public/Footer';
 import { Heart, Users, Clock, BookOpen } from 'lucide-react';
-import { getDashboardStats, getFeedbacksWithRecipients, mockRecipients } from '@/lib/mock/data';
+import { getDashboardStats, getFeedbacksWithRecipients } from '@/lib/services/data';
 import { formatCurrency, formatNumber } from '@/lib/utils/format';
+import type { DashboardStats, Feedback } from '@/lib/types';
 
 export default function Home() {
-  const stats = getDashboardStats();
-  const feedbacks = getFeedbacksWithRecipients();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+
+  useEffect(() => {
+    getDashboardStats().then(setStats);
+    getFeedbacksWithRecipients().then(setFeedbacks);
+  }, []);
+
+  const recipients = feedbacks
+    .filter(f => f.recipient)
+    .map(f => f.recipient!)
+    .filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i)
+    .slice(0, 3);
+
+  if (!stats) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -75,7 +98,7 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {mockRecipients.slice(0, 3).map((recipient, index) => {
+              {recipients.map((recipient, index) => {
                 const recipientFeedback = feedbacks.find(f => f.recipient_id === recipient.id);
                 return (
                   <StudentCard

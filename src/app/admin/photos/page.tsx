@@ -1,49 +1,68 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, X, ZoomIn, User, Calendar, MapPin } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
-import { mockPhotos, mockVisits } from '@/lib/mock/data';
+import { getAllPhotos, getAllVisits, reviewPhoto, batchReviewPhotos } from '@/lib/services/data';
 import { formatDate, getReviewStatusLabel, getReviewStatusColor } from '@/lib/utils/format';
-import type { Photo } from '@/lib/types';
+import type { Photo, Visit } from '@/lib/types';
 
 export default function PhotosPage() {
-  const [photos, setPhotos] = useState(mockPhotos);
+  const [isLoading, setIsLoading] = useState(true);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const loadPhotos = async () => {
+    const [photosData, visitsData] = await Promise.all([
+      getAllPhotos(),
+      getAllVisits(),
+    ]);
+    setPhotos(photosData);
+    setVisits(visitsData);
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      setIsLoading(true);
+      await loadPhotos();
+      setIsLoading(false);
+    };
+    initData();
+  }, []);
 
   const filteredPhotos = statusFilter === 'all'
     ? photos
     : photos.filter(p => p.review_status === statusFilter);
 
   const getVisitInfo = (visitId: string) => {
-    return mockVisits.find(v => v.id === visitId);
+    return visits.find(v => v.id === visitId);
   };
 
-  const handleApprove = (photoId: string) => {
-    setPhotos(photos.map(p => p.id === photoId ? { ...p, review_status: 'approved' as const } : p));
+  const handleApprove = async (photoId: string) => {
+    await reviewPhoto(photoId, 'approved');
+    loadPhotos();
   };
 
-  const handleReject = (photoId: string) => {
+  const handleReject = async (photoId: string) => {
     const reason = prompt('请输入拒绝原因：');
     if (reason) {
-      setPhotos(photos.map(p => p.id === photoId ? {
-        ...p,
-        review_status: 'rejected' as const,
-        review_notes: reason,
-      } : p));
+      await reviewPhoto(photoId, 'rejected', reason);
+      loadPhotos();
     }
   };
 
-  const handleBatchApprove = () => {
+  const handleBatchApprove = async () => {
     const pending = photos.filter(p => p.review_status === 'pending');
     if (pending.length > 0 && confirm(`确定通过 ${pending.length} 张照片审核？`)) {
-      setPhotos(photos.map(p => p.review_status === 'pending' ? { ...p, review_status: 'approved' as const } : p));
+      await batchReviewPhotos('approved');
+      loadPhotos();
     }
   };
 
@@ -55,6 +74,14 @@ export default function PhotosPage() {
   const pendingCount = photos.filter(p => p.review_status === 'pending').length;
   const approvedCount = photos.filter(p => p.review_status === 'approved').length;
   const rejectedCount = photos.filter(p => p.review_status === 'rejected').length;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, ChevronRight } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { getBudgetWithExpenses, mockSiteSettings } from '@/lib/mock/data';
+import { getBudgetWithExpenses, getSettingByKey, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory } from '@/lib/services/data';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import type { BudgetCategory } from '@/lib/types';
 
 export default function BudgetPage() {
-  const [budgets, setBudgets] = useState(getBudgetWithExpenses());
+  const [isLoading, setIsLoading] = useState(true);
+  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [totalBudget, setTotalBudget] = useState<number>(750000);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetCategory | null>(null);
   const [formData, setFormData] = useState({
@@ -21,7 +23,21 @@ export default function BudgetPage() {
     description: '',
   });
 
-  const totalBudget = mockSiteSettings.find(s => s.key === 'project_budget')?.value || 750000;
+  const loadBudgets = async () => {
+    setIsLoading(true);
+    const [budgetData, budgetValue] = await Promise.all([
+      getBudgetWithExpenses(),
+      getSettingByKey('project_budget'),
+    ]);
+    setBudgets(budgetData);
+    if (budgetValue) setTotalBudget(Number(budgetValue));
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadBudgets();
+  }, []);
+
   const totalAllocated = budgets.reduce((sum, b) => sum + b.allocated_amount, 0);
   const totalSpent = budgets.reduce((sum, b) => sum + (b.expenses?.reduce((s, e) => s + e.amount, 0) || 0), 0);
   const remaining = totalBudget - totalAllocated;
@@ -41,30 +57,40 @@ export default function BudgetPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.allocated_amount) return;
 
-    const newBudget: BudgetCategory = {
-      id: editingBudget?.id || `budget-${Date.now()}`,
-      name: formData.name,
-      allocated_amount: parseFloat(formData.allocated_amount),
-      description: formData.description || null,
-      created_at: editingBudget?.created_at || new Date().toISOString(),
-    };
-
     if (editingBudget) {
-      setBudgets(budgets.map(b => b.id === editingBudget.id ? newBudget : b));
+      await updateBudgetCategory(editingBudget.id, {
+        name: formData.name,
+        allocated_amount: parseFloat(formData.allocated_amount),
+        description: formData.description || undefined,
+      });
     } else {
-      setBudgets([...budgets, newBudget]);
+      await createBudgetCategory({
+        name: formData.name,
+        allocated_amount: parseFloat(formData.allocated_amount),
+        description: formData.description || undefined,
+      });
     }
     setIsModalOpen(false);
+    loadBudgets();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('确定要删除这个预算科目吗？')) {
-      setBudgets(budgets.filter(b => b.id !== id));
+      await deleteBudgetCategory(id);
+      loadBudgets();
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

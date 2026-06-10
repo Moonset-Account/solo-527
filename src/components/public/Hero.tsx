@@ -3,17 +3,21 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Heart } from 'lucide-react';
 import Link from 'next/link';
-import { mockSiteSettings, getDashboardStats } from '@/lib/mock/data';
+import { getDashboardStats, getSettingByKey } from '@/lib/services/data';
 import { formatCurrency, formatNumber } from '@/lib/utils/format';
+import type { DashboardStats } from '@/lib/types';
 
 export function Hero() {
   const [isVisible, setIsVisible] = useState(false);
-  const stats = getDashboardStats();
-  const projectName = mockSiteSettings.find(s => s.key === 'project_name')?.value || '阳光助学计划';
-  const slogan = mockSiteSettings.find(s => s.key === 'project_slogan')?.value || '每一份爱心，点亮一个未来';
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [projectName, setProjectName] = useState('阳光助学计划');
+  const [slogan, setSlogan] = useState('每一份爱心，点亮一个未来');
 
   useEffect(() => {
     setIsVisible(true);
+    getDashboardStats().then(setStats);
+    getSettingByKey('project_name').then(v => { if (v) setProjectName(String(v)); });
+    getSettingByKey('project_slogan').then(v => { if (v) setSlogan(String(v)); });
   }, []);
 
   return (
@@ -46,19 +50,19 @@ export function Hero() {
           <div className="grid grid-cols-3 gap-6 mb-12">
             <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               <p className="text-4xl md:text-5xl font-bold text-white font-serif">
-                {formatCurrency(stats.totalRaised)}
+                {stats ? formatCurrency(stats.totalRaised) : '—'}
               </p>
               <p className="text-white/60 text-sm mt-1">累计筹款</p>
             </div>
             <div className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
               <p className="text-4xl md:text-5xl font-bold text-white font-serif">
-                {formatNumber(stats.beneficiaryCount)}
+                {stats ? formatNumber(stats.beneficiaryCount) : '—'}
               </p>
               <p className="text-white/60 text-sm mt-1">受益学生</p>
             </div>
             <div className="animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
               <p className="text-4xl md:text-5xl font-bold text-white font-serif">
-                {formatNumber(stats.serviceHours)}
+                {stats ? formatNumber(stats.serviceHours) : '—'}
               </p>
               <p className="text-white/60 text-sm mt-1">服务时长</p>
             </div>

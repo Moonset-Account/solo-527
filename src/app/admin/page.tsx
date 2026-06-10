@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Heart,
@@ -14,14 +15,42 @@ import {
 } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { getDashboardStats, mockVisits, mockExceptions, mockDonations } from '@/lib/mock/data';
+import { getDashboardStats, getAllVisits, getAllDonations, getAllExceptions } from '@/lib/services/data';
 import { formatCurrency, formatDate, formatNumber, getExceptionStatusLabel, getExceptionStatusColor, getVisitStatusLabel, getVisitStatusColor } from '@/lib/utils/format';
+import type { DashboardStats, Visit, Donation, ExceptionRecord } from '@/lib/types';
 
 export default function DashboardPage() {
-  const stats = getDashboardStats();
-  const recentVisits = mockVisits.slice(0, 4);
-  const recentDonations = mockDonations.slice(0, 5);
-  const pendingExceptions = mockExceptions.filter(e => e.status !== 'closed').slice(0, 3);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
+  const [recentDonations, setRecentDonations] = useState<Donation[]>([]);
+  const [pendingExceptions, setPendingExceptions] = useState<ExceptionRecord[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      const [statsData, visitsData, donationsData, exceptionsData] = await Promise.all([
+        getDashboardStats(),
+        getAllVisits(),
+        getAllDonations(),
+        getAllExceptions(),
+      ]);
+      setStats(statsData);
+      setRecentVisits(visitsData.slice(0, 4));
+      setRecentDonations(donationsData.slice(0, 5));
+      setPendingExceptions(exceptionsData.filter(e => e.status !== 'closed').slice(0, 3));
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
+
+  if (isLoading || !stats) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
 
   const statCards = [
     { label: '累计筹款', value: formatCurrency(stats.totalRaised), icon: Heart, color: 'from-primary-500 to-primary-600', change: '+12.5%' },

@@ -1,17 +1,29 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/public/Header';
 import { Footer } from '@/components/public/Footer';
 import { StudentCard } from '@/components/public/StudentCard';
 import { Heart, BookOpen, Award, MessageCircle } from 'lucide-react';
-import { getFeedbacksWithRecipients, mockRecipients } from '@/lib/mock/data';
+import { getFeedbacksWithRecipients } from '@/lib/services/data';
 import { formatDate } from '@/lib/utils/format';
-
-export const metadata = {
-  title: '受助反馈 - 阳光助学计划',
-  description: '来自受助学生的真实反馈，看到他们的成长和感恩',
-};
+import type { Feedback } from '@/lib/types';
 
 export default function FeedbackPage() {
-  const feedbacks = getFeedbacksWithRecipients();
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getFeedbacksWithRecipients().then(data => {
+      setFeedbacks(data);
+      setLoading(false);
+    });
+  }, []);
+
+  const recipients = feedbacks
+    .filter(f => f.recipient)
+    .map(f => f.recipient!)
+    .filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i);
 
   const getFeedbackIcon = (type: string) => {
     switch (type) {
@@ -52,6 +64,14 @@ export default function FeedbackPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -70,7 +90,7 @@ export default function FeedbackPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-12 font-serif text-center">认识我们的孩子</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
-              {mockRecipients.map((recipient, index) => {
+              {recipients.map((recipient, index) => {
                 const recipientFeedback = feedbacks.find(f => f.recipient_id === recipient.id);
                 return (
                   <StudentCard
