@@ -212,106 +212,111 @@ async function main() {
     { title: '宣传栏内容过期', type: 'PUBLIC_SERVICE' },
   ];
 
-  const events = [];
-  for (let i = 0; i < 25; i++) {
-    const daysAgo = Math.floor(Math.random() * 30);
-    const eventInfo = eventTitles[Math.floor(Math.random() * eventTitles.length)];
-    const gridIndex = Math.floor(Math.random() * grids.length);
-    const workerIndex = Math.floor(Math.random() * workers.length);
-    const statusIndex = Math.floor(Math.random() * eventStatuses.length);
-    const levelIndex = Math.floor(Math.random() * eventLevels.length);
+  const existingEvents = await prisma.event.count();
+  if (existingEvents > 0) {
+    console.log(`事件数据已存在（${existingEvents} 条），跳过创建`);
+  } else {
+    const events = [];
+    for (let i = 0; i < 25; i++) {
+      const daysAgo = Math.floor(Math.random() * 30);
+      const eventInfo = eventTitles[Math.floor(Math.random() * eventTitles.length)];
+      const gridIndex = Math.floor(Math.random() * grids.length);
+      const workerIndex = Math.floor(Math.random() * workers.length);
+      const statusIndex = Math.floor(Math.random() * eventStatuses.length);
+      const levelIndex = Math.floor(Math.random() * eventLevels.length);
 
-    const eventData = {
-      title: eventInfo.title,
-      description: `${eventInfo.title}，请相关部门尽快处理。`,
-      type: eventInfo.type,
-      level: eventLevels[levelIndex],
-      status: eventStatuses[statusIndex],
-      location: `${grids[gridIndex].name} - ${['1号楼前', '中心花园', '商业街', '北门', '停车场'][Math.floor(Math.random() * 5)]}`,
-      gridId: grids[gridIndex].id,
-      reporterId: workers[workerIndex].id,
-      isEffective: Math.random() > 0.1,
-      createdAt: dayjs().subtract(daysAgo, 'day').toDate(),
-    };
+      const eventData = {
+        title: eventInfo.title,
+        description: `${eventInfo.title}，请相关部门尽快处理。`,
+        type: eventInfo.type,
+        level: eventLevels[levelIndex],
+        status: eventStatuses[statusIndex],
+        location: `${grids[gridIndex].name} - ${['1号楼前', '中心花园', '商业街', '北门', '停车场'][Math.floor(Math.random() * 5)]}`,
+        gridId: grids[gridIndex].id,
+        reporterId: workers[workerIndex].id,
+        isEffective: Math.random() > 0.1,
+        createdAt: dayjs().subtract(daysAgo, 'day').toDate(),
+      };
 
-    if (eventStatuses[statusIndex] !== 'PENDING') {
-      eventData.departmentId = departments[Math.floor(Math.random() * departments.length)].id;
-    }
-
-    if (eventStatuses[statusIndex] === 'COMPLETED' || eventStatuses[statusIndex] === 'CLOSED') {
-      eventData.completedAt = dayjs().subtract(Math.max(0, daysAgo - Math.floor(Math.random() * 5)), 'day').toDate();
-    }
-
-    const event = await prisma.event.create({ data: eventData });
-    events.push(event);
-
-    await prisma.operationLog.create({
-      data: {
-        eventId: event.id,
-        action: '创建事件',
-        operatorId: workers[workerIndex].id,
-        operatorName: workers[workerIndex].name,
-        details: { title: event.title },
-        status: 'SUCCESS',
-        createdAt: event.createdAt,
+      if (eventStatuses[statusIndex] !== 'PENDING') {
+        eventData.departmentId = departments[Math.floor(Math.random() * departments.length)].id;
       }
-    });
 
-    if (event.status === 'ASSIGNED' || event.status === 'PROCESSING' || event.status === 'COMPLETED' || event.status === 'CLOSED') {
+      if (eventStatuses[statusIndex] === 'COMPLETED' || eventStatuses[statusIndex] === 'CLOSED') {
+        eventData.completedAt = dayjs().subtract(Math.max(0, daysAgo - Math.floor(Math.random() * 5)), 'day').toDate();
+      }
+
+      const event = await prisma.event.create({ data: eventData });
+      events.push(event);
+
       await prisma.operationLog.create({
         data: {
           eventId: event.id,
-          action: '指派事件',
-          operatorId: admin.id,
-          operatorName: admin.name,
-          details: { departmentId: event.departmentId },
+          action: '创建事件',
+          operatorId: workers[workerIndex].id,
+          operatorName: workers[workerIndex].name,
+          details: { title: event.title },
           status: 'SUCCESS',
-          createdAt: dayjs(event.createdAt).add(1, 'hour').toDate(),
+          createdAt: event.createdAt,
         }
       });
 
-      if (event.departmentId) {
-        await prisma.notification.create({
+      if (event.status === 'ASSIGNED' || event.status === 'PROCESSING' || event.status === 'COMPLETED' || event.status === 'CLOSED') {
+        await prisma.operationLog.create({
           data: {
-            userId: workers[workerIndex].id,
-            title: '事件已分派',
-            content: `您上报的事件「${event.title}」已分派处理`,
-            type: 'EVENT',
             eventId: event.id,
-            isRead: Math.random() > 0.5,
+            action: '指派事件',
+            operatorId: admin.id,
+            operatorName: admin.name,
+            details: { departmentId: event.departmentId },
+            status: 'SUCCESS',
+            createdAt: dayjs(event.createdAt).add(1, 'hour').toDate(),
+          }
+        });
+
+        if (event.departmentId) {
+          await prisma.notification.create({
+            data: {
+              userId: workers[workerIndex].id,
+              title: '事件已分派',
+              content: `您上报的事件「${event.title}」已分派处理`,
+              type: 'EVENT',
+              eventId: event.id,
+              isRead: Math.random() > 0.5,
+            }
+          });
+        }
+      }
+
+      if (event.status === 'PROCESSING') {
+        await prisma.operationLog.create({
+          data: {
+            eventId: event.id,
+            action: '开始处理',
+            operatorId: admin.id,
+            operatorName: admin.name,
+            details: { status: 'PROCESSING' },
+            status: 'SUCCESS',
+            createdAt: dayjs(event.createdAt).add(3, 'hour').toDate(),
+          }
+        });
+      }
+
+      if ((event.status === 'COMPLETED' || event.status === 'CLOSED') && event.type === 'FACILITY_DAMAGE') {
+        await prisma.volunteerService.create({
+          data: {
+            eventId: event.id,
+            volunteerName: ['张志愿', '李志愿', '王志愿'][Math.floor(Math.random() * 3)],
+            volunteerPhone: '137' + Math.floor(Math.random() * 100000000).toString().padStart(8, '0'),
+            serviceHours: parseFloat((1 + Math.random() * 4).toFixed(1)),
+            serviceDate: dayjs(event.createdAt).add(1, 'day').toDate(),
+            description: '参与设施维修志愿服务',
           }
         });
       }
     }
-
-    if (event.status === 'PROCESSING') {
-      await prisma.operationLog.create({
-        data: {
-          eventId: event.id,
-          action: '开始处理',
-          operatorId: admin.id,
-          operatorName: admin.name,
-          details: { status: 'PROCESSING' },
-          status: 'SUCCESS',
-          createdAt: dayjs(event.createdAt).add(3, 'hour').toDate(),
-        }
-      });
-    }
-
-    if ((event.status === 'COMPLETED' || event.status === 'CLOSED') && event.type === 'FACILITY_DAMAGE') {
-      await prisma.volunteerService.create({
-        data: {
-          eventId: event.id,
-          volunteerName: ['张志愿', '李志愿', '王志愿'][Math.floor(Math.random() * 3)],
-          volunteerPhone: '137' + Math.floor(Math.random() * 100000000).toString().padStart(8, '0'),
-          serviceHours: parseFloat((1 + Math.random() * 4).toFixed(1)),
-          serviceDate: dayjs(event.createdAt).add(1, 'day').toDate(),
-          description: '参与设施维修志愿服务',
-        }
-      });
-    }
+    console.log(`已创建 ${events.length} 条事件数据`);
   }
-  console.log(`已创建 ${events.length} 条事件数据`);
 
   console.log('种子数据填充完成！');
   console.log('');
