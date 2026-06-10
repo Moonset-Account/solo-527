@@ -1,0 +1,116 @@
+# envcheck 示例配置文件
+# 配置优先级（高→低）：
+#   1. 命令行参数 (--env, --example, --ci 等)
+#   2. 环境变量 (ENVCHECK_ENV_PATHS, ENVCHECK_CI 等)
+#   3. 本配置文件 (envcheck.yaml)
+#   4. 内置默认值
+
+check:
+  # 环境文件路径，支持通配符
+  env-paths:
+    - examples/.env.dev
+    - examples/.env.staging
+
+  # 示例配置文件
+  example-path: examples/.env.example
+
+  # 必填变量（也会从 .env.example 的 "# required" 注释中自动检测）
+  required-vars:
+    - APP_ENV
+    - DB_HOST
+    - DB_PORT
+
+  # 额外需要遮蔽的敏感变量名
+  mask-keys:
+    - APP_SECRET
+    - DB_PASSWORD
+
+  # 敏感值匹配模式（不区分大小写的子字符串匹配）
+  mask-patterns:
+    - PASSWORD
+    - SECRET
+    - TOKEN
+    - KEY
+    - CREDENTIAL
+
+  # 遮蔽所有值（生产环境建议开启）
+  mask-all: false
+
+  # 遮蔽字符
+  mask-char: "*"
+
+  # 遮蔽时保留值的首尾字符数
+  mask-keep-start: 2
+  mask-keep-end: 2
+
+  # CI 模式（用于 GitHub Actions / GitLab CI）
+  ci: false
+
+  # 输出 JSON
+  json: false
+
+  # 严格模式（多余变量也视为错误）
+  strict: false
+
+  # 报告超出示例文件的变量
+  warn-on-extra: true
+
+  # 值不一致时返回失败退出码
+  fail-on-mismatch: true
+
+  # 必填变量缺失时返回失败退出码
+  fail-on-missing: true
+
+  # 详细输出
+  verbose: false
+
+  # 静默模式
+  quiet: false
+
+  # 日志级别
+  log-level: info
+
+# 不同环境的 profile，可通过 --profile <name> 选择
+profiles:
+  # 开发 profile：宽松、不遮蔽
+  development:
+    env-paths:
+      - examples/.env.dev
+    example-path: examples/.env.example
+    mask-all: false
+    strict: false
+    log-level: debug
+    verbose: true
+
+  # 预发 profile：正常检查
+  staging:
+    env-paths:
+      - examples/.env.staging
+    example-path: examples/.env.example
+    mask-all: false
+    warn-on-extra: true
+    ci: true
+    log-level: info
+
+  # 生产 profile：严格 + 遮蔽所有
+  production:
+    env-paths:
+      - examples/.env.prod
+    example-path: examples/.env.example
+    mask-all: true
+    strict: true
+    ci: true
+    log-level: warn
+
+  # CI profile：最严格
+  ci:
+    env-paths:
+      - .env
+    example-path: .env.example
+    mask-all: true
+    strict: true
+    fail-on-mismatch: true
+    fail-on-missing: true
+    ci: true
+    json: true
+    quiet: false
