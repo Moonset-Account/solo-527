@@ -28,8 +28,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('dataset-permissions', App\Http\Controllers\DatasetPermissionController::class)->except(['index', 'show']);
     Route::post('dataset-permissions/{datasetPermission}/deactivate', [App\Http\Controllers\DatasetPermissionController::class, 'deactivate'])->name('dataset-permissions.deactivate');
 
-    Route::resource('review-rhythms', App\Http\Controllers\ReviewRhythmController::class);
     Route::get('review-rhythms/report', [App\Http\Controllers\ReviewRhythmController::class, 'generateReport'])->name('review-rhythms.report');
+    Route::resource('review-rhythms', App\Http\Controllers\ReviewRhythmController::class)->except(['show']);
 
     Route::resource('audit-logs', App\Http\Controllers\AuditLogController::class)->only(['index']);
 });

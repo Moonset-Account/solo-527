@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'review_rhythm.view', 'description' => '查看复盘节奏'],
             ['name' => 'review_rhythm.create', 'description' => '创建复盘节奏'],
             ['name' => 'review_rhythm.update', 'description' => '更新复盘节奏'],
+            ['name' => 'review_rhythm.report', 'description' => '生成月度复盘报表'],
             ['name' => 'audit_log.view', 'description' => '查看操作留痕'],
         ];
 
@@ -61,6 +62,7 @@ class DatabaseSeeder extends Seeder
                 'dimension.create',
                 'dataset_permission.create',
                 'review_rhythm.view',
+                'review_rhythm.report',
                 'audit_log.view',
             ])->pluck('id')
         );

@@ -17,7 +17,7 @@ class AlertRuleController extends Controller
         $validated = request()->validate([
             'business_order_id' => ['required', 'integer', 'exists:business_orders,id'],
             'indicator_id' => ['required', 'integer', 'exists:indicators,id'],
-            'condition_type' => ['required', 'string', 'in:greater_than,less_than,equals,between,not_equals'],
+            'condition_type' => ['required', 'string', 'in:gt,lt,eq,gte,lte,between'],
             'threshold_value' => ['required', 'numeric'],
             'threshold_value_max' => ['nullable', 'numeric'],
             'notify_user_ids' => ['required', 'array'],
@@ -56,7 +56,7 @@ class AlertRuleController extends Controller
         $validated = request()->validate([
             'business_order_id' => ['required', 'integer', 'exists:business_orders,id'],
             'indicator_id' => ['required', 'integer', 'exists:indicators,id'],
-            'condition_type' => ['required', 'string', 'in:greater_than,less_than,equals,between,not_equals'],
+            'condition_type' => ['required', 'string', 'in:gt,lt,eq,gte,lte,between'],
             'threshold_value' => ['required', 'numeric'],
             'threshold_value_max' => ['nullable', 'numeric'],
             'notify_user_ids' => ['required', 'array'],
