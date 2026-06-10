@@ -88,6 +88,7 @@ const EventManage = () => {
   const [assignForm] = Form.useForm()
   const [assignLoading, setAssignLoading] = useState(false)
   const [assigningId, setAssigningId] = useState(null)
+  const [isBatchAssign, setIsBatchAssign] = useState(false)
 
   const [logDrawer, setLogDrawer] = useState(false)
   const [logs, setLogs] = useState([])
@@ -200,6 +201,7 @@ const EventManage = () => {
 
   const handleAssign = (record) => {
     setAssigningId(record.id)
+    setIsBatchAssign(false)
     assignForm.resetFields()
     setAssignModal(true)
   }
@@ -209,8 +211,41 @@ const EventManage = () => {
       const values = await assignForm.validateFields()
       setAssignLoading(true)
 
-      await request.post(`/events/${assigningId}/assign`, values)
-      message.success('分派成功')
+      if (isBatchAssign) {
+        const res = await request.post('/events/batch-assign', {
+          ids: selectedRowKeys,
+          ...values
+        })
+        const { successCount, failCount, failReasons } = res.data
+        if (failCount > 0) {
+          Modal.warning({
+            title: '批量分派完成',
+            content: (
+              <div>
+                <p>成功 {successCount} 条，失败 {failCount} 条</p>
+                {failReasons && failReasons.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <p style={{ fontWeight: 'bold' }}>失败详情：</p>
+                    {failReasons.map((item, idx) => (
+                      <p key={idx} style={{ color: 'red', margin: '4px 0' }}>
+                        {item.id}: {item.reason}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ),
+            okText: '确定'
+          })
+        } else {
+          message.success(`成功分派 ${successCount} 条记录`)
+        }
+        setSelectedRowKeys([])
+      } else {
+        await request.post(`/events/${assigningId}/assign`, values)
+        message.success('分派成功')
+      }
+
       setAssignModal(false)
       fetchEvents()
     } catch (error) {
@@ -266,7 +301,33 @@ const EventManage = () => {
           const res = await request.post('/events/batch-withdraw', {
             ids: selectedRowKeys
           })
-          message.success(`成功撤回 ${res.data.count} 条记录`)
+          const { successCount, failCount, failReasons } = res.data
+
+          if (failCount > 0) {
+            Modal.warning({
+              title: '批量撤回完成',
+              content: (
+                <div>
+                  <p>成功 {successCount} 条，失败 {failCount} 条</p>
+                  {failReasons && failReasons.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <p style={{ fontWeight: 'bold' }}>失败详情：</p>
+                      {failReasons.map((item, idx) => (
+                        <div key={idx} style={{ color: 'red', margin: '4px 0' }}>
+                          <span style={{ fontWeight: 500 }}>{item.title || `事件ID:${item.id}`}</span>
+                          <span> - {item.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ),
+              okText: '确定'
+            })
+          } else {
+            message.success(`成功撤回 ${successCount} 条记录`)
+          }
+
           setSelectedRowKeys([])
           fetchEvents()
         } catch (error) {
@@ -282,6 +343,7 @@ const EventManage = () => {
       return
     }
     setAssigningId(null)
+    setIsBatchAssign(true)
     assignForm.resetFields()
     setAssignModal(true)
   }
@@ -599,7 +661,7 @@ const EventManage = () => {
       </Drawer>
 
       <Modal
-        title={assigningId ? '分派事件' : '批量分派'}
+        title={isBatchAssign ? '批量分派' : '分派事件'}
         open={assignModal}
         onOk={handleAssignSubmit}
         onCancel={() => setAssignModal(false)}

@@ -383,6 +383,102 @@ async function getEventStatistics(req, res, next) {
   }
 }
 
+async function batchAssignEvents(req, res, next) {
+  try {
+    const { ids, assigneeId, departmentId } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return error(res, '请选择要分派的事件', 400);
+    }
+
+    if (!assigneeId && !departmentId) {
+      return error(res, '请指定处理人或部门', 400);
+    }
+
+    const events = await prisma.event.findMany({
+      where: {
+        id: { in: ids.map(id => parseInt(id)) },
+        status: { not: 'CLOSED' },
+      },
+    });
+
+    if (events.length === 0) {
+      return error(res, '没有可分派的事件', 400);
+    }
+
+    const validIds = events.map(e => e.id);
+    const invalidIds = ids
+      .map(id => parseInt(id))
+      .filter(id => !validIds.includes(id));
+
+    const updateData = { status: 'ASSIGNED' };
+    if (assigneeId) {
+      updateData.assigneeId = parseInt(assigneeId);
+    }
+    if (departmentId) {
+      updateData.departmentId = parseInt(departmentId);
+    }
+
+    await prisma.event.updateMany({
+      where: { id: { in: validIds } },
+      data: updateData,
+    });
+
+    const successLogs = validIds.map(id => ({
+      eventId: id,
+      action: '批量分派事件',
+      operatorId: req.user.id,
+      operatorName: req.user.name,
+      details: JSON.stringify({ assigneeId, departmentId, reason: '批量分派' }),
+      status: 'SUCCESS',
+    }));
+
+    const failureLogs = invalidIds.map(id => ({
+      eventId: null,
+      action: '批量分派事件',
+      operatorId: req.user.id,
+      operatorName: req.user.name,
+      details: JSON.stringify({ assigneeId, departmentId, eventId: id }),
+      status: 'FAILED',
+      failureReason: '事件已关闭或不存在，无法分派',
+    }));
+
+    if (successLogs.length > 0) {
+      await prisma.operationLog.createMany({ data: successLogs });
+    }
+    if (failureLogs.length > 0) {
+      await prisma.operationLog.createMany({ data: failureLogs });
+    }
+
+    if (assigneeId) {
+      const assignNotifications = validIds.map(id => {
+        const event = events.find(e => e.id === id);
+        return {
+          userId: parseInt(assigneeId),
+          title: '新事件指派',
+          content: `您被指派处理事件：${event?.title || ''}`,
+          type: 'EVENT',
+          eventId: id,
+        };
+      });
+      if (assignNotifications.length > 0) {
+        await prisma.notification.createMany({ data: assignNotifications });
+      }
+    }
+
+    return success(res, {
+      successCount: validIds.length,
+      failCount: invalidIds.length,
+      total: ids.length,
+      successIds: validIds,
+      failIds: invalidIds,
+      failReasons: invalidIds.map(id => ({ id, reason: '事件已关闭或不存在，无法分派' })),
+    }, `成功分派 ${validIds.length} 条，失败 ${invalidIds.length} 条`);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function batchWithdrawEvents(req, res, next) {
   try {
     const { ids } = req.body;
@@ -391,38 +487,94 @@ async function batchWithdrawEvents(req, res, next) {
       return error(res, '请选择要撤回的事件', 400);
     }
 
-    const events = await prisma.event.findMany({
+    const allEvents = await prisma.event.findMany({
       where: {
         id: { in: ids.map(id => parseInt(id)) },
-        status: 'PENDING',
-        isEffective: true,
       },
     });
 
-    if (events.length === 0) {
-      return error(res, '没有可撤回的未生效待处理事件', 400);
+    if (allEvents.length === 0) {
+      return error(res, '未找到选中的事件', 404);
     }
 
-    const validIds = events.map(e => e.id);
+    const validEvents = allEvents.filter(e => e.status === 'PENDING' && e.isEffective === true);
+    const validIds = validEvents.map(e => e.id);
 
-    await prisma.event.updateMany({
-      where: { id: { in: validIds } },
-      data: { isEffective: false },
-    });
+    const failedEvents = allEvents.filter(e => !(e.status === 'PENDING' && e.isEffective === true));
+    const invalidIds = failedEvents.map(e => e.id);
 
-    const logData = validIds.map(id => ({
+    const notFoundIds = ids
+      .map(id => parseInt(id))
+      .filter(id => !allEvents.find(e => e.id === id));
+
+    if (validIds.length > 0) {
+      await prisma.event.updateMany({
+        where: { id: { in: validIds } },
+        data: { isEffective: false },
+      });
+    }
+
+    const successLogs = validIds.map(id => ({
       eventId: id,
       action: '撤回事件',
       operatorId: req.user.id,
       operatorName: req.user.name,
       details: JSON.stringify({ reason: '批量撤回' }),
+      status: 'SUCCESS',
     }));
 
-    await prisma.operationLog.createMany({
-      data: logData,
+    const failureLogs = [];
+    const failReasons = [];
+
+    failedEvents.forEach(event => {
+      let reason = '';
+      if (event.status !== 'PENDING') {
+        reason = `事件状态为「${event.status}」，只有待处理状态可以撤回`;
+      } else if (!event.isEffective) {
+        reason = '事件已为未生效状态';
+      } else {
+        reason = '不符合撤回条件';
+      }
+      failureLogs.push({
+        eventId: event.id,
+        action: '撤回事件',
+        operatorId: req.user.id,
+        operatorName: req.user.name,
+        details: JSON.stringify({ reason: '批量撤回' }),
+        status: 'FAILED',
+        failureReason: reason,
+      });
+      failReasons.push({ id: event.id, title: event.title, reason });
     });
 
-    return success(res, { count: validIds.length }, `成功撤回 ${validIds.length} 条记录`);
+    notFoundIds.forEach(id => {
+      failureLogs.push({
+        eventId: null,
+        action: '撤回事件',
+        operatorId: req.user.id,
+        operatorName: req.user.name,
+        details: JSON.stringify({ reason: '批量撤回', eventId: id }),
+        status: 'FAILED',
+        failureReason: '事件不存在',
+      });
+      failReasons.push({ id, title: `事件ID:${id}`, reason: '事件不存在' });
+    });
+
+    if (successLogs.length > 0) {
+      await prisma.operationLog.createMany({ data: successLogs });
+    }
+    if (failureLogs.length > 0) {
+      await prisma.operationLog.createMany({ data: failureLogs });
+    }
+
+    return success(res, {
+      successCount: validIds.length,
+      failCount: failedEvents.length + notFoundIds.length,
+      total: ids.length,
+      successIds: validIds,
+      failIds: [...invalidIds, ...notFoundIds],
+      failReasons,
+    }, `成功撤回 ${validIds.length} 条，失败 ${failedEvents.length + notFoundIds.length} 条`);
   } catch (err) {
     next(err);
   }
@@ -590,6 +742,7 @@ module.exports = {
   createEvent,
   updateEvent,
   assignEvent,
+  batchAssignEvents,
   updateEventStatus,
   deleteEvent,
   getEventStatistics,

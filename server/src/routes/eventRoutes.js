@@ -9,6 +9,7 @@ router.get('/trend', auth, eventController.getEventTrend);
 router.get('/:id', auth, eventController.getEventById);
 router.post('/', auth, eventController.createEvent);
 router.post('/batch-withdraw', auth, requireRole('ADMIN'), eventController.batchWithdrawEvents);
+router.post('/batch-assign', auth, requireRole('ADMIN'), eventController.batchAssignEvents);
 router.put('/:id', auth, eventController.updateEvent);
 router.post('/:id/assign', auth, requireRole('ADMIN'), eventController.assignEvent);
 router.put('/:id/status', auth, eventController.updateEventStatus);
