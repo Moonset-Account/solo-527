@@ -63,6 +63,7 @@ class ReminderRuleCreate(ReminderRuleBase):
 
 class ReminderRuleUpdate(BaseModel):
     rule_name: Optional[str] = None
+    rule_type: Optional[str] = None
     trigger_condition: Optional[str] = None
     reminder_frequency_minutes: Optional[int] = None
     max_reminders: Optional[int] = None

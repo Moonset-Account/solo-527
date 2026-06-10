@@ -176,7 +176,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NButton, NPopconfirm, NSpace, NTag } from 'naive-ui'
 import api from '~/utils/api'
 import type { SystemConfig, ReminderRule } from '~/types'
 
@@ -256,7 +256,7 @@ const ruleColumns = [
     key: 'is_active',
     width: 100,
     render(row: any) {
-      return h('n-tag', { type: row.is_active ? 'success' : 'default' }, () => row.is_active ? '启用' : '停用')
+      return h(NTag, { type: row.is_active ? 'success' : 'default' }, () => row.is_active ? '启用' : '停用')
     },
   },
   {
@@ -265,19 +265,19 @@ const ruleColumns = [
     width: 220,
     render(row: any) {
       return h(
-        'n-space',
+        NSpace,
         { size: 'small' },
         () => [
-          h('n-button', { size: 'small', quaternary: true, onClick: () => handleEditRule(row) }, () => '编辑'),
-          h('n-button', {
+          h(NButton, { size: 'small', quaternary: true, onClick: () => handleEditRule(row) }, () => '编辑'),
+          h(NButton, {
             size: 'small',
             type: row.is_active ? 'warning' : 'success',
             quaternary: true,
             onClick: () => toggleRuleActive(row),
           }, () => row.is_active ? '停用' : '启用'),
-          h('n-popconfirm', { onPositiveClick: () => handleDeleteRule(row.id) }, {
+          h(NPopconfirm, { onPositiveClick: () => handleDeleteRule(row.id) }, {
             default: () => '确定删除该规则？',
-            trigger: () => h('n-button', { size: 'small', type: 'error', quaternary: true }, () => '删除'),
+            trigger: () => h(NButton, { size: 'small', type: 'error', quaternary: true }, () => '删除'),
           }),
         ]
       )

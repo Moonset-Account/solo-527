@@ -47,6 +47,7 @@ class DictionaryItemCreate(DictionaryItemBase):
 
 
 class DictionaryItemUpdate(BaseModel):
+    item_code: Optional[str] = None
     item_value: Optional[str] = None
     item_label: Optional[str] = None
     sort_order: Optional[int] = None

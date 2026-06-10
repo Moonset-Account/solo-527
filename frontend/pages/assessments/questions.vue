@@ -115,7 +115,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NButton, NPopconfirm, NSpace } from 'naive-ui'
 import api from '~/utils/api'
 import { questionTypeLabels, difficultyLabels } from '~/utils/dict'
 import type { Question } from '~/types'
@@ -192,13 +192,13 @@ const columns = [
     width: 150,
     render(row: any) {
       return h(
-        'n-space',
+        NSpace,
         { size: 'small' },
         () => [
-          h('n-button', { size: 'small', quaternary: true, onClick: () => handleEdit(row) }, () => '编辑'),
-          h('n-popconfirm', { onPositiveClick: () => handleDelete(row.id) }, {
+          h(NButton, { size: 'small', quaternary: true, onClick: () => handleEdit(row) }, () => '编辑'),
+          h(NPopconfirm, { onPositiveClick: () => handleDelete(row.id) }, {
             default: () => '确定删除该题目？',
-            trigger: () => h('n-button', { size: 'small', type: 'error', quaternary: true }, () => '删除'),
+            trigger: () => h(NButton, { size: 'small', type: 'error', quaternary: true }, () => '删除'),
           }),
         ]
       )

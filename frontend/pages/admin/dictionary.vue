@@ -31,7 +31,7 @@
           title="字典项"
           size="small"
           :bordered="false"
-          :extra="selectedType && !selectedType.is_system ? () => h('n-button', { size: 'small', type: 'primary', onClick: () => showItemModal = true }, () => '新增') : null"
+          :extra="selectedType && !selectedType.is_system ? () => h(NButton, { size: 'small', type: 'primary', onClick: () => showItemModal = true }, () => '新增') : null"
         >
           <n-table single-column>
             <thead>
@@ -135,7 +135,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useMessage, NButton } from 'naive-ui'
 import api from '~/utils/api'
 import type { DictionaryType, DictionaryItem } from '~/types'
 
