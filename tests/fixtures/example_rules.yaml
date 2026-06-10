@@ -1,0 +1,44 @@
+# Example rules config for oas-checker
+# Use with: oas-checker --config rules.yaml --old old.yaml --new new.yaml
+
+# Rules to ignore specific changes (useful for planned migrations)
+ignore_rules:
+  # Ignore the rename from firstName -> given_name in User schema
+  - id: "rename-firstname-to-givenname"
+    description: "Field rename: firstName -> given_name (phase-out period)"
+    path_pattern: ".*"
+    field_pattern: ".*given_name.*"
+    change_type: "PropertyAdded"
+
+  - id: "rename-lastname-to-familyname"
+    description: "Field rename: lastName -> family_name (phase-out period)"
+    path_pattern: ".*"
+    field_pattern: ".*family_name.*"
+    change_type: "PropertyAdded"
+
+  # Ignore billing endpoints during rollout
+  - id: "billing-rollout"
+    description: "Billing endpoints are new, not breaking"
+    path_pattern: "/billing/.*"
+    change_type: "PathAdded"
+
+  # Internal endpoints can remove 500 without breakage
+  - id: "internal-500-removal"
+    path_pattern: "/internal/.*"
+    change_type: "ResponseCodeRemoved"
+
+# Override default severity for specific change types
+severity_overrides:
+  # Downgrade operation deprecations to INFO during early warning
+  - change_type: "OperationDeprecated"
+    severity: "Info"
+
+  # Treat format changes on date fields as breaking in our domain
+  - change_type: "PropertyFormatChanged"
+    severity: "Breaking"
+    path_pattern: ".*date.*"
+
+# Paths that are deprecated and can be removed without warning
+deprecated_paths:
+  - "/legacy/.*"
+  - "/v0/.*"

@@ -1,0 +1,565 @@
+openapi: "3.0.3"
+info:
+  title: User Management API
+  version: "2.0.0"
+  description: |
+    API for managing users, accounts, and orders.
+    This is the NEW version with intentional breaking changes for testing.
+  contact:
+    name: Platform Engineering
+    email: platform@example.com
+
+servers:
+  - url: https://api.example.com/v2
+    description: Production (v2)
+
+tags:
+  - name: Users
+    description: User management operations
+  - name: Orders
+    description: Order management operations
+  - name: Billing
+    description: Billing and subscription operations
+
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List all users
+      tags: [Users]
+      parameters:
+        - name: page
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, suspended]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  meta:
+                    $ref: "#/components/schemas/Pagination"
+                required: [data, meta]
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "429":
+          description: Too many requests
+
+    post:
+      operationId: createUser
+      summary: Create a new user
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          headers:
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "409":
+          description: Conflict - user already exists
+        "422":
+          description: Validation error
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      summary: Get a user by ID
+      tags: [Users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: User not found
+        "410":
+          description: User permanently deleted
+
+    put:
+      operationId: updateUser
+      summary: Update a user
+      tags: [Users]
+      deprecated: true
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "404":
+          description: User not found
+
+    patch:
+      operationId: patchUser
+      summary: Partially update a user
+      tags: [Users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List all orders
+      tags: [Orders]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, processing, shipped, delivered, cancelled, refunded]
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  total:
+                    type: integer
+                  page_info:
+                    $ref: "#/components/schemas/Pagination"
+                required: [data, total, page_info]
+        "401":
+          description: Unauthorized
+        "422":
+          description: Validation error
+
+    post:
+      operationId: createOrder
+      summary: Create a new order
+      tags: [Orders]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "402":
+          description: Payment required
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      summary: Get an order by ID
+      tags: [Orders]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /billing/subscriptions:
+    get:
+      operationId: listSubscriptions
+      summary: List all subscriptions
+      tags: [Billing]
+      responses:
+        "200":
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+
+    post:
+      operationId: createSubscription
+      summary: Create a subscription
+      tags: [Billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriptionRequest"
+      responses:
+        "201":
+          description: Subscription created
+
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, email, role, createdAt, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        given_name:
+          type: string
+        family_name:
+          type: string
+        role:
+          type: string
+          enum: [admin, user, moderator, viewer]
+        status:
+          type: string
+          enum: [active, suspended]
+        age:
+          type: integer
+          minimum: 18
+          maximum: 120
+        phone_number:
+          type: string
+        billing_address:
+          $ref: "#/components/schemas/Address"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        preferences:
+          type: object
+          additionalProperties:
+            type: string
+
+    CreateUserRequest:
+      type: object
+      required: [email, role, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        role:
+          type: string
+          enum: [user, moderator]
+        age:
+          type: integer
+          minimum: 18
+          maximum: 120
+        phone:
+          type: string
+        address:
+          $ref: "#/components/schemas/Address"
+
+    UpdateUserRequest:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        status:
+          type: string
+          enum: [active, suspended]
+        age:
+          type: integer
+          minimum: 18
+          maximum: 120
+        phone:
+          type: string
+
+    Address:
+      type: object
+      required: [street, city, country, postalCode]
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postalCode:
+          type: string
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+
+    Order:
+      type: object
+      required: [id, userId, items, status, grandTotal, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        status:
+          type: string
+          enum: [pending, processing, shipped, delivered, cancelled, refunded]
+        grandTotal:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: USD
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        notes:
+          type: string
+          maxLength: 500
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      required: [productId, quantity, unitPrice]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 99
+        unitPrice:
+          type: number
+          format: double
+          minimum: 0
+        discountPercent:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 50
+
+    CreateOrderRequest:
+      type: object
+      required: [items, shippingAddress, paymentMethodId]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/CreateOrderItem"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        notes:
+          type: string
+          maxLength: 500
+        paymentMethodId:
+          type: string
+          format: uuid
+        couponCode:
+          type: string
+
+    CreateOrderItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+
+    Subscription:
+      type: object
+      required: [id, plan, status, startDate]
+      properties:
+        id:
+          type: string
+          format: uuid
+        plan:
+          type: string
+          enum: [free, basic, pro, enterprise]
+        status:
+          type: string
+          enum: [trialing, active, past_due, canceled, unpaid]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+
+    CreateSubscriptionRequest:
+      type: object
+      required: [plan, paymentMethodId]
+      properties:
+        plan:
+          type: string
+          enum: [basic, pro, enterprise]
+        paymentMethodId:
+          type: string
+          format: uuid
+        trialDays:
+          type: integer
+          minimum: 0
+          maximum: 30
+
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
