@@ -15,7 +15,7 @@
   },
   "cart": {
     "empty": "Ihr Einkaufswagen ist leer.",
-    "itemsCount": "Sie haben {count, plural, one {1 Artikel} other {# Artikel}} in Ihrem Einkaufswagen.",
+    "itemsCount": "Sie haben {numItems, plural, one {1 Artikel} other {# Artikel}} in Ihrem Einkaufswagen.",
     "subtotal": "Zwischensumme: {amount}",
     "checkout": "Zur Kasse gehen",
     "removeItem": "{productName} aus dem Einkaufswagen entfernen"

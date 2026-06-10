@@ -73,9 +73,19 @@ jobs:
 
       - name: Smoke test with examples
         run: |
+          set +e
           node dist/cli.js --config examples/i18n-diff.config.json --json --output /tmp/report.json
-          echo "Exit code (expected 1 due to demo issues): $?"
-          test -f /tmp/report.json && echo "JSON report written OK"
+          EXIT=$?
+          set -e
+          echo "CLI exit code: $EXIT (expected 0 or 1 depending on failOn policy in config)"
+          if [ $EXIT -eq 0 ] || [ $EXIT -eq 1 ]; then
+            echo "✅ Exit code within acceptable range (0=no issues, 1=issues found per failOn)"
+          else
+            echo "❌ Unexpected exit code: $EXIT"
+            exit 1
+          fi
+          test -f /tmp/report.json && echo "✅ JSON report file created (bytes: $(wc -c < /tmp/report.json))"
+          node scripts/ci-smoke-verify.js /tmp/report.json
           node dist/cli.js --version
           node dist/cli.js --help | head -20
 
