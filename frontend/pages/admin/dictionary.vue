@@ -54,7 +54,7 @@
                   </n-tag>
                 </td>
                 <td>
-                  <n-button size="small" quaternary>编辑</n-button>
+                  <n-button size="small" quaternary @click="handleEditItem(item)">编辑</n-button>
                 </td>
               </tr>
               <tr v-if="dictItems.length === 0">
@@ -107,6 +107,30 @@
       <n-button type="primary" @click="createItem">创建</n-button>
     </template>
   </n-modal>
+
+  <n-modal v-model:show="showEditItemModal" preset="dialog" title="编辑字典项" :style="{ width: '400px' }">
+    <n-form label-placement="top">
+      <n-form-item label="项编码">
+        <n-input v-model:value="editItemForm.item_code" />
+      </n-form-item>
+      <n-form-item label="项值">
+        <n-input v-model:value="editItemForm.item_value" />
+      </n-form-item>
+      <n-form-item label="排序">
+        <n-input-number v-model:value="editItemForm.sort_order" :min="0" style="width: 100%" />
+      </n-form-item>
+      <n-form-item label="是否启用">
+        <n-switch v-model:value="editItemForm.is_active" />
+      </n-form-item>
+      <n-form-item label="备注">
+        <n-input v-model:value="editItemForm.remark" type="textarea" :rows="2" />
+      </n-form-item>
+    </n-form>
+    <template #action>
+      <n-button @click="showEditItemModal = false">取消</n-button>
+      <n-button type="primary" :loading="editingItem" @click="updateItem">保存</n-button>
+    </template>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
@@ -128,9 +152,13 @@ const selectedType = ref<DictionaryType | null>(null)
 
 const showTypeModal = ref(false)
 const showItemModal = ref(false)
+const showEditItemModal = ref(false)
+const editingItemId = ref<number | null>(null)
+const editingItem = ref(false)
 
 const typeForm = ref({ type_code: '', type_name: '', description: '' })
 const itemForm = ref({ item_code: '', item_value: '', sort_order: 0, remark: '' })
+const editItemForm = ref({ item_code: '', item_value: '', sort_order: 0, remark: '', is_active: true })
 
 async function loadTypes() {
   try {
@@ -181,6 +209,39 @@ async function createItem() {
     selectType(selectedType.value)
   } catch (e) {
     message.error('创建失败')
+  }
+}
+
+function handleEditItem(item: DictionaryItem) {
+  editingItemId.value = item.id
+  editItemForm.value = {
+    item_code: item.item_code,
+    item_value: item.item_value,
+    sort_order: item.sort_order,
+    remark: item.remark || '',
+    is_active: item.is_active,
+  }
+  showEditItemModal.value = true
+}
+
+async function updateItem() {
+  if (editingItemId.value === null || !editItemForm.value.item_code || !editItemForm.value.item_value) {
+    message.warning('请填写完整')
+    return
+  }
+  editingItem.value = true
+  try {
+    await api.put(`/dictionary/items/${editingItemId.value}`, editItemForm.value)
+    message.success('更新成功')
+    showEditItemModal.value = false
+    editingItemId.value = null
+    if (selectedType.value) {
+      selectType(selectedType.value)
+    }
+  } catch (e) {
+    message.error('更新失败')
+  } finally {
+    editingItem.value = false
   }
 }
 
