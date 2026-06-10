@@ -363,6 +363,8 @@ class AnomalyOut(BaseSchema):
     status: AnomalyStatus
     assignee_id: Optional[UUID] = None
     created_at: datetime
+    resolved_at: Optional[datetime] = None
+    resolved_note: Optional[str] = None
 
 
 class AnomalyResolveIn(BaseSchema):

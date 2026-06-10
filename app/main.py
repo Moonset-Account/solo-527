@@ -4,7 +4,7 @@ import io
 import json
 import uuid
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal as D
 from pathlib import Path
 from typing import Any, Optional
@@ -469,11 +469,16 @@ async def admin_bill_detail(
         raise HTTPException(status_code=404, detail="账单不存在")
     notes = await svc.get_notes(bill_id)
     audits = await svc.get_audit_logs(bill_id)
-    atts = (await db.execute(
-        select(models.Attachment)
+    atts_raw = (await db.execute(
+        select(models.Attachment, models.User.name)
+        .outerjoin(models.User, models.Attachment.uploaded_by == models.User.id)
         .where(models.Attachment.bill_id == bill_id)
         .order_by(desc(models.Attachment.uploaded_at))
-    )).scalars().all()
+    )).all()
+    atts = []
+    for att, uname in atts_raw:
+        att.uploaded_by_name = uname or "未知"
+        atts.append(att)
     payments_raw = (await db.execute(
         select(models.Payment, models.BankTransaction.txn_no)
         .outerjoin(models.BankTransaction, models.Payment.transaction_id == models.BankTransaction.id)
@@ -495,7 +500,7 @@ async def admin_bill_detail(
     return templates.TemplateResponse(
         request, "admin/bill_detail.html",
         {
-            "user": user, "bill": bill, "notes": notes, "audits": audits,
+            "user": user, "bill": bill, "notes": notes, "audit": audits,
             "attachments": atts, "payments": payments, "overview": overview,
             "active_nav": "bills",
         },
@@ -605,18 +610,15 @@ async def admin_attachment_upload(
     )).scalar_one_or_none()
     if not bill:
         return MessageOut(message="账单不存在", code=404)
-    MAX_SIZE = 20 * 1024 * 1024
+    MAX_SIZE = settings.max_upload_bytes
     content = await file.read()
     if len(content) > MAX_SIZE:
-        return MessageOut(message="文件大小超过 20MB 限制", code=400)
+        return MessageOut(message=f"文件大小超过 {settings.max_upload_size_mb}MB 限制", code=400)
     if len(content) == 0:
         return MessageOut(message="文件内容为空", code=400)
     import uuid as _uuid
-    import os, base64
-    store_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "data", "attachments")
-    os.makedirs(store_dir, exist_ok=True)
     safe_name = f"{_uuid.uuid4().hex}_{file.filename or 'file'}"
-    full_path = os.path.join(store_dir, safe_name)
+    full_path = settings.upload_path / safe_name
     try:
         with open(full_path, "wb") as f:
             f.write(content)
@@ -624,13 +626,12 @@ async def admin_attachment_upload(
         return MessageOut(message=f"保存文件失败: {str(e)}", code=500)
     att = models.Attachment(
         bill_id=bill_id,
-        file_type=file_type,
         filename=safe_name,
         original_name=file.filename or "uploaded_file",
         file_size=len(content),
         mime_type=file.content_type or "application/octet-stream",
-        description=description,
-        uploader_id=user.id,
+        storage_path=str(full_path),
+        uploaded_by=user.id,
     )
     db.add(att)
     await db.commit()
@@ -695,11 +696,11 @@ async def admin_attachment_download(
     )).scalar_one_or_none()
     if not att:
         raise HTTPException(status_code=404)
-    path = Path(settings.upload_path) / att.file_path
+    path = Path(att.storage_path)
     if not path.exists():
         raise HTTPException(status_code=404, detail="文件已丢失")
     return FileResponse(
-        path, filename=att.file_name,
+        path, filename=att.original_name,
         media_type=att.mime_type or "application/octet-stream",
     )
 
@@ -1237,9 +1238,8 @@ async def admin_anomaly_ignore(
     if not anom:
         raise HTTPException(status_code=404)
     anom.status = "IGNORED"  # type: ignore
-    anom.resolved_at = datetime.utcnow()
-    anom.resolved_by_id = user.id
-    anom.resolution_note = "已忽略"
+    anom.resolved_at = datetime.now(timezone.utc)
+    anom.resolved_note = "已忽略"
     db.add(anom)
     await db.commit()
     return MessageOut(message="已忽略此异常")

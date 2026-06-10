@@ -1,8 +1,8 @@
 {% extends "admin/layout.html" %}
 {% set active_nav = "anomalies" %}
 {% block admin_title %}异常详情{% endblock %}
-{% block header_title %}异常详情 · {{ anomaly.code }}{% endblock %}
-{% block header_crumbs %}首页 / 异常中心 / <a href="{{ url_for('admin_anomalies_page') }}">异常列表</a> / {{ anomaly.code }}{% endblock %}
+{% block header_title %}异常详情 · #{{ anomaly.id | string | truncate(8, True, '') }}{% endblock %}
+{% block header_crumbs %}首页 / 异常中心 / <a href="{{ url_for('admin_anomalies_page') }}">异常列表</a> / #{{ anomaly.id | string | truncate(8, True, '') }}{% endblock %}
 {% block content %}
 
 <div class="section-gap">
@@ -44,7 +44,7 @@
         <div style="display:grid;gap:10px;">
           <div class="flex justify-between">
             <span class="text-muted text-sm">异常编号</span>
-            <span style="font-weight:600;font-family:'JetBrains Mono',monospace;">{{ anomaly.code }}</span>
+            <span style="font-weight:600;font-family:'JetBrains Mono',monospace;">#{{ anomaly.id | string | truncate(8, True, '') }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-muted text-sm">异常类型</span>
@@ -63,7 +63,7 @@
           </div>
           <div class="flex justify-between">
             <span class="text-muted text-sm">发现时间</span>
-            <span>{{ anomaly.detected_at.strftime('%Y-%m-%d %H:%M') if anomaly.detected_at else '—' }}</span>
+            <span>{{ anomaly.created_at.strftime('%Y-%m-%d %H:%M') if anomaly.created_at else '—' }}</span>
           </div>
           {% if anomaly.resolved_at %}
           <div class="flex justify-between">
@@ -71,10 +71,10 @@
             <span>{{ anomaly.resolved_at.strftime('%Y-%m-%d %H:%M') }}</span>
           </div>
           {% endif %}
-          {% if anomaly.resolution_note %}
+          {% if anomaly.resolved_note %}
           <div class="flex justify-between">
             <span class="text-muted text-sm">处理说明</span>
-            <span>{{ anomaly.resolution_note }}</span>
+            <span>{{ anomaly.resolved_note }}</span>
           </div>
           {% endif %}
         </div>
@@ -94,17 +94,6 @@
   </div>
 
   <div class="detail-col">
-    {% if anomaly.metadata %}
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">相关元数据</h3>
-      </div>
-      <div class="card-body">
-        <pre style="padding:14px;background:var(--qh-gray-50);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;overflow-x:auto;max-height:300px;overflow-y:auto;">{{ anomaly.metadata | tojson }}</pre>
-      </div>
-    </div>
-    {% endif %}
-
     {% if related_bill %}
     <div class="card">
       <div class="card-header">

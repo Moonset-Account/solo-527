@@ -630,5 +630,4 @@ class TransactionService:
             for a in anomalies:
                 a.status = "RESOLVED"
                 a.resolved_at = datetime.now(timezone.utc)
-                a.resolution_note = f"人工匹配账单 {bill.bill_no}"
-                a.resolved_by_id = self.operator.id
+                a.resolved_note = f"人工匹配账单 {bill.bill_no}"
