@@ -1,0 +1,28 @@
+{
+  "name": "git-branch-cleaner",
+  "version": "1.0.0",
+  "description": "Git 分支清理 CLI - 为研发负责人做月度整理",
+  "type": "module",
+  "bin": {
+    "git-clean": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.0.2",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.3",
+    "dayjs": "^1.11.10",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/yargs": "^17.0.32",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
