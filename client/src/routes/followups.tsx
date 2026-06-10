@@ -22,7 +22,7 @@ interface FollowUp {
   consultant: { name: string };
 }
 
-export const Route = createFileRoute('/followups')({
+export const Route = createFileRoute()({
   component: FollowUpsPage,
 });
 

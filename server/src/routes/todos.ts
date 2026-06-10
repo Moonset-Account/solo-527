@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db';
 import { todos, users } from '../db/schema';
-import { eq, and, desc, sql, isNull } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { authMiddleware, AuthUser } from '../middleware/auth';
 
 const app = new Hono();

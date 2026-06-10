@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { db } from './index';
-import { users, apartments, customers, viewings, followUps, leaseDrafts, leases, deposits } from './schema';
+import { users, apartments, customers } from './schema';
 
 async function seed() {
   console.log('开始种子数据...');

@@ -17,6 +17,7 @@ interface DataTableProps<T> {
   onPageChange: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
   rowKey?: (record: T) => string | number;
+  rowClassName?: (record: T) => string;
   actions?: (record: T) => ReactNode;
   emptyText?: string;
 }
@@ -31,6 +32,7 @@ export default function DataTable<T>({
   onPageChange,
   onPageSizeChange,
   rowKey,
+  rowClassName,
   actions,
   emptyText = '暂无数据',
 }: DataTableProps<T>) {
@@ -103,10 +105,10 @@ export default function DataTable<T>({
               </tr>
             ) : (
               data.map((record, index) => (
-                <tr key={rowKey ? rowKey(record) : index} className="hover:bg-gray-50">
+                <tr key={rowKey ? rowKey(record) : index} className={`hover:bg-gray-50 ${rowClassName ? rowClassName(record) : ''}`}>
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-sm text-gray-900">
-                      {col.render ? col.render(record) : (record as Record<string, unknown>)[col.key]}
+                      {col.render ? col.render(record) : (record as Record<string, unknown>)[col.key] as React.ReactNode}
                     </td>
                   ))}
                   {actions && (

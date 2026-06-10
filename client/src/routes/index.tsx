@@ -4,7 +4,7 @@ import { apiClient } from '@/api/client';
 import { useAuthStore } from '@/store/authStore';
 import dayjs from 'dayjs';
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute()({
   component: Dashboard,
 });
 
@@ -61,18 +61,6 @@ function Dashboard() {
     occupied: 'bg-blue-100 text-blue-800',
     reserved: 'bg-yellow-100 text-yellow-800',
     maintenance: 'bg-red-100 text-red-800',
-  };
-
-  const statusLabels: Record<string, string> = {
-    vacant: '空置',
-    occupied: '已租',
-    reserved: '预留',
-    maintenance: '维修',
-    pending: '待处理',
-    completed: '已完成',
-    cancelled: '已取消',
-    signed: '已签约',
-    lost: '已流失',
   };
 
   const priorityColors: Record<string, string> = {

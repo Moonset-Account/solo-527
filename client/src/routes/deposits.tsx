@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
-import { getStatusLabel, getStatusColor, DEPOSIT_STATUS, DISPUTE_STATUS, TODO_PRIORITY } from '@/utils/constants';
+import { getStatusLabel, getStatusColor, DEPOSIT_STATUS, DISPUTE_STATUS } from '@/utils/constants';
 import SearchFilter from '@/components/SearchFilter';
 import DataTable from '@/components/DataTable';
 import Modal from '@/components/Modal';
@@ -37,7 +37,7 @@ interface Dispute {
   customer: { name: string; phone: string };
 }
 
-export const Route = createFileRoute('/deposits')({
+export const Route = createFileRoute()({
   component: DepositsPage,
 });
 

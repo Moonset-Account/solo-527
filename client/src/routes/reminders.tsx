@@ -19,7 +19,7 @@ interface Reminder {
   processedBy: { name: string };
 }
 
-export const Route = createFileRoute('/reminders')({
+export const Route = createFileRoute()({
   component: RemindersPage,
 });
 

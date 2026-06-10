@@ -23,7 +23,7 @@ interface Todo {
   assignee: { id: number; name: string };
 }
 
-export const Route = createFileRoute('/todos')({
+export const Route = createFileRoute()({
   component: TodosPage,
 });
 

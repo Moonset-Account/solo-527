@@ -97,7 +97,6 @@ app.put('/drafts/:id', zValidator('json', leaseDraftSchema.partial()), async (c)
 
 app.post('/drafts/:id/sign', adminMiddleware, zValidator('json', leaseSignSchema), async (c) => {
   const id = parseInt(c.req.param('id'));
-  const user = c.get('user') as AuthUser;
   const data = c.req.valid('json');
 
   const [draft] = await db.select().from(leaseDrafts).where(eq(leaseDrafts.id, id));

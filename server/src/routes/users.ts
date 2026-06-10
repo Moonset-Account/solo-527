@@ -4,7 +4,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
 import { users } from '../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { authMiddleware, adminMiddleware, AuthUser } from '../middleware/auth';
 
 const app = new Hono();
@@ -17,6 +17,7 @@ const userCreateSchema = z.object({
   name: z.string().min(1, '姓名不能为空'),
   role: z.enum(['consultant', 'admin']).default('consultant'),
   phone: z.string().optional(),
+  email: z.string().email('邮箱格式不正确').optional(),
 });
 
 app.get('/', adminMiddleware, async (c) => {
@@ -26,7 +27,11 @@ app.get('/', adminMiddleware, async (c) => {
     name: users.name,
     role: users.role,
     phone: users.phone,
+    email: users.email,
+    status: users.status,
+    lastLogin: users.lastLogin,
     createdAt: users.createdAt,
+    updatedAt: users.updatedAt,
   }).from(users).orderBy(desc(users.createdAt));
   
   return c.json(list);

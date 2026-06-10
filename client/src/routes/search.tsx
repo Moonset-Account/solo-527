@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '@/api/client';
 import { getStatusLabel, getStatusColor, APARTMENT_STATUS, VIEWING_STATUS, LEASE_STATUS, DEPOSIT_STATUS, FOLLOWUP_RESULT } from '@/utils/constants';
 import { useAuthStore } from '@/store/authStore';
@@ -60,7 +60,7 @@ interface QueryResult {
   }>;
 }
 
-export const Route = createFileRoute('/search')({
+export const Route = createFileRoute()({
   component: SearchPage,
 });
 

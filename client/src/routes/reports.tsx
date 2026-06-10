@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
-import { getStatusLabel, APARTMENT_STATUS, VIEWING_STATUS, FOLLOWUP_RESULT } from '@/utils/constants';
-import dayjs from 'dayjs';
+import { APARTMENT_STATUS, VIEWING_STATUS } from '@/utils/constants';
 
 interface Statistics {
   apartments: {
@@ -47,7 +46,7 @@ interface MonthlySummary {
   signings: number;
 }
 
-export const Route = createFileRoute('/reports')({
+export const Route = createFileRoute()({
   component: ReportsPage,
 });
 
@@ -158,7 +157,7 @@ function ReportsPage() {
                 </div>
                 {APARTMENT_STATUS.map((status) => {
                   const key = status.value as keyof typeof apartmentStats;
-                  const count = apartmentStats?.[key] as number || 0;
+                  const count = Number(apartmentStats?.[key]) || 0;
                   const percent = apartmentStats?.total ? ((count / apartmentStats.total) * 100).toFixed(1) : '0';
                   return (
                     <div key={status.value}>
@@ -187,7 +186,7 @@ function ReportsPage() {
                 </div>
                 {VIEWING_STATUS.map((status) => {
                   const key = status.value as keyof typeof viewingStats;
-                  const count = viewingStats?.[key] as number || 0;
+                  const count = Number(viewingStats?.[key]) || 0;
                   const percent = viewingStats?.total ? ((count / viewingStats.total) * 100).toFixed(1) : '0';
                   return (
                     <div key={status.value}>

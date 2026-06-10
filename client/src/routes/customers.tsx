@@ -17,7 +17,7 @@ interface Customer {
   createdAt: string;
 }
 
-export const Route = createFileRoute('/customers')({
+export const Route = createFileRoute()({
   component: CustomersPage,
 });
 

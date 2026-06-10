@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db';
 import { apartments, customers, viewings, followUps, leases, deposits, users } from '../db/schema';
-import { eq, and, desc, sql, gt, lt, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
 const app = new Hono();
