@@ -60,6 +60,8 @@ export default function Booking() {
   const [availabilityResult, setAvailabilityResult] = useState<{
     available: boolean;
     total_price: number;
+    reason?: string;
+    nights?: number;
   } | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
 
@@ -425,7 +427,7 @@ export default function Booking() {
                     <div className="flex justify-between items-center text-lg">
                       <span className="text-gray-700">总计</span>
                       <span className="text-2xl font-bold text-primary-600">
-                        {formatCurrency(availabilityResult.total_price)}
+                        {formatCurrency(availabilityResult?.total_price ?? 0)}
                       </span>
                     </div>
 

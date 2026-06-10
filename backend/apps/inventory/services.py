@@ -58,23 +58,55 @@ class InventoryService:
     def check_availability(room_id, check_in_date, check_out_date):
         nights = (check_out_date - check_in_date).days
         if nights <= 0:
-            return {'available': False, 'reason': '无效的日期范围'}
+            return {'available': False, 'reason': '无效的日期范围', 'total_price': 0}
+
+        try:
+            room = Room.objects.get(id=room_id)
+        except Room.DoesNotExist:
+            return {'available': False, 'reason': '房型不存在', 'total_price': 0}
 
         inventory_items = Inventory.objects.filter(
             room_id=room_id,
             date__gte=check_in_date,
             date__lt=check_out_date
         )
+        inventory_map = {item.date: item for item in inventory_items}
 
-        for item in inventory_items:
-            if item.status != 'available' or item.is_locked:
-                return {
-                    'available': False,
-                    'reason': f'{item.date.isoformat()} 不可预订（{item.get_status_display()}）',
-                    'conflict_date': item.date.isoformat()
-                }
+        special_pricings = SpecialPricing.objects.filter(
+            room_id=room_id,
+            start_date__lt=check_out_date,
+            end_date__gte=check_in_date,
+            is_active=True
+        )
 
-        return {'available': True, 'nights': nights}
+        def get_special_price(d):
+            for sp in special_pricings:
+                if sp.start_date <= d <= sp.end_date:
+                    return float(sp.price)
+            return None
+
+        total_price = 0.0
+        current_date = check_in_date
+        while current_date < check_out_date:
+            if current_date in inventory_map:
+                item = inventory_map[current_date]
+                if item.status != 'available' or item.is_locked:
+                    return {
+                        'available': False,
+                        'reason': f'{current_date.isoformat()} 不可预订（{item.get_status_display()}）',
+                        'conflict_date': current_date.isoformat(),
+                        'total_price': 0
+                    }
+                day_price = float(item.price) if item.price else None
+                if day_price is None or day_price == 0:
+                    day_price = get_special_price(current_date) or float(room.base_price)
+                total_price += day_price
+            else:
+                day_price = get_special_price(current_date) or float(room.base_price)
+                total_price += day_price
+            current_date += timedelta(days=1)
+
+        return {'available': True, 'nights': nights, 'total_price': total_price}
 
     @staticmethod
     def batch_update(room_id, start_date, end_date, status=None, price=None, is_locked=None):

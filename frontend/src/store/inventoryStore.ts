@@ -34,7 +34,13 @@ interface InventoryState {
     room_id: string;
     check_in: string;
     check_out: string;
-  }) => Promise<{ available: boolean; reason?: string; total_price: number }>;
+  }) => Promise<{
+    available: boolean;
+    reason?: string;
+    conflict_date?: string;
+    nights?: number;
+    total_price: number;
+  }>;
   createSpecialPricing: (data: Partial<SpecialPricing>) => Promise<void>;
   updateSpecialPricing: (id: string, data: Partial<SpecialPricing>) => Promise<void>;
   deleteSpecialPricing: (id: string) => Promise<void>;

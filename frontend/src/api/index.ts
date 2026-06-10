@@ -135,7 +135,13 @@ const api = {
       room_id: string;
       check_in: string;
       check_out: string;
-    }): Promise<AxiosResponse<{ available: boolean; reason?: string; total_price: number }>> =>
+    }): Promise<AxiosResponse<{
+      available: boolean;
+      reason?: string;
+      conflict_date?: string;
+      nights?: number;
+      total_price: number;
+    }>> =>
       axiosInstance.get('/inventory/calendar/check_availability/', { params }),
 
     batchUpdate: (data: {
