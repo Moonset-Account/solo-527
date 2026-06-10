@@ -1,8 +1,11 @@
 package com.energy.dashboard.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.energy.dashboard.common.Result;
+import com.energy.dashboard.entity.EnergyData;
 import com.energy.dashboard.entity.Meter;
 import com.energy.dashboard.entity.Zone;
+import com.energy.dashboard.mapper.EnergyDataMapper;
 import com.energy.dashboard.mapper.MeterMapper;
 import com.energy.dashboard.mapper.ZoneMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,20 +13,60 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/data")
 public class DataQueryController {
 
     @Autowired
+    private EnergyDataMapper energyDataMapper;
+
+    @Autowired
     private MeterMapper meterMapper;
 
     @Autowired
     private ZoneMapper zoneMapper;
+
+    private List<Long> resolveMeterIds(Long zoneId, Long meterId) {
+        List<Long> meterIds = new ArrayList<>();
+        if (meterId != null) {
+            meterIds.add(meterId);
+            return meterIds;
+        }
+        if (zoneId != null) {
+            QueryWrapper<Meter> mw = new QueryWrapper<>();
+            mw.eq("zone_id", zoneId);
+            List<Meter> meters = meterMapper.selectList(mw);
+            for (Meter m : meters) {
+                meterIds.add(m.getId());
+            }
+            return meterIds;
+        }
+        return meterIds;
+    }
+
+    private String formatTime(LocalDateTime t, String granularity) {
+        if ("month".equals(granularity)) {
+            return t.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        } else if ("day".equals(granularity)) {
+            return t.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        } else {
+            return t.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00"));
+        }
+    }
+
+    private String resolveDataType(String frontDataType) {
+        if ("usage".equals(frontDataType) || "peak".equals(frontDataType) || "demand".equals(frontDataType)) {
+            return "electricity";
+        }
+        return frontDataType != null ? frontDataType : "electricity";
+    }
 
     @PostMapping("/query")
     public Result<Map<String, Object>> query(@RequestBody Map<String, Object> params) {
@@ -32,32 +75,11 @@ public class DataQueryController {
         Number zoneIdNum = (Number) params.get("zoneId");
         Number meterIdNum = (Number) params.get("meterId");
         String granularity = (String) params.get("granularity");
+        String frontDataType = (String) params.get("dataType");
 
         Long zoneId = zoneIdNum != null ? zoneIdNum.longValue() : null;
         Long meterId = meterIdNum != null ? meterIdNum.longValue() : null;
-
-        String meterNo = "ALL";
-        if (meterId != null) {
-            Meter meter = meterMapper.selectById(meterId);
-            if (meter != null) {
-                meterNo = meter.getMeterNo();
-            }
-        }
-
-        String zoneName = "全园区";
-        if (zoneId != null) {
-            Zone zone = zoneMapper.selectById(zoneId);
-            if (zone != null) {
-                zoneName = zone.getName();
-            }
-        }
-
-        double zoneMultiplier = 1.0;
-        if (zoneId != null) {
-            if (zoneId == 2) zoneMultiplier = 2.5;
-            else if (zoneId == 3) zoneMultiplier = 0.8;
-            else if (zoneId == 4) zoneMultiplier = 0.6;
-        }
+        String dataType = resolveDataType(frontDataType);
 
         DateTimeFormatter inputFormatter = DateTimeFormatter.ISO_DATE_TIME;
         LocalDateTime start;
@@ -73,66 +95,94 @@ public class DataQueryController {
             end = LocalDateTime.parse(endTime + "T23:59:59");
         }
 
-        List<Map<String, Object>> items = new ArrayList<>();
+        List<Long> meterIds = resolveMeterIds(zoneId, meterId);
 
-        DateTimeFormatter hourFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
-        DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        QueryWrapper<EnergyData> wrapper = new QueryWrapper<>();
+        wrapper.ge("recorded_at", start).lt("recorded_at", end);
+        wrapper.eq("data_type", dataType);
+        if (!meterIds.isEmpty()) {
+            wrapper.in("meter_id", meterIds);
+        }
+        wrapper.orderByAsc("recorded_at");
 
-        LocalDateTime current = start;
-        int maxPoints;
-        long stepSeconds;
+        List<EnergyData> rawData = energyDataMapper.selectList(wrapper);
 
-        if ("month".equals(granularity)) {
-            maxPoints = 12;
-            stepSeconds = 30L * 24 * 3600;
-        } else if ("day".equals(granularity)) {
-            maxPoints = 31;
-            stepSeconds = 24L * 3600;
-        } else {
-            maxPoints = 48;
-            stepSeconds = 3600L;
+        Map<Long, Meter> meterCache = new HashMap<>();
+        Map<Long, Zone> zoneCache = new HashMap<>();
+
+        Map<String, List<EnergyData>> grouped = new LinkedHashMap<>();
+        for (EnergyData d : rawData) {
+            String key = formatTime(d.getRecordedAt(), granularity) + "|" + d.getMeterId();
+            grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(d);
         }
 
-        Random random = new Random(42);
-        int count = 0;
+        Map<String, BigDecimal> timeTotals = new LinkedHashMap<>();
+        Map<String, String> timeUnit = new HashMap<>();
+        Map<String, Map<Long, BigDecimal>> timeMeterValues = new LinkedHashMap<>();
 
-        while (!current.isAfter(end) && count < maxPoints) {
-            Map<String, Object> item = new HashMap<>();
+        for (Map.Entry<String, List<EnergyData>> entry : grouped.entrySet()) {
+            String[] parts = entry.getKey().split("\\|", 2);
+            String timeKey = parts[0];
+            Long mId = Long.parseLong(parts[1]);
 
-            String timeStr;
-            int hour = current.getHour();
-
-            if ("month".equals(granularity)) {
-                timeStr = current.format(monthFormatter);
-            } else if ("day".equals(granularity)) {
-                timeStr = current.format(dayFormatter);
-            } else {
-                timeStr = current.format(hourFormatter);
+            BigDecimal sum = BigDecimal.ZERO;
+            String unit = null;
+            for (EnergyData d : entry.getValue()) {
+                if (d.getValue() != null) sum = sum.add(d.getValue());
+                if (unit == null && d.getUnit() != null) unit = d.getUnit();
             }
 
-            boolean isPeak = (hour >= 8 && hour <= 11) || (hour >= 17 && hour <= 21);
-            double baseVal;
-            if ("month".equals(granularity)) {
-                baseVal = 150 + random.nextDouble() * 100;
-            } else if ("day".equals(granularity)) {
-                baseVal = 100 + random.nextDouble() * 150;
+            timeTotals.merge(timeKey, sum, BigDecimal::add);
+            if (unit != null) timeUnit.putIfAbsent(timeKey, unit);
+
+            timeMeterValues.computeIfAbsent(timeKey, k -> new HashMap<>()).put(mId, sum);
+        }
+
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Map.Entry<String, BigDecimal> entry : timeTotals.entrySet()) {
+            String timeKey = entry.getKey();
+            BigDecimal totalValue = entry.getValue();
+
+            String meterNoStr = "ALL";
+            String zoneNameStr = "全园区";
+            String unit = timeUnit.getOrDefault(timeKey, "kWh");
+
+            if (meterId != null) {
+                Meter m = meterCache.computeIfAbsent(meterId, mid -> meterMapper.selectById(mid));
+                if (m != null) {
+                    meterNoStr = m.getMeterNo() != null ? m.getMeterNo() : "";
+                    if (m.getZoneId() != null) {
+                        Zone z = zoneCache.computeIfAbsent(m.getZoneId(), zid -> zoneMapper.selectById(zid));
+                        if (z != null) zoneNameStr = z.getName() != null ? z.getName() : "";
+                    }
+                }
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("time", timeKey);
+                row.put("meterNo", meterNoStr);
+                row.put("zoneName", zoneNameStr);
+                Map<Long, BigDecimal> mv = timeMeterValues.get(timeKey);
+                row.put("value", mv != null && mv.containsKey(meterId) ? mv.get(meterId) : totalValue);
+                row.put("unit", unit);
+                items.add(row);
+            } else if (zoneId != null) {
+                Zone z = zoneCache.computeIfAbsent(zoneId, zid -> zoneMapper.selectById(zid));
+                if (z != null) zoneNameStr = z.getName() != null ? z.getName() : "";
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("time", timeKey);
+                row.put("meterNo", meterNoStr);
+                row.put("zoneName", zoneNameStr);
+                row.put("value", totalValue);
+                row.put("unit", unit);
+                items.add(row);
             } else {
-                baseVal = isPeak ? 150 + random.nextDouble() * 100 : 30 + random.nextDouble() * 50;
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("time", timeKey);
+                row.put("meterNo", meterNoStr);
+                row.put("zoneName", zoneNameStr);
+                row.put("value", totalValue);
+                row.put("unit", unit);
+                items.add(row);
             }
-
-            double value = Math.round(baseVal * zoneMultiplier * 10) / 10.0;
-
-            item.put("time", timeStr);
-            item.put("meterNo", meterNo);
-            item.put("zoneName", zoneName);
-            item.put("value", value);
-            item.put("unit", "kWh");
-
-            items.add(item);
-            count++;
-
-            current = current.plusSeconds(stepSeconds);
         }
 
         Map<String, Object> result = new HashMap<>();

@@ -1,6 +1,7 @@
 package com.energy.dashboard.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.energy.dashboard.config.EnumMapping;
 import com.energy.dashboard.entity.EnergyData;
 import com.energy.dashboard.entity.Meter;
 import com.energy.dashboard.entity.Zone;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,15 +33,36 @@ public class ZoneServiceImpl implements ZoneService {
     @Autowired
     private EnergyDataMapper energyDataMapper;
 
-    private double getTotalUsageForZone(Long zoneId) {
-        if (zoneId == null) return 0.0;
-        switch (zoneId.intValue()) {
-            case 1: return 12580.5;
-            case 2: return 38720.0;
-            case 3: return 6830.0;
-            case 4: return 5420.0;
-            default: return 0.0;
+    private static final String ENERGY_TYPE = "electricity";
+    private static final int[] PEAK_HOURS = {8, 9, 10, 11, 17, 18, 19, 20, 21};
+
+    private List<Long> getMeterIdsForZone(Long zoneId) {
+        QueryWrapper<Meter> wrapper = new QueryWrapper<>();
+        if (zoneId != null) {
+            wrapper.eq("zone_id", zoneId);
         }
+        return meterMapper.selectList(wrapper).stream().map(Meter::getId).collect(Collectors.toList());
+    }
+
+    private double sumUsage(LocalDateTime start, LocalDateTime end, List<Long> meterIds) {
+        if (meterIds.isEmpty()) return 0.0;
+        QueryWrapper<EnergyData> wrapper = new QueryWrapper<>();
+        wrapper.select("COALESCE(SUM(value), 0) as total")
+                .eq("data_type", ENERGY_TYPE)
+                .in("meter_id", meterIds)
+                .ge("recorded_at", start)
+                .lt("recorded_at", end);
+        Map<String, Object> result = energyDataMapper.selectMaps(wrapper).stream().findFirst().orElse(null);
+        if (result == null || result.get("total") == null) return 0.0;
+        return ((Number) result.get("total")).doubleValue();
+    }
+
+    private double getTotalUsageForZone(Long zoneId) {
+        List<Long> meterIds = getMeterIdsForZone(zoneId);
+        if (meterIds.isEmpty()) return 0.0;
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime nowEnd = LocalDateTime.now();
+        return sumUsage(monthStart, nowEnd, meterIds);
     }
 
     private int countMetersByZone(Long zoneId) {
@@ -71,7 +94,7 @@ public class ZoneServiceImpl implements ZoneService {
         map.put("meterNo", meter.getMeterNo());
         map.put("location", meter.getLocation());
         map.put("zoneId", meter.getZoneId());
-        map.put("status", meter.getStatus());
+        map.put("status", EnumMapping.mapMeterStatus(meter.getStatus()));
         map.put("communicationParams", meter.getCommunicationParams());
         map.put("sourceDocumentNo", meter.getSourceDocumentNo());
         map.put("remark", meter.getRemark());
@@ -90,7 +113,7 @@ public class ZoneServiceImpl implements ZoneService {
         map.put("remark", zone.getRemark());
         map.put("createdAt", zone.getCreatedAt());
         map.put("meterCount", countMetersByZone(zone.getId()));
-        map.put("totalUsage", getTotalUsageForZone(zone.getId()));
+        map.put("totalUsage", Math.round(getTotalUsageForZone(zone.getId()) * 10.0) / 10.0);
         return map;
     }
 
@@ -146,43 +169,20 @@ public class ZoneServiceImpl implements ZoneService {
     public Map<String, Object> getEnergy(Long zoneId) {
         Map<String, Object> result = new HashMap<>();
 
+        List<Long> meterIds = getMeterIdsForZone(zoneId);
         double usage = getTotalUsageForZone(zoneId);
-        result.put("usage", usage);
-
-        QueryWrapper<EnergyData> wrapper = new QueryWrapper<>();
-        if (zoneId != null) {
-            QueryWrapper<Meter> meterWrapper = new QueryWrapper<>();
-            meterWrapper.eq("zone_id", zoneId);
-            List<Meter> meters = meterMapper.selectList(meterWrapper);
-            List<Long> meterIds = meters.stream().map(Meter::getId).collect(Collectors.toList());
-            if (!meterIds.isEmpty()) {
-                wrapper.in("meter_id", meterIds);
-            }
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        wrapper.ge("recorded_at", now.minusMonths(1));
-        wrapper.orderByAsc("recorded_at");
-        List<EnergyData> energyDataList = energyDataMapper.selectList(wrapper);
+        result.put("usage", Math.round(usage * 10.0) / 10.0);
 
         List<Map<String, Object>> curve = new ArrayList<>();
-        for (EnergyData data : energyDataList) {
-            Map<String, Object> point = new HashMap<>();
-            point.put("time", data.getRecordedAt() != null ? data.getRecordedAt().toString() : "");
-            point.put("value", data.getValue() != null ? data.getValue() : BigDecimal.ZERO);
-            point.put("isPeak", false);
-            curve.add(point);
-        }
-
-        if (curve.isEmpty()) {
-            LocalDateTime start = now.minusMonths(1);
-            for (int i = 0; i < 30; i++) {
-                LocalDateTime day = start.plusDays(i);
+        if (!meterIds.isEmpty()) {
+            LocalDate today = LocalDate.now();
+            int days = Math.min(today.getDayOfMonth(), 30);
+            for (int d = 1; d <= days; d++) {
+                LocalDate date = today.withDayOfMonth(d);
+                double val = sumUsage(date.atStartOfDay(), date.plusDays(1).atStartOfDay(), meterIds);
                 Map<String, Object> point = new HashMap<>();
-                point.put("time", day.toString());
-                double zoneMultiplier = zoneId != null ? getTotalUsageForZone(zoneId) / 12580.5 : 1.0;
-                double baseVal = 80 + Math.random() * 120;
-                point.put("value", BigDecimal.valueOf(Math.round(baseVal * zoneMultiplier * 10) / 10.0));
+                point.put("time", date.toString());
+                point.put("value", BigDecimal.valueOf(Math.round(val * 10.0) / 10.0));
                 point.put("isPeak", false);
                 curve.add(point);
             }

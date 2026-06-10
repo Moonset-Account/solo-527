@@ -3,6 +3,7 @@ package com.energy.dashboard.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.energy.dashboard.common.PageResult;
+import com.energy.dashboard.config.EnumMapping;
 import com.energy.dashboard.entity.Meter;
 import com.energy.dashboard.entity.SyncRetryLog;
 import com.energy.dashboard.entity.SyncTask;
@@ -50,7 +51,7 @@ public class SyncServiceImpl implements SyncService {
         for (SyncRetryLog log : logs) {
             Map<String, Object> item = new HashMap<>();
             item.put("retryAt", log.getRetryAt());
-            item.put("success", log.getSuccess());
+            item.put("success", log.getSuccess() != null && log.getSuccess() == 1);
             item.put("message", log.getMessage());
             results.add(item);
         }
@@ -60,15 +61,15 @@ public class SyncServiceImpl implements SyncService {
     private Map<String, Object> enrichTask(SyncTask task) {
         Map<String, Object> map = new HashMap<>();
         map.put("id", task.getId());
-        map.put("type", task.getType());
+        map.put("type", EnumMapping.mapSyncType(task.getType()));
         map.put("meterId", task.getMeterId());
-        map.put("status", task.getStatus());
+        map.put("status", EnumMapping.mapSyncStatus(task.getStatus()));
         map.put("triggeredAt", task.getTriggeredAt());
         map.put("completedAt", task.getCompletedAt());
         map.put("duration", task.getDuration());
         map.put("failReason", task.getFailReason());
         map.put("friendlyFailReason", task.getFriendlyFailReason());
-        map.put("failCategory", task.getFailCategory());
+        map.put("failCategory", task.getFailCategory() != null ? EnumMapping.mapSyncFailCategory(task.getFailCategory()) : null);
         map.put("retryCount", task.getRetryCount() != null ? task.getRetryCount() : 0);
         map.put("createdAt", task.getCreatedAt());
 
@@ -91,7 +92,12 @@ public class SyncServiceImpl implements SyncService {
 
         QueryWrapper<SyncTask> wrapper = new QueryWrapper<>();
         if (params.containsKey("status")) {
-            wrapper.eq("status", params.get("status"));
+            String status = (String) params.get("status");
+            if ("success".equals(status)) {
+                wrapper.eq("status", "completed");
+            } else {
+                wrapper.eq("status", status);
+            }
         }
         if (params.containsKey("type")) {
             wrapper.eq("type", params.get("type"));
@@ -138,11 +144,11 @@ public class SyncServiceImpl implements SyncService {
         SyncRetryLog retryLog = new SyncRetryLog();
         retryLog.setSyncTaskId(id);
         retryLog.setRetryAt(LocalDateTime.now());
-        retryLog.setSuccess(true);
+        retryLog.setSuccess(1);
         retryLog.setMessage("retry triggered");
         syncRetryLogMapper.insert(retryLog);
 
-        task.setStatus("success");
+        task.setStatus("completed");
         task.setCompletedAt(LocalDateTime.now());
         task.setDuration(15);
         syncTaskMapper.updateById(task);

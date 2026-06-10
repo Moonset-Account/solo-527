@@ -3,6 +3,7 @@ package com.energy.dashboard.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.energy.dashboard.common.PageResult;
+import com.energy.dashboard.config.EnumMapping;
 import com.energy.dashboard.entity.Meter;
 import com.energy.dashboard.entity.Zone;
 import com.energy.dashboard.mapper.MeterMapper;
@@ -42,10 +43,11 @@ public class MeterServiceImpl implements MeterService {
                 return "success";
             }
         }
-        if ("fault".equals(meter.getStatus())) {
+        String mappedStatus = EnumMapping.mapMeterStatus(meter.getStatus());
+        if ("fault".equals(mappedStatus)) {
             return "failed";
         }
-        if ("offline".equals(meter.getStatus())) {
+        if ("offline".equals(mappedStatus)) {
             return "pending";
         }
         return "success";
@@ -57,7 +59,7 @@ public class MeterServiceImpl implements MeterService {
         map.put("meterNo", meter.getMeterNo());
         map.put("location", meter.getLocation());
         map.put("zoneId", meter.getZoneId());
-        map.put("status", meter.getStatus());
+        map.put("status", EnumMapping.mapMeterStatus(meter.getStatus()));
         map.put("communicationParams", meter.getCommunicationParams());
         map.put("sourceDocumentNo", meter.getSourceDocumentNo());
         map.put("remark", meter.getRemark());
@@ -88,7 +90,12 @@ public class MeterServiceImpl implements MeterService {
             wrapper.eq("zone_id", params.get("zoneId"));
         }
         if (params.containsKey("status")) {
-            wrapper.eq("status", params.get("status"));
+            String status = (String) params.get("status");
+            if ("fault".equals(status)) {
+                wrapper.eq("status", "warning");
+            } else {
+                wrapper.eq("status", status);
+            }
         }
         if (params.containsKey("keyword") && params.get("keyword") != null && !params.get("keyword").toString().trim().isEmpty()) {
             wrapper.like("meter_no", params.get("keyword").toString().trim());

@@ -21,7 +21,7 @@ public class SyncRetryLog {
     @TableField("retry_at")
     private LocalDateTime retryAt;
 
-    private Boolean success;
+    private Integer success;
 
     private String message;
 }
