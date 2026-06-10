@@ -8,8 +8,13 @@
 import { BouncerConfig } from '@ioc:Adonis/Addons/Bouncer'
 
 const bouncerConfig: BouncerConfig = {
-  actions: {},
-  policies: {},
+  resolver: {
+    policies: {
+      workOrder: 'App/Policies/WorkOrderPolicy',
+      user: 'App/Policies/UserPolicy',
+    },
+    actions: {},
+  },
 }
 
 export default bouncerConfig

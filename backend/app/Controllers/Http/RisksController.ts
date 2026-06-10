@@ -66,7 +66,7 @@ export default class RisksController {
       workOrderId: schema.number([
         rules.exists({ table: 'work_orders', column: 'id' }),
       ]),
-      riskLevel: schema.enum(['low', 'medium', 'high', 'critical']),
+      riskLevel: schema.enum(['low', 'medium', 'high', 'critical'] as const),
       riskType: schema.string({}, [
         rules.maxLength(100),
       ]),
@@ -96,7 +96,7 @@ export default class RisksController {
 
       const handleSchema = schema.create({
         actionTaken: schema.string(),
-        status: schema.enum(['mitigated', 'resolved', 'closed']),
+        status: schema.enum(['mitigated', 'resolved', 'closed'] as const),
       })
 
       const data = await request.validate({ schema: handleSchema })
@@ -117,7 +117,8 @@ export default class RisksController {
         data: risk.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '风险记录不存在' })
       }
       throw error

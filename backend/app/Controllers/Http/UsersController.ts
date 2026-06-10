@@ -148,7 +148,8 @@ export default class UsersController {
         data: user.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '用户不存在' })
       }
       throw error

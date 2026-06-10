@@ -13,7 +13,7 @@ export default class Role extends BaseModel {
   public slug: string
 
   @column()
-  public description: string | null
+  public description: string | null = null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

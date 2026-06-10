@@ -14,25 +14,25 @@ export default class Schedule extends BaseModel {
   public scheduleDate: DateTime
 
   @column()
-  public workshop: string | null
+  public workshop: string | null = null
 
   @column()
-  public line: string | null
+  public line: string | null = null
 
   @column()
   public plannedQuantity: number
 
   @column()
-  public actualQuantity: number
+  public actualQuantity: number = 0
 
   @column()
-  public shift: 'morning' | 'afternoon' | 'night' | null
+  public shift: 'morning' | 'afternoon' | 'night' | null = null
 
   @column()
-  public notes: string | null
+  public notes: string | null = null
 
   @column()
-  public scheduledBy: number | null
+  public scheduledBy: number | null = null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

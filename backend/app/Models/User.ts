@@ -30,16 +30,16 @@ export default class User extends BaseModel {
   public realName: string
 
   @column()
-  public phone: string | null
+  public phone: string | null = null
 
   @column()
-  public department: string | null
+  public department: string | null = null
 
   @column()
-  public isActive: boolean
+  public isActive: boolean = true
 
   @column()
-  public rememberMeToken: string | null
+  public rememberMeToken: string | null = null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

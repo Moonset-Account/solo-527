@@ -74,7 +74,7 @@ export default class SchedulesController {
 
     const schedule = new Schedule()
     schedule.workOrderId = data.workOrderId
-    schedule.scheduleDate = DateTime.fromJSDate(data.scheduleDate)
+    schedule.scheduleDate = data.scheduleDate
     schedule.workshop = data.workshop || null
     schedule.line = data.line || null
     schedule.plannedQuantity = data.plannedQuantity
@@ -106,7 +106,7 @@ export default class SchedulesController {
       const data = await request.validate(ScheduleValidator)
 
       schedule.workOrderId = data.workOrderId
-      schedule.scheduleDate = DateTime.fromJSDate(data.scheduleDate)
+      schedule.scheduleDate = data.scheduleDate
       schedule.workshop = data.workshop || null
       schedule.line = data.line || null
       schedule.plannedQuantity = data.plannedQuantity
@@ -124,7 +124,8 @@ export default class SchedulesController {
         data: schedule.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '排产计划不存在' })
       }
       throw error
@@ -159,13 +160,15 @@ export default class SchedulesController {
       .preload('workOrder')
       .orderBy('schedule_date', 'asc')
 
-    const calendarData = {}
+    const calendarData: Record<string, any[]> = {}
     schedules.forEach((schedule) => {
       const dateStr = schedule.scheduleDate.toISODate()
-      if (!calendarData[dateStr]) {
+      if (dateStr && !calendarData[dateStr]) {
         calendarData[dateStr] = []
       }
-      calendarData[dateStr].push(schedule.serialize())
+      if (dateStr) {
+        calendarData[dateStr].push(schedule.serialize())
+      }
     })
 
     return response.ok({
@@ -190,7 +193,7 @@ export default class SchedulesController {
       const data = await request.validate({ schema: adjustSchema })
 
       if (data.scheduleDate) {
-        schedule.scheduleDate = DateTime.fromJSDate(data.scheduleDate)
+        schedule.scheduleDate = data.scheduleDate
       }
       if (data.plannedQuantity !== undefined) {
         schedule.plannedQuantity = data.plannedQuantity
@@ -203,7 +206,7 @@ export default class SchedulesController {
 
       const isSignificantChange = 
         (data.scheduleDate && oldDate !== schedule.scheduleDate?.toISODate()) ||
-        (data.plannedQuantity !== undefined && Math.abs((oldQty - data.plannedQuantity) / oldQty) > 0.2)
+        (data.plannedQuantity !== undefined && oldQty > 0 && Math.abs((oldQty - data.plannedQuantity) / oldQty) > 0.2)
 
       if (isSignificantChange) {
         await RiskLog.create({
@@ -226,7 +229,8 @@ export default class SchedulesController {
         data: schedule.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '排产计划不存在' })
       }
       throw error

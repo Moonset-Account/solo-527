@@ -20,5 +20,4 @@ Server.middleware.registerNamed({
   guest: () => import('App/Middleware/Guest'),
   role: () => import('App/Middleware/Role'),
   log: () => import('App/Middleware/OperationLog'),
-  bouncer: () => import('@ioc:Adonis/Addons/Bouncer'),
 })

@@ -67,13 +67,13 @@ export default class ReworksController {
       ]),
       reason: schema.enum([
         'quality_issue', 'material_defect', 'process_error', 'design_change', 'customer_request', 'other'
-      ]),
+      ] as const),
       description: schema.string.optional(),
       reworkProcess: schema.string.optional(),
       handledBy: schema.number.optional([
         rules.exists({ table: 'users', column: 'id' }),
       ]),
-      status: schema.enum.optional(['pending', 'reworking', 'completed', 'scrapped']),
+      status: schema.enum.optional(['pending', 'reworking', 'completed', 'scrapped'] as const),
     })
 
     const data = await request.validate({ schema: reworkSchema })
@@ -105,24 +105,24 @@ export default class ReworksController {
           rules.unsigned(),
         ]),
         reason: schema.enum.optional([
-          'quality_issue', 'material_defect', 'process_error', 'design_change', 'customer_request', 'other'
-        ]),
-        description: schema.string.optional(),
-        reworkProcess: schema.string.optional(),
-        handledBy: schema.number.optional([
-          rules.exists({ table: 'users', column: 'id' }),
-        ]),
-        status: schema.enum.optional(['pending', 'reworking', 'completed', 'scrapped']),
-      })
+        'quality_issue', 'material_defect', 'process_error', 'design_change', 'customer_request', 'other'
+      ] as const),
+      description: schema.string.optional(),
+      reworkProcess: schema.string.optional(),
+      handledBy: schema.number.optional([
+        rules.exists({ table: 'users', column: 'id' }),
+      ]),
+      status: schema.enum.optional(['pending', 'reworking', 'completed', 'scrapped'] as const),
+    })
 
-      const data = await request.validate({ schema: reworkSchema })
+    const data = await request.validate({ schema: reworkSchema })
 
-      if (data.quantity !== undefined) rework.quantity = data.quantity
-      if (data.reason !== undefined) rework.reason = data.reason
+    if (data.quantity !== undefined) rework.quantity = data.quantity
+    if (data.reason) rework.reason = data.reason
       if (data.description !== undefined) rework.description = data.description
       if (data.reworkProcess !== undefined) rework.reworkProcess = data.reworkProcess
       if (data.handledBy !== undefined) rework.handledBy = data.handledBy
-      if (data.status !== undefined) rework.status = data.status
+      if (data.status) rework.status = data.status
 
       await rework.save()
 
@@ -131,7 +131,8 @@ export default class ReworksController {
         data: rework.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '返工记录不存在' })
       }
       throw error
@@ -161,8 +162,8 @@ export default class ReworksController {
       .select('status')
       .select('quantity')
 
-    const reasonStats = {}
-    const statusStats = {}
+    const reasonStats: Record<string, number> = {}
+    const statusStats: Record<string, number> = {}
     let totalQuantity = 0
 
     reworks.forEach((rework) => {

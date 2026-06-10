@@ -95,9 +95,9 @@ export default class WorkOrdersController {
     workOrder.customerName = data.customerName || null
     workOrder.priority = data.priority
     workOrder.status = data.status || 'pending'
-    workOrder.plannedStartDate = data.plannedStartDate ? DateTime.fromJSDate(data.plannedStartDate) : null
-    workOrder.plannedEndDate = data.plannedEndDate ? DateTime.fromJSDate(data.plannedEndDate) : null
-    workOrder.deliveryDate = data.deliveryDate ? DateTime.fromJSDate(data.deliveryDate) : null
+    workOrder.plannedStartDate = data.plannedStartDate || null
+    workOrder.plannedEndDate = data.plannedEndDate || null
+    workOrder.deliveryDate = data.deliveryDate || null
     workOrder.assignedTo = data.assignedTo || null
     workOrder.remarks = data.remarks || null
     workOrder.createdBy = auth.user!.id
@@ -124,9 +124,9 @@ export default class WorkOrdersController {
       workOrder.quantity = data.quantity
       workOrder.customerName = data.customerName || null
       workOrder.priority = data.priority
-      workOrder.plannedStartDate = data.plannedStartDate ? DateTime.fromJSDate(data.plannedStartDate) : null
-      workOrder.plannedEndDate = data.plannedEndDate ? DateTime.fromJSDate(data.plannedEndDate) : null
-      workOrder.deliveryDate = data.deliveryDate ? DateTime.fromJSDate(data.deliveryDate) : null
+      workOrder.plannedStartDate = data.plannedStartDate || null
+      workOrder.plannedEndDate = data.plannedEndDate || null
+      workOrder.deliveryDate = data.deliveryDate || null
       workOrder.assignedTo = data.assignedTo || null
       workOrder.remarks = data.remarks || null
 
@@ -171,7 +171,8 @@ export default class WorkOrdersController {
         data: workOrder.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '工单不存在' })
       }
       throw error
@@ -199,7 +200,7 @@ export default class WorkOrdersController {
       const statusSchema = schema.create({
         status: schema.enum([
           'pending', 'scheduled', 'in_production', 'completed', 'delayed', 'cancelled'
-        ]),
+        ] as const),
         remark: schema.string.optional(),
       })
 
@@ -235,7 +236,8 @@ export default class WorkOrdersController {
         data: workOrder.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '工单不存在' })
       }
       throw error

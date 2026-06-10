@@ -11,25 +11,25 @@ export default class RiskLog extends BaseModel {
   public workOrderId: number
 
   @column()
-  public riskLevel: 'low' | 'medium' | 'high' | 'critical'
+  public riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'medium'
 
   @column()
   public riskType: string
 
   @column()
-  public description: string | null
+  public description: string | null = null
 
   @column()
-  public actionTaken: string | null
+  public actionTaken: string | null = null
 
   @column()
-  public actionBy: number | null
+  public actionBy: number | null = null
 
   @column.dateTime()
-  public actionAt: DateTime | null
+  public actionAt: DateTime | null = null
 
   @column()
-  public status: 'open' | 'mitigated' | 'resolved' | 'closed'
+  public status: 'open' | 'mitigated' | 'resolved' | 'closed' = 'open'
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

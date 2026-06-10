@@ -90,7 +90,7 @@ export default class ProductionsController {
     const log = new ProductionLog()
     log.workOrderId = data.workOrderId
     log.scheduleId = data.scheduleId || null
-    log.productionDate = DateTime.fromJSDate(data.productionDate)
+    log.productionDate = data.productionDate
     log.outputQuantity = data.outputQuantity
     log.defectQuantity = data.defectQuantity || 0
     log.workHours = data.workHours || 0
@@ -148,7 +148,7 @@ export default class ProductionsController {
 
       const data = await request.validate({ schema: logSchema })
 
-      if (data.productionDate !== undefined) log.productionDate = DateTime.fromJSDate(data.productionDate)
+      if (data.productionDate !== undefined) log.productionDate = data.productionDate
       if (data.outputQuantity !== undefined) log.outputQuantity = data.outputQuantity
       if (data.defectQuantity !== undefined) log.defectQuantity = data.defectQuantity
       if (data.workHours !== undefined) log.workHours = data.workHours
@@ -163,7 +163,7 @@ export default class ProductionsController {
       if (data.outputQuantity !== undefined && oldOutput !== data.outputQuantity) {
         const workOrder = await WorkOrder.find(log.workOrderId)
         if (workOrder) {
-          workOrder.completedQuantity = workOrder.completedQuantity - oldOutput + data.outputQuantity
+          workOrder.completedQuantity = Math.max(0, workOrder.completedQuantity - oldOutput + data.outputQuantity)
           await workOrder.save()
         }
       }
@@ -173,7 +173,8 @@ export default class ProductionsController {
         data: log.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '生产记录不存在' })
       }
       throw error

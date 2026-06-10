@@ -7,7 +7,7 @@ export default class OperationLog extends BaseModel {
   public id: number
 
   @column()
-  public userId: number | null
+  public userId: number | null = null
 
   @column()
   public action: string
@@ -16,25 +16,25 @@ export default class OperationLog extends BaseModel {
   public module: string
 
   @column()
-  public resourceType: string | null
+  public resourceType: string | null = null
 
   @column()
-  public resourceId: number | null
+  public resourceId: number | null = null
 
   @column()
-  public oldValue: string | null
+  public oldValue: string | null = null
 
   @column()
-  public newValue: string | null
+  public newValue: string | null = null
 
   @column()
-  public ipAddress: string | null
+  public ipAddress: string | null = null
 
   @column()
-  public userAgent: string | null
+  public userAgent: string | null = null
 
   @column()
-  public isRiskRelated: boolean
+  public isRiskRelated: boolean = false
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

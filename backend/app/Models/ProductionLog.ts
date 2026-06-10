@@ -12,37 +12,37 @@ export default class ProductionLog extends BaseModel {
   public workOrderId: number
 
   @column()
-  public scheduleId: number | null
+  public scheduleId: number | null = null
 
   @column.date()
   public productionDate: DateTime
 
   @column()
-  public outputQuantity: number
+  public outputQuantity: number = 0
 
   @column()
-  public defectQuantity: number
+  public defectQuantity: number = 0
 
   @column()
-  public workHours: number
+  public workHours: number = 0
 
   @column()
-  public manHours: number
+  public manHours: number = 0
 
   @column()
-  public operatorCount: number
+  public operatorCount: number = 0
 
   @column()
-  public shift: string | null
+  public shift: string | null = null
 
   @column()
-  public workshop: string | null
+  public workshop: string | null = null
 
   @column()
-  public recordedBy: number | null
+  public recordedBy: number | null = null
 
   @column()
-  public remarks: string | null
+  public remarks: string | null = null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

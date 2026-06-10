@@ -14,19 +14,19 @@ export default class WorkOrderMaterial extends BaseModel {
   public materialId: number
 
   @column()
-  public requiredQuantity: number
+  public requiredQuantity: number = 0
 
   @column()
-  public allocatedQuantity: number
+  public allocatedQuantity: number = 0
 
   @column()
-  public usedQuantity: number
+  public usedQuantity: number = 0
 
   @column()
-  public isReady: boolean
+  public isReady: boolean = false
 
   @column()
-  public remarks: string | null
+  public remarks: string | null = null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

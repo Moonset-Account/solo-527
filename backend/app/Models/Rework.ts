@@ -12,25 +12,25 @@ export default class Rework extends BaseModel {
   public workOrderId: number
 
   @column()
-  public scheduleId: number | null
+  public scheduleId: number | null = null
 
   @column()
-  public quantity: number
+  public quantity: number = 0
 
   @column()
-  public reason: 'quality_issue' | 'material_defect' | 'process_error' | 'design_change' | 'customer_request' | 'other'
+  public reason: 'quality_issue' | 'material_defect' | 'process_error' | 'design_change' | 'customer_request' | 'other' = 'other'
 
   @column()
-  public description: string | null
+  public description: string | null = null
 
   @column()
-  public reworkProcess: string | null
+  public reworkProcess: string | null = null
 
   @column()
-  public handledBy: number | null
+  public handledBy: number | null = null
 
   @column()
-  public status: 'pending' | 'reworking' | 'completed' | 'scrapped'
+  public status: 'pending' | 'reworking' | 'completed' | 'scrapped' = 'pending'
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

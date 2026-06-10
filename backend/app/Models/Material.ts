@@ -13,25 +13,25 @@ export default class Material extends BaseModel {
   public materialName: string
 
   @column()
-  public specification: string | null
+  public specification: string | null = null
 
   @column()
-  public unit: string | null
+  public unit: string | null = null
 
   @column()
-  public stockQuantity: number
+  public stockQuantity: number = 0
 
   @column()
-  public safetyStock: number
+  public safetyStock: number = 0
 
   @column()
-  public supplier: string | null
+  public supplier: string | null = null
 
   @column()
-  public unitPrice: number | null
+  public unitPrice: number | null = null
 
   @column()
-  public remarks: string | null
+  public remarks: string | null = null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

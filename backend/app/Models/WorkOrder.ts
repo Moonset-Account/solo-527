@@ -18,43 +18,43 @@ export default class WorkOrder extends BaseModel {
   public productName: string
 
   @column()
-  public productModel: string | null
+  public productModel: string | null = null
 
   @column()
   public quantity: number
 
   @column()
-  public completedQuantity: number
+  public completedQuantity: number = 0
 
   @column()
-  public customerName: string | null
+  public customerName: string | null = null
 
   @column()
-  public status: 'pending' | 'scheduled' | 'in_production' | 'completed' | 'delayed' | 'cancelled'
+  public status: 'pending' | 'scheduled' | 'in_production' | 'completed' | 'delayed' | 'cancelled' = 'pending'
 
   @column()
-  public priority: 'low' | 'medium' | 'high' | 'urgent'
+  public priority: 'low' | 'medium' | 'high' | 'urgent' = 'medium'
 
   @column.date()
-  public plannedStartDate: DateTime | null
+  public plannedStartDate: DateTime | null = null
 
   @column.date()
-  public plannedEndDate: DateTime | null
+  public plannedEndDate: DateTime | null = null
 
   @column.date()
-  public actualStartDate: DateTime | null
+  public actualStartDate: DateTime | null = null
 
   @column.date()
-  public actualEndDate: DateTime | null
+  public actualEndDate: DateTime | null = null
 
   @column.date()
-  public deliveryDate: DateTime | null
+  public deliveryDate: DateTime | null = null
 
   @column()
-  public remarks: string | null
+  public remarks: string | null = null
 
   @column()
-  public assignedTo: number | null
+  public assignedTo: number | null = null
 
   @column()
   public createdBy: number

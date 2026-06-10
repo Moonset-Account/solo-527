@@ -29,7 +29,7 @@ export default class WorkOrderValidator {
     customerName: schema.string.optional({}, [
       rules.maxLength(100),
     ]),
-    priority: schema.enum(['low', 'medium', 'high', 'urgent']),
+    priority: schema.enum(['low', 'medium', 'high', 'urgent'] as const),
     status: schema.enum.optional([
       'pending',
       'scheduled',
@@ -37,7 +37,7 @@ export default class WorkOrderValidator {
       'completed',
       'delayed',
       'cancelled',
-    ]),
+    ] as const),
     plannedStartDate: schema.date.optional(),
     plannedEndDate: schema.date.optional(),
     deliveryDate: schema.date.optional(),

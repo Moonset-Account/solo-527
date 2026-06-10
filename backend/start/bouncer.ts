@@ -8,22 +8,12 @@
 |
 */
 
-import { Bouncer } from '@ioc:Adonis/Addons/Bouncer'
+import Bouncer from '@ioc:Adonis/Addons/Bouncer'
 import WorkOrderPolicy from 'App/Policies/WorkOrderPolicy'
 import UserPolicy from 'App/Policies/UserPolicy'
 
-export const { actions, policies, gates, ...bouncer } = Bouncer.configure({
-  policies: {
-    workOrder: WorkOrderPolicy,
-    user: UserPolicy,
-  },
+export const { actions } = Bouncer
+export const { policies } = Bouncer.registerPolicies({
+  workOrder: WorkOrderPolicy,
+  user: UserPolicy,
 })
-
-declare module '@ioc:Adonis/Addons/Bouncer' {
-  interface BouncerContracts {
-    policies: {
-      workOrder: WorkOrderPolicy
-      user: UserPolicy
-    }
-  }
-}

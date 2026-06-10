@@ -14,7 +14,8 @@ export default class OperationLogMiddleware {
 
     if (response.response.statusCode >= 200 && response.response.statusCode < 300) {
       const resourceType = request.param('resource_type') || request.url().split('/')[1]
-      const resourceId = request.param('id') ? parseInt(request.param('id')) : null
+      const paramId = request.param('id')
+      const resourceId = paramId ? parseInt(paramId) : null
 
       await OperationLog.create({
         userId: auth.user?.id || null,
@@ -23,7 +24,7 @@ export default class OperationLogMiddleware {
         resourceType,
         resourceId,
         ipAddress: request.ip(),
-        userAgent: request.header('user-agent'),
+        userAgent: request.header('user-agent') || null,
         isRiskRelated,
       })
     }

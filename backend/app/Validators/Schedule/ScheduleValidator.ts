@@ -18,7 +18,7 @@ export default class ScheduleValidator {
     plannedQuantity: schema.number([
       rules.unsigned(),
     ]),
-    shift: schema.enum.optional(['morning', 'afternoon', 'night']),
+    shift: schema.enum.optional(['morning', 'afternoon', 'night'] as const),
     notes: schema.string.optional(),
   })
 
