@@ -30,6 +30,8 @@ export default function ExceptionsPage() {
     type: 'material_discrepancy',
     impact_scope: '',
     description: '',
+    handling_path: '',
+    review_notes: '',
   });
 
   const loadExceptions = async () => {
@@ -56,18 +58,29 @@ export default function ExceptionsPage() {
   const handleCreateException = async () => {
     if (!formData.title || !formData.impact_scope) return;
 
-    await createException({
+    const newException = await createException({
       title: formData.title,
       type: formData.type as 'material_discrepancy' | 'budget_overrun' | 'other',
       impact_scope: formData.impact_scope,
+      handling_path: formData.handling_path.trim() || undefined,
+      review_notes: formData.review_notes.trim() || undefined,
+      description: formData.description.trim() || undefined,
     });
 
-    if (formData.description) {
-      await addExceptionLog('', 'note', formData.description);
+    if (!newException?.id) {
+      alert('异常登记失败，请重试');
+      return;
     }
 
     setIsCreateModalOpen(false);
-    setFormData({ title: '', type: 'material_discrepancy', impact_scope: '', description: '' });
+    setFormData({
+      title: '',
+      type: 'material_discrepancy',
+      impact_scope: '',
+      description: '',
+      handling_path: '',
+      review_notes: '',
+    });
     loadExceptions();
   };
 
@@ -270,8 +283,22 @@ export default function ExceptionsPage() {
             label="详细描述"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="请详细描述异常发生的经过、发现方式等"
+            placeholder="请详细描述异常发生的经过、发现方式等（会作为第一条处理日志保存）"
             rows={4}
+          />
+          <Textarea
+            label="处理路径"
+            value={formData.handling_path}
+            onChange={(e) => setFormData({ ...formData, handling_path: e.target.value })}
+            placeholder="请描述计划的处理路径，例如：1. 联系当地负责人核实 2. 发起补发流程 3. 记录差异原因"
+            rows={3}
+          />
+          <Textarea
+            label="复盘备注"
+            value={formData.review_notes}
+            onChange={(e) => setFormData({ ...formData, review_notes: e.target.value })}
+            placeholder="请填写初步复盘分析，例如：本次差异的原因推测、后续改进措施等"
+            rows={2}
           />
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
             <p className="text-sm text-yellow-800">

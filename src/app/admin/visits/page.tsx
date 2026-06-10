@@ -2,34 +2,75 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, MapPin, Calendar, Eye, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, MapPin, Calendar, Eye, Edit2, Trash2, Image as ImageIcon, Upload, Share2 } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
-import { getAllVisits, getAllPhotos } from '@/lib/services/data';
+import { getAllVisits, getAllPhotos, deleteVisit, updateVisitStatus } from '@/lib/services/data';
 import { formatDate, getVisitStatusLabel, getVisitStatusColor } from '@/lib/utils/format';
 import type { Visit, Photo } from '@/lib/types';
 
 export default function VisitsPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const loadData = async () => {
+    const [visitsData, photosData] = await Promise.all([
+      getAllVisits(),
+      getAllPhotos(),
+    ]);
+    setVisits(visitsData);
+    setPhotos(photosData);
+  };
+
   useEffect(() => {
-    const loadData = async () => {
+    const init = async () => {
       setIsLoading(true);
-      const [visitsData, photosData] = await Promise.all([
-        getAllVisits(),
-        getAllPhotos(),
-      ]);
-      setVisits(visitsData);
-      setPhotos(photosData);
+      await loadData();
       setIsLoading(false);
     };
-    loadData();
+    init();
   }, []);
+
+  const handleDelete = async (visit: Visit) => {
+    if (!confirm(`确定要删除 "${visit.location}" 的探访记录吗？此操作不可恢复。`)) {
+      return;
+    }
+    await deleteVisit(visit.id);
+    router.refresh();
+    loadData();
+  };
+
+  const handleSubmitForReview = async (visit: Visit) => {
+    await updateVisitStatus(visit.id, 'submitted');
+    loadData();
+  };
+
+  const handlePublish = async (visit: Visit) => {
+    const approvedCount = photos.filter(
+      (p) => p.visit_id === visit.id && p.review_status === 'approved',
+    ).length;
+    if (approvedCount === 0) {
+      if (!confirm('该探访还没有已审核通过的照片，确定要直接发布吗？')) {
+        return;
+      }
+    }
+    await updateVisitStatus(visit.id, 'published');
+    loadData();
+  };
+
+  const handleUnpublish = async (visit: Visit) => {
+    if (!confirm('确定取消发布吗？公开页将不再显示此探访。')) {
+      return;
+    }
+    await updateVisitStatus(visit.id, 'draft');
+    loadData();
+  };
 
   const filteredVisits = statusFilter === 'all'
     ? visits
@@ -145,12 +186,49 @@ export default function VisitsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Link href={`/admin/visits/${visit.id}`}>
-                          <Button variant="ghost" size="sm" icon={Eye}>
-                            查看
+                          <Button variant="ghost" size="sm" icon={Edit2}>
+                            编辑
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="sm" icon={Edit2} />
-                        <Button variant="ghost" size="sm" icon={Trash2} className="text-red-500" />
+                        {visit.status === 'draft' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={Upload}
+                            onClick={() => handleSubmitForReview(visit)}
+                            className="text-yellow-600"
+                          >
+                            提交
+                          </Button>
+                        )}
+                        {visit.status === 'submitted' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={Share2}
+                            onClick={() => handlePublish(visit)}
+                            className="text-green-600"
+                          >
+                            发布
+                          </Button>
+                        )}
+                        {visit.status === 'published' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUnpublish(visit)}
+                            className="text-gray-500"
+                          >
+                            取消发布
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          onClick={() => handleDelete(visit)}
+                          className="text-red-500"
+                        />
                       </div>
                     </td>
                   </tr>

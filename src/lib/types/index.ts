@@ -14,6 +14,7 @@ export interface Visit {
   content: string;
   status: 'draft' | 'submitted' | 'published';
   created_at: string;
+  updated_at?: string;
   photos?: Photo[];
 }
 
