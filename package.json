@@ -1,0 +1,30 @@
+{
+  "name": "image-audit-cli",
+  "version": "1.0.0",
+  "description": "图片素材校验 CLI - 扫描图片目录和引用清单，找出尺寸不合规、重复文件、缺失 alt 文案和未被引用的素材",
+  "module": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "image-audit": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/micromatch": "^4.0.10",
+    "@types/node": "^20.11.0",
+    "@types/yargs": "^17.0.32",
+    "tsx": "^4.22.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "glob": "^10.3.10",
+    "micromatch": "^4.0.5",
+    "yargs": "^17.7.2"
+  }
+}

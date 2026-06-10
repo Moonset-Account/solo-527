@@ -1,0 +1,60 @@
+{
+  "imageDir": "./public/images",
+  "manifestPath": "./assets/manifest.json",
+  "include": [
+    "**/*.{png,jpg,jpeg,gif,webp,svg,avif,ico,bmp}"
+  ],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/vendor/**"
+  ],
+  "sizeRules": {
+    "default": {
+      "maxWidth": 4096,
+      "maxHeight": 4096
+    },
+    "byFormat": {
+      "ico": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "allowedRatios": ["1:1"]
+      },
+      "svg": {}
+    },
+    "byPathGlob": {
+      "**/icons/**": {
+        "maxWidth": 512,
+        "maxHeight": 512,
+        "allowedRatios": ["1:1"]
+      },
+      "**/banner/**": {
+        "minWidth": 1200,
+        "allowedRatios": ["16:9", "4:3"]
+      },
+      "**/avatar/**": {
+        "allowedRatios": ["1:1"],
+        "minWidth": 200,
+        "maxWidth": 1024
+      }
+    }
+  },
+  "dynamicRefs": [
+    {
+      "pattern": "react_src",
+      "glob": "src/**/*.{tsx,jsx,ts,js}"
+    },
+    {
+      "pattern": "public_html",
+      "glob": "public/**/*.{html,vue,svelte}"
+    },
+    {
+      "pattern": "markdown_docs",
+      "glob": "docs/**/*.{md,mdx}"
+    }
+  ],
+  "candidateThreshold": 0,
+  "baseDir": "./"
+}
