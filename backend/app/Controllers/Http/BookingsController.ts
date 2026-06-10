@@ -431,21 +431,45 @@ export default class BookingsController {
   }
 
   public async exportList({ request, response }: HttpContextContract) {
+    const keyword = request.input('keyword', '')
+    const status = request.input('status', '')
     const startDate = request.input('startDate', '')
     const endDate = request.input('endDate', '')
-    const status = request.input('status', '')
+    const staffId = request.input('staffId', '')
+    const onlyNoShow = request.input('onlyNoShow', '0')
 
     let query = Booking.query()
       .preload('customer')
       .preload('staff')
       .preload('service')
-      .withAggregate('changeHistories', (q) => q.count('*').as('total_changes'))
 
-    if (startDate) query.where('booking_date', '>=', startDate)
-    if (endDate) query.where('booking_date', '<=', endDate)
-    if (status) query.where('status', status)
+    if (keyword) {
+      query.whereHas('customer', (q) => {
+        q.where('name', 'like', `%${keyword}%`).orWhere('phone', 'like', `%${keyword}%`)
+      }).orWhere('booking_no', 'like', `%${keyword}%`)
+    }
 
-    const bookings = await query.orderBy('booking_date', 'desc')
+    if (status) {
+      query.where('status', status)
+    }
+
+    if (startDate) {
+      query.where('booking_date', '>=', startDate)
+    }
+
+    if (endDate) {
+      query.where('booking_date', '<=', endDate)
+    }
+
+    if (staffId) {
+      query.where('staff_id', Number(staffId))
+    }
+
+    if (onlyNoShow === '1') {
+      query.where('is_no_show', true)
+    }
+
+    const bookings = await query.orderBy('booking_date', 'desc').orderBy('start_time', 'asc')
 
     const workbook = new ExcelJS.Workbook()
     const sheet = workbook.addWorksheet('预约列表')
