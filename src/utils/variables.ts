@@ -54,9 +54,9 @@ export class VariableResolver {
         value =
           this.context.extracted?.[name] ??
           this.context.folder?.[name] ??
-          this.context.collection?.[name] ??
+          this.context.globals?.[name] ??
           this.context.env?.[name] ??
-          this.context.globals?.[name];
+          this.context.collection?.[name];
     }
 
     return value;

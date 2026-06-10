@@ -11,6 +11,19 @@ import {
 import { VariableResolver, VariableContext } from '../utils/variables';
 import { logger } from '../utils/logger';
 
+function parseKeyValuePairsFromArray(values: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const item of values) {
+    const idx = item.indexOf('=');
+    if (idx > 0) {
+      const key = item.slice(0, idx).trim();
+      const value = item.slice(idx + 1);
+      if (key) result[key] = value;
+    }
+  }
+  return result;
+}
+
 export interface BuildOptions {
   collectionPath?: string;
   strictVariables?: boolean;
@@ -24,12 +37,36 @@ export class TestCaseBuilder {
     options: BuildOptions = {}
   ): TestCase[] {
     const testCases: TestCase[] = [];
-    const globals = options.cliOptions?.globals || {};
+    const globalVars: Record<string, string> = options.cliOptions?.global
+      ? parseKeyValuePairsFromArray(options.cliOptions.global)
+      : {};
+
+    const collectionVars = collection.variables || {};
+    const envFileVars = environment?.variables || {};
+
+    const mergedEnvVars: Record<string, string> = {
+      ...collectionVars,
+      ...envFileVars,
+      ...globalVars,
+    };
+
+    if (Object.keys(globalVars).length > 0) {
+      logger.debug('[VariableContext] --global 覆盖优先级最高，已合并以下变量:');
+      for (const [k] of Object.entries(globalVars)) {
+        const from =
+          envFileVars[k] !== undefined
+            ? 'env'
+            : collectionVars[k] !== undefined
+            ? 'collection'
+            : '(新增)';
+        logger.debug(`  ${k}: ${from} → --global`);
+      }
+    }
 
     const baseContext: VariableContext = {
-      env: environment?.variables || {},
-      collection: collection.variables || {},
-      globals,
+      env: mergedEnvVars,
+      collection: collectionVars,
+      globals: globalVars,
     };
 
     const baseResolver = new VariableResolver(baseContext);

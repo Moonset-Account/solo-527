@@ -236,7 +236,7 @@ export interface CLIOptions {
   reportFormat?: 'console' | 'json' | 'junit' | 'all';
   version: boolean;
   help: boolean;
-  globals?: Record<string, string>;
+  global?: string[];
   config?: string;
   failOnZeroTests: boolean;
   insecure: boolean;

@@ -198,7 +198,7 @@ async function runSmokeTests(opts: CLIOptions): Promise<number> {
 
     const collection = ConfigLoader.loadCollection(absCollectionPath, {
       strictVariables: opts.strictVariables,
-      globals: opts.globals ? parseKeyValuePairs(opts.globals as unknown as string[]) : {},
+      globals: opts.global ? parseKeyValuePairs(opts.global) : {},
     });
     logger.info(`✅ 加载集合: ${collection.name} (${collection.requests?.length || 0} 顶级请求)`);
 
@@ -210,11 +210,12 @@ async function runSmokeTests(opts: CLIOptions): Promise<number> {
       logger.info(`✅ 加载环境: ${environment.name}`);
     }
 
-    if (opts.globals && (opts.globals as unknown as string[]).length > 0) {
-      const kvPairs = parseKeyValuePairs(opts.globals as unknown as string[]);
-      logger.info(`✅ 命令行全局变量: ${Object.keys(kvPairs).length} 个`);
-      if (!opts.globals) opts.globals = {} as Record<string, string>;
-      Object.assign(opts.globals as Record<string, string>, kvPairs);
+    if (opts.global && opts.global.length > 0) {
+      const kvPairs = parseKeyValuePairs(opts.global);
+      logger.info(`✅ 命令行全局变量 (--global): ${Object.keys(kvPairs).length} 个已加载`);
+      for (const [k, v] of Object.entries(kvPairs)) {
+        logger.debug(`  ${k} = ${v}`);
+      }
     }
 
     const testCases = TestCaseBuilder.buildTestCases(collection, environment, {
