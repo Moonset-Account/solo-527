@@ -3,17 +3,18 @@
 | Adonis Ace Configuration
 |--------------------------------------------------------------------------
 */
-import { resolve } from 'path'
-import { register } from 'ts-node'
+const { resolve } = require('path')
+const { Ignitor } = require('@adonisjs/core/build/standalone')
 
-register({
+require('ts-node').register({
   project: resolve(__dirname, './tsconfig.json'),
   transpileOnly: true,
 })
 
-require('@adonisjs/core/build/standalone').Ace
+new Ignitor(__dirname)
+  .ace()
   .handle(process.argv.slice(2))
-  .catch((error: any) => {
+  .catch(function (error) {
     console.log(error.stack)
     process.exit(1)
   })
