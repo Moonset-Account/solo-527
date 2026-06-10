@@ -161,22 +161,22 @@ export default function Roles() {
   }, [])
 
   const handleSave = async (formData: { name: string; permissions: string[] }) => {
+    const loadAll = async () => {
+      const fresh = await execute('/api/admin/roles')
+      if (fresh) setRoles(Array.isArray(fresh) ? fresh : [])
+    }
     if (editingRole) {
       const res = await saveApi.execute(`/api/admin/roles/${editingRole.id}`, {
         method: 'PUT',
         body: JSON.stringify(formData),
       })
-      if (res) {
-        setRoles((prev) => prev.map((r) => r.id === editingRole.id ? { ...r, ...formData } : r))
-      }
+      if (res) await loadAll()
     } else {
       const res = await saveApi.execute('/api/admin/roles', {
         method: 'POST',
         body: JSON.stringify(formData),
       })
-      if (res) {
-        setRoles((prev) => [...prev, res])
-      }
+      if (res) await loadAll()
     }
     setModalOpen(false)
     setEditingRole(null)

@@ -290,21 +290,21 @@ export default function Alerts() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null)
 
+  const loadRules = async () => {
+    const res = await execute('/api/admin/alerts')
+    if (res) setRules(Array.isArray(res) ? res : [])
+  }
+
   useEffect(() => {
-    execute('/api/admin/alerts').then((res) => {
-      if (res) setRules(Array.isArray(res) ? res : [])
-    })
+    loadRules()
   }, [])
 
   const handleToggleActive = async (rule: AlertRule) => {
-    const updated = { ...rule, active: !rule.active }
     const res = await saveApi.execute(`/api/admin/alerts/${rule.id}`, {
       method: 'PUT',
-      body: JSON.stringify(updated),
+      body: JSON.stringify({ active: !rule.active }),
     })
-    if (res) {
-      setRules((prev) => prev.map((r) => r.id === rule.id ? updated : r))
-    }
+    if (res) await loadRules()
   }
 
   const handleSave = async (data: Omit<AlertRule, 'id'>) => {
@@ -313,17 +313,13 @@ export default function Alerts() {
         method: 'PUT',
         body: JSON.stringify(data),
       })
-      if (res) {
-        setRules((prev) => prev.map((r) => r.id === editingRule.id ? { ...r, ...data } : r))
-      }
+      if (res) await loadRules()
     } else {
       const res = await saveApi.execute('/api/admin/alerts', {
         method: 'POST',
         body: JSON.stringify(data),
       })
-      if (res) {
-        setRules((prev) => [...prev, res])
-      }
+      if (res) await loadRules()
     }
     setModalOpen(false)
     setEditingRule(null)

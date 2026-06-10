@@ -17,7 +17,7 @@ interface LogEntry {
 }
 
 interface LogResponse {
-  data: LogEntry[]
+  items: LogEntry[]
   total: number
   page: number
   limit: number
@@ -73,7 +73,7 @@ export default function Logs() {
     if (actionSearch) params.set('action', actionSearch)
     execute(`/api/admin/logs?${params.toString()}`).then((res) => {
       if (res) {
-        setLogs(res.data || [])
+        setLogs(res.items || [])
         setTotal(res.total || 0)
         setPage(res.page || p)
       }

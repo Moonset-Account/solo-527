@@ -60,18 +60,17 @@ export default function Export() {
 
     try {
       const token = localStorage.getItem('token')
-      const headers: Record<string, string> = {}
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const params = new URLSearchParams()
-      params.set('type', selectedTypes.join(','))
-      params.set('format', format)
-      if (startDate) params.set('startDate', startDate)
-      if (endDate) params.set('endDate', endDate)
+      const body: any = { type: selectedTypes, module: selectedTypes, format }
+      if (startDate) body.startDate = startDate
+      if (endDate) body.endDate = endDate
 
-      const res = await fetch(`/api/admin/export?${params.toString()}`, {
+      const res = await fetch('/api/admin/export', {
         method: 'POST',
         headers,
+        body: JSON.stringify(body),
       })
 
       if (!res.ok) {
