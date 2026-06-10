@@ -88,7 +88,7 @@ export default function AdminLayout() {
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: `${user?.first_name} ${user?.last_name}`,
+      label: user?.real_name || user?.email,
       disabled: true,
     },
     {
@@ -140,7 +140,7 @@ export default function AdminLayout() {
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <div className="flex items-center gap-2 cursor-pointer hover:bg-white/10 px-3 py-1 rounded-lg transition-colors">
               <Avatar size="small" icon={<UserOutlined />} className="bg-primary-600" />
-              <span className="text-white">{user?.username}</span>
+              <span className="text-white">{user?.real_name || user?.email}</span>
             </div>
           </Dropdown>
         </div>

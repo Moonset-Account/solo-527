@@ -201,7 +201,7 @@ class OrderService:
             'pending': f'订单 {order.order_no} 由 {order.guest_name} 预订，{order.check_in_date} 至 {order.check_out_date}，共 {order.nights} 晚。请在 30 分钟内确认。',
             'confirmed': f'订单 {order.order_no} 已确认，客人 {order.guest_name}，金额 ¥{order.total_amount}。',
             'paid': f'订单 {order.order_no} 已付款 ¥{order.paid_amount}，剩余 ¥{order.remaining_amount}。',
-            'checked_in': f'客人 {order.guest_name} 已入住 {order.room_name}。',
+            'checked_in': f'客人 {order.guest_name} 已入住 {order.room.name}。',
             'checked_out': f'客人 {order.guest_name} 已退房，订单完成。',
             'cancelled': f'订单 {order.order_no} 已取消，原因: {order.cancelled_reason}。',
         }

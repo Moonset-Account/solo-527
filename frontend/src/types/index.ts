@@ -2,15 +2,18 @@ export type UserRole = 'super_admin' | 'host' | 'operator' | 'receptionist';
 
 export interface User {
   id: string;
-  username: string;
   email: string;
-  first_name: string;
-  last_name: string;
   role: UserRole;
+  role_display?: string;
   phone?: string;
+  real_name?: string;
   avatar?: string;
-  is_active: boolean;
-  date_joined: string;
+  permissions?: string[];
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
 }
 
 export interface Property {
@@ -105,26 +108,41 @@ export type ConversionStage = 'inquiry' | 'quoted' | 'deposit_paid' | 'fully_pai
 
 export interface Order {
   id: string;
-  order_number: string;
-  property: string;
+  order_no: string;
   room: string;
   room_name?: string;
+  property_name?: string;
   guest_name: string;
   guest_phone: string;
   guest_email?: string;
+  guest_remarks?: string;
   check_in_date: string;
   check_out_date: string;
-  total_nights: number;
-  guest_count: number;
+  nights: number;
+  adults: number;
+  children: number;
+  base_amount: number;
+  extra_amount: number;
+  discount_amount: number;
   total_amount: number;
-  deposit_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  is_paid: boolean;
   status: OrderStatus;
+  status_display?: string;
   conversion_stage: ConversionStage;
-  special_requests?: string;
+  conversion_stage_display?: string;
   source?: string;
+  source_display?: string;
+  internal_remarks?: string;
+  handled_by?: string;
+  handled_by_name?: string;
+  checked_in_at?: string;
+  checked_out_at?: string;
+  cancelled_at?: string;
+  cancelled_reason?: string;
   payments: Payment[];
   timeline: OrderTimeline[];
-  created_by: string;
   created_at: string;
   updated_at: string;
 }
@@ -133,9 +151,12 @@ export interface Payment {
   id: string;
   order: string;
   amount: number;
-  payment_method: string;
-  transaction_id?: string;
-  payment_status: 'pending' | 'completed' | 'failed' | 'refunded';
+  method: string;
+  method_display?: string;
+  transaction_no?: string;
+  remarks?: string;
+  operator?: string;
+  operator_name?: string;
   paid_at?: string;
   created_at: string;
 }
@@ -145,13 +166,14 @@ export interface OrderTimeline {
   order: string;
   action: string;
   description: string;
-  created_by: string;
+  operator?: string;
+  operator_name?: string;
   created_at: string;
 }
 
 export interface ConversionFunnelData {
-  stage: ConversionStage;
-  stage_name: string;
+  stage: string;
+  stage_display: string;
   count: number;
   amount: number;
   conversion_rate: number;
@@ -290,11 +312,6 @@ export interface ApiError {
   code?: string;
 }
 
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
 export interface LoginResponse {
   access: string;
   refresh: string;
@@ -308,13 +325,13 @@ export interface CalendarData {
 }
 
 export interface BookingFormData {
-  property_id: string;
   room_id: string;
   check_in_date: string;
   check_out_date: string;
   guest_name: string;
   guest_phone: string;
   guest_email?: string;
-  guest_count: number;
-  special_requests?: string;
+  adults: number;
+  children: number;
+  guest_remarks?: string;
 }

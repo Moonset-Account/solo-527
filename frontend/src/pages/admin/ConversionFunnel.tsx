@@ -71,8 +71,8 @@ export default function ConversionFunnel() {
   const columns = [
     {
       title: '订单号',
-      dataIndex: 'order_number',
-      key: 'order_number',
+      dataIndex: 'order_no',
+      key: 'order_no',
       render: (text: string, record: Order) => (
         <span
           className="text-primary-600 cursor-pointer hover:underline"
@@ -111,7 +111,7 @@ export default function ConversionFunnel() {
       dataIndex: 'conversion_stage',
       key: 'conversion_stage',
       render: (stage: string) => (
-        <Tag color="blue">{CONVERSION_STAGE_LABELS[stage]}</Tag>
+        <Tag color="blue">{CONVERSION_STAGE_LABELS[stage as ConversionStage]}</Tag>
       ),
     },
   ];
@@ -222,10 +222,10 @@ export default function ConversionFunnel() {
                     style={{
                       background: `linear-gradient(135deg, #dcfce7 ${100 - widthPercent}%, #16a34a ${100 - widthPercent}%)`,
                     }}
-                    onClick={() => setStageFilter(stage.stage)}
+                    onClick={() => setStageFilter(stage.stage as ConversionStage)}
                   >
                     <div className="text-3xl font-bold text-white mb-1">{stage.count}</div>
-                    <div className="text-white font-medium mb-2">{stage.stage_name}</div>
+                    <div className="text-white font-medium mb-2">{stage.stage_display}</div>
                     <div className="text-white/90 text-sm mb-3">
                       <DollarOutlined className="mr-1" />
                       {formatCurrency(stage.amount)}
@@ -261,10 +261,10 @@ export default function ConversionFunnel() {
                 className={`cursor-pointer transition-all ${
                   stageFilter === stage.stage ? 'ring-2 ring-primary-500' : ''
                 }`}
-                onClick={() => setStageFilter(stageFilter === stage.stage ? undefined : stage.stage)}
+                onClick={() => setStageFilter(stageFilter === stage.stage ? undefined : stage.stage as ConversionStage)}
               >
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium">{stage.stage_name}</span>
+                  <span className="font-medium">{stage.stage_display}</span>
                   <Tag color="blue">{stage.count}</Tag>
                 </div>
                 <div className="text-lg font-bold text-primary-600">

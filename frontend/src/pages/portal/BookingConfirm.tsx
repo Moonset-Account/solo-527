@@ -35,7 +35,7 @@ export default function BookingConfirm() {
         <Result
           status="success"
           title="预订成功！"
-          subTitle={`订单号：${order.order_number}，我们会尽快与您联系确认订单详情`}
+          subTitle={`订单号：${order.order_no}，我们会尽快与您联系确认订单详情`}
           extra={[
             <Button type="primary" key="home" onClick={() => navigate('/')}>
               <HomeOutlined />
@@ -59,7 +59,7 @@ export default function BookingConfirm() {
           </div>
 
           <Descriptions bordered column={1} size="middle">
-            <Descriptions.Item label="订单编号">{order.order_number}</Descriptions.Item>
+            <Descriptions.Item label="订单编号">{order.order_no}</Descriptions.Item>
             <Descriptions.Item label="预订时间">{formatDate(order.created_at, 'YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
             <Descriptions.Item label="入住人">{order.guest_name}</Descriptions.Item>
             <Descriptions.Item label="联系电话">{order.guest_phone}</Descriptions.Item>
@@ -70,13 +70,13 @@ export default function BookingConfirm() {
               <Space>
                 <CalendarOutlined />
                 {formatDate(order.check_in_date)} - {formatDate(order.check_out_date)}
-                <Tag color="blue">{order.total_nights} 晚</Tag>
+                <Tag color="blue">{order.nights} 晚</Tag>
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="入住人数">{order.guest_count} 人</Descriptions.Item>
+            <Descriptions.Item label="入住人数">成人 {order.adults} 人，儿童 {order.children} 人</Descriptions.Item>
             <Descriptions.Item label="房型">{order.room_name}</Descriptions.Item>
-            {order.special_requests && (
-              <Descriptions.Item label="特殊要求">{order.special_requests}</Descriptions.Item>
+            {order.guest_remarks && (
+              <Descriptions.Item label="特殊要求">{order.guest_remarks}</Descriptions.Item>
             )}
             <Descriptions.Item label="订单金额">
               <div className="space-y-2">
@@ -85,12 +85,16 @@ export default function BookingConfirm() {
                   <span>{formatCurrency(total_price)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">需支付定金（30%）</span>
-                  <span>{formatCurrency(order.deposit_amount)}</span>
+                  <span className="text-gray-500">已付</span>
+                  <span className="text-green-600">{formatCurrency(order.paid_amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">待付</span>
+                  <span className="text-orange-600">{formatCurrency(order.remaining_amount)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t text-lg font-bold">
-                  <span>应付总计</span>
-                  <span className="text-primary-600">{formatCurrency(order.deposit_amount)}</span>
+                  <span>总计</span>
+                  <span className="text-primary-600">{formatCurrency(order.total_amount)}</span>
                 </div>
               </div>
             </Descriptions.Item>

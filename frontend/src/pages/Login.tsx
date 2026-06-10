@@ -49,12 +49,15 @@ export default function Login() {
           size="large"
         >
           <Form.Item
-            name="username"
-            rules={[{ required: true, message: '请输入用户名' }]}
+            name="email"
+            rules={[
+              { required: true, message: '请输入邮箱' },
+              { type: 'email', message: '请输入正确的邮箱地址' },
+            ]}
           >
             <Input
               prefix={<UserOutlined />}
-              placeholder="用户名"
+              placeholder="邮箱"
             />
           </Form.Item>
 

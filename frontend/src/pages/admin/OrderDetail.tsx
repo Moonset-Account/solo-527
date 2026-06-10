@@ -27,11 +27,9 @@ export default function OrderDetail() {
     return <Card loading={isLoading} />;
   }
 
-  const paidAmount = currentOrder.payments
-    .filter((p) => p.payment_status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0);
+  const paidAmount = currentOrder.payments.reduce((sum, p) => sum + p.amount, 0);
   const unpaidAmount = currentOrder.total_amount - paidAmount;
-  const paymentProgress = (paidAmount / currentOrder.total_amount) * 100;
+  const paymentProgress = currentOrder.total_amount > 0 ? (paidAmount / currentOrder.total_amount) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -40,7 +38,7 @@ export default function OrderDetail() {
           返回订单列表
         </Button>
         <h1 className="text-2xl font-bold text-gray-800 m-0">
-          订单详情 - {currentOrder.order_number}
+          订单详情 - {currentOrder.order_no}
         </h1>
         <Tag className={`${ORDER_STATUS_COLORS[currentOrder.status]} px-3 py-1`}>
           {ORDER_STATUS_LABELS[currentOrder.status]}
@@ -99,7 +97,7 @@ export default function OrderDetail() {
         <Progress percent={paymentProgress} status={paymentProgress === 100 ? 'success' : 'active'} />
         <Descriptions bordered column={2} className="mt-4">
           <Descriptions.Item label="订单号" span={2}>
-            {currentOrder.order_number}
+            {currentOrder.order_no}
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">{formatDateTime(currentOrder.created_at)}</Descriptions.Item>
           <Descriptions.Item label="更新时间">{formatDateTime(currentOrder.updated_at)}</Descriptions.Item>
@@ -121,8 +119,8 @@ export default function OrderDetail() {
           <Descriptions.Item label="入住日期" span={2}>
             <Space>
               {formatDate(currentOrder.check_in_date)} - {formatDate(currentOrder.check_out_date)}
-              <Tag color="blue">{currentOrder.total_nights} 晚</Tag>
-              <Tag color="green">{currentOrder.guest_count} 人</Tag>
+              <Tag color="blue">{currentOrder.nights} 晚</Tag>
+              <Tag color="green">成人 {currentOrder.adults} 人，儿童 {currentOrder.children} 人</Tag>
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="房型" span={2}>
@@ -133,9 +131,9 @@ export default function OrderDetail() {
               {currentOrder.source}
             </Descriptions.Item>
           )}
-          {currentOrder.special_requests && (
+          {currentOrder.guest_remarks && (
             <Descriptions.Item label="特殊要求" span={2}>
-              {currentOrder.special_requests}
+              {currentOrder.guest_remarks}
             </Descriptions.Item>
           )}
         </Descriptions>
@@ -147,7 +145,7 @@ export default function OrderDetail() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-500">
-                  {currentOrder.room_name} × {currentOrder.total_nights} 晚
+                  {currentOrder.room_name} × {currentOrder.nights} 晚
                 </span>
                 <span>{formatCurrency(currentOrder.total_amount)}</span>
               </div>
@@ -178,28 +176,11 @@ export default function OrderDetail() {
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="font-bold text-lg">{formatCurrency(payment.amount)}</span>
-                    <span className="text-gray-500 ml-2">{payment.payment_method}</span>
+                    <span className="text-gray-500 ml-2">{payment.method_display || payment.method}</span>
                   </div>
-                  <Tag
-                    color={
-                      payment.payment_status === 'completed'
-                        ? 'green'
-                        : payment.payment_status === 'pending'
-                        ? 'gold'
-                        : 'red'
-                    }
-                  >
-                    {payment.payment_status === 'completed'
-                      ? '已完成'
-                      : payment.payment_status === 'pending'
-                      ? '处理中'
-                      : payment.payment_status === 'failed'
-                      ? '失败'
-                      : '已退款'}
-                  </Tag>
                 </div>
-                {payment.transaction_id && (
-                  <div className="text-sm text-gray-500 mt-1">交易号: {payment.transaction_id}</div>
+                {payment.transaction_no && (
+                  <div className="text-sm text-gray-500 mt-1">交易号: {payment.transaction_no}</div>
                 )}
                 {payment.paid_at && (
                   <div className="text-sm text-gray-500">支付时间: {formatDateTime(payment.paid_at)}</div>

@@ -18,7 +18,6 @@ import type {
   Reminder,
   AuditLog,
   PaginatedResponse,
-  CalendarData,
 } from '@/types';
 
 const API_BASE_URL = '/api';
@@ -53,7 +52,7 @@ axiosInstance.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
             refresh: refreshToken,
           });
           const { access } = response.data;
@@ -75,7 +74,7 @@ axiosInstance.interceptors.response.use(
 const api = {
   auth: {
     login: (data: LoginRequest): Promise<AxiosResponse<LoginResponse>> =>
-      axiosInstance.post('/token/', data),
+      axiosInstance.post('/auth/login/', data),
 
     logout: (): void => {
       localStorage.removeItem('access_token');
@@ -126,27 +125,32 @@ const api = {
       axiosInstance.get('/inventory/', { params }),
 
     getCalendar: (params: {
-      property_id: string;
+      room_id: string;
       start_date: string;
       end_date: string;
-    }): Promise<AxiosResponse<CalendarData>> =>
+    }): Promise<AxiosResponse<Inventory[]>> =>
       axiosInstance.get('/inventory/calendar/', { params }),
 
     checkAvailability: (params: {
       room_id: string;
-      check_in_date: string;
-      check_out_date: string;
-    }): Promise<AxiosResponse<{ available: boolean; total_price: number }>> =>
-      axiosInstance.get('/inventory/check_availability/', { params }),
+      check_in: string;
+      check_out: string;
+    }): Promise<AxiosResponse<{ available: boolean; reason?: string; total_price: number }>> =>
+      axiosInstance.get('/inventory/calendar/check_availability/', { params }),
 
     batchUpdate: (data: {
-      room_ids: string[];
+      room_id: string;
       start_date: string;
       end_date: string;
       status?: string;
       price?: number;
-    }): Promise<AxiosResponse<Inventory[]>> =>
-      axiosInstance.post('/inventory/calendar/batch_update/', data),
+      is_locked?: boolean;
+    }): Promise<AxiosResponse<{
+      updated: number;
+      conflicts: InventoryConflict[];
+      has_conflicts: boolean;
+    }>> =>
+      axiosInstance.put('/inventory/calendar/batch_update/', data),
 
     update: (id: string, data: Partial<Inventory>): Promise<AxiosResponse<Inventory>> =>
       axiosInstance.put(`/inventory/${id}/`, data),
@@ -156,16 +160,16 @@ const api = {
 
     specialPricing: {
       list: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<SpecialPricing>>> =>
-        axiosInstance.get('/inventory/special-pricing/', { params }),
+        axiosInstance.get('/inventory/pricing/', { params }),
 
       create: (data: Partial<SpecialPricing>): Promise<AxiosResponse<SpecialPricing>> =>
-        axiosInstance.post('/inventory/special-pricing/', data),
+        axiosInstance.post('/inventory/pricing/', data),
 
       update: (id: string, data: Partial<SpecialPricing>): Promise<AxiosResponse<SpecialPricing>> =>
-        axiosInstance.put(`/inventory/special-pricing/${id}/`, data),
+        axiosInstance.put(`/inventory/pricing/${id}/`, data),
 
       delete: (id: string): Promise<AxiosResponse<void>> =>
-        axiosInstance.delete(`/inventory/special-pricing/${id}/`),
+        axiosInstance.delete(`/inventory/pricing/${id}/`),
     },
   },
 
@@ -177,104 +181,122 @@ const api = {
       axiosInstance.get(`/orders/${id}/`),
 
     create: (data: BookingFormData): Promise<AxiosResponse<Order>> =>
-      axiosInstance.post('/orders/', data),
+      axiosInstance.post('/orders/book/', data),
 
     update: (id: string, data: Partial<Order>): Promise<AxiosResponse<Order>> =>
       axiosInstance.put(`/orders/${id}/`, data),
 
-    updateStatus: (id: string, status: string): Promise<AxiosResponse<Order>> =>
-      axiosInstance.post(`/orders/${id}/update_status/`, { status }),
+    updateStatus: (id: string, status: string, remarks?: string): Promise<AxiosResponse<Order>> =>
+      axiosInstance.post(`/orders/${id}/update_status/`, { status, remarks }),
 
-    updateConversionStage: (id: string, stage: string): Promise<AxiosResponse<Order>> =>
-      axiosInstance.post(`/orders/${id}/update_conversion_stage/`, { stage }),
+    updateConversionStage: (id: string, stage: string, remarks?: string): Promise<AxiosResponse<Order>> =>
+      axiosInstance.post(`/orders/${id}/update_conversion_stage/`, { stage, remarks }),
 
     addPayment: (id: string, data: {
       amount: number;
-      payment_method: string;
-      transaction_id?: string;
+      method: string;
+      transaction_no?: string;
+      remarks?: string;
     }): Promise<AxiosResponse<Order>> =>
       axiosInstance.post(`/orders/${id}/add_payment/`, data),
 
     getConversionFunnel: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<ConversionFunnelData[]>> =>
       axiosInstance.get('/orders/conversion_funnel/', { params }),
+
+    getStats: (): Promise<AxiosResponse<{
+      total_orders: number;
+      today_orders: number;
+      pending_orders: number;
+      confirmed_orders: number;
+      checked_in_orders: number;
+      total_revenue: number;
+      today_revenue: number;
+    }>> =>
+      axiosInstance.get('/orders/stats/'),
   },
 
   configuration: {
     tourRoutes: {
       list: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<TourRoute>>> =>
-        axiosInstance.get('/tour-routes/', { params }),
+        axiosInstance.get('/configuration/routes/', { params }),
 
       get: (id: string): Promise<AxiosResponse<TourRoute>> =>
-        axiosInstance.get(`/tour-routes/${id}/`),
+        axiosInstance.get(`/configuration/routes/${id}/`),
 
       create: (data: Partial<TourRoute>): Promise<AxiosResponse<TourRoute>> =>
-        axiosInstance.post('/tour-routes/', data),
+        axiosInstance.post('/configuration/routes/', data),
 
       update: (id: string, data: Partial<TourRoute>): Promise<AxiosResponse<TourRoute>> =>
-        axiosInstance.put(`/tour-routes/${id}/`, data),
+        axiosInstance.put(`/configuration/routes/${id}/`, data),
 
       delete: (id: string): Promise<AxiosResponse<void>> =>
-        axiosInstance.delete(`/tour-routes/${id}/`),
+        axiosInstance.delete(`/configuration/routes/${id}/`),
     },
 
     cleaningTasks: {
       list: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<CleaningTask>>> =>
-        axiosInstance.get('/cleaning-tasks/', { params }),
+        axiosInstance.get('/configuration/cleaning/', { params }),
 
       get: (id: string): Promise<AxiosResponse<CleaningTask>> =>
-        axiosInstance.get(`/cleaning-tasks/${id}/`),
+        axiosInstance.get(`/configuration/cleaning/${id}/`),
 
       create: (data: Partial<CleaningTask>): Promise<AxiosResponse<CleaningTask>> =>
-        axiosInstance.post('/cleaning-tasks/', data),
+        axiosInstance.post('/configuration/cleaning/', data),
 
       update: (id: string, data: Partial<CleaningTask>): Promise<AxiosResponse<CleaningTask>> =>
-        axiosInstance.put(`/cleaning-tasks/${id}/`, data),
+        axiosInstance.put(`/configuration/cleaning/${id}/`, data),
 
       delete: (id: string): Promise<AxiosResponse<void>> =>
-        axiosInstance.delete(`/cleaning-tasks/${id}/`),
+        axiosInstance.delete(`/configuration/cleaning/${id}/`),
     },
 
     itineraryVersions: {
       list: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<ItineraryVersion>>> =>
-        axiosInstance.get('/itinerary-versions/', { params }),
+        axiosInstance.get('/configuration/itineraries/', { params }),
 
       get: (id: string): Promise<AxiosResponse<ItineraryVersion>> =>
-        axiosInstance.get(`/itinerary-versions/${id}/`),
+        axiosInstance.get(`/configuration/itineraries/${id}/`),
 
       compare: (id1: string, id2: string): Promise<AxiosResponse<Array<{
         field: string;
         old_value: unknown;
         new_value: unknown;
       }>>> =>
-        axiosInstance.get(`/itinerary-versions/compare/`, { params: { id1, id2 } }),
+        axiosInstance.get(`/configuration/itineraries/compare/`, { params: { id1, id2 } }),
 
       create: (data: Partial<ItineraryVersion>): Promise<AxiosResponse<ItineraryVersion>> =>
-        axiosInstance.post('/itinerary-versions/', data),
+        axiosInstance.post('/configuration/itineraries/', data),
 
       update: (id: string, data: Partial<ItineraryVersion>): Promise<AxiosResponse<ItineraryVersion>> =>
-        axiosInstance.put(`/itinerary-versions/${id}/`, data),
+        axiosInstance.put(`/configuration/itineraries/${id}/`, data),
 
       delete: (id: string): Promise<AxiosResponse<void>> =>
-        axiosInstance.delete(`/itinerary-versions/${id}/`),
+        axiosInstance.delete(`/configuration/itineraries/${id}/`),
     },
   },
 
   reminders: {
     rules: {
       list: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<ReminderRule>>> =>
-        axiosInstance.get('/reminder-rules/', { params }),
+        axiosInstance.get('/reminders/rules/', { params }),
 
       get: (id: string): Promise<AxiosResponse<ReminderRule>> =>
-        axiosInstance.get(`/reminder-rules/${id}/`),
+        axiosInstance.get(`/reminders/rules/${id}/`),
 
       create: (data: Partial<ReminderRule>): Promise<AxiosResponse<ReminderRule>> =>
-        axiosInstance.post('/reminder-rules/', data),
+        axiosInstance.post('/reminders/rules/', data),
 
       update: (id: string, data: Partial<ReminderRule>): Promise<AxiosResponse<ReminderRule>> =>
-        axiosInstance.put(`/reminder-rules/${id}/`, data),
+        axiosInstance.put(`/reminders/rules/${id}/`, data),
 
       delete: (id: string): Promise<AxiosResponse<void>> =>
-        axiosInstance.delete(`/reminder-rules/${id}/`),
+        axiosInstance.delete(`/reminders/rules/${id}/`),
+
+      activate: (id: string): Promise<AxiosResponse<{ status: string }>> =>
+        axiosInstance.post(`/reminders/rules/${id}/activate/`),
+
+      deactivate: (id: string): Promise<AxiosResponse<{ status: string }>> =>
+        axiosInstance.post(`/reminders/rules/${id}/deactivate/`),
     },
 
     list: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<Reminder>>> =>
@@ -283,22 +305,44 @@ const api = {
     get: (id: string): Promise<AxiosResponse<Reminder>> =>
       axiosInstance.get(`/reminders/${id}/`),
 
-    acknowledge: (id: string): Promise<AxiosResponse<Reminder>> =>
-      axiosInstance.post(`/reminders/${id}/acknowledge/`),
+    handle: (id: string, data: { status: string; notes?: string }): Promise<AxiosResponse<Reminder>> =>
+      axiosInstance.post(`/reminders/${id}/handle/`, data),
 
-    resolve: (id: string): Promise<AxiosResponse<Reminder>> =>
-      axiosInstance.post(`/reminders/${id}/resolve/`),
+    escalate: (id: string): Promise<AxiosResponse<Reminder>> =>
+      axiosInstance.post(`/reminders/${id}/escalate/`),
 
-    getUnreadCount: (): Promise<AxiosResponse<{ count: number; overdue_count: number }>> =>
-      axiosInstance.get('/reminders/unread_count/'),
+    getStats: (): Promise<AxiosResponse<{
+      total_pending: number;
+      total_overdue: number;
+      by_level: {
+        [key: number]: {
+          pending: number;
+          overdue: number;
+        };
+      };
+    }>> =>
+      axiosInstance.get('/reminders/stats/'),
+
+    batchHandle: (data: { ids: string[]; status: string; notes?: string }): Promise<AxiosResponse<{ updated: number }>> =>
+      axiosInstance.post('/reminders/batch_handle/', data),
   },
 
   audit: {
     logs: (params?: AxiosRequestConfig['params']): Promise<AxiosResponse<PaginatedResponse<AuditLog>>> =>
-      axiosInstance.get('/audit-logs/', { params }),
+      axiosInstance.get('/audit/logs/', { params }),
 
     get: (id: string): Promise<AxiosResponse<AuditLog>> =>
-      axiosInstance.get(`/audit-logs/${id}/`),
+      axiosInstance.get(`/audit/logs/${id}/`),
+
+    getDiff: (id: string): Promise<AxiosResponse<{
+      log: AuditLog;
+      diffs: Array<{
+        field: string;
+        old_value: unknown;
+        new_value: unknown;
+      }>;
+    }>> =>
+      axiosInstance.get(`/audit/logs/${id}/diff/`),
   },
 };
 

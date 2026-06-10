@@ -18,6 +18,7 @@ import {
   Drawer,
   List,
   Badge,
+  Switch,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -86,11 +87,13 @@ export default function InventoryManagement() {
   const loadData = () => {
     if (!selectedProperty) return;
     const [startDate, endDate] = dateRange;
-    fetchCalendar({
-      property_id: selectedProperty,
-      start_date: startDate.format('YYYY-MM-DD'),
-      end_date: endDate.format('YYYY-MM-DD'),
-    });
+    if (filteredRooms.length > 0) {
+      fetchCalendar({
+        room_id: filteredRooms[0].id,
+        start_date: startDate.format('YYYY-MM-DD'),
+        end_date: endDate.format('YYYY-MM-DD'),
+      });
+    }
     fetchSpecialPricing({ property_id: selectedProperty });
     fetchConflicts({ property_id: selectedProperty, resolved: false });
   };
@@ -171,6 +174,14 @@ export default function InventoryManagement() {
       dateRange[1].format('YYYY-MM-DD')
     );
 
+    const calendarMap: Record<string, Record<string, Inventory>> = {};
+    calendarData.forEach((inv: Inventory) => {
+      if (!calendarMap[inv.date]) {
+        calendarMap[inv.date] = {};
+      }
+      calendarMap[inv.date][inv.room] = inv;
+    });
+
     return filteredRooms.map((room) => {
       const row: Record<string, unknown> = {
         key: room.id,
@@ -179,7 +190,7 @@ export default function InventoryManagement() {
         base_price: room.base_price,
       };
       dates.forEach((date) => {
-        const inventory = calendarData[date]?.[room.id];
+        const inventory = calendarMap[date]?.[room.id];
         row[date] = inventory;
       });
       return row;
@@ -199,6 +210,7 @@ export default function InventoryManagement() {
   const handleBatchUpdate = async (values: {
     status?: string;
     price?: number;
+    is_locked?: boolean;
   }) => {
     if (!dateRange || selectedRooms.length === 0) {
       message.warning('请选择日期范围和房型');
@@ -206,13 +218,16 @@ export default function InventoryManagement() {
     }
 
     try {
-      await batchUpdate({
-        room_ids: selectedRooms,
-        start_date: dateRange[0].format('YYYY-MM-DD'),
-        end_date: dateRange[1].format('YYYY-MM-DD'),
-        status: values.status,
-        price: values.price,
-      });
+      for (const roomId of selectedRooms) {
+        await batchUpdate({
+          room_id: roomId,
+          start_date: dateRange[0].format('YYYY-MM-DD'),
+          end_date: dateRange[1].format('YYYY-MM-DD'),
+          status: values.status,
+          price: values.price,
+          is_locked: values.is_locked,
+        });
+      }
       message.success('批量更新成功');
       setShowBatchModal(false);
       batchForm.resetFields();
@@ -415,6 +430,10 @@ export default function InventoryManagement() {
               placeholder="请输入价格（不填则不修改）"
               prefix="¥"
             />
+          </Form.Item>
+
+          <Form.Item name="is_locked" label="锁定房态" valuePropName="checked">
+            <Switch />
           </Form.Item>
 
           <Form.Item>

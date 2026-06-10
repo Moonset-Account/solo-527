@@ -13,12 +13,13 @@ interface OrderState {
   fetchOrder: (id: string) => Promise<void>;
   fetchConversionFunnel: (params?: Record<string, unknown>) => Promise<void>;
   createOrder: (data: BookingFormData) => Promise<Order>;
-  updateOrderStatus: (id: string, status: string) => Promise<void>;
-  updateConversionStage: (id: string, stage: string) => Promise<void>;
+  updateOrderStatus: (id: string, status: string, remarks?: string) => Promise<void>;
+  updateConversionStage: (id: string, stage: string, remarks?: string) => Promise<void>;
   addPayment: (id: string, data: {
     amount: number;
-    payment_method: string;
-    transaction_id?: string;
+    method: string;
+    transaction_no?: string;
+    remarks?: string;
   }) => Promise<void>;
 }
 
@@ -78,9 +79,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     }
   },
 
-  updateOrderStatus: async (id: string, status: string) => {
+  updateOrderStatus: async (id: string, status: string, remarks?: string) => {
     try {
-      const response = await api.orders.updateStatus(id, status);
+      const response = await api.orders.updateStatus(id, status, remarks);
       const orders = get().orders.map((o) => (o.id === id ? response.data : o));
       set({ orders, currentOrder: response.data });
     } catch (error: unknown) {
@@ -90,9 +91,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     }
   },
 
-  updateConversionStage: async (id: string, stage: string) => {
+  updateConversionStage: async (id: string, stage: string, remarks?: string) => {
     try {
-      const response = await api.orders.updateConversionStage(id, stage);
+      const response = await api.orders.updateConversionStage(id, stage, remarks);
       const orders = get().orders.map((o) => (o.id === id ? response.data : o));
       set({ orders, currentOrder: response.data });
     } catch (error: unknown) {

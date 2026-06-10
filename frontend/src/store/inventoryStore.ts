@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import api from '@/api';
-import type { Inventory, CalendarData, InventoryConflict, SpecialPricing } from '@/types';
+import type { Inventory, InventoryConflict, SpecialPricing } from '@/types';
 
 interface InventoryState {
-  calendarData: CalendarData;
+  calendarData: Inventory[];
   inventoryList: Inventory[];
   conflicts: InventoryConflict[];
   specialPricing: SpecialPricing[];
@@ -11,7 +11,7 @@ interface InventoryState {
   error: string | null;
 
   fetchCalendar: (params: {
-    property_id: string;
+    room_id: string;
     start_date: string;
     end_date: string;
   }) => Promise<void>;
@@ -19,24 +19,29 @@ interface InventoryState {
   fetchConflicts: (params?: Record<string, unknown>) => Promise<void>;
   fetchSpecialPricing: (params?: Record<string, unknown>) => Promise<void>;
   batchUpdate: (data: {
-    room_ids: string[];
+    room_id: string;
     start_date: string;
     end_date: string;
     status?: string;
     price?: number;
-  }) => Promise<void>;
+    is_locked?: boolean;
+  }) => Promise<{
+    updated: number;
+    conflicts: InventoryConflict[];
+    has_conflicts: boolean;
+  }>;
   checkAvailability: (params: {
     room_id: string;
-    check_in_date: string;
-    check_out_date: string;
-  }) => Promise<{ available: boolean; total_price: number }>;
+    check_in: string;
+    check_out: string;
+  }) => Promise<{ available: boolean; reason?: string; total_price: number }>;
   createSpecialPricing: (data: Partial<SpecialPricing>) => Promise<void>;
   updateSpecialPricing: (id: string, data: Partial<SpecialPricing>) => Promise<void>;
   deleteSpecialPricing: (id: string) => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
-  calendarData: {},
+  calendarData: [],
   inventoryList: [],
   conflicts: [],
   specialPricing: [],
@@ -90,8 +95,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   batchUpdate: async (data) => {
     set({ isLoading: true });
     try {
-      await api.inventory.batchUpdate(data);
+      const response = await api.inventory.batchUpdate(data);
       set({ isLoading: false });
+      return response.data;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : '批量更新房态失败';
       set({ error: message, isLoading: false });

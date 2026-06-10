@@ -45,8 +45,7 @@ export default function ReminderList() {
     overdueCount,
     fetchReminders,
     fetchUnreadCount,
-    acknowledgeReminder,
-    resolveReminder,
+    handleReminder,
     isLoading,
   } = useReminderStore();
 
@@ -80,7 +79,7 @@ export default function ReminderList() {
 
   const handleAcknowledge = async (id: string) => {
     try {
-      await acknowledgeReminder(id);
+      await handleReminder(id, 'acknowledged');
       message.success('已确认');
       fetchUnreadCount();
     } catch {
@@ -90,7 +89,7 @@ export default function ReminderList() {
 
   const handleResolve = async (id: string) => {
     try {
-      await resolveReminder(id);
+      await handleReminder(id, 'resolved');
       message.success('已解决');
       fetchUnreadCount();
     } catch {

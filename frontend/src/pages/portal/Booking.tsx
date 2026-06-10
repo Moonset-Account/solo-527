@@ -38,7 +38,7 @@ import {
   INVENTORY_STATUS_LABELS,
   INVENTORY_STATUS_COLORS,
 } from '@/utils';
-import type { Room, BookingFormData } from '@/types';
+import type { Room, BookingFormData, Inventory } from '@/types';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -54,7 +54,8 @@ export default function Booking() {
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectedRoom, setSelectedRoom] = useState<string>('');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
-  const [guestCount, setGuestCount] = useState<number>(2);
+  const [adults, setAdults] = useState<number>(2);
+  const [children, setChildren] = useState<number>(0);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [availabilityResult, setAvailabilityResult] = useState<{
     available: boolean;
@@ -68,15 +69,15 @@ export default function Booking() {
   }, [fetchProperties, fetchRooms]);
 
   useEffect(() => {
-    if (selectedProperty && dateRange) {
+    if (selectedRoom && dateRange) {
       const [startDate, endDate] = dateRange;
       fetchCalendar({
-        property_id: selectedProperty,
+        room_id: selectedRoom,
         start_date: startDate.format('YYYY-MM-DD'),
         end_date: endDate.format('YYYY-MM-DD'),
       });
     }
-  }, [selectedProperty, dateRange, fetchCalendar]);
+  }, [selectedRoom, dateRange, fetchCalendar]);
 
   const filteredRooms = useMemo(() => {
     if (!selectedProperty) return rooms;
@@ -93,8 +94,8 @@ export default function Booking() {
     try {
       const result = await checkAvailability({
         room_id: selectedRoom,
-        check_in_date: startDate.format('YYYY-MM-DD'),
-        check_out_date: endDate.format('YYYY-MM-DD'),
+        check_in: startDate.format('YYYY-MM-DD'),
+        check_out: endDate.format('YYYY-MM-DD'),
       });
       setAvailabilityResult(result);
       setSearchPerformed(true);
@@ -111,11 +112,11 @@ export default function Booking() {
       const [startDate, endDate] = dateRange;
       const orderData: BookingFormData = {
         ...values,
-        property_id: selectedProperty,
         room_id: selectedRoom,
         check_in_date: startDate.format('YYYY-MM-DD'),
         check_out_date: endDate.format('YYYY-MM-DD'),
-        guest_count: guestCount,
+        adults,
+        children,
       };
 
       const order = await createOrder(orderData);
@@ -173,13 +174,21 @@ export default function Booking() {
       dateRange[1].format('YYYY-MM-DD')
     );
 
+    const calendarMap: Record<string, Record<string, Inventory>> = {};
+    (calendarData as unknown as Inventory[]).forEach((inv: Inventory) => {
+      if (!calendarMap[inv.date]) {
+        calendarMap[inv.date] = {};
+      }
+      calendarMap[inv.date][inv.room] = inv;
+    });
+
     return filteredRooms.map((room) => {
       const row: Record<string, string> = {
         key: room.id,
         room_name: room.name,
       };
       dates.forEach((date) => {
-        const inventory = calendarData[date]?.[room.id];
+        const inventory = calendarMap[date]?.[room.id];
         row[date] = inventory?.status || 'available';
       });
       return row;
@@ -242,19 +251,35 @@ export default function Booking() {
               />
             </Col>
 
-            <Col xs={24} sm={12} md={6}>
+            <Col xs={24} sm={12} md={3}>
               <div className="flex items-center gap-2 text-gray-700 mb-2">
                 <UserOutlined />
-                <span className="font-medium">入住人数</span>
+                <span className="font-medium">成人</span>
               </div>
               <InputNumber
                 min={1}
                 max={10}
-                value={guestCount}
-                onChange={(value) => setGuestCount(value as number)}
+                value={adults}
+                onChange={(value) => setAdults(value as number)}
                 className="w-full"
                 size="large"
-                addonBefore="人数"
+                addonBefore="人"
+              />
+            </Col>
+
+            <Col xs={24} sm={12} md={3}>
+              <div className="flex items-center gap-2 text-gray-700 mb-2">
+                <UserOutlined />
+                <span className="font-medium">儿童</span>
+              </div>
+              <InputNumber
+                min={0}
+                max={10}
+                value={children}
+                onChange={(value) => setChildren(value as number)}
+                className="w-full"
+                size="large"
+                addonBefore="人"
               />
             </Col>
 
@@ -369,25 +394,25 @@ export default function Booking() {
                     </div>
 
                     <div className="space-y-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">入住日期</span>
-                        <span className="font-medium">
-                          {dateRange && `${formatDate(dateRange[0].toDate())} - ${formatDate(dateRange[1].toDate())}`}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">入住天数</span>
-                        <span className="font-medium">
-                          {dateRange ? calculateNights(
-                            dateRange[0].format('YYYY-MM-DD'),
-                            dateRange[1].format('YYYY-MM-DD')
-                          ) : 0} 晚
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">入住人数</span>
-                        <span className="font-medium">{guestCount} 人</span>
-                      </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">入住日期</span>
+                          <span className="font-medium">
+                            {dateRange && `${formatDate(dateRange[0].toDate())} - ${formatDate(dateRange[1].toDate())}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">入住天数</span>
+                          <span className="font-medium">
+                            {dateRange ? calculateNights(
+                              dateRange[0].format('YYYY-MM-DD'),
+                              dateRange[1].format('YYYY-MM-DD')
+                            ) : 0} 晚
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">入住人数</span>
+                          <span className="font-medium">成人 {adults} 人，儿童 {children} 人</span>
+                        </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">每晚价格</span>
                         <span className="font-medium">{formatCurrency(selectedRoomData.base_price)}</span>
@@ -467,7 +492,7 @@ export default function Booking() {
                           </Form.Item>
 
                           <Form.Item
-                            name="special_requests"
+                            name="guest_remarks"
                             label="特殊要求（选填）"
                           >
                             <TextArea

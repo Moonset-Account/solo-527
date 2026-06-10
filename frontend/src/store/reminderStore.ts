@@ -13,8 +13,7 @@ interface ReminderState {
   fetchReminders: (params?: Record<string, unknown>) => Promise<void>;
   fetchRules: (params?: Record<string, unknown>) => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
-  acknowledgeReminder: (id: string) => Promise<void>;
-  resolveReminder: (id: string) => Promise<void>;
+  handleReminder: (id: string, status: string, notes?: string) => Promise<void>;
   createRule: (data: Partial<ReminderRule>) => Promise<void>;
   updateRule: (id: string, data: Partial<ReminderRule>) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
@@ -52,41 +51,26 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
 
   fetchUnreadCount: async () => {
     try {
-      const response = await api.reminders.getUnreadCount();
+      const response = await api.reminders.getStats();
       set({
-        unreadCount: response.data.count,
-        overdueCount: response.data.overdue_count,
+        unreadCount: response.data.total_pending,
+        overdueCount: response.data.total_overdue,
       });
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
     }
   },
 
-  acknowledgeReminder: async (id: string) => {
+  handleReminder: async (id: string, status: string, notes?: string) => {
     try {
-      await api.reminders.acknowledge(id);
+      await api.reminders.handle(id, { status, notes });
       const reminders = get().reminders.map((r) =>
-        r.id === id ? { ...r, status: 'acknowledged' as const } : r
+        r.id === id ? { ...r, status: status as typeof r.status } : r
       );
       set({ reminders });
       get().fetchUnreadCount();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '确认提醒失败';
-      set({ error: message });
-      throw error;
-    }
-  },
-
-  resolveReminder: async (id: string) => {
-    try {
-      await api.reminders.resolve(id);
-      const reminders = get().reminders.map((r) =>
-        r.id === id ? { ...r, status: 'resolved' as const } : r
-      );
-      set({ reminders });
-      get().fetchUnreadCount();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '解决提醒失败';
+      const message = error instanceof Error ? error.message : '处理提醒失败';
       set({ error: message });
       throw error;
     }

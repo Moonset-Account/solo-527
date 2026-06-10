@@ -94,10 +94,10 @@ export default function OrderManagement() {
     fetchOrders(params);
   };
 
-  const handleUpdateStatus = async (values: { status: OrderStatus }) => {
+  const handleUpdateStatus = async (values: { status: OrderStatus; remarks?: string }) => {
     if (!selectedOrder) return;
     try {
-      await updateOrderStatus(selectedOrder.id, values.status);
+      await updateOrderStatus(selectedOrder.id, values.status, values.remarks);
       message.success('订单状态已更新');
       setShowStatusModal(false);
       statusForm.resetFields();
@@ -107,10 +107,10 @@ export default function OrderManagement() {
     }
   };
 
-  const handleUpdateStage = async (values: { stage: ConversionStage }) => {
+  const handleUpdateStage = async (values: { stage: ConversionStage; remarks?: string }) => {
     if (!selectedOrder) return;
     try {
-      await updateConversionStage(selectedOrder.id, values.stage);
+      await updateConversionStage(selectedOrder.id, values.stage, values.remarks);
       message.success('转化阶段已更新');
       setShowStageModal(false);
       stageForm.resetFields();
@@ -122,8 +122,9 @@ export default function OrderManagement() {
 
   const handleAddPayment = async (values: {
     amount: number;
-    payment_method: string;
-    transaction_id?: string;
+    method: string;
+    transaction_no?: string;
+    remarks?: string;
   }) => {
     if (!selectedOrder) return;
     try {
@@ -167,7 +168,7 @@ export default function OrderManagement() {
           <div className="text-sm">
             {formatDate(record.check_in_date)} - {formatDate(record.check_out_date)}
           </div>
-          <div className="text-xs text-gray-500">{record.total_nights} 晚 · {record.guest_count} 人</div>
+          <div className="text-xs text-gray-500">{record.nights} 晚 · 成人 {record.adults} 人，儿童 {record.children} 人</div>
         </div>
       ),
     },
@@ -178,7 +179,7 @@ export default function OrderManagement() {
         <div className="text-right">
           <div className="font-bold text-primary-600">{formatCurrency(record.total_amount)}</div>
           <div className="text-xs text-gray-500">
-            已付: {formatCurrency(record.payments.filter((p) => p.payment_status === 'completed').reduce((sum, p) => sum + p.amount, 0))}
+            已付: {formatCurrency(record.payments.reduce((sum, p) => sum + p.amount, 0))}
           </div>
         </div>
       ),
@@ -363,8 +364,8 @@ export default function OrderManagement() {
           <div className="space-y-6">
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="订单号" span={2}>
-                {selectedOrder.order_number}
-              </Descriptions.Item>
+            {selectedOrder.order_no}
+          </Descriptions.Item>
               <Descriptions.Item label="订单状态">
                 <Tag className={ORDER_STATUS_COLORS[selectedOrder.status]}>
                   {ORDER_STATUS_LABELS[selectedOrder.status]}
@@ -391,19 +392,19 @@ export default function OrderManagement() {
                 </Descriptions.Item>
               )}
               <Descriptions.Item label="入住日期" span={2}>
-                <Space>
-                  <CalendarOutlined />
-                  {formatDate(selectedOrder.check_in_date)} - {formatDate(selectedOrder.check_out_date)}
-                  <Tag color="blue">{selectedOrder.total_nights} 晚</Tag>
-                  <Tag color="green">{selectedOrder.guest_count} 人</Tag>
-                </Space>
-              </Descriptions.Item>
+            <Space>
+              <CalendarOutlined />
+              {formatDate(selectedOrder.check_in_date)} - {formatDate(selectedOrder.check_out_date)}
+              <Tag color="blue">{selectedOrder.nights} 晚</Tag>
+              <Tag color="green">成人 {selectedOrder.adults} 人，儿童 {selectedOrder.children} 人</Tag>
+            </Space>
+          </Descriptions.Item>
               <Descriptions.Item label="房型" span={2}>
                 {selectedOrder.room_name}
               </Descriptions.Item>
-              {selectedOrder.special_requests && (
+              {selectedOrder.guest_remarks && (
                 <Descriptions.Item label="特殊要求" span={2}>
-                  {selectedOrder.special_requests}
+                  {selectedOrder.guest_remarks}
                 </Descriptions.Item>
               )}
               <Descriptions.Item label="订单金额" span={2}>
@@ -413,11 +414,15 @@ export default function OrderManagement() {
                     <span>{formatCurrency(selectedOrder.total_amount)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">定金</span>
-                    <span>{formatCurrency(selectedOrder.deposit_amount)}</span>
+                    <span className="text-gray-500">已付</span>
+                    <span className="text-green-600">{formatCurrency(selectedOrder.paid_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">待付</span>
+                    <span className="text-orange-600">{formatCurrency(selectedOrder.remaining_amount)}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t font-bold">
-                    <span>应付总计</span>
+                    <span>总计</span>
                     <span className="text-primary-600">
                       {formatCurrency(selectedOrder.total_amount)}
                     </span>
@@ -435,30 +440,13 @@ export default function OrderManagement() {
                       title={
                         <div className="flex justify-between w-full">
                           <span className="font-medium">
-                            {formatCurrency(payment.amount)} - {payment.payment_method}
+                            {formatCurrency(payment.amount)} - {payment.method_display || payment.method}
                           </span>
-                          <Tag
-                            color={
-                              payment.payment_status === 'completed'
-                                ? 'green'
-                                : payment.payment_status === 'pending'
-                                ? 'gold'
-                                : 'red'
-                            }
-                          >
-                            {payment.payment_status === 'completed'
-                              ? '已完成'
-                              : payment.payment_status === 'pending'
-                              ? '处理中'
-                              : payment.payment_status === 'failed'
-                              ? '失败'
-                              : '已退款'}
-                          </Tag>
                         </div>
                       }
                       description={
                         <div className="text-sm text-gray-500">
-                          {payment.transaction_id && `交易号: ${payment.transaction_id}`}
+                          {payment.transaction_no && `交易号: ${payment.transaction_no}`}
                           {payment.paid_at && ` · 支付时间: ${formatDateTime(payment.paid_at)}`}
                         </div>
                       }
@@ -526,6 +514,9 @@ export default function OrderManagement() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item name="remarks" label="备注">
+            <Input.TextArea rows={3} placeholder="选填" />
+          </Form.Item>
           <Form.Item>
             <Space className="w-full justify-end">
               <Button onClick={() => setShowStatusModal(false)}>取消</Button>
@@ -555,6 +546,9 @@ export default function OrderManagement() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item name="remarks" label="备注">
+            <Input.TextArea rows={3} placeholder="选填" />
+          </Form.Item>
           <Form.Item>
             <Space className="w-full justify-end">
               <Button onClick={() => setShowStageModal(false)}>取消</Button>
@@ -579,7 +573,7 @@ export default function OrderManagement() {
             <InputNumber className="w-full" min={0} prefix="¥" />
           </Form.Item>
           <Form.Item
-            name="payment_method"
+            name="method"
             label="支付方式"
             rules={[{ required: true, message: '请选择支付方式' }]}
           >
@@ -591,8 +585,11 @@ export default function OrderManagement() {
               <Option value="transfer">银行转账</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="transaction_id" label="交易单号">
+          <Form.Item name="transaction_no" label="交易单号">
             <Input placeholder="选填" />
+          </Form.Item>
+          <Form.Item name="remarks" label="备注">
+            <Input.TextArea rows={3} placeholder="选填" />
           </Form.Item>
           <Form.Item>
             <Space className="w-full justify-end">
@@ -615,16 +612,18 @@ export default function OrderManagement() {
           layout="vertical"
           onFinish={async (values) => {
             try {
-              const room = rooms.find((r) => r.id === values.room_id);
-              const checkIn = dayjs(values.check_in_date);
-              const checkOut = dayjs(values.check_out_date);
-              const nights = checkOut.diff(checkIn, 'day');
-              const totalAmount = (room?.base_price || 0) * nights;
+              const [checkIn, checkOut] = values.check_in_date as [dayjs.Dayjs, dayjs.Dayjs];
 
               await useOrderStore.getState().createOrder({
-                ...values,
-                total_amount: totalAmount,
-                deposit_amount: totalAmount * 0.3,
+                room_id: values.room_id,
+                check_in_date: checkIn.format('YYYY-MM-DD'),
+                check_out_date: checkOut.format('YYYY-MM-DD'),
+                guest_name: values.guest_name,
+                guest_phone: values.guest_phone,
+                guest_email: values.guest_email,
+                adults: values.adults,
+                children: values.children,
+                guest_remarks: values.guest_remarks,
               });
               message.success('订单创建成功');
               setShowCreateModal(false);
@@ -635,45 +634,19 @@ export default function OrderManagement() {
             }
           }}
         >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="property_id"
-                label="选择民宿"
-                rules={[{ required: true, message: '请选择民宿' }]}
-              >
-                <Select
-                  onChange={(value) => {
-                    createForm.setFieldsValue({ room_id: undefined });
-                    setFilters({ ...filters, property_id: value });
-                  }}
-                >
-                  {properties.map((p) => (
-                    <Option key={p.id} value={p.id}>
-                      {p.name}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="room_id"
-                label="选择房型"
-                rules={[{ required: true, message: '请选择房型' }]}
-              >
-                <Select>
-                  {rooms
-                    .filter((r) => r.property === filters.property_id)
-                    .map((r) => (
-                      <Option key={r.id} value={r.id}>
-                        {r.name} - {formatCurrency(r.base_price)}/晚
-                      </Option>
-                    ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            name="room_id"
+            label="选择房型"
+            rules={[{ required: true, message: '请选择房型' }]}
+          >
+            <Select>
+              {rooms.map((r) => (
+                <Option key={r.id} value={r.id}>
+                  {r.name} - {formatCurrency(r.base_price)}/晚
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item
             name={['check_in_date', 'check_out_date']}
             label="入住日期"
@@ -693,26 +666,45 @@ export default function OrderManagement() {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="guest_count"
-                label="入住人数"
+                name="adults"
+                label="成人人数"
                 rules={[{ required: true, message: '请输入人数' }]}
               >
                 <InputNumber className="w-full" min={1} max={10} />
               </Form.Item>
             </Col>
           </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="children"
+                label="儿童人数"
+                rules={[{ required: true, message: '请输入人数' }]}
+              >
+                <InputNumber className="w-full" min={0} max={10} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="guest_phone"
+                label="联系电话"
+                rules={[
+                  { required: true, message: '请输入电话' },
+                  { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
+                ]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item
-            name="guest_phone"
-            label="联系电话"
-            rules={[
-              { required: true, message: '请输入电话' },
-              { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
-            ]}
+            name="guest_email"
+            label="邮箱"
           >
             <Input />
           </Form.Item>
           <Form.Item
-            name="special_requests"
+            name="guest_remarks"
             label="特殊要求"
           >
             <Input.TextArea rows={3} />

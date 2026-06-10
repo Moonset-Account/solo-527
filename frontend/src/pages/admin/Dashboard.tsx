@@ -148,7 +148,7 @@ export default function Dashboard() {
                   <List.Item.Meta
                     title={
                       <div className="flex items-center justify-between w-full">
-                        <span className="font-medium">{order.order_number}</span>
+                        <span className="font-medium">{order.order_no}</span>
                         <Tag className={ORDER_STATUS_COLORS[order.status]}>
                           {ORDER_STATUS_LABELS[order.status]}
                         </Tag>
@@ -157,7 +157,7 @@ export default function Dashboard() {
                     description={
                       <div className="text-sm text-gray-500">
                         <p>{order.guest_name} · {order.room_name}</p>
-                        <p>{formatDate(order.check_in_date)} - {formatDate(order.check_out_date)} · {order.total_nights}晚</p>
+                        <p>{formatDate(order.check_in_date)} - {formatDate(order.check_out_date)} · {order.nights}晚</p>
                       </div>
                     }
                   />
@@ -226,7 +226,7 @@ export default function Dashboard() {
             <Col key={stage.stage} xs={12} md={8} lg={4}>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
                 <div className="text-3xl font-bold text-primary-600 mb-1">{stage.count}</div>
-                <div className="text-gray-600 mb-2">{stage.stage_name}</div>
+                <div className="text-gray-600 mb-2">{stage.stage_display}</div>
                 <div className="text-sm text-gray-500 mb-3">{formatCurrency(stage.amount)}</div>
                 <Progress
                   percent={Math.round(stage.conversion_rate * 100)}
