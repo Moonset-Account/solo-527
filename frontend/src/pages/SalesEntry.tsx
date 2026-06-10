@@ -1,19 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Tabs, Table, Button, Form, Input, Select, DatePicker, Modal, message, Space, Tag } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { DesignPlan, Contract, HouseSurvey } from '@/types'
+import type { DesignPlan, Contract, HouseSurvey, Project } from '@/types'
 import { getStatusText, getStatusColor, formatDate, formatDateOnly, formatMoney } from '@/utils'
-import { mockDesignPlans, mockContracts, mockHouseSurveys, mockProjects } from '@/mock/data'
+import { getDesignPlanList, createDesignPlan, updateDesignPlan, deleteDesignPlan } from '@/api/design'
+import { getContractList, createContract, updateContract, deleteContract } from '@/api/contract'
+import { getHouseSurveyList, createHouseSurvey, updateHouseSurvey, deleteHouseSurvey } from '@/api/survey'
+import { getProjectList } from '@/api/project'
 import dayjs from 'dayjs'
 
 const { Option } = Select
 
 const SalesEntry = () => {
   const [activeTab, setActiveTab] = useState('design')
-  const [designPlans, setDesignPlans] = useState<DesignPlan[]>(mockDesignPlans)
-  const [contracts, setContracts] = useState<Contract[]>(mockContracts)
-  const [houseSurveys, setHouseSurveys] = useState<HouseSurvey[]>(mockHouseSurveys)
+  const [designPlans, setDesignPlans] = useState<DesignPlan[]>([])
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [houseSurveys, setHouseSurveys] = useState<HouseSurvey[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  
+  const [designLoading, setDesignLoading] = useState(false)
+  const [contractLoading, setContractLoading] = useState(false)
+  const [surveyLoading, setSurveyLoading] = useState(false)
   
   const [designModalVisible, setDesignModalVisible] = useState(false)
   const [contractModalVisible, setContractModalVisible] = useState(false)
@@ -27,7 +35,86 @@ const SalesEntry = () => {
   const [contractForm] = Form.useForm()
   const [surveyForm] = Form.useForm()
 
-  const projectOptions = mockProjects.map(p => ({ value: p.id, label: p.name }))
+  const [designPagination, setDesignPagination] = useState({ current: 1, pageSize: 10, total: 0 })
+  const [contractPagination, setContractPagination] = useState({ current: 1, pageSize: 10, total: 0 })
+  const [surveyPagination, setSurveyPagination] = useState({ current: 1, pageSize: 10, total: 0 })
+
+  const loadProjects = async () => {
+    try {
+      const response = await getProjectList({ page: 1, pageSize: 1000 })
+      setProjects(response.data.list || [])
+    } catch (error) {
+      console.error('加载项目列表失败', error)
+    }
+  }
+
+  const loadDesignPlans = async (page = designPagination.current, pageSize = designPagination.pageSize) => {
+    setDesignLoading(true)
+    try {
+      const response = await getDesignPlanList({ page, pageSize })
+      setDesignPlans(response.data.list || [])
+      setDesignPagination({ current: response.data.page || 1, pageSize: response.data.pageSize || 10, total: response.data.total || 0 })
+    } catch (error) {
+      console.error('加载装修方案失败', error)
+      message.error('加载装修方案失败')
+    } finally {
+      setDesignLoading(false)
+    }
+  }
+
+  const loadContracts = async (page = contractPagination.current, pageSize = contractPagination.pageSize) => {
+    setContractLoading(true)
+    try {
+      const response = await getContractList({ page, pageSize })
+      setContracts(response.data.list || [])
+      setContractPagination({ current: response.data.page || 1, pageSize: response.data.pageSize || 10, total: response.data.total || 0 })
+    } catch (error) {
+      console.error('加载合同失败', error)
+      message.error('加载合同失败')
+    } finally {
+      setContractLoading(false)
+    }
+  }
+
+  const loadHouseSurveys = async (page = surveyPagination.current, pageSize = surveyPagination.pageSize) => {
+    setSurveyLoading(true)
+    try {
+      const response = await getHouseSurveyList({ page, pageSize })
+      setHouseSurveys(response.data.list || [])
+      setSurveyPagination({ current: response.data.page || 1, pageSize: response.data.pageSize || 10, total: response.data.total || 0 })
+    } catch (error) {
+      console.error('加载量房信息失败', error)
+      message.error('加载量房信息失败')
+    } finally {
+      setSurveyLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'design') {
+      loadDesignPlans()
+    }
+  }, [activeTab, designPagination.current, designPagination.pageSize])
+
+  useEffect(() => {
+    if (activeTab === 'contract') {
+      loadContracts()
+    }
+  }, [activeTab, contractPagination.current, contractPagination.pageSize])
+
+  useEffect(() => {
+    if (activeTab === 'survey') {
+      loadHouseSurveys()
+    }
+  }, [activeTab, surveyPagination.current, surveyPagination.pageSize])
+
+  const getProjectName = (projectId: number) => {
+    return projects.find(p => p.id === projectId)?.name || '-'
+  }
 
   const handleAddDesign = () => {
     setEditingDesign(null)
@@ -39,41 +126,42 @@ const SalesEntry = () => {
     setEditingDesign(record)
     designForm.setFieldsValue({
       ...record,
-      handleTime: dayjs(record.handleTime)
+      handleTime: record.handleTime ? dayjs(record.handleTime) : undefined
     })
     setDesignModalVisible(true)
   }
 
-  const handleDeleteDesign = (id: string) => {
-    setDesignPlans(prev => prev.filter(item => item.id !== id))
-    message.success('删除成功')
+  const handleDeleteDesign = async (id: number) => {
+    try {
+      await deleteDesignPlan(id)
+      message.success('删除成功')
+      loadDesignPlans()
+    } catch (error) {
+      console.error('删除失败', error)
+      message.error('删除失败')
+    }
   }
 
-  const handleSubmitDesign = () => {
-    designForm.validateFields().then(values => {
+  const handleSubmitDesign = async () => {
+    try {
+      const values = await designForm.validateFields()
       const data = {
         ...values,
-        handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || new Date().toISOString()
+        handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }
-      const projectName = mockProjects.find(p => p.id === values.projectId)?.name || ''
+      
       if (editingDesign) {
-        setDesignPlans(prev => prev.map(item =>
-          item.id === editingDesign.id ? { ...item, ...data, projectName, updatedAt: new Date().toISOString() } : item
-        ))
+        await updateDesignPlan(editingDesign.id, data)
         message.success('更新成功')
       } else {
-        const newItem: DesignPlan = {
-          ...data,
-          projectName,
-          id: String(Date.now()),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        setDesignPlans(prev => [newItem, ...prev])
+        await createDesignPlan(data)
         message.success('创建成功')
       }
       setDesignModalVisible(false)
-    })
+      loadDesignPlans()
+    } catch (error) {
+      console.error('提交失败', error)
+    }
   }
 
   const handleAddContract = () => {
@@ -86,43 +174,44 @@ const SalesEntry = () => {
     setEditingContract(record)
     contractForm.setFieldsValue({
       ...record,
-      signDate: dayjs(record.signDate),
-      handleTime: dayjs(record.handleTime)
+      signDate: record.signDate ? dayjs(record.signDate) : undefined,
+      handleTime: record.handleTime ? dayjs(record.handleTime) : undefined
     })
     setContractModalVisible(true)
   }
 
-  const handleDeleteContract = (id: string) => {
-    setContracts(prev => prev.filter(item => item.id !== id))
-    message.success('删除成功')
+  const handleDeleteContract = async (id: number) => {
+    try {
+      await deleteContract(id)
+      message.success('删除成功')
+      loadContracts()
+    } catch (error) {
+      console.error('删除失败', error)
+      message.error('删除失败')
+    }
   }
 
-  const handleSubmitContract = () => {
-    contractForm.validateFields().then(values => {
+  const handleSubmitContract = async () => {
+    try {
+      const values = await contractForm.validateFields()
       const data = {
         ...values,
         signDate: values.signDate?.format('YYYY-MM-DD') || '',
-        handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || new Date().toISOString()
+        handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }
-      const projectName = mockProjects.find(p => p.id === values.projectId)?.name || ''
+      
       if (editingContract) {
-        setContracts(prev => prev.map(item =>
-          item.id === editingContract.id ? { ...item, ...data, projectName, updatedAt: new Date().toISOString() } : item
-        ))
+        await updateContract(editingContract.id, data)
         message.success('更新成功')
       } else {
-        const newItem: Contract = {
-          ...data,
-          projectName,
-          id: String(Date.now()),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        setContracts(prev => [newItem, ...prev])
+        await createContract(data)
         message.success('创建成功')
       }
       setContractModalVisible(false)
-    })
+      loadContracts()
+    } catch (error) {
+      console.error('提交失败', error)
+    }
   }
 
   const handleAddSurvey = () => {
@@ -135,50 +224,50 @@ const SalesEntry = () => {
     setEditingSurvey(record)
     surveyForm.setFieldsValue({
       ...record,
-      surveyDate: dayjs(record.surveyDate),
-      handleTime: dayjs(record.handleTime)
+      surveyDate: record.surveyDate ? dayjs(record.surveyDate) : undefined,
+      handleTime: record.handleTime ? dayjs(record.handleTime) : undefined
     })
     setSurveyModalVisible(true)
   }
 
-  const handleDeleteSurvey = (id: string) => {
-    setHouseSurveys(prev => prev.filter(item => item.id !== id))
-    message.success('删除成功')
+  const handleDeleteSurvey = async (id: number) => {
+    try {
+      await deleteHouseSurvey(id)
+      message.success('删除成功')
+      loadHouseSurveys()
+    } catch (error) {
+      console.error('删除失败', error)
+      message.error('删除失败')
+    }
   }
 
-  const handleSubmitSurvey = () => {
-    surveyForm.validateFields().then(values => {
+  const handleSubmitSurvey = async () => {
+    try {
+      const values = await surveyForm.validateFields()
       const data = {
         ...values,
-        surveyDate: values.surveyDate?.format('YYYY-MM-DD') || '',
-        handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || new Date().toISOString()
+        surveyDate: values.surveyDate?.format('YYYY-MM-DD') || undefined,
+        handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }
-      const projectName = mockProjects.find(p => p.id === values.projectId)?.name || ''
+      
       if (editingSurvey) {
-        setHouseSurveys(prev => prev.map(item =>
-          item.id === editingSurvey.id ? { ...item, ...data, projectName, updatedAt: new Date().toISOString() } : item
-        ))
+        await updateHouseSurvey(editingSurvey.id, data)
         message.success('更新成功')
       } else {
-        const newItem: HouseSurvey = {
-          ...data,
-          projectName,
-          id: String(Date.now()),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        setHouseSurveys(prev => [newItem, ...prev])
+        await createHouseSurvey(data)
         message.success('创建成功')
       }
       setSurveyModalVisible(false)
-    })
+      loadHouseSurveys()
+    } catch (error) {
+      console.error('提交失败', error)
+    }
   }
 
   const designColumns: ColumnsType<DesignPlan> = [
-    { title: '方案名称', dataIndex: 'title', key: 'title' },
-    { title: '关联项目', dataIndex: 'projectName', key: 'projectName' },
-    { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
-    { title: '设计师', dataIndex: 'designer', key: 'designer', width: 100 },
+    { title: '方案名称', dataIndex: 'name', key: 'name' },
+    { title: '关联项目', dataIndex: 'projectId', key: 'projectName', render: (projectId: number) => getProjectName(projectId) },
+    { title: '预算', dataIndex: 'estimatedPrice', key: 'estimatedPrice', width: 120, render: (v) => formatMoney(v) },
     {
       title: '状态',
       dataIndex: 'status',
@@ -204,10 +293,11 @@ const SalesEntry = () => {
 
   const contractColumns: ColumnsType<Contract> = [
     { title: '合同编号', dataIndex: 'contractNo', key: 'contractNo', width: 120 },
-    { title: '关联项目', dataIndex: 'projectName', key: 'projectName' },
+    { title: '关联项目', dataIndex: 'projectId', key: 'projectName', render: (projectId: number) => getProjectName(projectId) },
     { title: '金额', dataIndex: 'amount', key: 'amount', width: 120, render: (v) => formatMoney(v) },
     { title: '签订日期', dataIndex: 'signDate', key: 'signDate', width: 120, render: (d) => formatDateOnly(d) },
     { title: '甲方', dataIndex: 'partyA', key: 'partyA', width: 100 },
+    { title: '乙方', dataIndex: 'partyB', key: 'partyB', width: 100 },
     {
       title: '状态',
       dataIndex: 'status',
@@ -232,11 +322,13 @@ const SalesEntry = () => {
   ]
 
   const surveyColumns: ColumnsType<HouseSurvey> = [
-    { title: '关联项目', dataIndex: 'projectName', key: 'projectName' },
+    { title: '关联项目', dataIndex: 'projectId', key: 'projectName', render: (projectId: number) => getProjectName(projectId) },
     { title: '量房日期', dataIndex: 'surveyDate', key: 'surveyDate', width: 120, render: (d) => formatDateOnly(d) },
     { title: '量房师', dataIndex: 'surveyor', key: 'surveyor', width: 100 },
     { title: '面积', dataIndex: 'area', key: 'area', width: 100, render: (v) => `${v} ㎡` },
     { title: '户型', dataIndex: 'layout', key: 'layout', width: 120 },
+    { title: '楼层', dataIndex: 'floor', key: 'floor', width: 80 },
+    { title: '朝向', dataIndex: 'orientation', key: 'orientation', width: 80 },
     { title: '经手人', dataIndex: 'handler', key: 'handler', width: 100 },
     { title: '处理时间', dataIndex: 'handleTime', key: 'handleTime', width: 160, render: (t) => formatDate(t) },
     {
@@ -269,8 +361,17 @@ const SalesEntry = () => {
             columns={designColumns}
             dataSource={designPlans}
             rowKey="id"
+            loading={designLoading}
             scroll={{ x: 1000 }}
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            pagination={{
+              current: designPagination.current,
+              pageSize: designPagination.pageSize,
+              total: designPagination.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+              onChange: (page, pageSize) => setDesignPagination({ ...designPagination, current: page, pageSize })
+            }}
           />
         </Card>
       )
@@ -290,8 +391,17 @@ const SalesEntry = () => {
             columns={contractColumns}
             dataSource={contracts}
             rowKey="id"
-            scroll={{ x: 1000 }}
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            loading={contractLoading}
+            scroll={{ x: 1200 }}
+            pagination={{
+              current: contractPagination.current,
+              pageSize: contractPagination.pageSize,
+              total: contractPagination.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+              onChange: (page, pageSize) => setContractPagination({ ...contractPagination, current: page, pageSize })
+            }}
           />
         </Card>
       )
@@ -311,8 +421,17 @@ const SalesEntry = () => {
             columns={surveyColumns}
             dataSource={houseSurveys}
             rowKey="id"
-            scroll={{ x: 1000 }}
-            pagination={{ pageSize: 10, showSizeChanger: true }}
+            loading={surveyLoading}
+            scroll={{ x: 1200 }}
+            pagination={{
+              current: surveyPagination.current,
+              pageSize: surveyPagination.pageSize,
+              total: surveyPagination.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+              onChange: (page, pageSize) => setSurveyPagination({ ...surveyPagination, current: page, pageSize })
+            }}
           />
         </Card>
       )
@@ -332,35 +451,40 @@ const SalesEntry = () => {
         onCancel={() => setDesignModalVisible(false)}
         width={600}
         destroyOnClose
+        confirmLoading={designLoading}
       >
         <Form form={designForm} layout="vertical">
           <Form.Item name="projectId" label="关联项目" rules={[{ required: true, message: '请选择项目' }]}>
-            <Select placeholder="请选择项目" options={projectOptions} />
+            <Select placeholder="请选择项目" showSearch optionFilterProp="children">
+              {projects.map(p => (
+                <Option key={p.id} value={p.id}>{p.name}</Option>
+              ))}
+            </Select>
           </Form.Item>
-          <Form.Item name="title" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
+          <Form.Item name="name" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
             <Input placeholder="请输入方案名称" />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="version" label="版本号" rules={[{ required: true, message: '请输入版本号' }]}>
-              <Input placeholder="如 v1.0" />
+            <Form.Item name="estimatedPrice" label="预算">
+              <Input type="number" placeholder="请输入预算" prefix="¥" />
             </Form.Item>
-            <Form.Item name="designer" label="设计师" rules={[{ required: true, message: '请输入设计师' }]}>
-              <Input placeholder="请输入设计师" />
+            <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
+              <Select placeholder="请选择状态">
+                <Option value="DRAFT">草稿</Option>
+                <Option value="SUBMITTED">已提交</Option>
+                <Option value="APPROVED">已通过</Option>
+                <Option value="REJECTED">已驳回</Option>
+              </Select>
             </Form.Item>
           </div>
-          <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
-            <Select placeholder="请选择状态">
-              <Option value="draft">草稿</Option>
-              <Option value="submitted">已提交</Option>
-              <Option value="approved">已通过</Option>
-              <Option value="rejected">已驳回</Option>
-            </Select>
+          <Form.Item name="designFile" label="设计文件">
+            <Input placeholder="请输入设计文件路径" />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="handler" label="经手人" rules={[{ required: true, message: '请输入经手人' }]}>
+            <Form.Item name="handler" label="经手人">
               <Input placeholder="请输入经手人" />
             </Form.Item>
-            <Form.Item name="handleTime" label="处理时间" rules={[{ required: true, message: '请选择处理时间' }]}>
+            <Form.Item name="handleTime" label="处理时间">
               <DatePicker showTime style={{ width: '100%' }} placeholder="请选择处理时间" />
             </Form.Item>
           </div>
@@ -377,10 +501,15 @@ const SalesEntry = () => {
         onCancel={() => setContractModalVisible(false)}
         width={600}
         destroyOnClose
+        confirmLoading={contractLoading}
       >
         <Form form={contractForm} layout="vertical">
           <Form.Item name="projectId" label="关联项目" rules={[{ required: true, message: '请选择项目' }]}>
-            <Select placeholder="请选择项目" options={projectOptions} />
+            <Select placeholder="请选择项目" showSearch optionFilterProp="children">
+              {projects.map(p => (
+                <Option key={p.id} value={p.id}>{p.name}</Option>
+              ))}
+            </Select>
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Form.Item name="contractNo" label="合同编号" rules={[{ required: true, message: '请输入合同编号' }]}>
@@ -390,29 +519,29 @@ const SalesEntry = () => {
               <Input type="number" placeholder="请输入金额" prefix="¥" />
             </Form.Item>
           </div>
-          <Form.Item name="signDate" label="签订日期" rules={[{ required: true, message: '请选择签订日期' }]}>
+          <Form.Item name="signDate" label="签订日期">
             <DatePicker style={{ width: '100%' }} placeholder="请选择签订日期" />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="partyA" label="甲方" rules={[{ required: true, message: '请输入甲方' }]}>
+            <Form.Item name="partyA" label="甲方">
               <Input placeholder="请输入甲方" />
             </Form.Item>
-            <Form.Item name="partyB" label="乙方" rules={[{ required: true, message: '请输入乙方' }]}>
+            <Form.Item name="partyB" label="乙方">
               <Input placeholder="请输入乙方" />
             </Form.Item>
           </div>
           <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
             <Select placeholder="请选择状态">
-              <Option value="draft">草稿</Option>
-              <Option value="signed">已签订</Option>
-              <Option value="terminated">已终止</Option>
+              <Option value="DRAFT">草稿</Option>
+              <Option value="SIGNED">已签订</Option>
+              <Option value="TERMINATED">已终止</Option>
             </Select>
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="handler" label="经手人" rules={[{ required: true, message: '请输入经手人' }]}>
+            <Form.Item name="handler" label="经手人">
               <Input placeholder="请输入经手人" />
             </Form.Item>
-            <Form.Item name="handleTime" label="处理时间" rules={[{ required: true, message: '请选择处理时间' }]}>
+            <Form.Item name="handleTime" label="处理时间">
               <DatePicker showTime style={{ width: '100%' }} placeholder="请选择处理时间" />
             </Form.Item>
           </div>
@@ -429,16 +558,21 @@ const SalesEntry = () => {
         onCancel={() => setSurveyModalVisible(false)}
         width={600}
         destroyOnClose
+        confirmLoading={surveyLoading}
       >
         <Form form={surveyForm} layout="vertical">
           <Form.Item name="projectId" label="关联项目" rules={[{ required: true, message: '请选择项目' }]}>
-            <Select placeholder="请选择项目" options={projectOptions} />
+            <Select placeholder="请选择项目" showSearch optionFilterProp="children">
+              {projects.map(p => (
+                <Option key={p.id} value={p.id}>{p.name}</Option>
+              ))}
+            </Select>
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="surveyDate" label="量房日期" rules={[{ required: true, message: '请选择量房日期' }]}>
+            <Form.Item name="surveyDate" label="量房日期">
               <DatePicker style={{ width: '100%' }} placeholder="请选择量房日期" />
             </Form.Item>
-            <Form.Item name="surveyor" label="量房师" rules={[{ required: true, message: '请输入量房师' }]}>
+            <Form.Item name="surveyor" label="量房师">
               <Input placeholder="请输入量房师" />
             </Form.Item>
           </div>
@@ -446,15 +580,23 @@ const SalesEntry = () => {
             <Form.Item name="area" label="面积(㎡)" rules={[{ required: true, message: '请输入面积' }]}>
               <Input type="number" placeholder="请输入面积" />
             </Form.Item>
-            <Form.Item name="layout" label="户型" rules={[{ required: true, message: '请输入户型' }]}>
+            <Form.Item name="layout" label="户型">
               <Input placeholder="如 三室两厅一卫" />
             </Form.Item>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="handler" label="经手人" rules={[{ required: true, message: '请输入经手人' }]}>
+            <Form.Item name="floor" label="楼层">
+              <Input type="number" placeholder="请输入楼层" />
+            </Form.Item>
+            <Form.Item name="orientation" label="朝向">
+              <Input placeholder="请输入朝向" />
+            </Form.Item>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item name="handler" label="经手人">
               <Input placeholder="请输入经手人" />
             </Form.Item>
-            <Form.Item name="handleTime" label="处理时间" rules={[{ required: true, message: '请选择处理时间' }]}>
+            <Form.Item name="handleTime" label="处理时间">
               <DatePicker showTime style={{ width: '100%' }} placeholder="请选择处理时间" />
             </Form.Item>
           </div>

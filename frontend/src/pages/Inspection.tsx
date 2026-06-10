@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   Table,
@@ -13,44 +13,115 @@ import {
   Tag,
   Drawer,
   Descriptions,
-  Divider
+  Divider,
+  Popconfirm
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { InspectionTask } from '@/types'
+import type { InspectionTask, Project, ConstructionStage } from '@/types'
 import { getStatusText, getStatusColor, formatDate, formatDateOnly } from '@/utils'
-import { mockInspectionTasks, mockProjects, mockConstructionStages } from '@/mock/data'
+import {
+  getInspectionTaskList,
+  createInspectionTask,
+  updateInspectionTask,
+  deleteInspectionTask,
+  getInspectionTaskDetail,
+  completeInspection
+} from '@/api/inspection'
+import { getProjectList } from '@/api/project'
+import { getConstructionStagesByProject } from '@/api/construction'
 import dayjs from 'dayjs'
 
 const { Option } = Select
 const { TextArea } = Input
 
 const Inspection = () => {
-  const [data, setData] = useState<InspectionTask[]>(mockInspectionTasks)
+  const [data, setData] = useState<InspectionTask[]>([])
+  const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [completeModalVisible, setCompleteModalVisible] = useState(false)
   const [editingItem, setEditingItem] = useState<InspectionTask | null>(null)
   const [detailItem, setDetailItem] = useState<InspectionTask | null>(null)
   const [form] = Form.useForm()
   const [completeForm] = Form.useForm()
-  const [completeModalVisible, setCompleteModalVisible] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [stages, setStages] = useState<ConstructionStage[]>([])
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
+  const [statusFilter, setStatusFilter] = useState<string>()
 
-  const projectOptions = mockProjects.map(p => ({ value: p.id, label: p.name }))
+  const loadProjects = async () => {
+    try {
+      const response = await getProjectList({ page: 1, pageSize: 1000 })
+      setProjects(response.data.list || [])
+    } catch (error) {
+      console.error('加载项目列表失败', error)
+    }
+  }
 
-  const getStageOptions = (projectId: string) => {
-    return mockConstructionStages
-      .filter(s => s.projectId === projectId)
-      .map(s => ({ value: s.id, label: s.name }))
+  const loadStages = async (projectId: number) => {
+    try {
+      const response = await getConstructionStagesByProject(projectId)
+      setStages(response.data || [])
+    } catch (error) {
+      console.error('加载施工阶段失败', error)
+    }
+  }
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const params: Record<string, unknown> = {
+        page: pagination.current,
+        pageSize: pagination.pageSize
+      }
+      if (statusFilter) {
+        params.status = statusFilter
+      }
+      const response = await getInspectionTaskList(params)
+      setData(response.data.list || [])
+      setPagination({ current: response.data.page || 1, pageSize: response.data.pageSize || 10, total: response.data.total || 0 })
+    } catch (error) {
+      console.error('加载巡检任务失败', error)
+      message.error('加载巡检任务失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [pagination.current, pagination.pageSize, statusFilter])
+
+  const getProjectName = (projectId: number) => {
+    return projects.find(p => p.id === projectId)?.name || '-'
+  }
+
+  const getStageName = (stageId?: number) => {
+    if (!stageId) return '-'
+    return stages.find(s => s.id === stageId)?.name || '-'
+  }
+
+  const handleProjectChange = (projectId: number) => {
+    loadStages(projectId)
   }
 
   const handleAdd = () => {
     setEditingItem(null)
     form.resetFields()
+    setStages([])
     setModalVisible(true)
   }
 
-  const handleEdit = (record: InspectionTask) => {
+  const handleEdit = async (record: InspectionTask) => {
     setEditingItem(record)
+    if (record.projectId) {
+      await loadStages(record.projectId)
+    }
     form.setFieldsValue({
       ...record,
       planDate: record.planDate ? dayjs(record.planDate) : null,
@@ -59,45 +130,49 @@ const Inspection = () => {
     setModalVisible(true)
   }
 
-  const handleDelete = (id: string) => {
-    setData(prev => prev.filter(item => item.id !== id))
-    message.success('删除成功')
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteInspectionTask(id)
+      message.success('删除成功')
+      loadData()
+    } catch (error) {
+      console.error('删除失败', error)
+      message.error('删除失败')
+    }
   }
 
-  const handleSubmit = () => {
-    form.validateFields().then(values => {
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields()
       const data = {
         ...values,
-        planDate: values.planDate?.format('YYYY-MM-DD') || '',
+        planDate: values.planDate?.format('YYYY-MM-DD') || undefined,
         handleTime: values.handleTime?.format('YYYY-MM-DD HH:mm:ss') || undefined
       }
-      const projectName = mockProjects.find(p => p.id === values.projectId)?.name || ''
-      const stageName = mockConstructionStages.find(s => s.id === values.stageId)?.name
+      
       if (editingItem) {
-        setData(prev => prev.map(item =>
-          item.id === editingItem.id ? { ...item, ...data, projectName, stageName } : item
-        ))
+        await updateInspectionTask(editingItem.id, data)
         message.success('更新成功')
       } else {
-        const newItem: InspectionTask = {
-          ...data,
-          projectName,
-          stageName,
-          result: 'pending',
-          status: 'pending',
-          id: String(Date.now()),
-          createdAt: new Date().toISOString()
-        }
-        setData(prev => [newItem, ...prev])
+        await createInspectionTask(data)
         message.success('创建成功')
       }
       setModalVisible(false)
-    })
+      loadData()
+    } catch (error) {
+      console.error('提交失败', error)
+    }
   }
 
-  const handleViewDetail = (record: InspectionTask) => {
-    setDetailItem(record)
-    setDrawerVisible(true)
+  const handleViewDetail = async (record: InspectionTask) => {
+    try {
+      const response = await getInspectionTaskDetail(record.id)
+      setDetailItem(response.data)
+      setDrawerVisible(true)
+    } catch (error) {
+      console.error('获取详情失败', error)
+      message.error('获取详情失败')
+    }
   }
 
   const handleComplete = (record: InspectionTask) => {
@@ -111,30 +186,29 @@ const Inspection = () => {
     setCompleteModalVisible(true)
   }
 
-  const handleSubmitComplete = () => {
-    completeForm.validateFields().then(values => {
+  const handleSubmitComplete = async () => {
+    try {
+      const values = await completeForm.validateFields()
       if (detailItem) {
-        setData(prev => prev.map(item =>
-          item.id === detailItem.id
-            ? {
-                ...item,
-                ...values,
-                status: 'completed',
-                actualDate: new Date().toISOString(),
-                handleTime: new Date().toISOString()
-              }
-            : item
-        ))
+        await completeInspection(detailItem.id, {
+          result: values.result,
+          issues: values.issues,
+          rectificationDeadline: values.rectificationDeadline
+        })
         message.success('巡检完成')
+        setCompleteModalVisible(false)
+        setDrawerVisible(false)
+        loadData()
       }
-      setCompleteModalVisible(false)
-      setDrawerVisible(false)
-    })
+    } catch (error) {
+      console.error('处理失败', error)
+      message.error('处理失败')
+    }
   }
 
   const columns: ColumnsType<InspectionTask> = [
-    { title: '项目名称', dataIndex: 'projectName', key: 'projectName', ellipsis: true },
-    { title: '阶段', dataIndex: 'stageName', key: 'stageName', width: 120 },
+    { title: '项目名称', dataIndex: 'projectId', key: 'projectName', ellipsis: true, render: (projectId: number) => getProjectName(projectId) },
+    { title: '阶段', dataIndex: 'stageId', key: 'stageName', width: 120, render: (stageId?: number) => getStageName(stageId) },
     { title: '标题', dataIndex: 'title', key: 'title', width: 150 },
     { title: '计划日期', dataIndex: 'planDate', key: 'planDate', width: 120, render: (d) => formatDateOnly(d || '') },
     { title: '巡检员', dataIndex: 'inspector', key: 'inspector', width: 100 },
@@ -144,10 +218,10 @@ const Inspection = () => {
       key: 'result',
       width: 100,
       render: (result?: string) => {
-        if (!result || result === 'pending') {
+        if (!result) {
           return <Tag color="default">待检查</Tag>
         }
-        if (result === 'fail') {
+        if (result === 'FAIL') {
           return <Tag color="red" icon={<ExclamationCircleOutlined />}>不通过</Tag>
         }
         return <Tag color={getStatusColor(result)}>{getStatusText(result)}</Tag>
@@ -172,7 +246,7 @@ const Inspection = () => {
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             详情
           </Button>
-          {record.status !== 'completed' && (
+          {record.status !== 'COMPLETED' && (
             <Button type="link" size="small" onClick={() => handleComplete(record)}>
               处理
             </Button>
@@ -180,16 +254,18 @@ const Inspection = () => {
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
-            删除
-          </Button>
+          <Popconfirm title="确定要删除吗？" onConfirm={() => handleDelete(record.id)}>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       )
     }
   ]
 
   const rowClassName = (record: InspectionTask) => {
-    return record.result === 'fail' ? 'table-row-danger' : ''
+    return record.result === 'FAIL' ? 'table-row-danger' : ''
   }
 
   return (
@@ -210,13 +286,35 @@ const Inspection = () => {
           </Button>
         }
       >
+        <Space style={{ marginBottom: 16 }} wrap>
+          <Select
+            placeholder="状态筛选"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: 150 }}
+            allowClear
+          >
+            <Option value="PENDING">待处理</Option>
+            <Option value="IN_PROGRESS">进行中</Option>
+            <Option value="COMPLETED">已完成</Option>
+          </Select>
+        </Space>
         <Table
           columns={columns}
           dataSource={data}
           rowKey="id"
           rowClassName={rowClassName}
+          loading={loading}
           scroll={{ x: 1200 }}
-          pagination={{ pageSize: 10, showSizeChanger: true }}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+            onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize })
+          }}
         />
       </Card>
 
@@ -227,15 +325,25 @@ const Inspection = () => {
         onCancel={() => setModalVisible(false)}
         width={600}
         destroyOnClose
+        confirmLoading={loading}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="projectId" label="关联项目" rules={[{ required: true, message: '请选择项目' }]}>
-            <Select placeholder="请选择项目" options={projectOptions} />
+            <Select
+              placeholder="请选择项目"
+              showSearch
+              optionFilterProp="children"
+              onChange={handleProjectChange}
+            >
+              {projects.map(p => (
+                <Option key={p.id} value={p.id}>{p.name}</Option>
+              ))}
+            </Select>
           </Form.Item>
           <Form.Item name="stageId" label="施工阶段">
             <Select placeholder="请选择施工阶段">
-              {getStageOptions(form.getFieldValue('projectId') || '').map(option => (
-                <Option key={option.value} value={option.value}>{option.label}</Option>
+              {stages.map(option => (
+                <Option key={option.id} value={option.id}>{option.name}</Option>
               ))}
             </Select>
           </Form.Item>
@@ -243,21 +351,31 @@ const Inspection = () => {
             <Input placeholder="请输入巡检标题" />
           </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="planDate" label="计划日期" rules={[{ required: true, message: '请选择计划日期' }]}>
+            <Form.Item name="planDate" label="计划日期">
               <DatePicker style={{ width: '100%' }} placeholder="请选择计划日期" />
             </Form.Item>
-            <Form.Item name="inspector" label="巡检员" rules={[{ required: true, message: '请输入巡检员' }]}>
+            <Form.Item name="inspector" label="巡检员">
               <Input placeholder="请输入巡检员" />
             </Form.Item>
           </div>
+          <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
+            <Select placeholder="请选择状态">
+              <Option value="PENDING">待处理</Option>
+              <Option value="IN_PROGRESS">进行中</Option>
+              <Option value="COMPLETED">已完成</Option>
+            </Select>
+          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="handler" label="经手人" rules={[{ required: true, message: '请输入经手人' }]}>
+            <Form.Item name="handler" label="经手人">
               <Input placeholder="请输入经手人" />
             </Form.Item>
-            <Form.Item name="handleTime" label="处理时间" rules={[{ required: true, message: '请选择处理时间' }]}>
+            <Form.Item name="handleTime" label="处理时间">
               <DatePicker showTime style={{ width: '100%' }} placeholder="请选择处理时间" />
             </Form.Item>
           </div>
+          <Form.Item name="issues" label="备注">
+            <TextArea rows={3} placeholder="请输入备注" />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -267,7 +385,7 @@ const Inspection = () => {
         open={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         footer={
-          detailItem?.status !== 'completed' && (
+          detailItem?.status !== 'COMPLETED' && (
             <Space>
               <Button type="primary" onClick={() => handleComplete(detailItem!)}>
                 处理巡检
@@ -279,18 +397,19 @@ const Inspection = () => {
         {detailItem && (
           <div>
             <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="项目名称">{detailItem.projectName}</Descriptions.Item>
-              <Descriptions.Item label="施工阶段">{detailItem.stageName || '-'}</Descriptions.Item>
+              <Descriptions.Item label="项目名称">{getProjectName(detailItem.projectId)}</Descriptions.Item>
+              <Descriptions.Item label="施工阶段">{getStageName(detailItem.stageId)}</Descriptions.Item>
               <Descriptions.Item label="巡检标题">{detailItem.title}</Descriptions.Item>
               <Descriptions.Item label="计划日期">{formatDateOnly(detailItem.planDate || '')}</Descriptions.Item>
-              <Descriptions.Item label="巡检员">{detailItem.inspector}</Descriptions.Item>
+              <Descriptions.Item label="实际日期">{formatDateOnly(detailItem.actualDate || '')}</Descriptions.Item>
+              <Descriptions.Item label="巡检员">{detailItem.inspector || '-'}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={getStatusColor(detailItem.status)}>{getStatusText(detailItem.status)}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="结果">
-                {!detailItem.result || detailItem.result === 'pending' ? (
+                {!detailItem.result ? (
                   <Tag color="default">待检查</Tag>
-                ) : detailItem.result === 'fail' ? (
+                ) : detailItem.result === 'FAIL' ? (
                   <Tag color="red" icon={<ExclamationCircleOutlined />}>不通过</Tag>
                 ) : (
                   <Tag color={getStatusColor(detailItem.result)}>{getStatusText(detailItem.result)}</Tag>
@@ -320,19 +439,20 @@ const Inspection = () => {
         onCancel={() => setCompleteModalVisible(false)}
         width={600}
         destroyOnClose
+        confirmLoading={loading}
       >
         <Form form={completeForm} layout="vertical">
           <Form.Item name="result" label="巡检结果" rules={[{ required: true, message: '请选择巡检结果' }]}>
             <Select placeholder="请选择巡检结果">
-              <Option value="pass">通过</Option>
-              <Option value="fail">不通过</Option>
+              <Option value="PASS">通过</Option>
+              <Option value="FAIL">不通过</Option>
             </Select>
           </Form.Item>
           <Form.Item name="issues" label="发现问题">
             <TextArea rows={4} placeholder="请描述发现的问题" />
           </Form.Item>
           <Form.Item name="rectificationDeadline" label="整改期限">
-            <TextArea rows={4} placeholder="请填写整改期限" />
+            <TextArea rows={3} placeholder="请填写整改要求" />
           </Form.Item>
         </Form>
       </Modal>

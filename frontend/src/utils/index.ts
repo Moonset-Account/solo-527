@@ -1,5 +1,9 @@
 import dayjs from 'dayjs'
-import type { ProcessRecordType } from '@/types'
+import type {
+  ProcessRecordType,
+  FeedbackType,
+  AfterSalesType
+} from '@/types'
 
 export const formatDate = (date: string | Date | number, format = 'YYYY-MM-DD HH:mm:ss'): string => {
   if (!date) return '-'
@@ -11,85 +15,118 @@ export const formatDateOnly = (date: string | Date | number): string => {
   return dayjs(date).format('YYYY-MM-DD')
 }
 
-export const formatMoney = (amount: number): string => {
+export const formatMoney = (amount: number | string): string => {
   if (amount === undefined || amount === null) return '-'
-  return `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount
+  return `¥${num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export const getStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
-    pending: '待处理',
-    in_progress: '进行中',
-    completed: '已完成',
-    cancelled: '已取消',
-    processing: '处理中',
-    resolved: '已解决',
-    pass: '通过',
-    fail: '不通过',
-    draft: '草稿',
-    submitted: '已提交',
-    approved: '已通过',
-    rejected: '已驳回',
-    signed: '已签订',
-    terminated: '已终止',
-    delayed: '已延期'
+    PENDING: '待处理',
+    DESIGNING: '设计中',
+    CONSTRUCTING: '施工中',
+    COMPLETED: '已完成',
+    DELAYED: '已延期',
+    IN_PROGRESS: '进行中',
+    DRAFT: '草稿',
+    SUBMITTED: '已提交',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    SIGNED: '已签订',
+    TERMINATED: '已终止',
+    PROCESSED: '已处理',
+    RESOLVED: '已解决',
+    PASS: '通过',
+    FAIL: '不通过',
+    PROCESSING: '处理中',
+    CLOSED: '已关闭'
   }
   return statusMap[status] || status
 }
 
 export const getStatusColor = (status: string): string => {
   const colorMap: Record<string, string> = {
-    pending: 'gold',
-    in_progress: 'blue',
-    completed: 'green',
-    cancelled: 'red',
-    processing: 'orange',
-    resolved: 'green',
-    pass: 'green',
-    fail: 'red',
-    draft: 'default',
-    submitted: 'blue',
-    approved: 'green',
-    rejected: 'red',
-    signed: 'green',
-    terminated: 'red',
-    delayed: 'orange'
+    PENDING: 'gold',
+    DESIGNING: 'blue',
+    CONSTRUCTING: 'blue',
+    IN_PROGRESS: 'blue',
+    COMPLETED: 'green',
+    DELAYED: 'orange',
+    DRAFT: 'default',
+    SUBMITTED: 'blue',
+    APPROVED: 'green',
+    REJECTED: 'red',
+    SIGNED: 'green',
+    TERMINATED: 'red',
+    PROCESSED: 'green',
+    RESOLVED: 'green',
+    PASS: 'green',
+    FAIL: 'red',
+    PROCESSING: 'orange',
+    CLOSED: 'default'
   }
   return colorMap[status] || 'default'
 }
 
-export const getProcessRecordTypeText = (type: ProcessRecordType): string => {
-  const typeMap: Record<ProcessRecordType, string> = {
-    design: '装修方案',
-    contract: '合同',
-    survey: '量房',
-    inspection: '巡检',
-    aftersales: '售后报修',
-    construction: '施工阶段'
+export const getFeedbackTypeText = (type: FeedbackType | string): string => {
+  const typeMap: Record<string, string> = {
+    COMPLAINT: '投诉',
+    SUGGESTION: '建议',
+    PRAISE: '表扬'
   }
   return typeMap[type] || type
 }
 
-export const getProcessRecordTypeColor = (type: ProcessRecordType): string => {
-  const colorMap: Record<ProcessRecordType, string> = {
-    design: 'blue',
-    contract: 'purple',
-    survey: 'cyan',
-    inspection: 'orange',
-    aftersales: 'red',
-    construction: 'green'
+export const getFeedbackTypeColor = (type: FeedbackType | string): string => {
+  const colorMap: Record<string, string> = {
+    COMPLAINT: 'red',
+    SUGGESTION: 'blue',
+    PRAISE: 'green'
   }
   return colorMap[type] || 'default'
 }
 
-export const getAfterSalesTypeText = (type: string): string => {
+export const getAfterSalesTypeText = (type: AfterSalesType | string): string => {
   const typeMap: Record<string, string> = {
-    quality: '质量问题',
-    installation: '安装问题',
-    material: '材料问题',
-    other: '其他'
+    REPAIR: '维修',
+    MAINTENANCE: '保养',
+    CONSULT: '咨询'
   }
   return typeMap[type] || type
+}
+
+export const getAfterSalesTypeColor = (type: AfterSalesType | string): string => {
+  const colorMap: Record<string, string> = {
+    REPAIR: 'red',
+    MAINTENANCE: 'orange',
+    CONSULT: 'blue'
+  }
+  return colorMap[type] || 'default'
+}
+
+export const getProcessRecordTypeText = (type: ProcessRecordType | string): string => {
+  const typeMap: Record<string, string> = {
+    DESIGN: '装修方案',
+    CONTRACT: '合同',
+    SURVEY: '量房',
+    INSPECTION: '巡检',
+    AFTERSALES: '售后报修',
+    CONSTRUCTION: '施工阶段'
+  }
+  return typeMap[type] || type
+}
+
+export const getProcessRecordTypeColor = (type: ProcessRecordType | string): string => {
+  const colorMap: Record<string, string> = {
+    DESIGN: 'blue',
+    CONTRACT: 'purple',
+    SURVEY: 'cyan',
+    INSPECTION: 'orange',
+    AFTERSALES: 'red',
+    CONSTRUCTION: 'green'
+  }
+  return colorMap[type] || 'default'
 }
 
 export const debounce = <T extends (...args: unknown[]) => unknown>(

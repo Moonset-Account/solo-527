@@ -3,9 +3,10 @@ import { Table, Button, Input, Space, Tag, Card, Modal, Form, Select, DatePicker
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
-import type { Project } from '@/types'
+import type { Project, Customer } from '@/types'
 import { getStatusText, getStatusColor, formatDateOnly, formatMoney } from '@/utils'
 import { getProjectList, createProject, updateProject, deleteProject } from '@/api/project'
+import { getCustomerList } from '@/api/customer'
 import dayjs from 'dayjs'
 
 const { Option } = Select
@@ -14,13 +15,27 @@ const ProjectList = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<Project[]>([])
-  const [searchText, setSearchText] = useState('')
-  const [customerName, setCustomerName] = useState('')
+  const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>()
+  const [customerFilter, setCustomerFilter] = useState<number>()
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingItem, setEditingItem] = useState<Project | null>(null)
   const [form] = Form.useForm()
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [customerLoading, setCustomerLoading] = useState(false)
+
+  const loadCustomers = async () => {
+    setCustomerLoading(true)
+    try {
+      const response = await getCustomerList({ page: 1, pageSize: 1000 })
+      setCustomers(response.data.list || [])
+    } catch (error) {
+      console.error('加载客户列表失败', error)
+    } finally {
+      setCustomerLoading(false)
+    }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -29,14 +44,14 @@ const ProjectList = () => {
         page: pagination.current,
         pageSize: pagination.pageSize
       }
-      if (searchText) {
-        params.name = searchText
-      }
-      if (customerName) {
-        params.customerName = customerName
+      if (keyword) {
+        params.keyword = keyword
       }
       if (statusFilter) {
         params.status = statusFilter
+      }
+      if (customerFilter) {
+        params.customerId = customerFilter
       }
       
       const response = await getProjectList(params)
@@ -55,6 +70,10 @@ const ProjectList = () => {
   }
 
   useEffect(() => {
+    loadCustomers()
+  }, [])
+
+  useEffect(() => {
     loadData()
   }, [pagination.current, pagination.pageSize])
 
@@ -64,9 +83,9 @@ const ProjectList = () => {
   }
 
   const handleReset = () => {
-    setSearchText('')
-    setCustomerName('')
+    setKeyword('')
     setStatusFilter(undefined)
+    setCustomerFilter(undefined)
     setPagination({ current: 1, pageSize: 10, total: 0 })
     setTimeout(() => loadData(), 0)
   }
@@ -82,12 +101,13 @@ const ProjectList = () => {
     form.setFieldsValue({
       ...record,
       startDate: record.startDate ? dayjs(record.startDate) : undefined,
-      endDate: record.endDate ? dayjs(record.endDate) : undefined
+      endDate: record.endDate ? dayjs(record.endDate) : undefined,
+      actualEndDate: record.actualEndDate ? dayjs(record.actualEndDate) : undefined
     })
     setModalVisible(true)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     try {
       await deleteProject(id)
       message.success('删除成功')
@@ -104,7 +124,8 @@ const ProjectList = () => {
       const projectData = {
         ...values,
         startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : undefined,
-        endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined
+        endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : undefined,
+        actualEndDate: values.actualEndDate ? values.actualEndDate.format('YYYY-MM-DD') : undefined
       }
       
       if (editingItem) {
@@ -139,9 +160,10 @@ const ProjectList = () => {
     },
     {
       title: '客户',
-      dataIndex: 'customerName',
+      dataIndex: ['customer', 'name'],
       key: 'customerName',
-      width: 100
+      width: 100,
+      render: (_: unknown, record: Project) => record.customer?.name || '-'
     },
     {
       title: '状态',
@@ -169,7 +191,7 @@ const ProjectList = () => {
       dataIndex: 'totalPrice',
       key: 'totalPrice',
       width: 120,
-      render: (price: number) => formatMoney(price)
+      render: (price: number | string) => formatMoney(price)
     },
     {
       title: '开工日期',
@@ -220,20 +242,27 @@ const ProjectList = () => {
       >
         <Space style={{ marginBottom: 16 }} wrap>
           <Input
-            placeholder="搜索项目名称"
+            placeholder="搜索关键词（项目名称/编号）"
             prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
             style={{ width: 250 }}
             allowClear
           />
-          <Input
-            placeholder="客户名称"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
+          <Select
+            placeholder="选择客户"
+            value={customerFilter}
+            onChange={setCustomerFilter}
             style={{ width: 200 }}
             allowClear
-          />
+            loading={customerLoading}
+            showSearch
+            optionFilterProp="children"
+          >
+            {customers.map(customer => (
+              <Option key={customer.id} value={customer.id}>{customer.name}</Option>
+            ))}
+          </Select>
           <Select
             placeholder="项目状态"
             value={statusFilter}
@@ -241,10 +270,11 @@ const ProjectList = () => {
             style={{ width: 150 }}
             allowClear
           >
-            <Option value="pending">待处理</Option>
-            <Option value="in_progress">进行中</Option>
-            <Option value="completed">已完成</Option>
-            <Option value="cancelled">已取消</Option>
+            <Option value="PENDING">待处理</Option>
+            <Option value="DESIGNING">设计中</Option>
+            <Option value="CONSTRUCTING">施工中</Option>
+            <Option value="COMPLETED">已完成</Option>
+            <Option value="DELAYED">已延期</Option>
           </Select>
           <Button type="primary" onClick={handleSearch}>搜索</Button>
           <Button onClick={handleReset}>重置</Button>
@@ -277,20 +307,33 @@ const ProjectList = () => {
         confirmLoading={loading}
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label="项目名称"
-            rules={[{ required: true, message: '请输入项目名称' }]}
-          >
-            <Input placeholder="请输入项目名称" />
-          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Form.Item
-              name="customerName"
-              label="客户名称"
-              rules={[{ required: true, message: '请输入客户名称' }]}
+              name="projectNo"
+              label="项目编号"
+              rules={[{ required: true, message: '请输入项目编号' }]}
             >
-              <Input placeholder="请输入客户名称" />
+              <Input placeholder="请输入项目编号" />
+            </Form.Item>
+            <Form.Item
+              name="name"
+              label="项目名称"
+              rules={[{ required: true, message: '请输入项目名称' }]}
+            >
+              <Input placeholder="请输入项目名称" />
+            </Form.Item>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item
+              name="customerId"
+              label="客户"
+              rules={[{ required: true, message: '请选择客户' }]}
+            >
+              <Select placeholder="请选择客户" loading={customerLoading} showSearch optionFilterProp="children">
+                {customers.map(customer => (
+                  <Option key={customer.id} value={customer.id}>{customer.name}</Option>
+                ))}
+              </Select>
             </Form.Item>
             <Form.Item
               name="status"
@@ -298,10 +341,11 @@ const ProjectList = () => {
               rules={[{ required: true, message: '请选择项目状态' }]}
             >
               <Select placeholder="请选择项目状态">
-                <Option value="pending">待处理</Option>
-                <Option value="in_progress">进行中</Option>
-                <Option value="completed">已完成</Option>
-                <Option value="cancelled">已取消</Option>
+                <Option value="PENDING">待处理</Option>
+                <Option value="DESIGNING">设计中</Option>
+                <Option value="CONSTRUCTING">施工中</Option>
+                <Option value="COMPLETED">已完成</Option>
+                <Option value="DELAYED">已延期</Option>
               </Select>
             </Form.Item>
           </div>
@@ -328,10 +372,10 @@ const ProjectList = () => {
               <Input type="number" placeholder="请输入总价" prefix="¥" />
             </Form.Item>
             <Form.Item
-              name="address"
-              label="项目地址"
+              name="handler"
+              label="经手人"
             >
-              <Input placeholder="请输入项目地址" />
+              <Input placeholder="请输入经手人" />
             </Form.Item>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -348,6 +392,12 @@ const ProjectList = () => {
               <DatePicker style={{ width: '100%' }} placeholder="请选择竣工日期" />
             </Form.Item>
           </div>
+          <Form.Item
+            name="actualEndDate"
+            label="实际竣工日期"
+          >
+            <DatePicker style={{ width: '100%' }} placeholder="请选择实际竣工日期" />
+          </Form.Item>
           <Form.Item name="remark" label="项目描述">
             <Input.TextArea rows={3} placeholder="请输入项目描述" />
           </Form.Item>

@@ -5,7 +5,7 @@ export const getInspectionTaskList = (params?: Record<string, unknown>) => {
   return request.get<ApiResponse<PaginatedResponse<InspectionTask>>, ApiResponse<PaginatedResponse<InspectionTask>>>('/inspection-tasks', { params })
 }
 
-export const getInspectionTaskDetail = (id: string) => {
+export const getInspectionTaskDetail = (id: number) => {
   return request.get<ApiResponse<InspectionTask>, ApiResponse<InspectionTask>>(`/inspection-tasks/${id}`)
 }
 
@@ -13,18 +13,18 @@ export const createInspectionTask = (data: Partial<InspectionTask>) => {
   return request.post<ApiResponse<InspectionTask>, ApiResponse<InspectionTask>>('/inspection-tasks', data)
 }
 
-export const updateInspectionTask = (id: string, data: Partial<InspectionTask>) => {
+export const updateInspectionTask = (id: number, data: Partial<InspectionTask>) => {
   return request.patch<ApiResponse<InspectionTask>, ApiResponse<InspectionTask>>(`/inspection-tasks/${id}`, data)
 }
 
-export const deleteInspectionTask = (id: string) => {
+export const deleteInspectionTask = (id: number) => {
   return request.delete<ApiResponse<void>, ApiResponse<void>>(`/inspection-tasks/${id}`)
 }
 
-export const getInspectionTasksByProject = (projectId: string) => {
+export const getInspectionTasksByProject = (projectId: number) => {
   return request.get<ApiResponse<InspectionTask[]>, ApiResponse<InspectionTask[]>>(`/inspection-tasks/project/${projectId}`)
 }
 
-export const completeInspection = (id: string, data: { result: string; issues?: string; rectificationDeadline?: string }) => {
+export const completeInspection = (id: number, data: { result: string; issues?: string; rectificationDeadline?: string }) => {
   return request.patch<ApiResponse<InspectionTask>, ApiResponse<InspectionTask>>(`/inspection-tasks/${id}/complete`, data)
 }

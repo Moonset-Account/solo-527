@@ -11,13 +11,35 @@ export interface PaginatedResponse<T> {
   pageSize: number
 }
 
-export type ProjectStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
+export type ProjectStatus = 'PENDING' | 'DESIGNING' | 'CONSTRUCTING' | 'COMPLETED' | 'DELAYED'
+
+export type DesignPlanStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+
+export type ContractStatus = 'DRAFT' | 'SIGNED' | 'TERMINATED'
+
+export type ConstructionStageStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DELAYED'
+
+export type FeedbackStatus = 'PENDING' | 'PROCESSED'
+
+export type FeedbackType = 'COMPLAINT' | 'SUGGESTION' | 'PRAISE'
+
+export type DelayReminderStatus = 'PENDING' | 'RESOLVED'
+
+export type InspectionStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
+
+export type InspectionResult = 'PASS' | 'FAIL'
+
+export type AfterSalesStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CLOSED'
+
+export type AfterSalesType = 'REPAIR' | 'MAINTENANCE' | 'CONSULT'
+
+export type ProcessRecordType = 'DESIGN' | 'CONTRACT' | 'SURVEY' | 'INSPECTION' | 'AFTERSALES' | 'CONSTRUCTION'
 
 export interface Customer {
-  id: string
+  id: number
   name: string
   phone: string
-  address: string
+  address?: string
   email?: string
   remark?: string
   createdAt: string
@@ -25,19 +47,18 @@ export interface Customer {
 }
 
 export interface Project {
-  id: string
+  id: number
   projectNo: string
   name: string
-  customerId: string
-  customerName?: string
   status: ProjectStatus
+  totalPrice: number | string
+  startDate: string
+  endDate: string
+  actualEndDate?: string
+  customerId: number
+  customer?: Customer
   salesPerson?: string
   projectManager?: string
-  totalPrice: number
-  startDate?: string
-  endDate?: string
-  actualEndDate?: string
-  address?: string
   remark?: string
   handler?: string
   handleTime?: string
@@ -45,16 +66,13 @@ export interface Project {
   updatedAt: string
 }
 
-export type DesignPlanStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
-
 export interface DesignPlan {
-  id: string
-  projectId: string
-  projectName?: string
+  id: number
+  projectId: number
   name: string
-  description?: string
+  estimatedPrice?: number | string
   designFile?: string
-  estimatedPrice?: number
+  description?: string
   status: DesignPlanStatus
   handler?: string
   handleTime?: string
@@ -62,29 +80,25 @@ export interface DesignPlan {
   updatedAt: string
 }
 
-export type ContractStatus = 'draft' | 'signed' | 'terminated'
-
 export interface Contract {
-  id: string
-  projectId: string
-  projectName: string
+  id: number
+  projectId: number
   contractNo: string
-  amount: number
+  amount: number | string
   signDate: string
   partyA: string
   partyB: string
   description?: string
   status: ContractStatus
-  handler: string
-  handleTime: string
+  handler?: string
+  handleTime?: string
   createdAt: string
   updatedAt: string
 }
 
 export interface HouseSurvey {
-  id: string
-  projectId: string
-  projectName?: string
+  id: number
+  projectId: number
   surveyDate?: string
   surveyor?: string
   area: number
@@ -99,19 +113,16 @@ export interface HouseSurvey {
   updatedAt: string
 }
 
-export type StageStatus = 'pending' | 'in_progress' | 'completed' | 'delayed'
-
 export interface ConstructionStage {
-  id: string
-  projectId: string
-  projectName?: string
+  id: number
+  projectId: number
   name: string
   order: number
   startDate?: string
   endDate?: string
   actualStartDate?: string
   actualEndDate?: string
-  status: StageStatus
+  status: ConstructionStageStatus
   description?: string
   handler?: string
   handleTime?: string
@@ -120,26 +131,19 @@ export interface ConstructionStage {
 }
 
 export interface StagePhoto {
-  id: string
-  stageId: string
-  stageName?: string
-  projectId: string
+  id: number
+  projectId: number
   title: string
-  photoUrl: string
   description?: string
+  photoUrl: string
   uploader?: string
   uploadTime?: string
   createdAt: string
 }
 
-export type FeedbackStatus = 'pending' | 'processing' | 'resolved'
-
-export type FeedbackType = 'quality' | 'schedule' | 'service' | 'other'
-
 export interface CustomerFeedback {
-  id: string
-  projectId: string
-  projectName?: string
+  id: number
+  projectId: number
   content: string
   type: FeedbackType
   feedbackTime?: string
@@ -150,32 +154,22 @@ export interface CustomerFeedback {
   createdAt: string
 }
 
-export type ReminderStatus = 'pending' | 'resolved'
-
 export interface DelayReminder {
-  id: string
-  projectId: string
-  projectName?: string
-  stageId?: string
-  stageName?: string
+  id: number
+  projectId: number
+  stageId?: number
   reason?: string
   days: number
   remindTime?: string
-  status: ReminderStatus
+  status: DelayReminderStatus
   handler?: string
   createdAt: string
 }
 
-export type InspectionStatus = 'pending' | 'in_progress' | 'completed'
-
-export type InspectionResult = 'pass' | 'fail' | 'pending'
-
 export interface InspectionTask {
-  id: string
-  projectId: string
-  projectName?: string
-  stageId?: string
-  stageName?: string
+  id: number
+  projectId: number
+  stageId?: number
   title: string
   planDate?: string
   inspector?: string
@@ -189,37 +183,31 @@ export interface InspectionTask {
   createdAt: string
 }
 
-export type AfterSalesStatus = 'pending' | 'processing' | 'resolved'
-
-export type AfterSalesType = 'quality' | 'installation' | 'material' | 'other'
-
 export interface AfterSales {
-  id: string
-  projectId: string
-  projectName?: string
+  id: number
+  projectId: number
   title: string
-  type: AfterSalesType
   description?: string
-  reporter?: string
   reportTime?: string
+  reporter?: string
+  type: AfterSalesType
   solution?: string
-  cost?: number
-  status: AfterSalesStatus
+  cost?: number | string
   handler?: string
   handleTime?: string
+  status: AfterSalesStatus
   createdAt: string
 }
 
 export interface MaterialCost {
-  id: string
-  projectId: string
-  projectName?: string
+  id: number
+  projectId: number
   materialName: string
   specification?: string
   quantity: number
   unit?: string
-  unitPrice: number
-  totalPrice: number
+  unitPrice: number | string
+  totalPrice: number | string
   supplier?: string
   purchaseDate?: string
   handler?: string
@@ -227,19 +215,14 @@ export interface MaterialCost {
   createdAt: string
 }
 
-export type ProcessRecordType = 'design' | 'contract' | 'survey' | 'inspection' | 'aftersales' | 'construction'
-
-export type ProcessRecordStatus = string
-
 export interface ProcessRecord {
-  id: string
+  id: number
   type: ProcessRecordType
   title: string
   handler: string
   handleTime: string
-  status: ProcessRecordStatus
-  projectId: string
-  projectName: string
+  status: string
+  projectId: number
   description?: string
 }
 
@@ -252,7 +235,7 @@ export interface MonthlySummary {
 }
 
 export interface ProjectSummary {
-  projectId: string
+  projectId: number
   projectName: string
   totalRevenue: number
   materialCost: number
