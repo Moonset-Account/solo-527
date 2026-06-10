@@ -324,7 +324,7 @@ const handleEdit = (row) => {
 
 const handleDelete = async (row) => {
   try {
-    await adminDeleteChapter(selectedCourseId.value, row.id)
+    await adminDeleteChapter(row.id)
     chapterList.value = chapterList.value.filter(c => c.id !== row.id)
     ElMessage.success('删除成功')
   } catch (e) {
@@ -381,22 +381,18 @@ const submitForm = async () => {
     await formRef.value.validate()
     submitting.value = true
     if (isEdit.value) {
-      await adminUpdateChapter(selectedCourseId.value, editingId.value, formData)
+      await adminUpdateChapter(editingId.value, { ...formData, courseId: selectedCourseId.value })
       ElMessage.success('更新成功')
     } else {
-      const res = await adminCreateChapter(selectedCourseId.value, formData)
-      chapterList.value.push({
-        id: res.data?.id || Date.now(),
-        ...formData,
-        completed: false
-      })
+      await adminCreateChapter({ ...formData, courseId: selectedCourseId.value })
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
     loadChapters()
   } catch (e) {
     if (e !== false) {
-      ElMessage.error(e.message || '保存失败')
+      const msg = e?.response?.data?.message || e?.message || '保存失败'
+      ElMessage.error(msg)
     }
   } finally {
     submitting.value = false

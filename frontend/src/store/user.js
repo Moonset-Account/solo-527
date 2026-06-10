@@ -1,57 +1,78 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getToken, setToken, removeToken, getUserInfo as loadUserInfo, setUserInfo as persistUserInfo, removeUserInfo } from '@/utils/auth'
-import { login, getCurrentUser } from '@/api'
+import {
+  getToken as readToken,
+  setToken as writeToken,
+  removeToken,
+  getUserInfo as readUserInfo,
+  setUserInfo as writeUserInfo,
+  removeUserInfo
+} from '@/utils/auth'
+import { login as apiLogin, getCurrentUser as apiGetCurrentUser } from '@/api'
 
 export const useUserStore = defineStore('user', () => {
-  const token = ref(getToken())
-  const userInfo = ref(loadUserInfo())
+  const token = ref(readToken())
+  const userInfo = ref(readUserInfo())
 
   const isLoggedIn = computed(() => !!token.value)
   const userRole = computed(() => userInfo.value?.role || 'MEMBER')
   const isAdmin = computed(() => userRole.value === 'ADMIN')
   const isTeacher = computed(() => userRole.value === 'TEACHER' || userRole.value === 'ADMIN')
 
-  const setToken = (newToken) => {
+  const saveToken = (newToken) => {
     token.value = newToken
     if (newToken) {
-      setToken(newToken)
+      writeToken(newToken)
     } else {
       removeToken()
     }
   }
 
-  const setUserInfo = (info) => {
+  const saveUserInfo = (info) => {
     userInfo.value = info
     if (info) {
-      persistUserInfo(info)
+      writeUserInfo(info)
     } else {
       removeUserInfo()
     }
   }
 
-  const login = async (loginData) => {
-    const res = await login(loginData)
-    const { token: tokenVal, userInfo: userVal } = res.data || {}
-    if (tokenVal) setToken(tokenVal)
-    if (userVal) setUserInfo(userVal)
-    if (tokenVal && !userVal) {
-      try {
-        await fetchCurrentUser()
-      } catch (_) {}
+  const doLogin = async (loginData) => {
+    const res = await apiLogin(loginData)
+    const data = res.data || {}
+    saveToken(data.token)
+    const info = {
+      id: data.userId,
+      userId: data.userId,
+      username: data.username,
+      nickname: data.nickname,
+      avatar: data.avatar,
+      role: data.role
     }
+    saveUserInfo(info)
     return res
   }
 
   const fetchCurrentUser = async () => {
-    const res = await getCurrentUser()
-    setUserInfo(res.data)
+    const res = await apiGetCurrentUser()
+    const data = res.data || {}
+    saveUserInfo({
+      id: data.id,
+      userId: data.id,
+      username: data.username,
+      nickname: data.nickname,
+      avatar: data.avatar,
+      role: data.role,
+      phone: data.phone,
+      email: data.email,
+      memberExpireTime: data.memberExpireTime
+    })
     return res
   }
 
   const updateUserInfo = (info) => {
     const merged = { ...(userInfo.value || {}), ...info }
-    setUserInfo(merged)
+    saveUserInfo(merged)
   }
 
   const logout = async () => {
@@ -73,9 +94,9 @@ export const useUserStore = defineStore('user', () => {
     userRole,
     isAdmin,
     isTeacher,
-    login,
-    setToken,
-    setUserInfo,
+    login: doLogin,
+    saveToken,
+    saveUserInfo,
     fetchCurrentUser,
     updateUserInfo,
     logout,

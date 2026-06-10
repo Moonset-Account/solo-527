@@ -73,11 +73,11 @@ export const getRepurchaseStats = (referrerId) => {
   })
 }
 
-export const adminCreateCommissionDispute = (data) => {
-  return adminTriggerCommissionDispute({
-    orderId: data.orderId,
-    note: data.reason || data.remark || data.note || ''
-  })
+export const adminCreateCommissionDispute = (orderIdOrData, extra) => {
+  const payload = typeof orderIdOrData === 'object'
+    ? { orderId: orderIdOrData.orderId, note: orderIdOrData.reason || orderIdOrData.remark || orderIdOrData.note || '' }
+    : { orderId: orderIdOrData, note: extra?.reason || extra?.remark || extra?.note || '' }
+  return adminTriggerCommissionDispute(payload)
 }
 
 export const adminCloseCommissionDispute = (orderId, data) => {

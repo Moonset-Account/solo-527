@@ -119,12 +119,9 @@ import {
 import * as echarts from 'echarts'
 import {
   getDashboardOverview,
+  getDrilldown,
   getCourseCompletionRates,
-  getDisputeOrderList,
-  getStudentUserDetails,
-  getCourseCourseDetails,
-  getOrderOrderDetails,
-  getRevenueOrderDetails
+  getDisputeOrderList
 } from '@/api/stats'
 
 const router = useRouter()
@@ -214,41 +211,30 @@ const toggleDrilldown = (key) => {
 
 const loadDrilldownData = async (key) => {
   try {
-    let res
-    switch (key) {
-      case 'students':
-        res = await getStudentUserDetails()
-        break
-      case 'courses':
-        res = await getCourseCourseDetails()
-        break
-      case 'orders':
-        res = await getOrderOrderDetails()
-        break
-      case 'revenue':
-        res = await getRevenueOrderDetails()
-        break
+    const dimensionMap = {
+      students: 'user',
+      courses: 'course',
+      orders: 'day',
+      revenue: 'day'
     }
-    drilldownData[key] = res.data?.list || mockDrilldown(key)
+    const res = await getDrilldown({ dimension: dimensionMap[key] || 'day' })
+    const data = res.data || {}
+    const stats = data.stats || []
+    const details = data.orderDetails || []
+    drilldownData[key] = stats.map(s => ({
+      name: s.label || s.courseTitle || s.nickname || '--',
+      count: s.orderCount || 0,
+      amount: Number(s.revenue || 0),
+      commission: Number(s.commission || 0),
+      userCount: s.userCount || 0,
+      date: s.label || '--'
+    }))
+    if (details.length > 0) {
+      drilldownData[key + '_details'] = details
+    }
   } catch (e) {
-    drilldownData[key] = mockDrilldown(key)
+    drilldownData[key] = []
   }
-}
-
-const mockDrilldown = (key) => {
-  const names = key === 'students'
-    ? ['新注册用户', '活跃学员', '付费学员', '会员用户', '流失预警']
-    : key === 'courses'
-    ? ['Python入门', 'Vue3实战', 'Node开发', '数据分析', '算法基础']
-    : key === 'orders'
-    ? ['新订单', '已支付', '已完成', '已退款', '待支付']
-    : ['课程收入', '会员收入', '其他收入', '退款扣除', '净收入']
-  return names.map((name, idx) => ({
-    name,
-    count: Math.floor(Math.random() * 500) + 50,
-    amount: Math.random() * 50000 + 1000,
-    date: '2026-06-' + String(10 - idx).padStart(2, '0')
-  }))
 }
 
 const getDrilldownData = (key) => drilldownData[key] || []
@@ -265,32 +251,34 @@ const loadDashboardData = async () => {
   try {
     const res = await getDashboardOverview()
     const data = res.data || {}
-    statsCards[0].value = data.totalStudents || 12586
-    statsCards[1].value = data.totalCourses || 86
-    statsCards[2].value = data.todayOrders || 342
-    statsCards[3].value = data.monthlyRevenue || 285600
+    statsCards[0].value = data.totalUsers || 0
+    statsCards[1].value = data.totalCourses || 0
+    statsCards[2].value = data.todayOrders || 0
+    statsCards[3].value = Number(data.todayRevenue || data.totalRevenue || 0)
   } catch (e) {
-    statsCards[0].value = 12586
-    statsCards[1].value = 86
-    statsCards[2].value = 342
-    statsCards[3].value = 285600
+    statsCards[0].value = 0
+    statsCards[1].value = 0
+    statsCards[2].value = 0
+    statsCards[3].value = 0
   }
 }
 
 const loadDisputeOrders = async () => {
   try {
-    const res = await getDisputeOrderList({ page: 1, pageSize: 5 })
-    disputeOrders.value = res.data?.list || mockDisputeOrders()
+    const res = await getDisputeOrderList({ page: 1, size: 5 })
+    const list = res.data?.list || res.data?.records || []
+    disputeOrders.value = list.map(o => {
+      const order = o.order || o
+      return {
+        orderNo: order.orderNo || '--',
+        userName: o.user?.nickname || o.buyerNickname || order.userName || '--',
+        amount: Number(order.payAmount || order.amount || 0)
+      }
+    })
   } catch (e) {
-    disputeOrders.value = mockDisputeOrders()
+    disputeOrders.value = []
   }
 }
-
-const mockDisputeOrders = () => [
-  { orderNo: 'ORD20260608001', userName: '张三', amount: 1299 },
-  { orderNo: 'ORD20260608002', userName: '李四', amount: 599 },
-  { orderNo: 'ORD20260607015', userName: '王五', amount: 2399 }
-]
 
 const renderChart = async () => {
   if (!chartRef.value) return
@@ -303,15 +291,19 @@ const renderChart = async () => {
   let rates = []
 
   try {
-    const res = await getCourseCompletionRates({ period: chartPeriod.value })
-    courseNames = res.data?.map?.(d => d.name) || []
-    rates = res.data?.map?.(d => d.rate) || []
+    const res = await getCourseCompletionRates({})
+    const data = res.data || {}
+    const chapterStats = data.chapterStats || []
+    if (chapterStats.length > 0) {
+      courseNames = chapterStats.map(d => d.chapterTitle || d.label || '--')
+      rates = chapterStats.map(d => parseFloat(d.completionRate) || 0)
+    }
   } catch (e) {
   }
 
   if (courseNames.length === 0) {
-    courseNames = ['Python入门到精通', 'Vue3全家桶实战', 'Node.js后端开发', '数据分析入门', '算法与数据结构', 'Go语言实战', 'React开发指南', '微服务架构']
-    rates = [68, 52, 75, 43, 81, 58, 64, 47]
+    courseNames = []
+    rates = []
   }
 
   const colors = rates.map(rate => {
