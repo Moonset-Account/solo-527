@@ -7,13 +7,13 @@
     "git-clean": "dist/index.js"
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
+    "dev": "bun run ./src/index.ts",
     "dev:node": "tsx src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun",
+    "build": "bun build ./src/index.ts --outdir dist --target bun",
     "build:node": "tsc -p tsconfig.json",
-    "start": "bun run dist/index.js",
+    "start": "bun run ./dist/index.js",
     "start:node": "node dist/index.js",
-    "typecheck": "bunx --bun tsc --noEmit 2>/dev/null || npx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit 2>/dev/null || npx tsc --noEmit"
   },
   "bun": {
     "main": "src/index.ts"

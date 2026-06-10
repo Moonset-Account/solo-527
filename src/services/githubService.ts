@@ -105,7 +105,7 @@ export class GitHubService {
             sha: b.commit.sha,
             authorName: '',
             authorEmail: '',
-            date: b.commit.sha ? (await this.fetchCommitDate(b.commit.sha)) : '',
+            date: '',
             message: '',
           };
 
@@ -118,7 +118,7 @@ export class GitHubService {
               });
               lastCommit.authorName = commitResp.data.commit.author?.name || '';
               lastCommit.authorEmail = commitResp.data.commit.author?.email || '';
-              lastCommit.date = commitResp.data.commit.author?.date || lastCommit.date;
+              lastCommit.date = commitResp.data.commit.author?.date || '';
               lastCommit.message = commitResp.data.commit.message || '';
             } catch {}
           }
@@ -140,11 +140,65 @@ export class GitHubService {
       }
 
       result.branches = allBranches;
+
+      if (result.defaultBranch && allBranches.length > 0) {
+        console.warn(
+          `🔍 正在使用 GitHub Compare API 计算 ${allBranches.length} 个分支的 ahead/behind（可能较慢）...`
+        );
+        const enrichTasks = allBranches.map(async (branch) => {
+          if (branch.name === result.defaultBranch) return branch;
+          const compare = await this.compareCommits(result.defaultBranch, branch.name);
+          branch.aheadOfDefault = compare.ahead;
+          branch.behindDefault = compare.behind;
+          if (compare.status === 'identical') {
+            branch.isMerged = true;
+          } else if (compare.status === 'behind' || (compare.ahead === 0 && compare.behind > 0)) {
+            branch.isMerged = true;
+          } else if (compare.ahead === 0 && compare.behind === 0) {
+            branch.isMerged = true;
+          }
+          return branch;
+        });
+        await Promise.allSettled(enrichTasks);
+      }
     } catch (err: any) {
       console.warn(`通过 GitHub API 获取分支失败: ${err.message}`);
     }
 
     return result;
+  }
+
+  async compareCommits(
+    baseBranch: string,
+    headBranch: string
+  ): Promise<{ ahead: number; behind: number; status: string }> {
+    if (!this.octokit || !this.owner || !this.repo) {
+      return { ahead: 0, behind: 0, status: 'unknown' };
+    }
+
+    try {
+      const { data } = await this.octokit.repos.compareCommits({
+        owner: this.owner,
+        repo: this.repo,
+        base: baseBranch,
+        head: headBranch,
+        per_page: 1,
+      });
+
+      return {
+        ahead: data.ahead_by || 0,
+        behind: data.behind_by || 0,
+        status: data.status || 'unknown',
+      };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (msg.includes('rate limit')) {
+        console.warn(`⚠️  GitHub API 速率限制: 无法比较 ${baseBranch}...${headBranch}`);
+      } else if (msg.includes('404')) {
+        console.warn(`⚠️  无法比较 ${baseBranch}...${headBranch}: 分支或引用不存在`);
+      }
+      return { ahead: 0, behind: 0, status: 'error' };
+    }
   }
 
   private async fetchCommitDate(sha: string): Promise<string> {

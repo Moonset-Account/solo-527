@@ -87,15 +87,17 @@ async function obtainBranchesAndDefault(
   github: GitHubService | null,
   explicitDefaultBranch?: string,
   remoteName: string = 'origin'
-): Promise<{ branches: BranchInfo[]; defaultBranch: string }> {
+): Promise<{ branches: BranchInfo[]; defaultBranch: string; source: 'git' | 'github-api' }> {
   let branches: BranchInfo[] = [];
   let defaultBranch = explicitDefaultBranch || '';
+  let source: 'git' | 'github-api' = 'git';
 
   if (git && ctx.localRepoPath) {
     try {
       if (!defaultBranch) defaultBranch = await git.detectDefaultBranch();
       branches = await git.getBranchesInfo(defaultBranch, []);
-      return { branches, defaultBranch };
+      source = 'git';
+      return { branches, defaultBranch, source };
     } catch (err: any) {
       if (github && github.isAvailable()) {
         console.warn(chalk.yellow(`本地 Git 读取失败(${err.message})，降级使用 GitHub API...`));
@@ -109,7 +111,10 @@ async function obtainBranchesAndDefault(
     const viaApi = await github.fetchBranchesViaApi();
     if (!defaultBranch && viaApi.defaultBranch) defaultBranch = viaApi.defaultBranch;
     if (!defaultBranch) defaultBranch = 'main';
-    if (viaApi.branches.length > 0) branches = viaApi.branches;
+    if (viaApi.branches.length > 0) {
+      branches = viaApi.branches;
+      source = 'github-api';
+    }
   }
 
   if (branches.length === 0) {
@@ -118,7 +123,42 @@ async function obtainBranchesAndDefault(
     );
   }
 
-  return { branches, defaultBranch };
+  return { branches, defaultBranch, source };
+}
+
+async function ensureAheadBehindFilled(
+  branches: BranchInfo[],
+  defaultBranch: string,
+  github: GitHubService | null
+): Promise<BranchInfo[]> {
+  if (!github || !github.isAvailable()) return branches;
+  const missing = branches.filter(
+    (b) => b.name !== defaultBranch && b.aheadOfDefault === 0 && b.behindDefault === 0
+  );
+  if (missing.length === 0) return branches;
+
+  console.warn(
+    chalk.cyan(
+      `🔍 补算 ${missing.length} 个分支的 ahead/behind（GitHub Compare API）...`
+    )
+  );
+
+  await Promise.allSettled(
+    missing.map(async (b) => {
+      const compare = await github.compareCommits(defaultBranch, b.name);
+      b.aheadOfDefault = compare.ahead;
+      b.behindDefault = compare.behind;
+      if (compare.status === 'identical' || compare.status === 'behind') {
+        b.isMerged = true;
+      } else if (compare.ahead === 0 && compare.behind === 0) {
+        b.isMerged = true;
+      } else if (compare.ahead === 0) {
+        b.isMerged = true;
+      }
+    })
+  );
+
+  return branches;
 }
 
 async function obtainProtectionRules(
@@ -217,7 +257,7 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
     console.log();
   }
 
-  const { branches: rawBranches, defaultBranch } = await obtainBranchesAndDefault(
+  const { branches: rawBranches, defaultBranch, source } = await obtainBranchesAndDefault(
     ctx,
     git,
     github,
@@ -225,22 +265,55 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
     remote
   );
 
-  if (!json) console.log(chalk.cyan(`🔍 检测到默认分支: ${defaultBranch}`));
+  if (!json) {
+    const sourceLabel = source === 'git' ? '本地 Git 命令' : 'GitHub REST API';
+    console.log(chalk.cyan(`🔍 检测到默认分支: ${defaultBranch}`));
+    console.log(chalk.gray(`  分支数据源: ${sourceLabel}`));
+  }
 
   if (!json) console.log(chalk.cyan('\n🔍 正在读取分支保护规则...'));
   const protectionRules = await obtainProtectionRules(ctx, git, github);
   const protectedBranchNames = protectionRules.map((r) => r.pattern);
+  const realProtectionFromApi = protectionRules.filter((r) => !['main', 'master', 'develop', 'release/*', 'hotfix/*', 'v*.*'].includes(r.pattern));
   if (!json) {
+    const realCount = realProtectionFromApi.length;
+    const localCount = protectionRules.length - realCount;
     console.log(
       chalk.green(
-        `  ✓ 加载 ${protectionRules.length} 条规则${protectedBranchNames.length > 0 ? ': ' + protectedBranchNames.slice(0, 5).join(', ') + (protectedBranchNames.length > 5 ? ` 等${protectedBranchNames.length}条` : '') : ''}`
+        `  ✓ 加载 ${protectionRules.length} 条规则（真实 API: ${realCount}，本地推断: ${localCount}）`
       )
     );
+    if (protectedBranchNames.length > 0) {
+      console.log(chalk.gray(`    规则列表: ${protectedBranchNames.slice(0, 8).join(', ')}${protectedBranchNames.length > 8 ? ` 等${protectedBranchNames.length}条` : ''}`));
+    }
   }
 
   const branches = applyProtectionToBranches(rawBranches, protectionRules, defaultBranch, git);
 
-  if (!json) console.log(chalk.cyan(`\n🔍 读取到 ${branches.length} 个远端分支`));
+  if (source === 'github-api' || branches.some(b => b.name !== defaultBranch && b.aheadOfDefault === 0 && b.behindDefault === 0)) {
+    await ensureAheadBehindFilled(branches, defaultBranch, github);
+  }
+
+  if (!json) {
+    const unmergedCount = branches.filter((b) => b.aheadOfDefault > 0).length;
+    console.log(
+      chalk.cyan(
+        `\n🔍 读取到 ${branches.length} 个远端分支（其中 ${unmergedCount} 个领先默认分支、存在未合并提交）`
+      )
+    );
+    if (branches.length > 0) {
+      const sample = branches[0];
+      const hasDate = branches.every((b) => b.lastCommit.date !== '');
+      console.log(
+        chalk.gray(
+          `  分支样例: ${sample.name} | 最后提交: ${sample.lastCommit.date ? new Date(sample.lastCommit.date).toLocaleDateString() : 'N/A'}${sample.lastCommit.authorName ? ' | 提交人: ' + sample.lastCommit.authorName : ''}`
+        )
+      );
+      if (!hasDate) {
+        console.warn(chalk.yellow('  ⚠️  部分分支缺少提交时间信息'));
+      }
+    }
+  }
 
   let prMap: Map<string, any> = new Map();
   if (github && github.isAvailable()) {
@@ -271,10 +344,35 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
   if (json) {
     console.log(Formatter.toJson(exportData));
   } else {
+    const integrity = printDataIntegrityReport({
+      analyzed,
+      protectionRules,
+      realProtectionFromApi,
+      prMap,
+      branches,
+      defaultBranch,
+      github,
+    });
+
     Formatter.printSummary(exportData);
+
+    if (!integrity.allComplete) {
+      console.log(chalk.bold.yellow('\n⚠️  数据完整性提示：'));
+      for (const w of integrity.warnings) {
+        console.log(chalk.yellow(`  • ${w}`));
+      }
+      console.log();
+    }
+
     const groups = groupByStatus(analyzed);
     Formatter.printAbandonedBranches(groups.abandoned);
-    Formatter.printUnmergedBranches(groups.unmerged);
+    if (groups.unmerged.length > 0) {
+      Formatter.printUnmergedBranches(groups.unmerged);
+    } else {
+      console.log(chalk.bold(chalk.yellow('🔀 有未合并提交的分支 (Unmerged)')));
+      console.log(chalk.green('  ✓ 无未合并提交，所有分支代码均已合入默认分支'));
+      console.log();
+    }
     Formatter.printStaleBranches(groups.stale);
     if (groups.active.length <= 30) {
       Formatter.printActiveBranches(groups.active);
@@ -286,6 +384,93 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
   }
 
   return { analyzed, exportData, defaultBranch, git, github, analyzer, context: ctx, protectionRules };
+}
+
+function printDataIntegrityReport(ctx: {
+  analyzed: AnalyzedBranch[];
+  protectionRules: BranchProtectionRule[];
+  realProtectionFromApi: BranchProtectionRule[];
+  prMap: Map<string, any[]>;
+  branches: BranchInfo[];
+  defaultBranch: string;
+  github: GitHubService | null;
+}): { allComplete: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+
+  console.log();
+  console.log(chalk.bold('📋 本次扫描数据完整性（5 项关键信息）：'));
+  console.log();
+
+  const total = ctx.branches.length;
+  const hasCommitDate = ctx.branches.filter((b) => b.lastCommit.date !== '').length;
+  const hasCommitAuthor = ctx.branches.filter((b) => b.lastCommit.authorName !== '').length;
+  const hasAheadCalc = ctx.branches.filter(
+    (b) => b.name === ctx.defaultBranch || b.aheadOfDefault !== 0 || b.behindDefault !== 0 || b.isMerged === true
+  ).length;
+  const prBranches = ctx.prMap.size;
+  const prTotal = Array.from(ctx.prMap.values()).reduce((s, a) => s + a.length, 0);
+  const realApiRules = ctx.realProtectionFromApi.length;
+  const allRules = ctx.protectionRules.length;
+
+  let allComplete = true;
+
+  const item = (label: string, detail: string, ok: boolean, warnMsg?: string) => {
+    const mark = ok ? chalk.green('✓') : chalk.yellow('△');
+    console.log(`  ${mark} ${chalk.bold(label)}: ${detail}`);
+    if (!ok) {
+      allComplete = false;
+      if (warnMsg) warnings.push(warnMsg);
+    }
+  };
+
+  item(
+    '① 远端分支清单',
+    `${total} 个分支`,
+    total > 0,
+    total === 0 ? '未能读取到任何远端分支' : undefined
+  );
+
+  item(
+    '② 最后提交时间',
+    `${hasCommitDate}/${total} 个分支有提交时间${hasCommitAuthor ? `，${hasCommitAuthor}/${total} 有提交人` : ''}`,
+    hasCommitDate === total,
+    `${total - hasCommitDate} 个分支缺少最后提交时间`
+  );
+
+  item(
+    '③ 关联 PR 数据',
+    ctx.github?.isAvailable()
+      ? `${prTotal} 条 PR 记录关联到 ${prBranches} 个分支`
+      : '未配置 GITHUB_TOKEN，跳过 PR 关联',
+    !ctx.github?.isAvailable() || (ctx.github.isAvailable() && prTotal >= 0),
+    ctx.github?.isAvailable() && prTotal === 0
+      ? '未获取到任何 PR 数据（仓库可能没有 PR）'
+      : undefined
+  );
+
+  item(
+    '④ 真实保护规则',
+    `${allRules} 条（其中 ${realApiRules} 条来自 GitHub 真实 API，${allRules - realApiRules} 条为本地名称推断）`,
+    realApiRules > 0 || !ctx.github?.isAvailable(),
+    ctx.github?.isAvailable() && realApiRules === 0
+      ? '未读取到 GitHub 真实保护规则（可能仓库未配置任何保护规则，或 Token 权限不足）'
+      : undefined
+  );
+
+  item(
+    '⑤ 未合并提交计算',
+    `${hasAheadCalc}/${total} 个分支计算了 ahead/behind；共 ${ctx.analyzed.filter((b) => b.aheadOfDefault > 0).length} 个分支存在未合并提交`,
+    hasAheadCalc === total,
+    `${total - hasAheadCalc} 个分支未能计算 ahead/behind`
+  );
+
+  console.log();
+  if (allComplete) {
+    console.log(chalk.green('  ✓ 以上 5 项关键信息在本次 scan 中全部齐备 ✓'));
+  }
+  console.log();
+
+  return { allComplete, warnings };
 }
 
 function printAdvice(data: ExportData): void {
