@@ -1,0 +1,749 @@
+// 清河配送平台 - Prisma MySQL 数据模型
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 枚举定义 ====================
+
+// 用户角色
+enum RoleType {
+  ADMIN       // 管理员
+  DISPATCHER  // 调度员
+  SUPERVISOR  // 主管
+}
+
+// 用户状态
+enum UserStatus {
+  ACTIVE    // 启用
+  DISABLED  // 禁用
+}
+
+// 车辆类型
+enum VehicleType {
+  MOTORCYCLE   // 摩托车
+  ELECTRIC_BIKE // 电动车
+  VAN          // 面包车
+}
+
+// 骑手状态
+enum RiderStatus {
+  ONLINE   // 在线
+  OFFLINE  // 离线
+  BUSY     // 忙碌
+  REST     // 休息
+}
+
+// 客户信用等级
+enum CreditLevel {
+  A // 优秀
+  B // 良好
+  C // 一般
+  D // 较差
+}
+
+// 订单类型
+enum OrderType {
+  NORMAL      // 普通
+  URGENCY     // 加急
+  COLD_CHAIN  // 冷链
+  FRAGILE     // 易碎
+}
+
+// 订单优先级
+enum OrderPriority {
+  LOW      // 低
+  NORMAL   // 普通
+  HIGH     // 高
+  URGENT   // 紧急
+}
+
+// 订单状态
+enum OrderStatus {
+  PENDING_ACCEPT // 待接单
+  ACCEPTED       // 已接单
+  ASSIGNED       // 已分派
+  PICKED_UP      // 已取货
+  IN_TRANSIT     // 配送中
+  ARRIVED        // 已到达
+  DELIVERED      // 已送达
+  CANCELLED      // 已取消
+  EXCEPTION      // 异常
+}
+
+// 履约事件类型
+enum TimelineEventType {
+  CREATE           // 创建
+  ACCEPT           // 接单
+  ASSIGN           // 分派
+  PICKUP           // 取货
+  IN_TRANSIT       // 开始配送
+  ARRIVE           // 到达
+  DELIVER          // 送达
+  CANCEL           // 取消
+  EXCEPTION        // 异常
+  REASSIGN         // 改派
+  ROUTE_CHANGE     // 路线变更
+  TEMPERATURE_ALERT // 温度告警
+  NOTE             // 备注
+}
+
+// 操作人类型
+enum OperatorType {
+  SYSTEM   // 系统
+  USER     // 后台用户
+  RIDER    // 骑手
+  CUSTOMER // 客户
+}
+
+// 调度类型
+enum DispatchType {
+  AUTO     // 自动分派
+  MANUAL   // 手动分派
+  REASSIGN // 改派
+}
+
+// 路线规划优化方式
+enum OptimizedBy {
+  MANUAL            // 手动规划
+  SYSTEM_ALGORITHM  // 系统算法
+}
+
+// 告警类型
+enum AlertType {
+  TOO_HIGH        // 温度过高
+  TOO_LOW         // 温度过低
+  DEVICE_OFFLINE  // 设备离线
+}
+
+// 告警级别
+enum AlertLevel {
+  INFO     // 信息
+  WARNING  // 警告
+  DANGER   // 危险
+}
+
+// 告警状态
+enum AlertStatus {
+  OPEN          // 待处理
+  ACKNOWLEDGED  // 已确认
+  RESOLVED      // 已解决
+  IGNORED       // 已忽略
+}
+
+// 赔付来源单据类型
+enum ClaimSourceType {
+  TEMPERATURE_ALERT // 温度告警
+  TIMELINE_RECORD   // 时效记录
+  COMPLAINT         // 客户投诉
+  OTHER             // 其他
+}
+
+// 赔付类型
+enum ClaimType {
+  DAMAGE       // 破损
+  LOSS         // 丢失
+  DELAY        // 延误
+  TEMPERATURE  // 温度异常
+  OTHER        // 其他
+}
+
+// 赔付状态
+enum ClaimStatus {
+  SUBMITTED    // 已提交
+  UNDER_REVIEW // 审核中
+  APPROVED     // 已批准
+  REJECTED     // 已驳回
+  PAID         // 已赔付
+  CLOSED       // 已关闭
+}
+
+// 报表状态
+enum ReportStatus {
+  DRAFT      // 草稿
+  CONFIRMED  // 已确认
+  ARCHIVED   // 已归档
+}
+
+// 异常日志处理状态
+enum ExceptionStatus {
+  NEW         // 新建
+  PROCESSING  // 处理中
+  RESOLVED    // 已解决
+  IGNORED     // 已忽略
+}
+
+// 业务单据类型
+enum BizType {
+  DELIVERY_ORDER   // 配送订单
+  TEMPERATURE_ALERT // 温度告警
+  CLAIM_ORDER      // 赔付工单
+  API_EXCEPTION    // 接口异常
+  SAFETY_REPORT    // 安全报表
+}
+
+// 处理动作类型
+enum ActionType {
+  ASSIGN         // 分派
+  UNASSIGN       // 取消分派
+  COMMENT        // 评论
+  STATUS_CHANGE  // 状态变更
+  ESCALATE       // 升级
+  ATTACH         // 附加
+}
+
+// 通知类型
+enum NotificationType {
+  SYSTEM   // 系统通知
+  DISPATCH // 调度通知
+  ALERT    // 告警通知
+  CLAIM    // 赔付通知
+  REPORT   // 报表通知
+}
+
+// ==================== 数据表定义 ====================
+
+// 1. 用户表
+model User {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  username       String       @unique @db.VarChar(50) // 用户名
+  passwordHash   String       @db.VarChar(255) // 密码哈希
+  realName       String?      @db.VarChar(50) // 真实姓名
+  phone          String?      @unique @db.VarChar(20) // 手机号
+  role           RoleType     @default(DISPATCHER) // 角色
+  status         UserStatus   @default(ACTIVE) // 状态
+  lastLoginAt    DateTime?    // 最后登录时间
+  lastLoginIp    String?      @db.VarChar(50) // 最后登录IP
+  avatarUrl      String?      @db.VarChar(500) // 头像URL
+  remark         String?      @db.VarChar(500) // 备注
+  createdAt      DateTime     @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt      DateTime     @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  userRoles      UserRole[]   // 用户角色关联
+  dispatchedOrders DeliveryOrder[] @relation("DispatcherOrders") // 调度的订单
+  timelines      OrderTimeline[] @relation("OperatorTimelines") // 操作的时效记录
+  dispatchRecords DispatchRecord[] @relation("DispatcherRecords") // 调度记录
+  routePlans     RoutePlan[]  // 创建的路线规划
+  tempAlertsAck  TemperatureAlert[] @relation("AlertAcknowledgedBy") // 确认的告警
+  tempAlertsRes  TemperatureAlert[] @relation("AlertResolvedBy") // 解决的告警
+  claimsApplied  ClaimOrder[] @relation("ClaimApplicant") // 申请的赔付
+  claimsReviewed ClaimOrder[] @relation("ClaimReviewer") // 审核的赔付
+  claimsApproved ClaimOrder[] @relation("ClaimApprover") // 批准的赔付
+  reportsHandler TemperatureSafetyReport[] @relation("ReportHandler") // 处理的报表
+  reportsConfirmed TemperatureSafetyReport[] @relation("ReportConfirmedBy") // 确认的报表
+  exceptionsHandled ApiExceptionLog[] @relation("ExceptionHandler") // 处理的异常
+  viewsHandler   ProcessingView[] @relation("ViewCurrentHandler") // 当前处理的视图
+  viewsProcessed ProcessingView[] @relation("ViewLastProcessedBy") // 处理过的视图
+  notesOperator  ProcessingNote[] @relation("NoteOperator") // 操作的备注
+  notifications  Notification[] // 收到的通知
+
+  @@index([role])
+  @@index([status])
+  @@map("sys_user")
+}
+
+// 2. 骑手表
+model Rider {
+  id              BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  riderNo         String       @unique @db.VarChar(32) // 骑手编号
+  realName        String       @db.VarChar(50) // 真实姓名
+  phone           String       @unique @db.VarChar(20) // 手机号
+  idCardNo        String?      @db.VarChar(18) // 身份证号
+  vehicleType     VehicleType  @default(ELECTRIC_BIKE) // 车辆类型
+  plateNo         String?      @db.VarChar(20) // 车牌号
+  status          RiderStatus  @default(OFFLINE) // 状态
+  currentLng      Decimal?     @db.Decimal(10, 6) // 当前经度
+  currentLat      Decimal?     @db.Decimal(10, 6) // 当前纬度
+  currentDistrict String?      @db.VarChar(100) // 当前区域
+  totalOrders     Int          @default(0) // 完成订单总数
+  rating          Decimal?     @default(5.0) @db.Decimal(3, 2) // 评分
+  avatarUrl       String?      @db.VarChar(500) // 头像URL
+  joinedAt        DateTime     @default(now()) // 入职时间
+  remark          String?      @db.VarChar(500) // 备注
+  createdAt       DateTime     @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt       DateTime     @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  orders          DeliveryOrder[] @relation("RiderOrders") // 配送的订单
+  dispatchRecords DispatchRecord[] @relation("RiderRecords") // 调度记录
+  prevDispatchRecords DispatchRecord[] @relation("PreviousRiderRecords") // 之前的调度记录
+  locations       RiderLocation[] // 轨迹记录
+  timelines       OrderTimeline[] @relation("RiderTimelines") // 操作的时效记录
+
+  @@index([status])
+  @@index([vehicleType])
+  @@index([currentDistrict])
+  @@map("rider")
+}
+
+// 3. 客户表
+model Customer {
+  id           BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  customerNo   String       @unique @db.VarChar(32) // 客户编号
+  companyName  String       @db.VarChar(200) // 公司名称
+  contactName  String       @db.VarChar(50) // 联系人
+  phone        String       @db.VarChar(20) // 联系电话
+  address      String       @db.VarChar(500) // 地址
+  lng          Decimal?     @db.Decimal(10, 6) // 经度
+  lat          Decimal?     @db.Decimal(10, 6) // 纬度
+  district     String?      @db.VarChar(100) // 所在区域
+  creditLevel  CreditLevel  @default(B) // 信用等级
+  status       Int          @default(1) // 状态 1启用 0禁用
+  remark       String?      @db.VarChar(500) // 备注
+  createdAt    DateTime     @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt    DateTime     @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  orders       DeliveryOrder[] // 客户订单
+  reports      TemperatureSafetyReport[] // 客户报表
+
+  @@index([creditLevel])
+  @@index([district])
+  @@index([status])
+  @@map("customer")
+}
+
+// 4. 订单主表
+model DeliveryOrder {
+  id                  BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  orderNo             String        @unique @db.VarChar(32) // 订单号
+  customerId          BigInt        @db.UnsignedBigInt // 客户ID
+  riderId             BigInt?       @db.UnsignedBigInt // 骑手ID
+  dispatcherId        BigInt?       @db.UnsignedBigInt // 调度员ID
+  orderType           OrderType     @default(NORMAL) // 订单类型
+  priority            OrderPriority @default(NORMAL) // 优先级
+  status              OrderStatus   @default(PENDING_ACCEPT) // 状态
+  temperatureRequired Boolean?      // 是否需要温控
+  minTemp             Decimal?      @db.Decimal(5, 2) // 最低温度
+  maxTemp             Decimal?      @db.Decimal(5, 2) // 最高温度
+  goodsDesc           String?       @db.VarChar(500) // 货物描述
+  goodsWeight         Decimal?      @default(0) @db.Decimal(10, 2) // 货物重量(kg)
+  goodsVolume         Decimal?      @default(0) @db.Decimal(10, 3) // 货物体积(m³)
+  pickupAddress       String        @db.VarChar(500) // 取货地址
+  pickupLng           Decimal?      @db.Decimal(10, 6) // 取货经度
+  pickupLat           Decimal?      @db.Decimal(10, 6) // 取货纬度
+  pickupContact       String        @db.VarChar(50) // 取货联系人
+  pickupPhone         String        @db.VarChar(20) // 取货电话
+  pickupEarliest      DateTime      // 最早取货时间
+  pickupLatest        DateTime      // 最晚取货时间
+  deliveryAddress     String        @db.VarChar(500) // 送货地址
+  deliveryLng         Decimal?      @db.Decimal(10, 6) // 送货经度
+  deliveryLat         Decimal?      @db.Decimal(10, 6) // 送货纬度
+  deliveryContact     String        @db.VarChar(50) // 送货联系人
+  deliveryPhone       String        @db.VarChar(20) // 送货电话
+  deliveryEarliest    DateTime      // 最早送货时间
+  deliveryLatest      DateTime      // 最晚送货时间
+  actualPickupAt      DateTime?     // 实际取货时间
+  actualArrivedAt     DateTime?     // 实际到达时间
+  actualDeliveredAt   DateTime?     // 实际送达时间
+  pickedUpAt          DateTime?     // 取货时间
+  inTransitAt         DateTime?     // 开始配送时间
+  distanceMeters      Int?          // 距离(米)
+  estimatedMinutes    Int?          // 预计耗时(分钟)
+  feeAmount           Decimal?      @db.Decimal(12, 2) // 费用金额
+  payAmount           Decimal?      @db.Decimal(12, 2) // 实付金额
+  claimAmount         Decimal?      @db.Decimal(12, 2) // 赔付金额
+  sourceOrderNo       String?       @db.VarChar(64) // 来源订单号
+  remark              String?       @db.VarChar(500) // 备注
+  createdAt           DateTime      @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt           DateTime      @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  customer            Customer      @relation(fields: [customerId], references: [id])
+  rider               Rider?        @relation("RiderOrders", fields: [riderId], references: [id])
+  dispatcher          User?         @relation("DispatcherOrders", fields: [dispatcherId], references: [id])
+  timelines           OrderTimeline[] // 时效记录
+  dispatchRecords     DispatchRecord[] // 调度记录
+  routePlans          RoutePlan[] // 路线规划
+  locations           RiderLocation[] // 轨迹记录
+  tempRecords         TemperatureRecord[] // 温控记录
+  tempAlerts          TemperatureAlert[] // 温控告警
+  claims              ClaimOrder[] // 赔付工单
+  reports             TemperatureSafetyReport[] // 安全报表
+
+  @@index([status])
+  @@index([riderId])
+  @@index([customerId])
+  @@index([dispatcherId])
+  @@index([createdAt])
+  @@index([orderType])
+  @@index([priority])
+  @@map("delivery_order")
+}
+
+// 5. 履约时效记录表
+model OrderTimeline {
+  id           BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  orderId      BigInt              @db.UnsignedBigInt // 订单ID
+  fromStatus   OrderStatus?        // 原状态
+  toStatus     OrderStatus?        // 目标状态
+  eventType    TimelineEventType   // 事件类型
+  userId       BigInt?             @db.UnsignedBigInt // 操作人ID(调度员/主管)
+  riderId      BigInt?             @db.UnsignedBigInt // 操作人ID(骑手)
+  operatorType OperatorType        @default(SYSTEM) // 操作人类型
+  remark       String?             @db.Text // 备注
+  locationLng  Decimal?            @db.Decimal(10, 6) // 位置经度
+  locationLat  Decimal?            @db.Decimal(10, 6) // 位置纬度
+  snapshotJson Json?               // 快照数据
+  createdAt    DateTime            @default(now()) @db.DateTime(3) // 创建时间
+
+  // 关联
+  order        DeliveryOrder       @relation(fields: [orderId], references: [id])
+  user         User?               @relation("OperatorTimelines", fields: [userId], references: [id])
+  rider        Rider?              @relation("RiderTimelines", fields: [riderId], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@index([eventType])
+  @@index([operatorType])
+  @@map("order_timeline")
+}
+
+// 6. 调度分派记录
+model DispatchRecord {
+  id                    BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  orderId               BigInt       @db.UnsignedBigInt // 订单ID
+  riderId               BigInt       @db.UnsignedBigInt // 骑手ID
+  dispatcherId          BigInt       @db.UnsignedBigInt // 调度员ID
+  dispatchType          DispatchType @default(AUTO) // 调度类型
+  previousRiderId       BigInt?      @db.UnsignedBigInt // 原骑手ID
+  reason                String?      @db.VarChar(500) // 分派原因
+  estimatedArrivalMinutes Int?       // 预计到达分钟数
+  createdAt             DateTime     @default(now()) @db.DateTime(3) // 创建时间
+
+  // 关联
+  order                 DeliveryOrder @relation(fields: [orderId], references: [id])
+  rider                 Rider        @relation("RiderRecords", fields: [riderId], references: [id])
+  dispatcher            User         @relation("DispatcherRecords", fields: [dispatcherId], references: [id])
+  previousRider         Rider?       @relation("PreviousRiderRecords", fields: [previousRiderId], references: [id])
+
+  @@index([orderId])
+  @@index([riderId])
+  @@index([dispatcherId])
+  @@index([createdAt])
+  @@map("dispatch_record")
+}
+
+// 7. 路线规划表
+model RoutePlan {
+  id                 BigInt      @id @default(autoincrement()) @db.UnsignedBigInt
+  orderId            BigInt      @db.UnsignedBigInt // 订单ID
+  version            Int         @default(1) // 版本号
+  waypointsJson      Json        // 途经点数据
+  totalDistanceMeters Int?       // 总距离(米)
+  totalMinutes       Int?        // 总耗时(分钟)
+  optimizedBy        OptimizedBy @default(SYSTEM_ALGORITHM) // 优化方式
+  createdBy          BigInt      @db.UnsignedBigInt // 创建人ID
+  remark             String?     @db.VarChar(500) // 备注
+  isActive           Boolean     @default(true) // 是否启用
+  createdAt          DateTime    @default(now()) @db.DateTime(3) // 创建时间
+
+  // 关联
+  order              DeliveryOrder @relation(fields: [orderId], references: [id])
+  creator            User        @relation(fields: [createdBy], references: [id])
+
+  @@index([orderId])
+  @@index([isActive])
+  @@map("route_plan")
+}
+
+// 8. 骑手轨迹表
+model RiderLocation {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  riderId    BigInt   @db.UnsignedBigInt // 骑手ID
+  orderId    BigInt?  @db.UnsignedBigInt // 订单ID
+  lng        Decimal  @db.Decimal(10, 6) // 经度
+  lat        Decimal  @db.Decimal(10, 6) // 纬度
+  speed      Decimal? @db.Decimal(6, 2) // 速度(km/h)
+  heading    Int?     // 方向(0-360)
+  accuracy   Decimal? @db.Decimal(6, 2) // 精度(米)
+  battery    Int?     // 电量(%)
+  isOffline  Boolean  @default(false) // 是否离线
+  collectedAt DateTime @default(now()) @db.DateTime(3) // 采集时间
+
+  // 关联
+  rider      Rider    @relation(fields: [riderId], references: [id])
+  order      DeliveryOrder? @relation(fields: [orderId], references: [id])
+
+  @@index([riderId])
+  @@index([orderId])
+  @@index([collectedAt])
+  @@map("rider_location")
+}
+
+// 9. 温控记录表
+model TemperatureRecord {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  orderId     BigInt    @db.UnsignedBigInt // 订单ID
+  deviceNo    String?   @db.VarChar(64) // 设备编号
+  temperature Decimal   @db.Decimal(5, 2) // 温度
+  humidity    Decimal?  @db.Decimal(5, 2) // 湿度
+  isAlert     Boolean   @default(false) // 是否告警
+  alertType   AlertType? // 告警类型
+  collectedAt DateTime  @default(now()) @db.DateTime(3) // 采集时间
+  remark      String?   @db.VarChar(500) // 备注
+
+  // 关联
+  order       DeliveryOrder @relation(fields: [orderId], references: [id])
+  alerts      TemperatureAlert[] // 关联告警
+
+  @@index([orderId])
+  @@index([collectedAt])
+  @@index([isAlert])
+  @@map("temperature_record")
+}
+
+// 10. 温控告警表
+model TemperatureAlert {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  orderId        BigInt       @db.UnsignedBigInt // 订单ID
+  recordId       BigInt?      @db.UnsignedBigInt // 温控记录ID
+  alertType      AlertType    // 告警类型
+  alertLevel     AlertLevel   @default(WARNING) // 告警级别
+  temperature    Decimal      @db.Decimal(5, 2) // 温度值
+  thresholdMin   Decimal?     @db.Decimal(5, 2) // 最低阈值
+  thresholdMax   Decimal?     @db.Decimal(5, 2) // 最高阈值
+  status         AlertStatus  @default(OPEN) // 状态
+  acknowledgedBy BigInt?      @db.UnsignedBigInt // 确认人ID
+  acknowledgedAt DateTime?    // 确认时间
+  resolvedBy     BigInt?      @db.UnsignedBigInt // 解决人ID
+  resolvedAt     DateTime?    // 解决时间
+  resolution     String?      @db.Text // 解决方案
+  createdAt      DateTime     @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt      DateTime     @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  order          DeliveryOrder @relation(fields: [orderId], references: [id])
+  record         TemperatureRecord? @relation(fields: [recordId], references: [id])
+  ackUser        User?        @relation("AlertAcknowledgedBy", fields: [acknowledgedBy], references: [id])
+  resUser        User?        @relation("AlertResolvedBy", fields: [resolvedBy], references: [id])
+  claimSources   ClaimOrder[] @relation("ClaimTempAlert") // 作为赔付来源
+
+  @@index([orderId])
+  @@index([status])
+  @@index([alertLevel])
+  @@index([createdAt])
+  @@map("temperature_alert")
+}
+
+// 11. 赔付工单表
+model ClaimOrder {
+  id             BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  claimNo        String            @unique @db.VarChar(32) // 赔付单号
+  orderId        BigInt            @db.UnsignedBigInt // 订单ID
+  sourceDocId    BigInt?           @db.UnsignedBigInt // 来源单据ID
+  sourceDocType  ClaimSourceType?  // 来源单据类型
+  claimType      ClaimType         // 赔付类型
+  claimAmount    Decimal           @db.Decimal(12, 2) // 申请赔付金额
+  approvedAmount Decimal?          @db.Decimal(12, 2) // 批准赔付金额
+  status         ClaimStatus       @default(SUBMITTED) // 状态
+  applicantId    BigInt            @db.UnsignedBigInt // 申请人ID
+  reviewerId     BigInt?           @db.UnsignedBigInt // 审核人ID
+  approverId     BigInt?           @db.UnsignedBigInt // 批准人ID
+  reason         String            @db.Text // 赔付原因
+  description    String?           @db.Text // 详细描述
+  evidenceJson   Json?             // 证据材料
+  handlerRemark  String?           @db.VarChar(500) // 处理备注
+  submittedAt    DateTime          @default(now()) // 提交时间
+  reviewedAt     DateTime?         // 审核时间
+  approvedAt     DateTime?         // 批准时间
+  closedAt       DateTime?         // 关闭时间
+  createdAt      DateTime          @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt      DateTime          @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  order          DeliveryOrder     @relation(fields: [orderId], references: [id])
+  tempAlert      TemperatureAlert? @relation("ClaimTempAlert", fields: [sourceDocId], references: [id])
+  applicant      User              @relation("ClaimApplicant", fields: [applicantId], references: [id])
+  reviewer       User?             @relation("ClaimReviewer", fields: [reviewerId], references: [id])
+  approver       User?             @relation("ClaimApprover", fields: [approverId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+  @@index([claimType])
+  @@index([createdAt])
+  @@map("claim_order")
+}
+
+// 12. 温控安全报表
+model TemperatureSafetyReport {
+  id                    BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  reportNo              String       @unique @db.VarChar(32) // 报表编号
+  reportDate            DateTime     @db.Date // 报表日期
+  orderId               BigInt?      @db.UnsignedBigInt // 订单ID
+  customerId            BigInt?      @db.UnsignedBigInt // 客户ID
+  standardFee           Decimal      @default(0) @db.Decimal(12, 2) // 标准费用
+  actualFee             Decimal      @default(0) @db.Decimal(12, 2) // 实际费用
+  feeDifference         Decimal      @default(0) @db.Decimal(12, 2) // 费用差额
+  differenceReason      String?      @db.Text // 差额原因
+  abnormalMinutes       Int?         // 异常分钟数
+  handlingDurationMinutes Int?       // 处理时长(分钟)
+  handlerId             BigInt?      @db.UnsignedBigInt // 处理人ID
+  handlerName           String?      @db.VarChar(50) // 处理人姓名
+  status                ReportStatus @default(DRAFT) // 状态
+  remark                String?      @db.VarChar(500) // 备注
+  confirmedBy           BigInt?      @db.UnsignedBigInt // 确认人ID
+  confirmedAt           DateTime?    // 确认时间
+  createdAt             DateTime     @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt             DateTime     @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  order                 DeliveryOrder? @relation(fields: [orderId], references: [id])
+  customer              Customer?    @relation(fields: [customerId], references: [id])
+  handler               User?        @relation("ReportHandler", fields: [handlerId], references: [id])
+  confirmer             User?        @relation("ReportConfirmedBy", fields: [confirmedBy], references: [id])
+
+  @@index([reportDate])
+  @@index([customerId])
+  @@index([status])
+  @@map("temperature_safety_report")
+}
+
+// 13. 接口异常日志表
+model ApiExceptionLog {
+  id             BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  requestId      String?         @unique @db.VarChar(64) // 请求ID
+  apiName        String          @db.VarChar(100) // 接口名称
+  method         String          @db.VarChar(10) // 请求方法
+  url            String?         @db.VarChar(500) // 请求URL
+  docId          BigInt?         @db.UnsignedBigInt // 关联业务ID
+  docType        String?         @db.VarChar(50) // 关联业务类型
+  errorCode      String?         @db.VarChar(50) // 错误码
+  errorMessage   String          @db.Text // 错误信息
+  requestHeaders Json?           // 请求头
+  requestBody    String?         @db.Text // 请求体
+  responseBody   String?         @db.Text // 响应体
+  stackTrace     String?         @db.Text // 堆栈信息
+  status         ExceptionStatus @default(NEW) // 处理状态
+  retryCount     Int             @default(0) // 重试次数
+  lastRetryAt    DateTime?       // 最后重试时间
+  handlerId      BigInt?         @db.UnsignedBigInt // 处理人ID
+  handlerRemark  String?         @db.VarChar(500) // 处理备注
+  resolvedAt     DateTime?       // 解决时间
+  createdAt      DateTime        @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt      DateTime        @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  handler        User?           @relation("ExceptionHandler", fields: [handlerId], references: [id])
+
+  @@index([docId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@map("api_exception_log")
+}
+
+// 14. 处理视图/工单视图表
+model ProcessingView {
+  id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  bizType           BizType  // 业务类型
+  bizId             BigInt   @db.UnsignedBigInt // 业务ID
+  status            String   @db.VarChar(50) // 状态
+  priority          String?  @db.VarChar(20) // 优先级
+  currentHandlerId  BigInt?  @db.UnsignedBigInt // 当前处理人ID
+  currentHandlerName String? @db.VarChar(50) // 当前处理人姓名
+  lastProcessedAt   DateTime? // 最后处理时间
+  lastProcessedBy   BigInt?  @db.UnsignedBigInt // 最后处理人ID
+  lastRemark        String?  @db.VarChar(500) // 最后处理备注
+  assignmentCount   Int      @default(0) // 分派次数
+  createdAt         DateTime @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt         DateTime @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  currentHandler    User?    @relation("ViewCurrentHandler", fields: [currentHandlerId], references: [id])
+  lastProcessor     User?    @relation("ViewLastProcessedBy", fields: [lastProcessedBy], references: [id])
+  notes             ProcessingNote[] // 处理备注
+
+  @@index([bizType, bizId])
+  @@index([status])
+  @@index([currentHandlerId])
+  @@index([createdAt])
+  @@unique([bizType, bizId])
+  @@map("processing_view")
+}
+
+// 15. 处理备注时间线
+model ProcessingNote {
+  id           BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  viewId       BigInt     @db.UnsignedBigInt // 视图ID
+  operatorId   BigInt?    @db.UnsignedBigInt // 操作人ID
+  operatorName String?    @db.VarChar(50) // 操作人姓名
+  actionType   ActionType // 动作类型
+  fromStatus   String?    @db.VarChar(50) // 原状态
+  toStatus     String?    @db.VarChar(50) // 目标状态
+  remark       String?    @db.Text // 备注
+  metaJson     Json?      // 扩展数据
+  createdAt    DateTime   @default(now()) @db.DateTime(3) // 创建时间
+
+  // 关联
+  view         ProcessingView @relation(fields: [viewId], references: [id])
+  operator     User?       @relation("NoteOperator", fields: [operatorId], references: [id])
+
+  @@index([viewId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@map("processing_note")
+}
+
+// 16. 角色表
+model Role {
+  id          BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  code        String     @unique @db.VarChar(50) // 角色编码
+  name        String     @db.VarChar(50) // 角色名称
+  description String?    @db.VarChar(200) // 角色描述
+  permissions Json?      // 权限列表
+  isSystem    Boolean    @default(false) // 是否系统内置
+  createdAt   DateTime   @default(now()) @db.DateTime(3) // 创建时间
+  updatedAt   DateTime   @updatedAt @db.DateTime(3) // 更新时间
+
+  // 关联
+  userRoles   UserRole[] // 用户角色关联
+
+  @@map("sys_role")
+}
+
+// 17. 用户角色关联
+model UserRole {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId    BigInt   @db.UnsignedBigInt // 用户ID
+  roleId    BigInt   @db.UnsignedBigInt // 角色ID
+  createdAt DateTime @default(now()) @db.DateTime(3) // 创建时间
+
+  // 关联
+  user      User     @relation(fields: [userId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@map("sys_user_role")
+}
+
+// 18. 消息通知表
+model Notification {
+  id          BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  recipientId BigInt           @db.UnsignedBigInt // 接收人ID
+  title       String           @db.VarChar(200) // 标题
+  content     String           @db.Text // 内容
+  type        NotificationType @default(SYSTEM) // 通知类型
+  bizType     String?          @db.VarChar(50) // 关联业务类型
+  bizId       BigInt?          @db.UnsignedBigInt // 关联业务ID
+  isRead      Boolean          @default(false) // 是否已读
+  readAt      DateTime?        // 阅读时间
+  createdAt   DateTime         @default(now()) @db.DateTime(3) // 创建时间
+
+  // 关联
+  recipient   User             @relation(fields: [recipientId], references: [id])
+
+  @@index([recipientId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notification")
+}

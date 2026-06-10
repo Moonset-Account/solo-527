@@ -1,0 +1,38 @@
+import { requireAuth } from '~/server/utils/response'
+import { successResponse, paginate } from '~/server/utils/response'
+import { usePrisma } from '~/server/plugins/prisma'
+
+export default defineEventHandler(async (event) => {
+  await requireAuth(event)
+
+  const { orderId } = getQuery(event)
+  const query = getQuery(event)
+  const page = parseInt(query.page as string) || 1
+  const pageSize = parseInt(query.pageSize as string) || 20
+
+  const prisma = usePrisma()
+
+  const where: any = {}
+
+  if (orderId) {
+    where.orderId = BigInt(orderId)
+  }
+
+  const [total, list] = await Promise.all([
+    prisma.dispatchRecord.count({ where }),
+    prisma.dispatchRecord.findMany({
+      where,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        rider: { select: { riderNo: true, realName: true, phone: true } },
+        previousRider: { select: { riderNo: true, realName: true } },
+        dispatcher: { select: { username: true, realName: true } },
+        order: { select: { orderNo: true } },
+      },
+    }),
+  ])
+
+  return successResponse(paginate(total, list, page, pageSize))
+})
