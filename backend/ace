@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+
+/*
+|--------------------------------------------------------------------------
+| Ace entry point
+|--------------------------------------------------------------------------
+|
+| The "ace.js" file is the entry point for running commands from your
+| terminal.
+|
+*/
+
+const { Ignitor } = require('@adonisjs/core/build/standalone')
+new Ignitor(__dirname).ace().handle(process.argv.slice(2))

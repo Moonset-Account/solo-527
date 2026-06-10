@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "strict": true,
+    "outDir": "build",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "moduleResolution": "node",
+    "paths": {
+      "App/*": ["./app/*"],
+      "Config/*": ["./config/*"],
+      "Contracts/*": ["./contracts/*"],
+      "Database/*": ["./database/*"]
+    },
+    "types": [
+      "@adonisjs/core",
+      "@adonisjs/repl",
+      "@adonisjs/auth",
+      "@adonisjs/lucid",
+      "@adonisjs/redis",
+      "@adonisjs/bouncer",
+      "@japa/preset-adonis/build/adonis-typings"
+    ]
+  },
+  "include": [
+    "**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "build"
+  ]
+}

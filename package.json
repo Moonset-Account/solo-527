@@ -1,0 +1,26 @@
+{
+  "name": "work-order-scheduling-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "工单排产计划台 - AdonisJS + Vue 3 + PostgreSQL + Redis",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "db:migrate": "cd backend && node ace migration:run",
+    "db:seed": "cd backend && node ace db:seed",
+    "db:reset": "cd backend && node ace migration:rollback && node ace migration:run && node ace db:seed"
+  },
+  "keywords": [
+    "work-order",
+    "scheduling",
+    "adonisjs",
+    "vue3",
+    "postgresql",
+    "redis"
+  ],
+  "author": "",
+  "license": "MIT"
+}

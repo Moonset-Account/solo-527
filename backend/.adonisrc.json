@@ -1,0 +1,51 @@
+{
+  "types": [
+    "@adonisjs/core",
+    "@adonisjs/repl",
+    "@adonisjs/auth",
+    "@adonisjs/lucid",
+    "@adonisjs/redis",
+    "@adonisjs/bouncer"
+  ],
+  "commands": [
+    "./commands",
+    "@adonisjs/core/build/commands/index.js",
+    "@adonisjs/repl/build/commands",
+    "@adonisjs/lucid/build/commands",
+    "@adonisjs/bouncer/build/commands"
+  ],
+  "exceptionHandlerNamespace": "App/Exceptions/Handler",
+  "aliases": {
+    "App": "app",
+    "Config": "config",
+    "Database": "database",
+    "Contracts": "contracts"
+  },
+  "preloads": [
+    "./start/routes",
+    "./start/kernel"
+  ],
+  "providers": [
+    "./providers/AppProvider",
+    "@adonisjs/core",
+    "@adonisjs/lucid",
+    "@adonisjs/auth",
+    "@adonisjs/redis",
+    "@adonisjs/bouncer"
+  ],
+  "aceProviders": [
+    "@adonisjs/repl",
+    "@adonisjs/lucid"
+  ],
+  "metaFiles": [
+    ".env",
+    ".env.testing",
+    {
+      "pattern": "public/**",
+      "reloadServer": false
+    }
+  ],
+  "testProviders": [
+    "@japa/preset-adonis/TestsProvider"
+  ]
+}
