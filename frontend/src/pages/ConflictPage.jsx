@@ -71,26 +71,42 @@ function ConflictPage() {
     }
   }
 
-  const openResolveModal = (conflict) => {
-    setSelectedConflict(conflict)
-    resolveForm.resetFields()
-    setResolveModalVisible(true)
+  const openResolveModal = async (conflict) => {
+    try {
+      let detail = conflict
+      if (!conflict.timeSlot?.appointments || conflict.timeSlot.appointments.length === 0
+        || !conflict.timeSlot?.appointments[0]?.patient) {
+        detail = await conflictApi.get(conflict.id)
+      }
+      setSelectedConflict(detail)
+      resolveForm.resetFields()
+      setSelectedAppointments([])
+      setResolveModalVisible(true)
+    } catch (err) {
+      message.error('加载冲突详情失败')
+    }
   }
 
   const handleResolve = async () => {
     try {
       const values = await resolveForm.validateFields()
+      const cancelIds = values.appointmentIdsToCancel || selectedAppointments
       await conflictApi.resolve(selectedConflict.id, {
         resolutionNote: values.resolutionNote,
         resolverName: '管理员',
         action: values.action,
-        appointmentIdsToCancel: selectedAppointments,
+        appointmentIdsToCancel: cancelIds,
       })
-      message.success('冲突已处理')
+      message.success('冲突已处理，已同步更新号源状态和复诊率统计')
       setResolveModalVisible(false)
+      setSelectedAppointments([])
       loadConflicts()
     } catch (err) {
-      message.error('处理失败')
+      if (err?.errorFields) {
+        message.warning('请完善表单必填项')
+        return
+      }
+      message.error('处理失败：' + (err?.response?.data?.error || err.message || '未知错误'))
     }
   }
 
@@ -339,49 +355,146 @@ function ConflictPage() {
         onOk={handleResolve}
         onCancel={() => setResolveModalVisible(false)}
         okText="确认处理"
-        width={500}
+        width={560}
+        maskClosable={false}
+        destroyOnClose
       >
         <Form form={resolveForm} layout="vertical">
+          <Descriptions
+            column={2}
+            size="small"
+            style={{ marginBottom: 16, padding: 12, background: '#fafafa', borderRadius: 6 }}
+          >
+            <Descriptions.Item label="冲突类型">
+              {getConflictTypeTag(selectedConflict?.conflictType)}
+            </Descriptions.Item>
+            <Descriptions.Item label="涉及号源">
+              {selectedConflict?.timeSlot?.schedule?.doctor?.name} {' '}
+              {dayjs(selectedConflict?.timeSlot?.schedule?.date).format('MM-DD')} {' '}
+              {selectedConflict?.timeSlot?.startTime}
+            </Descriptions.Item>
+          </Descriptions>
+
           <Form.Item
             label="处理方式"
             name="action"
             rules={[{ required: true, message: '请选择处理方式' }]}
           >
             <Radio.Group>
-              <Radio value="cancel">取消部分预约</Radio>
-              <Radio value="adjust">调整号源安排</Radio>
-              <Radio value="other">其他处理</Radio>
+              <Radio value="cancel">取消部分预约（解决号源冲突）</Radio>
+              <Radio value="adjust">调整号源安排（后续手动处理）</Radio>
+              <Radio value="other">其他处理（记录说明）</Radio>
             </Radio.Group>
           </Form.Item>
 
-          {resolveForm.getFieldValue('action') === 'cancel' && (
-            <Form.Item label="选择要取消的预约">
-              <Checkbox.Group
-                style={{ width: '100%' }}
-                value={selectedAppointments}
-                onChange={setSelectedAppointments}
-              >
-                <Space direction="vertical">
-                  {selectedConflict?.timeSlot?.appointments?.map((appt) => (
-                    <Checkbox key={appt.id} value={appt.id}>
-                      {appt.patient?.name} - {appt.chiefComplaint?.slice(0, 10)}
-                    </Checkbox>
-                  ))}
-                </Space>
-              </Checkbox.Group>
-            </Form.Item>
-          )}
+          <Form.Item shouldUpdate noStyle>
+            {({ getFieldValue }) => {
+              const action = getFieldValue('action')
+              const appointments = selectedConflict?.timeSlot?.appointments || []
+              return action === 'cancel' ? (
+                <Form.Item
+                  label={
+                    <Space>
+                      <span>选择要取消的预约</span>
+                      <Tag color="red" style={{ margin: 0 }}>
+                        共 {appointments.length} 个冲突预约，需选择至少 1 个取消
+                      </Tag>
+                    </Space>
+                  }
+                  name="appointmentIdsToCancel"
+                  rules={[
+                    { required: true, message: '请选择要取消的预约' },
+                    {
+                      validator: (_, value) => {
+                        if (value && value.length > 0) return Promise.resolve()
+                        return Promise.reject(new Error('请至少选择一个预约取消'))
+                      },
+                    },
+                  ]}
+                >
+                  <Checkbox.Group
+                    style={{ width: '100%' }}
+                    value={selectedAppointments}
+                    onChange={(values) => {
+                      setSelectedAppointments(values)
+                      resolveForm.setFieldsValue({ appointmentIdsToCancel: values })
+                    }}
+                  >
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      {appointments.length === 0 ? (
+                        <div style={{ color: '#999', padding: 12, textAlign: 'center' }}>
+                          暂无冲突预约数据
+                        </div>
+                      ) : (
+                        appointments.map((appt) => (
+                          <div
+                            key={appt.id}
+                            style={{
+                              padding: 10,
+                              border: '1px solid #f0f0f0',
+                              borderRadius: 6,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              background: '#fff',
+                            }}
+                          >
+                            <Checkbox value={appt.id} />
+                            <Avatar size="small">{appt.patient?.name?.[0]}</Avatar>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 500 }}>
+                                {appt.patient?.name}
+                                <span style={{ marginLeft: 8 }}>
+                                  <Tag color={appt.status === 'confirmed' ? 'green' : 'orange'}>
+                                    {appt.status === 'confirmed' ? '已确认' : '待确认'}
+                                  </Tag>
+                                  {appt.isReturnVisit && <Tag color="purple">复诊</Tag>}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                                <Space size="large">
+                                  <span>{appt.patient?.phone}</span>
+                                  <span>
+                                    {dayjs(appt.appointDate).format('MM-DD')} {appt.startTime}
+                                  </span>
+                                </Space>
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  marginTop: 4,
+                                  padding: 4,
+                                  background: '#e6fffb',
+                                  borderRadius: 4,
+                                }}
+                              >
+                                主诉：{appt.chiefComplaint}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </Space>
+                  </Checkbox.Group>
+                </Form.Item>
+              ) : null
+            }}
+          </Form.Item>
 
           <Form.Item
             label="处理说明"
             name="resolutionNote"
             rules={[{ required: true, message: '请输入处理说明' }]}
+            extra="负责人处理说明将记录到操作留痕，并同步更新复诊率报表"
           >
-            <TextArea rows={3} placeholder="请详细说明处理方式和原因，将记录到操作留痕中" />
+            <TextArea rows={3} placeholder="请详细说明处理方式和原因，将永久记录到操作留痕中" />
           </Form.Item>
 
           <div style={{ padding: 12, background: '#fffbe6', borderRadius: 6, fontSize: 12, color: '#d46b08' }}>
-            <WarningOutlined /> 处理完成后，系统将自动更新复诊率报表和号源统计数据
+            <WarningOutlined /> 负责人确认处理后：
+            <br />• 被取消的预约将记录状态历史并释放号源
+            <br />• 系统将按剩余预约数重新计算号源 bookedCount
+            <br />• 处理结果将自动同步到复诊率统计报表
           </div>
         </Form>
       </Modal>
