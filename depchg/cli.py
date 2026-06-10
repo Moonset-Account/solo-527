@@ -157,8 +157,8 @@ diff_examples = """
   [bold]# 6. 附带更新记录文件 (CHANGELOG.md 或 git log 输出)[/bold]
   depchg diff -b x.json -a y.json --changelog ./CHANGELOG.md
 
-  [bold]# 7. 关闭更新记录内容展示[/bold]
-  depchg diff -b a.json -a b.json --changelog notes.md --no-changelog
+  [bold]# 7. 指定更新记录文件但不展示内容列 (只注入 JSON/供 CI)[/bold]
+  depchg diff -b a.json -a b.json --changelog notes.md --no-include-changelog
 """
 
 
@@ -211,15 +211,16 @@ def cmd_diff(
     ),
     include_changelog: bool = typer.Option(
         True,
-        "--changelog/--no-changelog",
-        help="是否在报告中展示更新记录内容 (需配合 --changelog-file 参数使用)",
+        "--include-changelog/--no-include-changelog",
+        help="是否在报告表格中展示更新记录内容 (指定 --changelog 后默认展示)",
     ),
     changelog: Optional[str] = typer.Option(
         None,
+        "--changelog",
         "--changelog-file",
         "--changes-file",
         "-l",
-        help="更新记录文件路径 (CHANGELOG.md, git log 输出等，按包名关联)",
+        help="更新记录文件路径 (CHANGELOG.md, git log 输出等，按包名自动关联)",
         exists=True,
         dir_okay=False,
         readable=True,
@@ -267,8 +268,9 @@ def cmd_diff(
       • requirements.txt / requirements.lock  (pip)
 
     更新记录说明:
-      通过 --changelog-file 指定 CHANGELOG.md 或 git log 输出，
-      系统会自动按包名匹配并把变更内容注入报告 (支持 Markdown/Keep a Changelog/纯文本)。
+      通过 --changelog PATH 指定 CHANGELOG.md 或 git log 输出文件，
+      系统会自动按包名匹配并把变更内容注入表格和 JSON。
+      (支持 Markdown / Keep a Changelog / 纯文本 / git log --oneline 格式)
     """
     try:
         cli_overrides = {

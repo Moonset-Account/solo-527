@@ -9,10 +9,18 @@ from pathlib import Path
 from typing import Optional, TextIO
 
 from rich.console import Console
+from rich.markup import escape as _rich_escape
 from rich.table import Table as RichTable
 
 from .models import Change, ChangeType, Report, RiskLevel
 from .exceptions import OutputError
+
+
+def _e(s) -> str:
+    """转义 Rich 标记中可能导致 MarkupError 的方括号。"""
+    if s is None:
+        return ""
+    return _rich_escape(str(s))
 
 
 CHANGE_TYPE_LABELS = {
@@ -124,48 +132,43 @@ def format_markdown(
         if report.changes:
             lines.append("## 详细变更")
             lines.append("")
-            header_parts = ["| 包名", "变更类型", "版本(前)", "版本(后)"]
+            header_cols = ["包名", "变更类型", "版本(前)", "版本(后)"]
             if include_license:
-                header_parts.append("许可证(前)")
-                header_parts.append("许可证(后)")
+                header_cols.extend(["许可证(前)", "许可证(后)"])
             if include_risk:
-                header_parts.append("风险")
-                header_parts.append("风险原因")
+                header_cols.extend(["风险", "风险原因"])
             if include_changelog and report.changelog_source:
-                header_parts.append("更新记录")
-            header_parts.append("|")
-            lines.append(" ".join(header_parts))
+                header_cols.append("更新记录")
+            lines.append("| " + " | ".join(header_cols) + " |")
 
-            sep_parts = ["| ---", "| ---", "| ---:", "| ---:"]
+            sep_cols = ["---", "---", "---:", "---:"]
             if include_license:
-                sep_parts.append("| ---")
-                sep_parts.append("| ---")
+                sep_cols.extend(["---", "---"])
             if include_risk:
-                sep_parts.append("| ---")
-                sep_parts.append("| ---")
+                sep_cols.extend(["---", "---"])
             if include_changelog and report.changelog_source:
-                sep_parts.append("| ---")
-            sep_parts.append("|")
-            lines.append(" ".join(sep_parts))
+                sep_cols.append("---")
+            lines.append("| " + " | ".join(sep_cols) + " |")
 
             for change in report.changes:
-                row = [f"| {change.name}"]
-                row.append(CHANGE_TYPE_LABELS_MD.get(change.change_type, change.change_type.value))
-                row.append(change.version_before)
-                row.append(change.version_after)
+                row_cols = [
+                    change.name,
+                    CHANGE_TYPE_LABELS_MD.get(change.change_type, change.change_type.value),
+                    change.version_before,
+                    change.version_after,
+                ]
 
                 if include_license:
                     lic_before = change.before.license.name if change.before else "-"
                     lic_after = change.after.license.name if change.after else "-"
                     if change.license_changed:
                         lic_after = f"**{lic_after}** ⚠️"
-                    row.append(lic_before)
-                    row.append(lic_after)
+                    row_cols.extend([lic_before, lic_after])
 
                 if include_risk:
-                    row.append(RISK_LABELS.get(change.risk.level, change.risk.level.value))
+                    row_cols.append(RISK_LABELS.get(change.risk.level, change.risk.level.value))
                     risk_reasons = "; ".join(change.risk.reasons) if change.risk.reasons else "-"
-                    row.append(risk_reasons)
+                    row_cols.append(risk_reasons)
 
                 if include_changelog and report.changelog_source:
                     if change.changelog_notes:
@@ -179,12 +182,11 @@ def format_markdown(
                         extra = ""
                         if len(change.changelog_notes) > 3:
                             extra = f" (+{len(change.changelog_notes) - 3}条)"
-                        row.append("<br>".join(note_items) + extra)
+                        row_cols.append("<br>".join(note_items) + extra)
                     else:
-                        row.append("—")
+                        row_cols.append("—")
 
-                row.append("|")
-                lines.append(" | ".join(row))
+                lines.append("| " + " | ".join(row_cols) + " |")
 
             lines.append("")
 
@@ -279,13 +281,13 @@ def format_console_table(
         console.print()
         console.print("[bold cyan]📦 依赖版本变更报告[/bold cyan]")
         console.print()
-        console.print(f"  [dim]生成时间:[/dim] {report.generated_at}")
-        console.print(f"  [dim]锁文件(前):[/dim] {report.lockfile_before}")
-        console.print(f"  [dim]锁文件(后):[/dim] {report.lockfile_after}")
-        console.print(f"  [dim]生态系统:[/dim] {report.ecosystem}")
+        console.print(f"  [dim]生成时间:[/dim] {_e(report.generated_at)}")
+        console.print(f"  [dim]锁文件(前):[/dim] {_e(report.lockfile_before)}")
+        console.print(f"  [dim]锁文件(后):[/dim] {_e(report.lockfile_after)}")
+        console.print(f"  [dim]生态系统:[/dim] {_e(report.ecosystem)}")
         console.print(f"  [dim]总变更数:[/dim] [bold]{report.total_changes}[/bold]")
         if report.changelog_source:
-            console.print(f"  [dim]更新记录来源:[/dim] {report.changelog_source}")
+            console.print(f"  [dim]更新记录来源:[/dim] {_e(report.changelog_source)}")
             console.print(
                 f"  [dim]更新记录匹配:[/dim] "
                 f"[green]{report.changelog_summary.get('with_notes', 0)}[/green] 个包有记录, "
@@ -299,7 +301,7 @@ def format_console_table(
         for ct in ChangeType:
             count = report.summary.get(ct.value, 0)
             if count > 0:
-                summary_table.add_row(CHANGE_TYPE_LABELS.get(ct, ct.value), str(count))
+                summary_table.add_row(_e(CHANGE_TYPE_LABELS.get(ct, ct.value)), str(count))
         console.print(summary_table)
         console.print()
 
@@ -310,7 +312,11 @@ def format_console_table(
             lic_table.add_column("包列表", style="dim")
             for lic_name in sorted(report.license_summary.keys()):
                 packages = report.license_summary[lic_name]
-                lic_table.add_row(lic_name, str(len(packages)), ", ".join(packages))
+                lic_table.add_row(
+                    _e(lic_name),
+                    str(len(packages)),
+                    _e(", ".join(packages)),
+                )
             console.print(lic_table)
             console.print()
 
@@ -322,8 +328,9 @@ def format_console_table(
                 count = report.risk_summary.get(rl.value, 0)
                 if count > 0:
                     style = RISK_STYLES.get(rl, "")
+                    label_txt = _e(RISK_LABELS.get(rl, rl.value))
                     risk_table.add_row(
-                        f"[{style}]{RISK_LABELS.get(rl, rl.value)}[/{style}]",
+                        f"[{style}]{label_txt}[/{style}]" if style else label_txt,
                         str(count),
                     )
             console.print(risk_table)
@@ -362,24 +369,35 @@ def format_console_table(
                 elif change.change_type == ChangeType.REMOVED:
                     ct_style = "strike dim"
 
+                ct_label = _e(CHANGE_TYPE_LABELS.get(change.change_type, change.change_type.value))
+
                 row = [
-                    change.name,
-                    f"[{ct_style}]{CHANGE_TYPE_LABELS.get(change.change_type, change.change_type.value)}[/{ct_style}]",
-                    change.version_before,
-                    change.version_after,
+                    _e(change.name),
+                    f"[{ct_style}]{ct_label}[/{ct_style}]" if ct_style else ct_label,
+                    _e(change.version_before),
+                    _e(change.version_after),
                 ]
 
                 if include_license:
                     lic_before = change.before.license.name if change.before else "-"
                     lic_after = change.after.license.name if change.after else "-"
                     if change.license_changed:
-                        lic_after = f"[bold red]{lic_after} ⚠️[/bold red]"
-                    row.extend([lic_before, lic_after])
+                        lic_after = f"[bold red]{_e(lic_after)} ⚠️[/bold red]"
+                    else:
+                        lic_after = _e(lic_after)
+                    row.extend([_e(lic_before), lic_after])
 
                 if include_risk:
                     risk_style = RISK_STYLES.get(change.risk.level, "")
-                    risk_text = f"[{risk_style}]{RISK_LABELS.get(change.risk.level, change.risk.level.value)}[/{risk_style}]" if risk_style else RISK_LABELS.get(change.risk.level, change.risk.level.value)
-                    risk_reasons = "\n".join(change.risk.reasons) if change.risk.reasons else "-"
+                    risk_label_txt = _e(RISK_LABELS.get(change.risk.level, change.risk.level.value))
+                    risk_text = (
+                        f"[{risk_style}]{risk_label_txt}[/{risk_style}]"
+                        if risk_style else risk_label_txt
+                    )
+                    risk_reasons = (
+                        "\n".join(_e(r) for r in change.risk.reasons)
+                        if change.risk.reasons else "-"
+                    )
                     row.extend([risk_text, risk_reasons])
 
                 if include_changelog and report.changelog_source:
@@ -387,9 +405,10 @@ def format_console_table(
                         display_notes = change.changelog_notes[:3]
                         note_lines = []
                         for i, note in enumerate(display_notes, 1):
-                            if len(note) > 60:
-                                note = note[:57] + "..."
-                            note_lines.append(f"{i}. {note}")
+                            n = _e(note)
+                            if len(n) > 60:
+                                n = n[:57] + "..."
+                            note_lines.append(f"{i}. {n}")
                         extra = ""
                         if len(change.changelog_notes) > 3:
                             extra = f"\n[dim](+{len(change.changelog_notes) - 3}条)[/dim]"
@@ -409,14 +428,15 @@ def format_console_table(
                     console.print()
                     for change in with_notes:
                         console.print(
-                            f"  [bold cyan]{change.name}[/bold cyan] "
-                            f"[dim]{change.version_before}[/dim] → "
-                            f"[bold]{change.version_after}[/bold]"
+                            f"  [bold cyan]{_e(change.name)}[/bold cyan] "
+                            f"[dim]{_e(change.version_before)}[/dim] → "
+                            f"[bold]{_e(change.version_after)}[/bold]"
                         )
                         for note in change.changelog_notes:
-                            if len(note) > 120:
-                                note = note[:117] + "..."
-                            console.print(f"    • {note}")
+                            n = _e(note)
+                            if len(n) > 120:
+                                n = n[:117] + "..."
+                            console.print(f"    • {n}")
                         console.print()
 
             high_risk = [c for c in report.changes if c.risk.level in (RiskLevel.HIGH, RiskLevel.CRITICAL)]
@@ -425,23 +445,23 @@ def format_console_table(
                 console.print()
                 for change in high_risk:
                     console.print(
-                        f"  [bold]{change.name}[/bold] "
+                        f"  [bold]{_e(change.name)}[/bold] "
                         f"[bold {RISK_STYLES.get(change.risk.level, 'red')}]"
-                        f"({RISK_LABELS[change.risk.level]}风险)"
+                        f"({_e(RISK_LABELS[change.risk.level])}风险)"
                         f"[/bold {RISK_STYLES.get(change.risk.level, 'red')}]"
                     )
                     console.print(
-                        f"    版本: [dim]{change.version_before}[/dim] → "
-                        f"[bold]{change.version_after}[/bold]"
+                        f"    版本: [dim]{_e(change.version_before)}[/dim] → "
+                        f"[bold]{_e(change.version_after)}[/bold]"
                     )
                     if change.risk.reasons:
                         console.print("    [yellow]风险原因:[/yellow]")
                         for reason in change.risk.reasons:
-                            console.print(f"      • {reason}")
+                            console.print(f"      • {_e(reason)}")
                     if change.risk.suggestions:
                         console.print("    [green]建议动作:[/green]")
                         for suggestion in change.risk.suggestions:
-                            console.print(f"      → {suggestion}")
+                            console.print(f"      → {_e(suggestion)}")
                     console.print()
 
         return console.export_text()
