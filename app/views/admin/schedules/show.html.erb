@@ -1,0 +1,63 @@
+<% content_for :title, @schedule.name %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回赛程列表", admin_schedules_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold"><%= @schedule.name %></h2>
+      <%= link_to "编辑", edit_admin_schedule_path(@schedule), class: "px-4 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors" %>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">所属演出</span>
+        <div class="text-gray-200 mt-1"><%= @schedule.event.title %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">场地</span>
+        <div class="text-gray-200 mt-1"><%= @schedule.venue || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">排序</span>
+        <div class="text-gray-200 mt-1"><%= @schedule.sort_order %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">开始时间</span>
+        <div class="text-gray-200 mt-1"><%= @schedule.starts_at&.strftime("%Y-%m-%d %H:%M") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">结束时间</span>
+        <div class="text-gray-200 mt-1"><%= @schedule.ends_at&.strftime("%Y-%m-%d %H:%M") %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800">
+    <div class="p-5 border-b border-gray-800">
+      <h3 class="font-semibold">报名列表 (<%= @schedule.registrations.count %>)</h3>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">报名人</th>
+            <th class="px-5 py-3">状态</th>
+            <th class="px-5 py-3">报名时间</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @schedule.registrations.recent.each do |reg| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm"><%= reg.user.name %></td>
+              <td class="px-5 py-3 text-sm"><%= status_badge(reg.status) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= reg.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+            </tr>
+          <% end %>
+          <% if @schedule.registrations.empty? %>
+            <tr><td colspan="3" class="px-5 py-8 text-center text-gray-500">暂无报名</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

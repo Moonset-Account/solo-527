@@ -1,0 +1,49 @@
+<% content_for :title, "编辑赛程" %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回赛程列表", admin_schedules_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="max-w-lg">
+    <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+      <h2 class="text-xl font-bold mb-6">编辑赛程</h2>
+
+      <%= form_with model: [:admin, @schedule], class: "space-y-5" do |f| %>
+        <div>
+          <%= f.label :event_id, "所属演出", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.select :event_id, options_from_collection_for_select(Event.all, :id, :title, @schedule.event_id), {}, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :name, "赛程名称", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.text_field :name, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= f.label :starts_at, "开始时间", class: "block text-sm text-gray-400 mb-1.5" %>
+            <%= f.datetime_local_field :starts_at, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+          </div>
+          <div>
+            <%= f.label :ends_at, "结束时间", class: "block text-sm text-gray-400 mb-1.5" %>
+            <%= f.datetime_local_field :ends_at, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+          </div>
+        </div>
+
+        <div>
+          <%= f.label :venue, "场地", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.text_field :venue, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :sort_order, "排序", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.number_field :sort_order, min: 0, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div class="flex gap-3">
+          <%= f.submit "保存", class: "px-6 py-2.5 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white font-medium rounded-lg transition-all duration-200 cursor-pointer" %>
+          <%= link_to "取消", admin_schedule_path(@schedule), class: "px-6 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= content_for(:title) || "演出票务" %></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "tailwind", "inter-font", "data-turbo-track": "reload" %>
+  <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#1E1E2E] text-gray-100 font-['Noto_Sans_SC'] min-h-screen">
+  <% if logged_in? %>
+    <div class="flex min-h-screen">
+      <aside class="w-64 bg-[#16162a] border-r border-gray-800 flex flex-col">
+        <div class="p-6 border-b border-gray-800">
+          <h1 class="text-xl font-['Noto_Serif_SC'] font-bold text-[#6C3CE1]">🎵 演出票务</h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-1">
+          <%= nav_link "仪表盘", root_path %>
+          <%= nav_link "演出大厅", events_path %>
+          <%= nav_link "我的订单", orders_path %>
+          <%= nav_link "退票申请", refunds_path %>
+          <% if admin? || current_user&.ops? %>
+            <div class="pt-4 pb-2 text-xs text-gray-500 uppercase tracking-wider">管理后台</div>
+            <%= nav_link "票种管理", admin_ticket_types_path %>
+            <%= nav_link "库存管理", admin_inventories_path %>
+            <%= nav_link "报名审核", admin_registrations_path %>
+            <%= nav_link "分组赛程", admin_schedules_path %>
+            <%= nav_link "收入分析", admin_revenue_index_path %>
+            <%= nav_link "到场管理", admin_attendance_index_path %>
+            <%= nav_link "批量操作", admin_batch_operations_path %>
+            <%= nav_link "操作追溯", admin_audit_logs_path %>
+            <%= nav_link "异常追踪", admin_revenue_anomalies_path %>
+          <% end %>
+        </nav>
+        <div class="p-4 border-t border-gray-800">
+          <div class="text-sm text-gray-400"><%= current_user.name %></div>
+          <div class="text-xs text-gray-500"><%= current_user.role %></div>
+          <%= button_to "退出", logout_path, method: :delete, class: "mt-2 text-xs text-red-400 hover:text-red-300" %>
+        </div>
+      </aside>
+      <main class="flex-1 overflow-auto">
+        <% if notice || alert %>
+          <div class="p-4">
+            <% if notice %><div class="bg-green-900/50 text-green-300 p-3 rounded-lg mb-2"><%= notice %></div><% end %>
+            <% if alert %><div class="bg-red-900/50 text-red-300 p-3 rounded-lg mb-2"><%= alert %></div><% end %>
+          </div>
+        <% end %>
+        <div class="p-8">
+          <%= yield %>
+        </div>
+      </main>
+    </div>
+  <% else %>
+    <main class="flex items-center justify-center min-h-screen">
+      <%= yield %>
+    </main>
+  <% end %>
+</body>
+</html>

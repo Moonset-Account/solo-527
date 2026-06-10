@@ -1,0 +1,48 @@
+<% content_for :title, "新增票种" %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回票种列表", admin_ticket_types_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="max-w-lg">
+    <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+      <h2 class="text-xl font-bold mb-6">新增票种</h2>
+
+      <%= form_with model: [:admin, @ticket_type], class: "space-y-5" do |f| %>
+        <div>
+          <%= f.label :event_id, "所属演出", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.select :event_id, options_from_collection_for_select(Event.all, :id, :title), prompt: "请选择", class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :name, "票种名称", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.text_field :name, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :price, "价格", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.number_field :price, step: 0.01, min: 0, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :description, "描述", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.text_area :description, rows: 3, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :purchase_limit, "每人限购", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.number_field :purchase_limit, min: 1, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div>
+          <%= f.label :status, "状态", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= f.select :status, TicketType.statuses.keys, {}, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+
+        <div class="flex gap-3">
+          <%= f.submit "创建", class: "px-6 py-2.5 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white font-medium rounded-lg transition-all duration-200 cursor-pointer" %>
+          <%= link_to "取消", admin_ticket_types_path, class: "px-6 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

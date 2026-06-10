@@ -1,0 +1,52 @@
+<% content_for :title, "分组赛程" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">分组赛程</h2>
+    <div class="flex gap-3">
+      <%= form_with url: admin_schedules_path, method: :get, class: "flex gap-2" do |f| %>
+        <%= f.select :event_id, options_from_collection_for_select(Event.all, :id, :title, params[:event_id]), prompt: "全部演出", class: "px-3 py-1.5 bg-[#16162a] border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        <%= f.submit "筛选", class: "px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-sm text-gray-200 rounded-lg transition-colors cursor-pointer" %>
+      <% end %>
+      <%= button_to "保存筛选条件", admin_saved_filters_path, method: :post, params: { saved_filter: { filterable_type: "Schedule", name: "赛程筛选-#{Time.current.strftime('%H%M')}", conditions: { event_id: params[:event_id] } } }, class: "px-3 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors cursor-pointer" %>
+      <%= link_to "新增赛程", new_admin_schedule_path, class: "px-4 py-2 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white text-sm rounded-lg transition-colors" %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">排序</th>
+            <th class="px-5 py-3">名称</th>
+            <th class="px-5 py-3">所属演出</th>
+            <th class="px-5 py-3">场地</th>
+            <th class="px-5 py-3">开始时间</th>
+            <th class="px-5 py-3">结束时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @schedules.each do |schedule| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm text-gray-400"><%= schedule.sort_order %></td>
+              <td class="px-5 py-3 text-sm font-medium"><%= schedule.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= schedule.event.title %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= schedule.venue || "—" %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= schedule.starts_at&.strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= schedule.ends_at&.strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-5 py-3 text-sm space-x-3">
+                <%= link_to "查看", admin_schedule_path(schedule), class: "text-[#6C3CE1] hover:underline" %>
+                <%= link_to "编辑", edit_admin_schedule_path(schedule), class: "text-[#F59E0B] hover:underline" %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @schedules.empty? %>
+            <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">暂无赛程</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

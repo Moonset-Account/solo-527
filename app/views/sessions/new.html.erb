@@ -1,0 +1,24 @@
+<div class="w-full max-w-md">
+  <div class="bg-[#16162a] rounded-lg p-8 shadow-2xl border border-gray-800">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-['Noto_Serif_SC'] font-bold text-[#6C3CE1]">🎵 演出票务</h1>
+      <p class="text-gray-400 mt-2">登录您的账户</p>
+    </div>
+
+    <%= form_with url: login_path, method: :post, class: "space-y-5" do |f| %>
+      <div>
+        <%= label_tag :email, "邮箱", class: "block text-sm font-medium text-gray-300 mb-1.5" %>
+        <%= email_field_tag :email, nil, placeholder: "请输入邮箱", class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1] focus:border-transparent" %>
+      </div>
+
+      <div>
+        <%= label_tag :password, "密码", class: "block text-sm font-medium text-gray-300 mb-1.5" %>
+        <%= password_field_tag :password, nil, placeholder: "请输入密码", class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1] focus:border-transparent" %>
+      </div>
+
+      <div>
+        <%= submit_tag "登 录", class: "w-full py-2.5 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-[#6C3CE1]/25 cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+</div>

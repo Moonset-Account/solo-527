@@ -1,0 +1,68 @@
+<% content_for :title, "到场管理" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">到场管理</h2>
+    <div class="flex gap-3">
+      <%= form_with url: admin_attendance_index_path, method: :get, class: "flex gap-2" do |f| %>
+        <%= f.select :event_id, options_from_collection_for_select(Event.all, :id, :title, params[:event_id]), prompt: "全部演出", class: "px-3 py-1.5 bg-[#16162a] border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        <%= f.submit "筛选", class: "px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-sm text-gray-200 rounded-lg transition-colors cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+
+  <% if @open_alerts_count.to_i > 0 %>
+    <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-red-400 text-lg">⚠️</span>
+        <div>
+          <div class="text-red-300 font-medium">到场预警</div>
+          <div class="text-red-400 text-sm">当前有 <%= @open_alerts_count %> 条未处理的到场预警</div>
+        </div>
+      </div>
+      <%= link_to "查看预警", admin_attendance_alerts_path, class: "px-4 py-1.5 bg-red-700 hover:bg-red-600 text-white text-sm rounded-lg transition-colors" %>
+    </div>
+  <% end %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">报名人</th>
+            <th class="px-5 py-3">演出</th>
+            <th class="px-5 py-3">赛程</th>
+            <th class="px-5 py-3">是否到场</th>
+            <th class="px-5 py-3">签到时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @attendances.each do |att| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm"><%= att.registration.user.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= att.registration.event.title %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= att.registration.schedule.name %></td>
+              <td class="px-5 py-3 text-sm">
+                <% if att.attended %>
+                  <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-300">已到场</span>
+                <% else %>
+                  <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300">未签到</span>
+                <% end %>
+              </td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= att.checked_in_at&.strftime("%Y-%m-%d %H:%M") || "—" %></td>
+              <td class="px-5 py-3 text-sm">
+                <% unless att.attended %>
+                  <%= button_to "签到", check_in_admin_attendance_index_path(registration_id: att.registration_id), method: :post, class: "px-3 py-1 bg-[#10B981] hover:bg-emerald-600 text-white text-xs rounded transition-colors cursor-pointer" %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @attendances.empty? %>
+            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">暂无到场记录</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

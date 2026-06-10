@@ -1,0 +1,43 @@
+<% content_for :title, @ticket_type.name %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回票种列表", admin_ticket_types_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold"><%= @ticket_type.name %></h2>
+      <div class="flex gap-3">
+        <%= status_badge(@ticket_type.status) %>
+        <%= link_to "编辑", edit_admin_ticket_type_path(@ticket_type), class: "px-4 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors" %>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">所属演出</span>
+        <div class="text-gray-200 mt-1"><%= @ticket_type.event.title %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">价格</span>
+        <div class="text-xl font-bold text-[#F59E0B] mt-1"><%= format_currency(@ticket_type.price) %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">限购数量</span>
+        <div class="text-gray-200 mt-1"><%= @ticket_type.purchase_limit %> 张/人</div>
+      </div>
+      <div>
+        <span class="text-gray-500">描述</span>
+        <div class="text-gray-200 mt-1"><%= @ticket_type.description || "—" %></div>
+      </div>
+      <% if @ticket_type.inventory %>
+        <div>
+          <span class="text-gray-500">库存总量</span>
+          <div class="text-gray-200 mt-1"><%= @ticket_type.inventory.total %></div>
+        </div>
+        <div>
+          <span class="text-gray-500">可用库存</span>
+          <div class="text-gray-200 mt-1"><%= @ticket_type.inventory.available %></div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

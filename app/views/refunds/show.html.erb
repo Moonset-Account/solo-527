@@ -1,0 +1,38 @@
+<% content_for :title, "退票详情" %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回退票列表", refunds_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold">退票详情</h2>
+      <%= status_badge(@refund.status) %>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">关联订单</span>
+        <div class="text-gray-200 mt-1"><%= link_to @refund.order.order_no, order_path(@refund.order), class: "text-[#6C3CE1] hover:underline" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">退款金额</span>
+        <div class="text-xl font-bold text-[#F59E0B] mt-1"><%= format_currency(@refund.amount) %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">申请时间</span>
+        <div class="text-gray-200 mt-1"><%= @refund.created_at.strftime("%Y-%m-%d %H:%M") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">退票原因</span>
+        <div class="text-gray-200 mt-1"><%= @refund.reason || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">审核人</span>
+        <div class="text-gray-200 mt-1"><%= @refund.reviewed_by&.name || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">审核时间</span>
+        <div class="text-gray-200 mt-1"><%= @refund.reviewed_at&.strftime("%Y-%m-%d %H:%M") || "—" %></div>
+      </div>
+    </div>
+  </div>
+</div>

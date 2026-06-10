@@ -1,0 +1,47 @@
+<% content_for :title, "退票申请" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">退票申请</h2>
+    <div class="flex gap-2">
+      <% %w[all pending approved rejected].each do |s| %>
+        <% active = (params[:status] == s) || (params[:status].blank? && s == "all") %>
+        <%= link_to s == "all" ? "全部" : s, refunds_path(status: s == "all" ? nil : s), class: "px-3 py-1.5 text-sm rounded-lg #{active ? 'bg-[#6C3CE1] text-white' : 'bg-[#16162a] text-gray-400 hover:text-gray-200 border border-gray-700'} transition-colors" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">订单号</th>
+            <th class="px-5 py-3">退款金额</th>
+            <th class="px-5 py-3">原因</th>
+            <th class="px-5 py-3">状态</th>
+            <th class="px-5 py-3">申请时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @refunds.each do |refund| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm"><%= refund.order.order_no %></td>
+              <td class="px-5 py-3 text-sm"><%= format_currency(refund.amount) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= refund.reason&.truncate(30) %></td>
+              <td class="px-5 py-3 text-sm"><%= status_badge(refund.status) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= refund.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-5 py-3 text-sm">
+                <%= link_to "查看", refund_path(refund), class: "text-[#6C3CE1] hover:underline" %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @refunds.empty? %>
+            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">暂无退票申请</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

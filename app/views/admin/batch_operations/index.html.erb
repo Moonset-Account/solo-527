@@ -1,0 +1,45 @@
+<% content_for :title, "批量操作" %>
+
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold">批量操作</h2>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">操作类型</th>
+            <th class="px-5 py-3">目标类型</th>
+            <th class="px-5 py-3">总数</th>
+            <th class="px-5 py-3">成功</th>
+            <th class="px-5 py-3">失败</th>
+            <th class="px-5 py-3">状态</th>
+            <th class="px-5 py-3">发起人</th>
+            <th class="px-5 py-3">创建时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @batch_operations.each do |op| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm font-medium"><%= op.operation_type %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= op.target_type %></td>
+              <td class="px-5 py-3 text-sm"><%= op.total_count %></td>
+              <td class="px-5 py-3 text-sm text-green-400"><%= op.success_count %></td>
+              <td class="px-5 py-3 text-sm text-red-400"><%= op.failure_count %></td>
+              <td class="px-5 py-3 text-sm"><%= status_badge(op.status) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= op.user.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= op.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-5 py-3 text-sm">
+                <%= link_to "查看", admin_batch_operation_path(op), class: "text-[#6C3CE1] hover:underline" %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @batch_operations.empty? %>
+            <tr><td colspan="9" class="px-5 py-12 text-center text-gray-500">暂无批量操作</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,39 @@
+<% content_for :title, "已保存筛选" %>
+
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold">已保存筛选</h2>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">名称</th>
+            <th class="px-5 py-3">筛选类型</th>
+            <th class="px-5 py-3">条件</th>
+            <th class="px-5 py-3">创建时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @saved_filters.each do |filter| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm font-medium"><%= filter.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= filter.filterable_type %></td>
+              <td class="px-5 py-3 text-sm text-gray-400">
+                <pre class="text-xs"><%= JSON.pretty_generate(filter.conditions) %></pre>
+              </td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= filter.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-5 py-3 text-sm">
+                <%= button_to "删除", admin_saved_filter_path(filter), method: :delete, class: "text-red-400 hover:text-red-300 cursor-pointer", form: { data: { turbo_confirm: "确认删除？" } } %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @saved_filters.empty? %>
+            <tr><td colspan="5" class="px-5 py-12 text-center text-gray-500">暂无已保存筛选</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

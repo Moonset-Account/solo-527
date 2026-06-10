@@ -1,0 +1,54 @@
+<% content_for :title, "操作追溯" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">操作追溯</h2>
+    <div class="flex gap-2">
+      <%= form_with url: admin_audit_logs_path, method: :get, class: "flex gap-2" do |f| %>
+        <%= f.select :action, AuditLog.distinct.pluck(:action), prompt: "全部操作", selected: params[:action_query], name: :action_query, class: "px-3 py-1.5 bg-[#16162a] border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        <%= f.text_field :user_name, value: params[:user_name], placeholder: "操作人", name: :user_name, class: "px-3 py-1.5 bg-[#16162a] border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        <%= f.submit "筛选", class: "px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-sm text-gray-200 rounded-lg transition-colors cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">操作</th>
+            <th class="px-5 py-3">对象</th>
+            <th class="px-5 py-3">操作人</th>
+            <th class="px-5 py-3">异常</th>
+            <th class="px-5 py-3">时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @audit_logs.each do |log| %>
+            <tr class="hover:bg-gray-800/50 transition-colors <%= 'bg-red-900/10' if log.anomaly_type.present? %>">
+              <td class="px-5 py-3 text-sm font-medium"><%= log.action %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= "#{log.auditable_type}##{log.auditable_id}" if log.auditable_type %></td>
+              <td class="px-5 py-3 text-sm"><%= log.user.name %></td>
+              <td class="px-5 py-3 text-sm">
+                <% if log.anomaly_type.present? %>
+                  <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-red-900/50 text-red-300"><%= log.anomaly_type %></span>
+                <% else %>
+                  <span class="text-gray-600">—</span>
+                <% end %>
+              </td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+              <td class="px-5 py-3 text-sm">
+                <%= link_to "查看", admin_audit_log_path(log), class: "text-[#6C3CE1] hover:underline" %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @audit_logs.empty? %>
+            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">暂无审计日志</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

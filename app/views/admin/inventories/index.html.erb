@@ -1,0 +1,66 @@
+<% content_for :title, "库存管理" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">库存管理</h2>
+    <div class="flex gap-3">
+      <%= form_with url: admin_inventories_path, method: :get, class: "flex gap-2" do |f| %>
+        <%= f.select :event_id, options_from_collection_for_select(Event.all, :id, :title, params[:event_id]), prompt: "全部演出", class: "px-3 py-1.5 bg-[#16162a] border border-gray-700 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        <%= f.submit "筛选", class: "px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-sm text-gray-200 rounded-lg transition-colors cursor-pointer" %>
+      <% end %>
+      <%= button_to "保存筛选条件", admin_saved_filters_path, method: :post, params: { saved_filter: { filterable_type: "Inventory", name: "库存筛选-#{Time.current.strftime('%H%M')}", conditions: { event_id: params[:event_id] } } }, class: "px-3 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors cursor-pointer" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <% @inventories.each do |inv| %>
+      <div class="bg-[#16162a] rounded-lg border border-gray-800 p-5 hover:shadow-lg hover:shadow-[#6C3CE1]/10 transition-all duration-200">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-medium"><%= inv.ticket_type.name %></h3>
+          <% if inv.available <= 10 %>
+            <span class="px-2 py-0.5 bg-red-900/50 text-red-300 text-xs rounded-full">低库存</span>
+          <% end %>
+        </div>
+        <p class="text-sm text-gray-400 mb-4"><%= inv.ticket_type.event.title %></p>
+
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-500">总量</span>
+            <span><%= inv.total %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">已售</span>
+            <span class="text-green-400"><%= inv.sold %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">预留</span>
+            <span class="text-yellow-400"><%= inv.reserved %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">可用</span>
+            <span class="<%= inv.available <= 10 ? 'text-red-400' : 'text-gray-200' %>"><%= inv.available %></span>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="w-full bg-gray-700 rounded-full h-2">
+            <% sold_pct = inv.total > 0 ? (inv.sold.to_f / inv.total * 100).round : 0 %>
+            <div class="h-2 rounded-full <%= sold_pct > 80 ? 'bg-red-500' : sold_pct > 50 ? 'bg-[#F59E0B]' : 'bg-[#6C3CE1]' %>" style="width: <%= sold_pct %>%"></div>
+          </div>
+          <div class="text-xs text-gray-500 mt-1">售出 <%= sold_pct %>%</div>
+        </div>
+
+        <%= form_with model: [:admin, inv], method: :patch, class: "mt-4 flex gap-2" do |f| %>
+          <%= f.number_field :total, class: "flex-1 px-3 py-1.5 bg-[#1E1E2E] border border-gray-700 rounded text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]", placeholder: "总量" %>
+          <%= f.submit "更新", class: "px-3 py-1.5 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white text-sm rounded transition-colors cursor-pointer" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @inventories.empty? %>
+    <div class="text-center py-16">
+      <p class="text-gray-500 text-lg">暂无库存数据</p>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,55 @@
+<% content_for :title, "审计日志详情" %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回审计日志", admin_audit_logs_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold">审计日志详情</h2>
+      <% if @audit_log.anomaly_type.present? %>
+        <span class="px-3 py-1.5 rounded-full text-sm font-medium bg-red-900/50 text-red-300"><%= @audit_log.anomaly_type %></span>
+      <% end %>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">操作</span>
+        <div class="text-gray-200 mt-1 font-medium"><%= @audit_log.action %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">操作人</span>
+        <div class="text-gray-200 mt-1"><%= @audit_log.user.name %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">操作时间</span>
+        <div class="text-gray-200 mt-1"><%= @audit_log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">对象类型</span>
+        <div class="text-gray-200 mt-1"><%= @audit_log.auditable_type || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">对象ID</span>
+        <div class="text-gray-200 mt-1"><%= @audit_log.auditable_id || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">关联批量操作</span>
+        <div class="text-gray-200 mt-1">
+          <% if @audit_log.batch_operation %>
+            <%= link_to @audit_log.batch_operation.operation_type, admin_batch_operation_path(@audit_log.batch_operation), class: "text-[#6C3CE1] hover:underline" %>
+          <% else %>
+            —
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <% if @audit_log.changes.present? %>
+      <div class="mt-6">
+        <span class="text-gray-500 text-sm">变更记录</span>
+        <div class="mt-2 p-4 bg-[#1E1E2E] rounded-lg border border-gray-800">
+          <pre class="text-xs text-gray-300 whitespace-pre-wrap"><%= JSON.pretty_generate(@audit_log.changes) %></pre>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

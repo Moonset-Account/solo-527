@@ -1,0 +1,73 @@
+<% content_for :title, "报名审核" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">报名审核</h2>
+    <div class="flex gap-3">
+      <div class="flex gap-2">
+        <% %w[all pending approved rejected].each do |s| %>
+          <% active = (params[:status] == s) || (params[:status].blank? && s == "all") %>
+          <%= link_to s == "all" ? "全部" : s, admin_registrations_path(status: s == "all" ? nil : s), class: "px-3 py-1.5 text-sm rounded-lg #{active ? 'bg-[#6C3CE1] text-white' : 'bg-[#16162a] text-gray-400 hover:text-gray-200 border border-gray-700'} transition-colors" %>
+        <% end %>
+      </div>
+      <%= button_to "保存筛选条件", admin_saved_filters_path, method: :post, params: { saved_filter: { filterable_type: "Registration", name: "报名筛选-#{Time.current.strftime('%H%M')}", conditions: { status: params[:status] } } }, class: "px-3 py-1.5 bg-[#F59E0B] hover:bg-amber-600 text-black text-sm rounded-lg transition-colors cursor-pointer" %>
+    </div>
+  </div>
+
+  <%= form_with url: batch_approve_admin_registrations_path, method: :post, id: "batch-form" do |f| %>
+    <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+              <th class="px-5 py-3 w-10">
+                <input type="checkbox" id="select-all" data-action="change->registration#toggleAll" class="rounded bg-[#1E1E2E] border-gray-600 text-[#6C3CE1] focus:ring-[#6C3CE1]">
+              </th>
+              <th class="px-5 py-3">报名人</th>
+              <th class="px-5 py-3">演出</th>
+              <th class="px-5 py-3">赛程</th>
+              <th class="px-5 py-3">状态</th>
+              <th class="px-5 py-3">报名时间</th>
+              <th class="px-5 py-3">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-800">
+            <% @registrations.each do |reg| %>
+              <tr class="hover:bg-gray-800/50 transition-colors">
+                <td class="px-5 py-3">
+                  <input type="checkbox" name="registration_ids[]" value="<%= reg.id %>" class="registration-checkbox rounded bg-[#1E1E2E] border-gray-600 text-[#6C3CE1] focus:ring-[#6C3CE1]">
+                </td>
+                <td class="px-5 py-3 text-sm"><%= reg.user.name %></td>
+                <td class="px-5 py-3 text-sm text-gray-400"><%= reg.event.title %></td>
+                <td class="px-5 py-3 text-sm text-gray-400"><%= reg.schedule.name %></td>
+                <td class="px-5 py-3 text-sm"><%= status_badge(reg.status) %></td>
+                <td class="px-5 py-3 text-sm text-gray-400"><%= reg.created_at.strftime("%Y-%m-%d %H:%M") %></td>
+                <td class="px-5 py-3 text-sm space-x-2">
+                  <% if reg.pending? %>
+                    <%= button_to "通过", approve_admin_registration_path(reg), method: :patch, class: "text-green-400 hover:text-green-300 cursor-pointer" %>
+                    <%= button_to "拒绝", reject_admin_registration_path(reg), method: :patch, class: "text-red-400 hover:text-red-300 cursor-pointer" %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+            <% if @registrations.empty? %>
+              <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500">暂无报名</td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <% if @registrations.any?(&:pending?) %>
+      <div class="mt-4">
+        <%= f.submit "批量通过选中项", class: "px-5 py-2 bg-[#10B981] hover:bg-emerald-600 text-white text-sm rounded-lg transition-colors cursor-pointer" %>
+      </div>
+    <% end %>
+  <% end %>
+</div>
+
+<script>
+  document.getElementById('select-all')?.addEventListener('change', function(e) {
+    document.querySelectorAll('.registration-checkbox').forEach(cb => cb.checked = e.target.checked);
+  });
+</script>

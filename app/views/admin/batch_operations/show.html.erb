@@ -1,0 +1,81 @@
+<% content_for :title, "批量操作详情" %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回批量操作", admin_batch_operations_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold">批量操作详情</h2>
+      <%= status_badge(@batch_operation.status) %>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">操作类型</span>
+        <div class="text-gray-200 mt-1 font-medium"><%= @batch_operation.operation_type %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">目标类型</span>
+        <div class="text-gray-200 mt-1"><%= @batch_operation.target_type %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">发起人</span>
+        <div class="text-gray-200 mt-1"><%= @batch_operation.user.name %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">总数</span>
+        <div class="text-gray-200 mt-1"><%= @batch_operation.total_count %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">成功</span>
+        <div class="text-green-400 mt-1"><%= @batch_operation.success_count %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">失败</span>
+        <div class="text-red-400 mt-1"><%= @batch_operation.failure_count %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">创建时间</span>
+        <div class="text-gray-200 mt-1"><%= @batch_operation.created_at.strftime("%Y-%m-%d %H:%M:%S") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">开始时间</span>
+        <div class="text-gray-200 mt-1"><%= @batch_operation.started_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">完成时间</span>
+        <div class="text-gray-200 mt-1"><%= @batch_operation.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800">
+    <div class="p-5 border-b border-gray-800">
+      <h3 class="font-semibold">相关审计日志</h3>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">操作</th>
+            <th class="px-5 py-3">对象</th>
+            <th class="px-5 py-3">操作人</th>
+            <th class="px-5 py-3">时间</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @batch_operation.audit_logs.recent.each do |log| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm"><%= log.action %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= "#{log.auditable_type}##{log.auditable_id}" if log.auditable_type %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= log.user.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+            </tr>
+          <% end %>
+          <% if @batch_operation.audit_logs.empty? %>
+            <tr><td colspan="4" class="px-5 py-8 text-center text-gray-500">暂无日志</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

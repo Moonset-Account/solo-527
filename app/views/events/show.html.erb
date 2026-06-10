@@ -1,0 +1,79 @@
+<% content_for :title, @event.title %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回演出大厅", events_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-2xl font-bold"><%= @event.title %></h2>
+      <%= status_badge(@event.status) %>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-400">
+      <div>
+        <span class="text-gray-500">场地</span>
+        <div class="text-gray-200 mt-1"><%= @event.venue || "待定" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">开始时间</span>
+        <div class="text-gray-200 mt-1"><%= @event.starts_at&.strftime("%Y-%m-%d %H:%M") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">结束时间</span>
+        <div class="text-gray-200 mt-1"><%= @event.ends_at&.strftime("%Y-%m-%d %H:%M") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">状态</span>
+        <div class="text-gray-200 mt-1"><%= @event.status %></div>
+      </div>
+    </div>
+    <% if @event.description.present? %>
+      <div class="mt-4 text-sm text-gray-300"><%= @event.description %></div>
+    <% end %>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800">
+    <div class="p-5 border-b border-gray-800">
+      <h3 class="font-semibold">票种列表</h3>
+    </div>
+    <div class="p-5 space-y-4">
+      <% @event.ticket_types.each do |tt| %>
+        <div class="flex items-center justify-between p-4 bg-[#1E1E2E] rounded-lg border border-gray-800">
+          <div>
+            <div class="font-medium"><%= tt.name %></div>
+            <div class="text-sm text-gray-400 mt-1"><%= tt.description&.truncate(60) if tt.description %></div>
+            <div class="text-sm text-gray-500 mt-1">
+              每人限购 <%= tt.purchase_limit %> 张 · 剩余 <%= tt.inventory&.available || 0 %> 张
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xl font-bold text-[#F59E0B]"><%= format_currency(tt.price) %></div>
+            <%= status_badge(tt.status) %>
+          </div>
+        </div>
+      <% end %>
+      <% if @event.ticket_types.empty? %>
+        <p class="text-gray-500 text-center py-4">暂无票种</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <h3 class="font-semibold mb-4">购买门票</h3>
+    <%= form_with url: orders_path, method: :post, class: "space-y-4" do |f| %>
+      <%= f.hidden_field :event_id, value: @event.id %>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <%= label_tag :ticket_type_id, "选择票种", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= select_tag :ticket_type_id, options_from_collection_for_select(@event.ticket_types.active, :id, :name), prompt: "请选择", class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+        <div>
+          <%= label_tag :quantity, "数量", class: "block text-sm text-gray-400 mb-1.5" %>
+          <%= number_field_tag :quantity, 1, min: 1, max: 10, class: "w-full px-4 py-2.5 bg-[#1E1E2E] border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#6C3CE1]" %>
+        </div>
+        <div class="flex items-end">
+          <%= f.submit "立即购买", class: "w-full py-2.5 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-[#6C3CE1]/25 cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

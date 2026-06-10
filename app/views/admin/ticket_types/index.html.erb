@@ -1,0 +1,51 @@
+<% content_for :title, "票种管理" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">票种管理</h2>
+    <div class="flex gap-3">
+      <div class="flex gap-2">
+        <% %w[all active inactive sold_out].each do |s| %>
+          <% active = (params[:status] == s) || (params[:status].blank? && s == "all") %>
+          <%= link_to s == "all" ? "全部" : s, admin_ticket_types_path(status: s == "all" ? nil : s), class: "px-3 py-1.5 text-sm rounded-lg #{active ? 'bg-[#6C3CE1] text-white' : 'bg-[#16162a] text-gray-400 hover:text-gray-200 border border-gray-700'} transition-colors" %>
+        <% end %>
+      </div>
+      <%= link_to "新增票种", new_admin_ticket_type_path, class: "px-4 py-2 bg-[#6C3CE1] hover:bg-[#5B2FD0] text-white text-sm rounded-lg transition-colors" %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">名称</th>
+            <th class="px-5 py-3">所属演出</th>
+            <th class="px-5 py-3">价格</th>
+            <th class="px-5 py-3">限购</th>
+            <th class="px-5 py-3">状态</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @ticket_types.each do |tt| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm font-medium"><%= tt.name %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= tt.event.title %></td>
+              <td class="px-5 py-3 text-sm"><%= format_currency(tt.price) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= tt.purchase_limit %></td>
+              <td class="px-5 py-3 text-sm"><%= status_badge(tt.status) %></td>
+              <td class="px-5 py-3 text-sm space-x-3">
+                <%= link_to "查看", admin_ticket_type_path(tt), class: "text-[#6C3CE1] hover:underline" %>
+                <%= link_to "编辑", edit_admin_ticket_type_path(tt), class: "text-[#F59E0B] hover:underline" %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @ticket_types.empty? %>
+            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">暂无票种</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

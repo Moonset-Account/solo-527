@@ -1,0 +1,91 @@
+<% content_for :title, "订单 #{@order.order_no}" %>
+
+<div class="space-y-6">
+  <%= link_to "← 返回订单列表", orders_path, class: "text-[#6C3CE1] hover:underline text-sm" %>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold">订单 <%= @order.order_no %></h2>
+      <%= status_badge(@order.status) %>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">订单金额</span>
+        <div class="text-xl font-bold text-[#F59E0B] mt-1"><%= format_currency(@order.total_amount) %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">下单时间</span>
+        <div class="text-gray-200 mt-1"><%= @order.created_at.strftime("%Y-%m-%d %H:%M") %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">支付时间</span>
+        <div class="text-gray-200 mt-1"><%= @order.paid_at&.strftime("%Y-%m-%d %H:%M") || "—" %></div>
+      </div>
+      <div>
+        <span class="text-gray-500">状态</span>
+        <div class="text-gray-200 mt-1"><%= @order.status %></div>
+      </div>
+    </div>
+    <div class="mt-6 flex gap-3">
+      <% if @order.pending? %>
+        <%= button_to "确认支付", pay_order_path(@order), method: :patch, class: "px-5 py-2 bg-[#10B981] hover:bg-emerald-600 text-white text-sm rounded-lg transition-colors cursor-pointer" %>
+      <% end %>
+      <% if @order.paid? %>
+        <%= link_to "申请退票", new_refund_path(order_id: @order.id), class: "px-5 py-2 bg-red-600/80 hover:bg-red-600 text-white text-sm rounded-lg transition-colors" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800">
+    <div class="p-5 border-b border-gray-800">
+      <h3 class="font-semibold">门票列表</h3>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">票号</th>
+            <th class="px-5 py-3">票种</th>
+            <th class="px-5 py-3">持票人</th>
+            <th class="px-5 py-3">状态</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @order.tickets.each do |ticket| %>
+            <tr class="hover:bg-gray-800/50 transition-colors">
+              <td class="px-5 py-3 text-sm"><%= ticket.ticket_no %></td>
+              <td class="px-5 py-3 text-sm"><%= ticket.ticket_type.name %></td>
+              <td class="px-5 py-3 text-sm"><%= ticket.holder_name || "—" %></td>
+              <td class="px-5 py-3 text-sm"><%= status_badge(ticket.status) %></td>
+            </tr>
+          <% end %>
+          <% if @order.tickets.empty? %>
+            <tr><td colspan="4" class="px-5 py-8 text-center text-gray-500">暂无门票</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <% if @order.refunds.any? %>
+    <div class="bg-[#16162a] rounded-lg border border-gray-800">
+      <div class="p-5 border-b border-gray-800">
+        <h3 class="font-semibold">退票记录</h3>
+      </div>
+      <div class="p-5 space-y-3">
+        <% @order.refunds.each do |refund| %>
+          <div class="flex items-center justify-between p-3 bg-[#1E1E2E] rounded-lg">
+            <div>
+              <span class="text-sm"><%= refund.reason&.truncate(50) %></span>
+              <span class="text-xs text-gray-500 ml-2"><%= refund.created_at.strftime("%m-%d %H:%M") %></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm"><%= format_currency(refund.amount) %></span>
+              <%= status_badge(refund.status) %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

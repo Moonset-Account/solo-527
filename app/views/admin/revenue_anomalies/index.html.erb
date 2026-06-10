@@ -1,0 +1,57 @@
+<% content_for :title, "异常追踪" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">异常追踪</h2>
+    <div class="flex gap-2">
+      <% %w[all open resolved].each do |s| %>
+        <% active = (params[:status] == s) || (params[:status].blank? && s == "all") %>
+        <%= link_to s == "all" ? "全部" : s, admin_revenue_anomalies_path(status: s == "all" ? nil : s), class: "px-3 py-1.5 text-sm rounded-lg #{active ? 'bg-[#6C3CE1] text-white' : 'bg-[#16162a] text-gray-400 hover:text-gray-200 border border-gray-700'} transition-colors" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-[#16162a] rounded-lg border border-gray-800 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-800">
+            <th class="px-5 py-3">异常类型</th>
+            <th class="px-5 py-3">演出</th>
+            <th class="px-5 py-3">订单号</th>
+            <th class="px-5 py-3">金额</th>
+            <th class="px-5 py-3">描述</th>
+            <th class="px-5 py-3">责任人</th>
+            <th class="px-5 py-3">状态</th>
+            <th class="px-5 py-3">检测时间</th>
+            <th class="px-5 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+          <% @revenue_anomalies.each do |anomaly| %>
+            <tr class="hover:bg-gray-800/50 transition-colors <%= 'bg-red-900/10' if anomaly.open? %>">
+              <td class="px-5 py-3 text-sm font-medium <%= 'text-red-400' if anomaly.open? %>"><%= anomaly.anomaly_type %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.event.title %></td>
+              <td class="px-5 py-3 text-sm"><%= anomaly.order.order_no %></td>
+              <td class="px-5 py-3 text-sm text-red-400"><%= format_currency(anomaly.amount) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.description&.truncate(30) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.user.name %></td>
+              <td class="px-5 py-3 text-sm"><%= status_badge(anomaly.status) %></td>
+              <td class="px-5 py-3 text-sm text-gray-400"><%= anomaly.detected_at&.strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-5 py-3 text-sm">
+                <% if anomaly.open? %>
+                  <%= button_to "解决", resolve_admin_revenue_anomaly_path(anomaly), method: :patch, class: "px-3 py-1 bg-[#10B981] hover:bg-emerald-600 text-white text-xs rounded transition-colors cursor-pointer" %>
+                <% elsif anomaly.resolved? %>
+                  <span class="text-xs text-gray-500">由 <%= anomaly.resolved_by&.name %> 解决</span>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @revenue_anomalies.empty? %>
+            <tr><td colspan="9" class="px-5 py-12 text-center text-gray-500">暂无异常</td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
