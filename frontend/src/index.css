@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+  --color-primary-700: #15803d;
+  --color-primary-800: #166534;
+  --color-primary-900: #14532d;
+
+  --color-qinghe-50: #f7fee7;
+  --color-qinghe-100: #ecfccb;
+  --color-qinghe-200: #d9f99d;
+  --color-qinghe-300: #bef264;
+  --color-qinghe-400: #a3e635;
+  --color-qinghe-500: #84cc16;
+  --color-qinghe-600: #65a30d;
+  --color-qinghe-700: #4d7c0f;
+  --color-qinghe-800: #3f6212;
+  --color-qinghe-900: #365314;
+
+  --color-reminder-level-1: #E53935;
+  --color-reminder-level-2: #FB8C00;
+  --color-reminder-level-3: #FDD835;
+  --color-reminder-level-4: #43A047;
+
+  --color-available: #4ade80;
+  --color-booked: #f87171;
+  --color-locked: #fbbf24;
+  --color-maintenance: #9ca3af;
+
+  --font-sans: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-heading: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.ant-layout {
+  background: #f8fafc;
+}
+
+.ant-layout-header {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  padding: 0 24px;
+  height: 64px;
+  line-height: 64px;
+}
+
+.ant-menu-dark {
+  background: transparent;
+}
+
+.ant-card {
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.ant-btn-primary {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  border: none;
+}
+
+.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+}
+
+.calendar-cell-available {
+  background-color: #dcfce7;
+}
+
+.calendar-cell-booked {
+  background-color: #fecaca;
+}
+
+.calendar-cell-locked {
+  background-color: #fef3c7;
+}
+
+.calendar-cell-maintenance {
+  background-color: #e5e7eb;
+}
+
+.reminder-badge-level-1 {
+  background-color: var(--color-reminder-level-1);
+}
+
+.reminder-badge-level-2 {
+  background-color: var(--color-reminder-level-2);
+}
+
+.reminder-badge-level-3 {
+  background-color: var(--color-reminder-level-3);
+}
+
+.reminder-badge-level-4 {
+  background-color: var(--color-reminder-level-4);
+}
+
+@keyframes pulse-reminder {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.reminder-overdue {
+  animation: pulse-reminder 1.5s ease-in-out infinite;
+}

@@ -1,0 +1,171 @@
+[
+  {
+    "model": "users.user",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "email": "admin@qinghe.com",
+      "role": "super_admin",
+      "real_name": "系统管理员",
+      "password": "pbkdf2_sha256$600000$abc$xyz",
+      "is_staff": true,
+      "is_superuser": true
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "00000000-0000-0000-0000-000000000002",
+    "fields": {
+      "email": "host@qinghe.com",
+      "role": "host",
+      "real_name": "张房东",
+      "password": "pbkdf2_sha256$600000$abc$xyz",
+      "is_staff": false,
+      "is_superuser": false
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": "00000000-0000-0000-0000-000000000003",
+    "fields": {
+      "email": "operator@qinghe.com",
+      "role": "operator",
+      "real_name": "李运营",
+      "password": "pbkdf2_sha256$600000$abc$xyz",
+      "is_staff": false,
+      "is_superuser": false
+    }
+  },
+  {
+    "model": "properties.property",
+    "pk": "00000000-0000-0000-0000-000000000004",
+    "fields": {
+      "name": "青禾山居",
+      "address": "杭州市西湖区龙井路88号",
+      "description": "坐落于茶山之间的精品民宿，环境清幽，远离喧嚣。",
+      "phone": "0571-88888888",
+      "owner": "00000000-0000-0000-0000-000000000002",
+      "is_active": true
+    }
+  },
+  {
+    "model": "properties.property",
+    "pk": "00000000-0000-0000-0000-000000000005",
+    "fields": {
+      "name": "青禾海畔",
+      "address": "舟山市普陀区朱家尖",
+      "description": "面朝大海的海景民宿，听涛观海，心旷神怡。",
+      "phone": "0580-66666666",
+      "owner": "00000000-0000-0000-0000-000000000002",
+      "is_active": true
+    }
+  },
+  {
+    "model": "properties.room",
+    "pk": "00000000-0000-0000-0000-000000000006",
+    "fields": {
+      "property": "00000000-0000-0000-0000-000000000004",
+      "name": "茶山观景大床房",
+      "description": "面向茶山的独立大床房，配备独立观景阳台。",
+      "max_guests": 2,
+      "base_price": "688.00",
+      "area": "35.0",
+      "bed_type": "1.8米大床",
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "properties.room",
+    "pk": "00000000-0000-0000-0000-000000000007",
+    "fields": {
+      "property": "00000000-0000-0000-0000-000000000004",
+      "name": "竹林露台双床房",
+      "description": "竹林环绕的双床房，带私密露台空间。",
+      "max_guests": 4,
+      "base_price": "888.00",
+      "area": "45.0",
+      "bed_type": "两张1.2米单人床",
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "properties.room",
+    "pk": "00000000-0000-0000-0000-000000000008",
+    "fields": {
+      "property": "00000000-0000-0000-0000-000000000005",
+      "name": "海景豪华套房",
+      "description": "180度海景豪华套房，独立客厅与卧室。",
+      "max_guests": 2,
+      "base_price": "1288.00",
+      "area": "65.0",
+      "bed_type": "2.0米特大床",
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "reminders.reminderrule",
+    "pk": 1,
+    "fields": {
+      "name": "房态重复预订冲突",
+      "trigger_type": "inventory_conflict",
+      "level": 1,
+      "color": "#E53935",
+      "time_limit_minutes": 15,
+      "conditions": {"conflict_type": "double_booking"},
+      "actions": ["notify_host", "notify_operator"],
+      "is_active": true,
+      "description": "当检测到房态重复预订时触发紧急提醒",
+      "created_by": "00000000-0000-0000-0000-000000000001"
+    }
+  },
+  {
+    "model": "reminders.reminderrule",
+    "pk": 2,
+    "fields": {
+      "name": "订单30分钟未确认",
+      "trigger_type": "order_status",
+      "level": 2,
+      "color": "#FB8C00",
+      "time_limit_minutes": 30,
+      "conditions": {"status": "pending", "minutes": 30},
+      "actions": ["notify_operator"],
+      "is_active": true,
+      "description": "新订单创建30分钟后仍未确认时触发提醒",
+      "created_by": "00000000-0000-0000-0000-000000000001"
+    }
+  },
+  {
+    "model": "reminders.reminderrule",
+    "pk": 3,
+    "fields": {
+      "name": "入住前24小时提醒",
+      "trigger_type": "checkin_reminder",
+      "level": 3,
+      "color": "#FDD835",
+      "time_limit_minutes": 1440,
+      "conditions": {"hours_before": 24},
+      "actions": ["notify_receptionist"],
+      "is_active": true,
+      "description": "客人入住前24小时发送提醒给前台",
+      "created_by": "00000000-0000-0000-0000-000000000001"
+    }
+  },
+  {
+    "model": "reminders.reminderrule",
+    "pk": 4,
+    "fields": {
+      "name": "清洁任务超时",
+      "trigger_type": "cleaning_due",
+      "level": 2,
+      "color": "#FB8C00",
+      "time_limit_minutes": 60,
+      "conditions": {},
+      "actions": ["notify_cleaner", "notify_supervisor"],
+      "is_active": true,
+      "description": "清洁任务超时时触发提醒",
+      "created_by": "00000000-0000-0000-0000-000000000001"
+    }
+  }
+]
