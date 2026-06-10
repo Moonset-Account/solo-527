@@ -1,22 +1,6 @@
 const prisma = require('../utils/prisma');
 const { success, error, paginate } = require('../utils/response');
 
-function safeJsonParse(str) {
-  if (!str) return null;
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return str;
-  }
-}
-
-function parseOperationLogDetails(log) {
-  if (log && log.details) {
-    log.details = safeJsonParse(log.details);
-  }
-  return log;
-}
-
 async function getOperationLogs(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -72,9 +56,7 @@ async function getOperationLogs(req, res, next) {
       prisma.operationLog.count({ where }),
     ]);
 
-    const parsedLogs = logs.map(parseOperationLogDetails);
-
-    return paginate(res, parsedLogs, total, page, pageSize);
+    return paginate(res, logs, total, page, pageSize);
   } catch (err) {
     next(err);
   }
@@ -95,8 +77,6 @@ async function getOperationLogById(req, res, next) {
     if (!log) {
       return error(res, '操作日志不存在', 404);
     }
-
-    parseOperationLogDetails(log);
 
     return success(res, log);
   } catch (err) {

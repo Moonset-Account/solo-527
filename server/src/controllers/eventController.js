@@ -1,29 +1,6 @@
 const prisma = require('../utils/prisma');
 const { success, error, paginate } = require('../utils/response');
 
-function safeJsonParse(str) {
-  if (!str) return null;
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return str;
-  }
-}
-
-function parseEventImages(event) {
-  if (event && event.images) {
-    event.images = safeJsonParse(event.images);
-  }
-  return event;
-}
-
-function parseOperationLogDetails(log) {
-  if (log && log.details) {
-    log.details = safeJsonParse(log.details);
-  }
-  return log;
-}
-
 async function getEvents(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -109,9 +86,7 @@ async function getEvents(req, res, next) {
       prisma.event.count({ where }),
     ]);
 
-    const parsedEvents = events.map(parseEventImages);
-
-    return paginate(res, parsedEvents, total, page, pageSize);
+    return paginate(res, events, total, page, pageSize);
   } catch (err) {
     next(err);
   }
@@ -137,11 +112,6 @@ async function getEventById(req, res, next) {
 
     if (!event) {
       return error(res, '事件不存在', 404);
-    }
-
-    parseEventImages(event);
-    if (event.operationLogs) {
-      event.operationLogs.forEach(parseOperationLogDetails);
     }
 
     return success(res, event);
@@ -179,7 +149,7 @@ async function createEvent(req, res, next) {
         longitude: longitude ? parseFloat(longitude) : null,
         gridId: parseInt(gridId),
         reporterId: req.user.id,
-        images: images ? JSON.stringify(images) : null,
+        images: images || null,
       },
     });
 
@@ -189,7 +159,7 @@ async function createEvent(req, res, next) {
         action: '创建事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ title }),
+        details: { title },
       },
     });
 
@@ -227,7 +197,7 @@ async function updateEvent(req, res, next) {
         longitude: longitude ? parseFloat(longitude) : null,
         gridId: gridId ? parseInt(gridId) : undefined,
         departmentId: departmentId ? parseInt(departmentId) : null,
-        images: images ? JSON.stringify(images) : null,
+        images: images || null,
       },
     });
 
@@ -237,7 +207,7 @@ async function updateEvent(req, res, next) {
         action: '更新事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ title }),
+        details: { title },
       },
     });
 
@@ -291,7 +261,7 @@ async function assignEvent(req, res, next) {
         action: '指派事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ assigneeId, departmentId }),
+        details: { assigneeId, departmentId },
       },
     });
 
@@ -327,7 +297,7 @@ async function updateEventStatus(req, res, next) {
         action: `更新状态为 ${status}`,
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ status }),
+        details: { status },
       },
     });
 
@@ -429,7 +399,7 @@ async function batchAssignEvents(req, res, next) {
       action: '批量分派事件',
       operatorId: req.user.id,
       operatorName: req.user.name,
-      details: JSON.stringify({ assigneeId, departmentId, reason: '批量分派' }),
+      details: { assigneeId, departmentId, reason: '批量分派' },
       status: 'SUCCESS',
     }));
 
@@ -438,7 +408,7 @@ async function batchAssignEvents(req, res, next) {
       action: '批量分派事件',
       operatorId: req.user.id,
       operatorName: req.user.name,
-      details: JSON.stringify({ assigneeId, departmentId, eventId: id }),
+      details: { assigneeId, departmentId, eventId: id },
       status: 'FAILED',
       failureReason: '事件已关闭或不存在，无法分派',
     }));
@@ -519,7 +489,7 @@ async function batchWithdrawEvents(req, res, next) {
       action: '撤回事件',
       operatorId: req.user.id,
       operatorName: req.user.name,
-      details: JSON.stringify({ reason: '批量撤回' }),
+      details: { reason: '批量撤回' },
       status: 'SUCCESS',
     }));
 
@@ -540,7 +510,7 @@ async function batchWithdrawEvents(req, res, next) {
         action: '撤回事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ reason: '批量撤回' }),
+        details: { reason: '批量撤回' },
         status: 'FAILED',
         failureReason: reason,
       });
@@ -553,7 +523,7 @@ async function batchWithdrawEvents(req, res, next) {
         action: '撤回事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ reason: '批量撤回', eventId: id }),
+        details: { reason: '批量撤回', eventId: id },
         status: 'FAILED',
         failureReason: '事件不存在',
       });
@@ -665,7 +635,7 @@ async function closeEvent(req, res, next) {
         action: '关闭事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ fromStatus: 'COMPLETED', toStatus: 'CLOSED' }),
+        details: { fromStatus: 'COMPLETED', toStatus: 'CLOSED' },
       },
     });
 
@@ -726,7 +696,7 @@ async function processFacilityDamage(req, res, next) {
         action: '处理设施损坏事件',
         operatorId: req.user.id,
         operatorName: req.user.name,
-        details: JSON.stringify({ volunteerName, serviceHours }),
+        details: { volunteerName, serviceHours },
       },
     });
 

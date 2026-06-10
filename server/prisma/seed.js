@@ -251,7 +251,7 @@ async function main() {
         action: '创建事件',
         operatorId: workers[workerIndex].id,
         operatorName: workers[workerIndex].name,
-        details: JSON.stringify({ title: event.title }),
+        details: { title: event.title },
         status: 'SUCCESS',
         createdAt: event.createdAt,
       }
@@ -264,7 +264,7 @@ async function main() {
           action: '指派事件',
           operatorId: admin.id,
           operatorName: admin.name,
-          details: JSON.stringify({ departmentId: event.departmentId }),
+          details: { departmentId: event.departmentId },
           status: 'SUCCESS',
           createdAt: dayjs(event.createdAt).add(1, 'hour').toDate(),
         }
@@ -291,7 +291,7 @@ async function main() {
           action: '开始处理',
           operatorId: admin.id,
           operatorName: admin.name,
-          details: JSON.stringify({ status: 'PROCESSING' }),
+          details: { status: 'PROCESSING' },
           status: 'SUCCESS',
           createdAt: dayjs(event.createdAt).add(3, 'hour').toDate(),
         }

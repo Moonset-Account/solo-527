@@ -3,8 +3,54 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  GRID_WORKER
+  ADMIN
+}
+
+enum EventType {
+  FACILITY_DAMAGE
+  ENVIRONMENT
+  SECURITY
+  PUBLIC_SERVICE
+  OTHER
+}
+
+enum EventLevel {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum EventStatus {
+  PENDING
+  ASSIGNED
+  PROCESSING
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum NotificationType {
+  SYSTEM
+  EVENT
+  REMINDER
+}
+
+enum OperationStatus {
+  SUCCESS
+  FAILED
+}
+
+enum FacilityStatus {
+  NORMAL
+  DAMAGED
+  MAINTENANCE
 }
 
 model User {
@@ -12,7 +58,7 @@ model User {
   username  String   @unique
   password  String
   name      String
-  role      String   @default("GRID_WORKER")
+  role      Role     @default(GRID_WORKER)
   gridId    Int?
   grid      Grid?    @relation(fields: [gridId], references: [id])
   avatar    String?
@@ -20,8 +66,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  reportedEvents  Event[] @relation("Reporter")
-  assignedEvents  Event[] @relation("Assignee")
+  reportedEvents  Event[]          @relation("Reporter")
+  assignedEvents  Event[]          @relation("Assignee")
   operationLogs   OperationLog[]
   notifications   Notification[]
 }
@@ -57,9 +103,9 @@ model Event {
   id           Int         @id @default(autoincrement())
   title        String
   description  String?
-  type         String
-  level        String
-  status       String      @default("PENDING")
+  type         EventType
+  level        EventLevel
+  status       EventStatus @default(PENDING)
   location     String
   latitude     Float?
   longitude    Float?
@@ -71,7 +117,7 @@ model Event {
   assignee     User?       @relation("Assignee", fields: [assigneeId], references: [id])
   departmentId Int?
   department   Department? @relation(fields: [departmentId], references: [id])
-  images       String?
+  images       Json?
   isEffective  Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -96,45 +142,45 @@ model VolunteerService {
 }
 
 model OperationLog {
-  id            Int      @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   eventId       Int?
-  event         Event?   @relation(fields: [eventId], references: [id])
+  event         Event?           @relation(fields: [eventId], references: [id])
   action        String
   operatorId    Int
-  operator      User     @relation(fields: [operatorId], references: [id])
+  operator      User             @relation(fields: [operatorId], references: [id])
   operatorName  String
-  details       String?
-  status        String   @default("SUCCESS")
+  details       Json?
+  status        OperationStatus  @default(SUCCESS)
   failureReason String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime         @default(now())
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
+  id        Int              @id @default(autoincrement())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
   title     String
   content   String
-  type      String   @default("SYSTEM")
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  type      NotificationType @default(SYSTEM)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
   eventId   Int?
-  event     Event?   @relation(fields: [eventId], references: [id])
+  event     Event?           @relation(fields: [eventId], references: [id])
 }
 
 model Facility {
-  id          Int      @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   name        String
-  code        String   @unique
+  code        String         @unique
   type        String
   location    String
   latitude    Float?
   longitude   Float?
   gridId      Int
-  grid        Grid     @relation(fields: [gridId], references: [id])
-  status      String   @default("NORMAL")
+  grid        Grid           @relation(fields: [gridId], references: [id])
+  status      FacilityStatus @default(NORMAL)
   image       String?
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
