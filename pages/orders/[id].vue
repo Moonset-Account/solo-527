@@ -19,7 +19,7 @@
         <button
           v-if="order.status === 'ACCEPTED' || order.status === 'ASSIGNED'"
           class="btn btn-success"
-          @click="showAssignModal = true"
+          @click="handleAssign"
         >
           分派骑手
         </button>
@@ -273,6 +273,8 @@ const handleAccept = async () => {
 }
 
 const handleAssign = () => {
+  selectedRiderId.value = ''
+  assignReason.value = ''
   loadRiders()
   showAssignModal.value = true
 }
