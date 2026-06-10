@@ -251,10 +251,8 @@ export interface ReminderRule {
   level: ReminderLevel;
   level_display?: string;
   time_limit_minutes: number;
-  trigger_condition: Record<string, unknown>;
   conditions: Record<string, unknown>;
   actions: unknown[];
-  escalation_level?: ReminderLevel;
   is_active: boolean;
   color: string;
   created_by?: string;

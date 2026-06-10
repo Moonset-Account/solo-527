@@ -175,11 +175,12 @@ export default function Booking() {
     );
 
     const calendarMap: Record<string, Record<string, Inventory>> = {};
-    (calendarData as unknown as Inventory[]).forEach((inv: Inventory) => {
+    (calendarData as unknown as Inventory[]).forEach((inv: Inventory & { room_id?: string }) => {
       if (!calendarMap[inv.date]) {
         calendarMap[inv.date] = {};
       }
-      calendarMap[inv.date][inv.room] = inv;
+      const roomId = inv.room_id || inv.room;
+      calendarMap[inv.date][roomId] = inv;
     });
 
     return filteredRooms.map((room) => {

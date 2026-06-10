@@ -58,7 +58,14 @@ export default function ReminderRules() {
       const ruleData: Partial<ReminderRule> = {
         ...values,
         color: color?.toHexString ? color.toHexString() : values.color,
-        trigger_condition: values.trigger_condition ? JSON.parse(values.trigger_condition as unknown as string) : {},
+        conditions: values.conditions
+          ? typeof values.conditions === 'string'
+            ? JSON.parse(values.conditions)
+            : values.conditions
+          : {},
+        actions: values.actions && typeof values.actions === 'string'
+          ? JSON.parse(values.actions)
+          : values.actions || [],
       };
 
       if (editingRule) {
@@ -100,10 +107,10 @@ export default function ReminderRules() {
 
   const triggerTypes = [
     { value: 'inventory_conflict', label: '房态冲突' },
-    { value: 'order_pending', label: '订单待确认超时' },
-    { value: 'checkin_tomorrow', label: '明日入住提醒' },
-    { value: 'payment_overdue', label: '支付逾期' },
-    { value: 'cleaning_overdue', label: '清洁任务逾期' },
+    { value: 'order_status', label: '订单状态' },
+    { value: 'checkin_reminder', label: '入住提醒' },
+    { value: 'cleaning_due', label: '清洁任务' },
+    { value: 'payment_due', label: '支付提醒' },
     { value: 'custom', label: '自定义' },
   ];
 
@@ -173,24 +180,6 @@ export default function ReminderRules() {
       ),
     },
     {
-      title: '升级级别',
-      dataIndex: 'escalation_level',
-      key: 'escalation_level',
-      width: 100,
-      render: (level?: ReminderLevel) => {
-        if (!level) return <span className="text-gray-400">-</span>;
-        return (
-          <div className="flex items-center gap-1">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: REMINDER_LEVEL_COLORS[level] }}
-            />
-            <span className="text-sm">{REMINDER_LEVEL_NAMES[level]}</span>
-          </div>
-        );
-      },
-    },
-    {
       title: '状态',
       dataIndex: 'is_active',
       key: 'is_active',
@@ -223,7 +212,10 @@ export default function ReminderRules() {
               form.setFieldsValue({
                 ...record,
                 color: record.color,
-                trigger_condition: JSON.stringify(record.trigger_condition, null, 2),
+                conditions: JSON.stringify(record.conditions, null, 2),
+                actions: record.actions && record.actions.length > 0
+                  ? JSON.stringify(record.actions, null, 2)
+                  : '[]',
               });
               setShowModal(true);
             }}
@@ -263,7 +255,8 @@ export default function ReminderRules() {
                 time_limit_minutes: 60,
                 is_active: true,
                 color: REMINDER_LEVEL_COLORS[3],
-                trigger_condition: '{}',
+                conditions: '{}',
+                actions: '[]',
               });
               setShowModal(true);
             }}
@@ -365,7 +358,7 @@ export default function ReminderRules() {
           </Row>
 
           <Form.Item
-            name="trigger_condition"
+            name="conditions"
             label="触发条件（JSON格式）"
             rules={[{ required: true, message: '请输入触发条件' }]}
             help='使用JSON格式定义触发条件，例如：{"conflict_type": "double_booking"}'
@@ -373,28 +366,15 @@ export default function ReminderRules() {
             <TextArea rows={4} placeholder='{"key": "value"}' />
           </Form.Item>
 
+          <Form.Item
+            name="actions"
+            label="执行动作（JSON数组格式）"
+            help='使用JSON数组格式定义执行动作，例如：[{"type": "email", "to": "admin@example.com"}]，留空表示使用默认动作'
+          >
+            <TextArea rows={3} placeholder='[{"type": "notification"}]' />
+          </Form.Item>
+
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="escalation_level"
-                label="逾期升级级别"
-                help="逾期未处理时自动升级到此级别"
-              >
-                <Select allowClear placeholder="不升级">
-                  {[1, 2, 3, 4].map((level) => (
-                    <Option key={level} value={level}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: REMINDER_LEVEL_COLORS[level as ReminderLevel] }}
-                        />
-                        {level}级 - {REMINDER_LEVEL_NAMES[level as ReminderLevel]}
-                      </div>
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
             <Col span={12}>
               <Form.Item
                 name="color"
@@ -476,19 +456,6 @@ export default function ReminderRules() {
               <Descriptions.Item label="处理时限">
                 {selectedRule.time_limit_minutes} 分钟
               </Descriptions.Item>
-              {selectedRule.escalation_level && (
-                <Descriptions.Item label="升级级别" span={2}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{
-                        backgroundColor: REMINDER_LEVEL_COLORS[selectedRule.escalation_level],
-                      }}
-                    />
-                    {REMINDER_LEVEL_NAMES[selectedRule.escalation_level]}
-                  </div>
-                </Descriptions.Item>
-              )}
               <Descriptions.Item label="标识颜色" span={2}>
                 <div className="flex items-center gap-2">
                   <div
@@ -500,7 +467,12 @@ export default function ReminderRules() {
               </Descriptions.Item>
               <Descriptions.Item label="触发条件" span={2}>
                 <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto">
-                  {JSON.stringify(selectedRule.trigger_condition, null, 2)}
+                  {JSON.stringify(selectedRule.conditions, null, 2)}
+                </pre>
+              </Descriptions.Item>
+              <Descriptions.Item label="执行动作" span={2}>
+                <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto">
+                  {JSON.stringify(selectedRule.actions, null, 2)}
                 </pre>
               </Descriptions.Item>
               <Descriptions.Item label="创建时间">
@@ -519,7 +491,10 @@ export default function ReminderRules() {
                   form.setFieldsValue({
                     ...selectedRule,
                     color: selectedRule.color,
-                    trigger_condition: JSON.stringify(selectedRule.trigger_condition, null, 2),
+                    conditions: JSON.stringify(selectedRule.conditions, null, 2),
+                    actions: selectedRule.actions && selectedRule.actions.length > 0
+                      ? JSON.stringify(selectedRule.actions, null, 2)
+                      : '[]',
                   });
                   setShowDetailDrawer(false);
                   setShowModal(true);
