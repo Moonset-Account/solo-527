@@ -129,7 +129,7 @@ model User {
   faultHandlers   DeviceFault[]    @relation("HandlerFaults")
   notifications   Notification[]
   downloads       DownloadTask[]
-  capacityReports CoachCapacityReport[]
+  capacityReports CoachCapacityReport[] @relation("UserCapacityReports")
   bookingLogs     BookingLog[]     @relation("LogOperators")
   checkInRecords  CheckInRecord[]  @relation("CheckInOperators")
   createdAt       DateTime         @default(now())
@@ -151,8 +151,8 @@ model CoachProfile {
   status         Int                 @default(1)
   totalCapacity  Int                 @default(0)
   usedCapacity   Int                 @default(0)
-  coachBookings  CoachAssignment[]
-  capacityReports CoachCapacityReport[]
+  coachBookings   CoachAssignment[]
+  capacityReports CoachCapacityReport[] @relation("CoachReports")
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
@@ -443,9 +443,9 @@ model CoachCapacityReport {
   id              Int          @id @default(autoincrement())
   reportNo        String       @unique
   coachId         Int
-  coach           CoachProfile @relation(fields: [coachId], references: [id])
+  coach           CoachProfile @relation("CoachReports", fields: [coachId], references: [id])
   userId          Int
-  user            User         @relation(fields: [userId], references: [id])
+  user            User         @relation("UserCapacityReports", fields: [userId], references: [id])
   reportDate      DateTime
   weekStart       DateTime
   weekEnd         DateTime

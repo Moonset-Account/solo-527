@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
       where: {
         courtId: data.courtId,
         bookingDate: { gte: dayStart, lt: dayEnd },
-        status: { in: ['PENDING', 'CONFIRMED', 'PAID', 'CHECKED_IN', 'IN_USE'] as BookingStatus[] }
+        status: { in: ['PENDING', 'CONFIRMED', 'PAID', 'CHECKED_IN'] as BookingStatus[] }
       }
     })
     for (const b of existingBookings) {

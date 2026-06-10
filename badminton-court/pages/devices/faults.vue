@@ -112,6 +112,18 @@
           <div>
             <label class="label"><input type="checkbox" v-model="reportForm.affectCoach" class="mr-1" /> 是否影响教练教学（将写入产能报表）</label>
           </div>
+          <div v-if="reportForm.affectCoach" class="bg-yellow-50 rounded-lg p-3">
+            <label class="label mb-2">选择受影响教练（可多选）</label>
+            <div v-if="!coaches.length" class="text-xs text-gray-400">加载中...</div>
+            <div class="grid grid-cols-2 gap-2">
+              <label v-for="c in coaches" :key="c.id" class="flex items-center gap-2 text-sm bg-white rounded p-2 border cursor-pointer hover:border-yellow-400" :class="reportForm.affectedCoachIds.includes(c.userId) ? 'border-yellow-500 bg-yellow-100' : ''">
+                <input type="checkbox" :value="c.userId" v-model="reportForm.affectedCoachIds" class="rounded" />
+                <span>{{ c.user?.realName || '教练' + c.id }}</span>
+                <span class="text-xs text-gray-400">¥{{ c.hourlyRate }}/h</span>
+              </label>
+            </div>
+            <div v-if="reportForm.affectedCoachIds.length" class="mt-2 text-xs text-yellow-700">已选 {{ reportForm.affectedCoachIds.length }} 位教练，维修完成后将写入其本周产能报表</div>
+          </div>
         </div>
         <div class="p-5 border-t flex justify-end gap-2">
           <button class="btn-secondary" @click="openReport = false">取消</button>
@@ -142,6 +154,7 @@ const { get, post, put } = useApi()
 const filter = reactive({ status: '', courtId: 0 })
 const list = ref<any[]>([])
 const courts = ref<any[]>([])
+const coaches = ref<any[]>([])
 const openReport = ref(false)
 const openRepair = ref(false)
 const reportForm = reactive<any>({ deviceName: '', deviceType: '电气', faultLevel: '一般', courtId: 0, description: '', affectCoach: false, affectedCoachIds: [] })
@@ -168,6 +181,13 @@ async function loadCourts() {
   } catch {}
 }
 
+async function loadCoaches() {
+  try {
+    const r = await get('/api/coaches')
+    if (r.code === 0) coaches.value = r.data || []
+  } catch {}
+}
+
 async function doAction(f: any, action: string) {
   try {
     const r = await put('/api/devices/faults', { id: f.id, action })
@@ -178,7 +198,13 @@ async function doAction(f: any, action: string) {
 async function submitReport() {
   if (!reportForm.deviceName || !reportForm.description) return alert('请填写设备名和描述')
   try {
-    const payload = { ...reportForm, courtId: reportForm.courtId || undefined }
+    const payload: any = { ...reportForm, courtId: reportForm.courtId || undefined }
+    if (!reportForm.affectCoach) {
+      payload.affectedCoachIds = []
+      delete payload.affectedCoachIds
+    } else if (!reportForm.affectedCoachIds?.length) {
+      return alert('请至少选择一位受影响教练')
+    }
     const r = await post('/api/devices/faults', payload)
     if (r.code === 0) { openReport.value = false; Object.assign(reportForm, { deviceName: '', deviceType: '电气', faultLevel: '一般', courtId: 0, description: '', affectCoach: false, affectedCoachIds: [] }); loadList() }
     else alert(r.message)
@@ -189,11 +215,11 @@ async function submitRepair() {
   if (!repairForm.result) return alert('请填写维修结果')
   try {
     const r = await put('/api/devices/faults', { id: repairForm.faultId, action: 'repair', repairResult: repairForm.result, repairCost: repairForm.cost || undefined })
-    if (r.code === 0) { openRepair.value = false; repairForm = { faultId: 0, result: '', cost: 0 }; loadList() }
+    if (r.code === 0) { openRepair.value = false; repairForm.faultId = 0; repairForm.result = ''; repairForm.cost = 0; loadList() }
     else alert(r.message)
   } catch (e: any) { alert(e.message) }
 }
 
-onMounted(async () => { await loadCourts(); loadList() })
+onMounted(async () => { await loadCourts(); loadCoaches(); loadList() })
 definePageMeta({ layout: 'default', middleware: 'auth' })
 </script>

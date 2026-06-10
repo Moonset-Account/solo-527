@@ -27,7 +27,7 @@
           <p class="text-xs text-gray-400 mb-2 text-center">演示账号</p>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <button v-for="a in demoAccounts" :key="a[0]" class="bg-gray-50 hover:bg-gray-100 rounded-lg p-2 text-left transition"
-              @click="form = { username: a[0], password: a[1] }">
+              @click="fillForm(a)">
               <div class="font-medium text-gray-700">{{ a[2] }}</div>
               <div class="text-gray-400">{{ a[0] }} / {{ a[1] }}</div>
             </button>
@@ -58,6 +58,11 @@ const demoAccounts = [
   ['staff01', 'admin123', '前台'],
   ['user001', 'user123', '客户']
 ]
+
+function fillForm(a: string[]) {
+  form.username = a[0]
+  form.password = a[1]
+}
 
 async function handleLogin() {
   if (!form.username || !form.password) {
