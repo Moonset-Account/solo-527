@@ -184,12 +184,22 @@ async function obtainProtectionRules(
     rules.push(...fromApi);
   }
 
-  if (git) {
-    const localRules = git.buildLocalProtectionRules();
-    for (const lr of localRules) {
-      if (!rules.some((r) => r.pattern === lr.pattern)) {
-        rules.push(lr);
-      }
+  const mkLocal = (r: Omit<BranchProtectionRule, 'source'>): BranchProtectionRule =>
+    ({ ...r, source: 'local-inference' });
+  const localRules: BranchProtectionRule[] = git
+    ? git.buildLocalProtectionRules()
+    : [
+        mkLocal({ pattern: 'main', requiresApprovingReviews: false, requiresStatusChecks: false, allowsForcePushes: false, allowsDeletions: false, restrictsPushes: false }),
+        mkLocal({ pattern: 'master', requiresApprovingReviews: false, requiresStatusChecks: false, allowsForcePushes: false, allowsDeletions: false, restrictsPushes: false }),
+        mkLocal({ pattern: 'release/*', requiresApprovingReviews: false, requiresStatusChecks: false, allowsForcePushes: false, allowsDeletions: false, restrictsPushes: false }),
+        mkLocal({ pattern: 'hotfix/*', requiresApprovingReviews: false, requiresStatusChecks: false, allowsForcePushes: false, allowsDeletions: false, restrictsPushes: false }),
+        mkLocal({ pattern: 'develop', requiresApprovingReviews: false, requiresStatusChecks: false, allowsForcePushes: false, allowsDeletions: false, restrictsPushes: false }),
+        mkLocal({ pattern: 'v*.*', requiresApprovingReviews: false, requiresStatusChecks: false, allowsForcePushes: false, allowsDeletions: false, restrictsPushes: false }),
+      ];
+
+  for (const lr of localRules) {
+    if (!rules.some((r) => r.pattern === lr.pattern && r.source === lr.source)) {
+      rules.push(lr);
     }
   }
 
@@ -336,12 +346,21 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
   let prMap: Map<string, any> = new Map();
   if (github && github.isAvailable()) {
     if (!json) console.log(chalk.cyan('🔍 正在批量获取关联 PR 信息...'));
-    prMap = await github.fetchAllPullRequests();
+    const rawPrMap = await github.fetchAllPullRequests();
+    const validBranchNames = new Set(branches.map(b => b.name));
+    prMap = new Map();
+    for (const [refName, prs] of rawPrMap.entries()) {
+      if (validBranchNames.has(refName)) {
+        prMap.set(refName, prs);
+      }
+    }
+    const rawCount = Array.from(rawPrMap.values()).reduce((sum, arr) => sum + arr.length, 0);
     const prCount = Array.from(prMap.values()).reduce((sum, arr) => sum + arr.length, 0);
     if (!json) {
       console.log(
         chalk.green(
-          `  ✓ 获取到 ${prMap.size} 个分支共 ${prCount} 条关联 PR 数据`
+          `  ✓ 获取到 ${prMap.size} 个真实分支共 ${prCount} 条关联 PR 数据` +
+          chalk.gray(rawPrMap.size !== prMap.size ? `（原始 ${rawPrMap.size} 分支/${rawCount} 条，过滤掉已删除或 fork 外部分支）` : '')
         )
       );
     }
