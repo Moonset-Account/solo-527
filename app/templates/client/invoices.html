@@ -1,0 +1,203 @@
+{% extends "client/layout.html" %}
+{% set active_nav = "invoices" %}
+{% block client_title %}发票申请{% endblock %}
+{% block header_title %}发票申请{% endblock %}
+{% block header_crumbs %}业务中心 / 发票申请{% endblock %}
+{% block content %}
+<div x-data="clientInvoices()" class="fade-in-up">
+
+  <div class="grid-2-even section-gap">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">🧾 新增发票申请</h3>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('client_invoice_create') }}" onsubmit="return validateInvoice(this);" id="invoice-form">
+          <div class="form-group">
+            <label class="form-label">关联账单 <span style="color:var(--qh-red-500)">*</span></label>
+            <select class="select" name="bill_id" id="bill-select" required @change="onBillChange()">
+              <option value="">请选择需要开票的账单</option>
+              {% for b in unpaid_bills %}
+                <option value="{{ b.id }}" data-amount="{{ b.remaining_amount }}" data-invoiced="{{ b.invoiced_amount or 0 }}">
+                  {{ b.bill_no }} · {{ b.period_start.strftime('%Y年%m月') if b.period_start else '' }} · 可开票 ¥{{ "{:,.2f}".format((b.remaining_amount or b.total_amount) - (b.invoiced_amount or 0)) }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-help">仅可对已支付或部分支付的账单申请开票</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">发票类型 <span style="color:var(--qh-red-500)">*</span></label>
+            <select class="select" name="type" required>
+              <option value="VAT_NORMAL">增值税普通发票</option>
+              <option value="VAT_SPECIAL">增值税专用发票</option>
+              <option value="ELECTRONIC">电子发票</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">开票金额（元）<span style="color:var(--qh-red-500)">*</span></label>
+            <input type="number" class="input amount-input" name="amount" id="invoice-amount" placeholder="请输入开票金额" min="0.01" step="0.01" required oninput="formatAmountInput(this);updateMaxLabel();">
+            <div class="form-help" id="max-amount-hint">最高可开票金额：¥0.00</div>
+          </div>
+          <div style="border-top:1px dashed var(--qh-gray-200);margin:8px 0 14px;padding-top:14px">
+            <div class="text-sm font-bold mb-sm" style="color:var(--qh-gray-700)">📋 发票抬头信息</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">发票抬头 <span style="color:var(--qh-red-500)">*</span></label>
+            <input type="text" class="input" name="title" required maxlength="300" placeholder="请输入公司名称或个人姓名">
+          </div>
+          <div class="form-group">
+            <label class="form-label">纳税人识别号 <span style="color:var(--qh-red-500)">*</span></label>
+            <input type="text" class="input" name="tax_id" required maxlength="50" placeholder="15/17/18/20位统一社会信用代码" oninput="this.value=this.value.toUpperCase()">
+            <div class="form-help">增值税专票必填，建议填写</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">注册地址</label>
+              <input type="text" class="input" name="address" maxlength="500" placeholder="专票必填">
+            </div>
+            <div class="form-group">
+              <label class="form-label">注册电话</label>
+              <input type="text" class="input" name="phone" maxlength="50" placeholder="专票必填">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">开户银行</label>
+              <input type="text" class="input" name="bank_name" maxlength="200" placeholder="专票必填">
+            </div>
+            <div class="form-group">
+              <label class="form-label">银行账号</label>
+              <input type="text" class="input" name="bank_account" maxlength="100" placeholder="专票必填">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" style="padding:12px;font-size:15px">
+            提交发票申请
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">📂 已申请发票</h3>
+        <span class="text-xs text-muted">共 {{ invoices | length }} 条</span>
+      </div>
+      <div class="card-body" style="padding:0;max-height:680px;overflow-y:auto">
+        {% if invoices and invoices | length > 0 %}
+          <table class="table" style="border:none">
+            <thead>
+              <tr>
+                <th>发票号</th>
+                <th>类型</th>
+                <th class="num">金额</th>
+                <th>状态</th>
+                <th>申请时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for inv in invoices %}
+                <tr>
+                  <td style="font-family:'JetBrains Mono',monospace;font-weight:500;font-size:12.5px">
+                    {{ inv.invoice_no or '—' }}
+                    {% if not inv.invoice_no %}
+                      <span class="badge badge-gray text-xs" style="margin-left:2px">待开</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if inv.type == 'VAT_SPECIAL' %}
+                      <span class="badge badge-blue-solid">专票</span>
+                    {% elif inv.type == 'VAT_NORMAL' %}
+                      <span class="badge badge-blue">普票</span>
+                    {% elif inv.type == 'ELECTRONIC' %}
+                      <span class="badge badge-green">电子</span>
+                    {% else %}
+                      <span class="badge badge-gray">{{ inv.type }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="num money font-bold">¥{{ "{:,.2f}".format(inv.amount) }}</td>
+                  <td>
+                    {% if inv.status == 'PENDING' %}
+                      <span class="badge badge-amber">待审核</span>
+                    {% elif inv.status == 'APPROVED' %}
+                      <span class="badge badge-blue">已审核</span>
+                    {% elif inv.status == 'ISSUING' %}
+                      <span class="badge badge-blue-solid">开票中</span>
+                    {% elif inv.status == 'ISSUED' %}
+                      <span class="badge badge-green">已开票</span>
+                    {% elif inv.status == 'MAILED' %}
+                      <span class="badge badge-green-solid">已寄送</span>
+                    {% elif inv.status == 'ERROR' %}
+                      <span class="badge badge-red-solid">开票失败</span>
+                    {% else %}
+                      <span class="badge badge-gray">{{ inv.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td style="white-space:nowrap">{{ inv.applied_at.strftime('%Y-%m-%d') if inv.applied_at else '—' }}</td>
+                  <td>
+                    {% if inv.validation_errors and inv.validation_errors | length > 0 %}
+                      <button class="btn btn-xs btn-ghost" title="{{ inv.validation_errors[0].message if inv.validation_errors[0] else '' }}">查看错误</button>
+                    {% elif inv.status == 'ISSUED' or inv.status == 'MAILED' %}
+                      <button class="btn btn-xs btn-secondary">下载PDF</button>
+                    {% else %}
+                      <span class="text-xs text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="empty-state" style="padding:60px 20px">
+            <div class="es-icon">🧾</div>
+            <h4>暂无发票申请</h4>
+            <p>填写左侧表单提交您的第一张发票申请</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function clientInvoices(){
+  return {
+    maxAmount: 0,
+    onBillChange(){
+      const sel = document.getElementById('bill-select');
+      const opt = sel.options[sel.selectedIndex];
+      if (opt && opt.dataset.amount) {
+        const total = parseFloat(opt.dataset.amount || 0);
+        const invoiced = parseFloat(opt.dataset.invoiced || 0);
+        this.maxAmount = Math.max(0, total - invoiced);
+        const amtInput = document.getElementById('invoice-amount');
+        amtInput.max = this.maxAmount;
+        amtInput.value = this.maxAmount.toFixed(2);
+        amtInput.dispatchEvent(new Event('input'));
+      }
+      this.updateMaxLabel();
+    },
+    updateMaxLabel(){
+      const hint = document.getElementById('max-amount-hint');
+      const amt = parseFloat(document.getElementById('invoice-amount').value || 0);
+      if (this.maxAmount > 0) {
+        hint.textContent = '最高可开票金额：¥' + this.maxAmount.toLocaleString('zh-CN', {minimumFractionDigits:2});
+        if (amt > this.maxAmount) {
+          hint.style.color = 'var(--qh-red-600)';
+        } else {
+          hint.style.color = '';
+        }
+      }
+    }
+  };
+}
+
+function validateInvoice(form){
+  const amt = parseFloat(form.amount.value || 0);
+  if (amt <= 0) { alert('请输入有效的开票金额'); return false; }
+  if (!form.bill_id.value) { alert('请选择关联账单'); return false; }
+  return confirm('确认提交发票申请？提交后将由财务人员审核开票。');
+}
+</script>
+{% endblock %}

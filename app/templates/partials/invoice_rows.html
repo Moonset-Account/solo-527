@@ -1,0 +1,75 @@
+<div data-total="{{ data.total }}" data-total_pages="{{ data.total_pages }}" data-page="{{ data.page }}">
+<table>
+<tbody>
+{% for inv in data.items %}
+  <tr>
+    <td class="money" style="font-family:'JetBrains Mono',monospace;font-weight:600;">
+      {{ inv.invoice_no or '—' }}
+      {% if not inv.invoice_no %}
+        <span class="badge badge-gray text-xs" style="margin-left:4px">待开票</span>
+      {% endif %}
+    </td>
+    <td>
+      <div style="font-weight:500;">{{ inv.bill_no or '关联账单' }}</div>
+    </td>
+    <td class="truncate" style="max-width:220px" title="{{ inv.title }}">
+      <div>{{ inv.title }}</div>
+      <div class="text-xs text-muted">税号: {{ inv.tax_id }}</div>
+    </td>
+    <td>
+      {% if inv.type == 'VAT_SPECIAL' %}
+        <span class="badge badge-blue-solid">增值税专票</span>
+      {% elif inv.type == 'VAT_NORMAL' %}
+        <span class="badge badge-blue">增值税普票</span>
+      {% elif inv.type == 'ELECTRONIC' %}
+        <span class="badge badge-green">电子发票</span>
+      {% else %}
+        <span class="badge badge-gray">{{ inv.type }}</span>
+      {% endif %}
+    </td>
+    <td class="num money font-bold">¥{{ "{:,.2f}".format(inv.amount) }}</td>
+    <td>
+      {% if inv.status == 'PENDING' %}
+        <span class="badge badge-amber">待审核</span>
+      {% elif inv.status == 'APPROVED' %}
+        <span class="badge badge-blue">已审核</span>
+      {% elif inv.status == 'ISSUING' %}
+        <span class="badge badge-blue-solid">开票中</span>
+      {% elif inv.status == 'ISSUED' %}
+        <span class="badge badge-green">已开票</span>
+      {% elif inv.status == 'MAILED' %}
+        <span class="badge badge-green-solid">已寄送</span>
+      {% elif inv.status == 'ERROR' %}
+        <span class="badge badge-red-solid">开票失败</span>
+      {% else %}
+        <span class="badge badge-gray">{{ inv.status }}</span>
+      {% endif %}
+    </td>
+    <td>{{ inv.applied_at.strftime('%Y-%m-%d') if inv.applied_at else '—' }}</td>
+    <td class="num center">
+      {% if inv.validation_errors and inv.validation_errors | length > 0 %}
+        <span class="badge badge-red-solid">{{ inv.validation_errors | length }}</span>
+      {% else %}
+        <span class="text-green text-sm">✓</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="flex gap-sm" style="justify-content:flex-end">
+        {% if inv.status == 'PENDING' %}
+          <button class="btn btn-xs btn-primary" hx-post="{{ url_for('admin_invoice_approve', invoice_id=inv.id) }}" hx-swap="none" hx-confirm="确认审核通过？">审核</button>
+          <button class="btn btn-xs btn-danger" hx-post="{{ url_for('admin_invoice_reject', invoice_id=inv.id) }}" hx-swap="none" hx-confirm="确认驳回？">驳回</button>
+        {% elif inv.status == 'APPROVED' %}
+          <button class="btn btn-xs btn-primary" hx-post="{{ url_for('admin_invoice_issue', invoice_id=inv.id) }}" hx-swap="none">开具</button>
+        {% elif inv.status == 'ISSUED' %}
+          <button class="btn btn-xs btn-secondary" hx-post="{{ url_for('admin_invoice_mail', invoice_id=inv.id) }}" hx-swap="none">标记寄送</button>
+        {% endif %}
+        <a class="btn btn-xs btn-ghost" href="{{ url_for('admin_invoice_detail', invoice_id=inv.id) }}">详情</a>
+      </div>
+    </td>
+  </tr>
+{% else %}
+  <tr><td colspan="9"><div class="empty-state"><div class="es-icon">🧾</div><h4>暂无发票记录</h4><p>客户申请后将在此展示</p></div></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>

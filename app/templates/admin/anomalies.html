@@ -1,0 +1,135 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "anomalies" %}
+{% block admin_title %}异常池{% endblock %}
+{% block header_title %}异常监控池{% endblock %}
+{% block header_crumbs %}首页 / 资金与监控 / 异常池{% endblock %}
+{% block content %}
+<div x-data="anomalyList()" x-init="load()" class="fade-in-up">
+
+  <div class="grid-3 section-gap">
+    <div class="kpi-card red">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">待处理异常</div>
+        <div class="kpi-icon red">🔴</div>
+      </div>
+      <div class="kpi-value negative">{{ stats.open or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">需要立即关注</span></div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">处理中</div>
+        <div class="kpi-icon amber">🟡</div>
+      </div>
+      <div class="kpi-value" style="color:var(--qh-amber-600)">{{ stats.processing or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">正在跟进处理</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">本月已解决</div>
+        <div class="kpi-icon">🟢</div>
+      </div>
+      <div class="kpi-value positive">{{ stats.resolved or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">解决率 <b class="text-green">{{ stats.resolve_rate or '0%' }}</b></span></div>
+    </div>
+  </div>
+
+  <div class="card section-gap">
+    <div class="card-body" style="padding:14px 20px">
+      <div class="flex items-start justify-between gap-md flex-wrap">
+        <div>
+          <div class="text-sm text-muted mb-sm">异常类型：</div>
+          <div class="tabs" style="border-bottom:none;padding:0">
+            <button class="tab {% if not current_type %}active{% endif %}" @click="setType('')">全部 <span class="count">{{ stats.total or 0 }}</span></button>
+            <button class="tab {% if current_type == 'TXN_UNMATCHED' %}active{% endif %}" @click="setType('TXN_UNMATCHED')">流水未匹配 <span class="count" style="background:var(--qh-gray-100)">{{ stats.txn_unmatched or 0 }}</span></button>
+            <button class="tab {% if current_type == 'INVOICE_ERROR' %}active{% endif %}" @click="setType('INVOICE_ERROR')">发票错误 <span class="count" style="background:var(--qh-red-100);color:var(--qh-red-700)">{{ stats.invoice_error or 0 }}</span></button>
+            <button class="tab {% if current_type == 'OVERDUE_LIMIT' %}active{% endif %}" @click="setType('OVERDUE_LIMIT')">逾期超限 <span class="count" style="background:var(--qh-amber-100);color:var(--qh-amber-700)">{{ stats.overdue or 0 }}</span></button>
+            <button class="tab {% if current_type == 'AMOUNT_DIFF' %}active{% endif %}" @click="setType('AMOUNT_DIFF')">金额不符 <span class="count" style="background:var(--qh-amber-100);color:var(--qh-amber-700)">{{ stats.amount_diff or 0 }}</span></button>
+          </div>
+        </div>
+        <div style="min-width:180px">
+          <label class="form-label mb-sm">状态筛选</label>
+          <select class="select" x-model="statusFilter" @change="load()">
+            <option value="">全部状态</option>
+            <option value="OPEN">待处理</option>
+            <option value="PROCESSING">处理中</option>
+            <option value="RESOLVED">已解决</option>
+            <option value="IGNORED">已忽略</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>异常类型</th>
+            <th>关联单号</th>
+            <th>严重度</th>
+            <th>状态</th>
+            <th>描述</th>
+            <th>创建时间</th>
+            <th style="min-width:160px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="anomaly-rows-body">
+          <tr><td colspan="7"><div style="padding:32px;text-align:center;color:var(--qh-gray-500)"><div style="font-size:12px">加载中...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:14px 20px">
+      <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页，共 '+total+' 条'"></div>
+      <div class="pg-buttons">
+        <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+        <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+        <template x-for="p in pageNumbers()" :key="p">
+          <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+        </template>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+function anomalyList(){
+  return {
+    page: 1, page_size: 20, total: 0, total_pages: 1,
+    typeFilter: '',
+    statusFilter: '',
+    setType(t){ this.typeFilter = t; this.page = 1; this.load(); },
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){ this.page = p; this.load(); },
+    async load(){
+      const qs = new URLSearchParams({ page: this.page, page_size: this.page_size, type: this.typeFilter, status: this.statusFilter }).toString();
+      const r = await fetch('{{ url_for("admin_anomalies_list") }}?'+qs, { headers: {'HX-Request':'true'} });
+      const html = await r.text();
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const totalEl = wrap.querySelector('[data-total]');
+      if (totalEl) {
+        this.total = parseInt(totalEl.dataset.total || 0);
+        this.total_pages = parseInt(totalEl.dataset.total_pages || 1);
+        this.page = parseInt(totalEl.dataset.page || 1);
+      }
+      document.getElementById('anomaly-rows-body').innerHTML = wrap.querySelector('tbody').innerHTML;
+    }
+  };
+}
+</script>
+{% endblock %}

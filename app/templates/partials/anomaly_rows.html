@@ -1,0 +1,72 @@
+<div data-total="{{ data.total }}" data-total_pages="{{ data.total_pages }}" data-page="{{ data.page }}">
+<table>
+<tbody>
+{% for a in data.items %}
+  <tr>
+    <td>
+      {% if a.type == 'TXN_UNMATCHED' %}
+        <span class="badge badge-gray-solid">流水未匹配</span>
+      {% elif a.type == 'INVOICE_ERROR' %}
+        <span class="badge badge-red-solid">发票错误</span>
+      {% elif a.type == 'AMOUNT_DIFF' %}
+        <span class="badge badge-amber-solid">金额不符</span>
+      {% elif a.type == 'OVERDUE_LIMIT' %}
+        <span class="badge badge-red">逾期超限</span>
+      {% elif a.type == 'FORECAST_WARN' %}
+        <span class="badge badge-blue">预测预警</span>
+      {% else %}
+        <span class="badge badge-gray">{{ a.type }}</span>
+      {% endif %}
+    </td>
+    <td class="money" style="font-family:'JetBrains Mono',monospace;">
+      {{ a.related_entity_no or (a.related_entity_id | string)[:8] + '...' if a.related_entity_id else '—' }}
+    </td>
+    <td>
+      {% if a.severity == 'LOW' %}
+        <span class="badge badge-green">低</span>
+      {% elif a.severity == 'MEDIUM' %}
+        <span class="badge badge-amber-solid">中</span>
+      {% elif a.severity == 'HIGH' %}
+        <span class="badge badge-red">高</span>
+      {% elif a.severity == 'CRITICAL' %}
+        <span class="badge badge-red-solid">紧急</span>
+      {% else %}
+        <span class="badge badge-gray">{{ a.severity }}</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if a.status == 'OPEN' %}
+        <span class="badge badge-red-solid">待处理</span>
+      {% elif a.status == 'PROCESSING' %}
+        <span class="badge badge-amber-solid">处理中</span>
+      {% elif a.status == 'RESOLVED' %}
+        <span class="badge badge-green-solid">已解决</span>
+      {% elif a.status == 'IGNORED' %}
+        <span class="badge badge-gray">已忽略</span>
+      {% else %}
+        <span class="badge badge-gray">{{ a.status }}</span>
+      {% endif %}
+    </td>
+    <td class="truncate" style="max-width:320px" title="{{ a.description or a.title }}">
+      <div style="font-weight:500;">{{ a.title }}</div>
+      {% if a.description %}
+        <div class="text-xs text-muted mt-sm">{{ a.description }}</div>
+      {% endif %}
+    </td>
+    <td>{{ a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else '—' }}</td>
+    <td>
+      <div class="flex gap-sm" style="justify-content:flex-end">
+        {% if a.status in ('OPEN', 'PROCESSING') %}
+          <button class="btn btn-xs btn-primary" hx-get="{{ url_for('admin_anomaly_resolve_dialog', anomaly_id=a.id) }}" hx-target="#modal-container" hx-swap="innerHTML">处理</button>
+          <button class="btn btn-xs btn-ghost" hx-post="{{ url_for('admin_anomaly_ignore', anomaly_id=a.id) }}" hx-swap="none" hx-confirm="确认忽略此异常？">忽略</button>
+        {% endif %}
+        <a class="btn btn-xs btn-secondary" href="{{ url_for('admin_anomaly_detail', anomaly_id=a.id) }}">详情</a>
+      </div>
+    </td>
+  </tr>
+{% else %}
+  <tr><td colspan="7"><div class="empty-state"><div class="es-icon">✅</div><h4>暂无异常记录</h4><p>系统未检测到异常情况</p></div></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>

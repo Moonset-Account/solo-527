@@ -1,0 +1,27 @@
+<div class="tl-item {% if note.is_internal %}amber{% endif %}" style="padding-bottom:14px">
+  <div class="tl-meta">
+    <span>
+      {% if note.created_at %}
+        {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}
+      {% else %}
+        —
+      {% endif %}
+    </span>
+    <span>
+      {% if note.is_internal %}
+        <span class="badge badge-amber" style="font-size:10.5px;padding:1px 6px">内部</span>
+      {% else %}
+        <span class="badge badge-green" style="font-size:10.5px;padding:1px 6px">公开</span>
+      {% endif %}
+    </span>
+  </div>
+  <div class="tl-title" style="display:flex;align-items:center;gap:8px">
+    <div class="user-avatar" style="width:24px;height:24px;font-size:11px;background:linear-gradient(135deg,var(--qh-green-500),var(--qh-green-700))">
+      {{ (note.author_name or '?')[0] | upper }}
+    </div>
+    <span style="font-weight:600;">{{ note.author_name or '未知用户' }}</span>
+  </div>
+  <div class="tl-body" style="margin-top:8px;padding:10px 12px;background:var(--qh-gray-50);border-radius:8px;white-space:pre-wrap;word-break:break-word">
+    {{ note.content }}
+  </div>
+</div>

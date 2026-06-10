@@ -1,0 +1,146 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "prepaid" %}
+{% block admin_title %}预存中心{% endblock %}
+{% block header_title %}预存账户中心{% endblock %}
+{% block header_crumbs %}首页 / 资金与监控 / 预存中心{% endblock %}
+{% block content %}
+<div x-data="prepaidList()" x-init="load()" class="fade-in-up">
+
+  <div class="grid-3 section-gap">
+    <div class="kpi-card">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">账户总数</div>
+        <div class="kpi-icon">👥</div>
+      </div>
+      <div class="kpi-value">{{ overview.total_accounts or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">活跃客户数</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">预存总余额</div>
+        <div class="kpi-icon">💰</div>
+      </div>
+      <div class="kpi-value positive money">¥{{ "{:,.0f}".format(overview.total_balance or 0) }}</div>
+      <div class="kpi-delta"><span class="up">↑ 可用抵扣资金</span></div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">本月充值</div>
+        <div class="kpi-icon amber">📈</div>
+      </div>
+      <div class="kpi-value" style="color:var(--qh-amber-600)">¥{{ "{:,.0f}".format(overview.month_recharged or 0) }}</div>
+      <div class="kpi-delta"><span class="text-muted">较上月 <b class="text-green">{{ overview.mom_rate or '+0%' }}</b></span></div>
+    </div>
+  </div>
+
+  <div class="grid-2 section-gap">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">预存账户列表</h3>
+        <div class="flex gap-sm">
+          <button class="btn btn-xs btn-secondary" @click="load()">刷新</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>客户名称</th>
+              <th class="num">当前余额</th>
+              <th class="center">充值次数</th>
+              <th class="num">累计充值</th>
+              <th class="num">累计抵扣</th>
+              <th>最后交易</th>
+              <th style="min-width:120px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="prepaid-rows-body">
+            <tr><td colspan="7"><div style="padding:32px;text-align:center;color:var(--qh-gray-500)"><div style="font-size:12px">加载中...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:12px 20px">
+        <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页'"></div>
+        <div class="pg-buttons">
+          <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+          <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+          <template x-for="p in pageNumbers()" :key="p">
+            <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+          </template>
+          <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+          <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">最近交易流水</h3>
+        <span class="text-xs text-muted">最近20条</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="timeline" style="padding:16px 20px">
+          {% for tx in recent_txns %}
+            <div class="tl-item {% if tx.type == 'RECHARGE' %}{% elif tx.type == 'DEDUCT' %}amber{% else %}gray{% endif %}" style="padding-bottom:14px">
+              <div class="tl-meta">
+                <span>{{ tx.created_at.strftime('%Y-%m-%d %H:%M') if tx.created_at else '—' }}</span>
+                <span class="badge {% if tx.type == 'RECHARGE' %}badge-green{% elif tx.type == 'DEDUCT' %}badge-amber{% elif tx.type == 'REFUND' %}badge-blue{% else %}badge-gray{% endif %}" style="font-size:10.5px">
+                  {% if tx.type == 'RECHARGE' %}充值{% elif tx.type == 'DEDUCT' %}抵扣{% elif tx.type == 'REFUND' %}退款{% else %}调账{% endif %}
+                </span>
+              </div>
+              <div class="tl-title">
+                <span style="font-weight:500">{{ tx.client_name or '客户' }}</span>
+                <span class="money {% if tx.type == 'RECHARGE' %}text-green{% else %}text-red{% endif %} font-bold" style="float:right;font-family:'JetBrains Mono',monospace">
+                  {% if tx.type == 'RECHARGE' %}+{% else %}-{% endif %}¥{{ "{:,.2f}".format(tx.amount) }}
+                </span>
+              </div>
+              <div class="tl-body text-xs">
+                余额: ¥{{ "{:,.2f}".format(tx.balance_after) }}
+                {% if tx.remark %} · {{ tx.remark }}{% endif %}
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted text-sm" style="padding:20px 0;text-align:center">暂无交易记录</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+function prepaidList(){
+  return {
+    page: 1, page_size: 10, total: 0, total_pages: 1,
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){ this.page = p; this.load(); },
+    async load(){
+      const qs = new URLSearchParams({ page: this.page, page_size: this.page_size }).toString();
+      const r = await fetch('{{ url_for("admin_prepaid_list") }}?'+qs, { headers: {'HX-Request':'true'} });
+      const html = await r.text();
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const totalEl = wrap.querySelector('[data-total]');
+      if (totalEl) {
+        this.total = parseInt(totalEl.dataset.total || 0);
+        this.total_pages = parseInt(totalEl.dataset.total_pages || 1);
+        this.page = parseInt(totalEl.dataset.page || 1);
+      }
+      document.getElementById('prepaid-rows-body').innerHTML = wrap.querySelector('tbody').innerHTML;
+    }
+  };
+}
+</script>
+{% endblock %}

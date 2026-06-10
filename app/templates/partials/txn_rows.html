@@ -1,0 +1,51 @@
+<div data-total="{{ data.total }}" data-total_pages="{{ data.total_pages }}" data-page="{{ data.page }}">
+<table>
+<tbody>
+{% for t in data.items %}
+  <tr>
+    <td class="money font-bold" style="font-family:'JetBrains Mono',monospace;">{{ t.txn_no }}</td>
+    <td>
+      <div style="font-weight:500;">{{ t.counterparty or '—' }}</div>
+      {% if t.summary %}
+        <div class="text-xs text-muted truncate" style="max-width:240px" title="{{ t.summary }}">{{ t.summary }}</div>
+      {% endif %}
+    </td>
+    <td class="num money {% if t.direction == 'IN' %}text-green{% else %}text-red{% endif %} font-bold">
+      {% if t.direction == 'IN' %}+{% else %}-{% endif %}¥{{ "{:,.2f}".format(t.amount) }}
+    </td>
+    <td>{{ t.txn_date }}</td>
+    <td>
+      {% if t.match_status == 'UNMATCHED' %}
+        <span class="badge badge-gray-solid">未匹配</span>
+      {% elif t.match_status == 'PARTIAL' %}
+        <span class="badge badge-amber-solid">部分匹配</span>
+      {% elif t.match_status == 'MATCHED' %}
+        <span class="badge badge-green-solid">完全匹配</span>
+      {% elif t.match_status == 'ANOMALY' %}
+        <span class="badge badge-red-solid">冲突</span>
+      {% else %}
+        <span class="badge badge-gray">{{ t.match_status }}</span>
+      {% endif %}
+    </td>
+    <td class="num center">
+      {% if t.matched_bill_ids %}
+        <span class="badge badge-blue">{{ t.matched_bill_ids | length }}</span>
+      {% else %}
+        <span class="text-muted">0</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="flex gap-sm" style="justify-content:flex-end">
+        {% if t.match_status in ('UNMATCHED', 'PARTIAL', 'ANOMALY') %}
+          <button class="btn btn-xs btn-primary" hx-get="{{ url_for('admin_txn_match_dialog', txn_id=t.id) }}" hx-target="#modal-container" hx-swap="innerHTML">匹配</button>
+        {% endif %}
+        <a class="btn btn-xs btn-secondary" href="{{ url_for('admin_txn_detail', txn_id=t.id) }}">详情</a>
+      </div>
+    </td>
+  </tr>
+{% else %}
+  <tr><td colspan="7"><div class="empty-state"><div class="es-icon">💳</div><h4>暂无流水记录</h4><p>请先导入CSV银行流水文件</p></div></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>

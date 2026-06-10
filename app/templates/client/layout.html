@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block page_title %}{% block client_title %}我的账单{% endblock %} · {{ APP_NAME }}客户平台{% endblock %}
+{% block layout_root %}
+<div class="app-layout">
+  <aside class="app-sidebar" style="background:linear-gradient(180deg,#1E3A5F 0%,#1a3050 100%)">
+    <div class="app-brand">
+      <div class="brand-logo" style="background:linear-gradient(135deg,#779bbf,#1E3A5F)">青</div>
+      <div class="brand-text">{{ APP_NAME }}<small>客户平台 · CLIENT</small></div>
+    </div>
+    <nav class="side-nav">
+      <div class="side-nav-title">业务中心</div>
+      <a class="nav-item {% if active_nav == 'bills' %}active{% endif %}" href="{{ url_for('client_bills_page') }}" style="{% if active_nav == 'bills' %}border-left-color:#779bbf;background:rgba(119,155,191,.18){% endif %}">
+        <svg class="ni-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
+        <span class="ni-text">我的账单</span>
+        {% if unpaid_count and unpaid_count > 0 %}
+          <span class="ni-badge">{{ unpaid_count }}</span>
+        {% endif %}
+      </a>
+      <a class="nav-item {% if active_nav == 'pay' %}active{% endif %}" href="{{ url_for('client_bills_page', status='UNPAID') }}" style="{% if active_nav == 'pay' %}border-left-color:#779bbf;background:rgba(119,155,191,.18){% endif %}">
+        <svg class="ni-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <span class="ni-text">在线支付</span>
+      </a>
+      <a class="nav-item {% if active_nav == 'invoices' %}active{% endif %}" href="{{ url_for('client_invoices_page') }}" style="{% if active_nav == 'invoices' %}border-left-color:#779bbf;background:rgba(119,155,191,.18){% endif %}">
+        <svg class="ni-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2h16v20l-4-2-4 2-4-2-4 2z"/><path d="M18 8H8M18 12H8M12 16H8"/></svg>
+        <span class="ni-text">发票申请</span>
+      </a>
+      <div class="side-nav-title">我的资金</div>
+      <a class="nav-item {% if active_nav == 'prepaid' %}active{% endif %}" href="{{ url_for('client_prepaid_page') }}" style="{% if active_nav == 'prepaid' %}border-left-color:#779bbf;background:rgba(119,155,191,.18){% endif %}">
+        <svg class="ni-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/></svg>
+        <span class="ni-text">预存中心</span>
+      </a>
+      <div style="height: 40px;"></div>
+    </nav>
+  </aside>
+
+  <main class="app-main">
+    <header class="app-header">
+      <div class="app-header-left">
+        <div>
+          <h1 class="page-title">{% block header_title %}{{ APP_NAME }}{% endblock %}</h1>
+          <div class="page-crumbs">{% block header_crumbs %}{% endblock %}</div>
+        </div>
+      </div>
+      <div class="app-header-right">
+        {% if prepaid %}
+        <div class="flex items-center gap-sm" style="padding:6px 12px;background:var(--qh-green-50);border-radius:999px">
+          <span style="font-size:11px;color:var(--qh-green-700)">预存余额</span>
+          <span class="money font-bold" style="color:var(--qh-green-700);font-family:'JetBrains Mono',monospace">¥{{ "{:,.2f}".format(prepaid.current_balance or 0) }}</span>
+        </div>
+        {% endif %}
+        <div class="user-chip">
+          <div class="user-avatar" style="background:linear-gradient(135deg,#2f5f94,#1E3A5F)">
+            {{ (user.name or user.email)[0] | upper }}
+          </div>
+          <div style="display:flex;flex-direction:column;line-height:1.2">
+            <span class="uname">{{ user.name or user.email.split('@')[0] }}</span>
+            <span class="urole">客户 · {{ user.email }}</span>
+          </div>
+        </div>
+        <form action="{{ url_for('logout') }}" method="POST" hx-boost="false" onsubmit="return confirm('确认退出？');">
+          <button class="btn btn-sm btn-secondary" type="submit">退出</button>
+        </form>
+      </div>
+    </header>
+    <div class="app-content">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

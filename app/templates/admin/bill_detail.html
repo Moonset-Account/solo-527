@@ -1,0 +1,281 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "bills" %}
+{% block admin_title %}账单详情{% endblock %}
+{% block header_title %}账单详情 · {{ bill.bill_no }}{% endblock %}
+{% block header_crumbs %}首页 / 应收管理 / <a href="{{ url_for('admin_bills_page') }}">应收账单</a> / {{ bill.bill_no }}{% endblock %}
+{% block content %}
+
+<div class="section-gap">
+  <div class="card">
+    <div class="card-body" style="padding:14px 20px">
+      <div class="flex items-center gap-md flex-wrap">
+        <div class="priority-cell" style="flex-direction:row;gap:16px;min-width:auto">
+          <div class="priority-row">
+            <span class="priority-label">发票</span>
+            {% if bill.priority.invoice_requested %}
+              {% if bill.priority.invoice_status in ('ISSUED', 'MAILED') %}
+                <span class="badge badge-green-solid">✓ 已开票</span>
+              {% elif bill.priority.invoice_status == 'APPROVED' %}
+                <span class="badge badge-blue">已审核</span>
+              {% elif bill.priority.invoice_status == 'PENDING' %}
+                <span class="badge badge-amber-solid">待审核</span>
+              {% else %}
+                <span class="badge badge-amber-solid">待开票</span>
+              {% endif %}
+            {% else %}
+              <span class="badge badge-gray">未申请</span>
+            {% endif %}
+          </div>
+          <div class="priority-row">
+            <span class="priority-label">预存</span>
+            {% if bill.priority.prepaid_sufficient %}
+              <span class="badge badge-green">● 余额充足 ¥{{ "{:,.0f}".format(bill.priority.prepaid_balance or 0) }}</span>
+            {% elif bill.priority.prepaid_balance and bill.priority.prepaid_balance > 0 %}
+              <span class="badge badge-amber">◐ 部分可抵 ¥{{ "{:,.0f}".format(bill.priority.prepaid_balance) }}</span>
+            {% else %}
+              <span class="badge badge-gray">○ 无预存</span>
+            {% endif %}
+          </div>
+          <div class="priority-row">
+            <span class="priority-label">预测</span>
+            {% if bill.priority.forecast_impact == 'INCREASE' %}
+              <span class="badge badge-green">↑ 现金流增加</span>
+            {% elif bill.priority.forecast_impact == 'DECREASE' %}
+              <span class="badge badge-red">↓ 现金流减少</span>
+            {% else %}
+              <span class="badge badge-gray">— 无影响</span>
+            {% endif %}
+          </div>
+        </div>
+        <div style="margin-left:auto" class="flex gap-sm">
+          <button class="btn btn-sm btn-secondary" hx-get="{{ url_for('admin_bill_edit_dialog', bill_id=bill.id) }}" hx-target="#modal-container" hx-swap="innerHTML">编辑</button>
+          <a class="btn btn-sm btn-primary" href="{{ url_for('admin_bills_page') }}">返回列表</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-layout fade-in-up">
+  <div class="detail-col">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">基本信息</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单编号</span>
+            <span class="money font-bold" style="font-family:'JetBrains Mono',monospace;">{{ bill.bill_no }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">客户名称</span>
+            <span style="font-weight:500">{{ bill.client_name }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账期</span>
+            <span>{{ bill.period_start }} ~ {{ bill.period_end }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">签发日期</span>
+            <span>{{ bill.issue_date }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">到期日</span>
+            <span class="{{ bill.due_date_class }}">{{ bill.due_date }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">当前状态</span>
+            {% if bill.status == 'DRAFT' %}<span class="badge badge-gray">草稿</span>
+            {% elif bill.status == 'ISSUED' %}<span class="badge badge-blue">已签发</span>
+            {% elif bill.status == 'PARTIAL' %}<span class="badge badge-amber">部分回款</span>
+            {% elif bill.status == 'PAID' %}<span class="badge badge-green-solid">已全额</span>
+            {% elif bill.status == 'OVERDUE' %}<span class="badge badge-red-solid">已逾期</span>
+            {% else %}<span class="badge badge-gray">作废</span>{% endif %}
+          </div>
+          {% if bill.days_overdue > 0 %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">逾期天数</span>
+            <span class="text-red font-bold">{{ bill.days_overdue }} 天</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-accent-amber">
+      <div class="card-header">
+        <h3 class="card-title">回款进度</h3>
+      </div>
+      <div class="card-body">
+        <div class="mb-md">
+          <div class="flex justify-between mb-sm">
+            <span class="text-sm text-muted">已回款 / 总金额</span>
+            <span class="money font-bold">
+              <span class="text-green">¥{{ "{:,.2f}".format(bill.paid_amount) }}</span>
+              <span class="text-muted"> / ¥{{ "{:,.2f}".format(bill.total_amount) }}</span>
+            </span>
+          </div>
+          <div class="progress {{ 'red' if bill.days_overdue > 30 else ('amber' if bill.days_overdue > 0 else '') }}">
+            {% set pct = (bill.paid_amount / bill.total_amount * 100) if bill.total_amount > 0 else 0 %}
+            <span style="width:{{ pct|round(1) }}%"></span>
+          </div>
+          <div class="flex justify-between mt-sm text-xs text-muted">
+            <span>完成 {{ pct|round(1) }}%</span>
+          </div>
+        </div>
+        <div style="display:grid;gap:8px">
+          <div class="flex justify-between">
+            <span class="text-sm text-muted">剩余待收</span>
+            <span class="money font-bold {% if bill.remaining_amount > 0 %}text-red{% else %}text-green{% endif %}">
+              ¥{{ "{:,.2f}".format(bill.remaining_amount) }}
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-sm text-muted">账单总额</span>
+            <span class="money">¥{{ "{:,.2f}".format(bill.total_amount) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-col">
+    <div class="card card-accent-green">
+      <div class="card-header">
+        <h3 class="card-title">回款时间轴</h3>
+        <div class="flex gap-sm">
+          <button class="btn btn-xs btn-secondary" hx-get="{{ url_for('admin_payment_add_dialog', bill_id=bill.id) }}" hx-target="#modal-container" hx-swap="innerHTML">登记回款</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for p in payments %}
+            <div class="tl-item {% if p.match_type == 'MANUAL' %}amber{% elif p.match_type == 'PREPAID' %}blue{% endif %}">
+              <div class="tl-meta">
+                <span>{{ p.matched_at.strftime('%Y-%m-%d %H:%M') if p.matched_at else p.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="badge {% if p.match_type == 'AUTO' %}badge-green{% elif p.match_type == 'MANUAL' %}badge-amber{% else %}badge-blue{% endif %}" style="font-size:10.5px">
+                  {% if p.match_type == 'AUTO' %}自动匹配{% elif p.match_type == 'MANUAL' %}人工匹配{% else %}预存抵扣{% endif %}
+                </span>
+              </div>
+              <div class="tl-title money text-green font-bold" style="font-family:'JetBrains Mono',monospace">+¥{{ "{:,.2f}".format(p.amount) }}</div>
+              <div class="tl-body">
+                {% if p.transaction_id %}
+                  <div>关联流水：<span class="money" style="font-family:'JetBrains Mono',monospace;">{{ p.transaction_no or '—' }}</span></div>
+                {% endif %}
+                {% if p.remark %}
+                  <div>备注：{{ p.remark }}</div>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted text-sm" style="padding:20px 0;text-align:center">暂无回款记录</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">备注记录</h3>
+      </div>
+      <div class="card-body">
+        <div class="timeline" id="notes-list">
+          {% for note in notes %}
+            {% include 'partials/note_item.html' %}
+          {% else %}
+            <div class="text-muted text-sm" style="padding:20px 0;text-align:center">暂无备注</div>
+          {% endfor %}
+        </div>
+
+        <div style="border-top:1px solid var(--qh-gray-100);padding-top:14px;margin-top:6px">
+          <form hx-post="{{ url_for('admin_bill_add_note', bill_id=bill.id) }}" hx-target="#notes-list" hx-swap="afterbegin" hx-on::after-request="this.reset()">
+            <div class="form-group mb-sm">
+              <textarea class="textarea" name="content" placeholder="输入备注内容..." required style="min-height:64px"></textarea>
+            </div>
+            <div class="flex items-center justify-between">
+              <label class="text-sm flex items-center gap-2" style="cursor:pointer">
+                <input type="checkbox" name="is_internal" value="1" checked> 内部备注（客户不可见）
+              </label>
+              <button class="btn btn-sm btn-primary" type="submit">添加备注</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-col">
+    <div class="card card-accent-blue">
+      <div class="card-header">
+        <h3 class="card-title">附件区</h3>
+        <button class="btn btn-xs btn-secondary" hx-get="{{ url_for('admin_attachment_upload_dialog', bill_id=bill.id) }}" hx-target="#modal-container" hx-swap="innerHTML">上传</button>
+      </div>
+      <div class="card-body">
+        {% if attachments and attachments | length > 0 %}
+          <div style="display:grid;gap:8px">
+            {% for att in attachments %}
+              <div class="flex items-center justify-between" style="padding:8px 10px;background:var(--qh-gray-50);border-radius:6px">
+                <div class="flex items-center gap-sm min-w-0">
+                  <span style="font-size:18px">📎</span>
+                  <div class="min-w-0">
+                    <div class="truncate" style="font-weight:500;font-size:12.5px">{{ att.original_name }}</div>
+                    <div class="text-xs text-muted">
+                      {{ att.file_size // 1024 }} KB · {{ att.uploaded_by_name }} · {{ att.uploaded_at.strftime('%m-%d') }}
+                    </div>
+                  </div>
+                </div>
+                <a class="btn btn-xs btn-ghost" href="{{ url_for('admin_attachment_download', att_id=att.id) }}" title="下载">⬇</a>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state" style="padding:24px 12px">
+            <div class="es-icon" style="font-size:28px">📁</div>
+            <h4 style="font-size:13px">暂无附件</h4>
+            <p style="font-size:11.5px">上传合同、签收单等文件</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">修改审计日志</h3>
+      </div>
+      <div class="card-body" style="max-height:480px;overflow-y:auto">
+        <div class="timeline">
+          {% for log in audit %}
+            <div class="tl-item gray">
+              <div class="tl-meta">
+                <span>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+              </div>
+              <div class="tl-title" style="font-weight:500;font-size:12.5px">
+                {{ log.operator_name }} 修改了 <code style="background:var(--qh-gray-100);padding:1px 5px;border-radius:3px;font-size:11px">{{ log.field_name }}</code>
+              </div>
+              <div class="tl-body" style="font-size:11.5px">
+                {% if log.old_value and log.new_value %}
+                  <div>
+                    <span class="diff-old">{{ log.old_value }}</span>
+                    <span style="margin:0 6px;color:var(--qh-gray-400)">→</span>
+                    <span class="diff-new">{{ log.new_value }}</span>
+                  </div>
+                {% elif log.new_value %}
+                  <div>设置为 <span class="diff-new">{{ log.new_value }}</span></div>
+                {% endif %}
+                {% if log.change_reason %}
+                  <div class="mt-sm text-muted">原因：{{ log.change_reason }}</div>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted text-sm" style="padding:20px 0;text-align:center">暂无修改记录</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+{% endblock %}

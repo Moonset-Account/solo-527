@@ -1,0 +1,160 @@
+{% extends "client/layout.html" %}
+{% set active_nav = "prepaid" %}
+{% block client_title %}预存中心{% endblock %}
+{% block header_title %}预存中心{% endblock %}
+{% block header_crumbs %}我的资金 / 预存中心{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+
+  <div class="prepaid-banner" style="margin-bottom:20px">
+    <div class="pb-left">
+      <div class="pb-title">PREPAID BALANCE · 预存账户余额</div>
+      <div class="pb-value">¥{{ "{:,.2f}".format(account.current_balance if account else 0) }}</div>
+      <div class="pb-sub">
+        <span><b>累计充值</b>¥{{ "{:,.2f}".format(account.total_recharged if account else 0) }}</span>
+        <span><b>累计抵扣</b>¥{{ "{:,.2f}".format(account.total_deducted if account else 0) }}</span>
+      </div>
+    </div>
+    <div class="pb-right">
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.3)" onclick="document.getElementById('recharge-form').scrollIntoView({behavior:'smooth'})">
+        ➕ 立即充值
+      </button>
+    </div>
+  </div>
+
+  <div class="grid-2-even section-gap">
+    <div class="card card-accent-amber" id="recharge-form">
+      <div class="card-header">
+        <h3 class="card-title">💳 账户充值</h3>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('client_prepaid_recharge') }}" onsubmit="return validateRecharge(this);">
+          <div class="form-group">
+            <label class="form-label">充值金额（元）</label>
+            <div class="flex gap-sm" style="margin-bottom:10px">
+              {% for amt in [1000, 5000, 10000, 50000] %}
+                <button type="button" class="btn btn-sm btn-secondary quick-amt" data-amt="{{ amt }}" onclick="setAmount(this, {{ amt }})">
+                  ¥{{ "{:,}".format(amt) }}
+                </button>
+              {% endfor %}
+            </div>
+            <input type="number" class="input amount-input" name="amount" id="amount-input" placeholder="请输入充值金额" min="1" step="0.01" required oninput="formatAmountInput(this)">
+            <div class="form-help">最低充值 ¥1.00，支持线上快捷充值</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">充值方式</label>
+            <div style="display:grid;gap:8px">
+              <label style="padding:12px;border:2px solid var(--qh-green-200);border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--qh-green-50)">
+                <input type="radio" name="payway" value="bank" checked>
+                <div>
+                  <div style="font-weight:600">银行转账</div>
+                  <div class="text-xs text-muted">汇款后联系客服确认到账</div>
+                </div>
+              </label>
+              <label style="padding:12px;border:1px solid var(--qh-gray-200);border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                <input type="radio" name="payway" value="alipay" disabled>
+                <div>
+                  <div style="font-weight:600">支付宝（即将上线）</div>
+                  <div class="text-xs text-muted">在线即时到账</div>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div class="form-group" style="padding:12px;background:var(--qh-amber-50);border-radius:8px;border:1px dashed var(--qh-amber-200)">
+            <div class="text-sm" style="color:var(--qh-amber-700)">
+              <b>🏦 银行账户信息：</b><br>
+              户名：{{ APP_NAME }}<br>
+              账号：请联系客服获取<br>
+              开户行：中国工商银行
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" style="padding:12px;font-size:15px;margin-top:8px">
+            确认充值 ¥<span id="amount-display">0.00</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">📊 交易流水</h3>
+        <span class="text-xs text-muted">最近 {{ txns | length }} 条</span>
+      </div>
+      <div class="card-body" style="padding:0;max-height:520px;overflow-y:auto">
+        {% if txns and txns | length > 0 %}
+          <table class="table" style="border:none">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>类型</th>
+                <th class="num">金额</th>
+                <th class="num">余额</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in txns %}
+                <tr>
+                  <td style="white-space:nowrap">{{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '—' }}</td>
+                  <td>
+                    {% if t.type == 'RECHARGE' %}
+                      <span class="badge badge-green">充值</span>
+                    {% elif t.type == 'DEDUCT' %}
+                      <span class="badge badge-amber">抵扣</span>
+                    {% elif t.type == 'REFUND' %}
+                      <span class="badge badge-blue">退款</span>
+                    {% else %}
+                      <span class="badge badge-gray">{{ t.type }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="num money {% if t.type == 'RECHARGE' or t.type == 'REFUND' %}text-green{% else %}text-red{% endif %} font-bold">
+                    {% if t.type == 'RECHARGE' or t.type == 'REFUND' %}+{% else %}-{% endif %}¥{{ "{:,.2f}".format(t.amount) }}
+                  </td>
+                  <td class="num money">¥{{ "{:,.2f}".format(t.balance_after) }}</td>
+                  <td class="text-xs text-muted truncate" style="max-width:160px" title="{{ t.remark or '' }}">
+                    {{ t.remark or '—' }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="empty-state" style="padding:60px 20px">
+            <div class="es-icon">📋</div>
+            <h4>暂无交易记录</h4>
+            <p>首次充值后将在此显示流水</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function setAmount(btn, amt){
+  document.querySelectorAll('.quick-amt').forEach(b => {
+    b.style.background = '';
+    b.style.color = '';
+    b.style.borderColor = '';
+  });
+  btn.style.background = 'linear-gradient(180deg,#3d8d69,var(--qh-green-600))';
+  btn.style.color = '#fff';
+  btn.style.borderColor = 'var(--qh-green-600)';
+  const input = document.getElementById('amount-input');
+  input.value = amt.toFixed(2);
+  updateDisplay();
+}
+function updateDisplay(){
+  const v = parseFloat(document.getElementById('amount-input').value || 0);
+  document.getElementById('amount-display').textContent = v.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+document.getElementById('amount-input').addEventListener('input', updateDisplay);
+
+function validateRecharge(form){
+  const amt = parseFloat(form.amount.value || 0);
+  if (amt < 1) { alert('最低充值金额为 ¥1.00'); return false; }
+  return confirm('确认充值 ¥' + amt.toFixed(2) + '？请确保已完成银行转账。');
+}
+</script>
+{% endblock %}

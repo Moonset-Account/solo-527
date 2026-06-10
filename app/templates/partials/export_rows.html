@@ -1,0 +1,97 @@
+<div data-total="{{ data.total }}" data-total_pages="{{ data.total_pages }}" data-page="{{ data.page }}">
+<table>
+<tbody>
+{% for e in data.items %}
+  <tr>
+    <td class="money" style="font-family:'JetBrains Mono',monospace;font-weight:600;">{{ e.task_no or ('EXP' + (e.id | string)[:8].upper()) }}</td>
+    <td>
+      {% if e.type == 'CASHFLOW' %}
+        <span class="badge badge-green">现金流</span>
+      {% elif e.type == 'INVOICE_ERRORS' %}
+        <span class="badge badge-red">发票错误</span>
+      {% elif e.type == 'CHANGE_LOG' %}
+        <span class="badge badge-blue">变更记录</span>
+      {% elif e.type == 'BILL_DETAIL' %}
+        <span class="badge badge-amber">账单明细</span>
+      {% elif e.type == 'RECONCILIATION' %}
+        <span class="badge badge-blue-solid">对账报告</span>
+      {% else %}
+        <span class="badge badge-gray">{{ e.type }}</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if e.parameters and e.parameters.days %}
+        <span class="badge badge-gray">近 {{ e.parameters.days }} 天</span>
+      {% elif e.parameters %}
+        <span class="text-xs text-muted">自定义参数</span>
+      {% else %}
+        <span class="text-muted">—</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if e.status == 'PENDING' %}
+        <span class="badge badge-gray">排队中</span>
+      {% elif e.status == 'PROCESSING' %}
+        <span class="badge badge-amber-solid"><span class="htmx-indicator">⏳</span> 处理中</span>
+      {% elif e.status == 'COMPLETED' %}
+        <span class="badge badge-green-solid">已完成</span>
+      {% elif e.status == 'FAILED' %}
+        <span class="badge badge-red-solid">失败</span>
+      {% else %}
+        <span class="badge badge-gray">{{ e.status }}</span>
+      {% endif %}
+    </td>
+    <td style="min-width:140px">
+      {% if e.status == 'PROCESSING' and e.row_count %}
+        <div class="progress"><span style="width:{{ (e.progress_pct or 50) }}%"></span></div>
+        <div class="text-xs text-muted mt-sm" style="text-align:center">{{ e.progress_pct or 50 }}%</div>
+      {% elif e.status == 'COMPLETED' %}
+        <div class="progress"><span style="width:100%"></span></div>
+        <div class="text-xs text-green mt-sm" style="text-align:center;font-weight:500">100%</div>
+      {% else %}
+        <span class="text-muted text-xs">—</span>
+      {% endif %}
+    </td>
+    <td class="num">
+      {% if e.row_count %}
+        <span class="font-bold">{{ e.row_count }}</span>
+        <span class="text-xs text-muted"> 行</span>
+      {% else %}
+        <span class="text-muted">—</span>
+      {% endif %}
+    </td>
+    <td class="num">
+      {% if e.file_size %}
+        {% if e.file_size >= 1048576 %}
+          <span>{{ "%.1f"|format(e.file_size / 1048576) }} MB</span>
+        {% elif e.file_size >= 1024 %}
+          <span>{{ "%.1f"|format(e.file_size / 1024) }} KB</span>
+        {% else %}
+          <span>{{ e.file_size }} B</span>
+        {% endif %}
+      {% else %}
+        <span class="text-muted">—</span>
+      {% endif %}
+    </td>
+    <td>{{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '—' }}</td>
+    <td>
+      <div class="flex gap-sm" style="justify-content:flex-end">
+        {% if e.status == 'COMPLETED' %}
+          <a class="btn btn-xs btn-primary" href="{{ url_for('admin_export_download', task_id=e.id) }}" download>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            &nbsp;下载
+          </a>
+        {% elif e.status == 'FAILED' %}
+          <button class="btn btn-xs btn-secondary" hx-post="{{ url_for('admin_export_retry', task_id=e.id) }}" hx-swap="none" title="{{ e.error_message }}">重试</button>
+        {% else %}
+          <button class="btn btn-xs btn-ghost" disabled style="opacity:.5">等待中</button>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+{% else %}
+  <tr><td colspan="9"><div class="empty-state"><div class="es-icon">📦</div><h4>暂无导出任务</h4><p>使用上方按钮创建新的导出任务</p></div></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>

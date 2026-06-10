@@ -1,0 +1,145 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "invoices" %}
+{% block admin_title %}发票管理{% endblock %}
+{% block header_title %}发票管理中心{% endblock %}
+{% block header_crumbs %}首页 / 应收管理 / 发票管理{% endblock %}
+{% block content %}
+<div x-data="invoiceList()" x-init="load()" class="fade-in-up">
+
+  <div class="kpi-grid">
+    <div class="kpi-card amber">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">待审核</div>
+        <div class="kpi-icon amber">⏳</div>
+      </div>
+      <div class="kpi-value" id="kpi-pending">{{ kpi.pending or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">张发票等待审核处理</span></div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">已审核通过</div>
+        <div class="kpi-icon blue">✓</div>
+      </div>
+      <div class="kpi-value" style="color:var(--qh-blue-700)">{{ kpi.approved or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">已审核，待开具或开票中</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">已开票</div>
+        <div class="kpi-icon">🧾</div>
+      </div>
+      <div class="kpi-value positive">{{ kpi.issued or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">总开票金额 <b class="money">¥{{ "{:,.0f}".format(kpi.issued_amount or 0) }}</b></span></div>
+    </div>
+    <div class="kpi-card red">
+      <div class="accent-bar"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">异常 / 错误</div>
+        <div class="kpi-icon red">⚠</div>
+      </div>
+      <div class="kpi-value negative">{{ kpi.error or 0 }}</div>
+      <div class="kpi-delta"><span class="text-muted">含校验失败或开票异常</span></div>
+    </div>
+  </div>
+
+  <div class="card section-gap">
+    <div class="card-body" style="padding:14px 20px">
+      <form class="form-row-3" @submit.prevent="load()">
+        <div class="form-group mb-sm">
+          <label class="form-label">关键字（发票号/抬头/税号）</label>
+          <input type="text" class="input" x-model="f.keyword" placeholder="搜索发票...">
+        </div>
+        <div class="form-group mb-sm">
+          <label class="form-label">状态筛选</label>
+          <select class="select" x-model="f.status">
+            <option value="">全部状态</option>
+            <option value="PENDING">待审核</option>
+            <option value="APPROVED">已审核</option>
+            <option value="ISSUING">开票中</option>
+            <option value="ISSUED">已开票</option>
+            <option value="MAILED">已寄送</option>
+            <option value="ERROR">开票失败</option>
+          </select>
+        </div>
+        <div class="form-group mb-sm" style="display:flex;align-items:flex-end;gap:8px;justify-content:flex-end">
+          <button class="btn btn-secondary" type="button" @click="reset()">重置</button>
+          <button class="btn btn-primary" type="submit">筛选</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>发票号</th>
+            <th>关联账单</th>
+            <th>抬头 / 税号</th>
+            <th>类型</th>
+            <th class="num">金额</th>
+            <th>状态</th>
+            <th>申请时间</th>
+            <th class="center">校验错误</th>
+            <th style="min-width:180px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="invoice-rows-body">
+          <tr><td colspan="9"><div style="padding:32px;text-align:center;color:var(--qh-gray-500)"><div style="font-size:12px">加载中...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:14px 20px">
+      <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页，共 '+total+' 条'"></div>
+      <div class="pg-buttons">
+        <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+        <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+        <template x-for="p in pageNumbers()" :key="p">
+          <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+        </template>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+function invoiceList(){
+  return {
+    f: { keyword: '', status: '' },
+    page: 1, page_size: 20, total: 0, total_pages: 1,
+    reset(){ this.f = { keyword: '', status: '' }; this.page = 1; this.load(); },
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){ this.page = p; this.load(); },
+    async load(){
+      const qs = new URLSearchParams({ page: this.page, page_size: this.page_size, keyword: this.f.keyword, status: this.f.status }).toString();
+      const r = await fetch('{{ url_for("admin_invoices_list") }}?'+qs, { headers: {'HX-Request':'true'} });
+      const html = await r.text();
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const totalEl = wrap.querySelector('[data-total]');
+      if (totalEl) {
+        this.total = parseInt(totalEl.dataset.total || 0);
+        this.total_pages = parseInt(totalEl.dataset.total_pages || 1);
+        this.page = parseInt(totalEl.dataset.page || 1);
+      }
+      document.getElementById('invoice-rows-body').innerHTML = wrap.querySelector('tbody').innerHTML;
+    }
+  };
+}
+</script>
+{% endblock %}

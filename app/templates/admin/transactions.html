@@ -1,0 +1,152 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "transactions" %}
+{% block admin_title %}流水匹配{% endblock %}
+{% block header_title %}银行流水匹配{% endblock %}
+{% block header_crumbs %}首页 / 应收管理 / 流水匹配 · 智能对账{% endblock %}
+{% block content %}
+<div x-data="txnList()" x-init="load()" class="fade-in-up">
+
+  <div class="grid-2-even section-gap">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">📥 CSV 流水导入</h3>
+      </div>
+      <div class="card-body">
+        <form id="import-form" hx-post="{{ url_for('admin_transactions_import') }}" hx-target="#import-result" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+          <div class="form-group">
+            <label class="form-label">选择CSV文件</label>
+            <input type="file" class="input" name="file" accept=".csv" required>
+            <div class="form-help">支持列：流水号(txn_no)/交易日期/金额/方向/对方户名/摘要，或中文列名</div>
+          </div>
+          <div class="flex justify-end gap-sm">
+            <button class="btn btn-sm btn-secondary" type="button" onclick="document.getElementById('import-form').reset()">清空</button>
+            <button class="btn btn-sm btn-primary" type="submit">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              &nbsp;导入并自动匹配
+            </button>
+          </div>
+        </form>
+        <div id="import-result" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card card-accent-amber">
+      <div class="card-header">
+        <h3 class="card-title">⚡ 智能匹配操作</h3>
+      </div>
+      <div class="card-body">
+        <div class="text-sm text-muted mb-md" style="line-height:1.8">
+          系统将自动匹配未匹配的收入流水与待收账单，基于金额、对方户名、摘要等综合计算置信度，≥70%自动匹配，否则生成异常记录。
+        </div>
+        <div class="grid-3 gap-sm mb-md">
+          <div style="padding:12px;background:var(--qh-gray-50);border-radius:8px;text-align:center">
+            <div class="kpi-value" style="font-size:22px" id="stat-unmatched">{{ stats.unmatched or 0 }}</div>
+            <div class="text-xs text-muted mt-sm">未匹配</div>
+          </div>
+          <div style="padding:12px;background:var(--qh-amber-50);border-radius:8px;text-align:center">
+            <div class="kpi-value" style="font-size:22px;color:var(--qh-amber-600)" id="stat-partial">{{ stats.partial or 0 }}</div>
+            <div class="text-xs text-muted mt-sm">部分匹配</div>
+          </div>
+          <div style="padding:12px;background:var(--qh-green-50);border-radius:8px;text-align:center">
+            <div class="kpi-value" style="font-size:22px;color:var(--qh-green-700)" id="stat-matched">{{ stats.matched or 0 }}</div>
+            <div class="text-xs text-muted mt-sm">完全匹配</div>
+          </div>
+        </div>
+        <div class="flex gap-sm justify-end">
+          <button class="btn btn-sm btn-secondary" @click="load()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            &nbsp;刷新
+          </button>
+          <button class="btn btn-sm btn-primary" hx-post="{{ url_for('admin_transactions_auto_match') }}" hx-swap="none" hx-confirm="对所有未匹配流水执行智能匹配？">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+            &nbsp;运行智能匹配
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card section-gap">
+    <div class="card-body" style="padding:14px 20px">
+      <div class="flex items-center gap-md flex-wrap">
+        <label class="form-label" style="margin:0">匹配状态：</label>
+        <div class="tabs" style="border-bottom:none;padding:0">
+          <button class="tab {% if not current_status %}active{% endif %}" @click="setStatus('')">全部 <span class="count">{{ stats.total or 0 }}</span></button>
+          <button class="tab {% if current_status == 'UNMATCHED' %}active{% endif %}" @click="setStatus('UNMATCHED')">未匹配 <span class="count">{{ stats.unmatched or 0 }}</span></button>
+          <button class="tab {% if current_status == 'PARTIAL' %}active{% endif %}" @click="setStatus('PARTIAL')">部分匹配 <span class="count">{{ stats.partial or 0 }}</span></button>
+          <button class="tab {% if current_status == 'MATCHED' %}active{% endif %}" @click="setStatus('MATCHED')">完全匹配 <span class="count">{{ stats.matched or 0 }}</span></button>
+          <button class="tab {% if current_status == 'ANOMALY' %}active{% endif %}" @click="setStatus('ANOMALY')">冲突 <span class="count" style="background:var(--qh-red-100);color:var(--qh-red-700)">{{ stats.anomaly or 0 }}</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>流水号</th>
+            <th>对方户名 / 摘要</th>
+            <th class="num">金额</th>
+            <th>交易日期</th>
+            <th>匹配状态</th>
+            <th class="center">关联账单数</th>
+            <th style="min-width:140px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="txn-rows-body">
+          <tr><td colspan="7"><div style="padding:32px;text-align:center;color:var(--qh-gray-500)"><div style="font-size:12px">加载中...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:14px 20px">
+      <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页，共 '+total+' 条'"></div>
+      <div class="pg-buttons">
+        <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+        <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+        <template x-for="p in pageNumbers()" :key="p">
+          <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+        </template>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+function txnList(){
+  return {
+    page: 1, page_size: 20, total: 0, total_pages: 1,
+    status: '',
+    setStatus(s){ this.status = s; this.page = 1; this.load(); },
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){ this.page = p; this.load(); },
+    async load(){
+      const qs = new URLSearchParams({ page: this.page, page_size: this.page_size, status: this.status }).toString();
+      const r = await fetch('{{ url_for("admin_transactions_list") }}?'+qs, { headers: {'HX-Request':'true'} });
+      const html = await r.text();
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const totalEl = wrap.querySelector('[data-total]');
+      if (totalEl) {
+        this.total = parseInt(totalEl.dataset.total || 0);
+        this.total_pages = parseInt(totalEl.dataset.total_pages || 1);
+        this.page = parseInt(totalEl.dataset.page || 1);
+      }
+      document.getElementById('txn-rows-body').innerHTML = wrap.querySelector('tbody').innerHTML;
+    }
+  };
+}
+</script>
+{% endblock %}

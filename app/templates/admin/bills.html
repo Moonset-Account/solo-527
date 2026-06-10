@@ -1,0 +1,168 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "bills" %}
+{% block admin_title %}应收账单{% endblock %}
+{% block header_title %}应收账单列表{% endblock %}
+{% block header_crumbs %}首页 / 应收管理 / 应收账单 · 按优先级展示{% endblock %}
+{% block content %}
+<div x-data="billList()" x-init="load()" class="fade-in-up">
+  <!-- 筛选栏 -->
+  <div class="card section-gap">
+    <div class="card-body">
+      <form class="form-row-3" @submit.prevent="load()">
+        <div class="form-group mb-sm">
+          <label class="form-label">关键字（账单号/客户名/备注）</label>
+          <input type="text" class="input" x-model="f.keyword" placeholder="搜索...">
+        </div>
+        <div class="form-group mb-sm">
+          <label class="form-label">客户</label>
+          <select class="select" x-model="f.client_id">
+            <option value="">全部客户</option>
+            {% for c in clients %}
+              <option value="{{ c.id }}">{{ c.name }}（{{ c.company_name or '—' }}）</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group mb-sm">
+          <label class="form-label">状态</label>
+          <select class="select" x-model="f.status">
+            <option value="">全部状态</option>
+            <option value="DRAFT">草稿</option>
+            <option value="ISSUED">已签发</option>
+            <option value="PARTIAL">部分回款</option>
+            <option value="PAID">已全额</option>
+            <option value="OVERDUE">已逾期</option>
+            <option value="VOID">已作废</option>
+          </select>
+        </div>
+        <div class="form-group mb-sm">
+          <label class="form-label">发票申请</label>
+          <select class="select" x-model="f.invoice_requested">
+            <option value="">全部</option>
+            <option value="1">已申请</option>
+            <option value="0">未申请</option>
+          </select>
+        </div>
+        <div class="form-group mb-sm" style="display:flex;align-items:flex-end;gap:8px">
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;margin:0">
+            <input type="checkbox" x-model="f.only_overdue" true-value="1" false-value=""> 仅看逾期
+          </label>
+        </div>
+        <div class="form-group mb-sm" style="display:flex;align-items:flex-end;gap:8px;justify-content:flex-end">
+          <button class="btn btn-secondary" type="button" @click="reset()">重置</button>
+          <button class="btn btn-primary" type="submit">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            &nbsp;筛选
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 表格 -->
+  <div class="card" hx-indicator="#spinner">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">应收账单 <span class="text-xs text-muted" x-text="'共 '+total+' 条'"></span></h3>
+        <div class="card-subtitle">发票申请 / 预存余额 / 现金预测 三列优先展示</div>
+      </div>
+      <div class="flex gap-sm">
+        <button class="btn btn-sm btn-secondary" @click="load()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          &nbsp;刷新
+        </button>
+        <a class="btn btn-sm btn-primary" href="{{ url_for('admin_exports_page') }}">📥 导出列表</a>
+      </div>
+    </div>
+    <div class="table-wrap" id="bill-tbody">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:145px">优先级标签</th>
+            <th class="sortable" @click="sort('bill_no')" style="cursor:pointer">
+              账单号 <span x-show="sortBy==='bill_no'">↕</span>
+            </th>
+            <th>客户</th>
+            <th>订阅月份</th>
+            <th class="num sortable" @click="sort('total_amount')" style="cursor:pointer">账单金额</th>
+            <th class="num sortable" @click="sort('paid_amount')" style="cursor:pointer">已收</th>
+            <th class="num">待收</th>
+            <th class="num sortable" @click="sort('due_date')" style="cursor:pointer">到期日</th>
+            <th>逾期</th>
+            <th>状态</th>
+            <th style="min-width:100px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="bill-rows-body">
+          <tr><td colspan="11"><div style="padding:32px;text-align:center;color:var(--qh-gray-500)">
+            <div style="font-size:12px">加载中...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:14px 20px">
+      <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页，共 '+total+' 条'"></div>
+      <div class="pg-buttons">
+        <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+        <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+        <template x-for="p in pageNumbers()" :key="p">
+          <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+        </template>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function billList(){
+  return {
+    f: { keyword: '', client_id: '', status: '', invoice_requested: '', only_overdue: '' },
+    page: 1, page_size: 20, total: 0, total_pages: 1,
+    sortBy: 'due_date', sortDesc: true,
+    reset(){
+      this.f = { keyword: '', client_id: '', status: '', invoice_requested: '', only_overdue: '' };
+      this.page = 1;
+      this.load();
+    },
+    sort(k){
+      if (this.sortBy === k) this.sortDesc = !this.sortDesc;
+      else { this.sortBy = k; this.sortDesc = (k==='due_date'); }
+      this.load();
+    },
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){
+      this.page = p;
+      this.load();
+    },
+    async load(){
+      const qs = new URLSearchParams({
+        page: this.page, page_size: this.page_size,
+        keyword: this.f.keyword, status: this.f.status,
+        client_id: this.f.client_id, invoice_requested: this.f.invoice_requested,
+        only_overdue: this.f.only_overdue, sort_by: this.sortBy, sort_desc: this.sortDesc ? '1':'0'
+      }).toString();
+      const r = await fetch('{{ url_for("admin_bills_list") }}?'+qs, { headers: {'HX-Request':'true'} });
+      const html = await r.text();
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      // 分页元
+      const totalEl = wrap.querySelector('[data-total]');
+      if (totalEl) {
+        this.total = parseInt(totalEl.dataset.total || 0);
+        this.total_pages = parseInt(totalEl.dataset.total_pages || 1);
+        this.page = parseInt(totalEl.dataset.page || 1);
+      }
+      const tbody = document.getElementById('bill-rows-body');
+      tbody.innerHTML = wrap.querySelector('tbody').innerHTML;
+    }
+  };
+}
+</script>
+{% endblock %}

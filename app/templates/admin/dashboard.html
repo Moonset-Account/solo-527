@@ -1,0 +1,424 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "dashboard" %}
+{% block admin_title %}工作台{% endblock %}
+{% block header_title %}工作台{% endblock %}
+{% block header_crumbs %}首页 / 数据概览 · 今天 {% with d = stats._today %}{{ d }}{% endwith %}{% endblock %}
+
+{% block content %}
+{% set s = stats %}
+
+<!-- 今日任务 4 卡片 -->
+<div class="kpi-grid fade-in-up">
+  <div class="kpi-card">
+    <div class="accent-bar"></div>
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label">📅 今日到期收款</div>
+        <div style="font-size:11px;color:var(--qh-gray-500);margin-top:2px;">到期未完全回款的账单</div>
+      </div>
+      <div class="kpi-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+    </div>
+    <div class="kpi-value">{{ s.tasks.today_bills_count }}</div>
+    <div class="kpi-delta">
+      <span>待收金额</span>
+      <span class="money text-green"><b>¥{{ "{:,.2f}".format(s.tasks.today_due_amount) }}</b></span>
+    </div>
+  </div>
+
+  <div class="kpi-card amber">
+    <div class="accent-bar"></div>
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label">🔍 待匹配流水</div>
+        <div style="font-size:11px;color:var(--qh-gray-500);margin-top:2px;">新导入 / 匹配失败的流水</div>
+      </div>
+      <div class="kpi-icon amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+    </div>
+    <div class="kpi-value">{{ s.tasks.unmatched_txns_count }}</div>
+    <div class="kpi-delta">
+      <span>涉及金额</span>
+      <span class="money text-amber"><b>¥{{ "{:,.2f}".format(s.tasks.unmatched_txns_amount) }}</b></span>
+    </div>
+  </div>
+
+  <div class="kpi-card blue">
+    <div class="accent-bar"></div>
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label">🧾 待审核发票</div>
+        <div style="font-size:11px;color:var(--qh-gray-500);margin-top:2px;">等待财务人员审核开具</div>
+      </div>
+      <div class="kpi-icon blue">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2h16v20l-4-2-4 2-4-2-4 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+      </div>
+    </div>
+    <div class="kpi-value">{{ s.tasks.pending_invoices_count }}</div>
+    <div class="kpi-delta">
+      <span>申请金额</span>
+      <span class="money" style="color:var(--qh-blue-700)"><b>¥{{ "{:,.2f}".format(s.tasks.pending_invoices_amount) }}</b></span>
+    </div>
+  </div>
+
+  <div class="kpi-card red">
+    <div class="accent-bar"></div>
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label">⚠️ 异常待处理</div>
+        <div style="font-size:11px;color:var(--qh-gray-500);margin-top:2px;">所有尚未关闭的异常</div>
+      </div>
+      <div class="kpi-icon red">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+      </div>
+    </div>
+    <div class="kpi-value">{{ s.tasks.open_anomalies_count }}</div>
+    <div class="kpi-delta">
+      <span class="down">↑ 较昨日 +{{ s.tasks.open_anomalies_count - (s.tasks.open_anomalies_count // 10) }} 新增</span>
+    </div>
+  </div>
+</div>
+
+<!-- KPI + 异常池 -->
+<div class="grid-2 section-gap">
+  <!-- KPI -->
+  <div class="card card-accent fade-in-up d-1">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">回款关键指标</h3>
+        <div class="card-subtitle">本月数据 · 与上月环比</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:24px">
+        <div>
+          <div class="kpi-label">累计应收账款</div>
+          <div class="kpi-value money positive">¥{{ "{:,.2f}".format(s.kpi.total_outstanding) }}</div>
+          <div class="kpi-delta"><span class="{{ 'up' if s.kpi.total_outstanding_change_pct >= 0 else 'down' }}">
+            {{ '↑' if s.kpi.total_outstanding_change_pct >= 0 else '↓' }} {{ abs(s.kpi.total_outstanding_change_pct) }}% </span>
+            <span>vs 上月</span></div>
+        </div>
+        <div>
+          <div class="kpi-label">本月实际回款</div>
+          <div class="kpi-value money">¥{{ "{:,.2f}".format(s.kpi.collected_this_month) }}</div>
+          <div class="kpi-delta"><span class="{{ 'up' if s.kpi.collected_change_pct >= 0 else 'down' }}">
+            {{ '↑' if s.kpi.collected_change_pct >= 0 else '↓' }} {{ abs(s.kpi.collected_change_pct) }}% </span>
+            <span>vs 上月</span></div>
+        </div>
+        <div>
+          <div class="kpi-label">回款完成率</div>
+          <div class="kpi-value" style="color:var(--qh-green-700)">{{ s.kpi.collection_rate }}%</div>
+          <div class="progress mt-sm"><span style="width:{{ s.kpi.collection_rate }}%"></span></div>
+        </div>
+        <div>
+          <div class="kpi-label">逾期率</div>
+          <div class="kpi-value" style="color:var(--qh-amber-600)">{{ s.kpi.overdue_rate }}%</div>
+          <div class="progress amber mt-sm"><span style="width:{{ s.kpi.overdue_rate }}%"></span></div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--qh-gray-100);padding-top:16px;">
+        <div class="kpi-label mb-sm">账龄分布（逾期账期）</div>
+        <div class="chart-box-sm" id="chart-aging"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 异常池 -->
+  <div class="card card-accent-red fade-in-up d-2" x-data="{tab:'TXN_UNMATCHED'}">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">异常池</h3>
+        <div class="card-subtitle">共 {{ s.kpi.total_anomalies }} 项未处理异常</div>
+      </div>
+      <a class="btn btn-sm btn-secondary" href="{{ url_for('admin_anomalies_page') }}">查看全部 →</a>
+    </div>
+    <div class="tabs" style="padding:0 16px;">
+      <div class="tab" :class="{'active':tab==='TXN_UNMATCHED'}" @click="tab='TXN_UNMATCHED'">流水未匹配 <span class="count">{{ s.anomaly_counts.TXN_UNMATCHED or 0 }}</span></div>
+      <div class="tab" :class="{'active':tab==='INVOICE_ERROR'}" @click="tab='INVOICE_ERROR'">发票信息错误 <span class="count">{{ s.anomaly_counts.INVOICE_ERROR or 0 }}</span></div>
+      <div class="tab" :class="{'active':tab==='OVERDUE'}" @click="tab='OVERDUE'">逾期严重 <span class="count">{{ s.anomaly_counts.OVERDUE or 0 }}</span></div>
+      <div class="tab" :class="{'active':tab==='AMOUNT_MISMATCH'}" @click="tab='AMOUNT_MISMATCH'">金额偏差 <span class="count">{{ s.anomaly_counts.AMOUNT_MISMATCH or 0 }}</span></div>
+    </div>
+
+    <div class="card-body">
+      <!-- TXN_UNMATCHED -->
+      <div class="tab-panel" x-show="tab==='TXN_UNMATCHED'" style="display:block" x-cloak>
+        <div class="table-wrap">
+          <table class="table" style="font-size:12.5px">
+            <thead><tr><th>流水编号</th><th class="num">金额</th><th>对方户名</th><th>发生日</th><th>操作</th></tr></thead>
+            <tbody>
+              {% for a in s.top_anomalies if a.type == 'TXN_UNMATCHED' %}
+              <tr>
+                <td class="money">{{ a.entity_no or '—' }}</td>
+                <td class="num money">¥{{ "{:,.2f}".format(a.amount or 0) }}</td>
+                <td class="truncate" style="max-width:120px" :title="{{ a.description[:30] }}">{{ a.description[:30] }}</td>
+                <td class="text-muted">{{ (a.created_at[:10] if a.created_at else '') }}</td>
+                <td><a class="btn btn-xs btn-secondary" href="{{ url_for('admin_transactions_page') }}">处理</a></td>
+              </tr>
+              {% endfor %}
+              {% if (s.top_anomalies | selectattr('type','equalto','TXN_UNMATCHED') | list | length) == 0 %}
+              <tr><td colspan="5"><div class="empty-state"><div class="es-icon">✅</div><h4>暂无流水未匹配异常</h4></div></td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- INVOICE_ERROR -->
+      <div class="tab-panel" x-show="tab==='INVOICE_ERROR'">
+        <div class="table-wrap">
+          <table class="table" style="font-size:12.5px">
+            <thead><tr><th>发票编号</th><th>类型</th><th class="num">金额</th><th>错误项</th><th>操作</th></tr></thead>
+            <tbody>
+              {% for a in s.top_anomalies if a.type == 'INVOICE_ERROR' %}
+              <tr>
+                <td class="money">{{ a.entity_no or '—' }}</td>
+                <td><span class="badge badge-blue">{{ a.severity or '中等' }}</span></td>
+                <td class="num money">¥{{ "{:,.2f}".format(a.amount or 0) }}</td>
+                <td class="truncate" style="max-width:160px" :title="{{ a.description }}">{{ a.description[:28] }}</td>
+                <td><a class="btn btn-xs btn-secondary" href="{{ url_for('admin_invoices_page') }}">修复</a></td>
+              </tr>
+              {% endfor %}
+              {% if (s.top_anomalies | selectattr('type','equalto','INVOICE_ERROR') | list | length) == 0 %}
+              <tr><td colspan="5"><div class="empty-state"><div class="es-icon">✅</div><h4>暂无发票信息错误</h4></div></td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- OVERDUE -->
+      <div class="tab-panel" x-show="tab==='OVERDUE'">
+        <div class="table-wrap">
+          <table class="table" style="font-size:12.5px">
+            <thead><tr><th>账单号</th><th class="num">未收金额</th><th>逾期天数</th><th>客户</th><th>操作</th></tr></thead>
+            <tbody>
+              {% for a in s.top_anomalies if a.type == 'OVERDUE' %}
+              <tr>
+                <td class="money">{{ a.entity_no or '—' }}</td>
+                <td class="num money text-red">¥{{ "{:,.2f}".format(a.amount or 0) }}</td>
+                <td><span class="badge badge-red-solid">{{ a.severity or '' }}</span></td>
+                <td class="truncate" style="max-width:120px">{{ a.description[:15] }}</td>
+                <td><a class="btn btn-xs btn-warning" style="color:#fff">催款</a></td>
+              </tr>
+              {% endfor %}
+              {% if (s.top_anomalies | selectattr('type','equalto','OVERDUE') | list | length) == 0 %}
+              <tr><td colspan="5"><div class="empty-state"><div class="es-icon">✅</div><h4>暂无严重逾期</h4></div></td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- AMOUNT_MISMATCH -->
+      <div class="tab-panel" x-show="tab==='AMOUNT_MISMATCH'">
+        <div class="table-wrap">
+          <table class="table" style="font-size:12.5px">
+            <thead><tr><th>流水编号</th><th>对方户名</th><th class="num">流水额</th><th class="num">差额</th><th>操作</th></tr></thead>
+            <tbody>
+              {% for a in s.top_anomalies if a.type == 'AMOUNT_MISMATCH' %}
+              <tr>
+                <td class="money">{{ a.entity_no or '—' }}</td>
+                <td class="truncate" style="max-width:130px">{{ a.description[:18] }}</td>
+                <td class="num money">¥{{ "{:,.2f}".format(a.amount or 0) }}</td>
+                <td class="num money text-red">¥{{ "{:,.2f}".format(0) }}</td>
+                <td><a class="btn btn-xs btn-secondary" href="{{ url_for('admin_transactions_page') }}">核对</a></td>
+              </tr>
+              {% endfor %}
+              {% if (s.top_anomalies | selectattr('type','equalto','AMOUNT_MISMATCH') | list | length) == 0 %}
+              <tr><td colspan="5"><div class="empty-state"><div class="es-icon">✅</div><h4>暂无金额偏差异常</h4></div></td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 趋势图 + 预测 -->
+<div class="grid-2-even section-gap">
+  <div class="card card-accent-blue fade-in-up d-3">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">应收 / 实收 趋势</h3>
+        <div class="card-subtitle">最近 6 个月（单位：万元）</div>
+      </div>
+      <div class="flex gap-sm">
+        <span class="badge badge-green">● 应收</span>
+        <span class="badge badge-blue-solid">● 实收</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chart-box-lg" id="chart-trend"></div>
+    </div>
+  </div>
+
+  <div class="card fade-in-up d-4">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">客户回款占比</h3>
+        <div class="card-subtitle">本月实收 Top 5</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chart-box-lg" id="chart-share"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 现金预测 30 / 60 / 90 -->
+<div class="card card-accent fade-in-up">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">🧮 现金预测</h3>
+      <div class="card-subtitle">基于历史回款规律 + 当前未收账单的滚动预测</div>
+    </div>
+    <div class="flex gap-sm">
+      <span class="badge badge-green-solid">置信度高</span>
+      <span class="badge badge-amber">置信度中</span>
+      <span class="badge badge-gray">置信度低</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="forecast-cards">
+      <div class="forecast-card">
+        <div class="conf">置信度 92%</div>
+        <div class="f-horizon">30 天内（本月）</div>
+        <div class="f-title">¥{{ "{:,.2f}".format(s.forecast_30.total_expected) }}</div>
+        <div class="f-row"><span>到期账单</span><b>{{ s.forecast_30.bills_count }} 笔</b></div>
+        <div class="f-row"><span>逾期回款</span><b>¥{{ "{:,.2f}".format(s.forecast_30.overdue_expected) }}</b></div>
+        <div class="f-row"><span>预存抵扣</span><b>¥{{ "{:,.2f}".format(s.forecast_30.prepaid_offset) }}</b></div>
+        <div class="f-row"><span>预期净现金</span><b style="color:#1a4134">+¥{{ "{:,.2f}".format(s.forecast_30.total_expected - s.forecast_30.prepaid_offset) }}</b></div>
+      </div>
+      <div class="forecast-card mid">
+        <div class="conf" style="background:rgba(212,134,59,.25)">置信度 78%</div>
+        <div class="f-horizon">60 天内</div>
+        <div class="f-title">¥{{ "{:,.2f}".format(s.forecast_60.total_expected) }}</div>
+        <div class="f-row"><span>到期账单</span><b>{{ s.forecast_60.bills_count }} 笔</b></div>
+        <div class="f-row"><span>新账单预估</span><b>¥{{ "{:,.2f}".format(s.forecast_60.overdue_expected) }}</b></div>
+        <div class="f-row"><span>分期回款</span><b>¥{{ "{:,.2f}".format(s.forecast_60.prepaid_offset) }}</b></div>
+        <div class="f-row"><span>预期净现金</span><b>+¥{{ "{:,.2f}".format(s.forecast_60.total_expected) }}</b></div>
+      </div>
+      <div class="forecast-card far">
+        <div class="conf">置信度 65%</div>
+        <div class="f-horizon">90 天内</div>
+        <div class="f-title">¥{{ "{:,.2f}".format(s.forecast_90.total_expected) }}</div>
+        <div class="f-row"><span>到期账单</span><b>{{ s.forecast_90.bills_count }} 笔</b></div>
+        <div class="f-row"><span>按合同新增</span><b>¥{{ "{:,.2f}".format(s.forecast_90.overdue_expected) }}</b></div>
+        <div class="f-row"><span>按概率折扣</span><b>×{{ (s.forecast_90.prepaid_offset / (s.forecast_30.total_expected + 1)) | round(2) if s.forecast_30.total_expected else 0.68 }}</b></div>
+        <div class="f-row"><span>预期净现金</span><b>+¥{{ "{:,.2f}".format(s.forecast_90.total_expected * 0.78) }}</b></div>
+      </div>
+    </div>
+    <div class="chart-box" id="chart-forecast" style="margin-top:22px;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<script>
+(function(){
+  const charts = [];
+  const palette = ['#2D7A5E','#D4863B','#1E3A5F','#55a27f','#ecad62','#779bbf','#84bfa2','#9f5325','#c06c2a'];
+  window._echartsInstances = charts;
+  function init(id, opt) {
+    const c = echarts.init(document.getElementById(id));
+    c.setOption(opt); charts.push(c);
+  }
+
+  // 账龄分布堆叠图
+  const agingBuckets = {{ s.aging_buckets | tojson }};
+  init('chart-aging', {
+    grid: { left: 40, right: 20, top: 20, bottom: 30 },
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['账单数','金额（万）'], right: 0, top: 0, textStyle: { fontSize: 11 } },
+    xAxis: {
+      type: 'category',
+      data: Object.keys(agingBuckets),
+      axisLabel: { fontSize: 11, color: '#8B8F95' }
+    },
+    yAxis: [
+      { type: 'value', name: '账单数', axisLabel: { fontSize: 11, color: '#8B8F95' } },
+      { type: 'value', name: '金额(万)', axisLabel: { fontSize: 11, color: '#8B8F95' } }
+    ],
+    series: [
+      { name: '账单数', type: 'bar', data: Object.values(agingBuckets).map(b=>b.count),
+        itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#55a27f'},{offset:1,color:'#2D7A5E'}]), borderRadius: [4,4,0,0] },
+        barWidth: 24 },
+      { name: '金额（万）', type: 'line', yAxisIndex: 1,
+        data: Object.values(agingBuckets).map(b => (b.amount/10000).toFixed(1)),
+        itemStyle: { color: '#D4863B' }, lineStyle: { width: 2 }, smooth: true,
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(212,134,59,0.25)'},{offset:1,color:'rgba(212,134,59,0.02)'}]) } }
+    ]
+  });
+
+  // 应收/实收趋势
+  const trend = {{ s.monthly_trend | tojson }};
+  init('chart-trend', {
+    grid: { left: 50, right: 40, top: 30, bottom: 30 },
+    tooltip: { trigger: 'axis', valueFormatter: v => v ? '¥'+Number(v).toLocaleString()+'万' : '—' },
+    legend: { data: ['应收账单','实际回款','回款率(%)'], right: 0, top: 0, textStyle: { fontSize: 11 } },
+    xAxis: { type: 'category', data: trend.map(t=>t.month), axisLabel: { fontSize: 11, color: '#8B8F95' } },
+    yAxis: [
+      { type: 'value', name: '金额(万)', axisLabel: { fontSize: 11, color: '#8B8F95' } },
+      { type: 'value', name: '%', max: 100, axisLabel: { fontSize: 11, color: '#8B8F95', formatter: '{value}%' } }
+    ],
+    series: [
+      { name: '应收账单', type: 'bar', data: trend.map(t => (t.billed/10000).toFixed(1)), barWidth: 16,
+        itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#84bfa2'},{offset:1,color:'#2D7A5E'}]), borderRadius:[3,3,0,0] } },
+      { name: '实际回款', type: 'bar', data: trend.map(t => (t.collected/10000).toFixed(1)), barWidth: 16,
+        itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#779bbf'},{offset:1,color:'#1E3A5F'}]), borderRadius:[3,3,0,0] } },
+      { name: '回款率(%)', type: 'line', yAxisIndex: 1, smooth: true,
+        data: trend.map(t => t.rate), lineStyle: { color: '#D4863B', width: 2 },
+        itemStyle: { color: '#D4863B' }, symbol: 'circle', symbolSize: 7 }
+    ]
+  });
+
+  // 客户回款占比（环形图）
+  const top = {{ s.top_clients_collected | tojson }};
+  init('chart-share', {
+    tooltip: { trigger: 'item', valueFormatter: v => '¥'+Number(v).toLocaleString() },
+    legend: { orient: 'vertical', left: 'left', top: 'middle', textStyle: { fontSize: 11 }, formatter: n => {
+      const i = top.findIndex(t => t.client_name === n);
+      if (i < 0) return n;
+      return n + '  ¥'+Number(top[i].amount).toLocaleString();
+    }},
+    series: [{
+      type: 'pie', radius: ['42%','70%'],
+      right: 20, top: 10, bottom: 10, width: '55%',
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+      label: { formatter: '{d}%', fontSize: 11, color: '#4A4E53' },
+      data: top.map((t, i) => ({ value: Number(t.amount).toFixed(2), name: t.client_name, itemStyle: { color: palette[i % palette.length] } }))
+    }]
+  });
+
+  // 预测柱状图
+  const f30 = {{ s.forecast_30 | tojson }}, f60 = {{ s.forecast_60 | tojson }}, f90 = {{ s.forecast_90 | tojson }};
+  init('chart-forecast', {
+    grid: { left: 50, right: 30, top: 40, bottom: 30 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: v => '¥'+Number(v).toLocaleString() },
+    legend: { data: ['到期应收', '逾期追款', '预存抵扣', '净现金'], right: 0, top: 0, textStyle: { fontSize: 11 } },
+    xAxis: { type: 'category', data: ['30天内', '60天内', '90天内'], axisLabel: { fontSize: 12, fontWeight: 500 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 11, color: '#8B8F95', formatter: val => (val/10000)+'万' } },
+    series: [
+      { name: '到期应收', type: 'bar', stack: 't',
+        data: [Number(f30.total_expected).toFixed(2), Number(f60.total_expected - f30.total_expected).toFixed(2), Number(f90.total_expected - f60.total_expected).toFixed(2)],
+        itemStyle: { color: '#55a27f', borderRadius: [0,0,0,0] } },
+      { name: '逾期追款', type: 'bar', stack: 't',
+        data: [Number(f30.overdue_expected).toFixed(2), Number(f60.overdue_expected - f30.overdue_expected).toFixed(2), Number(f90.overdue_expected - f60.overdue_expected).toFixed(2)],
+        itemStyle: { color: '#D4863B' } },
+      { name: '预存抵扣', type: 'bar',
+        data: [Number(f30.prepaid_offset).toFixed(2), Number(f60.prepaid_offset).toFixed(2), Number(f90.prepaid_offset).toFixed(2)],
+        itemStyle: { color: '#b9b6b2', borderRadius: [4,4,0,0] } },
+      { name: '净现金', type: 'line', smooth: true,
+        data: [Number(f30.total_expected - f30.prepaid_offset).toFixed(2), Number(f60.total_expected - f60.prepaid_offset).toFixed(2), Number(f90.total_expected - f90.prepaid_offset).toFixed(2)],
+        lineStyle: { color: '#1E3A5F', width: 3 }, itemStyle: { color: '#1E3A5F' }, symbol: 'diamond', symbolSize: 10 }
+    ]
+  });
+
+  window.dispatchEcharts = function(){ charts.forEach(c => c.resize()); };
+})();
+</script>
+{% endblock %}

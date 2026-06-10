@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block page_title %}登录 · {{ APP_NAME }}{% endblock %}
+{% block body_attrs %}class="min-h-100"{% endblock %}
+{% block layout_root %}
+<div class="auth-wrap">
+  <div class="auth-brand-panel">
+    <div>
+      <div class="auth-logo">
+        <div class="al">青</div>
+        <div>
+          <div class="auth-brand-title">{{ APP_NAME }}<small>QINGHE AR</small></small></div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-brand-hero">
+      <h2>让每一笔应收<br/>都按时到账</h2>
+      <p>订阅式账单智能跟踪 · 银行流水一键匹配 · 自动催款与现金预测，让财务同事不再追着客户跑。</p>
+      <div class="auth-brand-feats">
+        <div class="feat-item">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8a2 2 0 0 0-2-2h-3l-2-2h-4l-2 2H6a2 2 0 0 0-2 2v9"/><path d="M3 21h18v-6a3 3 0 0 0-5-2.2"/><circle cx="18" cy="18" r="3"/></svg>
+          </div>
+          <div class="feat-text"><b>智能对账</b><span>70分权重算法自动匹配流水，节省 80% 人工</span></div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+          </div>
+          <div class="feat-text"><b>现金预测</b><span>30/60/90 天滚动预测，提前识别现金流缺口</span></div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M9 13h6M9 17h6"/></svg>
+          </div>
+          <div class="feat-text"><b>全流程留痕</b><span>字段级修改审计 · 异常自动建单 · 导出一键Excel</span></div>
+        </div>
+        <div class="feat-item">
+          <div class="feat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+          </div>
+          <div class="feat-text"><b>合规校验</b><span>中国税号格式正则 · 专票字段必校验 · 自动生成异常</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="auth-brand-foot">© {{ current_year }} 青禾智能 · 企业内管系统 · 所有数据仅供演示</div>
+  </div>
+  <div class="auth-form-panel">
+    <div class="auth-form-card fade-in-up">
+      <h1>欢迎回来 👋</h1>
+      <div class="sub">请使用管理员或客户账号登录系统</div>
+      {% if error %}<div class="auth-error-box">{{ error }}</div>{% endif %}
+      <form method="POST" action="{{ url_for('login_action') }}" autocomplete="off" hx-boost="false">
+        <input type="hidden" name="next_url" value="{{ next }}">
+        <div class="form-group">
+          <label class="form-label">邮箱地址</label>
+          <input type="email" name="email" class="input" required autofocus placeholder="name@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" name="password" class="input" required placeholder="请输入密码">
+          <div class="form-help">演示账号：admin@qinghe.ar / admin123 &nbsp;|&nbsp; client@qinghe.ar / user123</div>
+        </div>
+        <button class="btn btn-primary btn-block mt-md" type="submit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10,17 15,12 10,7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          &nbsp;登录系统
+        </button>
+      </form>
+      <div class="auth-form-foot">
+        还没有账号？<a href="{{ url_for('register_page') }}">立即注册客户账号</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

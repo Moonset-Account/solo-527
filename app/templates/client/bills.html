@@ -1,0 +1,148 @@
+{% extends "client/layout.html" %}
+{% set active_nav = "bills" %}
+{% block client_title %}我的账单{% endblock %}
+{% block header_title %}我的账单{% endblock %}
+{% block header_crumbs %}业务中心 / 我的账单{% endblock %}
+{% block content %}
+<div x-data="clientBillList()" x-init="load()" class="fade-in-up">
+
+  {% if prepaid %}
+  <div class="prepaid-banner">
+    <div class="pb-left">
+      <div class="pb-title">PREPAID BALANCE · 预存账户</div>
+      <div class="pb-value">¥{{ "{:,.2f}".format(prepaid.current_balance) }}</div>
+      <div class="pb-sub">
+        <span><b>累计充值</b>¥{{ "{:,.2f}".format(prepaid.total_recharged or 0) }}</span>
+        <span><b>累计抵扣</b>¥{{ "{:,.2f}".format(prepaid.total_deducted or 0) }}</span>
+      </div>
+    </div>
+    <div class="pb-right">
+      <a class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.3)" href="{{ url_for('client_prepaid_page') }}">
+        💳 立即充值
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card section-gap">
+    <div class="card-body" style="padding:8px 20px">
+      <div class="tabs">
+        <button class="tab {% if not current_tab or current_tab == 'ALL' %}active{% endif %}" @click="setTab('ALL')">
+          全部账单 <span class="count">{{ data.total or 0 }}</span>
+        </button>
+        <button class="tab {% if current_tab == 'UNPAID' %}active{% endif %}" @click="setTab('UNPAID')">
+          待收款 <span class="count" style="background:var(--qh-blue-100);color:var(--qh-blue-700)">{{ counts.issued or 0 }}</span>
+        </button>
+        <button class="tab {% if current_tab == 'PARTIAL' %}active{% endif %}" @click="setTab('PARTIAL')">
+          部分回款 <span class="count" style="background:var(--qh-amber-100);color:var(--qh-amber-700)">{{ counts.partial or 0 }}</span>
+        </button>
+        <button class="tab {% if current_tab == 'OVERDUE' %}active{% endif %}" @click="setTab('OVERDUE')">
+          已逾期 <span class="count" style="background:var(--qh-red-100);color:var(--qh-red-700)">{{ counts.overdue or 0 }}</span>
+        </button>
+        <button class="tab {% if current_tab == 'PAID' %}active{% endif %}" @click="setTab('PAID')">
+          已结清 <span class="count" style="background:var(--qh-green-100);color:var(--qh-green-700)">{{ counts.paid or 0 }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="client-bills section-gap" id="bills-grid">
+    {% for b in data.items %}
+      <div class="client-bill-card fade-in-up">
+        <div class="cbc-top">
+          <div>
+            <div class="cbc-no">{{ b.bill_no }}</div>
+            <div class="cbc-period">{{ b.period_start.strftime('%Y年%m月') if b.period_start else '' }} 账期</div>
+          </div>
+          <div class="cbc-status">
+            {% if b.status == 'DRAFT' %}<span class="badge badge-gray">草稿</span>
+            {% elif b.status == 'ISSUED' %}<span class="badge badge-blue">已签发</span>
+            {% elif b.status == 'PARTIAL' %}<span class="badge badge-amber">部分回款</span>
+            {% elif b.status == 'PAID' %}<span class="badge badge-green-solid">已结清</span>
+            {% elif b.status == 'OVERDUE' %}<span class="badge badge-red-solid">已逾期</span>
+            {% else %}<span class="badge badge-gray">作废</span>{% endif %}
+            {% if b.invoice_requested %}
+              <span class="badge badge-amber text-xs" style="margin-top:2px">🧾 已申请发票</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="cbc-money">
+          <span class="label">应付金额</span>
+          <span class="value {% if b.status == 'PAID' %}paid{% elif b.remaining_amount > 0 %}unpaid{% endif %}">
+            ¥{{ "{:,.2f}".format(b.total_amount) }}
+          </span>
+          {% if b.paid_amount > 0 %}
+            <div class="text-xs" style="color:var(--qh-green-700);font-weight:500">
+              已付 ¥{{ "{:,.2f}".format(b.paid_amount) }} · 剩余 ¥{{ "{:,.2f}".format(b.remaining_amount) }}
+            </div>
+            <div class="progress" style="height:4px;margin-top:6px">
+              {% set pct = (b.paid_amount / b.total_amount * 100) if b.total_amount > 0 else 0 %}
+              <span style="width:{{ pct|round(1) }}%"></span>
+            </div>
+          {% endif %}
+        </div>
+        <div class="cbc-meta">
+          <span>到期日：<b class="{{ 'text-red' if b.days_overdue > 0 else '' }}">{{ b.due_date }}</b></span>
+          <span>签发：<b>{{ b.issue_date }}</b></span>
+          {% if b.days_overdue > 0 %}
+            <span style="grid-column:1/-1;color:var(--qh-red-600);font-weight:600">⚠ 逾期 {{ b.days_overdue }} 天</span>
+          {% endif %}
+          {% if prepaid and b.prepaid_sufficient and b.remaining_amount > 0 %}
+            <span style="grid-column:1/-1;color:var(--qh-green-700);font-weight:500">✓ 可用预存抵扣</span>
+          {% endif %}
+        </div>
+        <div class="cbc-actions">
+          <a class="btn btn-xs btn-secondary btn-block" href="{{ url_for('client_bill_detail', bill_id=b.id) }}">查看详情</a>
+          {% if b.remaining_amount > 0 %}
+            <a class="btn btn-xs btn-primary btn-block" href="{{ url_for('client_bill_detail', bill_id=b.id) }}">去支付</a>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div style="grid-column:1/-1">
+        <div class="empty-state card" style="padding:60px 20px">
+          <div class="es-icon">📭</div>
+          <h4>暂无账单记录</h4>
+          <p>您当前没有{% if current_tab and current_tab != 'ALL' %}此状态的{% endif %}账单</p>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:14px 4px">
+    <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页，共 '+total+' 条'"></div>
+    <div class="pg-buttons">
+      <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+      <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+      <template x-for="p in pageNumbers()" :key="p">
+        <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+      </template>
+      <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+      <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+function clientBillList(){
+  return {
+    page: {{ data.page or 1 }}, page_size: {{ data.page_size or 12 }},
+    total: {{ data.total or 0 }}, total_pages: {{ data.total_pages or 1 }},
+    currentTab: '{{ current_tab or "ALL" }}',
+    setTab(t){ this.currentTab = t; this.page = 1; window.location.search = '?tab='+t; },
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){ this.page = p; },
+    load(){}
+  };
+}
+</script>
+{% endblock %}

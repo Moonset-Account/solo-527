@@ -1,0 +1,141 @@
+{% extends "admin/layout.html" %}
+{% set active_nav = "exports" %}
+{% block admin_title %}导出中心{% endblock %}
+{% block header_title %}数据导出中心{% endblock %}
+{% block header_crumbs %}首页 / 资金与监控 / 导出中心{% endblock %}
+{% block content %}
+<div x-data="exportList()" x-init="load()" class="fade-in-up">
+
+  <div class="grid-3 section-gap">
+    <div class="card card-accent" style="cursor:pointer" hx-post="{{ url_for('admin_export_create') }}" hx-vals='{"type":"CASHFLOW","parameters":{"days":30}}' hx-swap="none" hx-confirm="确认导出最近30天现金流明细？" onclick="setTimeout(()=>$dispatch('load'), 500)">
+      <div class="card-body">
+        <div class="flex items-start justify-between mb-sm">
+          <div class="kpi-icon">💵</div>
+          <span class="badge badge-green">快速导出</span>
+        </div>
+        <h3 class="card-title" style="font-size:16px">最近30天现金流</h3>
+        <p class="text-sm text-muted mt-sm" style="margin:0">包含所有银行流水、回款匹配记录，按交易日期排序</p>
+        <div class="mt-md">
+          <button class="btn btn-sm btn-primary btn-block">立即导出</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-accent-red" style="cursor:pointer" hx-post="{{ url_for('admin_export_create') }}" hx-vals='{"type":"INVOICE_ERRORS"}' hx-swap="none" hx-confirm="确认导出所有发票校验错误？" onclick="setTimeout(()=>$dispatch('load'), 500)">
+      <div class="card-body">
+        <div class="flex items-start justify-between mb-sm">
+          <div class="kpi-icon red">❌</div>
+          <span class="badge badge-red">重点关注</span>
+        </div>
+        <h3 class="card-title" style="font-size:16px">发票错误报告</h3>
+        <p class="text-sm text-muted mt-sm" style="margin:0">所有校验失败的发票及其错误详情，含抬头、税号问题</p>
+        <div class="mt-md">
+          <button class="btn btn-sm btn-danger btn-block">立即导出</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-accent-blue" style="cursor:pointer" hx-post="{{ url_for('admin_export_create') }}" hx-vals='{"type":"CHANGE_LOG","parameters":{"days":60}}' hx-swap="none" hx-confirm="确认导出最近60天审计变更？" onclick="setTimeout(()=>$dispatch('load'), 500)">
+      <div class="card-body">
+        <div class="flex items-start justify-between mb-sm">
+          <div class="kpi-icon blue">📋</div>
+          <span class="badge badge-blue">审计</span>
+        </div>
+        <h3 class="card-title" style="font-size:16px">最近60天变更日志</h3>
+        <p class="text-sm text-muted mt-sm" style="margin:0">账单/发票/预存的所有修改记录，含操作人和原因</p>
+        <div class="mt-md">
+          <button class="btn btn-sm btn-secondary btn-block" style="background:var(--qh-blue-700);color:#fff;border-color:var(--qh-blue-700)">立即导出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">导出任务列表</h3>
+        <div class="card-subtitle">文件保留7天，过期自动清理</div>
+      </div>
+      <div class="flex gap-sm">
+        <button class="btn btn-xs btn-secondary" @click="load()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          &nbsp;刷新
+        </button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>任务编号</th>
+            <th>类型</th>
+            <th>参数</th>
+            <th>状态</th>
+            <th>进度</th>
+            <th class="num">行数</th>
+            <th class="num">文件大小</th>
+            <th>创建时间</th>
+            <th style="min-width:100px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="export-rows-body">
+          <tr><td colspan="9"><div style="padding:32px;text-align:center;color:var(--qh-gray-500)"><div style="font-size:12px">加载中...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" style="border-top:1px solid var(--qh-gray-100);padding:14px 20px">
+      <div class="pg-info" x-text="'第 '+page+' 页 / 共 '+total_pages+' 页，共 '+total+' 条'"></div>
+      <div class="pg-buttons">
+        <button class="pg-btn" :disabled="page<=1" @click="go(1)">«</button>
+        <button class="pg-btn" :disabled="page<=1" @click="go(page-1)">‹</button>
+        <template x-for="p in pageNumbers()" :key="p">
+          <button class="pg-btn" :class="{'active':p===page}" @click="go(p)" x-text="p"></button>
+        </template>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(page+1)">›</button>
+        <button class="pg-btn" :disabled="page>=total_pages" @click="go(total_pages)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+function exportList(){
+  return {
+    page: 1, page_size: 20, total: 0, total_pages: 1,
+    pageNumbers(){
+      const tp = Math.max(1, this.total_pages);
+      const p = this.page, res = [];
+      const start = Math.max(1, Math.min(p-2, tp-4));
+      const end = Math.min(tp, start + 4);
+      for (let i = start; i <= end; i++) res.push(i);
+      return res;
+    },
+    go(p){ this.page = p; this.load(); },
+    async load(){
+      const qs = new URLSearchParams({ page: this.page, page_size: this.page_size }).toString();
+      const r = await fetch('{{ url_for("admin_exports_list") }}?'+qs, { headers: {'HX-Request':'true'} });
+      const html = await r.text();
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const totalEl = wrap.querySelector('[data-total]');
+      if (totalEl) {
+        this.total = parseInt(totalEl.dataset.total || 0);
+        this.total_pages = parseInt(totalEl.dataset.total_pages || 1);
+        this.page = parseInt(totalEl.dataset.page || 1);
+      }
+      document.getElementById('export-rows-body').innerHTML = wrap.querySelector('tbody').innerHTML;
+    }
+  };
+}
+document.addEventListener('htmx:afterRequest', (e) => {
+  if (e.detail.elt && e.detail.elt.hasAttribute('hx-post') && e.detail.elt.getAttribute('hx-post').includes('export')) {
+    setTimeout(() => {
+      const el = document.querySelector('[x-data="exportList()"]');
+      if (el && el._x_dataStack) el._x_dataStack[0].load();
+    }, 800);
+  }
+});
+</script>
+{% endblock %}

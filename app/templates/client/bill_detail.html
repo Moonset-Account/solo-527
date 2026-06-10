@@ -1,0 +1,214 @@
+{% extends "client/layout.html" %}
+{% set active_nav = "pay" %}
+{% block client_title %}账单支付{% endblock %}
+{% block header_title %}账单详情 · {{ bill.bill_no }}{% endblock %}
+{% block header_crumbs %}业务中心 / <a href="{{ url_for('client_bills_page') }}">我的账单</a> / {{ bill.bill_no }}{% endblock %}
+{% block content %}
+<div x-data="clientPay()" class="fade-in-up">
+
+  <div class="grid-2" style="grid-template-columns:1fr 1fr 1fr;gap:16px">
+    <div class="card card-accent">
+      <div class="card-header">
+        <h3 class="card-title">📋 账单信息</h3>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;gap:10px">
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单编号</span>
+            <span class="money font-bold" style="font-family:'JetBrains Mono',monospace">{{ bill.bill_no }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账期</span>
+            <span>{{ bill.period_start }} ~ {{ bill.period_end }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">签发日期</span>
+            <span>{{ bill.issue_date }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">到期日</span>
+            <span class="{{ bill.due_date_class }}">{{ bill.due_date }}</span>
+          </div>
+          {% if bill.days_overdue > 0 %}
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">逾期天数</span>
+            <span class="text-red font-bold">{{ bill.days_overdue }} 天</span>
+          </div>
+          {% endif %}
+          <div style="border-top:1px dashed var(--qh-gray-200);margin:6px 0"></div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">账单总额</span>
+            <span class="money font-bold">¥{{ "{:,.2f}".format(bill.total_amount) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">已付金额</span>
+            <span class="money text-green">¥{{ "{:,.2f}".format(bill.paid_amount) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted text-sm">待付金额</span>
+            <span class="money font-bold text-red" style="font-size:16px">¥{{ "{:,.2f}".format(bill.remaining_amount) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-accent-blue">
+      <div class="card-header">
+        <h3 class="card-title">💳 支付预览</h3>
+      </div>
+      <div class="card-body">
+        <div class="mb-md">
+          <div class="text-sm text-muted mb-sm">待付金额</div>
+          <div class="money font-bold text-red" style="font-size:28px;font-family:'JetBrains Mono',monospace">
+            ¥{{ "{:,.2f}".format(bill.remaining_amount) }}
+          </div>
+        </div>
+
+        {% if prepaid and prepaid.current_balance > 0 %}
+        <div style="padding:12px;background:var(--qh-green-50);border-radius:8px;margin-bottom:16px">
+          <label class="flex items-center gap-sm" style="cursor:pointer;font-weight:500">
+            <input type="checkbox" x-model="usePrepaid" @change="calc()">
+            使用预存余额抵扣
+          </label>
+          <div class="text-xs text-muted mt-sm" style="margin-left:24px">
+            当前余额：<span class="text-green font-bold">¥{{ "{:,.2f}".format(prepaid.current_balance) }}</span>
+          </div>
+        </div>
+        {% endif %}
+
+        <div style="display:grid;gap:8px;padding:14px;background:var(--qh-gray-50);border-radius:8px">
+          <div class="flex justify-between text-sm">
+            <span class="text-muted">待付金额</span>
+            <span class="money">¥{{ "{:,.2f}".format(bill.remaining_amount) }}</span>
+          </div>
+          {% if prepaid and prepaid.current_balance > 0 %}
+          <div class="flex justify-between text-sm" x-show="usePrepaid">
+            <span class="text-muted">预存抵扣</span>
+            <span class="money text-green">-¥<span x-text="prepaidDeduct.toFixed(2)"></span></span>
+          </div>
+          {% endif %}
+          <div style="border-top:1px dashed var(--qh-gray-300);margin:4px 0"></div>
+          <div class="flex justify-between">
+            <span style="font-weight:600">实付金额</span>
+            <span class="money font-bold" style="font-size:20px;color:var(--qh-green-700)">¥<span x-text="actualPay.toFixed(2)"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-accent-amber">
+      <div class="card-header">
+        <h3 class="card-title">⚡ 立即支付</h3>
+      </div>
+      <div class="card-body">
+        {% if bill.remaining_amount <= 0 %}
+          <div class="empty-state" style="padding:40px 12px">
+            <div class="es-icon">✅</div>
+            <h4>账单已结清</h4>
+            <p>感谢您的及时付款！</p>
+          </div>
+        {% else %}
+          <div class="mb-md">
+            <div class="text-sm text-muted mb-sm">选择支付方式</div>
+            <div style="display:grid;gap:8px">
+              <label style="padding:12px;border:2px solid var(--qh-green-200);border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--qh-green-50)">
+                <input type="radio" name="payway" value="prepaid" {% if prepaid and prepaid.current_balance >= bill.remaining_amount %}checked{% endif %}>
+                <div>
+                  <div style="font-weight:600">预存余额支付</div>
+                  <div class="text-xs text-muted">可用余额 ¥{{ "{:,.2f}".format(prepaid.current_balance or 0) }}</div>
+                </div>
+              </label>
+              <label style="padding:12px;border:1px solid var(--qh-gray-200);border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                <input type="radio" name="payway" value="bank">
+                <div>
+                  <div style="font-weight:600">银行转账</div>
+                  <div class="text-xs text-muted">线下汇款后上传凭证</div>
+                </div>
+              </label>
+              <label style="padding:12px;border:1px solid var(--qh-gray-200);border-radius:8px;display:flex;align-items:center;gap:10px;cursor:pointer">
+                <input type="radio" name="payway" value="alipay" disabled>
+                <div>
+                  <div style="font-weight:600">支付宝（即将上线）</div>
+                  <div class="text-xs text-muted">在线快捷支付</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {% if prepaid and prepaid.current_balance > 0 %}
+          <form method="POST" action="{{ url_for('client_bill_pay_prepaid', bill_id=bill.id) }}" onsubmit="return confirm('确认使用预存余额支付？');">
+            <input type="hidden" name="amount" :value="actualPay">
+            <button class="btn btn-primary btn-block" type="submit" style="padding:12px;font-size:15px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              &nbsp;确认支付 ¥<span x-text="actualPay.toFixed(2)"></span>
+            </button>
+          </form>
+          {% else %}
+          <a class="btn btn-primary btn-block" style="padding:12px;font-size:15px;justify-content:center" href="{{ url_for('client_prepaid_page') }}">
+            💳 先去充值预存
+          </a>
+          {% endif %}
+          <div class="text-xs text-muted mt-md" style="text-align:center;line-height:1.6">
+            支付即表示同意<a href="#" style="color:var(--qh-blue-500)">《服务协议》</a><br>
+            发票将在支付后按申请开具
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if payments and payments | length > 0 %}
+  <div class="card mt-lg">
+    <div class="card-header">
+      <h3 class="card-title">📜 支付记录</h3>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="timeline" style="padding:16px 20px">
+        {% for p in payments %}
+          <div class="tl-item {% if p.match_type == 'PREPAID' %}blue{% endif %}">
+            <div class="tl-meta">
+              <span>{{ p.matched_at.strftime('%Y-%m-%d %H:%M') if p.matched_at else p.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+              <span class="badge {% if p.match_type == 'PREPAID' %}badge-blue{% elif p.match_type == 'MANUAL' %}badge-amber{% else %}badge-green{% endif %}" style="font-size:10.5px">
+                {% if p.match_type == 'PREPAID' %}预存抵扣{% elif p.match_type == 'MANUAL' %}银行转账{% else %}自动匹配{% endif %}
+              </span>
+            </div>
+            <div class="tl-title money text-green font-bold" style="font-family:'JetBrains Mono',monospace">+¥{{ "{:,.2f}".format(p.amount) }}</div>
+            {% if p.remark %}
+              <div class="tl-body">{{ p.remark }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function clientPay(){
+  const remaining = {{ bill.remaining_amount }};
+  const balance = {{ prepaid.current_balance if prepaid else 0 }};
+  return {
+    usePrepaid: {% if prepaid and prepaid.current_balance >= bill.remaining_amount %}true{% else %}false{% endif %},
+    prepaidDeduct: 0,
+    actualPay: remaining,
+    calc(){
+      if (this.usePrepaid) {
+        this.prepaidDeduct = Math.min(balance, remaining);
+      } else {
+        this.prepaidDeduct = 0;
+      }
+      this.actualPay = Math.max(0, remaining - this.prepaidDeduct);
+    },
+    init(){ this.calc(); }
+  };
+}
+document.addEventListener('alpine:init', () => {
+  setTimeout(() => {
+    const el = document.querySelector('[x-data="clientPay()"]');
+    if (el && el._x_dataStack) el._x_dataStack[0].init();
+  }, 100);
+});
+</script>
+{% endblock %}

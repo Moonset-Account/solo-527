@@ -1,0 +1,29 @@
+<div data-total="{{ data.total }}" data-total_pages="{{ data.total_pages }}" data-page="{{ data.page }}">
+<table>
+<tbody>
+{% for p in data.items %}
+  <tr>
+    <td>
+      <div style="font-weight:600;">{{ p.client_name }}</div>
+      <div class="text-xs text-muted">ID: {{ p.client_id }}</div>
+    </td>
+    <td class="num money font-bold" style="color:{% if p.current_balance > 0 %}var(--qh-green-700){% else %}var(--qh-gray-500){% endif %}">
+      ¥{{ "{:,.2f}".format(p.current_balance) }}
+    </td>
+    <td class="num center">{{ p.top_up_count or 0 }}</td>
+    <td class="num money text-green">+¥{{ "{:,.2f}".format(p.total_recharged) }}</td>
+    <td class="num money text-red">-¥{{ "{:,.2f}".format(p.total_deducted) }}</td>
+    <td>{{ p.updated_at.strftime('%Y-%m-%d %H:%M') if p.updated_at else '—' }}</td>
+    <td>
+      <div class="flex gap-sm" style="justify-content:flex-end">
+        <button class="btn btn-xs btn-primary" hx-get="{{ url_for('admin_prepaid_recharge_dialog', account_id=p.id) }}" hx-target="#modal-container" hx-swap="innerHTML">充值</button>
+        <a class="btn btn-xs btn-secondary" href="{{ url_for('admin_prepaid_detail', account_id=p.id) }}">明细</a>
+      </div>
+    </td>
+  </tr>
+{% else %}
+  <tr><td colspan="7"><div class="empty-state"><div class="es-icon">💰</div><h4>暂无预存账户</h4><p>客户充值后将自动创建账户</p></div></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>

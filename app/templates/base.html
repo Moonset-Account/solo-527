@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block page_title %}{{ APP_NAME }}{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.store('app', {
+      formatCurrency(v) {
+        if (v == null) return '¥0.00';
+        return '¥' + Number(v).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      },
+      formatDate(s) {
+        if (!s) return '—';
+        const d = new Date(s);
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      },
+      confirm(msg, onOk) {
+        if (window.confirm(msg)) onOk && onOk();
+      },
+    });
+  });
+  document.addEventListener('htmx:load', () => {
+    if (window.dispatchEcharts) window.dispatchEcharts();
+  });
+  window.addEventListener('resize', () => {
+    window._echartsInstances && window._echartsInstances.forEach(c => c.resize());
+  });
+</script>
+<style>
+  body { opacity: 0; transition: opacity .2s; }
+  body.htmx-settling { opacity: 1; }
+</style>
+</head>
+<body class="htmx-settling" {% block body_attrs %}{% endblock %}>
+{% block layout_root %}{% endblock %}
+{% block modals %}{% endblock %}
+<script src="{{ url_for('static', path='/js/app.js') }}"></script>
+</body>
+</html>
