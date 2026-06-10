@@ -54,13 +54,19 @@ RISK_LABELS = {
 }
 
 
-def format_markdown(report: Report, include_license: bool = True, include_risk: bool = True) -> str:
+def format_markdown(
+    report: Report,
+    include_license: bool = True,
+    include_risk: bool = True,
+    include_changelog: bool = True,
+) -> str:
     """将报告格式化为 Markdown。
 
     Args:
         report: 报告对象
         include_license: 是否包含许可证信息
         include_risk: 是否包含风险信息
+        include_changelog: 是否包含更新记录内容
 
     Returns:
         Markdown 格式的字符串
@@ -74,6 +80,12 @@ def format_markdown(report: Report, include_license: bool = True, include_risk: 
         lines.append(f"- **锁文件(后)**: `{report.lockfile_after}`")
         lines.append(f"- **生态系统**: `{report.ecosystem}`")
         lines.append(f"- **总变更数**: {report.total_changes}")
+        if report.changelog_source:
+            lines.append(f"- **更新记录来源**: `{report.changelog_source}`")
+            lines.append(
+                f"- **更新记录匹配**: {report.changelog_summary.get('with_notes', 0)} 个包有记录, "
+                f"{report.changelog_summary.get('without_notes', 0)} 个包无记录"
+            )
         lines.append("")
 
         lines.append("## 变更概览")
@@ -119,6 +131,8 @@ def format_markdown(report: Report, include_license: bool = True, include_risk: 
             if include_risk:
                 header_parts.append("风险")
                 header_parts.append("风险原因")
+            if include_changelog and report.changelog_source:
+                header_parts.append("更新记录")
             header_parts.append("|")
             lines.append(" ".join(header_parts))
 
@@ -128,6 +142,8 @@ def format_markdown(report: Report, include_license: bool = True, include_risk: 
                 sep_parts.append("| ---")
             if include_risk:
                 sep_parts.append("| ---")
+                sep_parts.append("| ---")
+            if include_changelog and report.changelog_source:
                 sep_parts.append("| ---")
             sep_parts.append("|")
             lines.append(" ".join(sep_parts))
@@ -151,10 +167,42 @@ def format_markdown(report: Report, include_license: bool = True, include_risk: 
                     risk_reasons = "; ".join(change.risk.reasons) if change.risk.reasons else "-"
                     row.append(risk_reasons)
 
+                if include_changelog and report.changelog_source:
+                    if change.changelog_notes:
+                        display_notes = change.changelog_notes[:3]
+                        note_items = []
+                        for i, note in enumerate(display_notes, 1):
+                            clean = note.replace("|", "\\|")
+                            if len(clean) > 80:
+                                clean = clean[:77] + "..."
+                            note_items.append(f"{i}. {clean}")
+                        extra = ""
+                        if len(change.changelog_notes) > 3:
+                            extra = f" (+{len(change.changelog_notes) - 3}条)"
+                        row.append("<br>".join(note_items) + extra)
+                    else:
+                        row.append("—")
+
                 row.append("|")
                 lines.append(" | ".join(row))
 
             lines.append("")
+
+            if include_changelog and report.changelog_source:
+                with_notes = [c for c in report.changes if c.changelog_notes]
+                if with_notes:
+                    lines.append("## 📝 更新记录详情")
+                    lines.append("")
+                    for change in with_notes:
+                        lines.append(f"### {change.name}")
+                        lines.append("")
+                        lines.append(f"- **版本变化**: `{change.version_before}` → `{change.version_after}`")
+                        lines.append(f"- **变更类型**: {CHANGE_TYPE_LABELS_MD.get(change.change_type, change.change_type.value)}")
+                        lines.append("")
+                        lines.append("**变更内容:**")
+                        for note in change.changelog_notes:
+                            lines.append(f"- {note}")
+                        lines.append("")
 
             if include_risk:
                 high_risk = [c for c in report.changes if c.risk.level in (RiskLevel.HIGH, RiskLevel.CRITICAL)]
@@ -206,13 +254,19 @@ def format_json(report: Report, indent: int = 2) -> str:
         ) from e
 
 
-def format_console_table(report: Report, include_license: bool = True, include_risk: bool = True) -> str:
+def format_console_table(
+    report: Report,
+    include_license: bool = True,
+    include_risk: bool = True,
+    include_changelog: bool = True,
+) -> str:
     """将报告格式化为终端表格（使用 Rich）。
 
     Args:
         report: 报告对象
         include_license: 是否包含许可证信息
         include_risk: 是否包含风险信息
+        include_changelog: 是否包含更新记录内容
 
     Returns:
         格式化后的字符串
@@ -230,6 +284,13 @@ def format_console_table(report: Report, include_license: bool = True, include_r
         console.print(f"  [dim]锁文件(后):[/dim] {report.lockfile_after}")
         console.print(f"  [dim]生态系统:[/dim] {report.ecosystem}")
         console.print(f"  [dim]总变更数:[/dim] [bold]{report.total_changes}[/bold]")
+        if report.changelog_source:
+            console.print(f"  [dim]更新记录来源:[/dim] {report.changelog_source}")
+            console.print(
+                f"  [dim]更新记录匹配:[/dim] "
+                f"[green]{report.changelog_summary.get('with_notes', 0)}[/green] 个包有记录, "
+                f"[dim]{report.changelog_summary.get('without_notes', 0)}[/dim] 个包无记录"
+            )
         console.print()
 
         summary_table = RichTable(title="📊 变更概览", show_header=True, header_style="bold magenta")
@@ -285,6 +346,8 @@ def format_console_table(report: Report, include_license: bool = True, include_r
             if include_risk:
                 detail_table.add_column("风险")
                 detail_table.add_column("原因", overflow="fold")
+            if include_changelog and report.changelog_source:
+                detail_table.add_column("更新记录", overflow="fold", max_width=40)
 
             for change in report.changes:
                 ct_style = ""
@@ -319,10 +382,42 @@ def format_console_table(report: Report, include_license: bool = True, include_r
                     risk_reasons = "\n".join(change.risk.reasons) if change.risk.reasons else "-"
                     row.extend([risk_text, risk_reasons])
 
+                if include_changelog and report.changelog_source:
+                    if change.changelog_notes:
+                        display_notes = change.changelog_notes[:3]
+                        note_lines = []
+                        for i, note in enumerate(display_notes, 1):
+                            if len(note) > 60:
+                                note = note[:57] + "..."
+                            note_lines.append(f"{i}. {note}")
+                        extra = ""
+                        if len(change.changelog_notes) > 3:
+                            extra = f"\n[dim](+{len(change.changelog_notes) - 3}条)[/dim]"
+                        row.append("\n".join(note_lines) + extra)
+                    else:
+                        row.append("[dim]—[/dim]")
+
                 detail_table.add_row(*row)
 
             console.print(detail_table)
             console.print()
+
+            if include_changelog and report.changelog_source:
+                with_notes = [c for c in report.changes if c.changelog_notes]
+                if with_notes:
+                    console.print("[bold blue]📝 更新记录详情[/bold blue]")
+                    console.print()
+                    for change in with_notes:
+                        console.print(
+                            f"  [bold cyan]{change.name}[/bold cyan] "
+                            f"[dim]{change.version_before}[/dim] → "
+                            f"[bold]{change.version_after}[/bold]"
+                        )
+                        for note in change.changelog_notes:
+                            if len(note) > 120:
+                                note = note[:117] + "..."
+                            console.print(f"    • {note}")
+                        console.print()
 
             high_risk = [c for c in report.changes if c.risk.level in (RiskLevel.HIGH, RiskLevel.CRITICAL)]
             if high_risk and include_risk:
@@ -406,6 +501,7 @@ def render_report(
     markdown: bool = False,
     include_license: bool = True,
     include_risk: bool = True,
+    include_changelog: bool = True,
 ) -> str:
     """渲染报告到指定格式。
 
@@ -416,6 +512,7 @@ def render_report(
         markdown: 如果为 True，使用 markdown 格式（与 output_format 兼容）
         include_license: 是否包含许可证信息
         include_risk: 是否包含风险信息
+        include_changelog: 是否包含更新记录内容
 
     Returns:
         渲染后的字符串内容
@@ -425,9 +522,9 @@ def render_report(
         fmt = "markdown"
 
     if fmt in ("table", "console", "text"):
-        content = format_console_table(report, include_license, include_risk)
+        content = format_console_table(report, include_license, include_risk, include_changelog)
     elif fmt in ("md", "markdown"):
-        content = format_markdown(report, include_license, include_risk)
+        content = format_markdown(report, include_license, include_risk, include_changelog)
     elif fmt == "json":
         content = format_json(report)
     else:

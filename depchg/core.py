@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from .changelog_parser import apply_changelog_to_changes, read_changelog_file
 from .config import AppConfig
 from .comparator import compute_changes, group_changes
 from .exceptions import DepChgError, LockfileParseError
@@ -36,6 +37,7 @@ def generate_report(
         after=config.after,
         only_direct=config.only_direct,
         minimal_risk_level=config.minimal_risk_level,
+        changelog=config.changelog,
     )
 
     if not config.before:
@@ -84,6 +86,22 @@ def generate_report(
     assess_all_risks(changes)
     logger.debug("风险评估完成")
 
+    changelog_source = None
+    if config.changelog or config.changelog_text:
+        if config.changelog_text:
+            raw_text = config.changelog_text
+            changelog_source = "<inline>"
+        else:
+            raw_text = read_changelog_file(config.changelog)
+            changelog_source = config.changelog
+
+        if config.include_changelog:
+            apply_changelog_to_changes(
+                changes=changes,
+                changelog=raw_text,
+                changelog_source=changelog_source,
+            )
+
     if config.minimal_risk_level and config.minimal_risk_level.lower() != "none":
         level_order = [l.value for l in RiskLevel]
         try:
@@ -110,11 +128,13 @@ def generate_report(
         lockfile_after=config.after,
         ecosystem=ecosystem,
     )
+    report.changelog_source = changelog_source
 
     logger.info(
         "报告生成完成",
         total_changes=report.total_changes,
         summary=report.summary,
+        changelog_summary=report.changelog_summary,
     )
 
     return report
@@ -167,6 +187,7 @@ def run_with_config(
             markdown=config.markdown,
             include_license=config.include_license,
             include_risk=config.include_risk,
+            include_changelog=config.include_changelog,
         )
 
         return determine_exit_code(report)

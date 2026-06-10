@@ -9,6 +9,18 @@ from typing import Optional
 import structlog
 
 
+_LOG_LEVEL_ORDER = {
+    "debug": 10,
+    "info": 20,
+    "warning": 30,
+    "warn": 30,
+    "error": 40,
+    "err": 40,
+    "critical": 50,
+    "fatal": 50,
+}
+
+
 def _safe_add_logger_name(logger, method_name, event_dict):
     """安全添加 logger 名称的处理器。"""
     if hasattr(logger, "name"):
@@ -18,6 +30,24 @@ def _safe_add_logger_name(logger, method_name, event_dict):
         if record is not None and hasattr(record, "name"):
             event_dict["logger"] = record.name
     return event_dict
+
+
+class _LevelFilter:
+    """structlog 处理器，按级别丢弃日志。
+
+    因为使用 PrintLoggerFactory 而非 stdlib 集成，
+    需要在处理器链中显式过滤。
+    """
+
+    def __init__(self, min_level_int: int):
+        self.min_level_int = min_level_int
+
+    def __call__(self, logger, method_name, event_dict):
+        level_str = event_dict.get("level", method_name or "")
+        evt_level = _LOG_LEVEL_ORDER.get(str(level_str).lower(), 99)
+        if evt_level < self.min_level_int:
+            raise structlog.DropEvent
+        return event_dict
 
 
 def setup_logging(level: str = "WARNING", json_output: bool = False) -> None:
@@ -32,6 +62,8 @@ def setup_logging(level: str = "WARNING", json_output: bool = False) -> None:
     except AttributeError:
         log_level = logging.WARNING
 
+    log_level_int = int(log_level)
+
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stderr,
@@ -43,6 +75,7 @@ def setup_logging(level: str = "WARNING", json_output: bool = False) -> None:
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
+        _LevelFilter(log_level_int),
         _safe_add_logger_name,
     ]
 

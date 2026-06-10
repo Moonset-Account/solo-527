@@ -280,7 +280,10 @@ class TestMarkdownOutput:
         r2 = run_depchg("diff", "-b", before, "-a", after, "--markdown")
         r3 = run_depchg("diff", "-b", before, "-a", after, "-f", "markdown")
 
-        assert r1.stdout == r2.stdout
+        import re
+        _strip_ts = lambda s: re.sub(r"\*\*生成时间\*\*: [^\n]+\n", "", s)
+        _strip_meta = lambda s: re.sub(r"^\s*$", "", s, flags=re.M)
+        assert _strip_ts(r1.stdout).strip() == _strip_ts(r2.stdout).strip()
         assert "# " in r1.stdout
         assert "# " in r3.stdout
 

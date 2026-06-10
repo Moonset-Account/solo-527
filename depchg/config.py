@@ -33,8 +33,11 @@ class AppConfig:
     markdown: bool = False
     include_license: bool = True
     include_risk: bool = True
+    include_changelog: bool = True
     only_direct: bool = False
     minimal_risk_level: str = "low"
+    changelog: Optional[str] = None
+    changelog_text: Optional[str] = None
     changelog_base_urls: Dict[str, str] = field(default_factory=dict)
     ignored_packages: List[str] = field(default_factory=list)
     license_allowlist: List[str] = field(default_factory=list)
@@ -154,8 +157,10 @@ def _apply_env_overrides(config: AppConfig) -> None:
         "DEPCHG_MARKDOWN": ("markdown", lambda v: v.lower() in ("1", "true", "yes")),
         "DEPCHG_INCLUDE_LICENSE": ("include_license", lambda v: v.lower() in ("1", "true", "yes")),
         "DEPCHG_INCLUDE_RISK": ("include_risk", lambda v: v.lower() in ("1", "true", "yes")),
+        "DEPCHG_INCLUDE_CHANGELOG": ("include_changelog", lambda v: v.lower() in ("1", "true", "yes")),
         "DEPCHG_ONLY_DIRECT": ("only_direct", lambda v: v.lower() in ("1", "true", "yes")),
         "DEPCHG_MINIMAL_RISK_LEVEL": ("minimal_risk_level", str),
+        "DEPCHG_CHANGELOG": ("changelog", str),
         "DEPCHG_LOG_LEVEL": ("log_level", str),
         "DEPCHG_LOG_JSON": ("log_json", lambda v: v.lower() in ("1", "true", "yes")),
     }

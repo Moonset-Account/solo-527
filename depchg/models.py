@@ -87,6 +87,7 @@ class Change:
     license_changed: bool = False
     risk: RiskInfo = field(default_factory=RiskInfo)
     changelog_url: Optional[str] = None
+    changelog_notes: Optional[List[str]] = None
 
     @property
     def version_before(self) -> str:
@@ -107,6 +108,7 @@ class Change:
             "license_changed": self.license_changed,
             "risk": self.risk.to_dict(),
             "changelog_url": self.changelog_url,
+            "changelog_notes": self.changelog_notes,
         }
 
 
@@ -122,12 +124,15 @@ class Report:
     summary: Dict[str, int] = field(default_factory=dict)
     license_summary: Dict[str, List[str]] = field(default_factory=dict)
     risk_summary: Dict[str, int] = field(default_factory=dict)
+    changelog_source: Optional[str] = None
+    changelog_summary: Dict[str, int] = field(default_factory=dict)
 
     def compute_summaries(self) -> None:
         """计算各类汇总数据。"""
         self.summary = {t.value: 0 for t in ChangeType}
         self.license_summary = {}
         self.risk_summary = {l.value: 0 for l in RiskLevel}
+        self.changelog_summary = {"with_notes": 0, "without_notes": 0}
 
         for change in self.changes:
             self.summary[change.change_type.value] = (
@@ -145,6 +150,11 @@ class Report:
                 if change.name not in self.license_summary[lic_name]:
                     self.license_summary[lic_name].append(change.name)
 
+            if change.changelog_notes:
+                self.changelog_summary["with_notes"] += 1
+            else:
+                self.changelog_summary["without_notes"] += 1
+
         self.total_changes = len(self.changes)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -158,5 +168,7 @@ class Report:
             "summary": self.summary,
             "license_summary": self.license_summary,
             "risk_summary": self.risk_summary,
+            "changelog_source": self.changelog_source,
+            "changelog_summary": self.changelog_summary,
             "changes": [c.to_dict() for c in self.changes],
         }

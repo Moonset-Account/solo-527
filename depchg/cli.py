@@ -152,7 +152,13 @@ diff_examples = """
   depchg diff -b a.json -a b.json --only-direct --min-risk high
 
   [bold]# 5. 通过管道传给 jq 处理[/bold]
-  depchg diff -b x.json -a y.json -f json | jq '.changes[] | select(.risk.level=="high")'
+  depchg diff -b x.json -a y.json --format json | jq '.changes[] | select(.risk.level=="high")'
+
+  [bold]# 6. 附带更新记录文件 (CHANGELOG.md 或 git log 输出)[/bold]
+  depchg diff -b x.json -a y.json --changelog ./CHANGELOG.md
+
+  [bold]# 7. 关闭更新记录内容展示[/bold]
+  depchg diff -b a.json -a b.json --changelog notes.md --no-changelog
 """
 
 
@@ -175,6 +181,7 @@ def cmd_diff(
     output_format: OutputFormat = typer.Option(
         OutputFormat.TABLE,
         "--output-format",
+        "--format",
         "-f",
         help="输出格式: table / markdown / json",
     ),
@@ -201,6 +208,21 @@ def cmd_diff(
         True,
         "--risk/--no-risk",
         help="是否在报告中包含风险评估",
+    ),
+    include_changelog: bool = typer.Option(
+        True,
+        "--changelog/--no-changelog",
+        help="是否在报告中展示更新记录内容 (需配合 --changelog-file 参数使用)",
+    ),
+    changelog: Optional[str] = typer.Option(
+        None,
+        "--changelog-file",
+        "--changes-file",
+        "-l",
+        help="更新记录文件路径 (CHANGELOG.md, git log 输出等，按包名关联)",
+        exists=True,
+        dir_okay=False,
+        readable=True,
     ),
     only_direct: bool = typer.Option(
         False,
@@ -243,6 +265,10 @@ def cmd_diff(
       • package-lock.json  (npm v5+)
       • pnpm-lock.yaml     (pnpm v5+)
       • requirements.txt / requirements.lock  (pip)
+
+    更新记录说明:
+      通过 --changelog-file 指定 CHANGELOG.md 或 git log 输出，
+      系统会自动按包名匹配并把变更内容注入报告 (支持 Markdown/Keep a Changelog/纯文本)。
     """
     try:
         cli_overrides = {
@@ -253,6 +279,8 @@ def cmd_diff(
             "markdown": markdown,
             "include_license": include_license,
             "include_risk": include_risk,
+            "include_changelog": include_changelog,
+            "changelog": changelog,
             "only_direct": only_direct,
             "minimal_risk_level": minimal_risk_level.value,
             "ignored_packages": ignore if ignore else None,
@@ -536,6 +564,13 @@ include_license: true
 # 是否包含风险评估
 include_risk: true
 
+# 是否展示更新记录内容 (配合 changelog: 字段)
+include_changelog: true
+
+# 更新记录文件路径 (CHANGELOG.md / git log 输出文件等)
+# 按包名自动匹配并注入报告详情
+changelog: null
+
 # 仅检查直接依赖
 only_direct: false
 
@@ -713,12 +748,15 @@ def cmd_docs(
     - summary: { change_type: count }
     - license_summary: { license: [package_names] }
     - risk_summary: { risk_level: count }
+    - changelog_source: 更新记录文件来源 (若指定)
+    - changelog_summary: { with_notes, without_notes }
     - changes: 变更详情数组
 
   每个 change 对象字段:
     - name, change_type, version_before, version_after
     - before/after: 完整依赖对象 (含 license)
     - license_changed: bool
+    - changelog_notes: 关联到该包的更新记录条目列表 (若有)
     - risk: { level, reasons[], suggestions[] }
 """,
         "config": """
@@ -748,7 +786,8 @@ def cmd_docs(
   DEPCHG_BEFORE, DEPCHG_AFTER
   DEPCHG_OUTPUT_FORMAT, DEPCHG_OUTPUT_FILE
   DEPCHG_MARKDOWN (1/true/yes)
-  DEPCHG_INCLUDE_LICENSE, DEPCHG_INCLUDE_RISK
+  DEPCHG_INCLUDE_LICENSE, DEPCHG_INCLUDE_RISK, DEPCHG_INCLUDE_CHANGELOG
+  DEPCHG_CHANGELOG (更新记录文件路径)
   DEPCHG_ONLY_DIRECT, DEPCHG_MINIMAL_RISK_LEVEL
   DEPCHG_LOG_LEVEL, DEPCHG_LOG_JSON
 """,
