@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  COACH
+  STAFF
+  CUSTOMER
+}
+
+enum CourtStatus {
+  AVAILABLE
+  BOOKED
+  IN_USE
+  MAINTENANCE
+  CLOSED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  ABNORMAL
+  REFUNDED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIAL_REFUND
+}
+
+enum PaymentMethod {
+  WECHAT
+  ALIPAY
+  CASH
+  CARD
+  BALANCE
+  OTHER
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTERING
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum CheckInStatus {
+  PENDING
+  CHECKED_IN
+  LATE
+  NO_SHOW
+  CHECKED_OUT
+}
+
+enum DeviceStatus {
+  NORMAL
+  FAULT_REPORTED
+  REPAIRING
+  REPAIRED
+  SCRAPPED
+}
+
+enum AbnormalReason {
+  CUSTOMER_NO_SHOW
+  CUSTOMER_EARLY_LEAVE
+  EQUIPMENT_FAILURE
+  WEATHER_ISSUE
+  DOUBLE_BOOKING
+  STAFF_ERROR
+  OTHER
+}
+
+enum NotificationType {
+  BOOKING_CONFIRM
+  BOOKING_REMIND
+  BOOKING_CANCEL
+  PAYMENT_SUCCESS
+  PAYMENT_FAIL
+  CHECKIN_REMIND
+  TOURNAMENT_NOTICE
+  DEVICE_FAULT
+  SYSTEM_NOTICE
+}
+
+enum DownloadStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  username        String           @unique
+  email           String?          @unique
+  phone           String           @unique
+  password        String
+  realName        String?
+  avatar          String?
+  role            Role             @default(CUSTOMER)
+  status          Int              @default(1)
+  balance         Decimal          @default(0) @db.Decimal(10, 2)
+  totalBookings   Int              @default(0)
+  coachProfile    CoachProfile?
+  bookings        Booking[]        @relation("CustomerBookings")
+  staffBookings   Booking[]        @relation("StaffBookings")
+  payments        Payment[]
+  tournamentRegs  TournamentRegistration[]
+  checkIns        CheckInRecord[]
+  deviceFaults    DeviceFault[]    @relation("ReporterFaults")
+  faultHandlers   DeviceFault[]    @relation("HandlerFaults")
+  notifications   Notification[]
+  downloads       DownloadTask[]
+  capacityReports CoachCapacityReport[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([role])
+  @@index([status])
+}
+
+model CoachProfile {
+  id             Int                 @id @default(autoincrement())
+  userId         Int                 @unique
+  user           User                @relation(fields: [userId], references: [id])
+  level          String?
+  specialty      String?
+  hourlyRate     Decimal             @default(0) @db.Decimal(10, 2)
+  bio            String?
+  certifications String?
+  status         Int                 @default(1)
+  totalCapacity  Int                 @default(0)
+  usedCapacity   Int                 @default(0)
+  coachBookings  CoachAssignment[]
+  capacityReports CoachCapacityReport[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status])
+}
+
+model Court {
+  id           Int           @id @default(autoincrement())
+  courtNumber  String        @unique
+  name         String
+  courtType    String
+  location     String?
+  description  String?
+  status       CourtStatus   @default(AVAILABLE)
+  maxCapacity  Int           @default(4)
+  facilities   String?
+  imageUrl     String?
+  sortOrder    Int           @default(0)
+  prices       CourtPrice[]
+  bookings     Booking[]
+  checkIns     CheckInRecord[]
+  tournaments  Tournament[]
+  deviceFaults DeviceFault[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status])
+  @@index([courtType])
+}
+
+model CourtPrice {
+  id         Int      @id @default(autoincrement())
+  courtId    Int
+  court      Court    @relation(fields: [courtId], references: [id])
+  weekDay    Int
+  startTime  String
+  endTime    String
+  price      Decimal  @db.Decimal(10, 2)
+  memberPrice Decimal @db.Decimal(10, 2)
+  isHoliday  Boolean  @default(false)
+  isSpecial  Boolean  @default(false)
+  specialName String?
+  effectiveStart DateTime?
+  effectiveEnd   DateTime?
+  status     Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([courtId, weekDay])
+  @@index([isHoliday])
+}
+
+model Booking {
+  id               Int              @id @default(autoincrement())
+  orderNo          String           @unique
+  customerId       Int
+  customer         User             @relation("CustomerBookings", fields: [customerId], references: [id])
+  staffId          Int?
+  staff            User?            @relation("StaffBookings", fields: [staffId], references: [id])
+  courtId          Int
+  court            Court            @relation(fields: [courtId], references: [id])
+  bookingDate      DateTime
+  startTime        String
+  endTime          String
+  duration         Int
+  originalPrice    Decimal          @db.Decimal(10, 2)
+  discountAmount   Decimal          @default(0) @db.Decimal(10, 2)
+  actualAmount     Decimal          @db.Decimal(10, 2)
+  paidAmount       Decimal          @default(0) @db.Decimal(10, 2)
+  status           BookingStatus    @default(PENDING)
+  isPeakHour       Boolean          @default(false)
+  isMember         Boolean          @default(false)
+  source           String?
+  remark           String?
+  qrCode           String?
+  checkInCode      String?
+  peopleCount      Int              @default(2)
+  needCoach        Boolean          @default(false)
+  abnormalReason   AbnormalReason?
+  abnormalRemark   String?
+  tournamentId     Int?
+  tournament       Tournament?      @relation(fields: [tournamentId], references: [id])
+  payment          Payment?
+  checkIns         CheckInRecord[]
+  coachAssignments CoachAssignment[]
+  reminders        BookingReminder[]
+  logs             BookingLog[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([customerId])
+  @@index([courtId])
+  @@index([bookingDate])
+  @@index([status])
+}
+
+model CoachAssignment {
+  id        Int         @id @default(autoincrement())
+  bookingId Int
+  booking   Booking     @relation(fields: [bookingId], references: [id])
+  coachId   Int
+  coach     CoachProfile @relation(fields: [coachId], references: [id])
+  startTime String
+  endTime   String
+  hourlyRate Decimal    @db.Decimal(10, 2)
+  totalCost  Decimal    @db.Decimal(10, 2)
+  status    Int         @default(1)
+  remark    String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([bookingId])
+  @@index([coachId])
+}
+
+model Payment {
+  id             Int            @id @default(autoincrement())
+  paymentNo      String         @unique
+  bookingId      Int?           @unique
+  booking        Booking?       @relation(fields: [bookingId], references: [id])
+  userId         Int
+  user           User           @relation(fields: [userId], references: [id])
+  tournamentRegId Int?
+  tournamentReg  TournamentRegistration? @relation(fields: [tournamentRegId], references: [id])
+  amount         Decimal        @db.Decimal(10, 2)
+  paidAmount     Decimal        @default(0) @db.Decimal(10, 2)
+  refundAmount   Decimal        @default(0) @db.Decimal(10, 2)
+  status         PaymentStatus  @default(UNPAID)
+  method         PaymentMethod  @default(WECHAT)
+  thirdPartyNo   String?
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  subject        String?
+  description    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model BookingReminder {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  type      String
+  sentAt    DateTime?
+  status    Int      @default(0)
+  channel   String   @default("SMS")
+  content   String?
+  createdAt DateTime @default(now())
+}
+
+model BookingLog {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  operatorId Int?
+  action    String
+  oldStatus String?
+  newStatus String?
+  remark    String?
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+}
+
+model Tournament {
+  id            Int                    @id @default(autoincrement())
+  name          String
+  description   String?
+  poster        String?
+  courtId       Int?
+  court         Court?                 @relation(fields: [courtId], references: [id])
+  organizer     String?
+  contactPerson String?
+  contactPhone  String?
+  startDate     DateTime
+  endDate       DateTime
+  regDeadline   DateTime
+  maxPlayers    Int
+  minPlayers    Int               @default(2)
+  registrationFee Decimal         @default(0) @db.Decimal(10, 2)
+  prizePool     Decimal           @default(0) @db.Decimal(10, 2)
+  rules         String?
+  status        TournamentStatus  @default(DRAFT)
+  currentPlayers Int              @default(0)
+  formatType    String?
+  level         String?
+  category      String?
+  bookings      Booking[]
+  registrations TournamentRegistration[]
+  checkIns      CheckInRecord[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status])
+  @@index([startDate])
+}
+
+model TournamentRegistration {
+  id           Int          @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament   @relation(fields: [tournamentId], references: [id])
+  userId       Int
+  user         User         @relation(fields: [userId], references: [id])
+  teamName     String?
+  partnerName  String?
+  partnerPhone String?
+  seedNumber   Int?
+  groupNumber  String?
+  status       Int          @default(1)
+  registeredAt DateTime     @default(now())
+  payment      Payment?
+  checkIn      CheckInRecord?
+  remark       String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([tournamentId, userId])
+  @@unique([tournamentId, userId])
+}
+
+model CheckInRecord {
+  id             Int                @id @default(autoincrement())
+  checkInNo      String             @unique
+  bookingId      Int?
+  booking        Booking?           @relation(fields: [bookingId], references: [id])
+  tournamentRegId Int?
+  tournamentReg  TournamentRegistration? @relation(fields: [tournamentRegId], references: [id])
+  userId         Int
+  user           User               @relation(fields: [userId], references: [id])
+  courtId        Int?
+  court          Court?             @relation(fields: [courtId], references: [id])
+  tournamentId   Int?
+  tournament     Tournament?        @relation(fields: [tournamentId], references: [id])
+  status         CheckInStatus      @default(PENDING)
+  checkInTime    DateTime?
+  checkOutTime   DateTime?
+  actualDuration Int?
+  method         String?
+  operatorId     Int?
+  remark         String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([bookingId])
+  @@index([userId, status])
+  @@index([checkInTime])
+}
+
+model DeviceFault {
+  id           Int          @id @default(autoincrement())
+  faultNo      String       @unique
+  courtId      Int?
+  court        Court?       @relation(fields: [courtId], references: [id])
+  deviceName   String
+  deviceType   String
+  faultLevel   String
+  description  String
+  images       String?
+  reporterId   Int
+  reporter     User         @relation("ReporterFaults", fields: [reporterId], references: [id])
+  handlerId    Int?
+  handler      User?        @relation("HandlerFaults", fields: [handlerId], references: [id])
+  status       DeviceStatus @default(FAULT_REPORTED)
+  reportedAt   DateTime     @default(now())
+  acceptedAt   DateTime?
+  repairedAt   DateTime?
+  repairResult String?
+  repairCost   Decimal?     @db.Decimal(10, 2)
+  affectCoach  Boolean      @default(false)
+  affectedCoachIds String?
+  remark       String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([status])
+  @@index([courtId])
+}
+
+model CoachCapacityReport {
+  id              Int          @id @default(autoincrement())
+  reportNo        String       @unique
+  coachId         Int
+  coach           CoachProfile @relation(fields: [coachId], references: [id])
+  userId          Int
+  user            User         @relation(fields: [userId], references: [id])
+  reportDate      DateTime
+  weekStart       DateTime
+  weekEnd         DateTime
+  plannedCapacity Int          @default(0)
+  actualUsed      Int          @default(0)
+  totalHours      Decimal      @default(0) @db.Decimal(10, 2)
+  trainingHours   Decimal      @default(0) @db.Decimal(10, 2)
+  bookingHours    Decimal      @default(0) @db.Decimal(10, 2)
+  studentCount    Int          @default(0)
+  revenue         Decimal      @default(0) @db.Decimal(10, 2)
+  faultAffectHours Decimal     @default(0) @db.Decimal(10, 2)
+  utilizationRate Decimal      @default(0) @db.Decimal(5, 2)
+  deviceFaults    String?
+  remark          String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([coachId, reportDate])
+  @@unique([coachId, weekStart])
+}
+
+model CourtUsageLog {
+  id          Int       @id @default(autoincrement())
+  courtId     Int
+  court       Court     @relation(fields: [courtId], references: [id])
+  bookingId   Int?
+  booking     Booking?  @relation(fields: [bookingId], references: [id])
+  usageDate   DateTime
+  startTime   String
+  endTime     String
+  usageType   String
+  customerNum Int       @default(0)
+  revenue     Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+
+  @@index([courtId, usageDate])
+  @@index([usageDate])
+}
+
+model Notification {
+  id         Int              @id @default(autoincrement())
+  userId     Int
+  user       User             @relation(fields: [userId], references: [id])
+  type       NotificationType @default(SYSTEM_NOTICE)
+  title      String
+  content    String
+  relatedId  Int?
+  relatedType String?
+  isRead     Boolean          @default(false)
+  readAt     DateTime?
+  canDownload Boolean         @default(false)
+  downloadId Int?
+  pushStatus Int              @default(0)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([type])
+}
+
+model DownloadTask {
+  id        Int            @id @default(autoincrement())
+  taskNo    String         @unique
+  userId    Int
+  user      User           @relation(fields: [userId], references: [id])
+  name      String
+  type      String
+  params    String?
+  fileUrl   String?
+  status    DownloadStatus @default(PENDING)
+  expireAt  DateTime?
+  errorMsg  String?
+  createdAt DateTime       @default(now())
+  completedAt DateTime?
+}
+
+model Permission {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique
+  name        String
+  description String?
+  module      String
+  parentId    Int?
+  sortOrder   Int       @default(0)
+  status      Int       @default(1)
+  rolePerms   RolePermission[]
+  createdAt   DateTime  @default(now())
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  role         Role
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@unique([role, permissionId])
+}
+
+model SystemConfig {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  type      String   @default("string")
+  desc      String?
+  updatedAt DateTime @updatedAt
+}
