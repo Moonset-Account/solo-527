@@ -5,25 +5,27 @@ const chalk = require('chalk');
 const { EXIT_CODES, DEFAULT_CONFIG, CONFIG_FILE_NAMES } = require('../utils/constants');
 const { buildConfig, describeConfigSources, findConfigFile, loadConfigFromFile } = require('../core/config');
 const { createStructuredLogger } = require('../utils/logger');
+const { stripDefaultBools } = require('../utils/cli-utils');
 
 async function configShowCommand(cmd) {
+  const normalizedCmd = stripDefaultBools(cmd);
   const cliOptions = {
-    root: cmd.root,
-    timeout: cmd.timeout,
-    format: cmd.format,
-    ignore: cmd.ignore,
-    ignorePatterns: cmd.ignorePattern,
-    ignoreFiles: cmd.ignoreFile,
-    concurrency: cmd.concurrency,
-    checkAnchors: cmd.checkAnchors,
-    checkExternal: cmd.checkExternal,
-    checkImages: cmd.checkImages,
-    verbose: cmd.verbose,
-    quiet: cmd.quiet,
-    recursive: cmd.recursive,
-    fileExtensions: cmd.ext,
-    configFile: cmd.config,
-    logLevel: cmd.logLevel
+    root: normalizedCmd.root,
+    timeout: normalizedCmd.timeout,
+    format: normalizedCmd.format,
+    ignore: normalizedCmd.ignore,
+    ignorePatterns: normalizedCmd.ignorePattern,
+    ignoreFiles: normalizedCmd.ignoreFile,
+    concurrency: normalizedCmd.concurrency,
+    checkAnchors: normalizedCmd.checkAnchors,
+    checkExternal: normalizedCmd.checkExternal,
+    checkImages: normalizedCmd.checkImages,
+    verbose: normalizedCmd.verbose,
+    quiet: normalizedCmd.quiet,
+    recursive: normalizedCmd.recursive,
+    fileExtensions: normalizedCmd.ext,
+    configFile: normalizedCmd.config,
+    logLevel: normalizedCmd.logLevel
   };
 
   const logger = createStructuredLogger({

@@ -10,28 +10,30 @@ const { createStructuredLogger } = require('../utils/logger');
 const { runScan } = require('../core/scanner-runner');
 const { render, getExitCode, writeOutput } = require('../reporters');
 const { confirmDangerous } = require('../utils/confirm');
+const { stripDefaultBools } = require('../utils/cli-utils');
 
 async function scanCommand(cmd, opts = {}) {
+  const normalizedCmd = stripDefaultBools(cmd);
   const cliOptions = {
-    root: cmd.root,
-    timeout: cmd.timeout,
-    format: cmd.format,
-    ignore: cmd.ignore,
-    ignorePatterns: cmd.ignorePattern,
-    ignoreFiles: cmd.ignoreFile,
-    concurrency: cmd.concurrency,
-    checkAnchors: cmd.checkAnchors,
-    checkExternal: cmd.checkExternal,
-    checkImages: cmd.checkImages,
-    verbose: cmd.verbose,
-    quiet: cmd.quiet,
-    dryRun: cmd.dryRun,
-    confirmDangerous: cmd.yes ? false : undefined,
-    recursive: cmd.recursive,
-    fileExtensions: cmd.ext,
-    output: cmd.output,
-    configFile: cmd.config,
-    logLevel: cmd.logLevel
+    root: normalizedCmd.root,
+    timeout: normalizedCmd.timeout,
+    format: normalizedCmd.format,
+    ignore: normalizedCmd.ignore,
+    ignorePatterns: normalizedCmd.ignorePattern,
+    ignoreFiles: normalizedCmd.ignoreFile,
+    concurrency: normalizedCmd.concurrency,
+    checkAnchors: normalizedCmd.checkAnchors,
+    checkExternal: normalizedCmd.checkExternal,
+    checkImages: normalizedCmd.checkImages,
+    verbose: normalizedCmd.verbose,
+    quiet: normalizedCmd.quiet,
+    dryRun: normalizedCmd.dryRun,
+    confirmDangerous: normalizedCmd.yes ? false : undefined,
+    recursive: normalizedCmd.recursive,
+    fileExtensions: normalizedCmd.ext,
+    output: normalizedCmd.output,
+    configFile: normalizedCmd.config,
+    logLevel: normalizedCmd.logLevel
   };
 
   const logger = createStructuredLogger({
