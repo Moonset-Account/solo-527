@@ -1,0 +1,2 @@
+[console_scripts]
+depchg = depchg.cli:app

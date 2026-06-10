@@ -1,0 +1,81 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  lodash:
+    specifier: ^4.17.21
+    version: 4.17.21
+  axios:
+    specifier: ^1.6.0
+    version: 1.6.2
+  vue:
+    specifier: ^3.4.0
+    version: 3.4.0
+
+packages:
+
+  /@babel/helper-string-parser/7.23.4:
+    resolution: {integrity: sha512-mM4COjgZox8U+JcXQwPijIZLElkgEpO5rsERVDJTc2qfCDfERyob6k5WegS14SX18IIjv+XD+GrqNumY5JRCDw==}
+    engines: {node: '>=6.9.0'}
+    license: MIT
+
+  /@babel/parser/7.23.6:
+    resolution: {integrity: sha512-+uB6bhcBS63GqRgJYqA+Q7vZ2X5JZ5H5M4+2uV93U2zNx1SxA+7p89/2G88L7h2L6T0J7t7p6Z3C8k+R7u5v6g==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
+    dependencies:
+      '@babel/types': 7.23.6
+    license: MIT
+
+  /@babel/types/7.23.6:
+    resolution: {integrity: sha512-+ra4oKkM62gK1uMW9F0s+e3hT1JxD8lHd+02xLh3CVsTqQ415N1eZc8vJbT7Q7K6v2x5L2q+P+qV0z4Y5v5JqA==}
+    engines: {node: '>=6.9.0'}
+    dependencies:
+      '@babel/helper-string-parser': 7.23.4
+      to-fast-properties: 2.0.0
+    license: MIT
+
+  /@vue/compiler-core/3.4.0:
+    resolution: {integrity: sha512-6tX2aHPGL21sRgWz8t+oM0BpQ7KqC5jN4l4nXpDk1XqFh5dZ6z3bL5n7G0r1K3r5v9X2w4Z0QqP2jY3kK1R7A==}
+    dependencies:
+      '@babel/parser': 7.23.6
+      '@babel/types': 7.23.6
+    license: LGPL-3.0
+
+  /axios/1.6.2:
+    resolution: {integrity: sha512-bZG4Bn27vjQa2YHkq7jw8L2w9tN4m2l7n9P5t2G3pR0N4k3jM3+5p+7b4B6d6T9+0K2Qp0r0m3Xn9qR+R1p0w==}
+    dependencies:
+      follow-redirects: 1.15.4
+      form-data: 4.0.0
+      proxy-from-env: 1.1.0
+    license: MIT
+
+  /follow-redirects/1.15.4:
+    resolution: {integrity: sha512-Cr4D/5wlTGVnIYN8nqk8l+E8qQj4fK1mB0M15wB2xS8k0QN0Xx+5p0K1j3cVnL8Q6+Z3b+R4n0Z2m7yW8r9v4w==}
+    engines: {node: '>=4.0'}
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
+    license: MIT
+
+  /form-data/4.0.0:
+    resolution: {integrity: sha512-ETEklSGi5t0QMZuiXoA/Q6vcnxcLQP5vdugSpuAyi6SVGi2clPPp+xgEhuMaHC+zGgn31Kd235W35f7Hykkaww==}
+    engines: {node: '>= 6'}
+    license: MIT
+
+  /lodash/4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+    license: MIT
+
+  /to-fast-properties/2.0.0:
+    resolution: {integrity: sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==}
+    engines: {node: '>=4'}
+    license: MIT
+
+  /vue/3.4.0:
+    resolution: {integrity: sha512-2u2w8N4hW7M36tCQ3j+Q8e0H6y7zD5nL3j9fN+o0Y1k5V9r2uS4t7+6B4q2l0X3zG5pR6M3D7w1z8n3m3kP+2A==}
+    dependencies:
+      '@babel/parser': 7.23.6
+      '@vue/compiler-core': 3.4.0
+    license: MIT
