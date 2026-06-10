@@ -5,6 +5,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: React.ReactNode;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
 }
 
@@ -13,12 +15,16 @@ export function Button({
   size = 'md',
   loading = false,
   icon,
+  leftIcon,
+  rightIcon,
   iconPosition = 'left',
   className = '',
   children,
   disabled,
   ...props
 }: ButtonProps) {
+  const resolvedLeftIcon = leftIcon || (iconPosition === 'left' ? icon : undefined);
+  const resolvedRightIcon = rightIcon || (iconPosition === 'right' ? icon : undefined);
   const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
@@ -48,9 +54,9 @@ export function Button({
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
       )}
-      {!loading && icon && iconPosition === 'left' && <span className="flex-shrink-0">{icon}</span>}
+      {!loading && resolvedLeftIcon && <span className="flex-shrink-0">{resolvedLeftIcon}</span>}
       {children}
-      {!loading && icon && iconPosition === 'right' && <span className="flex-shrink-0">{icon}</span>}
+      {!loading && resolvedRightIcon && <span className="flex-shrink-0">{resolvedRightIcon}</span>}
     </button>
   );
 }

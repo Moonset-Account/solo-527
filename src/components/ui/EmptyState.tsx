@@ -4,11 +4,12 @@ interface EmptyStateProps {
   description?: string;
   action?: React.ReactNode;
   className?: string;
+  compact?: boolean;
 }
 
-export function EmptyState({ icon, title, description, action, className = '' }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, className = '', compact = false }: EmptyStateProps) {
   return (
-    <div className={`flex flex-col items-center justify-center py-16 px-4 text-center ${className}`}>
+    <div className={`flex flex-col items-center justify-center ${compact ? 'py-10' : 'py-16'} px-4 text-center ${className}`}>
       {icon && (
         <div className="mb-4 p-4 rounded-full bg-slate-100 text-slate-400">
           {icon}

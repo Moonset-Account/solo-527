@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
+import ToastShell from '@/components/ui/ToastShell';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className={cn(inter.variable, spaceGrotesk.variable)}>
       <body className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-        {children}
+        <ToastShell>{children}</ToastShell>
       </body>
     </html>
   );
