@@ -4,23 +4,23 @@ import User from './User'
 
 export default class Role extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public name: string
+  public name!: string
 
   @column()
-  public slug: string
+  public slug!: string
 
   @column()
   public description: string | null = null
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @manyToMany(() => User)
-  public users: ManyToMany<typeof User>
+  public users!: ManyToMany<typeof User>
 }

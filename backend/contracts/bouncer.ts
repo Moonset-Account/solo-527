@@ -5,14 +5,11 @@
  * file.
  */
 
-import WorkOrderPolicy from 'App/Policies/WorkOrderPolicy'
-import UserPolicy from 'App/Policies/UserPolicy'
-
 declare module '@ioc:Adonis/Addons/Bouncer' {
-  interface BouncerContracts {
-    policies: {
-      workOrder: WorkOrderPolicy
-      user: UserPolicy
-    }
+  interface ActionsList {}
+
+  interface PoliciesList {
+    workOrder: typeof import('App/Policies/WorkOrderPolicy').default
+    user: typeof import('App/Policies/UserPolicy').default
   }
 }

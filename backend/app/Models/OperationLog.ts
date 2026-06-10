@@ -4,16 +4,16 @@ import User from './User'
 
 export default class OperationLog extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
   public userId: number | null = null
 
   @column()
-  public action: string
+  public action!: string
 
   @column()
-  public module: string
+  public module!: string
 
   @column()
   public resourceType: string | null = null
@@ -37,8 +37,8 @@ export default class OperationLog extends BaseModel {
   public isRiskRelated: boolean = false
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @belongsTo(() => User)
-  public user: BelongsTo<typeof User>
+  public user!: BelongsTo<typeof User>
 }

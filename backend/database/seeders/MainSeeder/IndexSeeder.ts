@@ -48,7 +48,7 @@ export default class extends BaseSeeder {
         realName: '系统管理员',
         phone: '13800138000',
         department: '信息部',
-        roles: ['admin'],
+        roles: ['admin'] as string[],
       },
       {
         username: 'manager',
@@ -57,7 +57,7 @@ export default class extends BaseSeeder {
         realName: '张主管',
         phone: '13800138001',
         department: '版房部',
-        roles: ['workshop_manager', 'planner'],
+        roles: ['workshop_manager', 'planner'] as string[],
       },
       {
         username: 'planner',
@@ -66,7 +66,7 @@ export default class extends BaseSeeder {
         realName: '李计划',
         phone: '13800138002',
         department: '计划部',
-        roles: ['planner'],
+        roles: ['planner'] as string[],
       },
     ]
 
@@ -118,12 +118,12 @@ export default class extends BaseSeeder {
         quantity: 500,
         completedQuantity: 320,
         customerName: '客户A',
-        status: 'in_production',
-        priority: 'high',
+        status: 'in_production' as const,
+        priority: 'high' as const,
         plannedStartDate: DateTime.now().minus({ days: 5 }),
         plannedEndDate: DateTime.now().plus({ days: 3 }),
         deliveryDate: DateTime.now().plus({ days: 5 }),
-        assignedTo: manager?.id,
+        assignedTo: manager?.id ?? null,
       },
       {
         orderNo: 'WO2024002',
@@ -132,12 +132,12 @@ export default class extends BaseSeeder {
         quantity: 300,
         completedQuantity: 0,
         customerName: '客户B',
-        status: 'scheduled',
-        priority: 'medium',
+        status: 'scheduled' as const,
+        priority: 'medium' as const,
         plannedStartDate: DateTime.now().plus({ days: 1 }),
         plannedEndDate: DateTime.now().plus({ days: 7 }),
         deliveryDate: DateTime.now().plus({ days: 10 }),
-        assignedTo: manager?.id,
+        assignedTo: manager?.id ?? null,
       },
       {
         orderNo: 'WO2024003',
@@ -146,14 +146,14 @@ export default class extends BaseSeeder {
         quantity: 800,
         completedQuantity: 800,
         customerName: '客户C',
-        status: 'completed',
-        priority: 'low',
+        status: 'completed' as const,
+        priority: 'low' as const,
         plannedStartDate: DateTime.now().minus({ days: 15 }),
         plannedEndDate: DateTime.now().minus({ days: 5 }),
         actualStartDate: DateTime.now().minus({ days: 14 }),
         actualEndDate: DateTime.now().minus({ days: 6 }),
         deliveryDate: DateTime.now().minus({ days: 3 }),
-        assignedTo: manager?.id,
+        assignedTo: manager?.id ?? null,
       },
       {
         orderNo: 'WO2024004',
@@ -162,13 +162,13 @@ export default class extends BaseSeeder {
         quantity: 200,
         completedQuantity: 50,
         customerName: '客户D',
-        status: 'delayed',
-        priority: 'urgent',
+        status: 'delayed' as const,
+        priority: 'urgent' as const,
         plannedStartDate: DateTime.now().minus({ days: 10 }),
         plannedEndDate: DateTime.now().minus({ days: 2 }),
         actualStartDate: DateTime.now().minus({ days: 8 }),
         deliveryDate: DateTime.now().minus({ days: 1 }),
-        assignedTo: manager?.id,
+        assignedTo: manager?.id ?? null,
       },
       {
         orderNo: 'WO2024005',
@@ -177,8 +177,8 @@ export default class extends BaseSeeder {
         quantity: 400,
         completedQuantity: 0,
         customerName: '客户E',
-        status: 'pending',
-        priority: 'medium',
+        status: 'pending' as const,
+        priority: 'medium' as const,
         deliveryDate: DateTime.now().plus({ days: 15 }),
         assignedTo: null,
       },
@@ -189,8 +189,8 @@ export default class extends BaseSeeder {
         quantity: 600,
         completedQuantity: 0,
         customerName: '客户F',
-        status: 'pending',
-        priority: 'high',
+        status: 'pending' as const,
+        priority: 'high' as const,
         deliveryDate: DateTime.now().plus({ days: 8 }),
         assignedTo: null,
       },
@@ -201,12 +201,12 @@ export default class extends BaseSeeder {
         quantity: 350,
         completedQuantity: 100,
         customerName: '客户G',
-        status: 'in_production',
-        priority: 'medium',
+        status: 'in_production' as const,
+        priority: 'medium' as const,
         plannedStartDate: DateTime.now().minus({ days: 3 }),
         plannedEndDate: DateTime.now().plus({ days: 5 }),
         deliveryDate: DateTime.now().plus({ days: 8 }),
-        assignedTo: manager?.id,
+        assignedTo: manager?.id ?? null,
       },
       {
         orderNo: 'WO2024008',
@@ -215,12 +215,12 @@ export default class extends BaseSeeder {
         quantity: 150,
         completedQuantity: 0,
         customerName: '客户H',
-        status: 'scheduled',
-        priority: 'high',
+        status: 'scheduled' as const,
+        priority: 'high' as const,
         plannedStartDate: DateTime.now().plus({ days: 2 }),
         plannedEndDate: DateTime.now().plus({ days: 12 }),
         deliveryDate: DateTime.now().plus({ days: 15 }),
-        assignedTo: manager?.id,
+        assignedTo: manager?.id ?? null,
       },
     ]
 
@@ -229,7 +229,7 @@ export default class extends BaseSeeder {
         { orderNo: order.orderNo },
         {
           ...order,
-          createdBy: admin?.id || 1,
+          createdBy: admin?.id ?? 1,
         }
       )
     }
@@ -243,22 +243,24 @@ export default class extends BaseSeeder {
     const order8 = await WorkOrder.findBy('orderNo', 'WO2024008')
 
     const schedules = [
-      { workOrderId: order1?.id, scheduleDate: DateTime.now().plus({ days: 0 }), workshop: '一车间', line: 'A线', plannedQuantity: 100, shift: 'morning' },
-      { workOrderId: order1?.id, scheduleDate: DateTime.now().plus({ days: 1 }), workshop: '一车间', line: 'A线', plannedQuantity: 100, shift: 'morning' },
-      { workOrderId: order1?.id, scheduleDate: DateTime.now().plus({ days: 2 }), workshop: '一车间', line: 'B线', plannedQuantity: 80, shift: 'afternoon' },
-      { workOrderId: order2?.id, scheduleDate: DateTime.now().plus({ days: 1 }), workshop: '二车间', line: 'C线', plannedQuantity: 80, shift: 'morning' },
-      { workOrderId: order2?.id, scheduleDate: DateTime.now().plus({ days: 2 }), workshop: '二车间', line: 'C线', plannedQuantity: 80, shift: 'morning' },
-      { workOrderId: order7?.id, scheduleDate: DateTime.now().plus({ days: 0 }), workshop: '三车间', line: 'D线', plannedQuantity: 60, shift: 'morning' },
-      { workOrderId: order7?.id, scheduleDate: DateTime.now().plus({ days: 1 }), workshop: '三车间', line: 'D线', plannedQuantity: 60, shift: 'afternoon' },
-      { workOrderId: order8?.id, scheduleDate: DateTime.now().plus({ days: 3 }), workshop: '四车间', line: 'E线', plannedQuantity: 30, shift: 'morning' },
-      { workOrderId: order8?.id, scheduleDate: DateTime.now().plus({ days: 4 }), workshop: '四车间', line: 'E线', plannedQuantity: 30, shift: 'morning' },
+      { workOrderId: order1?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 0 }), workshop: '一车间', line: 'A线', plannedQuantity: 100, shift: 'morning' as const },
+      { workOrderId: order1?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 1 }), workshop: '一车间', line: 'A线', plannedQuantity: 100, shift: 'morning' as const },
+      { workOrderId: order1?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 2 }), workshop: '一车间', line: 'B线', plannedQuantity: 80, shift: 'afternoon' as const },
+      { workOrderId: order2?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 1 }), workshop: '二车间', line: 'C线', plannedQuantity: 80, shift: 'morning' as const },
+      { workOrderId: order2?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 2 }), workshop: '二车间', line: 'C线', plannedQuantity: 80, shift: 'morning' as const },
+      { workOrderId: order7?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 0 }), workshop: '三车间', line: 'D线', plannedQuantity: 60, shift: 'morning' as const },
+      { workOrderId: order7?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 1 }), workshop: '三车间', line: 'D线', plannedQuantity: 60, shift: 'afternoon' as const },
+      { workOrderId: order8?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 3 }), workshop: '四车间', line: 'E线', plannedQuantity: 30, shift: 'morning' as const },
+      { workOrderId: order8?.id ?? 0, scheduleDate: DateTime.now().plus({ days: 4 }), workshop: '四车间', line: 'E线', plannedQuantity: 30, shift: 'morning' as const },
     ]
 
     for (const s of schedules) {
-      await Schedule.create({
-        ...s,
-        scheduledBy: manager?.id,
-      })
+      if (s.workOrderId > 0) {
+        await Schedule.create({
+          ...s,
+          scheduledBy: manager?.id ?? null,
+        })
+      }
     }
   }
 
@@ -306,45 +308,47 @@ export default class extends BaseSeeder {
 
     const reworks = [
       {
-        workOrderId: order1?.id,
+        workOrderId: order1?.id ?? 0,
         quantity: 15,
         reason: 'quality_issue' as const,
         description: '缝线不整齐，需要返工',
         reworkProcess: '重新缝制',
-        handledBy: manager?.id,
+        handledBy: manager?.id ?? null,
         status: 'completed' as const,
       },
       {
-        workOrderId: order1?.id,
+        workOrderId: order1?.id ?? 0,
         quantity: 8,
         reason: 'material_defect' as const,
         description: '面料有瑕疵',
         reworkProcess: '换料重制',
-        handledBy: manager?.id,
+        handledBy: manager?.id ?? null,
         status: 'reworking' as const,
       },
       {
-        workOrderId: order4?.id,
+        workOrderId: order4?.id ?? 0,
         quantity: 25,
         reason: 'process_error' as const,
         description: '工艺错误导致尺寸偏差',
         reworkProcess: '修正工艺',
-        handledBy: manager?.id,
+        handledBy: manager?.id ?? null,
         status: 'pending' as const,
       },
       {
-        workOrderId: order4?.id,
+        workOrderId: order4?.id ?? 0,
         quantity: 10,
         reason: 'customer_request' as const,
         description: '客户要求修改细节',
         reworkProcess: '按客户要求修改',
-        handledBy: manager?.id,
+        handledBy: manager?.id ?? null,
         status: 'reworking' as const,
       },
     ]
 
     for (const rework of reworks) {
-      await Rework.create(rework)
+      if (rework.workOrderId > 0) {
+        await Rework.create(rework)
+      }
     }
   }
 
@@ -355,25 +359,27 @@ export default class extends BaseSeeder {
     const manager = await User.findBy('email', 'manager@example.com')
 
     const logs = [
-      { workOrderId: order1?.id, productionDate: DateTime.now().minus({ days: 4 }), outputQuantity: 80, defectQuantity: 3, workHours: 8, manHours: 160, operatorCount: 20, shift: 'morning', workshop: '一车间' },
-      { workOrderId: order1?.id, productionDate: DateTime.now().minus({ days: 3 }), outputQuantity: 90, defectQuantity: 2, workHours: 8, manHours: 180, operatorCount: 22, shift: 'morning', workshop: '一车间' },
-      { workOrderId: order1?.id, productionDate: DateTime.now().minus({ days: 2 }), outputQuantity: 85, defectQuantity: 4, workHours: 8, manHours: 170, operatorCount: 21, shift: 'morning', workshop: '一车间' },
-      { workOrderId: order1?.id, productionDate: DateTime.now().minus({ days: 1 }), outputQuantity: 65, defectQuantity: 5, workHours: 6, manHours: 130, operatorCount: 20, shift: 'afternoon', workshop: '一车间' },
-      { workOrderId: order3?.id, productionDate: DateTime.now().minus({ days: 14 }), outputQuantity: 100, defectQuantity: 2, workHours: 8, manHours: 200, operatorCount: 25, shift: 'morning', workshop: '二车间' },
-      { workOrderId: order3?.id, productionDate: DateTime.now().minus({ days: 13 }), outputQuantity: 120, defectQuantity: 3, workHours: 8, manHours: 220, operatorCount: 26, shift: 'morning', workshop: '二车间' },
-      { workOrderId: order3?.id, productionDate: DateTime.now().minus({ days: 12 }), outputQuantity: 130, defectQuantity: 1, workHours: 8, manHours: 240, operatorCount: 28, shift: 'morning', workshop: '二车间' },
-      { workOrderId: order3?.id, productionDate: DateTime.now().minus({ days: 11 }), outputQuantity: 140, defectQuantity: 4, workHours: 8, manHours: 260, operatorCount: 30, shift: 'morning', workshop: '二车间' },
-      { workOrderId: order3?.id, productionDate: DateTime.now().minus({ days: 10 }), outputQuantity: 150, defectQuantity: 2, workHours: 8, manHours: 280, operatorCount: 32, shift: 'morning', workshop: '二车间' },
-      { workOrderId: order3?.id, productionDate: DateTime.now().minus({ days: 9 }), outputQuantity: 160, defectQuantity: 3, workHours: 8, manHours: 300, operatorCount: 35, shift: 'morning', workshop: '二车间' },
-      { workOrderId: order7?.id, productionDate: DateTime.now().minus({ days: 3 }), outputQuantity: 50, defectQuantity: 2, workHours: 8, manHours: 100, operatorCount: 12, shift: 'morning', workshop: '三车间' },
-      { workOrderId: order7?.id, productionDate: DateTime.now().minus({ days: 2 }), outputQuantity: 30, defectQuantity: 1, workHours: 5, manHours: 60, operatorCount: 12, shift: 'afternoon', workshop: '三车间' },
+      { workOrderId: order1?.id ?? 0, productionDate: DateTime.now().minus({ days: 4 }), outputQuantity: 80, defectQuantity: 3, workHours: 8, manHours: 160, operatorCount: 20, shift: 'morning', workshop: '一车间' },
+      { workOrderId: order1?.id ?? 0, productionDate: DateTime.now().minus({ days: 3 }), outputQuantity: 90, defectQuantity: 2, workHours: 8, manHours: 180, operatorCount: 22, shift: 'morning', workshop: '一车间' },
+      { workOrderId: order1?.id ?? 0, productionDate: DateTime.now().minus({ days: 2 }), outputQuantity: 85, defectQuantity: 4, workHours: 8, manHours: 170, operatorCount: 21, shift: 'morning', workshop: '一车间' },
+      { workOrderId: order1?.id ?? 0, productionDate: DateTime.now().minus({ days: 1 }), outputQuantity: 65, defectQuantity: 5, workHours: 6, manHours: 130, operatorCount: 20, shift: 'afternoon', workshop: '一车间' },
+      { workOrderId: order3?.id ?? 0, productionDate: DateTime.now().minus({ days: 14 }), outputQuantity: 100, defectQuantity: 2, workHours: 8, manHours: 200, operatorCount: 25, shift: 'morning', workshop: '二车间' },
+      { workOrderId: order3?.id ?? 0, productionDate: DateTime.now().minus({ days: 13 }), outputQuantity: 120, defectQuantity: 3, workHours: 8, manHours: 220, operatorCount: 26, shift: 'morning', workshop: '二车间' },
+      { workOrderId: order3?.id ?? 0, productionDate: DateTime.now().minus({ days: 12 }), outputQuantity: 130, defectQuantity: 1, workHours: 8, manHours: 240, operatorCount: 28, shift: 'morning', workshop: '二车间' },
+      { workOrderId: order3?.id ?? 0, productionDate: DateTime.now().minus({ days: 11 }), outputQuantity: 140, defectQuantity: 4, workHours: 8, manHours: 260, operatorCount: 30, shift: 'morning', workshop: '二车间' },
+      { workOrderId: order3?.id ?? 0, productionDate: DateTime.now().minus({ days: 10 }), outputQuantity: 150, defectQuantity: 2, workHours: 8, manHours: 280, operatorCount: 32, shift: 'morning', workshop: '二车间' },
+      { workOrderId: order3?.id ?? 0, productionDate: DateTime.now().minus({ days: 9 }), outputQuantity: 160, defectQuantity: 3, workHours: 8, manHours: 300, operatorCount: 35, shift: 'morning', workshop: '二车间' },
+      { workOrderId: order7?.id ?? 0, productionDate: DateTime.now().minus({ days: 3 }), outputQuantity: 50, defectQuantity: 2, workHours: 8, manHours: 100, operatorCount: 12, shift: 'morning', workshop: '三车间' },
+      { workOrderId: order7?.id ?? 0, productionDate: DateTime.now().minus({ days: 2 }), outputQuantity: 30, defectQuantity: 1, workHours: 5, manHours: 60, operatorCount: 12, shift: 'afternoon', workshop: '三车间' },
     ]
 
     for (const log of logs) {
-      await ProductionLog.create({
-        ...log,
-        recordedBy: manager?.id,
-      })
+      if (log.workOrderId > 0) {
+        await ProductionLog.create({
+          ...log,
+          recordedBy: manager?.id ?? null,
+        })
+      }
     }
   }
 
@@ -385,33 +391,33 @@ export default class extends BaseSeeder {
 
     const risks = [
       {
-        workOrderId: order4?.id,
+        workOrderId: order4?.id ?? 0,
         riskLevel: 'critical' as const,
         riskType: 'delivery_delay',
         description: '工单已延期，交期已过，需紧急处理',
-        actionBy: manager?.id,
+        actionBy: manager?.id ?? null,
         actionAt: DateTime.now().minus({ days: 1 }),
         status: 'open' as const,
       },
       {
-        workOrderId: order4?.id,
+        workOrderId: order4?.id ?? 0,
         riskLevel: 'high' as const,
         riskType: 'material_shortage',
         description: '五金件库存不足，可能影响生产进度',
         status: 'open' as const,
       },
       {
-        workOrderId: order1?.id,
+        workOrderId: order1?.id ?? 0,
         riskLevel: 'medium' as const,
         riskType: 'rework_issue',
         description: '存在返工情况，需关注质量问题',
         status: 'mitigated' as const,
-        actionBy: manager?.id,
+        actionBy: manager?.id ?? null,
         actionAt: DateTime.now().minus({ days: 2 }),
         actionTaken: '已安排质检加强检验',
       },
       {
-        workOrderId: order6?.id,
+        workOrderId: order6?.id ?? 0,
         riskLevel: 'high' as const,
         riskType: 'tight_schedule',
         description: '交期紧张，需尽快安排生产',
@@ -420,7 +426,9 @@ export default class extends BaseSeeder {
     ]
 
     for (const risk of risks) {
-      await RiskLog.create(risk)
+      if (risk.workOrderId > 0) {
+        await RiskLog.create(risk)
+      }
     }
   }
 }

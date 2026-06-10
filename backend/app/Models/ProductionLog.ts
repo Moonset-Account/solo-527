@@ -6,16 +6,16 @@ import User from './User'
 
 export default class ProductionLog extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public workOrderId: number
+  public workOrderId!: number
 
   @column()
   public scheduleId: number | null = null
 
   @column.date()
-  public productionDate: DateTime
+  public productionDate!: DateTime
 
   @column()
   public outputQuantity: number = 0
@@ -45,17 +45,17 @@ export default class ProductionLog extends BaseModel {
   public remarks: string | null = null
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @belongsTo(() => WorkOrder)
-  public workOrder: BelongsTo<typeof WorkOrder>
+  public workOrder!: BelongsTo<typeof WorkOrder>
 
   @belongsTo(() => Schedule)
-  public schedule: BelongsTo<typeof Schedule>
+  public schedule!: BelongsTo<typeof Schedule>
 
   @belongsTo(() => User, { foreignKey: 'recordedBy' })
-  public recorder: BelongsTo<typeof User>
+  public recorder!: BelongsTo<typeof User>
 }

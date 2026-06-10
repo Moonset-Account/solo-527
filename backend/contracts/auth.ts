@@ -20,8 +20,8 @@ declare module '@ioc:Adonis/Addons/Auth' {
   */
   interface ProvidersList {
     user: {
-      implementation: LucidProviderContract<typeof User>
-      config: LucidProviderConfig<typeof User>
+      implementation: import('@ioc:Adonis/Addons/Auth').LucidProviderContract<typeof User>
+      config: import('@ioc:Adonis/Addons/Auth').LucidProviderConfig<typeof User>
     }
   }
 
@@ -36,9 +36,9 @@ declare module '@ioc:Adonis/Addons/Auth' {
   */
   interface GuardsList {
     api: {
-      implementation: OATGuardContract<'user', 'api'>
-      config: OATGuardConfig<'user'>
-      client: OATClientContract<'user'>
+      implementation: import('@ioc:Adonis/Addons/Auth').OATGuardContract<'user', 'api'>
+      config: import('@ioc:Adonis/Addons/Auth').OATGuardConfig<'user'>
+      client: import('@ioc:Adonis/Addons/Auth').OATClientContract<'user'>
     }
   }
 }

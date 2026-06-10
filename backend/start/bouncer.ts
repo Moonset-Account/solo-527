@@ -13,6 +13,7 @@ import WorkOrderPolicy from 'App/Policies/WorkOrderPolicy'
 import UserPolicy from 'App/Policies/UserPolicy'
 
 export const { actions } = Bouncer
+
 export const { policies } = Bouncer.registerPolicies({
   workOrder: WorkOrderPolicy,
   user: UserPolicy,

@@ -15,19 +15,19 @@ import Schedule from './Schedule'
 
 export default class User extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public username: string
+  public username!: string
 
   @column()
-  public email: string
+  public email!: string
 
   @column({ serializeAs: null })
-  public password: string
+  public password!: string
 
   @column()
-  public realName: string
+  public realName!: string
 
   @column()
   public phone: string | null = null
@@ -42,10 +42,10 @@ export default class User extends BaseModel {
   public rememberMeToken: string | null = null
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @beforeSave()
   public static async hashPassword(user: User) {
@@ -55,16 +55,16 @@ export default class User extends BaseModel {
   }
 
   @manyToMany(() => Role)
-  public roles: ManyToMany<typeof Role>
+  public roles!: ManyToMany<typeof Role>
 
   @hasMany(() => WorkOrder, { foreignKey: 'assignedTo' })
-  public assignedWorkOrders: HasMany<typeof WorkOrder>
+  public assignedWorkOrders!: HasMany<typeof WorkOrder>
 
   @hasMany(() => WorkOrder, { foreignKey: 'createdBy' })
-  public createdWorkOrders: HasMany<typeof WorkOrder>
+  public createdWorkOrders!: HasMany<typeof WorkOrder>
 
   @hasMany(() => Schedule, { foreignKey: 'scheduledBy' })
-  public schedules: HasMany<typeof Schedule>
+  public schedules!: HasMany<typeof Schedule>
 
   public async hasRole(slug: string): Promise<boolean> {
     const roles = await this.related('roles').query()

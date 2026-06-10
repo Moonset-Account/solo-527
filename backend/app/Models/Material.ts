@@ -1,16 +1,15 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany, HasMany } from '@ioc:Adonis/Lucid/Orm'
-import WorkOrderMaterial from './WorkOrderMaterial'
+import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
 
 export default class Material extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public materialCode: string
+  public materialCode!: string
 
   @column()
-  public materialName: string
+  public materialName!: string
 
   @column()
   public specification: string | null = null
@@ -34,11 +33,8 @@ export default class Material extends BaseModel {
   public remarks: string | null = null
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
-
-  @hasMany(() => WorkOrderMaterial)
-  public workOrderMaterials: HasMany<typeof WorkOrderMaterial>
+  public updatedAt!: DateTime
 }

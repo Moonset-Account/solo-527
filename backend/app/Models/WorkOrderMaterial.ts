@@ -5,13 +5,13 @@ import Material from './Material'
 
 export default class WorkOrderMaterial extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public workOrderId: number
+  public workOrderId!: number
 
   @column()
-  public materialId: number
+  public materialId!: number
 
   @column()
   public requiredQuantity: number = 0
@@ -29,14 +29,14 @@ export default class WorkOrderMaterial extends BaseModel {
   public remarks: string | null = null
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @belongsTo(() => WorkOrder)
-  public workOrder: BelongsTo<typeof WorkOrder>
+  public workOrder!: BelongsTo<typeof WorkOrder>
 
   @belongsTo(() => Material)
-  public material: BelongsTo<typeof Material>
+  public material!: BelongsTo<typeof Material>
 }

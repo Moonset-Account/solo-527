@@ -144,7 +144,8 @@ export default class MaterialsController {
         data: material.serialize(),
       })
     } catch (error) {
-      if (error.code === 'E_ROW_NOT_FOUND') {
+      const err = error as any
+      if (err.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: '物料不存在' })
       }
       throw error
@@ -224,7 +225,7 @@ export default class MaterialsController {
 
       if (!workOrderMaterial) {
         workOrderMaterial = new WorkOrderMaterial()
-        workOrderMaterial.workOrderId = params.id
+        workOrderMaterial.workOrderId = Number(params.id)
         workOrderMaterial.materialId = data.materialId
       }
 

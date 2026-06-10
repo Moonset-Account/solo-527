@@ -21,7 +21,7 @@ declare module '@ioc:Adonis/Core/Env' {
     PG_DB_NAME: string
     REDIS_CONNECTION: string
     REDIS_HOST: string
-    REDIS_PORT: string
+    REDIS_PORT: number
     REDIS_PASSWORD: string
   }
 }

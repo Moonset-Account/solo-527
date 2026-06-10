@@ -1,10 +1,11 @@
-import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { AuthenticationException } from '@ioc:Adonis/Addons/Auth'
+import type { GuardsList } from '@ioc:Adonis/Addons/Auth'
+import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 export default class AuthMiddleware {
   protected redirectTo = '/login'
 
-  protected async authenticate(auth: HttpContextContract['auth'], guards: any[]) {
+  protected async authenticate(auth: HttpContextContract['auth'], guards: (keyof GuardsList)[]) {
     let guardLastAttempted: string | undefined
 
     for (let guard of guards) {
@@ -27,7 +28,7 @@ export default class AuthMiddleware {
   public async handle(
     { auth }: HttpContextContract,
     next: () => Promise<void>,
-    customGuards: string[]
+    customGuards: (keyof GuardsList)[]
   ) {
     const guards = customGuards.length ? customGuards : [auth.name]
     await this.authenticate(auth, guards)

@@ -6,10 +6,10 @@ import User from './User'
 
 export default class Rework extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public workOrderId: number
+  public workOrderId!: number
 
   @column()
   public scheduleId: number | null = null
@@ -33,17 +33,17 @@ export default class Rework extends BaseModel {
   public status: 'pending' | 'reworking' | 'completed' | 'scrapped' = 'pending'
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @belongsTo(() => WorkOrder)
-  public workOrder: BelongsTo<typeof WorkOrder>
+  public workOrder!: BelongsTo<typeof WorkOrder>
 
   @belongsTo(() => Schedule)
-  public schedule: BelongsTo<typeof Schedule>
+  public schedule!: BelongsTo<typeof Schedule>
 
   @belongsTo(() => User, { foreignKey: 'handledBy' })
-  public handler: BelongsTo<typeof User>
+  public handler!: BelongsTo<typeof User>
 }

@@ -5,16 +5,16 @@ import User from './User'
 
 export default class RiskLog extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public workOrderId: number
+  public workOrderId!: number
 
   @column()
   public riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'medium'
 
   @column()
-  public riskType: string
+  public riskType!: string
 
   @column()
   public description: string | null = null
@@ -32,14 +32,14 @@ export default class RiskLog extends BaseModel {
   public status: 'open' | 'mitigated' | 'resolved' | 'closed' = 'open'
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @belongsTo(() => WorkOrder)
-  public workOrder: BelongsTo<typeof WorkOrder>
+  public workOrder!: BelongsTo<typeof WorkOrder>
 
   @belongsTo(() => User, { foreignKey: 'actionBy' })
-  public actor: BelongsTo<typeof User>
+  public actor!: BelongsTo<typeof User>
 }

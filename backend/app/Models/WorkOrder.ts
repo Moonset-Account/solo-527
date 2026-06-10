@@ -9,19 +9,19 @@ import RiskLog from './RiskLog'
 
 export default class WorkOrder extends BaseModel {
   @column({ isPrimary: true })
-  public id: number
+  public id!: number
 
   @column()
-  public orderNo: string
+  public orderNo!: string
 
   @column()
-  public productName: string
+  public productName!: string
 
   @column()
   public productModel: string | null = null
 
   @column()
-  public quantity: number
+  public quantity!: number
 
   @column()
   public completedQuantity: number = 0
@@ -57,34 +57,34 @@ export default class WorkOrder extends BaseModel {
   public assignedTo: number | null = null
 
   @column()
-  public createdBy: number
+  public createdBy!: number
 
   @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+  public createdAt!: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  public updatedAt: DateTime
+  public updatedAt!: DateTime
 
   @belongsTo(() => User, { foreignKey: 'assignedTo' })
-  public assignee: BelongsTo<typeof User>
+  public assignee!: BelongsTo<typeof User>
 
   @belongsTo(() => User, { foreignKey: 'createdBy' })
-  public creator: BelongsTo<typeof User>
+  public creator!: BelongsTo<typeof User>
 
   @hasMany(() => Schedule)
-  public schedules: HasMany<typeof Schedule>
+  public schedules!: HasMany<typeof Schedule>
 
   @hasMany(() => WorkOrderMaterial)
-  public materials: HasMany<typeof WorkOrderMaterial>
+  public materials!: HasMany<typeof WorkOrderMaterial>
 
   @hasMany(() => Rework)
-  public reworks: HasMany<typeof Rework>
+  public reworks!: HasMany<typeof Rework>
 
   @hasMany(() => ProductionLog)
-  public productionLogs: HasMany<typeof ProductionLog>
+  public productionLogs!: HasMany<typeof ProductionLog>
 
   @hasMany(() => RiskLog)
-  public riskLogs: HasMany<typeof RiskLog>
+  public riskLogs!: HasMany<typeof RiskLog>
 
   @computed()
   public get completionRate(): number {
