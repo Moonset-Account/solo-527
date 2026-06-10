@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Clinic {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctors   Doctor[]
+  schedules Schedule[]
+  patients  Patient[]
+  appointments Appointment[]
+}
+
+model Doctor {
+  id        Int      @id @default(autoincrement())
+  name      String
+  title     String
+  specialty String
+  clinicId  Int
+  clinic    Clinic   @relation(fields: [clinicId], references: [id])
+  avatar    String?
+  phone     String?
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schedules    Schedule[]
+  appointments Appointment[]
+  followUps    FollowUp[]
+  records      MedicalRecord[]
+}
+
+model Patient {
+  id          Int      @id @default(autoincrement())
+  name        String
+  gender      String
+  birthDate   DateTime?
+  phone       String   @unique
+  idCard      String?
+  clinicId    Int
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  address     String?
+  allergy     String?
+  medicalHistory String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  appointments Appointment[]
+  records      MedicalRecord[]
+  followUps    FollowUp[]
+  statusHistory PatientStatusHistory[]
+}
+
+model PatientStatusHistory {
+  id         Int      @id @default(autoincrement())
+  patientId  Int
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  status     String
+  remark     String?
+  operatorId Int?
+  operatorName String?
+  createdAt  DateTime @default(now())
+}
+
+model Schedule {
+  id          Int      @id @default(autoincrement())
+  doctorId    Int
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  clinicId    Int
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  date        DateTime
+  startTime   String
+  endTime     String
+  shiftType   String
+  totalSlots  Int
+  bookedSlots Int      @default(0)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slots        TimeSlot[]
+  appointments Appointment[]
+  statusHistory ScheduleStatusHistory[]
+}
+
+model TimeSlot {
+  id          Int      @id @default(autoincrement())
+  scheduleId  Int
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  startTime   String
+  endTime     String
+  slotIndex   Int
+  status      String   @default("available")
+  maxPatients Int      @default(1)
+  bookedCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  appointments Appointment[]
+  statusHistory TimeSlotStatusHistory[]
+  conflicts   SlotConflict[]
+}
+
+model ScheduleStatusHistory {
+  id          Int      @id @default(autoincrement())
+  scheduleId  Int
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  fromStatus  String?
+  toStatus    String
+  remark      String?
+  operatorId  Int?
+  operatorName String?
+  createdAt   DateTime @default(now())
+}
+
+model TimeSlotStatusHistory {
+  id          Int      @id @default(autoincrement())
+  timeSlotId  Int
+  timeSlot    TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  fromStatus  String?
+  toStatus    String
+  remark      String?
+  operatorId  Int?
+  operatorName String?
+  createdAt   DateTime @default(now())
+}
+
+model Appointment {
+  id           Int      @id @default(autoincrement())
+  patientId    Int
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  doctorId     Int
+  doctor       Doctor   @relation(fields: [doctorId], references: [id])
+  clinicId     Int
+  clinic       Clinic   @relation(fields: [clinicId], references: [id])
+  scheduleId   Int
+  schedule     Schedule @relation(fields: [scheduleId], references: [id])
+  timeSlotId   Int?
+  timeSlot     TimeSlot? @relation(fields: [timeSlotId], references: [id])
+  appointDate  DateTime
+  startTime    String
+  endTime      String
+  chiefComplaint String
+  status       String   @default("pending")
+  source       String?
+  isReturnVisit Boolean  @default(false)
+  remark       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  medicalRecord MedicalRecord?
+  followUp      FollowUp?
+  statusHistory AppointmentStatusHistory[]
+  operationLogs AppointmentOperationLog[]
+}
+
+model AppointmentStatusHistory {
+  id           Int      @id @default(autoincrement())
+  appointmentId Int
+  appointment  Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  fromStatus   String?
+  toStatus     String
+  remark       String?
+  operatorId   Int?
+  operatorName String?
+  createdAt    DateTime @default(now())
+}
+
+model AppointmentOperationLog {
+  id           Int      @id @default(autoincrement())
+  appointmentId Int
+  appointment  Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  operation    String
+  fieldName    String?
+  oldValue     String?
+  newValue     String?
+  operatorId   Int?
+  operatorName String?
+  createdAt    DateTime @default(now())
+}
+
+model MedicalRecord {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  patientId     Int
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  doctorId      Int
+  doctor        Doctor   @relation(fields: [doctorId], references: [id])
+  diagnosis     String
+  treatment     String
+  summary       String
+  prescription  String?
+  cost          Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  statusHistory RecordStatusHistory[]
+}
+
+model RecordStatusHistory {
+  id          Int      @id @default(autoincrement())
+  recordId    Int
+  record      MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  status      String
+  remark      String?
+  operatorId  Int?
+  operatorName String?
+  createdAt   DateTime @default(now())
+}
+
+model FollowUp {
+  id            Int      @id @default(autoincrement())
+  patientId     Int
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  doctorId      Int?
+  doctor        Doctor?  @relation(fields: [doctorId], references: [id])
+  appointmentId Int?     @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  type          String
+  content       String
+  planDate      DateTime
+  actualDate    DateTime?
+  status        String   @default("pending")
+  result        String?
+  operatorId    Int?
+  operatorName  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  statusHistory FollowUpStatusHistory[]
+}
+
+model FollowUpStatusHistory {
+  id          Int      @id @default(autoincrement())
+  followUpId  Int
+  followUp    FollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+  fromStatus  String?
+  toStatus    String
+  remark      String?
+  operatorId  Int?
+  operatorName String?
+  createdAt   DateTime @default(now())
+}
+
+model SlotConflict {
+  id              Int      @id @default(autoincrement())
+  timeSlotId      Int
+  timeSlot        TimeSlot @relation(fields: [timeSlotId], references: [id])
+  conflictType    String
+  description     String
+  status          String   @default("pending")
+  resolvedAt      DateTime?
+  resolvedBy      Int?
+  resolverName    String?
+  resolutionNote  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ReturnVisitStats {
+  id          Int      @id @default(autoincrement())
+  periodType  String
+  periodStart DateTime
+  periodEnd   DateTime
+  clinicId    Int?
+  doctorId    Int?
+  totalVisits Int      @default(0)
+  returnVisits Int     @default(0)
+  returnRate  Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([periodType, periodStart, clinicId, doctorId])
+}
+
+model SlotUtilizationStats {
+  id          Int      @id @default(autoincrement())
+  periodType  String
+  periodStart DateTime
+  periodEnd   DateTime
+  clinicId    Int?
+  doctorId    Int?
+  totalSlots  Int      @default(0)
+  bookedSlots Int      @default(0)
+  usedSlots   Int      @default(0)
+  utilizationRate Float @default(0)
+  noShowCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([periodType, periodStart, clinicId, doctorId])
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  name      String
+  role      String
+  clinicId  Int?
+  avatar    String?
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
