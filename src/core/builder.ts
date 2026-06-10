@@ -65,7 +65,7 @@ export class TestCaseBuilder {
 
     const baseContext: VariableContext = {
       env: mergedEnvVars,
-      collection: collectionVars,
+      collection: { ...collectionVars, ...globalVars },
       globals: globalVars,
     };
 

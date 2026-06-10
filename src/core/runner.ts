@@ -288,6 +288,14 @@ export class TestRunner {
       if (tc.tags.length > 0) {
         logger.raw(`     Tags: ${tc.tags.join(', ')}`);
       }
+      if (tc.resolvedHeaders && Object.keys(tc.resolvedHeaders).length > 0) {
+        logger.raw(`     Headers:`);
+        const maxKeyLen = Math.max(...Object.keys(tc.resolvedHeaders).map(k => k.length), 0);
+        for (const [hKey, hVal] of Object.entries(tc.resolvedHeaders)) {
+          const paddedKey = hKey.padEnd(maxKeyLen, ' ');
+          logger.raw(`       ${paddedKey} = ${String(hVal)}`);
+        }
+      }
       if (tc.assertions.length > 0) {
         logger.raw(`     Assertions (${tc.assertions.length}):`);
         tc.assertions.forEach(a => {

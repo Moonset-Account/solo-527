@@ -128,51 +128,109 @@ api-smoke completion zsh --write   # 自动写入 ~/.zsh/completion/
 
 ### 变量解析顺序
 
-模板 `{{VAR_NAME}}` 的查找路径：
+模板 `{{VAR_NAME}}`（裸名无命名空间）的查找路径，**从上到下优先级依次降低**：
 
 ```
-1. extracted（前序用例 extract 提取）
+1. extracted（前序用例 extract 提取的运行时变量）
 2. folder 级 variables
-3. collection 级 variables
-4. environment 级 variables
-5. --global 注入的变量
-6. 带前缀时直接定位: {{env.X}} {{collection.X}} {{extract.X}} {{global.X}}
+3. --global 命令行注入的变量（配置类最高优先级）
+4. environment 文件级 variables
+5. collection 文件级 variables（配置类最低优先级，作为默认值）
+6. 带命名空间前缀时直接定位: {{env.X}} {{collection.X}} {{global.X}} {{extract.X}} {{folder.X}}
 ```
 
-### 演示：参数覆盖关系实际效果
+> ⚠️ **`{{env.X}}` 的特殊行为**：由于这是最常用的写法，`{{env.X}}` 查找时会按
+> `--global` → `env文件` → `collection.variables` 的合并优先级查找，即 `--global`
+> 的同名值可以覆盖到 `{{env.X}}`。详见下方真实参数演示。
 
-假设有如下配置：
+### 演示：参数覆盖关系实际效果（可复制运行）
 
-**`collection.json`:**
+使用项目自带的 `examples/collection.json` 做真实演示：
+
+**`examples/collection.json` 关键片段:**
 ```json
 {
-  "name": "覆盖演示",
-  "baseUrl": "https://default.example.com",
-  "variables": { "APP_NAME": "DefaultApp" },
-  "settings": { "timeout": 10000, "retries": 1 },
-  "auth": { "type": "bearer", "token": "default-token" },
+  "name": "用户服务冒烟测试集合",
+  "baseUrl": "{{env.BASE_URL}}",         // ← 用 {{env.X}} 定位，可被覆盖
+  "variables": {
+    "APP_NAME": "UserService",           // ← 集合级默认值（优先级最低）
+    "DEFAULT_ROLE": "user"
+  },
+  "headers": {
+    "X-App-Name": "{{collection.APP_NAME}}"
+  },
   "requests": [
-    {
-      "name": "覆盖测试",
-      "method": "GET",
-      "url": "/api",
-      "timeout": 5000,
-      "retries": 3
-    }
+    { "name": "健康检查接口", "method": "GET", "url": "/health" }
   ]
 }
 ```
 
-**`env/prod.yaml`:**
-```yaml
-name: prod
-baseUrl: https://prod.example.com
-variables:
-  APP_NAME: ProdApp
-auth:
-  type: bearer
-  token: "prod-token-from-env"
+---
+
+#### 演示 1：未传任何覆盖（Dry Run）
+
+```bash
+node dist/cli.js -c examples/collection.json --dry-run --no-color
+# 健康检查接口 → GET /health
+# BASE_URL 未定义 → baseUrl 为空 → url 保持 "/health"
 ```
+
+---
+
+#### 演示 2：仅传 `--global BASE_URL` 覆盖
+
+```bash
+node dist/cli.js -c examples/collection.json \
+  --global BASE_URL=http://override.local \
+  --dry-run --no-color
+```
+
+**实际输出（关键行）：**
+```
+✅ 命令行全局变量 (--global): 1 个已加载
+▶ 健康检查接口
+   GET http://override.local/health     ← ✅ 从 "/health" 变为完整 URL
+```
+
+覆盖链路：
+```
+{{env.BASE_URL}}
+    └─ env 文件中未定义 → 继续找
+        └─ --global 定义了 BASE_URL=http://override.local → ✅ 命中
+```
+
+---
+
+#### 演示 3：`--global` 同时覆盖 `APP_NAME` + `BASE_URL`（多变量）
+
+```bash
+node dist/cli.js -c examples/collection.json \
+  --global BASE_URL=http://override.local \
+  --global APP_NAME=CmdLineApp \
+  --dry-run --log-level debug --no-color
+```
+
+**实际输出（关键行）：**
+```
+✅ 命令行全局变量 (--global): 2 个已加载
+DEBUG   BASE_URL = http://override.local
+DEBUG   APP_NAME = CmdLineApp
+DEBUG [VariableContext] --global 覆盖优先级最高，已合并以下变量:
+DEBUG   BASE_URL: (新增) → --global
+DEBUG   APP_NAME: collection → --global        ← 覆盖了 collection 中的 "UserService"
+
+▶ 健康检查接口
+   GET http://override.local/health
+   Tags: health, smoke, fast
+   Headers:
+     X-App-Name   = CmdLineApp                 ← ✅ 之前是 UserService，现在被覆盖
+     X-Request-ID = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+     Accept       = application/json
+```
+
+---
+
+#### 演示 4：完整覆盖关系对照（理论 + 实际一致）
 
 **执行命令:**
 ```bash
@@ -184,16 +242,16 @@ api-smoke -c collection.json \
   --global EXTRA_VAR=hello
 ```
 
-**最终生效值：**
+**最终生效值对照（理论 = 实际）：**
 
-| 配置项 | 最终值 | 来源 |
-|--------|--------|------|
-| `baseUrl` | `https://prod.example.com` | env 文件（覆盖了 collection） |
-| `APP_NAME` | `CmdApp` | `--global`（最高优先级） |
-| `timeout` | `20000` | `--timeout`（覆盖了 request 的 5000） |
-| `retries` | `0` | `--retries`（覆盖了 request 的 3） |
-| `auth.token` | `prod-token-from-env` | env 文件 |
-| `EXTRA_VAR` | `hello` | `--global` |
+| 配置项 | 最终值 | 来源 | 覆盖说明 |
+|--------|--------|------|----------|
+| `baseUrl`（当写为 `{{env.BASE_URL}}`） | prod.yaml 的 BASE_URL 或 `--global` 值 | `--global` > env > collection | 写死的字符串不会被变量覆盖 |
+| `APP_NAME` | `CmdApp` | `--global`（最高优先级） | ✅ 覆盖了 env 和 collection |
+| `timeout` | `20000` | `--timeout`（CLI 参数优先级最高） | 覆盖 request 级 `5000` |
+| `retries` | `0` | `--retries` | 覆盖 request 级 `3` |
+| `auth.token` | `prod-token-from-env` | env 文件 | 未被 CLI 覆盖 |
+| `EXTRA_VAR` | `hello` | `--global` | 新增变量 |
 
 ---
 
