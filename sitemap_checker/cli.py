@@ -242,11 +242,6 @@ def check_cmd(
         "--no-image-check",
         help="跳过图片资源检查",
     ),
-    follow_external: bool = typer.Option(
-        False,
-        "--follow-external",
-        help="检查外部链接 (仅发送 HEAD 请求)",
-    ),
     output_json: Optional[Path] = typer.Option(
         None,
         "--json",
@@ -290,7 +285,6 @@ def check_cmd(
         check_title=not no_title_check,
         check_canonical=not no_canonical_check,
         check_images=not no_image_check,
-        follow_external=follow_external,
     )
 
     state = RuntimeState()

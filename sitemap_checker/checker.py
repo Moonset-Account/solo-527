@@ -172,6 +172,77 @@ class SitemapChecker:
         if ref.source_url:
             self.link_sources[ref.url].append(ref.source_url)
 
+    async def _check_head_batch(
+        self,
+        fetcher: AsyncFetcher,
+        urls: List[str],
+        link_type: LinkType,
+        *,
+        progress_cb: Optional[ProgressCallback] = None,
+        stage_label: str = "",
+    ) -> None:
+        if not urls:
+            return
+
+        total = len(urls)
+        done = 0
+
+        async def _check_one(url: str) -> Tuple[str, Optional[FetchResult], Optional[FetchError]]:
+            nonlocal done
+            try:
+                res = await fetcher.fetch(url, use_head=True)
+                return (url, res, None)
+            except FetchError as e:
+                return (url, None, e)
+            finally:
+                done += 1
+                if progress_cb:
+                    progress_cb(stage_label, done, total)
+
+        batch_results = await asyncio.gather(
+            *[_check_one(u) for u in urls],
+            return_exceptions=False,
+        )
+
+        for url, fetch_result, fetch_error in batch_results:
+            is_whitelisted = self.state.is_whitelisted(url)
+            check_result = CheckResult(
+                url=url,
+                link_type=link_type,
+                is_whitelisted=is_whitelisted,
+                depth=0,
+            )
+
+            if is_whitelisted:
+                self.results.append(check_result)
+                self.results_by_url[url] = check_result
+                continue
+
+            if fetch_error:
+                check_result.issues.append(fetch_error.issue)
+                self.results.append(check_result)
+                self.results_by_url[url] = check_result
+                continue
+
+            if fetch_result is None:
+                self.results.append(check_result)
+                self.results_by_url[url] = check_result
+                continue
+
+            page_meta = PageMeta(
+                url=url,
+                status_code=fetch_result.status_code,
+                final_url=fetch_result.final_url,
+                redirect_chain=fetch_result.redirect_chain,
+                content_type=fetch_result.content_type,
+                response_time_ms=fetch_result.response_time_ms,
+            )
+            issues = _check_status_and_redirects(url, fetch_result, self.config)
+            check_result.page_meta = page_meta
+            check_result.issues = issues
+            self.results.append(check_result)
+            self.results_by_url[url] = check_result
+
     async def scan(
         self,
         sitemap_urls: List[str],
@@ -190,56 +261,58 @@ class SitemapChecker:
         ))
         normalized_seeds = [normalize_url(u) for u in seed_urls]
 
-        to_check_pages: List[Tuple[str, int]] = [(u, 0) for u in normalized_seeds]
-        checked_pages: set = set()
-        discovered_links: Dict[str, LinkType] = {}
+        internal_queue: List[str] = []
+        image_queue: List[str] = []
+        external_queue: List[str] = []
+
+        for url in normalized_seeds:
+            lt = classify_link(url, self.state.base_domain)
+            if lt in (LinkType.INTERNAL, LinkType.SITEMAP):
+                internal_queue.append(url)
+            elif lt == LinkType.IMAGE:
+                image_queue.append(url)
+            elif lt == LinkType.EXTERNAL:
+                external_queue.append(url)
+            else:
+                internal_queue.append(url)
 
         async with AsyncFetcher(self.config) as fetcher:
-            current_batch = to_check_pages
+
+            checked: set = set()
             depth = 0
-            while current_batch and depth <= self.config.max_depth:
-                batch_urls = [u for u, d in current_batch if u not in checked_pages]
-                batch_urls = list(dict.fromkeys(batch_urls))
-                if not batch_urls:
+
+            while internal_queue and depth <= self.config.max_depth:
+                batch = list(dict.fromkeys(u for u in internal_queue if u not in checked))
+                if not batch:
                     break
 
-                total = len(batch_urls)
+                total = len(batch)
                 done = 0
-
-                def _progress(d: int, t: int) -> None:
-                    if progress_cb:
-                        progress_cb(f"深度 {depth}/{self.config.max_depth}", d, t)
-
-                fetch_tasks = []
-                for url in batch_urls:
-                    link_type = classify_link(url, self.state.base_domain)
-                    is_internal = link_type == LinkType.INTERNAL
-                    use_head = not is_internal or (not self.config.check_title and not self.config.check_canonical)
-                    fetch_tasks.append((url, use_head))
 
                 results_map: Dict[str, Tuple[Optional[FetchResult], Optional[FetchError]]] = {}
 
-                async def _process_one(url: str, use_head: bool):
+                async def _fetch_internal(url: str) -> None:
                     nonlocal done
                     try:
-                        res = await fetcher.fetch(url, use_head=use_head)
+                        res = await fetcher.fetch(url, use_head=False)
                         results_map[url] = (res, None)
                     except FetchError as e:
                         results_map[url] = (None, e)
-                    done += 1
-                    if progress_cb:
-                        progress_cb(f"深度 {depth}/{self.config.max_depth}", done, total)
+                    finally:
+                        done += 1
+                        if progress_cb:
+                            progress_cb(f"深度 {depth}/{self.config.max_depth}", done, total)
 
-                tasks = [_process_one(u, uh) for u, uh in fetch_tasks]
-                await asyncio.gather(*tasks, return_exceptions=False)
+                await asyncio.gather(*[_fetch_internal(u) for u in batch])
 
-                for url in batch_urls:
-                    checked_pages.add(url)
+                new_internal: List[str] = []
+
+                for url in batch:
+                    checked.add(url)
                     link_type = classify_link(url, self.state.base_domain)
                     fetch_result, fetch_error = results_map.get(url, (None, None))
 
                     is_whitelisted = self.state.is_whitelisted(url)
-
                     check_result = CheckResult(
                         url=url,
                         link_type=link_type,
@@ -279,7 +352,6 @@ class SitemapChecker:
                         or "application/xhtml" in fetch_result.content_type.lower()
                     )
 
-                    links_for_next: List[LinkReference] = []
                     if is_html and not fetch_result.used_head:
                         try:
                             parsed_meta, links = parse_html(
@@ -293,9 +365,16 @@ class SitemapChecker:
                             page_meta.url = url
                             for link in links:
                                 self._track_link(link)
-                                discovered_links[link.url] = link.link_type
-                                if link.link_type in (LinkType.INTERNAL, LinkType.IMAGE) and depth < self.config.max_depth:
-                                    links_for_next.append(link)
+                                nurl = normalize_url(link.url)
+                                if nurl in checked or nurl in self.results_by_url:
+                                    continue
+                                if link.link_type in (LinkType.INTERNAL, LinkType.SITEMAP):
+                                    if depth < self.config.max_depth:
+                                        new_internal.append(nurl)
+                                elif link.link_type == LinkType.IMAGE and self.config.check_images:
+                                    image_queue.append(nurl)
+                                elif link.link_type == LinkType.EXTERNAL:
+                                    external_queue.append(nurl)
                         except Exception as e:
                             issues.append(Issue.network_error(url, f"HTML 解析失败: {e}"))
 
@@ -304,92 +383,29 @@ class SitemapChecker:
 
                     check_result.page_meta = page_meta
                     check_result.issues = issues
-
                     self.results.append(check_result)
                     self.results_by_url[url] = check_result
 
-                next_batch: List[Tuple[str, int]] = []
-                next_depth = depth + 1
-                if next_depth <= self.config.max_depth:
-                    seen = set(u for u, _ in current_batch)
-                    for link in links_for_next:
-                        nurl = normalize_url(link.url)
-                        if nurl not in seen and nurl not in checked_pages:
-                            next_batch.append((nurl, next_depth))
-                            seen.add(nurl)
-
-                current_batch = next_batch
+                internal_queue = new_internal
                 depth += 1
 
-            external_links_to_check: List[str] = [
-                url for url, ltype in discovered_links.items()
-                if ltype == LinkType.EXTERNAL and self.config.follow_external and url not in self.results_by_url
-            ]
-            if external_links_to_check:
-                total_ext = len(external_links_to_check)
-                done_ext = 0
+            image_queue = list(dict.fromkeys(
+                u for u in image_queue if u not in self.results_by_url and u not in checked
+            ))
+            await self._check_head_batch(
+                fetcher, image_queue, LinkType.IMAGE,
+                progress_cb=progress_cb,
+                stage_label="检查图片资源",
+            )
 
-                def _progress_ext(d: int, t: int) -> None:
-                    if progress_cb:
-                        progress_cb("检查外部链接", d, t)
-
-                async def _check_ext(url: str):
-                    nonlocal done_ext
-                    try:
-                        res = await fetcher.fetch(url, use_head=True)
-                        done_ext += 1
-                        if progress_cb:
-                            progress_cb("检查外部链接", done_ext, total_ext)
-                        return (url, res, None)
-                    except FetchError as e:
-                        done_ext += 1
-                        if progress_cb:
-                            progress_cb("检查外部链接", done_ext, total_ext)
-                        return (url, None, e)
-
-                ext_results = await asyncio.gather(
-                    *[_check_ext(u) for u in external_links_to_check],
-                    return_exceptions=False,
-                )
-
-                for url, fetch_result, fetch_error in ext_results:
-                    link_type = LinkType.EXTERNAL
-                    is_whitelisted = self.state.is_whitelisted(url)
-                    check_result = CheckResult(
-                        url=url,
-                        link_type=link_type,
-                        is_whitelisted=is_whitelisted,
-                        depth=0,
-                    )
-                    if is_whitelisted:
-                        self.results.append(check_result)
-                        self.results_by_url[url] = check_result
-                        continue
-
-                    if fetch_error:
-                        check_result.issues.append(fetch_error.issue)
-                        self.results.append(check_result)
-                        self.results_by_url[url] = check_result
-                        continue
-
-                    if fetch_result is None:
-                        self.results.append(check_result)
-                        self.results_by_url[url] = check_result
-                        continue
-
-                    page_meta = PageMeta(
-                        url=url,
-                        status_code=fetch_result.status_code,
-                        final_url=fetch_result.final_url,
-                        redirect_chain=fetch_result.redirect_chain,
-                        content_type=fetch_result.content_type,
-                        response_time_ms=fetch_result.response_time_ms,
-                    )
-                    issues = _check_status_and_redirects(url, fetch_result, self.config)
-                    check_result.page_meta = page_meta
-                    check_result.issues = issues
-                    self.results.append(check_result)
-                    self.results_by_url[url] = check_result
+            external_queue = list(dict.fromkeys(
+                u for u in external_queue if u not in self.results_by_url and u not in checked
+            ))
+            await self._check_head_batch(
+                fetcher, external_queue, LinkType.EXTERNAL,
+                progress_cb=progress_cb,
+                stage_label="检查外部链接",
+            )
 
         report.results = self.results
         report.pages_checked = sum(1 for r in self.results if r.link_type in (LinkType.INTERNAL, LinkType.SITEMAP))

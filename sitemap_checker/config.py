@@ -24,7 +24,6 @@ class CheckerConfig(BaseModel):
     check_title: bool = Field(default=True, description="是否检查标题缺失")
     check_canonical: bool = Field(default=True, description="是否检查 canonical 冲突")
     check_images: bool = Field(default=True, description="是否检查图片链接")
-    follow_external: bool = Field(default=False, description="是否跟随外部链接（仅 HEAD 请求）")
     user_whitelist: List[str] = Field(default_factory=list, description="用户白名单 URL 列表")
 
     def to_summary_dict(self) -> dict:
@@ -39,7 +38,6 @@ class CheckerConfig(BaseModel):
             "check_title": self.check_title,
             "check_canonical": self.check_canonical,
             "check_images": self.check_images,
-            "follow_external": self.follow_external,
             "whitelist_count": len(self.user_whitelist),
         }
 

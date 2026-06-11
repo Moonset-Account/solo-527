@@ -112,9 +112,10 @@ class AsyncFetcher:
 
         redirect_chain: List[RedirectStep] = []
         current_url = url
-        max_redirects = self.config.max_redirects + 2
+        max_hops = self.config.max_redirects + 2
+        response = None
 
-        for attempt in range(max_redirects):
+        for _hop in range(max_hops):
             try:
                 async for _ in AsyncRetrying(
                     stop=stop_after_attempt(max(1, self.config.retries + 1)),
@@ -133,7 +134,6 @@ class AsyncFetcher:
                         current_url,
                         follow_redirects=False,
                     )
-                break
             except httpx.ConnectTimeout as e:
                 raise FetchError(Issue.timeout(url, self.config.request_timeout)) from e
             except httpx.ReadTimeout as e:
@@ -149,7 +149,23 @@ class AsyncFetcher:
                 raise FetchError(Issue.network_error(url, str(e))) from e
             except httpx.HTTPError as e:
                 raise FetchError(Issue.network_error(url, str(e))) from e
-        else:
+
+            status_code = response.status_code
+
+            if 300 <= status_code < 400 and status_code != 304:
+                redirect_to = response.headers.get("location")
+                redirect_chain.append(RedirectStep(
+                    url=current_url,
+                    status_code=status_code,
+                    redirect_to=redirect_to,
+                ))
+                if redirect_to:
+                    from urllib.parse import urljoin
+                    current_url = urljoin(current_url, redirect_to)
+                    continue
+            break
+
+        if response is None:
             elapsed_ms = (time.monotonic() - start) * 1000
             return FetchResult(
                 url=url,
@@ -167,27 +183,10 @@ class AsyncFetcher:
         headers = dict(response.headers)
         content_type = response.headers.get("content-type")
 
-        if 300 <= status_code < 400 and status_code != 304:
-            redirect_to = response.headers.get("location")
-            redirect_chain.append(RedirectStep(
-                url=current_url,
-                status_code=status_code,
-                redirect_to=redirect_to,
-            ))
-            if redirect_to:
-                from urllib.parse import urljoin
-                current_url = urljoin(current_url, redirect_to)
-                if attempt < max_redirects - 1:
-                    return await self._do_fetch(
-                        url,
-                        use_head=use_head,
-                        allow_partial=allow_partial,
-                    )
-
         content: Optional[str] = None
         if not use_head and status_code != 304:
             try:
-                if content_type and "text" in content_type or "html" in content_type or "xml" in content_type:
+                if content_type and ("text" in content_type or "html" in content_type or "xml" in content_type):
                     content = response.text
             except Exception:
                 content = None
