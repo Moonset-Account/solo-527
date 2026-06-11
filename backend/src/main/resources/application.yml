@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: qinghe-course-platform
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/qinghe_course
+    username: qinghe
+    password: qinghe2026
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: qinghe2026
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: qinghe-course-platform-secret-key-2026-long-enough-for-hs256
+  expiration: 86400000
+
+logging:
+  level:
+    com.qinghe: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG

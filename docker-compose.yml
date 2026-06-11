@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: qinghe-postgres
+    environment:
+      POSTGRES_DB: qinghe_course
+      POSTGRES_USER: qinghe
+      POSTGRES_PASSWORD: qinghe2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - qinghe-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: qinghe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --requirepass qinghe2026
+    networks:
+      - qinghe-network
+
+networks:
+  qinghe-network:
+    driver: bridge
