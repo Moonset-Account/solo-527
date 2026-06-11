@@ -38,7 +38,7 @@ qinghe-course-platform/
 
 ### 前置要求
 
-- JDK 17+
+- JDK 21+
 - Maven 3.8+
 - Node.js 18+
 - Docker & Docker Compose
@@ -54,12 +54,14 @@ docker-compose up -d
 ```bash
 cd backend
 
-# 方式一：使用系统 maven
-mvn spring-boot:run
-
-# 方式二：先生成 mvnw 再运行（推荐）
-mvn wrapper:wrapper
+# 方式一：使用项目自带的 mvnw（推荐）
 ./mvnw spring-boot:run
+
+# Windows:
+# mvnw.cmd spring-boot:run
+
+# 方式二：使用系统 maven
+mvn spring-boot:run
 ```
 
 后端默认端口：`8080`，API 前缀：`/api`

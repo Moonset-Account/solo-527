@@ -53,6 +53,7 @@ export const orderApi = {
 export const couponApi = {
   list: (params: PageParams) => request.get<any, PageResult<any>>('/coupons', { params }),
   detail: (id: number) => request.get<any, any>(`/coupons/${id}`),
+  getByCode: (code: string) => request.get<any, any>(`/coupons/code/${code}`),
   create: (data: any) => request.post<any, any>('/coupons', data),
   update: (id: number, data: any) => request.put<any, any>(`/coupons/${id}`, data),
   delete: (id: number) => request.delete<any, any>(`/coupons/${id}`),

@@ -111,7 +111,7 @@ const AppLayout: React.FC = () => {
               <Space direction="vertical" size={0} style={{ lineHeight: 1.2 }}>
                 <span style={{ fontSize: 14 }}>{user?.nickname || user?.username}</span>
                 {roleInfo && (
-                  <Tag color={roleInfo.color} size="small" icon={roleInfo.icon} style={{ marginTop: 2 }}>
+                  <Tag color={roleInfo.color} icon={roleInfo.icon} style={{ fontSize: 11, padding: '0 6px', marginTop: 2 }}>
                     {roleInfo.text}
                   </Tag>
                 )}

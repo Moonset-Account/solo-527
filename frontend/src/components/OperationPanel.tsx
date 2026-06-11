@@ -216,12 +216,8 @@ const OperationPanel: React.FC<OperationPanelProps> = ({ open, onClose, bizType,
               history.length === 0 ? (
                 <Empty description="暂无修改记录" />
               ) : (
-                <Descriptions
-                  column={1}
-                  size="small"
-                  bordered
-                  dataSource={history}
-                  renderItem={(item: any) => (
+                <Descriptions column={1} size="small" bordered>
+                  {history.map((item: any) => (
                     <Descriptions.Item
                       key={item.id}
                       label={`${item.fieldName || '字段'} · ${dayjs(item.createdAt).format(
@@ -238,8 +234,8 @@ const OperationPanel: React.FC<OperationPanelProps> = ({ open, onClose, bizType,
                         <div style={{ marginTop: 4, color: '#999' }}>{item.changeRemark}</div>
                       )}
                     </Descriptions.Item>
-                  )}
-                />
+                  ))}
+                </Descriptions>
               ),
           },
           {

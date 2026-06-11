@@ -147,7 +147,7 @@ const PurchaseCourse: React.FC = () => {
                 title={
                   <Space>
                     <span>{course.title}</span>
-                    <Tag color={STATUS_MAP[course.status]?.color} size="small">
+                    <Tag color={STATUS_MAP[course.status]?.color} style={{ fontSize: 11, padding: '0 6px' }}>
                       {STATUS_MAP[course.status]?.text}
                     </Tag>
                   </Space>
