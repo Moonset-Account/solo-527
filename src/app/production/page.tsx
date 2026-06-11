@@ -66,6 +66,7 @@ interface ExportTask {
   processedRecords: number
   errorMessage: string | null
   fileUrl: string | null
+  fileName: string | null
   fileSize: number | null
   createdAt: string
   completedAt: string | null
@@ -913,13 +914,19 @@ export default function ProductionPage() {
                       )}
                     </div>
                     {task.status === 'COMPLETED' && task.fileUrl && (
-                      <a
-                        href={task.fileUrl}
+                      <button
+                        onClick={async () => {
+                          try {
+                            await exportsApi.download(task.id, task.fileName || '产能记录.csv')
+                          } catch (err: any) {
+                            alert(err.message || '下载失败')
+                          }
+                        }}
                         className="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
                       >
                         <Download size={14} />
                         下载文件
-                      </a>
+                      </button>
                     )}
                   </div>
 

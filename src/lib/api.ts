@@ -41,6 +41,33 @@ export const api = {
       method: 'DELETE',
       headers: headers(),
     }).then(handleResponse),
+
+  download: async (url: string, fallbackFileName = 'export.csv') => {
+    const res = await fetch(`${BASE_URL}${url}`, { headers: headers() })
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.error || `下载失败 (${res.status})`)
+    }
+    const blob = await res.blob()
+    const disposition = res.headers.get('Content-Disposition') || ''
+    let fileName = fallbackFileName
+    const match = disposition.match(/filename\*?="?([^";]+)"?;?/i)
+    if (match) {
+      try {
+        fileName = decodeURIComponent(match[1].replace(/^UTF-8''/, ''))
+      } catch {
+        fileName = match[1]
+      }
+    }
+    const objectUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objectUrl
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+  },
 }
 
 export const authApi = {
@@ -117,6 +144,8 @@ export const exportsApi = {
     ),
   get: (id: string) => api.get(`/exports/${id}`),
   create: (data: any) => api.post('/exports', data),
+  download: (taskId: string, fileName: string) =>
+    api.download(`/exports/${taskId}/download/${encodeURIComponent(fileName)}`, fileName || 'export.csv'),
 }
 
 export const usersApi = {
