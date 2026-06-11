@@ -1,9 +1,10 @@
 import { prisma } from '~/server/utils/prisma'
-import { mockReminderRules, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async () => {
   if (!(await isDbAvailable())) {
-    return mockReminderRules
+    const store = useMockStore()
+    return store.reminderRules
   }
 
   const rules = await prisma.reminderRule.findMany({

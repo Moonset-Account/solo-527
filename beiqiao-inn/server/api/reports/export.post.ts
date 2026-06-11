@@ -1,10 +1,11 @@
 import { prisma } from '~/server/utils/prisma'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   if (!(await isDbAvailable())) {
+    const store = useMockStore()
     const timestamp = Date.now()
     return {
       filterSnapshot: body.filters ?? {},

@@ -13,8 +13,27 @@ interface Rule {
   updatedAt: string
 }
 
+interface Reminder {
+  id: number
+  type: string
+  title: string
+  message: string
+  priority: string
+  isRead: boolean
+  relatedId?: number
+  relatedType?: string
+  createdAt: string
+  readAt?: string
+}
+
+const activeTab = ref<'list' | 'rules'>('list')
 const rules = ref<Rule[]>([])
+const reminders = ref<Reminder[]>([])
 const loading = ref(false)
+const loadingReminders = ref(false)
+const showSuccess = ref(false)
+const successMessage = ref('')
+
 const modalOpen = ref(false)
 const editingRule = ref<Rule | null>(null)
 const saving = ref(false)
@@ -58,6 +77,61 @@ const operatorSymbol: Record<string, string> = {
 const fieldLabel: Record<string, string> = {
   availableCount: '可售数量',
   vacancyRate: '空置率',
+}
+
+const typeLabel: Record<string, string> = {
+  INVENTORY: '库存预警',
+  REVIEW: '新评价',
+  REFUND: '退款申请',
+  SYSTEM: '系统通知',
+  ORDER: '订单提醒',
+}
+
+const priorityBadgeClass: Record<string, string> = {
+  P0: 'badge-p0',
+  P1: 'badge-p1',
+  P2: 'badge-p2',
+}
+
+async function loadReminders() {
+  loadingReminders.value = true
+  try {
+    const data: any = await $fetch('/api/reminders')
+    reminders.value = Array.isArray(data) ? data : (data.data || data.reminders || [])
+  } finally {
+    loadingReminders.value = false
+  }
+}
+
+async function markRead(id: number) {
+  try {
+    await $fetch(`/api/reminders/${id}/read`, { method: 'PUT' })
+    const idx = reminders.value.findIndex(r => r.id === id)
+    if (idx !== -1) {
+      reminders.value[idx] = { ...reminders.value[idx], isRead: true, readAt: new Date().toISOString() }
+    }
+    successMessage.value = '已标记为已读'
+    showSuccess.value = true
+    setTimeout(() => { showSuccess.value = false }, 2000)
+  } catch (e: any) {
+    console.error('Failed to mark read:', e)
+  }
+}
+
+async function markAllRead() {
+  const unread = reminders.value.filter(r => !r.isRead)
+  for (const r of unread) {
+    try {
+      await $fetch(`/api/reminders/${r.id}/read`, { method: 'PUT' })
+      r.isRead = true
+      r.readAt = new Date().toISOString()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+  successMessage.value = `已将 ${unread.length} 条提醒标记为已读`
+  showSuccess.value = true
+  setTimeout(() => { showSuccess.value = false }, 2000)
 }
 
 async function loadRules() {
@@ -148,21 +222,158 @@ function conditionSummary(rule: Rule) {
   return `${fieldLabel[cond.field] || cond.field} ${operatorSymbol[cond.operator] || cond.operator} ${cond.value}`
 }
 
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return '刚刚'
+  if (mins < 60) return `${mins}分钟前`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}小时前`
+  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+}
+
+const unreadCount = computed(() => reminders.value.filter(r => !r.isRead).length)
+
+function onTabChange(tab: 'list' | 'rules') {
+  activeTab.value = tab
+  if (tab === 'list' && reminders.value.length === 0) {
+    loadReminders()
+  }
+  if (tab === 'rules' && rules.value.length === 0) {
+    loadRules()
+  }
+}
+
 onMounted(() => {
-  loadRules()
+  loadReminders()
 })
 </script>
 
 <template>
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h1 class="font-serif text-2xl font-bold text-pine">提醒规则</h1>
-      <button class="btn-primary text-sm" @click="openCreateModal">
+      <h1 class="font-serif text-2xl font-bold text-pine">提醒中心</h1>
+      <button
+        v-if="activeTab === 'rules'"
+        class="btn-primary text-sm"
+        @click="openCreateModal"
+      >
         新增规则
+      </button>
+      <button
+        v-else-if="activeTab === 'list' && unreadCount > 0"
+        class="btn-secondary text-sm"
+        @click="markAllRead"
+      >
+        全部已读
       </button>
     </div>
 
-    <section>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showSuccess"
+          class="fixed top-4 right-4 z-50 bg-pine text-cream px-5 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{{ successMessage }}</span>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <div class="flex gap-2 mb-5 border-b border-cream-dark/50">
+      <button
+        class="px-5 py-2.5 text-sm font-medium relative"
+        :class="activeTab === 'list' ? 'text-pine' : 'text-slate hover:text-pine/70'"
+        @click="onTabChange('list')"
+      >
+        提醒列表
+        <span
+          v-if="unreadCount > 0"
+          class="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-brick text-cream"
+        >
+          {{ unreadCount }}
+        </span>
+        <span
+          v-if="activeTab === 'list'"
+          class="absolute bottom-0 left-0 right-0 h-0.5 bg-pine"
+        />
+      </button>
+      <button
+        class="px-5 py-2.5 text-sm font-medium relative"
+        :class="activeTab === 'rules' ? 'text-pine' : 'text-slate hover:text-pine/70'"
+        @click="onTabChange('rules')"
+      >
+        提醒规则
+        <span
+          v-if="activeTab === 'rules'"
+          class="absolute bottom-0 left-0 right-0 h-0.5 bg-pine"
+        />
+      </button>
+    </div>
+
+    <section v-if="activeTab === 'list'">
+      <div v-if="loadingReminders" class="text-center py-16 text-slate">
+        <div class="inline-block w-8 h-8 border-2 border-pine/20 border-t-pine rounded-full animate-spin mb-3" />
+        <p>加载中...</p>
+      </div>
+
+      <div v-else-if="reminders.length === 0" class="text-center py-20">
+        <div class="w-20 h-20 rounded-full bg-cream-dark mx-auto flex items-center justify-center mb-4">
+          <svg class="w-10 h-10 text-slate/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        </div>
+        <p class="text-slate text-lg mb-1">暂无提醒</p>
+        <p class="text-slate/60 text-sm">有新的提醒会在这里显示</p>
+      </div>
+
+      <div v-else class="space-y-2">
+        <div
+          v-for="reminder in reminders"
+          :key="reminder.id"
+          class="card transition-opacity duration-200"
+          :class="{ 'opacity-60': reminder.isRead }"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0"
+              :class="reminder.isRead ? 'bg-slate/30' : (reminder.priority === 'P0' ? 'bg-brick' : reminder.priority === 'P1' ? 'bg-amber' : 'bg-info')"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-sm font-semibold text-pine">{{ reminder.title }}</h3>
+                <span
+                  class="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  :class="priorityBadgeClass[reminder.priority]"
+                >
+                  {{ reminder.priority }}
+                </span>
+                <span class="text-[10px] text-slate/60">{{ typeLabel[reminder.type] || reminder.type }}</span>
+              </div>
+              <p class="text-xs text-pine/60 mb-2 line-clamp-2">{{ reminder.message }}</p>
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] text-slate/50">{{ formatTime(reminder.createdAt) }}</span>
+                <button
+                  v-if="!reminder.isRead"
+                  class="text-[11px] text-pine/60 hover:text-pine font-medium transition-colors"
+                  @click="markRead(reminder.id)"
+                >
+                  标记已读
+                </button>
+                <span v-else class="text-[11px] text-slate/40">已读</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section v-else>
       <div v-if="loading" class="text-center py-16 text-slate">
         <div class="inline-block w-8 h-8 border-2 border-pine/20 border-t-pine rounded-full animate-spin mb-3" />
         <p>加载中...</p>
@@ -318,3 +529,16 @@ onMounted(() => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>

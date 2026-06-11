@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import { prisma } from '~/server/utils/prisma'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!(await isDbAvailable())) {
+    const store = useMockStore()
     if (phone === '13800000001') {
       return { id: 1, name: '管理员', role: 'ADMIN', phone: '13800000001', token: 'mock-token-' + Date.now() }
     }

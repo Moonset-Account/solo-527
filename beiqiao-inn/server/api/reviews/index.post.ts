@@ -1,11 +1,12 @@
 import { prisma } from '~/server/utils/prisma'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   if (!(await isDbAvailable())) {
-    return { id: Date.now(), orderId: body.orderId, userId: body.userId, roomId: body.roomId, rating: body.rating, content: body.content, images: body.images, reply: null, status: 'PENDING_REPLY', createdAt: new Date().toISOString() }
+    const store = useMockStore()
+    return store.createReview(body)
   }
 
   const review = await prisma.review.create({

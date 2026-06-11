@@ -1,12 +1,13 @@
 import { prisma } from '~/server/utils/prisma'
 import { invalidateCache } from '~/server/utils/redis'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
 
   if (!(await isDbAvailable())) {
-    return { todo: { id, status: 'COMPLETED', completedAt: new Date() }, vacancyUpdated: false }
+    const store = useMockStore()
+    return store.completeTodo(id)
   }
 
   const todo = await prisma.todoItem.findUnique({ where: { id } })

@@ -184,7 +184,14 @@ onMounted(async () => {
               <span class="text-slate text-xs ml-1">/晚</span>
             </div>
             <NuxtLink
-              to="/order"
+              :to="{
+                path: '/booking',
+                query: {
+                  roomId: room.id,
+                  checkIn: checkIn || undefined,
+                  checkOut: checkOut || undefined,
+                },
+              }"
               class="btn-primary text-sm px-4 py-2"
             >
               立即预订

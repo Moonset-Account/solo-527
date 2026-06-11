@@ -1,11 +1,12 @@
 import { prisma } from '~/server/utils/prisma'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
 
   if (!(await isDbAvailable())) {
-    return { id, isRead: true }
+    const store = useMockStore()
+    return store.markReminderRead(id)
   }
 
   const reminder = await prisma.reminder.update({

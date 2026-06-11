@@ -15,6 +15,7 @@ export interface DashboardStats {
   totalRooms: number
   availableRooms: number
   occupancyRate: number
+  vacancyRate: number
   pendingTodos: number
   p0Reminders: number
   todayCheckIns: number

@@ -1,6 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
 import { getCached } from '~/server/utils/redis'
-import { mockRooms, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -8,7 +8,8 @@ export default defineEventHandler(async (event) => {
   const status = query.status as string | undefined
 
   if (!(await isDbAvailable())) {
-    let result = mockRooms
+    const store = useMockStore()
+    let result = store.rooms
     if (type) result = result.filter(r => r.type === type)
     if (status) result = result.filter(r => r.status === status)
     return result

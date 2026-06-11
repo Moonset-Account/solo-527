@@ -198,7 +198,7 @@ onMounted(async () => {
           </div>
 
           <NuxtLink
-            to="/order"
+            :to="{ path: '/booking', query: { roomId: room.id } }"
             class="btn-primary block w-full text-center py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
           >
             立即预订

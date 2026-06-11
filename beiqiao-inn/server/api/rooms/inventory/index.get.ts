@@ -1,6 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
 import { getCached } from '~/server/utils/redis'
-import { mockRooms, generateMockInventories, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -10,8 +10,9 @@ export default defineEventHandler(async (event) => {
   const status = query.status as string | undefined
 
   if (!(await isDbAvailable())) {
-    let inventories = generateMockInventories(mockRooms)
-    if (type) inventories = inventories.filter(i => i.room.type === type)
+    const store = useMockStore()
+    let inventories = store.inventories
+    if (type) inventories = inventories.filter(i => i.room?.type === type)
     if (status) inventories = inventories.filter(i => i.syncStatus === status)
     if (startDate) inventories = inventories.filter(i => i.date >= startDate)
     if (endDate) inventories = inventories.filter(i => i.date <= endDate)

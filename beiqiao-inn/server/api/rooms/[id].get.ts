@@ -1,5 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
-import { mockRooms, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -9,7 +9,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!(await isDbAvailable())) {
-    const room = mockRooms.find(r => r.id === id)
+    const store = useMockStore()
+    const room = store.rooms.find(r => r.id === id)
     if (!room) {
       throw createError({ statusCode: 404, statusMessage: 'room not found' })
     }

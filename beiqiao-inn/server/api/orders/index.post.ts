@@ -1,5 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -7,21 +7,8 @@ export default defineEventHandler(async (event) => {
   const { userId, roomId, checkIn, checkOut, guestCount, guestName, guestPhone } = body
 
   if (!(await isDbAvailable())) {
-    return {
-      id: Date.now(),
-      orderNo: 'BQ' + Date.now(),
-      userId,
-      roomId,
-      checkIn,
-      checkOut,
-      guestCount: guestCount || 1,
-      guestName,
-      guestPhone,
-      totalPrice: 0,
-      status: 'PENDING_PAYMENT',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
+    const store = useMockStore()
+    return store.createOrder({ userId, roomId, checkIn, checkOut, guestCount, guestName, guestPhone })
   }
 
   const room = await prisma.room.findUnique({ where: { id: roomId } })

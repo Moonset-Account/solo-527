@@ -1,13 +1,14 @@
 import { prisma } from '~/server/utils/prisma'
 import { invalidateCache } from '~/server/utils/redis'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody(event)
 
   if (!(await isDbAvailable())) {
-    return { id, status: 'REFUNDING', refundReason: body?.refundReason || null, updatedAt: new Date() }
+    const store = useMockStore()
+    return store.refundOrder(id, body?.refundReason || '')
   }
 
   const order = await prisma.order.findUnique({ where: { id } })

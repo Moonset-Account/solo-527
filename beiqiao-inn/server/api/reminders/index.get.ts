@@ -1,5 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
-import { mockReminders, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -8,7 +8,8 @@ export default defineEventHandler(async (event) => {
   if (query.isRead !== undefined) where.isRead = query.isRead === 'true'
 
   if (!(await isDbAvailable())) {
-    let filtered = [...mockReminders]
+    const store = useMockStore()
+    let filtered = [...store.reminders]
     if (where.priority) filtered = filtered.filter(r => r.priority === where.priority)
     if (query.isRead !== undefined) filtered = filtered.filter(r => r.isRead === where.isRead)
     return filtered

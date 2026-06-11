@@ -1,6 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
 import { invalidateCache } from '~/server/utils/redis'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
   const { availableCount, price, syncStatus } = body
 
   if (!(await isDbAvailable())) {
-    return { id, availableCount, price, syncStatus, updatedAt: new Date() }
+    const store = useMockStore()
+    return store.updateInventory(id, { availableCount, price, syncStatus })
   }
 
   const data: Record<string, unknown> = {}

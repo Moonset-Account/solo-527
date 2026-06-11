@@ -1,10 +1,11 @@
 import { prisma } from '~/server/utils/prisma'
 import { invalidateCache } from '~/server/utils/redis'
-import { isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async () => {
   if (!(await isDbAvailable())) {
-    return { synced: 3 }
+    const store = useMockStore()
+    return store.syncInventories()
   }
 
   const pendingInventories = await prisma.roomInventory.findMany({

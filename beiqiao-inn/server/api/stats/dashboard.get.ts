@@ -1,10 +1,11 @@
 import { prisma } from '~/server/utils/prisma'
 import { getCached } from '~/server/utils/redis'
-import { mockDashboardStats, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async () => {
   if (!(await isDbAvailable())) {
-    return mockDashboardStats
+    const store = useMockStore()
+    return store.getDashboardStats()
   }
 
   return getCached('stats:dashboard', async () => {

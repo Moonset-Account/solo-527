@@ -6,6 +6,12 @@ definePageMeta({ layout: 'default' })
 const { orders, loading, fetchOrders, requestRefund } = useOrders()
 
 const activeStatus = ref('全部')
+const refundModalOpen = ref(false)
+const refundOrderId = ref<number | null>(null)
+const refundReason = ref('')
+const refundSubmitting = ref(false)
+const showSuccess = ref(false)
+const successMessage = ref('')
 
 const statusTabs = [
   { label: '全部', value: '全部' },
@@ -37,11 +43,6 @@ const statusBadgeClass: Record<string, string> = {
   CANCELLED: 'bg-slate/10 text-slate',
 }
 
-const refundModalOpen = ref(false)
-const refundOrderId = ref<number | null>(null)
-const refundReason = ref('')
-const refundSubmitting = ref(false)
-
 function onStatusChange(status: string) {
   activeStatus.value = status
   const params: { status?: string } = {}
@@ -70,6 +71,11 @@ async function submitRefund() {
     const params: { status?: string } = {}
     if (activeStatus.value !== '全部') params.status = activeStatus.value
     await fetchOrders(params)
+    successMessage.value = '退款申请已提交，等待审批'
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+    }, 3000)
   } finally {
     refundSubmitting.value = false
   }
@@ -86,7 +92,26 @@ onMounted(() => {
 
 <template>
   <div>
-    <h1 class="font-serif text-2xl font-bold text-pine mb-6">订单中心</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="font-serif text-2xl font-bold text-pine">订单中心</h1>
+      <NuxtLink to="/booking" class="btn-primary text-sm">
+        立即预订
+      </NuxtLink>
+    </div>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showSuccess"
+          class="fixed top-4 right-4 z-50 bg-pine text-cream px-5 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{{ successMessage }}</span>
+        </div>
+      </Transition>
+    </Teleport>
 
     <section class="mb-6">
       <div class="flex gap-2 overflow-x-auto pb-2">
@@ -145,6 +170,10 @@ onMounted(() => {
             <span>{{ order.guestCount }}位房客</span>
           </div>
 
+          <div v-if="order.refundReason" class="text-xs text-brick/70 bg-brick/5 rounded px-3 py-2 mb-3">
+            退款原因：{{ order.refundReason }}
+          </div>
+
           <div class="flex items-center justify-between pt-3 border-t border-cream-dark/50">
             <div>
               <span class="text-slate text-xs">总额</span>
@@ -200,3 +229,16 @@ onMounted(() => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>

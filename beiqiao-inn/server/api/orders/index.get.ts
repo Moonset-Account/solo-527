@@ -1,5 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
-import { mockOrders, isDbAvailable } from '~/server/utils/mockData'
+import { useMockStore, isDbAvailable } from '~/server/utils/mockData'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -27,7 +27,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!(await isDbAvailable())) {
-    let filtered = [...mockOrders]
+    const store = useMockStore()
+    let filtered = [...store.orders]
     if (where.status) filtered = filtered.filter(o => o.status === where.status)
     if (where.userId) filtered = filtered.filter(o => o.userId === where.userId)
     const total = filtered.length

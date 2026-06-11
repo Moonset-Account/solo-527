@@ -6,6 +6,9 @@ const reminders = ref<any[]>([])
 const loading = ref(false)
 const activePriority = ref('ALL')
 const activeStatus = ref('PENDING')
+const successMessage = ref('')
+const showSuccess = ref(false)
+const vacancyUpdated = ref(false)
 
 const priorityTabs = [
   { label: '全部', value: 'ALL' },
@@ -38,6 +41,12 @@ const priorityBarClass: Record<string, string> = {
   P2: 'priority-bar-p2',
 }
 
+const statusLabel: Record<string, string> = {
+  PENDING: '待处理',
+  IN_PROGRESS: '处理中',
+  COMPLETED: '已办结',
+}
+
 async function loadTodos() {
   loading.value = true
   try {
@@ -56,15 +65,44 @@ async function loadReminders() {
   } catch {}
 }
 
+async function handleStart(id: number) {
+  try {
+    await $fetch(`/api/todos/${id}/start`, { method: 'PUT' })
+    await loadTodos()
+  } catch (e: any) {
+    console.error('Failed to start todo:', e)
+  }
+}
+
 async function handleComplete(id: number) {
-  await $fetch(`/api/todos/${id}/complete`, { method: 'PUT' })
-  await loadTodos()
-  await loadReminders()
+  try {
+    const result: any = await $fetch(`/api/todos/${id}/complete`, { method: 'PUT' })
+    await loadTodos()
+    await loadReminders()
+
+    if (result.vacancyUpdated) {
+      successMessage.value = '待办已办结，空置率已更新'
+      vacancyUpdated.value = true
+    } else {
+      successMessage.value = '待办已办结'
+      vacancyUpdated.value = false
+    }
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+    }, 3000)
+  } catch (e: any) {
+    console.error('Failed to complete todo:', e)
+  }
 }
 
 async function markReminderRead(id: number) {
-  await $fetch(`/api/reminders/${id}/read`, { method: 'PUT' })
-  await loadReminders()
+  try {
+    await $fetch(`/api/reminders/${id}/read`, { method: 'PUT' })
+    await loadReminders()
+  } catch (e: any) {
+    console.error('Failed to mark reminder read:', e)
+  }
 }
 
 function formatDate(dateStr: string | null) {
@@ -89,7 +127,33 @@ watch([activePriority, activeStatus], () => {
 
 <template>
   <div>
-    <h1 class="font-serif text-2xl font-bold text-pine mb-6">待办中心</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="font-serif text-2xl font-bold text-pine">待办中心</h1>
+      <button
+        @click="loadTodos(); loadReminders()"
+        class="btn-secondary text-sm py-1.5 px-3 flex items-center gap-1.5"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0115.357-2m-2H4v.582z" />
+        </svg>
+        刷新
+      </button>
+    </div>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showSuccess"
+          class="fixed top-4 right-4 z-50 bg-pine text-cream px-5 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{{ successMessage }}</span>
+          <span v-if="vacancyUpdated" class="text-amber text-xs ml-1">(空置率 ↓)</span>
+        </div>
+      </Transition>
+    </Teleport>
 
     <section v-if="reminders.length > 0" class="mb-6">
       <div class="bg-brick/5 border border-brick/20 rounded-xl p-4">
@@ -103,7 +167,7 @@ watch([activePriority, activeStatus], () => {
           <div
             v-for="reminder in reminders"
             :key="reminder.id"
-            class="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-cream-dark/50"
+            class="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-cream-dark/50 transition-all hover:shadow-sm"
           >
             <div class="flex items-center gap-3 min-w-0">
               <span
@@ -112,7 +176,7 @@ watch([activePriority, activeStatus], () => {
               >
                 {{ reminder.priority }}
               </span>
-              <span class="text-sm text-pine truncate">{{ reminder.message }}</span>
+              <span class="text-sm text-pine truncate">{{ reminder.title }}</span>
             </div>
             <button
               class="text-xs text-brick hover:text-brick-light font-medium flex-shrink-0 ml-3 transition-colors"
@@ -178,11 +242,14 @@ watch([activePriority, activeStatus], () => {
         <div
           v-for="todo in todos"
           :key="todo.id"
-          class="card"
-          :class="priorityBarClass[todo.priority]"
+          class="card transition-all duration-300"
+          :class="[
+            priorityBarClass[todo.priority],
+            todo.status === 'COMPLETED' ? 'opacity-60' : '',
+          ]"
         >
           <div class="flex items-start justify-between mb-2">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span
                 class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
                 :class="typeBadgeClass[todo.type]"
@@ -195,17 +262,27 @@ watch([activePriority, activeStatus], () => {
               >
                 {{ todo.priority }}
               </span>
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-medium"
+                :class="todo.status === 'COMPLETED' ? 'bg-pine/10 text-pine' : todo.status === 'IN_PROGRESS' ? 'bg-amber/15 text-amber' : 'bg-slate/10 text-slate'"
+              >
+                {{ statusLabel[todo.status] }}
+              </span>
             </div>
             <span
               v-if="todo.dueAt && isOverdue(todo.dueAt) && todo.status !== 'COMPLETED'"
-              class="text-xs text-brick font-medium"
+              class="text-xs text-brick font-medium flex-shrink-0 ml-2"
             >
               已逾期
             </span>
           </div>
 
-          <h3 class="font-serif text-base font-semibold text-pine mb-1">{{ todo.title }}</h3>
-          <p v-if="todo.description" class="text-sm text-pine/60 mb-3 line-clamp-2">{{ todo.description }}</p>
+          <h3 class="font-serif text-base font-semibold text-pine mb-1" :class="{ 'line-through': todo.status === 'COMPLETED' }">
+            {{ todo.title }}
+          </h3>
+          <p v-if="todo.description" class="text-sm text-pine/60 mb-3 line-clamp-2">
+            {{ todo.description }}
+          </p>
 
           <div class="flex items-center justify-between pt-3 border-t border-cream-dark/50">
             <div class="flex items-center gap-4 text-xs text-pine/60">
@@ -221,15 +298,21 @@ watch([activePriority, activeStatus], () => {
                 </svg>
                 {{ formatDate(todo.dueAt) }}
               </span>
+              <span v-if="todo.completedAt" class="flex items-center gap-1 text-pine/70">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                {{ formatDate(todo.completedAt) }} 办结
+              </span>
             </div>
 
             <div class="flex gap-2">
               <button
                 v-if="todo.status === 'PENDING'"
                 class="btn-primary text-xs px-3 py-1.5"
-                @click="handleComplete(todo.id)"
+                @click="handleStart(todo.id)"
               >
-                处理
+                开始处理
               </button>
               <button
                 v-if="todo.status === 'IN_PROGRESS'"
@@ -238,6 +321,12 @@ watch([activePriority, activeStatus], () => {
               >
                 办结
               </button>
+              <span
+                v-if="todo.status === 'COMPLETED'"
+                class="text-xs text-pine/50 font-medium"
+              >
+                已完成
+              </span>
             </div>
           </div>
         </div>
@@ -245,3 +334,16 @@ watch([activePriority, activeStatus], () => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>
