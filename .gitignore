@@ -13,3 +13,6 @@ junit*.xml
 smoke-api
 smoke-api-*
 .tmp/
+_debug*.ts
+_accept.ts
+_tmp.*
