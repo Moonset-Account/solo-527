@@ -1,0 +1,18 @@
+import json
+with open('/tmp/report.json') as f:
+    data = json.load(f)
+print('=== summary (筛选后口径) ===')
+print('totalAudio:', data['summary']['totalAudio'])
+print('totalTranscript:', data['summary']['totalTranscript'])
+print('validSamples:', data['summary']['validSamples'])
+print('totalAnomalies:', data['summary']['totalAnomalies'])
+print('agents:', data['summary']['agents'])
+print('dateRange:', data['summary']['dateRange'])
+print('anomaliesByType:', data['summary']['anomaliesByType'])
+print()
+print('=== inputSummary (全量输入口径) ===')
+print('audioCount:', data['inputSummary']['audioCount'])
+print('transcriptCount:', data['inputSummary']['transcriptCount'])
+print('scheduleCount:', data['inputSummary']['scheduleCount'])
+print('filter options:', data['inputSummary']['options'])
+print('audioFiles (全量列表长度):', len(data['inputSummary']['audioFiles']))

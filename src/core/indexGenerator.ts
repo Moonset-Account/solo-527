@@ -108,7 +108,8 @@ export class IndexGenerator {
   }
 
   private buildSummary(indices: IndexEntry[], anomalies: Anomaly[]) {
-    const { audioFiles, transcriptFiles } = this.context;
+    const filteredTotalAudio = indices.length;
+    const filteredTotalTranscript = indices.filter(i => i.transcriptFile !== undefined).length;
 
     const validSamples = indices.filter(i => i.isValid).length;
 
@@ -133,8 +134,8 @@ export class IndexGenerator {
     };
 
     return {
-      totalAudio: audioFiles.length,
-      totalTranscript: transcriptFiles.length,
+      totalAudio: filteredTotalAudio,
+      totalTranscript: filteredTotalTranscript,
       validSamples,
       totalAnomalies: anomalies.length,
       anomaliesByType,
