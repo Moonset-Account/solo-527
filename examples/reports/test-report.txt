@@ -1,0 +1,51 @@
+==========================================================
+         BACKUP INTEGRITY CHECK REPORT
+==========================================================
+
+  Started:     2026-06-11T05:05:11.579266+00:00
+  Completed:   2026-06-11T05:05:11.585722+00:00
+  Duration:    0.01s
+
+┌──────────────────────────────────────────────┐
+│              CHECK SUMMARY                   │
+├──────────────────────────────────────────────┤
+│  Total items:          3                           │
+│  Passed:               3                           │
+│  Failed:               0                           │
+│  Missing:              0                           │
+│  Expired:              0                           │
+│  Skipped:              0                           │
+│  Integrity errors:     0                           │
+├──────────────────────────────────────────────┤
+│  Exit code:            0                           │
+└──────────────────────────────────────────────┘
+
+
+### Manifest Information ###
+
+  Backup ID:     backup-2025-06-01-001
+  Version:       1.0
+  Created:       2025-06-01T00:00:00Z
+  Description:   Valid backup with all correct hashes
+  Hash algorithm: sha256
+  Files:         3
+
+
+### Integrity Check Results ###
+
+  3 passed, 0 failed
+
+  PASSED ITEMS (3):
+    - [OK] file1.txt
+    - [OK] file2.txt
+    - [OK] subdir/nested.txt
+
+  No missing files detected
+
+  No expired backups detected
+
+
+
+==========================================================
+  STATUS: [32mSUCCESS (exit code: 0)
+==========================================================

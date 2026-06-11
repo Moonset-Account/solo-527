@@ -1,0 +1,3 @@
+[console_scripts]
+backup-checker = backup_checker.cli:main
+bic = backup_checker.cli:main

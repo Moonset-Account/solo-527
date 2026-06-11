@@ -1,0 +1,19 @@
+manifest_path: "manifest-valid.yaml"
+backup_dir: "backup-dir"
+hash_algorithm: "sha256"
+retention_days: 30
+check_integrity: true
+check_missing: true
+check_expired: true
+fail_on_integrity: true
+fail_on_missing: true
+fail_on_expired: false
+
+notification:
+  enabled: false
+  channels:
+    - stdout
+  notify_on:
+    - failure
+    - error
+    - expired

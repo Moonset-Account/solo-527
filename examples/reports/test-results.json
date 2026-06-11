@@ -1,0 +1,152 @@
+[
+  {
+    "name": "Valid backup - all checks pass",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Hash mismatch - integrity check fails",
+    "expected_exit_code": 3,
+    "actual_exit_code": 3,
+    "passed": true
+  },
+  {
+    "name": "Missing files - detection fails",
+    "expected_exit_code": 4,
+    "actual_exit_code": 4,
+    "passed": true
+  },
+  {
+    "name": "Expired backup with fail-on-expired",
+    "expected_exit_code": 5,
+    "actual_exit_code": 5,
+    "passed": true
+  },
+  {
+    "name": "Expired backup without fail-on-expired",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Invalid manifest - schema validation fails",
+    "expected_exit_code": 6,
+    "actual_exit_code": 6,
+    "passed": true
+  },
+  {
+    "name": "JSON output format",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Dry-run mode",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Using config file",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Environment variable configuration",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "CLI args override environment variables",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "verify subcommand (integrity only)",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "manifest validate subcommand",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "manifest validate with invalid manifest",
+    "expected_exit_code": 6,
+    "actual_exit_code": 6,
+    "passed": true
+  },
+  {
+    "name": "manifest show subcommand",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "config show subcommand",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "config validate subcommand",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "generate subcommand with dry-run",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Unsupported hash algorithm",
+    "expected_exit_code": 2,
+    "actual_exit_code": 2,
+    "passed": true
+  },
+  {
+    "name": "Negative retention days",
+    "expected_exit_code": 2,
+    "actual_exit_code": 2,
+    "passed": true
+  },
+  {
+    "name": "Verbose output mode",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "JSON output with hash mismatch",
+    "expected_exit_code": 3,
+    "actual_exit_code": 3,
+    "passed": true
+  },
+  {
+    "name": "Write report to file",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  },
+  {
+    "name": "Combined issues - highest priority exit code",
+    "expected_exit_code": 3,
+    "actual_exit_code": 3,
+    "passed": true
+  },
+  {
+    "name": "Missing files but --no-fail-on-missing",
+    "expected_exit_code": 0,
+    "actual_exit_code": 0,
+    "passed": true
+  }
+]

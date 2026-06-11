@@ -1,0 +1,31 @@
+Metadata-Version: 2.4
+Name: backup-integrity-checker
+Version: 1.0.0
+Summary: Backup integrity checker for system administrators
+Author: Backup Checker Team
+License: MIT
+Keywords: backup,integrity,checker,hash,cli
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: System :: Archiving :: Backup
+Classifier: Topic :: System :: Systems Administration
+Classifier: Topic :: Utilities
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: click>=8.1.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: python-dateutil>=2.8.0
+Requires-Dist: jsonschema>=4.17.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.10; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"

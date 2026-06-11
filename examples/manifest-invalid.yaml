@@ -1,0 +1,5 @@
+version: "1.0"
+backup_id: "invalid-manifest"
+description: "This manifest is missing the required 'files' field"
+created_at: "2025-06-01T00:00:00Z"
+hash_algorithm: "sha256"

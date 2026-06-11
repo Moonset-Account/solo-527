@@ -1,0 +1,21 @@
+version: "1.0"
+backup_id: "backup-2024-01-01-001"
+description: "Old backup that should be expired (retention: 30 days)"
+created_at: "2024-01-01T00:00:00Z"
+hash_algorithm: "sha256"
+files:
+  - path: "file1.txt"
+    hash: "fc05b3afd4d477b4a50b33bd54b69f4f4393491807073f2d360f4b20bf138b05"
+    size: 107
+    created_at: "2024-01-01T00:00:00Z"
+    modified_at: "2024-01-01T00:00:00Z"
+  - path: "file2.txt"
+    hash: "b0a53b651599ed1998041839ff5316f1613a9f5de0f70d656965e567fce1cc5b"
+    size: 114
+    created_at: "2024-01-01T00:00:00Z"
+    modified_at: "2024-01-01T00:00:00Z"
+  - path: "subdir/nested.txt"
+    hash: "dace5b2c6ba2a50681fe69c749082d5f0c0f92e080399d4ae7949f0a9b29b7ad"
+    size: 94
+    created_at: "2024-01-01T00:00:00Z"
+    modified_at: "2024-01-01T00:00:00Z"
