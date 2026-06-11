@@ -280,7 +280,14 @@ watch([activePriority, activeStatus], () => {
           <h3 class="font-serif text-base font-semibold text-pine mb-1" :class="{ 'line-through': todo.status === 'COMPLETED' }">
             {{ todo.title }}
           </h3>
-          <p v-if="todo.description" class="text-sm text-pine/60 mb-3 line-clamp-2">
+
+          <div v-if="todo.type === 'REFUND_APPROVAL' && todo.description" class="mb-3">
+            <div class="bg-brick/5 border border-brick/15 rounded-lg px-3 py-2">
+              <p class="text-xs text-brick/70 font-medium mb-0.5">退款原因</p>
+              <p class="text-sm text-pine/80">{{ todo.description.replace(/^住客申请退款，订单号 [^，]+，原因：/, '') }}</p>
+            </div>
+          </div>
+          <p v-else-if="todo.description" class="text-sm text-pine/60 mb-3 line-clamp-2">
             {{ todo.description }}
           </p>
 

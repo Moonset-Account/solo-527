@@ -3,7 +3,7 @@ definePageMeta({ layout: 'admin' })
 
 const reportTypes = [
   { label: '入住率统计', value: 'occupancy' },
-  { label: '转化率统计', value: 'conversion' },
+  { label: '入住转化统计', value: 'conversion' },
   { label: '收入统计', value: 'revenue' },
   { label: '退款统计', value: 'refund' },
 ]
@@ -36,18 +36,19 @@ const previewData = ref<Record<string, string | number>[]>([])
 const previewColumns = ref<string[]>([])
 
 const exportLoading = ref(false)
-const exportResult = ref<{
-  downloadUrl: string
-  filterSnapshot: Record<string, unknown>
+const exportSuccess = ref(false)
+const lastExportInfo = ref<{
+  reportName: string
   generatedAt: string
   operator: string
+  filterSnapshot: Record<string, any>
 } | null>(null)
 
 interface ExportLog {
   type: string
   operator: string
   generatedAt: string
-  downloadUrl: string
+  fileName: string
 }
 const exportHistory = ref<ExportLog[]>([])
 
@@ -59,35 +60,66 @@ function generateSampleData() {
   const rows: Record<string, string | number>[] = []
   const typeMap: Record<string, { cols: string[]; row: () => Record<string, string | number> }> = {
     occupancy: {
-      cols: ['日期', '总房间', '已入住', '入住率'],
+      cols: ['日期', '总房间数', '已入住', '可用房间', '入住率(%)', '空置率(%)'],
       row: () => {
-        const total = 20
-        const occupied = Math.floor(Math.random() * total) + 5
-        return { '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`, '总房间': total, '已入住': occupied, '入住率': `${((occupied / total) * 100).toFixed(1)}%` }
+        const total = 6
+        const occupied = Math.floor(Math.random() * (total - 1)) + 1
+        return {
+          '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`,
+          '总房间数': total,
+          '已入住': occupied,
+          '可用房间': total - occupied,
+          '入住率(%)': ((occupied / total) * 100).toFixed(1),
+          '空置率(%)': (((total - occupied) / total) * 100).toFixed(1),
+        }
       },
     },
     conversion: {
-      cols: ['日期', '浏览量', '下单量', '转化率'],
+      cols: ['日期', '浏览量', '下单量', '支付订单数', '下单转化率(%)', '支付转化率(%)', '整体转化率(%)'],
       row: () => {
         const views = Math.floor(Math.random() * 500) + 100
-        const orders = Math.floor(Math.random() * views * 0.3) + 10
-        return { '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`, '浏览量': views, '下单量': orders, '转化率': `${((orders / views) * 100).toFixed(1)}%` }
+        const bookings = Math.floor(Math.random() * views * 0.25) + 5
+        const paid = Math.floor(bookings * 0.8)
+        return {
+          '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`,
+          '浏览量': views,
+          '下单量': bookings,
+          '支付订单数': paid,
+          '下单转化率(%)': ((bookings / views) * 100).toFixed(2),
+          '支付转化率(%)': ((paid / bookings) * 100).toFixed(2),
+          '整体转化率(%)': ((paid / views) * 100).toFixed(2),
+        }
       },
     },
     revenue: {
-      cols: ['日期', '订单数', '总收入', '平均客单价'],
+      cols: ['日期', '订单数', '平均房价(元)', '房费收入(元)', '其他收入(元)', '总收入(元)'],
       row: () => {
-        const orders = Math.floor(Math.random() * 15) + 3
-        const total = orders * (Math.floor(Math.random() * 300) + 200)
-        return { '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`, '订单数': orders, '总收入': `¥${total}`, '平均客单价': `¥${(total / orders).toFixed(0)}` }
+        const orders = Math.floor(Math.random() * 10) + 2
+        const avg = Math.floor(Math.random() * 300) + 300
+        const roomTotal = orders * avg
+        return {
+          '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`,
+          '订单数': orders,
+          '平均房价(元)': avg,
+          '房费收入(元)': roomTotal,
+          '其他收入(元)': Math.floor(roomTotal * 0.1),
+          '总收入(元)': Math.floor(roomTotal * 1.1),
+        }
       },
     },
     refund: {
-      cols: ['日期', '退款单数', '退款金额', '退款率'],
+      cols: ['日期', '总订单数', '退款单数', '退款金额(元)', '退款率(%)'],
       row: () => {
-        const count = Math.floor(Math.random() * 5)
-        const amount = count * (Math.floor(Math.random() * 300) + 100)
-        return { '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`, '退款单数': count, '退款金额': `¥${amount}`, '退款率': `${(Math.random() * 8).toFixed(1)}%` }
+        const total = Math.floor(Math.random() * 10) + 2
+        const count = Math.floor(Math.random() * 3)
+        const amount = count * (Math.floor(Math.random() * 300) + 200)
+        return {
+          '日期': `2026-06-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}`,
+          '总订单数': total,
+          '退款单数': count,
+          '退款金额(元)': amount,
+          '退款率(%)': total > 0 ? ((count / total) * 100).toFixed(2) : '0',
+        }
       },
     },
   }
@@ -122,7 +154,6 @@ function buildFilterSnapshot() {
     endDate: endDate.value || undefined,
     roomType: selectedRoomType.value || undefined,
     status: selectedStatus.value || undefined,
-    generatedAt: new Date().toISOString(),
     operatorName: operatorName.value,
   }
   Object.keys(snapshot).forEach(k => snapshot[k] === undefined && delete snapshot[k])
@@ -131,27 +162,48 @@ function buildFilterSnapshot() {
 
 async function handleExport() {
   exportLoading.value = true
+  exportSuccess.value = false
   try {
-    const result = await $fetch<{
-      downloadUrl: string
-      filterSnapshot: Record<string, unknown>
-      generatedAt: string
-      operator: string
-    }>('/api/reports/export', {
+    const filters = buildFilterSnapshot()
+    const response = await $fetch<ArrayBuffer>('/api/reports/export', {
       method: 'POST',
       body: {
         type: selectedType.value,
-        filters: buildFilterSnapshot(),
+        filters,
         operatorName: operatorName.value,
       },
+      responseType: 'arrayBuffer',
     })
-    exportResult.value = result
+
+    const blob = new Blob([response], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const today = new Date().toISOString().split('T')[0]
+    link.download = `${reportTypeLabel.value}报表_${today}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    const generatedAt = new Date().toLocaleString('zh-CN')
+    lastExportInfo.value = {
+      reportName: reportTypeLabel.value + '报表',
+      generatedAt,
+      operator: operatorName.value,
+      filterSnapshot: filters,
+    }
+
     exportHistory.value.unshift({
       type: reportTypeLabel.value,
-      operator: result.operator,
-      generatedAt: result.generatedAt,
-      downloadUrl: result.downloadUrl,
+      operator: operatorName.value,
+      generatedAt,
+      fileName: `${reportTypeLabel.value}报表_${today}.xlsx`,
     })
+
+    exportSuccess.value = true
   } finally {
     exportLoading.value = false
   }
@@ -160,6 +212,44 @@ async function handleExport() {
 function formatDateTime(dateStr: string) {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
+
+const filterDisplayItems = computed(() => {
+  if (!lastExportInfo.value) return []
+  const fs = lastExportInfo.value.filterSnapshot
+  const items: { label: string; value: string }[] = []
+  const typeLabels: Record<string, string> = {
+    occupancy: '入住率统计',
+    conversion: '入住转化统计',
+    revenue: '收入统计',
+    refund: '退款统计',
+  }
+  const roomTypeLabels: Record<string, string> = {
+    KING: '大床房',
+    TWIN: '双床房',
+    FAMILY: '家庭房',
+    SUITE: '套房',
+  }
+  const statusLabels: Record<string, string> = {
+    PAID: '已支付',
+    CHECKED_IN: '已入住',
+    CHECKED_OUT: '已退房',
+    REFUNDED: '已退款',
+  }
+
+  if (fs.reportType) items.push({ label: '报表类型', value: typeLabels[fs.reportType as string] || fs.reportType as string })
+  if (fs.startDate) items.push({ label: '开始日期', value: fs.startDate as string })
+  if (fs.endDate) items.push({ label: '结束日期', value: fs.endDate as string })
+  if (fs.roomType) items.push({ label: '房型', value: roomTypeLabels[fs.roomType as string] || fs.roomType as string })
+  if (fs.status) items.push({ label: '订单状态', value: statusLabels[fs.status as string] || fs.status as string })
+  return items
+})
+
+onMounted(() => {
+  const today = new Date()
+  const oneMonthAgo = new Date(today.getTime() - 30 * 86400000)
+  startDate.value = oneMonthAgo.toISOString().split('T')[0]
+  endDate.value = today.toISOString().split('T')[0]
+})
 </script>
 
 <template>
@@ -214,7 +304,7 @@ function formatDateTime(dateStr: string) {
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-pine mb-1.5">状态</label>
+          <label class="block text-sm font-medium text-pine mb-1.5">订单状态</label>
           <select
             v-model="selectedStatus"
             class="w-full border border-cream-dark rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pine/30 bg-white"
@@ -234,15 +324,61 @@ function formatDateTime(dateStr: string) {
           {{ previewLoading ? '加载中...' : '预览' }}
         </button>
         <button
-          class="px-5 py-2 rounded-lg text-sm font-medium bg-pine text-cream hover:bg-pine-light transition-colors"
+          class="px-5 py-2 rounded-lg text-sm font-medium bg-pine text-cream hover:bg-pine-light transition-colors flex items-center gap-2"
           :class="{ 'opacity-50 cursor-not-allowed': exportLoading }"
           :disabled="exportLoading"
           @click="handleExport"
         >
-          {{ exportLoading ? '导出中...' : '导出' }}
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {{ exportLoading ? '导出中...' : '导出 Excel' }}
         </button>
       </div>
     </section>
+
+    <Transition name="fade">
+      <section v-if="exportSuccess && lastExportInfo" class="bg-pine/5 border border-pine/20 rounded-2xl p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full bg-pine/10 flex items-center justify-center">
+            <svg class="w-5 h-5 text-pine" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-serif text-lg font-semibold text-pine">导出成功</h3>
+            <p class="text-sm text-pine/70">{{ lastExportInfo.reportName }} 已生成并下载</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="bg-white/80 rounded-lg p-3">
+            <p class="text-xs text-slate mb-1">报表名称</p>
+            <p class="text-sm font-medium text-pine">{{ lastExportInfo.reportName }}</p>
+          </div>
+          <div class="bg-white/80 rounded-lg p-3">
+            <p class="text-xs text-slate mb-1">生成时间</p>
+            <p class="text-sm font-medium text-pine">{{ lastExportInfo.generatedAt }}</p>
+          </div>
+          <div class="bg-white/80 rounded-lg p-3">
+            <p class="text-xs text-slate mb-1">操作人</p>
+            <p class="text-sm font-medium text-pine">{{ lastExportInfo.operator }}</p>
+          </div>
+        </div>
+        <div v-if="filterDisplayItems.length > 0" class="mt-3 bg-white/80 rounded-lg p-4">
+          <p class="text-xs text-slate mb-2">筛选口径</p>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="item in filterDisplayItems"
+              :key="item.label"
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-cream text-pine/80"
+            >
+              <span class="text-slate/60">{{ item.label }}:</span>
+              <span class="font-medium">{{ item.value }}</span>
+            </span>
+          </div>
+        </div>
+      </section>
+    </Transition>
 
     <section v-if="previewData.length > 0" class="bg-white rounded-2xl shadow-sm border border-cream-dark/50 p-6 mb-6">
       <h2 class="font-serif text-lg font-semibold text-pine mb-4">数据预览 - {{ reportTypeLabel }}</h2>
@@ -278,38 +414,16 @@ function formatDateTime(dateStr: string) {
       </div>
     </section>
 
-    <section v-if="exportResult" class="bg-white rounded-2xl shadow-sm border border-cream-dark/50 p-6 mb-6">
-      <h2 class="font-serif text-lg font-semibold text-pine mb-4">导出文件信息</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-cream/50 rounded-lg p-4">
-          <p class="text-xs text-slate mb-1">下载链接</p>
-          <a
-            :href="exportResult.downloadUrl"
-            class="text-pine font-medium underline hover:text-pine-light transition-colors"
-          >
-            {{ exportResult.downloadUrl }}
-          </a>
-        </div>
-        <div class="bg-cream/50 rounded-lg p-4">
-          <p class="text-xs text-slate mb-1">生成时间</p>
-          <p class="text-pine font-medium">{{ formatDateTime(exportResult.generatedAt) }}</p>
-        </div>
-        <div class="bg-cream/50 rounded-lg p-4">
-          <p class="text-xs text-slate mb-1">操作人</p>
-          <p class="text-pine font-medium">{{ exportResult.operator }}</p>
-        </div>
-        <div class="bg-cream/50 rounded-lg p-4">
-          <p class="text-xs text-slate mb-1">筛选快照</p>
-          <pre class="text-xs text-pine/80 bg-white rounded p-2 overflow-x-auto mt-1">{{ JSON.stringify(exportResult.filterSnapshot, null, 2) }}</pre>
-        </div>
-      </div>
-    </section>
-
     <section class="bg-white rounded-2xl shadow-sm border border-cream-dark/50 p-6">
       <h2 class="font-serif text-lg font-semibold text-pine mb-4">导出历史</h2>
       <div v-if="exportHistory.length === 0" class="text-center py-12 text-slate">
+        <div class="w-16 h-16 rounded-full bg-cream-dark mx-auto flex items-center justify-center mb-3">
+          <svg class="w-8 h-8 text-slate/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
         <p class="text-lg mb-1">暂无导出记录</p>
-        <p class="text-sm">导出报表后将在此显示历史记录</p>
+        <p class="text-sm">点击"导出 Excel"生成报表</p>
       </div>
       <div v-else class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -318,7 +432,7 @@ function formatDateTime(dateStr: string) {
               <th class="text-left py-3 px-4 text-pine font-semibold">报表类型</th>
               <th class="text-left py-3 px-4 text-pine font-semibold">操作人</th>
               <th class="text-left py-3 px-4 text-pine font-semibold">生成时间</th>
-              <th class="text-left py-3 px-4 text-pine font-semibold">下载</th>
+              <th class="text-left py-3 px-4 text-pine font-semibold">文件名</th>
             </tr>
           </thead>
           <tbody>
@@ -333,18 +447,8 @@ function formatDateTime(dateStr: string) {
                 </span>
               </td>
               <td class="py-2.5 px-4 text-pine/80">{{ log.operator }}</td>
-              <td class="py-2.5 px-4 text-pine/80">{{ formatDateTime(log.generatedAt) }}</td>
-              <td class="py-2.5 px-4">
-                <a
-                  :href="log.downloadUrl"
-                  class="inline-flex items-center gap-1 text-amber hover:text-amber-light font-medium transition-colors"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  下载
-                </a>
-              </td>
+              <td class="py-2.5 px-4 text-pine/80">{{ log.generatedAt }}</td>
+              <td class="py-2.5 px-4 text-slate/60 font-mono text-xs">{{ log.fileName }}</td>
             </tr>
           </tbody>
         </table>
@@ -352,3 +456,16 @@ function formatDateTime(dateStr: string) {
     </section>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+</style>

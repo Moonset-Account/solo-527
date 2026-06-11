@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
 
   if (!(await isDbAvailable())) {
     const store = useMockStore()
-    return store.refundOrder(id, body?.refundReason || '')
+    return store.refundOrder(id, body?.reason || body?.refundReason || '')
   }
 
   const order = await prisma.order.findUnique({ where: { id } })
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     where: { id },
     data: {
       status: 'REFUNDING',
-      refundReason: body?.refundReason || null,
+      refundReason: body?.reason || body?.refundReason || null,
     },
   })
 
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
     data: {
       type: 'REFUND_APPROVAL',
       title: `退款审批: ${order.orderNo}`,
-      description: body?.refundReason || null,
+      description: body?.reason || body?.refundReason || null,
       priority: 'P1',
       status: 'PENDING',
       assigneeId: 1,
