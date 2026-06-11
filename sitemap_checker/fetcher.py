@@ -96,7 +96,6 @@ class AsyncFetcher:
         assert self._client is not None, "Fetcher not initialized"
 
         async with self._semaphore:
-            await self.rate_limiter.acquire()
             return await self._do_fetch(url, use_head=use_head, allow_partial=allow_partial)
 
     async def _do_fetch(
@@ -116,6 +115,7 @@ class AsyncFetcher:
         response = None
 
         for _hop in range(max_hops):
+            await self.rate_limiter.acquire()
             try:
                 async for _ in AsyncRetrying(
                     stop=stop_after_attempt(max(1, self.config.retries + 1)),
