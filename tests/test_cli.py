@@ -104,8 +104,13 @@ class TestCLIExecution:
         rc = main(["--schema", schema, "--strict", "-f", "json", csv_file])
         captured = capsys.readouterr()
         data = json.loads(captured.out)
+        assert rc == ExitCode.VALIDATION_ERRORS
+        assert data["valid"] is False
         codes = {i["code"] for i in data["issues"]}
-        assert "UNKNOWN_COLUMN" in codes or rc == ExitCode.VALIDATION_ERRORS
+        assert "UNKNOWN_COLUMN" in codes
+        unknown_issues = [i for i in data["issues"] if i["code"] == "UNKNOWN_COLUMN"]
+        assert len(unknown_issues) > 0
+        assert all(i["severity"] == "error" for i in unknown_issues)
 
     def test_fix_preview_in_report(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
@@ -132,9 +137,49 @@ class TestCLIExecution:
         assert rc == ExitCode.SUCCESS
 
     def test_version_flag(self, capsys):
-        with pytest.raises(SystemExit) as exc:
-            main(["--version"])
-        assert exc.value.code == 0
+        rc = main(["--version"])
+        assert rc == ExitCode.SUCCESS
+        captured = capsys.readouterr()
+        assert "csv-validator" in captured.out
+
+    def test_missing_schema_arg_returns_cli_error(self, capsys):
+        rc = main(["data.csv"])
+        assert rc == ExitCode.CLI_ERROR
+        captured = capsys.readouterr()
+        assert "错误" in captured.err
+
+    def test_invalid_format_arg_returns_cli_error(self, capsys):
+        schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
+        rc = main(["--schema", schema, "-f", "xml", "data.csv"])
+        assert rc == ExitCode.CLI_ERROR
+
+    def test_argparse_error_json_output(self, capsys):
+        schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
+        rc = main(["--schema", schema, "-f", "json", "--format", "xml", "data.csv"])
+        assert rc == ExitCode.CLI_ERROR
+        captured = capsys.readouterr()
+        err = json.loads(captured.err)
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
+        assert "error_type" in err
+        assert "message" in err
+
+    def test_argparse_error_with_report_flag_json_output(self, capsys):
+        rc = main(["--report", "out.json", "--format", "xml", "data.csv"])
+        assert rc == ExitCode.CLI_ERROR
+        captured = capsys.readouterr()
+        err = json.loads(captured.err)
+        assert err["exit_code"] == ExitCode.CLI_ERROR
+
+    def test_detect_output_format_helper(self):
+        from csv_validator.cli import _detect_output_format
+        assert _detect_output_format(["-f", "json", "data.csv"]) == "json"
+        assert _detect_output_format(["--format", "csv", "data.csv"]) == "csv"
+        assert _detect_output_format(["--format=markdown", "data.csv"]) == "markdown"
+        assert _detect_output_format(["--report", "out.json", "data.csv"]) == "json"
+        assert _detect_output_format(["--report=out.json", "data.csv"]) == "json"
+        assert _detect_output_format(["data.csv"]) == "human"
+        assert _detect_output_format(["-f"]) == "human"
 
     def test_quiet_mode_on_success(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
@@ -143,3 +188,35 @@ class TestCLIExecution:
         captured = capsys.readouterr()
         assert captured.out == ""
         assert rc == ExitCode.SUCCESS
+
+    def test_strict_mode_with_unknown_column_only(self, capsys):
+        schema_dict = {
+            "fields": [
+                {"name": "id", "type": "integer", "required": True},
+                {"name": "name", "type": "string"},
+            ]
+        }
+        import tempfile
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as sfp:
+            json.dump(schema_dict, sfp)
+            schema_path = sfp.name
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False, encoding="utf-8"
+        ) as cfp:
+            cfp.write("id,name,extra_col\n1,Alice,foo\n")
+            csv_path = cfp.name
+        try:
+            rc = main(["--schema", schema_path, "--strict", "-f", "json", csv_path])
+            assert rc == ExitCode.VALIDATION_ERRORS
+            captured = capsys.readouterr()
+            data = json.loads(captured.out)
+            assert data["valid"] is False
+            assert data["error_count"] == 1
+            assert data["warning_count"] == 0
+            assert data["issues"][0]["code"] == "UNKNOWN_COLUMN"
+            assert data["issues"][0]["severity"] == "error"
+        finally:
+            os.unlink(schema_path)
+            os.unlink(csv_path)

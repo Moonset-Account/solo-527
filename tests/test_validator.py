@@ -4,7 +4,7 @@ import io
 
 import pytest
 
-from csv_validator.errors import ValidationErrorCode
+from csv_validator.errors import ValidationErrorCode, ValidationSeverity
 from csv_validator.schema import Schema, SchemaLoader
 from csv_validator.validator import CSVValidator
 
@@ -50,6 +50,20 @@ class TestHeaderValidation:
         result = v.validate_string(csv_data)
         codes = [i.code for i in result.issues]
         assert ValidationErrorCode.UNKNOWN_COLUMN in codes
+        assert result.valid is False
+
+    def test_unknown_column_strict_is_error_severity(self):
+        v = _make_validator(strict=True)
+        csv_data = "id,name,extra_col\n1,Alice,foo\n"
+        result = v.validate_string(csv_data)
+        unknown_issues = [
+            i for i in result.issues
+            if i.code == ValidationErrorCode.UNKNOWN_COLUMN
+        ]
+        assert len(unknown_issues) == 1
+        assert unknown_issues[0].severity == ValidationSeverity.ERROR
+        assert result.error_count == 1
+        assert result.warning_count == 0
 
     def test_strict_from_cli_overrides_schema(self):
         schema = SchemaLoader.from_dict({**SIMPLE_SCHEMA_DICT, "strict": False})
@@ -57,6 +71,7 @@ class TestHeaderValidation:
         csv_data = "id,name,extra\n1,Alice,x\n"
         result = v.validate_string(csv_data)
         assert ValidationErrorCode.UNKNOWN_COLUMN in [i.code for i in result.issues]
+        assert result.valid is False
 
     def test_empty_file(self):
         v = _make_validator()

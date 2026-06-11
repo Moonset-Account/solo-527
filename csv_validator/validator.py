@@ -183,7 +183,7 @@ class CSVValidator:
                             f"严格模式下不允许未知列。请移除该列，"
                             f"或在Schema中添加字段 '{col_name}' 的定义"
                         ),
-                        severity=ValidationSeverity.WARNING,
+                        severity=ValidationSeverity.ERROR,
                     ))
 
         return issues

@@ -28,9 +28,35 @@ from csv_validator.schema import Schema, SchemaLoader
 from csv_validator.validator import CSVValidator
 
 
-def build_parser() -> argparse.ArgumentParser:
+class ArgumentParserError(Exception):
+    """自定义参数解析错误异常，携带完整错误消息。"""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+
+class _CustomArgumentParser(argparse.ArgumentParser):
+    """自定义ArgumentParser，不直接输出到stderr或调用exit。
+
+    标准argparse在出错时会输出usage信息到stderr然后调用sys.exit，
+    这会污染我们的机器可读JSON输出。通过自定义error方法，
+    我们抛出一个携带完整错误消息的异常，由上层统一处理。
+    """
+
+    def error(self, message: str):
+        raise ArgumentParserError(message)
+
+    def print_help(self, file=None):
+        raise SystemExit(0)
+
+    def print_usage(self, file=None):
+        raise SystemExit(0)
+
+
+def build_parser() -> _CustomArgumentParser:
     """构建命令行参数解析器。"""
-    parser = argparse.ArgumentParser(
+    parser = _CustomArgumentParser(
         prog="csv-validator",
         description="CSV数据导入校验器 - 基于Schema的结构化数据校验工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -205,6 +231,24 @@ def run_validation(
     return schema, result
 
 
+def _detect_output_format(argv: Optional[Sequence[str]]) -> str:
+    """从原始argv中检测输出格式，用于argparse错误时的机器可读输出。
+
+    当argparse本身解析失败时，我们无法从args对象获取format参数，
+    因此需要直接从命令行参数中检测。
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+    for i, arg in enumerate(argv):
+        if arg in ("-f", "--format") and i + 1 < len(argv):
+            return argv[i + 1]
+        if arg.startswith("--format="):
+            return arg.split("=", 1)[1]
+        if arg == "--report" or arg.startswith("--report="):
+            return "json"
+    return "human"
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """CLI主入口函数。
 
@@ -212,7 +256,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         退出码，见 ExitCode
     """
     parser = build_parser()
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as e:
+        code = e.code if e.code is not None else 0
+        if code == 0:
+            return ExitCode.SUCCESS
+        return ExitCode.CLI_ERROR
+    except ArgumentParserError as e:
+        output_format = _detect_output_format(argv)
+        err_msg = e.message
+        if output_format == "json":
+            err = json.dumps({
+                "status": "error",
+                "error_type": "ArgumentError",
+                "message": err_msg,
+                "exit_code": ExitCode.CLI_ERROR,
+            }, ensure_ascii=False, indent=2)
+            print(err, file=sys.stderr)
+        else:
+            print(f"错误: {err_msg}", file=sys.stderr)
+        return ExitCode.CLI_ERROR
 
     output_format = args.format
     output_path = args.output
