@@ -921,3 +921,273 @@ fn test_rollback_hardlink_unlinks_output_safely() {
         "original must remain untouched through entire cycle"
     );
 }
+
+#[test]
+fn test_stdin_json_files_format_success() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    create_test_image(input_dir.path(), "a.png", 50, 50);
+    create_test_image(input_dir.path(), "b.png", 60, 60);
+
+    let a_path = input_dir.path().join("a.png");
+    let b_path = input_dir.path().join("b.png");
+
+    let json_input = format!(
+        r#"{{"files": ["{}", "{}"]}}"#,
+        a_path.display(),
+        b_path.display()
+    );
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--jpeg")
+        .arg("--format")
+        .arg("json")
+        .write_stdin(json_input)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(2));
+    assert_eq!(json["total_failed"].as_u64(), Some(0));
+
+    let out_files: Vec<_> = fs::read_dir(output_dir.path())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e == "jpg")
+                .unwrap_or(false)
+        })
+        .collect();
+    assert_eq!(out_files.len(), 2);
+}
+
+#[test]
+fn test_stdin_json_array_format_success() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    create_test_image(input_dir.path(), "a.png", 50, 50);
+    let a_path = input_dir.path().join("a.png");
+
+    let json_input = format!(r#"["{}"]"#, a_path.display());
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--png")
+        .arg("--format")
+        .arg("json")
+        .write_stdin(json_input)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(1));
+    assert!(output_dir.path().join("a.png").exists());
+}
+
+#[test]
+fn test_stdin_plain_text_lines() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    create_test_image(input_dir.path(), "x.png", 50, 50);
+    create_test_image(input_dir.path(), "y.png", 50, 50);
+    let x_path = input_dir.path().join("x.png");
+    let y_path = input_dir.path().join("y.png");
+
+    let text_input = format!("{}\n{}\n", x_path.display(), y_path.display());
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--webp")
+        .arg("--format")
+        .arg("json")
+        .write_stdin(text_input)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(2));
+    assert_eq!(json["total_skipped"].as_u64(), Some(0));
+}
+
+#[test]
+fn test_stdin_invalid_json_is_not_treated_as_path() {
+    let output_dir = TempDir::new().unwrap();
+
+    let bad_json = r#"{"files": [ "unterminated string }"#;
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--format")
+        .arg("json")
+        .write_stdin(bad_json)
+        .assert()
+        .code(predicate::eq(0))
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(0));
+    assert_eq!(json["total_failed"].as_u64(), Some(0));
+    assert!(json["total_skipped"].as_u64().unwrap() >= 1);
+
+    let skipped = json["skipped"].as_array().unwrap();
+    let has_invalid_json = skipped.iter().any(|s| {
+        s["reason"]
+            .as_str()
+            .map(|r| r.contains("invalid JSON"))
+            .unwrap_or(false)
+    });
+    assert!(has_invalid_json, "should have invalid JSON entry in skipped");
+
+    let out_files: Vec<_> = fs::read_dir(output_dir.path()).unwrap().filter_map(|e| e.ok()).collect();
+    assert!(
+        out_files.is_empty() || (out_files.len() == 1 && out_files[0].file_name().to_str().unwrap() == "imgproc_rollback.json"),
+        "must not create a file named after the JSON blob"
+    );
+}
+
+#[test]
+fn test_stdin_mixed_valid_invalid_paths() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    create_test_image(input_dir.path(), "good.png", 50, 50);
+    let good_path = input_dir.path().join("good.png");
+    let missing_path = input_dir.path().join("does_not_exist.png");
+
+    let json_input = format!(
+        r#"{{"files": ["{}", "{}"]}}"#,
+        good_path.display(),
+        missing_path.display()
+    );
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--png")
+        .arg("--format")
+        .arg("json")
+        .write_stdin(json_input)
+        .assert()
+        .code(predicate::eq(0))
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(1));
+    assert!(json["total_skipped"].as_u64().unwrap() >= 1);
+
+    let skipped = json["skipped"].as_array().unwrap();
+    let has_missing = skipped.iter().any(|s| {
+        s["reason"]
+            .as_str()
+            .map(|r| r == "file not found")
+            .unwrap_or(false)
+    });
+    assert!(has_missing, "should have 'file not found' in skipped");
+
+    assert!(output_dir.path().join("good.png").exists());
+}
+
+#[test]
+fn test_stdin_non_image_file_skipped() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    let txt_path = input_dir.path().join("notes.txt");
+    fs::write(&txt_path, b"hello").unwrap();
+
+    let json_input = format!(r#"["{}"]"#, txt_path.display());
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--format")
+        .arg("json")
+        .write_stdin(json_input)
+        .assert()
+        .code(predicate::eq(0))
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(0));
+    assert_eq!(json["total_skipped"].as_u64(), Some(1));
+
+    let skipped = json["skipped"].as_array().unwrap();
+    assert!(skipped[0]["reason"]
+        .as_str()
+        .map(|r| r.contains("unsupported format") || r.contains("no image"))
+        .unwrap_or(false));
+}
+
+#[test]
+fn test_stdin_json_filter_extension() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    create_test_image(input_dir.path(), "a.png", 50, 50);
+    create_test_image(input_dir.path(), "b.jpg", 50, 50);
+
+    let a_path = input_dir.path().join("a.png");
+    let b_path = input_dir.path().join("b.jpg");
+
+    let json_input = format!(r#"["{}", "{}"]"#, a_path.display(), b_path.display());
+
+    let output = imgproc_bin()
+        .arg("-")
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--filter")
+        .arg("png")
+        .arg("--format")
+        .arg("json")
+        .write_stdin(json_input)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total_success"].as_u64(), Some(1));
+    assert!(json["total_skipped"].as_u64().unwrap() >= 1);
+
+    let skipped = json["skipped"].as_array().unwrap();
+    let has_filtered = skipped.iter().any(|s| {
+        s["reason"]
+            .as_str()
+            .map(|r| r == "filtered out")
+            .unwrap_or(false)
+    });
+    assert!(has_filtered, "jpg should be filtered out");
+}

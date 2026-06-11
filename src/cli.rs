@@ -9,15 +9,20 @@ use clap::Parser;
         Supports PNG, JPEG, WebP formats with quality control, resize,\n\
         format conversion, and rollback capability.\n\n\
         Exit codes:\n  0 — success\n  1 — partial failure (some files failed)\n  2 — fatal error\n\n\
+        Stdin input formats (use '-' as input path):\n  \
+        JSON object:  {\"files\": [\"a.png\", \"b.jpg\"]}\n  \
+        JSON array:   [\"a.png\", \"b.jpg\"]\n  \
+        Plain text:   one file path per line\n\n\
         Examples:\n  \
         imgproc ./images --quality 80 --width 1920\n  \
         imgproc ./assets --webp --out ./dist --format json\n  \
-        imgproc ./photos --dry-run --quality 75"
+        imgproc ./photos --dry-run --quality 75\n  \
+        find ./img -name '*.png' | imgproc - --out ./out"
 )]
 pub struct Cli {
     #[arg(
         index = 1,
-        help = "Input directory or file path (use '-' for stdin JSON list). Not required when using --undo"
+        help = "Input directory, file path, or '-' for stdin (JSON or plain text list). Not required when using --undo"
     )]
     pub input: Option<String>,
 
