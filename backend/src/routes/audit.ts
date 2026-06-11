@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db';
 import { auditLogs, attachments, notes, users } from '../db/schema';
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { authMiddleware, type Env } from '../middleware/auth';
 
 export const auditOrderChange = async (
@@ -16,7 +16,7 @@ export const auditOrderChange = async (
   note?: string
 ) => {
   await db.insert(auditLogs).values({
-    entityType: 'order' as any,
+    entityType: 'order',
     entityId: orderId,
     action,
     oldValue: oldValue,
@@ -37,7 +37,7 @@ export const auditRefundChange = async (
   note?: string
 ) => {
   await db.insert(auditLogs).values({
-    entityType: 'refund' as any,
+    entityType: 'refund',
     entityId: refundId,
     action,
     oldValue,
@@ -59,7 +59,7 @@ export const auditTicketTypeChange = async (
   note?: string
 ) => {
   await db.insert(auditLogs).values({
-    entityType: 'ticket_type' as any,
+    entityType: 'ticket_type',
     entityId: ticketTypeId,
     action,
     field,
@@ -73,27 +73,40 @@ export const auditTicketTypeChange = async (
 
 const app = new Hono<Env>();
 
+function buildAuditFilters(entityType?: string, entityId?: string) {
+  const conds: any[] = [];
+  if (entityType) conds.push(eq(auditLogs.entityType, entityType));
+  if (entityId) conds.push(eq(auditLogs.entityId, parseInt(entityId)));
+  return conds;
+}
+
 app.get('/logs', authMiddleware, async (c) => {
   const { entityType, entityId, page = '1', pageSize = '50' } = c.req.query();
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
+  const conds = buildAuditFilters(entityType, entityId);
 
-  let query: any = db.select().from(auditLogs);
-  if (entityType) query = query.where(eq(auditLogs.entityType, entityType as any));
-  if (entityId) query = query.where(eq(auditLogs.entityId, parseInt(entityId)));
+  const countQuery: any = db
+    .select({ count: sql<number>`COUNT(*)`.as('count') })
+    .from(auditLogs);
 
-  const [{ count }] = await db
-    .select({ count: z.coerce.number().parse(auditLogs.id) as any })
-    .from(query.as('base'));
-
-  const list = await query
+  const listQuery: any = db
+    .select()
+    .from(auditLogs)
     .orderBy(desc(auditLogs.createdAt))
     .limit(size)
     .offset((pageNum - 1) * size);
 
+  const totalResult = conds.length > 0
+    ? await countQuery.where(and(...conds))
+    : await countQuery;
+  const list = conds.length > 0
+    ? await listQuery.where(and(...conds))
+    : await listQuery;
+
   return c.json({
     list,
-    total: count,
+    total: Number(totalResult[0]?.count || 0),
     page: pageNum,
     pageSize: size,
   });
@@ -101,13 +114,16 @@ app.get('/logs', authMiddleware, async (c) => {
 
 app.get('/logs/count', authMiddleware, async (c) => {
   const { entityType, entityId } = c.req.query();
+  const conds = buildAuditFilters(entityType, entityId);
+
   let query: any = db
-    .select({ count: z.coerce.number().parse(auditLogs.id) as any })
+    .select({ count: sql<number>`COUNT(*)`.as('count') })
     .from(auditLogs);
-  if (entityType) query = query.where(eq(auditLogs.entityType, entityType as any));
-  if (entityId) query = query.where(eq(auditLogs.entityId, parseInt(entityId)));
+
+  if (conds.length > 0) query = query.where(and(...conds));
+
   const [result] = await query;
-  return c.json({ count: result.count });
+  return c.json({ count: Number(result?.count || 0) });
 });
 
 app.post('/attachments', authMiddleware,
@@ -125,7 +141,13 @@ app.post('/attachments', authMiddleware,
     const data = c.req.valid('json');
 
     const [att] = await db.insert(attachments).values({
-      ...data,
+      entityType: data.entityType,
+      entityId: data.entityId,
+      fileName: data.fileName,
+      originalName: data.originalName,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
+      fileUrl: data.fileUrl,
       uploadedBy: user.userId,
     } as any).returning();
 
@@ -135,6 +157,9 @@ app.post('/attachments', authMiddleware,
 
 app.get('/attachments', authMiddleware, async (c) => {
   const { entityType, entityId } = c.req.query();
+  const conds: any[] = [];
+  if (entityType) conds.push(eq(attachments.entityType, entityType));
+  if (entityId) conds.push(eq(attachments.entityId, parseInt(entityId)));
 
   let query: any = db
     .select({
@@ -148,14 +173,29 @@ app.get('/attachments', authMiddleware, async (c) => {
       fileUrl: attachments.fileUrl,
       createdAt: attachments.createdAt,
       uploadedBy: attachments.uploadedBy,
-      uploadedByName: sql<string>`(SELECT ${users.fullName} FROM ${users} WHERE ${users.id} = ${attachments.uploadedBy})`.as('uploaded_by_name'),
     })
     .from(attachments);
 
-  if (entityType) query = query.where(eq(attachments.entityType, entityType as any));
-  if (entityId) query = query.where(eq(attachments.entityId, parseInt(entityId)));
+  if (conds.length > 0) query = query.where(and(...conds));
 
-  const list = await query.orderBy(desc(attachments.createdAt));
+  const rows = await query.orderBy(desc(attachments.createdAt));
+
+  const userIdsSet = new Set<number>();
+  (rows as any[]).forEach((r) => { if (r.uploadedBy) userIdsSet.add(r.uploadedBy); });
+  const uploadedByUserIds = Array.from(userIdsSet);
+  const userMap: Record<number, string> = {};
+  if (uploadedByUserIds.length > 0) {
+    const userRows = await db.select({ id: users.id, fullName: users.fullName })
+      .from(users)
+      .where(inArray(users.id, uploadedByUserIds) as any);
+    userRows.forEach((u: any) => { userMap[u.id] = u.fullName; });
+  }
+
+  const list = (rows as any[]).map((r) => ({
+    ...r,
+    uploadedByName: userMap[r.uploadedBy] || '未知用户',
+  }));
+
   return c.json(list);
 });
 
@@ -186,7 +226,7 @@ app.post('/notes', authMiddleware,
     const data = c.req.valid('json');
 
     const [note] = await db.insert(notes).values({
-      entityType: data.entityType as any,
+      entityType: data.entityType,
       entityId: data.entityId,
       content: data.content,
       isPrivate: data.isPrivate,
@@ -202,22 +242,18 @@ app.get('/notes', authMiddleware, async (c) => {
   const user = c.get('user')!;
   const { entityType, entityId, includePrivate = 'false' } = c.req.query();
 
-  let query: any = db.select().from(notes);
-  const conditions: any[] = [];
-
-  if (entityType) conditions.push(eq(notes.entityType, entityType as any));
-  if (entityId) conditions.push(eq(notes.entityId, parseInt(entityId)));
+  const conds: any[] = [];
+  if (entityType) conds.push(eq(notes.entityType, entityType));
+  if (entityId) conds.push(eq(notes.entityId, parseInt(entityId)));
 
   if ((user as any).role === 'audience' || includePrivate === 'false') {
-    conditions.push(eq(notes.isPrivate, false));
-  } else if ((user as any).role !== 'audience' && includePrivate === 'true') {
+    conds.push(eq(notes.isPrivate, false));
   }
 
-  if (conditions.length > 0) {
-    query = query.where(and(...conditions));
-  }
+  let query: any = db.select().from(notes).orderBy(desc(notes.createdAt));
+  if (conds.length > 0) query = query.where(and(...conds));
 
-  const list = await query.orderBy(desc(notes.createdAt));
+  const list = await query;
   return c.json(list);
 });
 
