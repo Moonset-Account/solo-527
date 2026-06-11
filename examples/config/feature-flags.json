@@ -1,0 +1,115 @@
+{
+  "environments": {
+    "production": {
+      "payment": {
+        "new_checkout_flow": {
+          "value": true,
+          "owner": "alice@example.com",
+          "description": "新结账流程开关",
+          "updatedAt": "2026-06-05T10:00:00Z",
+          "updatedBy": "release-bot"
+        }
+      },
+      "ui": {
+        "dark_mode_enabled": {
+          "value": false,
+          "owner": "bob@example.com",
+          "updatedAt": "2026-05-20T14:30:00Z"
+        }
+      },
+      "recommender": {
+        "legacy_algorithm": {
+          "value": true,
+          "owner": "charlie@example.com",
+          "deprecated": true,
+          "deprecatedReason": "迁移到新的推荐系统",
+          "updatedAt": "2026-03-15T09:00:00Z"
+        }
+      },
+      "user": {
+        "onboarding_v2": {
+          "value": "variant_b",
+          "owner": "alice@example.com",
+          "updatedAt": "2026-06-01T08:00:00Z"
+        }
+      },
+      "features": {
+        "beta_access": {
+          "value": true,
+          "owner": "diana@example.com",
+          "updatedAt": "2026-06-08T12:00:00Z"
+        }
+      },
+      "cache": {
+        "strategy_version": {
+          "value": 2,
+          "owner": "bob@example.com",
+          "updatedAt": "2026-06-09T16:00:00Z"
+        }
+      },
+      "logging": {
+        "verbose": {
+          "value": true,
+          "owner": "bob@example.com",
+          "updatedAt": "2026-06-10T11:00:00Z"
+        }
+      }
+    },
+    "staging": {
+      "payment": {
+        "new_checkout_flow": {
+          "value": true,
+          "owner": "alice@example.com",
+          "updatedAt": "2026-06-04T10:00:00Z"
+        }
+      },
+      "ui": {
+        "dark_mode_enabled": {
+          "value": true,
+          "owner": "bob@example.com",
+          "updatedAt": "2026-06-01T14:30:00Z"
+        }
+      },
+      "recommender": {
+        "legacy_algorithm": {
+          "value": true,
+          "owner": "charlie@example.com",
+          "deprecated": true,
+          "updatedAt": "2026-03-15T09:00:00Z"
+        }
+      },
+      "user": {
+        "onboarding_v2": {
+          "value": "variant_a",
+          "owner": "alice@example.com",
+          "updatedAt": "2026-05-28T08:00:00Z"
+        }
+      },
+      "features": {
+        "beta_access": {
+          "value": true,
+          "owner": "diana@example.com",
+          "updatedAt": "2026-06-01T12:00:00Z"
+        }
+      },
+      "cache": {
+        "strategy_version": {
+          "value": 3,
+          "owner": "bob@example.com",
+          "updatedAt": "2026-06-07T16:00:00Z"
+        }
+      }
+    },
+    "development": {
+      "payment.new_checkout_flow": false,
+      "ui.dark_mode_enabled": true,
+      "features.beta_access": true,
+      "cache.strategy_version": 3,
+      "experimental.new_feature": {
+        "value": true,
+        "owner": "diana@example.com",
+        "description": "实验性功能，暂未在生产使用"
+      }
+    }
+  }
+}

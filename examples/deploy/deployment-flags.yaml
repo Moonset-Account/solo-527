@@ -1,0 +1,44 @@
+environments:
+  production:
+    clusters:
+      cluster-a:
+        payment.new_checkout_flow:
+          value: true
+          lastModified: "2026-06-06T08:00:00Z"
+        ui.dark_mode_enabled:
+          value: false
+        recommender.legacy_algorithm:
+          value: true
+          lastModified: "2026-03-20T10:00:00Z"
+        user.onboarding_v2:
+          value: "variant_b"
+        features.beta_access:
+          value: true
+        cache.strategy_version:
+          value: "2"
+        logging.verbose:
+          value: false
+      cluster-b:
+        payment.new_checkout_flow:
+          value: true
+        ui.dark_mode_enabled:
+          value: false
+        user.onboarding_v2:
+          value: "variant_b"
+        features.beta_access:
+          value: false
+        cache.strategy_version:
+          value: 2
+  staging:
+    payment.new_checkout_flow:
+      value: true
+    ui.dark_mode_enabled:
+      value: true
+    recommender.legacy_algorithm:
+      value: true
+    user.onboarding_v2:
+      value: "variant_a"
+    features.beta_access:
+      value: true
+    cache.strategy_version:
+      value: 3

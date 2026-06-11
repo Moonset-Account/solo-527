@@ -1,0 +1,45 @@
+{
+  "defaultOwner": "platform-team@example.com",
+  "owners": [
+    {
+      "pattern": "payment.*",
+      "owner": "alice@example.com",
+      "description": "支付模块负责人"
+    },
+    {
+      "pattern": "ui.*",
+      "owner": "bob@example.com",
+      "description": "UI 模块负责人"
+    },
+    {
+      "pattern": "recommender.*",
+      "owner": "charlie@example.com",
+      "description": "推荐系统负责人"
+    },
+    {
+      "pattern": "user.*",
+      "owner": "alice@example.com",
+      "description": "用户模块负责人"
+    },
+    {
+      "pattern": "features.*",
+      "owner": "diana@example.com",
+      "description": "特性管理负责人"
+    },
+    {
+      "pattern": "cache.*",
+      "owner": "bob@example.com",
+      "description": "缓存策略负责人"
+    },
+    {
+      "pattern": "logging.*",
+      "owner": "bob@example.com",
+      "description": "日志配置负责人"
+    },
+    {
+      "pattern": "experimental.*",
+      "owner": "diana@example.com",
+      "description": "实验性功能负责人"
+    }
+  ]
+}
