@@ -1,0 +1,12 @@
+{
+  "input_paths": ["./testdata"],
+  "since": "24h",
+  "services": ["api-gateway", "user-service", "payment-service"],
+  "levels": ["error", "warn", "fatal"],
+  "environment": "production",
+  "top_n": 10,
+  "context_lines": 3,
+  "min_cluster_size": 1,
+  "color": true,
+  "verbose": false
+}
