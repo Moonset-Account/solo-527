@@ -147,7 +147,7 @@ def _run_analysis(
                         current_dir=scan_progress.current_dir[-60:],
                     )
 
-            scan_progress = ScanProgress()
+            scan_progress.update_callback = update_progress
             result = analyzer.analyze(scan_progress)
 
             progress.update(task_id, completed=100, current_dir="完成")

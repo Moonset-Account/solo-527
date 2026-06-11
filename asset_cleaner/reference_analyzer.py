@@ -186,13 +186,13 @@ class ReferenceAnalyzer:
         dynamic_refs: Dict[str, DynamicReferenceInfo] = {}
 
         total = len(files)
-        progress.total_files = max(progress.total_files, total)
+        progress.set_total(total)
 
-        for i, file_path in enumerate(files, 1):
-            progress.current_dir = os.path.dirname(file_path)
-            result = self.scanner.scan_file(file_path, progress)
+        for file_path in files:
+            progress.set_current_dir(os.path.dirname(file_path))
+            result = self.scanner.scan_file(file_path)
             results.append(result)
-            progress.processed_files += 1
+            progress.increment()
 
             if result.has_dynamic:
                 dyn_info = DynamicReferenceInfo(

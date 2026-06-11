@@ -12,7 +12,6 @@ from .path_utils import (
     normalize_relative,
     is_image_file,
     IMAGE_EXTENSIONS,
-    ScanProgress,
 )
 
 
@@ -137,7 +136,6 @@ class ContentScanner:
     def scan_file(
         self,
         file_path: str | os.PathLike,
-        progress: Optional[ScanProgress] = None,
     ) -> ScanResult:
         """扫描单个文件"""
         abs_path = normalize_path(file_path)
@@ -150,9 +148,6 @@ class ContentScanner:
                 self._scan_text_file(abs_path, result)
         except (OSError, UnicodeDecodeError) as e:
             result.errors.append(f"无法读取文件: {str(e)}")
-
-        if progress:
-            progress.increment()
 
         return result
 

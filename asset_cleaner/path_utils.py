@@ -3,7 +3,7 @@
 import os
 import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Iterator, Optional, Tuple, List, Set
+from typing import Iterator, Optional, Tuple, List, Set, Callable
 from dataclasses import dataclass, field
 
 
@@ -37,9 +37,23 @@ class ScanProgress:
     current_dir: str = ""
     skipped_files: List[Tuple[str, str]] = field(default_factory=list)
     symlink_loops: List[Tuple[str, str]] = field(default_factory=list)
+    update_callback: Optional[Callable[[], None]] = None
+
+    def _notify(self):
+        if self.update_callback:
+            self.update_callback()
 
     def increment(self):
         self.processed_files += 1
+        self._notify()
+
+    def set_current_dir(self, path: str):
+        self.current_dir = path
+        self._notify()
+
+    def set_total(self, total: int):
+        self.total_files = max(self.total_files, total)
+        self._notify()
 
     def add_skipped(self, path: str, reason: str):
         self.skipped_files.append((path, reason))
@@ -162,7 +176,7 @@ def safe_walk(
                     return
 
             visited.add(real_key)
-            progress.current_dir = str(current)
+            progress.set_current_dir(str(current))
 
             if not current.is_dir():
                 return
