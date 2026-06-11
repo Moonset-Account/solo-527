@@ -167,6 +167,10 @@ class WaitingList < ApplicationRecord
       log_notification_sent(notification, rule)
     end
 
+    if deadline && deadline > Time.current
+      WaitingListConfirmationTimeoutJob.set(wait_until: deadline).perform_later(id)
+    end
+
     { notification: notification, deadline: deadline }
   end
 

@@ -164,6 +164,48 @@
     <p style="color:#909399; padding:12px 0;">该预约非候补转化，无候补变化记录</p>
   <% end %>
 
+  <div class="section-title">候补通知历史</div>
+  <% if defined?(@waiting_notifications) && @waiting_notifications.any? %>
+    <div class="timeline">
+      <% @waiting_notifications.each do |n| %>
+        <div class="timeline-item">
+          <div class="timeline-time">
+            <% if n[:sent_at] %>
+              <%= n[:sent_at].strftime("%Y-%m-%d %H:%M:%S") %>
+            <% else %>
+              待发送
+            <% end %>
+            <span class="tag tag-<%= n[:status] == 'sent' ? 'green' : n[:status] == 'failed' ? 'red' : 'blue' %>">
+              <%= n[:status] == 'sent' ? '已发送' : n[:status] == 'failed' ? '失败' : '待发送' %>
+            </span>
+          </div>
+          <div class="timeline-content">
+            <div style="margin-bottom:4px;">
+              <strong>
+                <% case n[:type] %>
+                <% when "release" %>空位释放通知
+                <% when "reminder" %>候补提醒
+                <% when "expiration" %>过期通知
+                <% else %><%= n[:type] %>
+                <% end %>
+              </strong>
+              via <%= n[:channel] == 'sms' ? '短信' : '微信' %>
+              → <%= n[:recipient] %>
+            </div>
+            <div style="font-size:13px; color:#606266; background:#f5f7fa; padding:8px; border-radius:4px;">
+              <%= n[:content] %>
+            </div>
+            <% if n[:error].present? %>
+              <div style="font-size:12px; color:#f56c6c; margin-top:4px;">错误: <%= n[:error] %></div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">该预约无候补通知记录</p>
+  <% end %>
+
   <div class="section-title">操作</div>
   <div class="actions">
     <% if @appointment.may_confirm_appointment? %>

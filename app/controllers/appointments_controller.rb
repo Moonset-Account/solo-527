@@ -21,6 +21,7 @@ class AppointmentsController < ApplicationController
     @refund_records = @appointment.refund_records
     @service_items = @appointment.appointment_service_items.includes(:service_item)
     @waiting_history = @appointment.waiting_list&.before_after_snapshots || []
+    @waiting_notifications = @appointment.waiting_list&.notification_history || []
   end
 
   def new
