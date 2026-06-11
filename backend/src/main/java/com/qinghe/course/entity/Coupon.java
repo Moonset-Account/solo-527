@@ -2,6 +2,8 @@ package com.qinghe.course.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -31,7 +33,7 @@ public class Coupon {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
-    @JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
+    @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(columnDefinition = "bigint[]")
     private List<Long> courseIds;
 

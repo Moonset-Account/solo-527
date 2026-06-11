@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- **后端**: Spring Boot 3.x + Java 17 + Spring Data JPA + Spring Security + JWT
+- **后端**: Spring Boot 3.4 + Java 21 + Spring Data JPA + Spring Security + JWT
 - **前端**: React 18 + Ant Design 5 + TypeScript + Vite + Zustand
 - **数据库**: PostgreSQL 16
 - **缓存**: Redis 7
