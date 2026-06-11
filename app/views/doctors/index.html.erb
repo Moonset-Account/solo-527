@@ -1,0 +1,47 @@
+<% content_for :title, "医生管理" %>
+
+<div class="card">
+  <div class="card-header">
+    医生列表
+    <%= link_to "新建医生", new_doctor_path, class: "btn btn-primary", style: "float:right;" %>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>姓名</th>
+        <th>职称</th>
+        <th>科室</th>
+        <th>联系电话</th>
+        <th>日最大接诊量</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @doctors.each do |doctor| %>
+        <tr>
+          <td><%= link_to doctor.name, doctor_path(doctor) %></td>
+          <td><%= doctor.title %></td>
+          <td><%= doctor.department %></td>
+          <td><%= doctor.phone %></td>
+          <td><%= doctor.daily_max_patients %></td>
+          <td>
+            <% if doctor.active? %>
+              <span class="tag tag-green">在职</span>
+            <% else %>
+              <span class="tag tag-gray">停用</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <%= link_to "详情", doctor_path(doctor), class: "btn btn-sm btn-default" %>
+            <%= link_to "编辑", edit_doctor_path(doctor), class: "btn btn-sm btn-default" %>
+            <%= link_to "时段", doctor_time_slots_path(doctor), class: "btn btn-sm btn-primary" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <div class="pagination">
+    <%= paginate @doctors %>
+  </div>
+</div>

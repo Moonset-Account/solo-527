@@ -1,0 +1,106 @@
+<% content_for :title, "候补详情 - #{@waiting_list.tracking_code}" %>
+
+<div class="card">
+  <div class="card-header">
+    候补详情
+    <span style="float:right;">
+      <% case @waiting_list.status %>
+      <% when "waiting" %><span class="tag tag-blue">候补中</span>
+      <% when "notified" %><span class="tag tag-orange">已通知</span>
+      <% when "confirmed" %><span class="tag tag-green">已确认</span>
+      <% when "converted" %><span class="tag tag-green">已转化</span>
+      <% when "cancelled" %><span class="tag tag-red">已取消</span>
+      <% when "expired" %><span class="tag tag-gray">已过期</span>
+      <% end %>
+      <% if @waiting_list.vip_priority? %><span class="tag tag-orange">VIP优先</span><% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">追踪码：</span>
+      <span class="detail-value"><%= @waiting_list.tracking_code %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">当前位置：</span>
+      <span class="detail-value">#<%= @waiting_list.position %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">客户姓名：</span>
+      <span class="detail-value"><%= link_to @waiting_list.customer.name, customer_path(@waiting_list.customer) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">联系电话：</span>
+      <span class="detail-value"><%= @waiting_list.contact_phone %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">目标医生：</span>
+      <span class="detail-value"><%= link_to @waiting_list.doctor.name, doctor_path(@waiting_list.doctor) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">目标时段：</span>
+      <span class="detail-value">
+        <% if @waiting_list.time_slot %>
+          <%= link_to @waiting_list.time_slot.start_time.strftime('%Y-%m-%d %H:%M'), time_slot_path(@waiting_list.time_slot) %>
+        <% else %>
+          不限时段
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">服务项目：</span>
+      <span class="detail-value"><%= @waiting_list.service_item&.name || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">加入时间：</span>
+      <span class="detail-value"><%= @waiting_list.joined_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">通知时间：</span>
+      <span class="detail-value"><%= @waiting_list.notified_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">关联预约：</span>
+      <span class="detail-value">
+        <% if @waiting_list.appointment %>
+          <%= link_to @waiting_list.appointment.appointment_no, appointment_path(@waiting_list.appointment) %>
+        <% else %>
+          -
+        <% end %>
+      </span>
+    </div>
+  </div>
+
+  <div class="section-title">变化日志</div>
+  <div class="timeline">
+    <% @change_logs.each do |log| %>
+      <div class="timeline-item">
+        <div class="timeline-time">
+          <%= log.changed_at.strftime("%Y-%m-%d %H:%M:%S") %>
+          <% if log.operator.present? %> | 操作人：<%= log.operator %><% end %>
+        </div>
+        <div class="timeline-content">
+          <strong><%= log.change_details %></strong>
+          <div style="margin-top:4px; font-size:12px; color:#909399;">
+            类型: <%= log.change_type %>
+            | 位置: <%= log.old_position || '-' %> → <%= log.new_position || '-' %>
+            | 状态: <%= log.old_status || '-' %> → <%= log.new_status || '-' %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="actions" style="margin-top:16px;">
+    <% if @waiting_list.may_convert? && @waiting_list.time_slot %>
+      <%= button_to "转化为预约", convert_to_appointment_waiting_list_path(@waiting_list),
+                    method: :post, class: "btn btn-success" %>
+    <% end %>
+    <% if @waiting_list.may_cancel_entry? %>
+      <%= button_to "取消候补", cancel_waiting_list_path(@waiting_list, reason: "客户取消"),
+                    method: :post, class: "btn btn-danger",
+                    data: { confirm: "确定要取消该候补吗？" } %>
+    <% end %>
+    <%= link_to "返回列表", waiting_lists_path, class: "btn btn-default" %>
+  </div>
+</div>

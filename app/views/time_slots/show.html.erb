@@ -1,0 +1,163 @@
+<% content_for :title, "时段详情 - #{@time_slot.start_time.strftime('%Y-%m-%d %H:%M')}" %>
+
+<div class="card">
+  <div class="card-header">
+    时段详情
+    <span style="float:right;">
+      <% case @time_slot.status %>
+      <% when "available" %><span class="tag tag-green">可预约</span>
+      <% when "full" %><span class="tag tag-orange">已满</span>
+      <% when "closed" %><span class="tag tag-gray">已关闭</span>
+      <% when "cancelled" %><span class="tag tag-red">已取消</span>
+      <% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">医生：</span>
+      <span class="detail-value"><%= link_to @doctor.name, doctor_path(@doctor) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">日期：</span>
+      <span class="detail-value"><%= @time_slot.start_time.strftime("%Y-%m-%d") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">开始时间：</span>
+      <span class="detail-value"><%= @time_slot.start_time.strftime("%H:%M") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">结束时间：</span>
+      <span class="detail-value"><%= @time_slot.end_time.strftime("%H:%M") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">总容量：</span>
+      <span class="detail-value"><%= @time_slot.capacity %> 人</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">已预约：</span>
+      <span class="detail-value"><%= @time_slot.booked_count %> 人</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">剩余名额：</span>
+      <span class="detail-value">
+        <% if @time_slot.available_spots > 0 %>
+          <span class="tag tag-green"><%= @time_slot.available_spots %></span>
+        <% else %>
+          <span class="tag tag-gray">0</span>
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">候补人数：</span>
+      <span class="detail-value">
+        <% if @time_slot.waiting_count > 0 %>
+          <span class="tag tag-orange"><%= @time_slot.waiting_count %></span>
+        <% else %>
+          <span class="tag tag-gray">0</span>
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间：</span>
+      <span class="detail-value"><%= @time_slot.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+
+  <% if @time_slot.notes.present? %>
+    <div class="section-title">备注</div>
+    <p style="color:#606266; font-size:14px;"><%= @time_slot.notes %></p>
+  <% end %>
+
+  <div class="section-title">已预约客户</div>
+  <% if @appointments.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>预约单号</th>
+          <th>客户姓名</th>
+          <th>联系电话</th>
+          <th>金额</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @appointments.each do |apt| %>
+          <tr>
+            <td><%= link_to apt.appointment_no, appointment_path(apt) %></td>
+            <td><%= link_to apt.customer.name, customer_path(apt.customer) %></td>
+            <td><%= apt.customer.phone %></td>
+            <td>¥<%= apt.total_amount %></td>
+            <td>
+              <% case apt.status %>
+              <% when "pending" %><span class="tag tag-orange">待确认</span>
+              <% when "confirmed" %><span class="tag tag-blue">已确认</span>
+              <% when "completed" %><span class="tag tag-green">已完成</span>
+              <% when "cancelled" %><span class="tag tag-gray">已取消</span>
+              <% when "no_show" %><span class="tag tag-red">爽约</span>
+              <% when "refunded" %><span class="tag tag-gray">已退款</span>
+              <% end %>
+            </td>
+            <td>
+              <%= link_to "详情", appointment_path(apt), class: "btn btn-sm btn-default" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">暂无预约客户</p>
+  <% end %>
+
+  <div class="section-title">当前候补队列</div>
+  <% if @waiting_lists.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>位置</th>
+          <th>追踪码</th>
+          <th>客户姓名</th>
+          <th>联系电话</th>
+          <th>服务项目</th>
+          <th>加入时间</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @waiting_lists.each do |wl| %>
+          <tr>
+            <td>#<%= wl.position %></td>
+            <td><%= link_to wl.tracking_code, waiting_list_path(wl) %></td>
+            <td><%= link_to wl.customer.name, customer_path(wl.customer) %></td>
+            <td><%= wl.contact_phone %></td>
+            <td><%= wl.service_item&.name || "-" %></td>
+            <td><%= wl.joined_at.strftime("%m-%d %H:%M") %></td>
+            <td>
+              <% case wl.status %>
+              <% when "waiting" %><span class="tag tag-blue">候补中</span>
+              <% when "notified" %><span class="tag tag-orange">已通知</span>
+              <% when "confirmed" %><span class="tag tag-green">已确认</span>
+              <% when "converted" %><span class="tag tag-green">已转化</span>
+              <% when "cancelled" %><span class="tag tag-red">已取消</span>
+              <% when "expired" %><span class="tag tag-gray">已过期</span>
+              <% end %>
+            </td>
+            <td>
+              <%= link_to "详情", waiting_list_path(wl), class: "btn btn-sm btn-default" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">暂无候补客户</p>
+  <% end %>
+
+  <div class="actions" style="margin-top:16px;">
+    <%= link_to "编辑", edit_time_slot_path(@time_slot), class: "btn btn-primary" %>
+    <%= link_to "返回时段列表", doctor_time_slots_path(@doctor, date: @time_slot.start_time.to_date), class: "btn btn-default" %>
+    <%= link_to "医生详情", doctor_path(@doctor), class: "btn btn-default" %>
+  </div>
+</div>

@@ -1,0 +1,182 @@
+<% content_for :title, "仪表盘" %>
+
+<div class="stats-grid">
+  <div class="stat-card" style="border-left-color:#409eff;">
+    <h3>今日预约</h3>
+    <div class="value"><%= @today_appointments.count %></div>
+  </div>
+  <div class="stat-card" style="border-left-color:#67c23a;">
+    <h3>今日候补入队</h3>
+    <div class="value"><%= @today_waiting_count %></div>
+  </div>
+  <div class="stat-card" style="border-left-color:#e6a23c;">
+    <h3>今日候补转化</h3>
+    <div class="value"><%= @today_converted_count %></div>
+  </div>
+  <div class="stat-card" style="border-left-color:#f56c6c;">
+    <h3>在岗医生</h3>
+    <div class="value"><%= @doctors.count %></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">快捷操作</div>
+  <div class="actions">
+    <%= link_to "新建预约", new_appointment_path, class: "btn btn-primary" %>
+    <%= link_to "加入候补", new_waiting_list_path, class: "btn btn-success" %>
+    <%= link_to "候补自动释放", auto_release_waiting_lists_path, class: "btn btn-warning", method: :get %>
+    <%= link_to "查看报表", admin_reports_export_details_path, class: "btn btn-default" %>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+  <div class="card">
+    <div class="card-header">今日时段概览</div>
+    <table>
+      <thead>
+        <tr>
+          <th>时段</th>
+          <th>医生</th>
+          <th>已预约</th>
+          <th>候替补</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @upcoming_slots.limit(15).each do |slot| %>
+          <tr>
+            <td><%= slot.start_time.strftime("%H:%M") %> - <%= slot.end_time.strftime("%H:%M") %></td>
+            <td><%= slot.doctor.name %></td>
+            <td><%= slot.booked_count %>/<%= slot.capacity %></td>
+            <td><%= slot.waiting_count %></td>
+            <td>
+              <% if slot.status == "available" %>
+                <span class="tag tag-green">可预约</span>
+              <% elsif slot.status == "full" %>
+                <span class="tag tag-orange">已满</span>
+              <% else %>
+                <span class="tag tag-gray"><%= slot.status %></span>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">医生负荷</div>
+    <table>
+      <thead>
+        <tr>
+          <th>医生</th>
+          <th>科室</th>
+          <th>今日预约</th>
+          <th>负荷率</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @doctors.each do |doctor| %>
+          <tr>
+            <td><%= doctor.name %></td>
+            <td><%= doctor.department %></td>
+            <td><%= doctor.daily_appointments_count %>/<%= doctor.daily_max_patients %></td>
+            <td>
+              <% ratio = doctor.daily_load_ratio %>
+              <% if ratio >= 90 %>
+                <span class="tag tag-red"><%= ratio %>%</span>
+              <% elsif ratio >= 70 %>
+                <span class="tag tag-orange"><%= ratio %>%</span>
+              <% else %>
+                <span class="tag tag-green"><%= ratio %>%</span>
+              <% end %>
+            </td>
+            <td>
+              <%= link_to "查看", doctor_path(doctor), class: "btn btn-sm btn-default" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+  <div class="card">
+    <div class="card-header">
+      最新候补队列
+      <%= link_to "全部", waiting_lists_path, class: "btn btn-sm btn-default", style: "float:right;" %>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>追踪码</th>
+          <th>客户</th>
+          <th>医生</th>
+          <th>位置</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_waiting_lists.each do |wl| %>
+          <tr>
+            <td><%= link_to wl.tracking_code[0..12], waiting_list_path(wl) %></td>
+            <td><%= wl.customer.name %></td>
+            <td><%= wl.doctor.name %></td>
+            <td>#<%= wl.position %></td>
+            <td>
+              <% case wl.status %>
+              <% when "waiting" %><span class="tag tag-blue">候补中</span>
+              <% when "notified" %><span class="tag tag-orange">已通知</span>
+              <% when "confirmed" %><span class="tag tag-green">已确认</span>
+              <% when "converted" %><span class="tag tag-green">已转化</span>
+              <% when "cancelled" %><span class="tag tag-red">已取消</span>
+              <% when "expired" %><span class="tag tag-gray">已过期</span>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      最新预约
+      <%= link_to "全部", appointments_path, class: "btn btn-sm btn-default", style: "float:right;" %>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>单号</th>
+          <th>客户</th>
+          <th>医生</th>
+          <th>金额</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_appointments.each do |apt| %>
+          <tr>
+            <td><%= link_to apt.appointment_no[0..12], appointment_path(apt) %></td>
+            <td><%= apt.customer.name %></td>
+            <td><%= apt.doctor.name %></td>
+            <td>¥<%= apt.total_amount %></td>
+            <td>
+              <% case apt.status %>
+              <% when "pending" %><span class="tag tag-orange">待确认</span>
+              <% when "confirmed" %><span class="tag tag-blue">已确认</span>
+              <% when "completed" %><span class="tag tag-green">已完成</span>
+              <% when "cancelled" %><span class="tag tag-gray">已取消</span>
+              <% when "no_show" %><span class="tag tag-red">爽约</span>
+              <% when "refunded" %><span class="tag tag-gray">已退款</span>
+              <% end %>
+              <% if apt.from_waiting_list? %><span class="tag tag-blue">候补</span><% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,58 @@
+<% content_for :title, "加入候补队列" %>
+
+<div class="card">
+  <div class="card-header">加入候补队列</div>
+  <%= form_with model: @waiting_list, local: true do |f| %>
+    <div class="form-row">
+      <div class="form-group">
+        <label>客户姓名 *</label>
+        <%= text_field_tag :customer_name, nil, class: "form-control", required: true, placeholder: "请输入客户姓名" %>
+      </div>
+      <div class="form-group">
+        <label>联系电话 *</label>
+        <%= text_field_tag :phone, nil, class: "form-control", required: true, placeholder: "请输入手机号" %>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>选择医生 *</label>
+        <%= select_tag :doctor_id,
+            options_from_collection_for_select(@doctors, :id, ->(d) { "#{d.name} - #{d.department}" }, params[:doctor_id]),
+            class: "form-control",
+            include_blank: "请选择医生",
+            onchange: "window.location.href = '?doctor_id=' + this.value",
+            required: true %>
+      </div>
+      <div class="form-group">
+        <label>选择时段</label>
+        <% if @time_slots.any? %>
+          <%= select_tag :time_slot_id,
+              options_from_collection_for_select(@time_slots, :id,
+                ->(s) { "#{s.start_time.strftime('%m-%d %H:%M')} (#{s.booked_count}/#{s.capacity})" }),
+              class: "form-control", include_blank: "不限时段（所有时段都可候补）" %>
+        <% else %>
+          <p style="color:#909399; padding:8px 0;">请先选择医生查看可用时段</p>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>服务项目</label>
+        <%= select_tag :service_item_id,
+            options_from_collection_for_select(@service_items, :id, ->(s) { "#{s.name} (¥#{s.price})" }),
+            class: "form-control", include_blank: "请选择服务项目" %>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <%= text_field_tag :notes, nil, class: "form-control", placeholder: "选填" %>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:16px;">
+      <%= f.submit "加入候补队列", class: "btn btn-primary" %>
+      <%= link_to "返回", waiting_lists_path, class: "btn btn-default" %>
+    </div>
+  <% end %>
+</div>

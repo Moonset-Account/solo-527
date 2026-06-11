@@ -1,0 +1,90 @@
+<% content_for :title, "预约管理" %>
+
+<div class="card">
+  <div class="card-header">
+    预约统计
+    <%= link_to "新建预约", new_appointment_path, class: "btn btn-primary", style: "float:right;" %>
+  </div>
+  <div class="stats-grid" style="margin-bottom:0;">
+    <div class="stat-card" style="border-left-color:#409eff;">
+      <h3>全部</h3>
+      <div class="value"><%= @stats[:total] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#67c23a;">
+      <h3>已完成</h3>
+      <div class="value"><%= @stats[:completed] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#e6a23c;">
+      <h3>已确认</h3>
+      <div class="value"><%= @stats[:confirmed] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f56c6c;">
+      <h3>爽约</h3>
+      <div class="value"><%= @stats[:no_show] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#909399;">
+      <h3>已取消</h3>
+      <div class="value"><%= @stats[:cancelled] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#667eea;">
+      <h3>候补转化</h3>
+      <div class="value"><%= @stats[:from_waiting] %></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">预约列表</div>
+  <table>
+    <thead>
+      <tr>
+        <th>单号</th>
+        <th>客户</th>
+        <th>医生</th>
+        <th>时段</th>
+        <th>金额</th>
+        <th>来源</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @appointments.each do |apt| %>
+        <tr>
+          <td><%= link_to apt.appointment_no, appointment_path(apt) %></td>
+          <td>
+            <%= apt.customer.name %>
+            <% if apt.customer.vip? %><span class="tag tag-orange">VIP</span><% end %>
+          </td>
+          <td><%= apt.doctor.name %></td>
+          <td><%= apt.time_slot.start_time.strftime("%m-%d %H:%M") %></td>
+          <td>¥<%= apt.total_amount %></td>
+          <td>
+            <% if apt.from_waiting_list? %>
+              <span class="tag tag-blue">候补</span>
+            <% else %>
+              <span class="tag tag-gray">直接</span>
+            <% end %>
+          </td>
+          <td>
+            <% case apt.status %>
+            <% when "pending" %><span class="tag tag-orange">待确认</span>
+            <% when "confirmed" %><span class="tag tag-blue">已确认</span>
+            <% when "completed" %><span class="tag tag-green">已完成</span>
+            <% when "cancelled" %><span class="tag tag-gray">已取消</span>
+            <% when "no_show" %><span class="tag tag-red">爽约</span>
+            <% when "refunded" %><span class="tag tag-gray">已退款</span>
+            <% end %>
+            <% if apt.refunded_amount > 0 %><span class="tag tag-red">部分退款</span><% end %>
+          </td>
+          <td class="actions">
+            <%= link_to "详情", appointment_path(apt), class: "btn btn-sm btn-default" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <div class="pagination">
+    <%= paginate @appointments %>
+  </div>
+</div>

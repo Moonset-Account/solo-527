@@ -1,0 +1,80 @@
+<% content_for :title, "规则详情 - #{@rule.name}" %>
+
+<div class="card">
+  <div class="card-header">
+    候补队列规则详情
+    <span style="float:right;">
+      <% if @rule.active? %>
+        <span class="tag tag-green">启用中</span>
+      <% else %>
+        <span class="tag tag-gray">已停用</span>
+      <% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">规则名称：</span>
+      <span class="detail-value"><%= @rule.name %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">优先级：</span>
+      <span class="detail-value"><%= @rule.priority %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">提前释放时间：</span>
+      <span class="detail-value"><%= @rule.release_minutes_before %> 分钟</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">单时段最大候补数：</span>
+      <span class="detail-value"><%= @rule.max_waiting_per_slot %> 人</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">确认超时时间：</span>
+      <span class="detail-value"><%= @rule.confirmation_timeout_minutes %> 分钟</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">自动通知：</span>
+      <span class="detail-value">
+        <% if @rule.auto_notify? %>
+          <span class="tag tag-green">开启</span>
+        <% else %>
+          <span class="tag tag-gray">关闭</span>
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">通知渠道：</span>
+      <span class="detail-value">
+        <% case @rule.notify_channel %>
+        <% when "sms" %><span class="tag tag-blue">短信</span>
+        <% when "wechat" %><span class="tag tag-green">微信</span>
+        <% when "email" %><span class="tag tag-orange">邮件</span>
+        <% else %><%= @rule.notify_channel %>
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间：</span>
+      <span class="detail-value"><%= @rule.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">生效时间：</span>
+      <span class="detail-value"><%= @rule.effective_from&.strftime("%Y-%m-%d %H:%M") || "不限" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">失效时间：</span>
+      <span class="detail-value"><%= @rule.effective_to&.strftime("%Y-%m-%d %H:%M") || "不限" %></span>
+    </div>
+  </div>
+
+  <% if @rule.description.present? %>
+    <div class="section-title">规则描述</div>
+    <p style="color:#606266; font-size:14px;"><%= @rule.description %></p>
+  <% end %>
+
+  <div class="actions" style="margin-top:16px;">
+    <%= link_to "编辑", edit_waiting_list_rule_path(@rule), class: "btn btn-primary" %>
+    <%= link_to "返回列表", waiting_list_rules_path, class: "btn btn-default" %>
+  </div>
+</div>

@@ -1,0 +1,239 @@
+<% content_for :title, "预约详情 - #{@appointment.appointment_no}" %>
+
+<div class="card">
+  <div class="card-header">
+    预约单详情
+    <span style="float:right;">
+      <% case @appointment.status %>
+      <% when "pending" %><span class="tag tag-orange">待确认</span>
+      <% when "confirmed" %><span class="tag tag-blue">已确认</span>
+      <% when "completed" %><span class="tag tag-green">已完成</span>
+      <% when "cancelled" %><span class="tag tag-gray">已取消</span>
+      <% when "no_show" %><span class="tag tag-red">爽约</span>
+      <% when "refunded" %><span class="tag tag-gray">已退款</span>
+      <% end %>
+      <% if @appointment.from_waiting_list? %><span class="tag tag-blue">候补转化</span><% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">预约单号：</span>
+      <span class="detail-value"><%= @appointment.appointment_no %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间：</span>
+      <span class="detail-value"><%= @appointment.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">客户姓名：</span>
+      <span class="detail-value">
+        <%= link_to @appointment.customer.name, customer_path(@appointment.customer) %>
+        <% if @appointment.customer.vip? %><span class="tag tag-orange">VIP</span><% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">联系电话：</span>
+      <span class="detail-value"><%= @appointment.customer.phone %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">主治医生：</span>
+      <span class="detail-value"><%= link_to @appointment.doctor.name, doctor_path(@appointment.doctor) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">预约时段：</span>
+      <span class="detail-value"><%= link_to "#{@appointment.time_slot.start_time.strftime('%Y-%m-%d %H:%M')} - #{@appointment.time_slot.end_time.strftime('%H:%M')}", time_slot_path(@appointment.time_slot) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">操作员：</span>
+      <span class="detail-value"><%= @appointment.operator || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">候补追踪码：</span>
+      <span class="detail-value">
+        <% if @appointment.waiting_list %>
+          <%= link_to @appointment.waiting_list.tracking_code, waiting_list_path(@appointment.waiting_list) %>
+        <% else %>
+          -
+        <% end %>
+      </span>
+    </div>
+  </div>
+
+  <div class="section-title">财务信息</div>
+  <div class="detail-grid" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="detail-item">
+      <span class="detail-label">总金额：</span>
+      <span class="detail-value" style="color:#409eff; font-size:18px;">¥<%= @appointment.total_amount %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">已付款：</span>
+      <span class="detail-value" style="color:#67c23a; font-size:18px;">¥<%= @appointment.paid_amount %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">已退款：</span>
+      <span class="detail-value" style="color:#f56c6c; font-size:18px;">¥<%= @appointment.refunded_amount %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">可退款：</span>
+      <span class="detail-value" style="color:#e6a23c; font-size:18px;">¥<%= @appointment.remaining_refundable %></span>
+    </div>
+  </div>
+
+  <div class="section-title">服务项目明细</div>
+  <table>
+    <thead>
+      <tr>
+        <th>项目编码</th>
+        <th>项目名称</th>
+        <th>单价</th>
+        <th>数量</th>
+        <th>折扣</th>
+        <th>小计</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @service_items.each do |item| %>
+        <tr>
+          <td><%= item.service_item.code %></td>
+          <td><%= item.service_item.name %></td>
+          <td>¥<%= item.unit_price %></td>
+          <td><%= item.quantity %></td>
+          <td><%= item.discount > 0 ? "¥#{item.discount}" : "-" %></td>
+          <td style="font-weight:600;">¥<%= item.subtotal %></td>
+          <td>
+            <% case item.status %>
+            <% when "pending" %><span class="tag tag-orange">待服务</span>
+            <% when "completed" %><span class="tag tag-green">已完成</span>
+            <% when "refunded" %><span class="tag tag-red">已退款</span>
+            <% end %>
+          </td>
+          <td>
+            <% if item.remaining_refundable > 0 %>
+              <button class="btn btn-sm btn-danger" onclick="showRefundModal(<%= item.id %>, <%= item.remaining_refundable %>)">退款</button>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <div class="section-title">退款记录</div>
+  <% if @refund_records.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>退款单号</th>
+          <th>退款金额</th>
+          <th>关联项目</th>
+          <th>退款原因</th>
+          <th>退款方式</th>
+          <th>操作员</th>
+          <th>处理时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @refund_records.each do |refund| %>
+          <tr>
+            <td><%= link_to refund.refund_no, refund_record_path(refund) %></td>
+            <td style="color:#f56c6c; font-weight:600;">¥<%= refund.refund_amount %></td>
+            <td><%= refund.appointment_service_item&.service_item&.name || "全部" %></td>
+            <td><%= refund.refund_reason %></td>
+            <td><%= refund.refund_method %></td>
+            <td><%= refund.operator %></td>
+            <td><%= refund.processed_at&.strftime("%Y-%m-%d %H:%M:%S") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">暂无退款记录</p>
+  <% end %>
+
+  <div class="section-title">候补队列变化历史</div>
+  <% if @waiting_history.any? %>
+    <div class="timeline">
+      <% @waiting_history.each do |log| %>
+        <div class="timeline-item">
+          <div class="timeline-time">
+            <%= log[:changed_at]&.strftime("%Y-%m-%d %H:%M:%S") %>
+            <% if log[:operator].present? %> | 操作人：<%= log[:operator] %><% end %>
+          </div>
+          <div class="timeline-content">
+            <strong><%= log[:details] %></strong>
+            <div style="margin-top:4px; font-size:12px; color:#909399;">
+              位置: <%= log[:before][:position] || '-' %> → <%= log[:after][:position] || '-' %>
+              | 状态: <%= log[:before][:status] || '-' %> → <%= log[:after][:status] || '-' %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">该预约非候补转化，无候补变化记录</p>
+  <% end %>
+
+  <div class="section-title">操作</div>
+  <div class="actions">
+    <% if @appointment.may_confirm_appointment? %>
+      <%= button_to "确认预约", confirm_appointment_path(@appointment), method: :post, class: "btn btn-primary" %>
+    <% end %>
+    <% if @appointment.may_complete? %>
+      <%= button_to "标记完成", complete_appointment_path(@appointment), method: :post, class: "btn btn-success" %>
+    <% end %>
+    <% if @appointment.may_mark_no_show? %>
+      <%= button_to "标记爽约", no_show_appointment_path(@appointment), method: :post, class: "btn btn-warning" %>
+    <% end %>
+    <% if @appointment.may_cancel_appointment? %>
+      <%= button_to "取消预约", cancel_appointment_path(@appointment), method: :post,
+                  data: { confirm: "确定要取消该预约吗？" }, class: "btn btn-danger" %>
+    <% end %>
+    <% if @appointment.remaining_refundable > 0 %>
+      <button class="btn btn-danger" onclick="showFullRefundModal()">全额退款</button>
+    <% end %>
+    <%= link_to "返回列表", appointments_path, class: "btn btn-default" %>
+  </div>
+</div>
+
+<script>
+function showRefundModal(itemId, maxAmount) {
+  const reason = prompt("请输入退款原因：");
+  if (!reason) return;
+  const amount = prompt(`请输入退款金额（最大 ${maxAmount}）：`, maxAmount);
+  if (!amount || parseFloat(amount) <= 0) return;
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/appointments/<%= @appointment.id %>/refund`;
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  form.innerHTML = `
+    <input type="hidden" name="authenticity_token" value="${csrfToken}">
+    <input type="hidden" name="refund_amount" value="${amount}">
+    <input type="hidden" name="refund_reason" value="${reason}">
+    <input type="hidden" name="service_item_id" value="${itemId}">
+  `;
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function showFullRefundModal() {
+  const reason = prompt("请输入全额退款原因：");
+  if (!reason) return;
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/appointments/<%= @appointment.id %>/refund`;
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  form.innerHTML = `
+    <input type="hidden" name="authenticity_token" value="${csrfToken}">
+    <input type="hidden" name="refund_amount" value="<%= @appointment.remaining_refundable %>">
+    <input type="hidden" name="refund_reason" value="${reason}">
+  `;
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>

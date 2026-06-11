@@ -1,0 +1,125 @@
+<% content_for :title, "医生详情 - #{@doctor.name}" %>
+
+<div class="card">
+  <div class="card-header">
+    医生详情
+    <span style="float:right;">
+      <% if @doctor.active? %>
+        <span class="tag tag-green">在职</span>
+      <% else %>
+        <span class="tag tag-gray">停用</span>
+      <% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">姓名：</span>
+      <span class="detail-value"><%= @doctor.name %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">职称：</span>
+      <span class="detail-value"><%= @doctor.title %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">科室：</span>
+      <span class="detail-value"><%= @doctor.department %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">联系电话：</span>
+      <span class="detail-value"><%= @doctor.phone %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">日最大接诊量：</span>
+      <span class="detail-value"><%= @doctor.daily_max_patients %> 人</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间：</span>
+      <span class="detail-value"><%= @doctor.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+
+  <% if @doctor.notes.present? %>
+    <div class="section-title">备注</div>
+    <p style="color:#606266; font-size:14px;"><%= @doctor.notes %></p>
+  <% end %>
+
+  <div class="section-title">今日时段</div>
+  <% if @time_slots.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>开始时间</th>
+          <th>结束时间</th>
+          <th>容量</th>
+          <th>已预约</th>
+          <th>候补数</th>
+          <th>状态</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @time_slots.each do |slot| %>
+          <tr>
+            <td><%= slot.start_time.strftime("%H:%M") %></td>
+            <td><%= slot.end_time.strftime("%H:%M") %></td>
+            <td><%= slot.capacity %></td>
+            <td><%= slot.booked_count %></td>
+            <td><%= slot.waiting_count %></td>
+            <td>
+              <% case slot.status %>
+              <% when "available" %><span class="tag tag-green">可预约</span>
+              <% when "full" %><span class="tag tag-orange">已满</span>
+              <% when "closed" %><span class="tag tag-gray">已关闭</span>
+              <% when "cancelled" %><span class="tag tag-red">已取消</span>
+              <% end %>
+            </td>
+            <td>
+              <%= link_to "查看", time_slot_path(slot), class: "btn btn-sm btn-default" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">今日暂无时段安排</p>
+  <% end %>
+
+  <div class="section-title">当前候补中</div>
+  <% if @waiting_lists.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>位置</th>
+          <th>追踪码</th>
+          <th>客户</th>
+          <th>服务项目</th>
+          <th>加入时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @waiting_lists.each do |wl| %>
+          <tr>
+            <td>#<%= wl.position %></td>
+            <td><%= link_to wl.tracking_code, waiting_list_path(wl) %></td>
+            <td><%= link_to wl.customer.name, customer_path(wl.customer) %></td>
+            <td><%= wl.service_item&.name || "-" %></td>
+            <td><%= wl.joined_at.strftime("%m-%d %H:%M") %></td>
+            <td>
+              <%= link_to "详情", waiting_list_path(wl), class: "btn btn-sm btn-default" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p style="color:#909399; padding:12px 0;">暂无候补客户</p>
+  <% end %>
+
+  <div class="actions" style="margin-top:16px;">
+    <%= link_to "编辑", edit_doctor_path(@doctor), class: "btn btn-primary" %>
+    <%= link_to "管理时段", doctor_time_slots_path(@doctor), class: "btn btn-default" %>
+    <%= link_to "返回列表", doctors_path, class: "btn btn-default" %>
+  </div>
+</div>

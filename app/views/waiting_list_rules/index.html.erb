@@ -1,0 +1,68 @@
+<% content_for :title, "候补队列规则" %>
+
+<div class="card">
+  <div class="card-header">
+    候补队列规则列表
+    <%= link_to "新建规则", new_waiting_list_rule_path, class: "btn btn-primary", style: "float:right;" %>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>规则名称</th>
+        <th>优先级</th>
+        <th>提前释放</th>
+        <th>最大候补数</th>
+        <th>确认超时</th>
+        <th>自动通知</th>
+        <th>通知渠道</th>
+        <th>有效期</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @rules.each do |rule| %>
+        <tr>
+          <td><%= link_to rule.name, waiting_list_rule_path(rule) %></td>
+          <td><%= rule.priority %></td>
+          <td><%= rule.release_minutes_before %> 分钟</td>
+          <td><%= rule.max_waiting_per_slot %> 人</td>
+          <td><%= rule.confirmation_timeout_minutes %> 分钟</td>
+          <td>
+            <% if rule.auto_notify? %>
+              <span class="tag tag-green">是</span>
+            <% else %>
+              <span class="tag tag-gray">否</span>
+            <% end %>
+          </td>
+          <td>
+            <% case rule.notify_channel %>
+            <% when "sms" %><span class="tag tag-blue">短信</span>
+            <% when "wechat" %><span class="tag tag-green">微信</span>
+            <% when "email" %><span class="tag tag-orange">邮件</span>
+            <% else %><%= rule.notify_channel %>
+            <% end %>
+          </td>
+          <td>
+            <% if rule.effective_from || rule.effective_to %>
+              <%= rule.effective_from&.strftime("%m-%d") || "不限" %> ~ <%= rule.effective_to&.strftime("%m-%d") || "不限" %>
+            <% else %>
+              长期有效
+            <% end %>
+          </td>
+          <td>
+            <% if rule.active? %>
+              <span class="tag tag-green">启用</span>
+            <% else %>
+              <span class="tag tag-gray">停用</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <%= link_to "详情", waiting_list_rule_path(rule), class: "btn btn-sm btn-default" %>
+            <%= link_to "编辑", edit_waiting_list_rule_path(rule), class: "btn btn-sm btn-default" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

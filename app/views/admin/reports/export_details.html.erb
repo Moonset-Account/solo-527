@@ -1,0 +1,108 @@
+<% content_for :title, "明细文件导出" %>
+
+<div class="card">
+  <div class="card-header">
+    导出范围
+    <%= link_to "导出CSV",
+        export_details_admin_reports_path(format: :csv, start_date: params[:start_date], end_date: params[:end_date]),
+        class: "btn btn-primary", style: "float:right;" %>
+  </div>
+  <%= form_tag export_details_admin_reports_path, method: :get do %>
+    <div class="form-row">
+      <div class="form-group">
+        <label>开始日期</label>
+        <%= date_field_tag :start_date, params[:start_date] || @start_date, class: "form-control" %>
+      </div>
+      <div class="form-group">
+        <label>结束日期</label>
+        <%= date_field_tag :end_date, params[:end_date] || @end_date, class: "form-control" %>
+      </div>
+    </div>
+    <%= submit_tag "查询", class: "btn btn-primary" %>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    汇总统计
+    <small style="color:#909399; margin-left:8px;"><%= @start_date %> 至 <%= @end_date %></small>
+  </div>
+  <div class="stats-grid" style="margin-bottom:0;">
+    <div class="stat-card" style="border-left-color:#409eff;">
+      <h3>预约总数</h3>
+      <div class="value"><%= @summary_stats[:total_count] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#67c23a;">
+      <h3>已完成</h3>
+      <div class="value"><%= @summary_stats[:completed_count] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#e6a23c;">
+      <h3>候补转化率</h3>
+      <div class="value"><%= @summary_stats[:conversion_rate] %>%</div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f56c6c;">
+      <h3>已取消/爽约</h3>
+      <div class="value"><%= @summary_stats[:cancelled_count] + @summary_stats[:no_show_count] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#67c23a;">
+      <h3>总收入</h3>
+      <div class="value">¥<%= @summary_stats[:total_revenue] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f56c6c;">
+      <h3>净收入</h3>
+      <div class="value">¥<%= @summary_stats[:net_revenue] %></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    明细数据（共 <%= @reconciliation_data.count %> 条预约，<%= @appointments.joins(:appointment_service_items).count %> 条服务记录）
+  </div>
+  <table style="font-size:12px;">
+    <thead>
+      <tr>
+        <th>预约单号</th>
+        <th>日期</th>
+        <th>客户</th>
+        <th>医生</th>
+        <th>状态</th>
+        <th>总金额</th>
+        <th>已付</th>
+        <th>退款</th>
+        <th>净收入</th>
+        <th>候补</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @reconciliation_data.first(100).each do |row| %>
+        <tr>
+          <td><%= link_to row[:appointment_no], appointment_path(Appointment.find_by(appointment_no: row[:appointment_no])) %></td>
+          <td><%= row[:date]&.strftime("%m-%d") %></td>
+          <td><%= row[:customer_name] %></td>
+          <td><%= row[:doctor_name] %></td>
+          <td>
+            <% case row[:status] %>
+            <% when "completed" %><span class="tag tag-green">已完成</span>
+            <% when "confirmed" %><span class="tag tag-blue">已确认</span>
+            <% when "pending" %><span class="tag tag-orange">待确认</span>
+            <% when "cancelled" %><span class="tag tag-gray">已取消</span>
+            <% when "no_show" %><span class="tag tag-red">爽约</span>
+            <% when "refunded" %><span class="tag tag-gray">已退款</span>
+            <% end %>
+          </td>
+          <td>¥<%= row[:total_amount] %></td>
+          <td>¥<%= row[:paid_amount] %></td>
+          <td style="color:#f56c6c;">¥<%= row[:refunded_amount] %></td>
+          <td style="font-weight:600;">¥<%= row[:net_amount] %></td>
+          <td><%= row[:from_waiting_list] ? "是" : "-" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @reconciliation_data.count > 100 %>
+    <p style="color:#909399; text-align:center; margin-top:12px; font-size:12px;">
+      仅显示前100条，请导出CSV查看完整数据
+    </p>
+  <% end %>
+</div>

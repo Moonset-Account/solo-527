@@ -1,0 +1,47 @@
+<% content_for :title, "批量操作记录" %>
+
+<div class="card">
+  <div class="card-header">
+    批量操作记录
+    <%= link_to "新建批量操作", new_admin_batch_operation_path, class: "btn btn-primary", style: "float:right;" %>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>批次号</th>
+        <th>操作类型</th>
+        <th>范围描述</th>
+        <th>总数</th>
+        <th>成功</th>
+        <th>失败</th>
+        <th>状态</th>
+        <th>操作人</th>
+        <th>完成时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @batch_logs.each do |log| %>
+        <tr>
+          <td><%= link_to log.batch_no, admin_batch_operation_path(log) %></td>
+          <td><%= log.operation_type %></td>
+          <td style="max-width:200px;"><%= truncate(log.scope_description, length: 40) %></td>
+          <td><%= log.total_count %></td>
+          <td style="color:#67c23a;"><%= log.success_count %></td>
+          <td style="color:#f56c6c;"><%= log.failed_count %></td>
+          <td>
+            <% case log.status %>
+            <% when "pending" %><span class="tag tag-orange">待处理</span>
+            <% when "processing" %><span class="tag tag-blue">处理中</span>
+            <% when "completed" %><span class="tag tag-green">已完成</span>
+            <% when "failed" %><span class="tag tag-red">失败</span>
+            <% end %>
+          </td>
+          <td><%= log.operator %></td>
+          <td><%= log.completed_at&.strftime("%m-%d %H:%M") %></td>
+          <td><%= link_to "详情", admin_batch_operation_path(log), class: "btn btn-sm btn-default" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

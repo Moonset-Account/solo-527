@@ -1,0 +1,95 @@
+<% content_for :title, "批量操作预览" %>
+
+<div class="card">
+  <div class="card-header" style="background:#fdf6ec; border-color:#faecd8;">
+    ⚠️ 请确认批量更新范围
+  </div>
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">记录类型：</span>
+      <span class="detail-value"><%= @scope_summary[:record_type] %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">记录数量：</span>
+      <span class="detail-value" style="color:#e6a23c; font-size:18px;"><%= @scope_summary[:total_count] %> 条</span>
+    </div>
+    <div class="detail-item" style="grid-column: span 2;">
+      <span class="detail-label">更新字段：</span>
+      <span class="detail-value">
+        <% @scope_summary[:attributes].each do |k, v| %>
+          <span class="tag tag-orange" style="margin-right:4px;"><%= k %>: <%= v %></span>
+        <% end %>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">变更预览（<%= @preview_data.count %> 条）</div>
+  <table>
+    <thead>
+      <tr>
+        <th>记录</th>
+        <th>原值</th>
+        <th>→</th>
+        <th>新值</th>
+        <th>校验结果</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @preview_data.each do |item| %>
+        <tr>
+          <td>
+            <strong><%= item[:display_name] %></strong>
+            <div style="font-size:12px; color:#909399;"><%= item[:record_type] %>#<%= item[:record_id] %></div>
+          </td>
+          <td style="color:#909399;">
+            <% item[:original].each do |k, v| %>
+              <div><%= k %>: <%= v %></div>
+            <% end %>
+          </td>
+          <td>→</td>
+          <td style="color:#409eff;">
+            <% item[:changes].each do |k, v| %>
+              <div><%= k %>: <%= v %></div>
+            <% end %>
+          </td>
+          <td>
+            <% if item[:valid] %>
+              <span class="tag tag-green">校验通过</span>
+            <% else %>
+              <span class="tag tag-red">字段错误</span>
+              <div style="font-size:12px; color:#f56c6c; margin-top:4px;">
+                <% item[:errors].each do |field, msgs| %>
+                  <%= field %>: <%= msgs.join(", ") %><br>
+                <% end %>
+              </div>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% valid_count = @preview_data.count { |i| i[:valid] } %>
+  <% invalid_count = @preview_data.count - valid_count %>
+  <div style="margin-top:16px; padding:12px; background:#f5f7fa; border-radius:4px;">
+    <strong>统计：</strong>
+    <span class="tag tag-green" style="margin:0 4px;">校验通过 <%= valid_count %> 条</span>
+    <span class="tag tag-red" style="margin:0 4px;">字段错误 <%= invalid_count %> 条</span>
+  </div>
+</div>
+
+<%= form_tag execute_admin_batch_operations_path, method: :post do %>
+  <%= hidden_field_tag :record_type, @scope_summary[:record_type] %>
+  <%= hidden_field_tag :ids, @scope_summary[:ids].join(",") %>
+  <% @scope_summary[:attributes].each do |k, v| %>
+    <%= hidden_field_tag "attributes[#{k}]", v %>
+  <% end %>
+  <div class="actions">
+    <%= submit_tag "确认执行（#{valid_count}条通过 / #{invalid_count}条将跳过）",
+        class: "btn btn-danger",
+        data: { confirm: "确定要执行此批量操作吗？#{invalid_count > 0 ? "注意：将有#{invalid_count}条因字段错误被跳过" : ""}" } %>
+    <%= link_to "取消", new_admin_batch_operation_path, class: "btn btn-default" %>
+  </div>
+<% end %>

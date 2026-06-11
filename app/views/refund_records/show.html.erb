@@ -1,0 +1,73 @@
+<% content_for :title, "退款详情 - #{@refund_record.refund_no}" %>
+
+<div class="card">
+  <div class="card-header">
+    退款单详情
+    <span style="float:right;">
+      <% case @refund_record.status %>
+      <% when "pending" %><span class="tag tag-orange">处理中</span>
+      <% when "processed" %><span class="tag tag-green">已完成</span>
+      <% when "failed" %><span class="tag tag-red">失败</span>
+      <% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">退款单号：</span>
+      <span class="detail-value"><%= @refund_record.refund_no %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">关联预约：</span>
+      <span class="detail-value"><%= link_to @refund_record.appointment.appointment_no, appointment_path(@refund_record.appointment) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">退款金额：</span>
+      <span class="detail-value" style="color:#f56c6c; font-size:18px;">¥<%= @refund_record.refund_amount %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">退款方式：</span>
+      <span class="detail-value">
+        <% case @refund_record.refund_method %>
+        <% when "original" %><span class="tag tag-blue">原路退回</span>
+        <% when "cash" %><span class="tag tag-green">现金</span>
+        <% when "transfer" %><span class="tag tag-orange">转账</span>
+        <% else %><%= @refund_record.refund_method %>
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">关联服务项目：</span>
+      <span class="detail-value"><%= @refund_record.appointment_service_item&.service_item&.name || "全额退款" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">操作员：</span>
+      <span class="detail-value"><%= @refund_record.operator || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">交易流水号：</span>
+      <span class="detail-value"><%= @refund_record.transaction_id || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">处理时间：</span>
+      <span class="detail-value"><%= @refund_record.processed_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">申请时间：</span>
+      <span class="detail-value"><%= @refund_record.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+
+  <div class="section-title">退款原因</div>
+  <p style="color:#606266; font-size:14px;"><%= @refund_record.refund_reason %></p>
+
+  <% if @refund_record.notes.present? %>
+    <div class="section-title">备注</div>
+    <p style="color:#606266; font-size:14px;"><%= @refund_record.notes %></p>
+  <% end %>
+
+  <div class="actions" style="margin-top:16px;">
+    <%= link_to "查看预约", appointment_path(@refund_record.appointment), class: "btn btn-primary" %>
+    <%= link_to "返回列表", refund_records_path, class: "btn btn-default" %>
+  </div>
+</div>

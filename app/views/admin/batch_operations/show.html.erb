@@ -1,0 +1,92 @@
+<% content_for :title, "批量操作详情 - #{@batch_log.batch_no}" %>
+
+<div class="card">
+  <div class="card-header">
+    批量操作结果
+    <span style="float:right;">
+      <% case @batch_log.status %>
+      <% when "pending" %><span class="tag tag-orange">待处理</span>
+      <% when "processing" %><span class="tag tag-blue">处理中</span>
+      <% when "completed" %><span class="tag tag-green">已完成</span>
+      <% when "failed" %><span class="tag tag-red">失败</span>
+      <% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">批次号：</span>
+      <span class="detail-value"><%= @batch_log.batch_no %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">操作类型：</span>
+      <span class="detail-value"><%= @batch_log.operation_type %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">范围：</span>
+      <span class="detail-value"><%= @batch_log.scope_description %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">操作人：</span>
+      <span class="detail-value"><%= @batch_log.operator %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">开始时间：</span>
+      <span class="detail-value"><%= @batch_log.started_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">完成时间：</span>
+      <span class="detail-value"><%= @batch_log.completed_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="margin:16px 0;">
+    <div class="stat-card" style="border-left-color:#909399;">
+      <h3>总数</h3>
+      <div class="value"><%= @batch_log.total_count %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#67c23a;">
+      <h3>成功</h3>
+      <div class="value"><%= @batch_log.success_count %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f56c6c;">
+      <h3>失败</h3>
+      <div class="value"><%= @batch_log.failed_count %></div>
+    </div>
+  </div>
+
+  <% if @failed_items.any? %>
+    <div class="section-title">失败记录（字段级错误）</div>
+    <table>
+      <thead>
+        <tr>
+          <th>记录类型</th>
+          <th>记录ID</th>
+          <th>错误信息</th>
+          <th>字段错误详情</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @failed_items.each do |item| %>
+          <tr>
+            <td><%= item.record_type %></td>
+            <td>#<%= item.record_id %></td>
+            <td style="color:#f56c6c;"><%= item.error_message %></td>
+            <td style="font-size:12px; color:#f56c6c;">
+              <% if item.field_errors.present? %>
+                <% item.field_errors.each do |field, msgs| %>
+                  <div><strong><%= field %>:</strong> <%= Array(msgs).join(", ") %></div>
+                <% end %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <div class="actions" style="margin-top:16px;">
+    <%= link_to "返回列表", admin_batch_operations_path, class: "btn btn-default" %>
+    <%= link_to "新建批量操作", new_admin_batch_operation_path, class: "btn btn-primary" %>
+  </div>
+</div>

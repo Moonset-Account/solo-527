@@ -1,0 +1,98 @@
+<% content_for :title, "候补队列管理" %>
+
+<div class="card">
+  <div class="card-header">
+    候补队列统计
+    <div style="float:right;">
+      <%= link_to "自动释放", auto_release_waiting_lists_path, class: "btn btn-warning btn-sm", method: :get %>
+      <%= link_to "加入候补", new_waiting_list_path, class: "btn btn-primary btn-sm" %>
+    </div>
+  </div>
+  <div class="stats-grid" style="margin-bottom:0;">
+    <div class="stat-card" style="border-left-color:#409eff;">
+      <h3>全部</h3>
+      <div class="value"><%= @stats[:total] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#67c23a;">
+      <h3>候补中</h3>
+      <div class="value"><%= @stats[:waiting] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#e6a23c;">
+      <h3>已通知</h3>
+      <div class="value"><%= @stats[:notified] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#67c23a;">
+      <h3>已转化</h3>
+      <div class="value"><%= @stats[:converted] %></div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f56c6c;">
+      <h3>已取消</h3>
+      <div class="value"><%= @stats[:cancelled] %></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">候补队列列表</div>
+  <table>
+    <thead>
+      <tr>
+        <th>追踪码</th>
+        <th>客户</th>
+        <th>医生</th>
+        <th>时段</th>
+        <th>服务</th>
+        <th>位置</th>
+        <th>加入时间</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @waiting_lists.each do |wl| %>
+        <tr>
+          <td><%= link_to wl.tracking_code, waiting_list_path(wl) %></td>
+          <td>
+            <%= wl.customer.name %>
+            <% if wl.vip_priority? %><span class="tag tag-orange">VIP</span><% end %>
+          </td>
+          <td><%= wl.doctor.name %></td>
+          <td>
+            <% if wl.time_slot %>
+              <%= wl.time_slot.start_time.strftime("%m-%d %H:%M") %>
+            <% else %>
+              <span style="color:#909399;">待定</span>
+            <% end %>
+          </td>
+          <td><%= wl.service_item&.name || "-" %></td>
+          <td>#<%= wl.position %></td>
+          <td><%= wl.joined_at.strftime("%m-%d %H:%M") %></td>
+          <td>
+            <% case wl.status %>
+            <% when "waiting" %><span class="tag tag-blue">候补中</span>
+            <% when "notified" %><span class="tag tag-orange">已通知</span>
+            <% when "confirmed" %><span class="tag tag-green">已确认</span>
+            <% when "converted" %><span class="tag tag-green">已转化</span>
+            <% when "cancelled" %><span class="tag tag-red">已取消</span>
+            <% when "expired" %><span class="tag tag-gray">已过期</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <% if wl.may_convert? && wl.time_slot %>
+              <%= button_to "转预约", convert_to_appointment_waiting_list_path(wl),
+                            method: :post, class: "btn btn-sm btn-success" %>
+            <% end %>
+            <% if wl.may_cancel_entry? %>
+              <%= button_to "取消", cancel_waiting_list_path(wl, reason: "前台取消"),
+                            method: :post, class: "btn btn-sm btn-danger",
+                            data: { confirm: "确定取消该候补吗？" } %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <div class="pagination">
+    <%= paginate @waiting_lists %>
+  </div>
+</div>

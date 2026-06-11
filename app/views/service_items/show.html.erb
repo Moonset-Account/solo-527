@@ -1,0 +1,51 @@
+<% content_for :title, "服务项目详情 - #{@service_item.name}" %>
+
+<div class="card">
+  <div class="card-header">
+    服务项目详情
+    <span style="float:right;">
+      <% if @service_item.active? %>
+        <span class="tag tag-green">启用中</span>
+      <% else %>
+        <span class="tag tag-gray">已停用</span>
+      <% end %>
+    </span>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">项目编码：</span>
+      <span class="detail-value"><%= @service_item.code %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">项目名称：</span>
+      <span class="detail-value"><%= @service_item.name %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">分类：</span>
+      <span class="detail-value"><%= @service_item.category %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">价格：</span>
+      <span class="detail-value" style="color:#409eff; font-size:18px;">¥<%= @service_item.price %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">服务时长：</span>
+      <span class="detail-value"><%= @service_item.duration_minutes %> 分钟</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间：</span>
+      <span class="detail-value"><%= @service_item.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+
+  <% if @service_item.description.present? %>
+    <div class="section-title">项目描述</div>
+    <p style="color:#606266; font-size:14px;"><%= @service_item.description %></p>
+  <% end %>
+
+  <div class="actions" style="margin-top:16px;">
+    <%= link_to "编辑", edit_service_item_path(@service_item), class: "btn btn-primary" %>
+    <%= link_to "返回列表", service_items_path, class: "btn btn-default" %>
+  </div>
+</div>

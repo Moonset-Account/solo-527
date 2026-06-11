@@ -1,0 +1,66 @@
+<% content_for :title, "#{@doctor.name} - 时段管理" %>
+
+<div class="card">
+  <div class="card-header">
+    <%= @doctor.name %> - <%= @date.strftime("%Y年%m月%d日") %> 时段列表
+    <div style="float:right;">
+      <%= link_to "前一天", doctor_time_slots_path(@doctor, date: @date - 1.day), class: "btn btn-sm btn-default" %>
+      <%= link_to "今天", doctor_time_slots_path(@doctor), class: "btn btn-sm btn-default" %>
+      <%= link_to "后一天", doctor_time_slots_path(@doctor, date: @date + 1.day), class: "btn btn-sm btn-default" %>
+      <%= link_to "新建时段", new_doctor_time_slot_path(@doctor, date: @date), class: "btn btn-sm btn-primary" %>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>开始时间</th>
+        <th>结束时间</th>
+        <th>容量</th>
+        <th>已预约</th>
+        <th>剩余名额</th>
+        <th>候补数</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @time_slots.each do |slot| %>
+        <tr>
+          <td><%= link_to slot.start_time.strftime("%H:%M"), time_slot_path(slot) %></td>
+          <td><%= slot.end_time.strftime("%H:%M") %></td>
+          <td><%= slot.capacity %></td>
+          <td><%= slot.booked_count %></td>
+          <td>
+            <% if slot.available_spots > 0 %>
+              <span class="tag tag-green"><%= slot.available_spots %></span>
+            <% else %>
+              <span class="tag tag-gray">0</span>
+            <% end %>
+          </td>
+          <td>
+            <% if slot.waiting_count > 0 %>
+              <span class="tag tag-orange"><%= slot.waiting_count %></span>
+            <% else %>
+              <span class="tag tag-gray">0</span>
+            <% end %>
+          </td>
+          <td>
+            <% case slot.status %>
+            <% when "available" %><span class="tag tag-green">可预约</span>
+            <% when "full" %><span class="tag tag-orange">已满</span>
+            <% when "closed" %><span class="tag tag-gray">已关闭</span>
+            <% when "cancelled" %><span class="tag tag-red">已取消</span>
+            <% end %>
+          </td>
+          <td class="actions">
+            <%= link_to "详情", time_slot_path(slot), class: "btn btn-sm btn-default" %>
+            <%= link_to "编辑", edit_time_slot_path(slot), class: "btn btn-sm btn-default" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @time_slots.empty? %>
+    <p style="color:#909399; padding:12px 0;">该日期暂无时段安排</p>
+  <% end %>
+</div>

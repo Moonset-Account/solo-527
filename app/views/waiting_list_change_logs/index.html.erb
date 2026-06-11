@@ -1,0 +1,65 @@
+<% content_for :title, "候补变化日志" %>
+
+<div class="card">
+  <div class="card-header">候补队列变化日志</div>
+  <table>
+    <thead>
+      <tr>
+        <th>时间</th>
+        <th>候补追踪码</th>
+        <th>变化类型</th>
+        <th>位置变化</th>
+        <th>状态变化</th>
+        <th>关联预约</th>
+        <th>操作人</th>
+        <th>详情</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @change_logs.each do |log| %>
+        <tr>
+          <td><%= log.changed_at.strftime("%m-%d %H:%M:%S") %></td>
+          <td><%= link_to log.waiting_list.tracking_code, waiting_list_path(log.waiting_list) %></td>
+          <td>
+            <% case log.change_type %>
+            <% when "join" %><span class="tag tag-blue">加入</span>
+            <% when "position_change" %><span class="tag tag-orange">位置变化</span>
+            <% when "status_change" %><span class="tag tag-green">状态变化</span>
+            <% when "convert" %><span class="tag tag-green">转预约</span>
+            <% when "cancel" %><span class="tag tag-red">取消</span>
+            <% when "expire" %><span class="tag tag-gray">过期</span>
+            <% when "notify" %><span class="tag tag-blue">已通知</span>
+            <% else %><span class="tag tag-gray"><%= log.change_type %></span>
+            <% end %>
+          </td>
+          <td>
+            <% if log.old_position || log.new_position %>
+              <%= log.old_position || '-' %> → <%= log.new_position || '-' %>
+            <% else %>
+              -
+            <% end %>
+          </td>
+          <td>
+            <% if log.old_status || log.new_status %>
+              <%= log.old_status || '-' %> → <%= log.new_status || '-' %>
+            <% else %>
+              -
+            <% end %>
+          </td>
+          <td>
+            <% if log.appointment %>
+              <%= link_to log.appointment.appointment_no, appointment_path(log.appointment) %>
+            <% else %>
+              -
+            <% end %>
+          </td>
+          <td><%= log.operator || "-" %></td>
+          <td style="max-width:300px;"><%= log.change_details %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <div class="pagination">
+    <%= paginate @change_logs %>
+  </div>
+</div>
