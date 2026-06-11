@@ -31,6 +31,7 @@ class PromptListSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'category', 'category_name',
             'author', 'author_name', 'status', 'version',
             'is_current_version', 'gray_scale_percent',
+            'target_sales_operations',
             'accuracy_rate', 'usage_count', 'created_at', 'updated_at'
         ]
         read_only_fields = [

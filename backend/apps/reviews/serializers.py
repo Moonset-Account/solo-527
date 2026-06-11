@@ -68,6 +68,8 @@ class ReviewBatchActionSerializer(serializers.Serializer):
     )
     action = serializers.ChoiceField(choices=['approve', 'reject', 'flag'])
     comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    is_accurate = serializers.BooleanField(required=False, allow_null=True)
+    inaccuracy_reason = serializers.CharField(required=False, allow_blank=True, max_length=100)
 
 
 class ReviewRuleSerializer(serializers.ModelSerializer):

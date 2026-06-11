@@ -94,7 +94,7 @@ export const promptApi = {
   },
 
   getPromptVersionHistory: (id: number | string) => {
-    return request.get<Prompt[]>(`/api/prompts/${id}/version-history/`)
+    return request.get<Prompt[]>(`/api/prompts/${id}/versions/`)
   },
 
   getPromptStats: (id: number | string) => {
@@ -127,12 +127,18 @@ export const reviewApi = {
     return request.post<Review>(`/api/reviews/${id}/flag/`, payload || {})
   },
 
-  batchApproveReviews: (ids: (number | string)[], comment?: string) => {
-    return request.post<{ success: number; failed: number }>('/api/reviews/batch-approve/', { ids, comment })
+  batchApproveReviews: (ids: (number | string)[], payload?: { comment?: string; is_accurate?: boolean; inaccuracy_reason?: string }) => {
+    return request.post<{ success: boolean; updated_count: number; message: string }>('/api/reviews/batch-approve/', {
+      ids,
+      ...(payload || {}),
+    })
   },
 
-  batchRejectReviews: (ids: (number | string)[], comment?: string) => {
-    return request.post<{ success: number; failed: number }>('/api/reviews/batch-reject/', { ids, comment })
+  batchRejectReviews: (ids: (number | string)[], payload?: { comment?: string; is_accurate?: boolean; inaccuracy_reason?: string }) => {
+    return request.post<{ success: boolean; updated_count: number; message: string }>('/api/reviews/batch-reject/', {
+      ids,
+      ...(payload || {}),
+    })
   },
 
   getPendingReviewCount: () => {

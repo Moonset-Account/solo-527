@@ -38,6 +38,12 @@ const ruleTypeMap: Record<string, string> = {
   keyword: '关键词', regex: '正则表达式', ai_detect: 'AI检测',
 }
 
+const SALES_OPERATION_GROUPS = [
+  '华东组', '华北组', '华南组', '西南组',
+  '销售一组', '销售二组', '销售三组',
+  '运营组',
+]
+
 const Config: React.FC = () => {
   const [activeTab, setActiveTab] = useState('prompt')
 
@@ -534,10 +540,10 @@ const Config: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="target_sales_operations" label="适用销售运营分组">
-                <Select mode="multiple" placeholder="不选表示全部分组" allowClear>
-                  <Option value="销售一组">销售一组</Option>
-                  <Option value="销售二组">销售二组</Option>
-                  <Option value="运营组">运营组</Option>
+                <Select mode="multiple" placeholder="不选表示全部分组" allowClear optionFilterProp="label">
+                  {SALES_OPERATION_GROUPS.map(g => (
+                    <Option key={g} value={g} label={g}>{g}</Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
@@ -571,10 +577,10 @@ const Config: React.FC = () => {
             </div>
           </Form.Item>
           <Form.Item label="适用销售运营分组" name="target_sales_operations">
-            <Select mode="multiple" placeholder="不选表示全部分组" allowClear style={{ width: '100%' }}>
-              <Option value="销售一组">销售一组</Option>
-              <Option value="销售二组">销售二组</Option>
-              <Option value="运营组">运营组</Option>
+            <Select mode="multiple" placeholder="不选表示全部分组" allowClear style={{ width: '100%' }} optionFilterProp="label">
+              {SALES_OPERATION_GROUPS.map(g => (
+                <Option key={g} value={g} label={g}>{g}</Option>
+              ))}
             </Select>
           </Form.Item>
           <div style={{ fontSize: 12, color: '#999' }}>

@@ -16,6 +16,12 @@ import type { Prompt, PromptStatus, PromptCategory, DRFPaginationResult } from '
 
 const { TextArea } = Input
 
+const SALES_OPERATION_GROUPS = [
+  '华东组', '华北组', '华南组', '西南组',
+  '销售一组', '销售二组', '销售三组',
+  '运营组',
+]
+
 const statusMap: Record<PromptStatus, { label: string; color: string }> = {
   draft: { label: '草稿', color: 'default' },
   enabled: { label: '启用', color: 'green' },
@@ -405,11 +411,10 @@ const Prompts: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="target_sales_operations" label="适用分组">
-                <Select mode="multiple" placeholder="请选择" allowClear>
-                  <Select.Option value="华东组">华东组</Select.Option>
-                  <Select.Option value="华北组">华北组</Select.Option>
-                  <Select.Option value="华南组">华南组</Select.Option>
-                  <Select.Option value="西南组">西南组</Select.Option>
+                <Select mode="multiple" placeholder="请选择" allowClear optionFilterProp="label">
+                  {SALES_OPERATION_GROUPS.map(g => (
+                    <Select.Option key={g} value={g} label={g}>{g}</Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
@@ -478,10 +483,10 @@ const Prompts: React.FC = () => {
             </div>
           </Form.Item>
           <Form.Item label="适用销售运营分组" name="target_sales_operations">
-            <Select mode="multiple" placeholder="请选择（不选表示全部分组）" allowClear style={{ width: '100%' }}>
-              <Select.Option value="销售一组">销售一组</Select.Option>
-              <Select.Option value="销售二组">销售二组</Select.Option>
-              <Select.Option value="运营组">运营组</Select.Option>
+            <Select mode="multiple" placeholder="请选择（不选表示全部分组）" allowClear style={{ width: '100%' }} optionFilterProp="label">
+              {SALES_OPERATION_GROUPS.map(g => (
+                <Select.Option key={g} value={g} label={g}>{g}</Select.Option>
+              ))}
             </Select>
           </Form.Item>
           <div style={{ fontSize: 12, color: '#999' }}>

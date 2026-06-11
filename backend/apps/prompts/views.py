@@ -214,7 +214,6 @@ class PromptViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'], url_path='version-history')
-    @action(detail=True, methods=['get'], url_path='versions')
     def version_history(self, request, pk=None):
         prompt = self.get_object()
         all_versions = Prompt.objects.filter(
@@ -229,6 +228,10 @@ class PromptViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = PromptVersionSerializer(all_versions, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='versions')
+    def versions(self, request, pk=None):
+        return self.version_history(request, pk)
 
     @action(detail=False, methods=['get'], url_path='stats')
     def stats(self, request):

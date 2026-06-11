@@ -140,7 +140,10 @@ const Reviews: React.FC = () => {
           is_accurate: values.is_accurate,
         })
       } else {
-        await reviewApi.batchApproveReviews(currentActionIds, values.comment)
+        await reviewApi.batchApproveReviews(currentActionIds, {
+          comment: values.comment,
+          is_accurate: values.is_accurate,
+        })
       }
       message.success('审核通过成功')
       setApproveModal(false)
@@ -166,7 +169,11 @@ const Reviews: React.FC = () => {
           inaccuracy_reason: values.inaccuracy_reason,
         })
       } else {
-        await reviewApi.batchRejectReviews(currentActionIds, values.comment)
+        await reviewApi.batchRejectReviews(currentActionIds, {
+          comment: values.comment,
+          is_accurate: values.is_accurate,
+          inaccuracy_reason: values.inaccuracy_reason,
+        })
       }
       message.success('审核拒绝成功')
       setRejectModal(false)

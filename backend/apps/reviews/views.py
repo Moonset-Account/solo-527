@@ -133,13 +133,21 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
         ids = serializer.validated_data['ids']
         comment = serializer.validated_data.get('comment', '')
+        is_accurate = serializer.validated_data.get('is_accurate', None)
+        inaccuracy_reason = serializer.validated_data.get('inaccuracy_reason', '')
 
-        updated_count = Review.objects.filter(id__in=ids).update(
-            status='approved',
-            reviewer=get_operator(request),
-            reviewed_at=timezone.now(),
-            comment=comment if comment else ''
-        )
+        update_data = {
+            'status': 'approved',
+            'reviewer': get_operator(request),
+            'reviewed_at': timezone.now(),
+            'comment': comment if comment else '',
+        }
+        if is_accurate is not None:
+            update_data['is_accurate'] = is_accurate
+        if inaccuracy_reason:
+            update_data['inaccuracy_reason'] = inaccuracy_reason
+
+        updated_count = Review.objects.filter(id__in=ids).update(**update_data)
 
         return Response({
             'success': True,
@@ -156,13 +164,21 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
         ids = serializer.validated_data['ids']
         comment = serializer.validated_data.get('comment', '')
+        is_accurate = serializer.validated_data.get('is_accurate', None)
+        inaccuracy_reason = serializer.validated_data.get('inaccuracy_reason', '')
 
-        updated_count = Review.objects.filter(id__in=ids).update(
-            status='rejected',
-            reviewer=get_operator(request),
-            reviewed_at=timezone.now(),
-            comment=comment if comment else ''
-        )
+        update_data = {
+            'status': 'rejected',
+            'reviewer': get_operator(request),
+            'reviewed_at': timezone.now(),
+            'comment': comment if comment else '',
+        }
+        if is_accurate is not None:
+            update_data['is_accurate'] = is_accurate
+        if inaccuracy_reason:
+            update_data['inaccuracy_reason'] = inaccuracy_reason
+
+        updated_count = Review.objects.filter(id__in=ids).update(**update_data)
 
         return Response({
             'success': True,
