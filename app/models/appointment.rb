@@ -189,6 +189,7 @@ class Appointment < ApplicationRecord
         }
       end,
       waiting_list_history: waiting_list&.before_after_snapshots || [],
+      waiting_list_notifications: waiting_list&.notification_history || [],
       created_at: created_at,
       operator: operator
     }

@@ -1,59 +1,81 @@
 class WaitingListNotificationJob < ApplicationJob
   queue_as :default
 
-  def perform(waiting_list_id)
+  def perform(waiting_list_id, notification_type = "release")
     entry = WaitingList.find_by(id: waiting_list_id)
-    return unless entry
-    return unless entry.status == "waiting"
+    return { success: false, reason: "waiting_list_not_found" } unless entry
 
-    rule = entry.waiting_list_rule || WaitingListRule.default_rule
-    return unless rule
-
-    deadline = if entry.time_slot
-                 rule.confirmation_deadline_for(entry.time_slot)
-               else
-                 rule.confirmation_timeout_minutes.minutes.from_now
-               end
-
-    send_notification(entry, deadline, rule)
-
-    if deadline && deadline > Time.current
-      WaitingListConfirmationTimeoutJob.set(wait_until: deadline).perform_later(entry.id)
+    case notification_type.to_s
+    when "release"
+      handle_release_notification(entry)
+    when "reminder"
+      handle_reminder_notification(entry)
+    when "expiration"
+      handle_expiration_notification(entry)
+    else
+      { success: false, reason: "unknown_notification_type" }
     end
-
-    entry.notify! if entry.may_notify?
-    Rails.logger.info "WaitingListNotificationJob: Processed WL##{entry.tracking_code}, deadline: #{deadline}"
+  rescue => e
+    Rails.logger.error "WaitingListNotificationJob error: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+    { success: false, reason: e.message }
   end
 
   private
 
-  def send_notification(entry, deadline, rule)
-    message = build_message(entry, deadline)
+  def handle_release_notification(entry)
+    return { success: false, reason: "status_not_waiting" } unless entry.status == "waiting"
 
-    channel = rule.respond_to?(:notify_channel) ? rule.notify_channel : "sms"
+    result = entry.send_release_notification!
+    return { success: false, reason: "notification_failed" } unless result
 
-    case channel
-    when "wechat"
-      send_wechat(entry.customer, message)
-    else
-      send_sms(entry.contact_phone, message)
+    deadline = result[:deadline]
+    if deadline && deadline > Time.current
+      WaitingListConfirmationTimeoutJob.set(wait_until: deadline).perform_later(entry.id)
     end
 
-    entry.update!(notified_at: Time.current)
-    Rails.logger.info "Notification sent to #{entry.contact_phone} for WL##{entry.tracking_code} via #{channel}"
+    Rails.logger.info "Release notification sent for WL##{entry.tracking_code}, deadline: #{deadline}"
+
+    {
+      success: true,
+      notification_type: "release",
+      notification_id: result[:notification]&.id,
+      deadline: deadline
+    }
   end
 
-  def build_message(entry, deadline)
-    slot_info = entry.time_slot ? "#{entry.time_slot.start_time.strftime('%m月%d日 %H:%M')}" : ""
-    deadline_info = deadline ? "请于#{deadline.strftime('%m月%d日 %H:%M')}前确认" : ""
-    "[口腔诊所] 您好#{entry.customer.name}，您候补的#{entry.doctor.name}医生#{slot_info}洁牙时段已有空位。#{deadline_info}，退订回T"
+  def handle_reminder_notification(entry)
+    rule = entry.waiting_list_rule || WaitingListRule.default_rule
+    return { success: false, reason: "no_rule" } unless rule
+
+    message = "[口腔诊所] 提醒#{entry.customer.name}，您候补的#{entry.doctor.name}医生洁牙时段请尽快确认，退订回T"
+
+    notification = entry.waiting_list_notifications.create!(
+      notification_type: "reminder",
+      channel: rule.notify_channel || "sms",
+      recipient: entry.contact_phone || entry.customer&.phone,
+      content: message,
+      operator: "system_reminder"
+    )
+    notification.send!
+
+    { success: true, notification_id: notification.id }
   end
 
-  def send_sms(phone, message)
-    Rails.logger.info "[SMS Mock] To: #{phone}, Message: #{message}"
-  end
+  def handle_expiration_notification(entry)
+    rule = entry.waiting_list_rule || WaitingListRule.default_rule
+    return { success: false, reason: "no_rule" } unless rule
 
-  def send_wechat(customer, message)
-    Rails.logger.info "[WeChat Mock] To: #{customer&.name}, Message: #{message}"
+    message = "[口腔诊所] 很抱歉#{entry.customer.name}，您候补的#{entry.doctor.name}医生洁牙时段已超时取消，退订回T"
+
+    notification = entry.waiting_list_notifications.create!(
+      notification_type: "expiration",
+      channel: rule.notify_channel || "sms",
+      recipient: entry.contact_phone || entry.customer&.phone,
+      content: message,
+      operator: "system_expiration"
+    )
+    notification.send!
+
+    { success: true, notification_id: notification.id }
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_11_000012) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_12_000013) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -197,6 +197,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_000012) do
     t.index ["waiting_list_id"], name: "index_waiting_list_change_logs_on_waiting_list_id"
   end
 
+  create_table "waiting_list_notifications", force: :cascade do |t|
+    t.string "channel", default: "sms"
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.text "notes"
+    t.string "notification_type", null: false
+    t.string "operator"
+    t.string "provider_reference"
+    t.datetime "read_at"
+    t.string "recipient"
+    t.datetime "sent_at"
+    t.string "status", default: "pending"
+    t.datetime "updated_at", null: false
+    t.bigint "waiting_list_id", null: false
+    t.index ["notification_type"], name: "index_waiting_list_notifications_on_notification_type"
+    t.index ["sent_at"], name: "index_waiting_list_notifications_on_sent_at"
+    t.index ["status"], name: "index_waiting_list_notifications_on_status"
+    t.index ["waiting_list_id", "notification_type"], name: "idx_wl_notifs_on_wl_id_and_type"
+    t.index ["waiting_list_id"], name: "index_waiting_list_notifications_on_waiting_list_id"
+  end
+
   create_table "waiting_list_rules", force: :cascade do |t|
     t.boolean "active", default: true
     t.boolean "auto_notify", default: true
@@ -258,6 +280,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_11_000012) do
   add_foreign_key "time_slots", "doctors"
   add_foreign_key "waiting_list_change_logs", "appointments"
   add_foreign_key "waiting_list_change_logs", "waiting_lists"
+  add_foreign_key "waiting_list_notifications", "waiting_lists"
   add_foreign_key "waiting_lists", "customers"
   add_foreign_key "waiting_lists", "doctors"
   add_foreign_key "waiting_lists", "service_items"

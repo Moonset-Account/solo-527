@@ -7,6 +7,7 @@ class WaitingList < ApplicationRecord
   belongs_to :service_item, optional: true
   belongs_to :waiting_list_rule, optional: true
   has_many :waiting_list_change_logs, dependent: :destroy
+  has_many :waiting_list_notifications, dependent: :destroy
   has_one :appointment, dependent: :nullify
 
   validates :customer_id, presence: true
@@ -67,6 +68,8 @@ class WaitingList < ApplicationRecord
   end
 
   def self.add_customer(customer, doctor, time_slot: nil, service_item: nil, rule: nil, operator: nil)
+    return nil if customer.blank? || doctor.blank?
+
     rule ||= WaitingListRule.default_rule
     max_waiting = rule&.max_waiting_per_slot || 5
 
@@ -79,7 +82,7 @@ class WaitingList < ApplicationRecord
       time_slot: time_slot,
       service_item: service_item,
       waiting_list_rule: rule,
-      contact_phone: customer.phone
+      contact_phone: customer&.phone
     )
   end
 
@@ -132,7 +135,76 @@ class WaitingList < ApplicationRecord
     end
   end
 
+  def send_release_notification!(rule = nil)
+    return false unless status == "waiting"
+
+    rule ||= waiting_list_rule || WaitingListRule.default_rule
+    return false unless rule
+
+    deadline = if time_slot
+                 rule.confirmation_deadline_for(time_slot)
+               else
+                 rule.confirmation_timeout_minutes.minutes.from_now
+               end
+
+    notification = nil
+
+    transaction do
+      notification = waiting_list_notifications.create!(
+        notification_type: "release",
+        channel: rule.notify_channel || "sms",
+        recipient: contact_phone || customer&.phone,
+        content: build_notification_message(deadline),
+        operator: "system_auto_release",
+        notes: "规则: #{rule.name}"
+      )
+
+      notification.send!
+
+      notify! if may_notify?
+      update!(notified_at: Time.current, expires_at: deadline)
+
+      log_notification_sent(notification, rule)
+    end
+
+    { notification: notification, deadline: deadline }
+  end
+
+  def notification_history
+    waiting_list_notifications.recent.map do |n|
+      {
+        id: n.id,
+        type: n.notification_type,
+        channel: n.channel,
+        recipient: n.recipient,
+        status: n.status,
+        sent_at: n.sent_at,
+        content: n.content,
+        error: n.error_message
+      }
+    end
+  end
+
   private
+
+  def build_notification_message(deadline)
+    slot_info = time_slot ? "#{time_slot.start_time.strftime('%m月%d日 %H:%M')}" : ""
+    deadline_info = deadline ? "请于#{deadline.strftime('%m月%d日 %H:%M')}前确认" : ""
+    "[口腔诊所] 您好#{customer.name}，您候补的#{doctor.name}医生#{slot_info}洁牙时段已有空位。#{deadline_info}，退订回T"
+  end
+
+  def log_notification_sent(notification, rule)
+    waiting_list_change_logs.create!(
+      change_type: "notified",
+      old_position: position,
+      new_position: position,
+      old_status: status_before_last_save || "waiting",
+      new_status: status,
+      changed_at: Time.current,
+      operator: "system",
+      change_details: "已发送#{notification.channel}通知（#{rule.name}），消息ID: #{notification.provider_reference}"
+    )
+  end
 
   def generate_tracking_code
     self.tracking_code ||= "WL#{Time.current.strftime('%Y%m%d%H%M%S')}#{SecureRandom.hex(4).upcase}"
@@ -144,10 +216,30 @@ class WaitingList < ApplicationRecord
 
   def calculate_position
     return if position.present? && position > 0
-    max_pos = WaitingList.where(doctor: doctor, time_slot: time_slot)
-                         .where(status: ["waiting", "notified", "confirmed"])
-                         .maximum(:position) || 0
-    self.position = max_pos + 1
+
+    scope = WaitingList.where(doctor: doctor, time_slot: time_slot)
+                       .where(status: ["waiting", "notified", "confirmed"])
+
+    if customer&.vip
+      last_vip_pos = scope.where(vip_priority: true).maximum(:position) || 0
+      self.position = last_vip_pos + 1
+      reorder_positions_after_vip_insert(last_vip_pos)
+    else
+      max_pos = scope.maximum(:position) || 0
+      self.position = max_pos + 1
+    end
+  end
+
+  def reorder_positions_after_vip_insert(last_vip_pos)
+    return unless time_slot
+    WaitingList.where(doctor: doctor, time_slot: time_slot)
+               .where(status: ["waiting", "notified", "confirmed"])
+               .where(vip_priority: false)
+               .where("position > ?", last_vip_pos)
+               .order(:position)
+               .each do |entry|
+      entry.increment!(:position)
+    end
   end
 
   def set_vip_priority
