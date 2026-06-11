@@ -1,0 +1,27 @@
+{
+  "name": "call-audio-index",
+  "version": "1.0.0",
+  "description": "客服通话录音索引 CLI - 质检主管离线整理样本工具",
+  "main": "dist/index.js",
+  "bin": {
+    "call-index": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": ["call-center", "audio-index", "quality-inspection"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "dayjs": "^1.11.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
+  }
+}
