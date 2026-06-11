@@ -33,7 +33,10 @@ impl AppError {
             self,
             AppError::JunitParse { .. }
                 | AppError::NoJunitFiles { .. }
+                | AppError::HistoryRead { .. }
+                | AppError::HistoryParse { .. }
                 | AppError::Io(_)
+                | AppError::Json(_)
                 | AppError::Walk(_)
         )
     }
