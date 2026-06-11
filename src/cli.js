@@ -11,6 +11,65 @@ const { parseFile, serialize, ConfigParseError } = require('./parser');
 const completion = require('./completion');
 const formatter = require('./formatter');
 
+function detectMachineReadable() {
+  return process.argv.some(arg => arg === '--machine-readable' || arg === '--machine_readable');
+}
+
+function buildErrorSummary(errors, exitCode, inputFiles = []) {
+  const errorList = Array.isArray(errors) ? errors : [errors];
+  return {
+    timestamp: new Date().toISOString(),
+    exitCode: exitCode,
+    success: false,
+    failedCount: errorList.length,
+    inputFiles: inputFiles,
+    outputFile: null,
+    processedCount: 0,
+    addedCount: 0,
+    overwrittenCount: 0,
+    removedCount: 0,
+    skippedCount: 0,
+    conflictCount: 0,
+    schemaValidated: false,
+    schemaValid: null,
+    validationErrors: 0,
+    validationWarnings: 0,
+    errors: errorList.map(e => {
+      if (typeof e === 'string') {
+        return { message: e, type: 'error', path: null };
+      }
+      return {
+        message: e.message || String(e),
+        type: e.name || 'Error',
+        path: e.path || e.filePath || null,
+        line: e.line || null,
+        column: e.column || null,
+        details: e.details || null
+      };
+    })
+  };
+}
+
+function exitWithError(errors, exitCode, machineReadable, inputFiles = []) {
+  if (machineReadable) {
+    const summary = buildErrorSummary(errors, exitCode, inputFiles);
+    console.log(JSON.stringify(summary, null, 2));
+  } else {
+    const errorList = Array.isArray(errors) ? errors : [errors];
+    if (errorList.length === 1 && typeof errorList[0] === 'object' && errorList[0].name) {
+      console.error(formatter.formatError(errorList[0], { useColor: !process.env.NO_COLOR }));
+    } else {
+      console.error(chalk.red.bold('\n参数错误:'));
+      for (const err of errorList) {
+        const msg = typeof err === 'string' ? err : (err.message || String(err));
+        console.error(chalk.red(`  ✗ ${msg}`));
+      }
+      console.error(chalk.gray('\n使用 --help 查看帮助信息'));
+    }
+  }
+  process.exit(exitCode);
+}
+
 const EXAMPLES = [
   {
     title: '1. 基础合并 - 将开发环境配置覆盖到基础配置',
@@ -154,7 +213,7 @@ JSON/YAML 配置合并器
   return program;
 }
 
-function parseConfigFile(configPath) {
+function parseConfigFile(configPath, machineReadable = false) {
   try {
     const result = parseFile(configPath);
     const cfg = result.data || {};
@@ -180,8 +239,7 @@ function parseConfigFile(configPath) {
       _configSource: configPath
     };
   } catch (err) {
-    console.error(formatter.formatError(err, { useColor: !process.env.NO_COLOR }));
-    process.exit(2);
+    exitWithError(err, 2, machineReadable, [configPath]);
   }
 }
 
@@ -262,12 +320,12 @@ function printExamples() {
 
 async function main() {
   const program = createProgram();
+  const earlyMachineReadable = detectMachineReadable();
 
   try {
     program.parse(process.argv);
   } catch (err) {
-    console.error(formatter.formatError({ message: err.message, name: 'ArgumentError' }, { useColor: !process.env.NO_COLOR }));
-    process.exit(2);
+    exitWithError({ message: err.message, name: 'ArgumentError' }, 2, earlyMachineReadable);
   }
 
   const opts = program.opts();
@@ -296,7 +354,7 @@ async function main() {
 
   let fileOptions = {};
   if (opts.config) {
-    fileOptions = parseConfigFile(opts.config);
+    fileOptions = parseConfigFile(opts.config, earlyMachineReadable);
   }
 
   const argv = process.argv;
@@ -375,20 +433,15 @@ async function main() {
     mergedOpts.quiet = false;
   }
 
-  const optionErrors = validateOptions(mergedOpts);
-  if (optionErrors.length > 0) {
-    console.error(chalk.red.bold('\n参数错误:'));
-    for (const err of optionErrors) {
-      console.error(chalk.red(`  ✗ ${err}`));
-    }
-    console.error(chalk.gray('\n使用 --help 查看帮助信息'));
-    process.exit(2);
-  }
-
   const inputFiles = [
     mergedOpts.base,
     ...(Array.isArray(mergedOpts.overlay) ? mergedOpts.overlay : [])
   ].filter(Boolean);
+
+  const optionErrors = validateOptions(mergedOpts);
+  if (optionErrors.length > 0) {
+    exitWithError(optionErrors, 2, mergedOpts.machineReadable, inputFiles);
+  }
 
   const merger = new ConfigMerger({
     mergeStrategy: mergedOpts.strategy,
@@ -410,8 +463,7 @@ async function main() {
       preview: mergedOpts.preview
     });
   } catch (err) {
-    console.error(formatter.formatError(err, { useColor: opts.color !== false, showStack: mergedOpts.verbose }));
-    process.exit(1);
+    exitWithError(err, 1, mergedOpts.machineReadable, inputFiles);
   }
 
   if (mergedOpts.preview && !mergedOpts.quiet && !mergedOpts.machineReadable) {
@@ -432,18 +484,12 @@ async function main() {
       fs.writeFileSync(resolvedOutput, result.output, 'utf8');
       result.summary.outputFile = resolvedOutput;
     } catch (err) {
-      if (!mergedOpts.machineReadable) {
-        console.error(formatter.formatError({
-          name: 'WriteError',
-          message: `写入文件失败: ${err.message}`,
-          filePath: mergedOpts.output
-        }, { useColor: opts.color !== false }));
-      } else {
-        result.summary.exitCode = 1;
-        result.summary.failedCount = (result.summary.failedCount || 0) + 1;
-        result.summary.error = err.message;
-      }
-      process.exit(1);
+      const writeErr = {
+        name: 'WriteError',
+        message: `写入文件失败: ${err.message}`,
+        filePath: mergedOpts.output
+      };
+      exitWithError(writeErr, 1, mergedOpts.machineReadable, inputFiles);
     }
   }
 
@@ -470,8 +516,8 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    console.error(formatter.formatError(err, { useColor: !process.env.NO_COLOR, showStack: true }));
-    process.exit(1);
+    const mr = detectMachineReadable();
+    exitWithError(err, 1, mr);
   });
 }
 
@@ -481,5 +527,8 @@ module.exports = {
   validateOptions,
   parseConfigFile,
   createProgram,
+  buildErrorSummary,
+  exitWithError,
+  detectMachineReadable,
   main
 };
