@@ -99,7 +99,6 @@ class DeletionPlanner:
         self.root_dir = normalize_path(root_dir)
         self.undo_dir = os.path.join(self.root_dir, UNDO_DIR)
         self.lock_file = os.path.join(self.root_dir, LOCK_FILENAME)
-        os.makedirs(self.undo_dir, exist_ok=True)
 
     def create_plan(
         self,
@@ -230,7 +229,8 @@ class DeletionPlanner:
 
         plan.applied = True
         self.write_lock_file(plan)
-        self._create_undo_manifest(plan)
+        if create_backup:
+            self._create_undo_manifest(plan)
 
         return plan
 
@@ -292,6 +292,7 @@ class DeletionPlanner:
 
     def _create_backup(self, file_info: FileInfo) -> str:
         """创建文件备份"""
+        self._ensure_undo_dir()
         rel_path = file_info.relative_path.replace('/', '_').replace('\\', '_')
         backup_name = f"{file_info.hash}_{rel_path}"
         backup_path = os.path.join(self.undo_dir, backup_name)
@@ -303,6 +304,7 @@ class DeletionPlanner:
 
     def _create_undo_manifest(self, plan: DeletionPlan) -> None:
         """创建撤销清单"""
+        self._ensure_undo_dir()
         manifest_path = os.path.join(self.undo_dir, f"{plan.id}.json")
 
         manifest = {

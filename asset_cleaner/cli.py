@@ -433,7 +433,11 @@ def scan(
         raise typer.Exit(code=1)
 
     if asset_dir:
-        cfg.asset_dirs = [normalize_path(d) for d in asset_dir]
+        cfg.asset_dirs = []
+        for d in asset_dir:
+            if not os.path.isabs(d):
+                d = os.path.join(root_dir, d)
+            cfg.asset_dirs.append(normalize_path(d))
 
     if no_gitignore:
         cfg.use_gitignore = False
@@ -566,7 +570,11 @@ def clean(
         raise typer.Exit(code=1)
 
     if asset_dir:
-        cfg.asset_dirs = [normalize_path(d) for d in asset_dir]
+        cfg.asset_dirs = []
+        for d in asset_dir:
+            if not os.path.isabs(d):
+                d = os.path.join(root_dir, d)
+            cfg.asset_dirs.append(normalize_path(d))
 
     if no_progress:
         cfg.show_progress = False
