@@ -379,3 +379,150 @@ fn test_protected_branches_not_deleted() {
     assert_eq!(main_branch["action"], "skip");
     assert_eq!(main_branch["branch"]["is_protected"], true);
 }
+
+#[test]
+fn test_example_config_is_valid_json() {
+    let config_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("config.json");
+
+    assert!(config_path.exists(), "示例配置文件不存在: {}", config_path.display());
+
+    let content = std::fs::read_to_string(&config_path).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&content)
+        .expect("examples/config.json 应该是有效的 JSON");
+
+    assert!(config.get("dry_run").is_some());
+    assert!(config.get("protection_rules").is_some());
+    assert!(config.get("min_risk_level").is_some());
+}
+
+#[test]
+fn test_config_file_flag_loads_config() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("custom-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": true,
+        "merged_only": false,
+        "older_than_days": null,
+        "exclude_patterns": ["custom-exclude/*"],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"},
+            {"pattern": "master", "reason": "default"},
+            {"pattern": "custom-protected", "reason": "custom rule"}
+        ],
+        "min_risk_level": "high",
+        "interactive": false,
+        "format": "json",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": true,
+        "pr_source": null,
+        "pr_api_url": null,
+        "pr_token": null,
+        "max_concurrent": 2
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--format=json")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "命令应该成功执行");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    let protected_count = report["summary"]["protected"].as_i64().unwrap();
+    assert!(
+        protected_count >= 1,
+        "配置文件中定义的保护规则应该生效，保护分支数: {}",
+        protected_count
+    );
+}
+
+#[test]
+fn test_cli_args_override_config_file() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("override-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": true,
+        "merged_only": false,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "safe",
+        "interactive": false,
+        "format": "human",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": true,
+        "pr_source": null,
+        "pr_api_url": null,
+        "pr_token": null,
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--format=json")
+        .arg("--older-than=365")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "命令应该成功执行");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    let safe_to_delete = report["summary"]["safe_to_delete"].as_i64().unwrap();
+    assert_eq!(
+        safe_to_delete, 0,
+        "CLI 参数 --older-than=365 应该覆盖配置文件，新分支不应被删除"
+    );
+}
+
+#[test]
+fn test_invalid_config_file_returns_error() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let bad_config = dir.path().join("bad.json");
+    std::fs::write(&bad_config, "not valid json {").unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&bad_config);
+
+    cmd.assert().failure();
+}

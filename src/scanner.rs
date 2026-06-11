@@ -224,4 +224,60 @@ mod tests {
             assert!(!branch.risk_reasons.is_empty() || branch.is_protected);
         }
     }
+
+    #[test]
+    fn test_pr_provider_updates_branch_info() {
+        let (_dir, config) = create_test_repo();
+
+        let mock_prs = vec![crate::models::PrInfo {
+            number: 42,
+            title: "Test PR".to_string(),
+            status: crate::models::PrStatus::Open,
+            branch: "feature/old".to_string(),
+            author: "testuser".to_string(),
+            url: None,
+        }];
+        let provider = crate::pr::MockPrProvider::new(mock_prs);
+
+        let scanner = BranchScanner::new(config).unwrap()
+            .with_pr_provider(Box::new(provider));
+        let branches = scanner.scan().unwrap();
+
+        let old_branch = branches.iter().find(|b| b.name == "feature/old").unwrap();
+        assert_eq!(old_branch.pr_status, crate::models::PrStatus::Open);
+        assert_eq!(old_branch.pr_number, Some(42));
+        assert_eq!(old_branch.pr_title, Some("Test PR".to_string()));
+    }
+
+    #[test]
+    fn test_open_pr_increases_risk_via_scanner() {
+        let (_dir, config) = create_test_repo();
+
+        let scanner_no_pr = BranchScanner::new(config.clone()).unwrap();
+        let branches_no_pr = scanner_no_pr.scan().unwrap();
+        let old_no_pr = branches_no_pr.iter().find(|b| b.name == "feature/old").unwrap();
+        let risk_without = old_no_pr.risk_level;
+
+        let mock_prs = vec![crate::models::PrInfo {
+            number: 1,
+            title: "Open PR".to_string(),
+            status: crate::models::PrStatus::Open,
+            branch: "feature/old".to_string(),
+            author: "test".to_string(),
+            url: None,
+        }];
+        let provider = crate::pr::MockPrProvider::new(mock_prs);
+        let scanner_with_pr = BranchScanner::new(config).unwrap()
+            .with_pr_provider(Box::new(provider));
+        let branches_with_pr = scanner_with_pr.scan().unwrap();
+        let old_with_pr = branches_with_pr.iter().find(|b| b.name == "feature/old").unwrap();
+        let risk_with = old_with_pr.risk_level;
+
+        assert!(
+            risk_with > risk_without,
+            "有打开 PR 的分支风险等级应该更高: {:?} > {:?}",
+            risk_with,
+            risk_without
+        );
+    }
 }

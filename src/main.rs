@@ -292,37 +292,14 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
         _ => unreachable!(),
     };
 
-    let repo_path = cli.repo.clone().unwrap_or_else(|| PathBuf::from("."));
-
-    let mut config = config::CleanupConfig {
-        repo_path: repo_path.clone(),
-        dry_run: opts.dry_run,
-        merged_only: opts.merged,
-        older_than_days: opts.older_than,
-        exclude_patterns: opts.exclude.clone(),
-        include_remote: opts.include_remote,
-        remote_name: opts.remote.clone(),
-        default_branch: opts.default_branch.clone(),
-        interactive: opts.interactive && !opts.no_interactive,
-        format: cli.format.into(),
-        output_file: cli.output.clone(),
-        rollback_enabled: !opts.no_rollback && is_clean,
-        pr_source: opts.pr_source.map(|s| s.into()),
-        pr_api_url: opts.pr_api_url.clone(),
-        pr_token: opts.pr_token.clone(),
-        ..Default::default()
+    let mut config = if let Some(config_path) = &cli.config {
+        config::CleanupConfig::from_file(config_path)?
+    } else {
+        config::CleanupConfig::default()
     };
 
-    if let Some(min_risk) = opts.min_risk {
-        config.min_risk_level = min_risk.into();
-    }
-
-    for pattern in &opts.protect {
-        config.protection_rules.push(models::ProtectionRule {
-            pattern: pattern.clone(),
-            reason: "命令行指定".to_string(),
-        });
-    }
+    let cli_overrides = build_cli_overrides(&cli, &opts, is_clean);
+    config.merge_cli_overrides(cli_overrides);
 
     if !is_clean {
         config.dry_run = true;
@@ -332,14 +309,18 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
     let mut executor = executor::CleanupExecutor::new(config.clone())?;
 
     if let Some(pr_source) = &config.pr_source {
-        if let Ok(provider) = pr::create_pr_provider(
+        match pr::create_pr_provider(
             *pr_source,
             config.pr_api_url.as_deref(),
             config.pr_token.as_deref(),
             &config.repo_path,
         ) {
-            // PR provider 集成需要额外工作，这里暂留接口
-            let _ = provider;
+            Ok(provider) => {
+                executor = executor.with_pr_provider(provider);
+            }
+            Err(e) => {
+                eprintln!("警告: 创建 PR provider 失败: {}", e);
+            }
         }
     }
 
@@ -377,6 +358,75 @@ struct CleanOpts {
     pr_source: Option<PrSourceCli>,
     pr_api_url: Option<String>,
     pr_token: Option<String>,
+}
+
+fn build_cli_overrides(cli: &Cli, opts: &CleanOpts, is_clean: bool) -> config::CliOverrides {
+    let mut overrides = config::CliOverrides::default();
+
+    if cli.repo.is_some() {
+        overrides.repo_path = cli.repo.clone();
+    }
+
+    if is_clean {
+        overrides.dry_run = Some(opts.dry_run);
+    }
+
+    if opts.merged {
+        overrides.merged_only = Some(true);
+    }
+
+    if opts.older_than.is_some() {
+        overrides.older_than_days = opts.older_than;
+    }
+
+    if !opts.exclude.is_empty() {
+        overrides.exclude_patterns = opts.exclude.clone();
+    }
+
+    if opts.include_remote {
+        overrides.include_remote = Some(true);
+    }
+
+    if opts.remote != "origin" {
+        overrides.remote_name = Some(opts.remote.clone());
+    }
+
+    if opts.default_branch != "main" {
+        overrides.default_branch = Some(opts.default_branch.clone());
+    }
+
+    if opts.min_risk.is_some() {
+        overrides.min_risk_level = opts.min_risk.map(|r| r.into());
+    }
+
+    if !opts.protect.is_empty() {
+        overrides.protect_patterns = opts.protect.clone();
+    }
+
+    if is_clean {
+        overrides.interactive = Some(opts.interactive && !opts.no_interactive);
+        overrides.rollback_enabled = Some(!opts.no_rollback);
+    }
+
+    overrides.format = Some(cli.format.into());
+
+    if cli.output.is_some() {
+        overrides.output_file = cli.output.clone();
+    }
+
+    if opts.pr_source.is_some() {
+        overrides.pr_source = opts.pr_source.map(|s| s.into());
+    }
+
+    if opts.pr_api_url.is_some() {
+        overrides.pr_api_url = opts.pr_api_url.clone();
+    }
+
+    if opts.pr_token.is_some() {
+        overrides.pr_token = opts.pr_token.clone();
+    }
+
+    overrides
 }
 
 fn run_rollback_command(cli: Cli, id: &str, list: bool) -> anyhow::Result<i32> {

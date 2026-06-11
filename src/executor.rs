@@ -29,6 +29,11 @@ impl CleanupExecutor {
         })
     }
 
+    pub fn with_pr_provider(mut self, provider: Box<dyn crate::pr::PrProvider + Send + Sync>) -> Self {
+        self.scanner = self.scanner.with_pr_provider(provider);
+        self
+    }
+
     pub fn execute(&mut self) -> Result<CleanupReport> {
         let start_time = Utc::now();
 
