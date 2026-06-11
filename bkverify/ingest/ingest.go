@@ -13,17 +13,18 @@ import (
 )
 
 type manifestLine struct {
-	bucket   string
-	path     string
-	size     int64
-	checksum string
-	lineNo   int
+	bucket     string
+	path       string
+	size       int64
+	checksum   string
+	lineNo     int
+	expireDate string
 }
 
 type storageLine struct {
-	bucket  string
-	path    string
-	size    int64
+	bucket   string
+	path     string
+	size     int64
 	checksum string
 }
 
@@ -42,9 +43,9 @@ func parseManifestFile(path string) ([]manifestLine, error) {
 		if text == "" || strings.HasPrefix(text, "#") {
 			continue
 		}
-		fields := strings.SplitN(text, ",", 5)
+		fields := strings.SplitN(text, ",", 6)
 		if len(fields) < 4 {
-			return nil, fmt.Errorf("manifest line %d: expected at least 4 comma-separated fields (bucket,path,size,checksum), got %d", lineno, len(fields))
+			return nil, fmt.Errorf("manifest line %d: expected at least 4 comma-separated fields (bucket,path,size,checksum[,expire_date]), got %d", lineno, len(fields))
 		}
 		bucket := strings.TrimSpace(fields[0])
 		objPath := strings.TrimSpace(fields[1])
@@ -53,12 +54,17 @@ func parseManifestFile(path string) ([]manifestLine, error) {
 			return nil, fmt.Errorf("manifest line %d: invalid size %q: %w", lineno, fields[2], err)
 		}
 		checksum := strings.TrimSpace(fields[3])
+		var expireDate string
+		if len(fields) >= 5 {
+			expireDate = strings.TrimSpace(fields[4])
+		}
 		lines = append(lines, manifestLine{
-			bucket:   bucket,
-			path:     objPath,
-			size:     size,
-			checksum: checksum,
-			lineNo:   lineno,
+			bucket:     bucket,
+			path:       objPath,
+			size:       size,
+			checksum:   checksum,
+			lineNo:     lineno,
+			expireDate: expireDate,
 		})
 	}
 	return lines, scanner.Err()
@@ -111,7 +117,9 @@ func NewCommand() *cobra.Command {
 		Long: `Parse a backup manifest CSV and an object storage listing CSV into the local SQLite index.
 Manifest CSV format: bucket,path,size,checksum[,expire_date]
 Storage CSV format: bucket,path,size[,checksum]
-Use --bucket to restrict ingestion to a single bucket.`,
+
+When --bucket is specified, only that bucket's old index is cleared before ingestion.
+When --bucket is not specified, ALL old indices are cleared first to avoid stale accumulation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			manifestPath, _ := cmd.Flags().GetString("manifest")
 			storagePath, _ := cmd.Flags().GetString("storage")
@@ -131,7 +139,11 @@ Use --bucket to restrict ingestion to a single bucket.`,
 			if manifestPath != "" {
 				if bucket != "" {
 					if err := db.ClearManifest(database, bucket); err != nil {
-						return fmt.Errorf("clear old manifest: %w", err)
+						return fmt.Errorf("clear old manifest for bucket %s: %w", bucket, err)
+					}
+				} else {
+					if err := db.ClearAllManifest(database); err != nil {
+						return fmt.Errorf("clear all old manifest entries: %w", err)
 					}
 				}
 				entries, err := parseManifestFile(manifestPath)
@@ -149,6 +161,7 @@ Use --bucket to restrict ingestion to a single bucket.`,
 						Size:       e.size,
 						Checksum:   e.checksum,
 						LineNo:     e.lineNo,
+						ExpireDate: e.expireDate,
 						IngestedAt: now,
 					})
 					if err != nil {
@@ -162,7 +175,11 @@ Use --bucket to restrict ingestion to a single bucket.`,
 			if storagePath != "" {
 				if bucket != "" {
 					if err := db.ClearStorage(database, bucket); err != nil {
-						return fmt.Errorf("clear old storage: %w", err)
+						return fmt.Errorf("clear old storage for bucket %s: %w", bucket, err)
+					}
+				} else {
+					if err := db.ClearAllStorage(database); err != nil {
+						return fmt.Errorf("clear all old storage entries: %w", err)
 					}
 				}
 				objects, err := parseStorageFile(storagePath)

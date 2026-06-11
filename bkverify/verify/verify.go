@@ -2,6 +2,7 @@ package verify
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func parseManifestWithExpiry(path string) ([]db.ManifestEntry, error) {
+func parseManifestFile(path string) ([]db.ManifestEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open manifest: %w", err)
@@ -38,12 +39,17 @@ func parseManifestWithExpiry(path string) ([]db.ManifestEntry, error) {
 			return nil, fmt.Errorf("manifest line %d: invalid size: %w", lineno, err)
 		}
 		checksum := strings.TrimSpace(fields[3])
+		var expireDate string
+		if len(fields) >= 5 {
+			expireDate = strings.TrimSpace(fields[4])
+		}
 		records = append(records, db.ManifestEntry{
 			Bucket:     bucket,
 			Path:       objPath,
 			Size:       size,
 			Checksum:   checksum,
 			LineNo:     lineno,
+			ExpireDate: expireDate,
 			IngestedAt: time.Now().UTC(),
 		})
 	}
@@ -88,27 +94,58 @@ func parseStorageFile(path string) ([]db.StorageObject, error) {
 	return records, scanner.Err()
 }
 
-func loadManifestExpiry(path string) (map[int]string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	result := make(map[int]string)
-	scanner := bufio.NewScanner(f)
-	lineno := 0
-	for scanner.Scan() {
-		lineno++
-		text := strings.TrimSpace(scanner.Text())
-		if text == "" || strings.HasPrefix(text, "#") {
+func ingestManifestToDB(database *sql.DB, entries []db.ManifestEntry, bucket string) error {
+	clearedBuckets := make(map[string]bool)
+	now := time.Now().UTC()
+	for _, e := range entries {
+		if bucket != "" && e.Bucket != bucket {
 			continue
 		}
-		fields := strings.SplitN(text, ",", 6)
-		if len(fields) >= 5 {
-			result[lineno] = strings.TrimSpace(fields[4])
+		if !clearedBuckets[e.Bucket] {
+			if err := db.ClearManifest(database, e.Bucket); err != nil {
+				return fmt.Errorf("clear manifest for bucket %s: %w", e.Bucket, err)
+			}
+			clearedBuckets[e.Bucket] = true
+		}
+		if err := db.InsertManifestEntry(database, db.ManifestEntry{
+			Bucket:     e.Bucket,
+			Path:       e.Path,
+			Size:       e.Size,
+			Checksum:   e.Checksum,
+			LineNo:     e.LineNo,
+			ExpireDate: e.ExpireDate,
+			IngestedAt: now,
+		}); err != nil {
+			return fmt.Errorf("insert manifest entry (line %d): %w", e.LineNo, err)
 		}
 	}
-	return result, scanner.Err()
+	return nil
+}
+
+func ingestStorageToDB(database *sql.DB, objects []db.StorageObject, bucket string) error {
+	clearedBuckets := make(map[string]bool)
+	now := time.Now().UTC()
+	for _, o := range objects {
+		if bucket != "" && o.Bucket != bucket {
+			continue
+		}
+		if !clearedBuckets[o.Bucket] {
+			if err := db.ClearStorage(database, o.Bucket); err != nil {
+				return fmt.Errorf("clear storage for bucket %s: %w", o.Bucket, err)
+			}
+			clearedBuckets[o.Bucket] = true
+		}
+		if err := db.InsertStorageObject(database, db.StorageObject{
+			Bucket:     o.Bucket,
+			Path:       o.Path,
+			Size:       o.Size,
+			Checksum:   o.Checksum,
+			IngestedAt: now,
+		}); err != nil {
+			return fmt.Errorf("insert storage object %s/%s: %w", o.Bucket, o.Path, err)
+		}
+	}
+	return nil
 }
 
 func checkManifestVsStorage(entries []db.ManifestEntry, storageMap map[string]db.StorageObject) (missing, sizeMismatch, checksumFail []db.ReportItem) {
@@ -149,15 +186,14 @@ func checkManifestVsStorage(entries []db.ManifestEntry, storageMap map[string]db
 	return
 }
 
-func checkExpired(entries []db.ManifestEntry, expiryMap map[int]string) []db.ReportItem {
+func checkExpired(entries []db.ManifestEntry) []db.ReportItem {
 	now := time.Now().UTC()
 	var items []db.ReportItem
 	for _, e := range entries {
-		expStr, ok := expiryMap[e.LineNo]
-		if !ok || expStr == "" {
+		if e.ExpireDate == "" {
 			continue
 		}
-		expTime, err := time.Parse("2006-01-02", expStr)
+		expTime, err := time.Parse("2006-01-02", e.ExpireDate)
 		if err != nil {
 			continue
 		}
@@ -168,7 +204,7 @@ func checkExpired(entries []db.ManifestEntry, expiryMap map[int]string) []db.Rep
 				Bucket:   e.Bucket,
 				Path:     e.Path,
 				LineNo:   e.LineNo,
-				Detail:   fmt.Sprintf("backup expired on %s", expStr),
+				Detail:   fmt.Sprintf("backup expired on %s", e.ExpireDate),
 			})
 		}
 	}
@@ -192,21 +228,6 @@ func checkDuplicates(objects []db.StorageObject) []db.ReportItem {
 		}
 	}
 	return items
-}
-
-func collectBuckets(entries []db.ManifestEntry, objects []db.StorageObject) []string {
-	set := make(map[string]bool)
-	for _, e := range entries {
-		set[e.Bucket] = true
-	}
-	for _, o := range objects {
-		set[o.Bucket] = true
-	}
-	var buckets []string
-	for b := range set {
-		buckets = append(buckets, b)
-	}
-	return buckets
 }
 
 func printSummary(cmd *cobra.Command, bucket string, started, finished time.Time, missing, sizeMismatch, checksumFail, expired, duplicate int) {
@@ -238,22 +259,24 @@ func NewCommand() *cobra.Command {
 	var storagePath string
 
 	cmd := &cobra.Command{
-		Use:   "verify --manifest FILE --storage FILE [--bucket BUCKET]",
+		Use:   "verify [--manifest FILE] [--storage FILE] [--bucket BUCKET]",
 		Short: "Verify backup integrity against manifest and storage listing",
-		Long: `Compare the backup manifest with the object storage listing to detect:
+		Long: `Verify backup integrity by comparing the manifest with the object storage listing.
+
+Data sources (in order of priority):
+  1. If --manifest and/or --storage are provided, they are ingested into SQLite first
+  2. Otherwise, the previously ingested SQLite index is used directly
+
+Checks performed:
   - MISSING:       Files in manifest but not in storage
   - SIZE_MISMATCH: File exists but size differs
   - CHECKSUM_FAIL: File exists but checksum differs (shows manifest line number + object path)
-  - EXPIRED:       Backup past retention period (expire_date in manifest CSV)
+  - EXPIRED:       Backup past retention period (expire_date stored from manifest)
   - DUPLICATE:     Duplicate snapshot paths in storage
 
 Severe issues (MISSING, CHECKSUM_FAIL) cause non-zero exit code.
 Reports are persisted in the local SQLite database for historical review.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if manifestPath == "" && storagePath == "" {
-				return fmt.Errorf("at least one of --manifest or --storage is required")
-			}
-
 			database, err := db.Open(dbPath)
 			if err != nil {
 				return err
@@ -262,63 +285,38 @@ Reports are persisted in the local SQLite database for historical review.`,
 
 			started := time.Now().UTC()
 
-			var manifestEntries []db.ManifestEntry
-			var storageObjects []db.StorageObject
-
 			if manifestPath != "" {
-				manifestEntries, err = parseManifestWithExpiry(manifestPath)
+				entries, err := parseManifestFile(manifestPath)
 				if err != nil {
 					return err
 				}
-				clearedBuckets := make(map[string]bool)
-				now := time.Now().UTC()
-				for _, e := range manifestEntries {
-					if bucket != "" && e.Bucket != bucket {
-						continue
-					}
-					if !clearedBuckets[e.Bucket] {
-						db.ClearManifest(database, e.Bucket)
-						clearedBuckets[e.Bucket] = true
-					}
-					db.InsertManifestEntry(database, db.ManifestEntry{
-						Bucket:     e.Bucket,
-						Path:       e.Path,
-						Size:       e.Size,
-						Checksum:   e.Checksum,
-						LineNo:     e.LineNo,
-						IngestedAt: now,
-					})
+				if err := ingestManifestToDB(database, entries, bucket); err != nil {
+					return err
 				}
 			}
 
 			if storagePath != "" {
-				storageObjects, err = parseStorageFile(storagePath)
+				objects, err := parseStorageFile(storagePath)
 				if err != nil {
 					return err
 				}
-				clearedBuckets := make(map[string]bool)
-				now := time.Now().UTC()
-				for _, o := range storageObjects {
-					if bucket != "" && o.Bucket != bucket {
-						continue
-					}
-					if !clearedBuckets[o.Bucket] {
-						db.ClearStorage(database, o.Bucket)
-						clearedBuckets[o.Bucket] = true
-					}
-					db.InsertStorageObject(database, db.StorageObject{
-						Bucket:     o.Bucket,
-						Path:       o.Path,
-						Size:       o.Size,
-						Checksum:   o.Checksum,
-						IngestedAt: now,
-					})
+				if err := ingestStorageToDB(database, objects, bucket); err != nil {
+					return err
 				}
 			}
 
-			buckets := collectBuckets(manifestEntries, storageObjects)
+			var buckets []string
 			if bucket != "" {
 				buckets = []string{bucket}
+			} else {
+				buckets, err = db.ListBuckets(database)
+				if err != nil {
+					return fmt.Errorf("list buckets: %w", err)
+				}
+			}
+
+			if len(buckets) == 0 {
+				return fmt.Errorf("no data in local index; run 'ingest' first or provide --manifest/--storage")
 			}
 
 			var allItems []db.ReportItem
@@ -327,11 +325,6 @@ Reports are persisted in the local SQLite database for historical review.`,
 			checksumFailCount := 0
 			expiredCount := 0
 			duplicateCount := 0
-
-			expiryMap := make(map[int]string)
-			if manifestPath != "" {
-				expiryMap, _ = loadManifestExpiry(manifestPath)
-			}
 
 			for _, b := range buckets {
 				me, err := db.ListManifestEntries(database, b)
@@ -353,7 +346,7 @@ Reports are persisted in the local SQLite database for historical review.`,
 				sizeMismatchCount += len(sizeItems)
 				checksumFailCount += len(checksumItems)
 
-				expiredItems := checkExpired(me, expiryMap)
+				expiredItems := checkExpired(me)
 				expiredCount += len(expiredItems)
 
 				dupItems := checkDuplicates(so)
@@ -413,8 +406,8 @@ Reports are persisted in the local SQLite database for historical review.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&manifestPath, "manifest", "", "Path to backup manifest CSV")
-	cmd.Flags().StringVar(&storagePath, "storage", "", "Path to object storage listing CSV")
+	cmd.Flags().StringVar(&manifestPath, "manifest", "", "Path to backup manifest CSV (optional; uses SQLite index if omitted)")
+	cmd.Flags().StringVar(&storagePath, "storage", "", "Path to object storage listing CSV (optional; uses SQLite index if omitted)")
 	cmd.Flags().StringVar(&bucket, "bucket", "", "Restrict verification to a specific bucket")
 	cmd.Flags().StringVar(&dbPath, "db", "", "Path to SQLite database (default: ~/.bkverify/bkverify.db)")
 

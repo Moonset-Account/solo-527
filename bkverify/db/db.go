@@ -11,12 +11,13 @@ import (
 )
 
 type ManifestEntry struct {
-	ID        int64
-	Bucket    string
-	Path      string
-	Size      int64
-	Checksum  string
-	LineNo    int
+	ID         int64
+	Bucket     string
+	Path       string
+	Size       int64
+	Checksum   string
+	LineNo     int
+	ExpireDate string
 	IngestedAt time.Time
 }
 
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS manifest_entries (
 	size INTEGER NOT NULL,
 	checksum TEXT NOT NULL DEFAULT '',
 	line_no INTEGER NOT NULL,
+	expire_date TEXT NOT NULL DEFAULT '',
 	ingested_at DATETIME NOT NULL
 );
 
@@ -134,8 +136,8 @@ func Open(dbPath string) (*sql.DB, error) {
 
 func InsertManifestEntry(db *sql.DB, e ManifestEntry) error {
 	_, err := db.Exec(
-		`INSERT INTO manifest_entries (bucket, path, size, checksum, line_no, ingested_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		e.Bucket, e.Path, e.Size, e.Checksum, e.LineNo, e.IngestedAt,
+		`INSERT INTO manifest_entries (bucket, path, size, checksum, line_no, expire_date, ingested_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		e.Bucket, e.Path, e.Size, e.Checksum, e.LineNo, e.ExpireDate, e.IngestedAt,
 	)
 	return err
 }
@@ -153,14 +155,47 @@ func ClearManifest(db *sql.DB, bucket string) error {
 	return err
 }
 
+func ClearAllManifest(db *sql.DB) error {
+	_, err := db.Exec(`DELETE FROM manifest_entries`)
+	return err
+}
+
 func ClearStorage(db *sql.DB, bucket string) error {
 	_, err := db.Exec(`DELETE FROM storage_objects WHERE bucket = ?`, bucket)
 	return err
 }
 
+func ClearAllStorage(db *sql.DB) error {
+	_, err := db.Exec(`DELETE FROM storage_objects`)
+	return err
+}
+
+func ListBuckets(db *sql.DB) ([]string, error) {
+	rows, err := db.Query(
+		`SELECT DISTINCT bucket FROM (
+			SELECT bucket FROM manifest_entries
+			UNION
+			SELECT bucket FROM storage_objects
+		) ORDER BY bucket`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var buckets []string
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
+}
+
 func ListManifestEntries(db *sql.DB, bucket string) ([]ManifestEntry, error) {
 	rows, err := db.Query(
-		`SELECT id, bucket, path, size, checksum, line_no, ingested_at FROM manifest_entries WHERE bucket = ? ORDER BY path`,
+		`SELECT id, bucket, path, size, checksum, line_no, expire_date, ingested_at FROM manifest_entries WHERE bucket = ? ORDER BY path`,
 		bucket,
 	)
 	if err != nil {
@@ -170,7 +205,7 @@ func ListManifestEntries(db *sql.DB, bucket string) ([]ManifestEntry, error) {
 	var entries []ManifestEntry
 	for rows.Next() {
 		var e ManifestEntry
-		if err := rows.Scan(&e.ID, &e.Bucket, &e.Path, &e.Size, &e.Checksum, &e.LineNo, &e.IngestedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Bucket, &e.Path, &e.Size, &e.Checksum, &e.LineNo, &e.ExpireDate, &e.IngestedAt); err != nil {
 			return nil, err
 		}
 		entries = append(entries, e)
