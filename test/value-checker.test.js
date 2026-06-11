@@ -101,7 +101,7 @@ describe('value-checker', () => {
         ...DEFAULT_CONFIG,
         reviewStatus: { enabled: false, requiredStatus: ['approved'] }
       };
-      const result = checkReviewStatus({}, config);
+      const result = checkReviewStatus({}, {}, config);
       expect(result.errors.length).toBe(0);
       expect(result.stats.totalChecked).toBe(0);
     });
@@ -111,15 +111,20 @@ describe('value-checker', () => {
         ...DEFAULT_CONFIG,
         reviewStatus: { enabled: true, requiredStatus: ['approved', 'translated'] }
       };
-      const localeData = {
+      const baseData = {
         greeting: 'Hello',
-        greeting_status: 'approved',
         welcome: 'Welcome',
+        loading: 'Loading'
+      };
+      const localeData = {
+        greeting: '你好',
+        greeting_status: 'approved',
+        welcome: '欢迎',
         welcome_status: 'draft',
-        loading: 'Loading',
+        loading: '加载中',
         loading_status: 'translated'
       };
-      const result = checkReviewStatus(localeData, config);
+      const result = checkReviewStatus(baseData, localeData, config);
       expect(result.errors.length).toBe(1);
       expect(result.errors[0].key).toBe('welcome');
       expect(result.errors[0].details.actualStatus).toBe('draft');
@@ -130,13 +135,14 @@ describe('value-checker', () => {
         ...DEFAULT_CONFIG,
         reviewStatus: { enabled: true, requiredStatus: ['approved', 'translated'] }
       };
+      const baseData = { greeting: 'Hello', welcome: 'Welcome' };
       const localeData = {
-        greeting: 'Hello',
+        greeting: '你好',
         greeting_status: 'approved',
-        welcome: 'Welcome',
+        welcome: '欢迎',
         welcome_status: 'translated'
       };
-      const result = checkReviewStatus(localeData, config);
+      const result = checkReviewStatus(baseData, localeData, config);
       expect(result.errors.length).toBe(0);
       expect(result.stats.totalChecked).toBe(2);
     });
@@ -146,15 +152,18 @@ describe('value-checker', () => {
         ...DEFAULT_CONFIG,
         reviewStatus: { enabled: true, requiredStatus: ['approved'] }
       };
+      const baseData = {
+        common: { greeting: 'Hello', welcome: 'Welcome' }
+      };
       const localeData = {
         common: {
-          greeting: 'Hello',
+          greeting: '你好',
           greeting_status: 'approved',
-          welcome: 'Welcome',
+          welcome: '欢迎',
           welcome_status: 'rejected'
         }
       };
-      const result = checkReviewStatus(localeData, config);
+      const result = checkReviewStatus(baseData, localeData, config);
       expect(result.errors.length).toBe(1);
       expect(result.errors[0].key).toBe('common.welcome');
     });
@@ -164,14 +173,54 @@ describe('value-checker', () => {
         ...DEFAULT_CONFIG,
         reviewStatus: { enabled: true, requiredStatus: ['approved'] }
       };
+      const baseData = { greeting: 'Hello', welcome: 'Welcome' };
       const localeData = {
-        greeting: 'Hello',
+        greeting: '你好',
         greeting_status: 'APPROVED',
-        welcome: 'Welcome',
+        welcome: '欢迎',
         welcome_status: 'Approved'
       };
-      const result = checkReviewStatus(localeData, config);
+      const result = checkReviewStatus(baseData, localeData, config);
       expect(result.errors.length).toBe(0);
+    });
+
+    test('should read literal dotted status key (greeting.status) and attribute to content key', () => {
+      const config = {
+        ...DEFAULT_CONFIG,
+        reviewStatus: { enabled: true, requiredStatus: ['approved'] }
+      };
+      const baseData = { greeting: 'Hello', welcome: 'Welcome' };
+      const localeData = {
+        greeting: '你好',
+        'greeting.status': 'approved',
+        welcome: '欢迎',
+        'welcome.review': 'draft'
+      };
+      const result = checkReviewStatus(baseData, localeData, config);
+      expect(result.stats.totalChecked).toBe(2);
+      expect(result.errors.length).toBe(1);
+      expect(result.errors[0].key).toBe('welcome');
+      expect(result.errors[0].details.actualStatus).toBe('draft');
+      expect(result.errors[0].details.statusKey).toBe('welcome.review');
+    });
+
+    test('should read dotted status key at nested level', () => {
+      const config = {
+        ...DEFAULT_CONFIG,
+        reviewStatus: { enabled: true, requiredStatus: ['approved'] }
+      };
+      const baseData = { common: { greeting: 'Hello' } };
+      const localeData = {
+        common: {
+          greeting: '你好'
+        },
+        'common.greeting.status': 'rejected'
+      };
+      const result = checkReviewStatus(baseData, localeData, config);
+      expect(result.errors.length).toBe(1);
+      expect(result.errors[0].key).toBe('common.greeting');
+      expect(result.errors[0].details.actualStatus).toBe('rejected');
+      expect(result.errors[0].details.statusKey).toBe('common.greeting.status');
     });
   });
 });

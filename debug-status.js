@@ -42,7 +42,7 @@ console.log('statusKeys 统计:', result2.stats.statusKeys);
 
 console.log('\n=== 验证 3: require-review 读取点号状态键 ===');
 const config = { reviewStatus: { enabled: true, requiredStatus: ['approved'] } };
-const result3 = checkReviewStatus(locale2, config, {});
+const result3 = checkReviewStatus(base2, locale2, config, {});
 console.log('审核状态错误数量:', result3.errors.length);
 if (result3.errors.length > 0) {
   console.log('错误详情:');

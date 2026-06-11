@@ -84,6 +84,32 @@ describe('key-checker', () => {
       expect(getValueByKey(obj, 'a.c')).toBeUndefined();
       expect(getValueByKey(obj, 'x.y')).toBeUndefined();
     });
+
+    test('should prefer literal dotted key over nested path at root level', () => {
+      const obj = { 'a.b': 'literal', a: { b: 'nested' } };
+      expect(getValueByKey(obj, 'a.b')).toBe('literal');
+    });
+
+    test('should prefer literal dotted key over nested path at intermediate level', () => {
+      const obj = { parent: { 'x.y': 'literal-in-nested', x: { y: 'nested-path' } } };
+      expect(getValueByKey(obj, 'parent.x.y')).toBe('literal-in-nested');
+    });
+
+    test('should fall back to nested path when no literal key exists', () => {
+      const obj = { parent: { x: { y: 'deep' } } };
+      expect(getValueByKey(obj, 'parent.x.y')).toBe('deep');
+    });
+
+    test('should handle simple keys without dots', () => {
+      const obj = { simple: 'value' };
+      expect(getValueByKey(obj, 'simple')).toBe('value');
+    });
+
+    test('should handle null/undefined input safely', () => {
+      expect(getValueByKey(null, 'a.b')).toBeUndefined();
+      expect(getValueByKey(undefined, 'a.b')).toBeUndefined();
+      expect(getValueByKey({}, 'a')).toBeUndefined();
+    });
   });
 
   describe('checkKeyAlignment', () => {
@@ -248,10 +274,10 @@ describe('key-checker', () => {
       };
       const localeData = {
         common: {
-          greeting: '你好',
-          'greeting.status': 'approved',
-          'greeting.review': 'translated'
-        }
+          greeting: '你好'
+        },
+        'common.greeting.status': 'approved',
+        'common.greeting.review': 'translated'
       };
       const result = checkKeyAlignment(baseData, localeData, { strictMode: true });
       const extraErrors = result.errors.filter(e => e.type === ERROR_TYPES.EXTRA_KEY);
@@ -289,6 +315,40 @@ describe('key-checker', () => {
       expect(result.stats.statusKeys).toBe(2);
       expect(result.stats.totalLocaleContentKeys).toBe(2);
       expect(result.stats.totalLocaleKeys).toBe(4);
+    });
+
+    test('should treat order_status_label and review_title as regular extra keys', () => {
+      const baseData = { greeting: 'Hello' };
+      const localeData = {
+        greeting: '你好',
+        greeting_status: 'approved',
+        order_status_label: '订单状态标签',
+        review_title: '评论标题',
+        status_page: '状态页面'
+      };
+      const result = checkKeyAlignment(baseData, localeData, { strictMode: true });
+      const extraErrors = result.errors.filter(e => e.type === ERROR_TYPES.EXTRA_KEY);
+      expect(extraErrors.length).toBe(3);
+      const extraKeys = extraErrors.map(e => e.key);
+      expect(extraKeys).toContain('order_status_label');
+      expect(extraKeys).toContain('review_title');
+      expect(extraKeys).toContain('status_page');
+      expect(extraKeys).not.toContain('greeting_status');
+    });
+
+    test('should treat non-matching status suffix keys as extra keys', () => {
+      const baseData = { greeting: 'Hello' };
+      const localeData = {
+        greeting: '你好',
+        nonexistent_status: 'approved',
+        'missing.status': 'draft'
+      };
+      const result = checkKeyAlignment(baseData, localeData, { strictMode: true });
+      const extraErrors = result.errors.filter(e => e.type === ERROR_TYPES.EXTRA_KEY);
+      expect(extraErrors.length).toBe(2);
+      const extraKeys = extraErrors.map(e => e.key);
+      expect(extraKeys).toContain('nonexistent_status');
+      expect(extraKeys).toContain('missing.status');
     });
   });
 });
