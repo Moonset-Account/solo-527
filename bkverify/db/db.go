@@ -131,7 +131,46 @@ func Open(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
+	if err := migrateAddExpireDate(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate expire_date: %w", err)
+	}
 	return db, nil
+}
+
+func migrateAddExpireDate(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA table_info(manifest_entries)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	hasExpireDate := false
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			ctype     string
+			notnull   int
+			dfltValue interface{}
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		if name == "expire_date" {
+			hasExpireDate = true
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if !hasExpireDate {
+		if _, err := db.Exec(`ALTER TABLE manifest_entries ADD COLUMN expire_date TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("add expire_date column: %w", err)
+		}
+	}
+	return nil
 }
 
 func InsertManifestEntry(db *sql.DB, e ManifestEntry) error {

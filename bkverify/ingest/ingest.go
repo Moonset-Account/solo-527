@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -119,7 +120,7 @@ Manifest CSV format: bucket,path,size,checksum[,expire_date]
 Storage CSV format: bucket,path,size[,checksum]
 
 When --bucket is specified, only that bucket's old index is cleared before ingestion.
-When --bucket is not specified, ALL old indices are cleared first to avoid stale accumulation.`,
+When --bucket is not specified, buckets present in old indices but absent from new input are removed to avoid stale accumulation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			manifestPath, _ := cmd.Flags().GetString("manifest")
 			storagePath, _ := cmd.Flags().GetString("storage")
@@ -137,18 +138,41 @@ When --bucket is not specified, ALL old indices are cleared first to avoid stale
 			now := time.Now().UTC()
 
 			if manifestPath != "" {
-				if bucket != "" {
-					if err := db.ClearManifest(database, bucket); err != nil {
-						return fmt.Errorf("clear old manifest for bucket %s: %w", bucket, err)
-					}
-				} else {
-					if err := db.ClearAllManifest(database); err != nil {
-						return fmt.Errorf("clear all old manifest entries: %w", err)
-					}
-				}
 				entries, err := parseManifestFile(manifestPath)
 				if err != nil {
 					return err
+				}
+				if bucket == "" {
+					newBuckets := make(map[string]bool)
+					for _, e := range entries {
+						newBuckets[e.bucket] = true
+					}
+					oldBuckets, err := listManifestBuckets(database)
+					if err != nil {
+						return fmt.Errorf("list old manifest buckets: %w", err)
+					}
+					for _, b := range oldBuckets {
+						if !newBuckets[b] {
+							if err := db.ClearManifest(database, b); err != nil {
+								return fmt.Errorf("clear stale manifest bucket %s: %w", b, err)
+							}
+						}
+					}
+					for _, e := range entries {
+						if !newBuckets[e.bucket] {
+							continue
+						}
+						if _, done := newBuckets[e.bucket+"_cleared"]; !done {
+							if err := db.ClearManifest(database, e.bucket); err != nil {
+								return fmt.Errorf("clear manifest bucket %s: %w", e.bucket, err)
+							}
+							newBuckets[e.bucket+"_cleared"] = true
+						}
+					}
+				} else {
+					if err := db.ClearManifest(database, bucket); err != nil {
+						return fmt.Errorf("clear old manifest for bucket %s: %w", bucket, err)
+					}
 				}
 				count := 0
 				for _, e := range entries {
@@ -173,18 +197,38 @@ When --bucket is not specified, ALL old indices are cleared first to avoid stale
 			}
 
 			if storagePath != "" {
-				if bucket != "" {
-					if err := db.ClearStorage(database, bucket); err != nil {
-						return fmt.Errorf("clear old storage for bucket %s: %w", bucket, err)
-					}
-				} else {
-					if err := db.ClearAllStorage(database); err != nil {
-						return fmt.Errorf("clear all old storage entries: %w", err)
-					}
-				}
 				objects, err := parseStorageFile(storagePath)
 				if err != nil {
 					return err
+				}
+				if bucket == "" {
+					newBuckets := make(map[string]bool)
+					for _, o := range objects {
+						newBuckets[o.bucket] = true
+					}
+					oldBuckets, err := listStorageBuckets(database)
+					if err != nil {
+						return fmt.Errorf("list old storage buckets: %w", err)
+					}
+					for _, b := range oldBuckets {
+						if !newBuckets[b] {
+							if err := db.ClearStorage(database, b); err != nil {
+								return fmt.Errorf("clear stale storage bucket %s: %w", b, err)
+							}
+						}
+					}
+					for _, o := range objects {
+						if _, done := newBuckets[o.bucket+"_cleared"]; !done {
+							if err := db.ClearStorage(database, o.bucket); err != nil {
+								return fmt.Errorf("clear storage bucket %s: %w", o.bucket, err)
+							}
+							newBuckets[o.bucket+"_cleared"] = true
+						}
+					}
+				} else {
+					if err := db.ClearStorage(database, bucket); err != nil {
+						return fmt.Errorf("clear old storage for bucket %s: %w", bucket, err)
+					}
 				}
 				count := 0
 				for _, o := range objects {
@@ -216,4 +260,38 @@ When --bucket is not specified, ALL old indices are cleared first to avoid stale
 	cmd.Flags().StringVar(&dbPath, "db", "", "Path to SQLite database (default: ~/.bkverify/bkverify.db)")
 
 	return cmd
+}
+
+func listManifestBuckets(database *sql.DB) ([]string, error) {
+	rows, err := database.Query(`SELECT DISTINCT bucket FROM manifest_entries ORDER BY bucket`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var buckets []string
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
+}
+
+func listStorageBuckets(database *sql.DB) ([]string, error) {
+	rows, err := database.Query(`SELECT DISTINCT bucket FROM storage_objects ORDER BY bucket`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var buckets []string
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
 }

@@ -252,6 +252,40 @@ func printItem(cmd *cobra.Command, item db.ReportItem) {
 		item.Severity, item.Category, item.Bucket, item.Path, lineInfo, item.Detail)
 }
 
+func listManifestBuckets(database *sql.DB) ([]string, error) {
+	rows, err := database.Query(`SELECT DISTINCT bucket FROM manifest_entries ORDER BY bucket`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var buckets []string
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
+}
+
+func listStorageBuckets(database *sql.DB) ([]string, error) {
+	rows, err := database.Query(`SELECT DISTINCT bucket FROM storage_objects ORDER BY bucket`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var buckets []string
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
+}
+
 func NewCommand() *cobra.Command {
 	var dbPath string
 	var bucket string
@@ -285,10 +319,16 @@ Reports are persisted in the local SQLite database for historical review.`,
 
 			started := time.Now().UTC()
 
+			var manifestBuckets, storageBuckets map[string]bool
+
 			if manifestPath != "" {
 				entries, err := parseManifestFile(manifestPath)
 				if err != nil {
 					return err
+				}
+				manifestBuckets = make(map[string]bool)
+				for _, e := range entries {
+					manifestBuckets[e.Bucket] = true
 				}
 				if err := ingestManifestToDB(database, entries, bucket); err != nil {
 					return err
@@ -300,8 +340,41 @@ Reports are persisted in the local SQLite database for historical review.`,
 				if err != nil {
 					return err
 				}
+				storageBuckets = make(map[string]bool)
+				for _, o := range objects {
+					storageBuckets[o.Bucket] = true
+				}
 				if err := ingestStorageToDB(database, objects, bucket); err != nil {
 					return err
+				}
+			}
+
+			if bucket == "" {
+				if manifestBuckets != nil {
+					allManifestBuckets, err := listManifestBuckets(database)
+					if err != nil {
+						return fmt.Errorf("list manifest buckets for cleanup: %w", err)
+					}
+					for _, b := range allManifestBuckets {
+						if !manifestBuckets[b] {
+							if err := db.ClearManifest(database, b); err != nil {
+								return fmt.Errorf("clear stale manifest bucket %s: %w", b, err)
+							}
+						}
+					}
+				}
+				if storageBuckets != nil {
+					allStorageBuckets, err := listStorageBuckets(database)
+					if err != nil {
+						return fmt.Errorf("list storage buckets for cleanup: %w", err)
+					}
+					for _, b := range allStorageBuckets {
+						if !storageBuckets[b] {
+							if err := db.ClearStorage(database, b); err != nil {
+								return fmt.Errorf("clear stale storage bucket %s: %w", b, err)
+							}
+						}
+					}
 				}
 			}
 
