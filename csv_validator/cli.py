@@ -37,21 +37,17 @@ class ArgumentParserError(Exception):
 
 
 class _CustomArgumentParser(argparse.ArgumentParser):
-    """自定义ArgumentParser，不直接输出到stderr或调用exit。
+    """自定义ArgumentParser，仅在解析错误时抛出异常而非输出+退出。
 
     标准argparse在出错时会输出usage信息到stderr然后调用sys.exit，
     这会污染我们的机器可读JSON输出。通过自定义error方法，
     我们抛出一个携带完整错误消息的异常，由上层统一处理。
+
+    --help 和 --version 保留标准行为（正常输出文本 + 退出码0）。
     """
 
     def error(self, message: str):
         raise ArgumentParserError(message)
-
-    def print_help(self, file=None):
-        raise SystemExit(0)
-
-    def print_usage(self, file=None):
-        raise SystemExit(0)
 
 
 def build_parser() -> _CustomArgumentParser:
@@ -236,16 +232,38 @@ def _detect_output_format(argv: Optional[Sequence[str]]) -> str:
 
     当argparse本身解析失败时，我们无法从args对象获取format参数，
     因此需要直接从命令行参数中检测。
+
+    规则：
+    - 指定 -f json / --format json / --report → 返回 "json"
+    - 指定 -f human / --format human → 返回 "human"
+    - 指定了格式选项但值不是 json/human（如非法值）→ 返回 "json"
+      （用户在主动调整输出格式，大概率是CI/脚本场景）
+    - 未指定任何格式选项 → 返回 "human"
+
+    Returns:
+        "json" 或 "human"
     """
     if argv is None:
         argv = sys.argv[1:]
+    has_format_option = False
+    format_value = None
     for i, arg in enumerate(argv):
-        if arg in ("-f", "--format") and i + 1 < len(argv):
-            return argv[i + 1]
-        if arg.startswith("--format="):
-            return arg.split("=", 1)[1]
         if arg == "--report" or arg.startswith("--report="):
             return "json"
+        if arg in ("-f", "--format"):
+            has_format_option = True
+            if i + 1 < len(argv):
+                format_value = argv[i + 1]
+        if arg.startswith("--format="):
+            has_format_option = True
+            format_value = arg.split("=", 1)[1]
+
+    if format_value == "json":
+        return "json"
+    if format_value == "human":
+        return "human"
+    if has_format_option:
+        return "json"
     return "human"
 
 
