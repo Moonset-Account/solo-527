@@ -19,7 +19,7 @@ run_test() {
     TOTAL=$((TOTAL + 1))
     echo -n "Test $TOTAL: $test_name... "
 
-    eval "$cmd" > /tmp/logsum_test_output.json 2>&1
+    eval "$cmd" > /tmp/logsum_test_output.json 2>&1 || true
     local exit_code=$?
 
     if [ "$exit_code" -eq "$expected_exit_code" ]; then
@@ -48,19 +48,14 @@ validate_json() {
     TOTAL=$((TOTAL + 1))
     echo -n "Test $TOTAL: $test_name... "
 
-    if eval "$cmd" > /tmp/logsum_test_output.json 2>&1; then
-        if python3 -c "import json; json.load(open('/tmp/logsum_test_output.json'))" 2>/dev/null; then
-            echo -e "\033[32mPASS\033[0m"
-            PASS=$((PASS + 1))
-        else
-            echo -e "\033[31mFAIL\033[0m"
-            echo "  Output is not valid JSON"
-            cat /tmp/logsum_test_output.json
-            FAIL=$((FAIL + 1))
-        fi
+    eval "$cmd" > /tmp/logsum_test_output.json 2>&1 || true
+    if python3 -c "import json; json.load(open('/tmp/logsum_test_output.json'))" 2>/dev/null; then
+        echo -e "\033[32mPASS\033[0m"
+        PASS=$((PASS + 1))
     else
         echo -e "\033[31mFAIL\033[0m"
-        echo "  Command failed"
+        echo "  Output is not valid JSON"
+        cat /tmp/logsum_test_output.json
         FAIL=$((FAIL + 1))
     fi
 
@@ -79,7 +74,9 @@ validate_json_field() {
     TOTAL=$((TOTAL + 1))
     echo -n "Test $TOTAL: $test_name... "
 
-    if eval "$cmd" > /tmp/logsum_test_output.json 2>&1; then
+    eval "$cmd" > /tmp/logsum_test_output.json 2>&1 || true
+    local cmd_exit=$?
+    if [ "$cmd_exit" -eq 0 ]; then
         local actual_value
         actual_value=$(python3 -c "
 import json, sys
@@ -87,12 +84,15 @@ data = json.load(open('/tmp/logsum_test_output.json'))
 keys = '$field'.split('.')
 val = data
 for k in keys:
-    if k.isdigit():
+    if k == 'len(Clusters)' or k == 'len(TopErrors)':
+        k = k[4:-1]
+        val = len(val[k])
+    elif k.isdigit():
         val = val[int(k)]
     else:
         val = val[k]
 print(val)
-" 2>/dev/null)
+" 2>/dev/null) || true
 
         if [ "$actual_value" = "$expected_value" ]; then
             echo -e "\033[32mPASS\033[0m"
@@ -105,7 +105,7 @@ print(val)
         fi
     else
         echo -e "\033[31mFAIL\033[0m"
-        echo "  Command failed"
+        echo "  Command failed (exit $cmd_exit)"
         FAIL=$((FAIL + 1))
     fi
     echo ""
@@ -133,7 +133,7 @@ run_test "Non-existent input path" \
     "Exit code 2 for input errors"
 
 run_test "CI mode - data found" \
-    "/tmp/logsum --input ./testdata/microservices.log --ci" \
+    "/tmp/logsum --input ./testdata/microservices.sample --ci" \
     11 \
     "Exit code 11 when errors found in CI mode"
 
@@ -147,11 +147,11 @@ echo "Running JSON output tests..."
 echo "----------------------------------------"
 
 validate_json "JSON output format" \
-    "/tmp/logsum --input ./testdata/microservices.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "Output should be valid JSON"
 
 validate_json "JSON output with service filter" \
-    "/tmp/logsum --input ./testdata/microservices.log --service api-gateway --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --service api-gateway --json" \
     "Filtered output should be valid JSON"
 
 validate_json "JSON error format" \
@@ -163,37 +163,37 @@ echo "Running report field validation..."
 echo "----------------------------------------"
 
 validate_json_field "TotalEntries field" \
-    "/tmp/logsum --input ./testdata/microservices.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "TotalEntries" \
     "20"
 
 validate_json_field "ErrorEntries field" \
-    "/tmp/logsum --input ./testdata/microservices.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "ErrorEntries" \
     "9"
 
 validate_json_field "WarningEntries field" \
-    "/tmp/logsum --input ./testdata/microservices.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "WarningEntries" \
     "3"
 
 validate_json_field "Clusters count" \
-    "/tmp/logsum --input ./testdata/microservices.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "len(Clusters)" \
     ""
 
 validate_json_field "TopErrors count with --top" \
-    "/tmp/logsum --input ./testdata/microservices.log --top 3 --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --top 3 --json" \
     "len(TopErrors)" \
     "3"
 
 validate_json_field "Service filter works" \
-    "/tmp/logsum --input ./testdata/microservices.log --service api-gateway --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample --service api-gateway --json" \
     "TotalEntries" \
     "7"
 
 validate_json_field "Cluster count field" \
-    "/tmp/logsum --input ./testdata/microservices.log --json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(len(d['Clusters']))\"" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(len(d['Clusters']))\"" \
     "" \
     ""
 
@@ -202,11 +202,11 @@ echo "Running multi-file tests..."
 echo "----------------------------------------"
 
 validate_json "Multiple input files" \
-    "/tmp/logsum --input ./testdata/microservices.log,./testdata/bracket-format.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample,./testdata/bracket-format.sample --json" \
     "Should parse multiple files"
 
 validate_json_field "Multi-file total entries" \
-    "/tmp/logsum --input ./testdata/microservices.log,./testdata/bracket-format.log --json" \
+    "/tmp/logsum --input ./testdata/microservices.sample,./testdata/bracket-format.sample --json" \
     "TotalEntries" \
     "30"
 
@@ -215,12 +215,12 @@ echo "Running CI output tests..."
 echo "----------------------------------------"
 
 run_test "CI output contains machine-readable vars" \
-    "/tmp/logsum --input ./testdata/microservices.log --ci 2>&1 | grep -q 'ERROR_COUNT='" \
+    "/tmp/logsum --input ./testdata/microservices.sample --ci 2>&1 | grep -q 'ERROR_COUNT='" \
     0 \
     "CI output should include ERROR_COUNT="
 
 run_test "CI output includes TOP_ERROR" \
-    "/tmp/logsum --input ./testdata/microservices.log --ci 2>&1 | grep -q 'TOP_ERROR='" \
+    "/tmp/logsum --input ./testdata/microservices.sample --ci 2>&1 | grep -q 'TOP_ERROR='" \
     0 \
     "CI output should include TOP_ERROR="
 

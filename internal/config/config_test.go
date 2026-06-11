@@ -200,7 +200,7 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-func TestLoadConfigFile(t *testing.T) {
+func TestApplyConfigFile(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "config-*.json")
 	if err != nil {
 		t.Fatal(err)
@@ -231,12 +231,19 @@ func TestLoadConfigFile(t *testing.T) {
 		MinClusterSize: 1,
 	}
 
-	if err := loadConfigFile(cfg, tmpfile.Name()); err != nil {
-		t.Fatalf("loadConfigFile failed: %v", err)
+	loaded, err := applyConfigFile(cfg, tmpfile.Name())
+	if err != nil {
+		t.Fatalf("applyConfigFile failed: %v", err)
+	}
+	if !loaded {
+		t.Error("expected loaded=true")
 	}
 
 	if len(cfg.InputPaths) != 1 || cfg.InputPaths[0] != "/var/log" {
 		t.Errorf("InputPaths = %v, want [/var/log]", cfg.InputPaths)
+	}
+	if cfg.Since.IsZero() {
+		t.Error("Since should be set from config file")
 	}
 	if cfg.TopN != 20 {
 		t.Errorf("TopN = %d, want 20", cfg.TopN)
@@ -248,7 +255,7 @@ func TestLoadConfigFile(t *testing.T) {
 		t.Errorf("MinClusterSize = %d, want 2", cfg.MinClusterSize)
 	}
 	if !cfg.NoColor {
-		t.Error("NoColor should be true")
+		t.Error("NoColor should be true (color=false)")
 	}
 	if !cfg.Verbose {
 		t.Error("Verbose should be true")
@@ -258,11 +265,14 @@ func TestLoadConfigFile(t *testing.T) {
 	}
 }
 
-func TestLoadConfigFile_NotFound(t *testing.T) {
+func TestApplyConfigFile_NotFound(t *testing.T) {
 	cfg := &Config{}
-	err := loadConfigFile(cfg, "/nonexistent/path/config.json")
+	loaded, err := applyConfigFile(cfg, "/nonexistent/path/config.json")
 	if err == nil {
 		t.Error("expected error for nonexistent file")
+	}
+	if loaded {
+		t.Error("expected loaded=false")
 	}
 	if procErr, ok := err.(*types.ProcessError); ok {
 		if procErr.Code != "CONFIG_READ_FAILED" {
@@ -271,7 +281,7 @@ func TestLoadConfigFile_NotFound(t *testing.T) {
 	}
 }
 
-func TestLoadConfigFile_InvalidJSON(t *testing.T) {
+func TestApplyConfigFile_InvalidJSON(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "config-*.json")
 	if err != nil {
 		t.Fatal(err)
@@ -284,7 +294,7 @@ func TestLoadConfigFile_InvalidJSON(t *testing.T) {
 	tmpfile.Close()
 
 	cfg := &Config{}
-	err = loadConfigFile(cfg, tmpfile.Name())
+	_, err = applyConfigFile(cfg, tmpfile.Name())
 	if err == nil {
 		t.Error("expected error for invalid JSON")
 	}
@@ -295,7 +305,7 @@ func TestLoadConfigFile_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestLoadEnvVars(t *testing.T) {
+func TestApplyEnvVars(t *testing.T) {
 	tests := []struct {
 		name     string
 		envVars  map[string]string
@@ -304,14 +314,25 @@ func TestLoadEnvVars(t *testing.T) {
 		{
 			name: "load all env vars",
 			envVars: map[string]string{
-				"LOGSUM_SINCE":     "1h",
-				"LOGSUM_UNTIL":     "now",
-				"LOGSUM_SERVICES":  "api,web,db",
-				"LOGSUM_ENV":       "staging",
-				"LOGSUM_NO_COLOR":  "1",
-				"LOGSUM_CI":        "true",
+				"LOGSUM_INPUT":        "/var/log,/tmp/logs",
+				"LOGSUM_SINCE":        "1h",
+				"LOGSUM_UNTIL":        "now",
+				"LOGSUM_SERVICES":     "api,web,db",
+				"LOGSUM_REQUEST_IDS":  "r1,r2",
+				"LOGSUM_ENV":          "staging",
+				"LOGSUM_TOP":          "15",
+				"LOGSUM_CONTEXT":      "7",
+				"LOGSUM_MIN_CLUSTER":  "3",
+				"LOGSUM_JSON":         "1",
+				"LOGSUM_NO_COLOR":     "1",
+				"LOGSUM_VERBOSE":      "true",
+				"LOGSUM_CI":           "true",
+				"LOGSUM_OUTPUT":       "/tmp/out.json",
 			},
 			checkCfg: func(t *testing.T, cfg *Config) {
+				if len(cfg.InputPaths) != 2 {
+					t.Errorf("InputPaths count = %d, want 2", len(cfg.InputPaths))
+				}
 				if cfg.Since.IsZero() {
 					t.Error("Since should be set")
 				}
@@ -321,14 +342,35 @@ func TestLoadEnvVars(t *testing.T) {
 				if len(cfg.Services) != 3 {
 					t.Errorf("Services count = %d, want 3", len(cfg.Services))
 				}
+				if len(cfg.RequestIDs) != 2 {
+					t.Errorf("RequestIDs count = %d, want 2", len(cfg.RequestIDs))
+				}
 				if cfg.Environment != "staging" {
 					t.Errorf("Environment = %s, want staging", cfg.Environment)
+				}
+				if cfg.TopN != 15 {
+					t.Errorf("TopN = %d, want 15", cfg.TopN)
+				}
+				if cfg.ContextLines != 7 {
+					t.Errorf("ContextLines = %d, want 7", cfg.ContextLines)
+				}
+				if cfg.MinClusterSize != 3 {
+					t.Errorf("MinClusterSize = %d, want 3", cfg.MinClusterSize)
+				}
+				if !cfg.OutputJSON {
+					t.Error("OutputJSON should be true")
 				}
 				if !cfg.NoColor {
 					t.Error("NoColor should be true")
 				}
+				if !cfg.Verbose {
+					t.Error("Verbose should be true")
+				}
 				if !cfg.CIOutput {
 					t.Error("CIOutput should be true")
+				}
+				if cfg.OutputPath != "/tmp/out.json" {
+					t.Errorf("OutputPath = %s, want /tmp/out.json", cfg.OutputPath)
 				}
 			},
 		},
@@ -336,6 +378,9 @@ func TestLoadEnvVars(t *testing.T) {
 			name:    "no env vars set",
 			envVars: map[string]string{},
 			checkCfg: func(t *testing.T, cfg *Config) {
+				if len(cfg.InputPaths) != 0 {
+					t.Errorf("InputPaths count = %d, want 0", len(cfg.InputPaths))
+				}
 				if !cfg.Since.IsZero() {
 					t.Error("Since should be zero")
 				}
@@ -354,14 +399,14 @@ func TestLoadEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for k := range map[string]string{
-				"LOGSUM_SINCE":     "",
-				"LOGSUM_UNTIL":     "",
-				"LOGSUM_SERVICES":  "",
-				"LOGSUM_ENV":       "",
-				"LOGSUM_NO_COLOR":  "",
-				"LOGSUM_CI":        "",
-			} {
+			envKeys := []string{
+				"LOGSUM_INPUT", "LOGSUM_SINCE", "LOGSUM_UNTIL",
+				"LOGSUM_SERVICES", "LOGSUM_REQUEST_IDS", "LOGSUM_ENV",
+				"LOGSUM_TOP", "LOGSUM_CONTEXT", "LOGSUM_MIN_CLUSTER",
+				"LOGSUM_JSON", "LOGSUM_OUTPUT_JSON", "LOGSUM_NO_COLOR",
+				"LOGSUM_VERBOSE", "LOGSUM_CI", "LOGSUM_OUTPUT",
+			}
+			for _, k := range envKeys {
 				os.Unsetenv(k)
 			}
 
@@ -371,29 +416,182 @@ func TestLoadEnvVars(t *testing.T) {
 			}
 
 			cfg := &Config{}
-			loadEnvVars(cfg)
+			applyEnvVars(cfg)
 			tt.checkCfg(t, cfg)
 		})
 	}
 }
 
-func TestLoadEnvVars_NoOverride(t *testing.T) {
-	os.Setenv("LOGSUM_SERVICES", "api,web")
+func TestConfigOverrideOrder(t *testing.T) {
+	envKeys := []string{
+		"LOGSUM_INPUT", "LOGSUM_SINCE", "LOGSUM_UNTIL",
+		"LOGSUM_SERVICES", "LOGSUM_ENV", "LOGSUM_TOP",
+	}
+	for _, k := range envKeys {
+		os.Unsetenv(k)
+	}
+
+	tmpfile, err := os.CreateTemp("", "config-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	configContent := `{
+		"services": ["from-config"],
+		"environment": "from-config",
+		"top_n": 5
+	}`
+	if _, err := tmpfile.WriteString(configContent); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg := &Config{TopN: 10}
+
+	loaded, err := applyConfigFile(cfg, tmpfile.Name())
+	if err != nil || !loaded {
+		t.Fatalf("applyConfigFile failed: %v", err)
+	}
+
+	if cfg.Services[0] != "from-config" {
+		t.Errorf("after config file: Services[0] = %s, want from-config", cfg.Services[0])
+	}
+	if cfg.Environment != "from-config" {
+		t.Errorf("after config file: Environment = %s, want from-config", cfg.Environment)
+	}
+	if cfg.TopN != 5 {
+		t.Errorf("after config file: TopN = %d, want 5", cfg.TopN)
+	}
+
+	os.Setenv("LOGSUM_SERVICES", "from-env")
+	os.Setenv("LOGSUM_ENV", "from-env")
+	os.Setenv("LOGSUM_TOP", "15")
+	defer func() {
+		os.Unsetenv("LOGSUM_SERVICES")
+		os.Unsetenv("LOGSUM_ENV")
+		os.Unsetenv("LOGSUM_TOP")
+	}()
+
+	applyEnvVars(cfg)
+
+	if cfg.Services[0] != "from-env" {
+		t.Errorf("after env vars: Services[0] = %s, want from-env", cfg.Services[0])
+	}
+	if cfg.Environment != "from-env" {
+		t.Errorf("after env vars: Environment = %s, want from-env", cfg.Environment)
+	}
+	if cfg.TopN != 15 {
+		t.Errorf("after env vars: TopN = %d, want 15", cfg.TopN)
+	}
+
+	cli := &cliArgs{
+		services:    []string{"from-cli"},
+		environment: "from-cli",
+		topN:        25,
+	}
+	applyCLIArgs(cfg, cli)
+
+	if cfg.Services[0] != "from-cli" {
+		t.Errorf("after CLI args: Services[0] = %s, want from-cli", cfg.Services[0])
+	}
+	if cfg.Environment != "from-cli" {
+		t.Errorf("after CLI args: Environment = %s, want from-cli", cfg.Environment)
+	}
+	if cfg.TopN != 25 {
+		t.Errorf("after CLI args: TopN = %d, want 25", cfg.TopN)
+	}
+}
+
+func TestSinceUntilPreservedFromConfigAndEnv(t *testing.T) {
+	for _, k := range []string{"LOGSUM_SINCE", "LOGSUM_UNTIL"} {
+		os.Unsetenv(k)
+	}
+
+	tmpfile, err := os.CreateTemp("", "config-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	configContent := `{
+		"since": "24h",
+		"until": "1h"
+	}`
+	if _, err := tmpfile.WriteString(configContent); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg := &Config{}
+	_, err = applyConfigFile(cfg, tmpfile.Name())
+	if err != nil {
+		t.Fatalf("applyConfigFile failed: %v", err)
+	}
+
+	if cfg.Since.IsZero() {
+		t.Error("Since from config file should be preserved")
+	}
+	if cfg.Until.IsZero() {
+		t.Error("Until from config file should be preserved")
+	}
+
+	configSince := cfg.Since
+	configUntil := cfg.Until
+
+	os.Setenv("LOGSUM_SERVICES", "api")
 	defer os.Unsetenv("LOGSUM_SERVICES")
-	os.Setenv("LOGSUM_ENV", "staging")
-	defer os.Unsetenv("LOGSUM_ENV")
+	applyEnvVars(cfg)
 
-	cfg := &Config{
-		Services:    []string{"existing"},
-		Environment: "production",
+	if !cfg.Since.Equal(configSince) {
+		t.Error("Since should not be changed by env vars without LOGSUM_SINCE")
+	}
+	if !cfg.Until.Equal(configUntil) {
+		t.Error("Until should not be changed by env vars without LOGSUM_UNTIL")
 	}
 
-	loadEnvVars(cfg)
+	cli := &cliArgs{services: []string{"web"}}
+	applyCLIArgs(cfg, cli)
 
-	if len(cfg.Services) != 1 || cfg.Services[0] != "existing" {
-		t.Errorf("Services should not be overridden, got %v", cfg.Services)
+	if !cfg.Since.Equal(configSince) {
+		t.Error("Since should not be changed by CLI without --since")
 	}
-	if cfg.Environment != "production" {
-		t.Errorf("Environment should not be overridden, got %s", cfg.Environment)
+	if !cfg.Until.Equal(configUntil) {
+		t.Error("Until should not be changed by CLI without --until")
+	}
+}
+
+func TestParseConfigFileArg(t *testing.T) {
+	origArgs := os.Args
+	defer func() { os.Args = origArgs }()
+
+	tests := []struct {
+		name     string
+		args     []string
+		want     string
+		wantErr  bool
+	}{
+		{"no config arg", []string{"logsum"}, "", false},
+		{"config with space", []string{"logsum", "--config", "/path/to/config.json"}, "/path/to/config.json", false},
+		{"config with equals", []string{"logsum", "--config=/path/to/config.json"}, "/path/to/config.json", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Args = tt.args
+			got, err := parseConfigFileArg()
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if got != tt.want {
+					t.Errorf("got %q, want %q", got, tt.want)
+				}
+			}
+		})
 	}
 }

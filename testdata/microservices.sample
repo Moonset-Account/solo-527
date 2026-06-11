@@ -1,0 +1,31 @@
+2024-01-15T10:30:00Z INFO service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440001" env="production" Starting request for user 12345
+2024-01-15T10:30:01Z DEBUG service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440001" Processing authentication
+2024-01-15T10:30:02Z ERROR service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440001" Database connection failed
+at com.example.DB.connect(DB.java:123)
+at com.example.Service.process(Service.java:456)
+at com.example.Controller.handle(Controller.java:789)
+2024-01-15T10:30:03Z WARN service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440002" Rate limit approaching for user 67890
+2024-01-15T10:30:04Z INFO service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440001" Request completed with status 500
+2024-01-15T10:30:05Z INFO service="user-service" request_id="550e8400-e29b-41d4-a716-446655440003" env="production" Fetching user profile
+2024-01-15T10:30:06Z ERROR service="user-service" request_id="550e8400-e29b-41d4-a716-446655440003" Null pointer exception
+at com.example.UserService.getProfile(UserService.java:123)
+at com.example.UserController.get(UserController.java:45)
+2024-01-15T10:30:07Z INFO service="user-service" request_id="550e8400-e29b-41d4-a716-446655440004" env="production" User login successful
+2024-01-15T10:30:08Z ERROR service="user-service" request_id="550e8400-e29b-41d4-a716-446655440005" env="production" Database connection failed
+at com.example.DB.connect(DB.java:123)
+at com.example.UserService.fetchData(UserService.java:456)
+2024-01-15T10:30:09Z WARN service="payment-service" request_id="550e8400-e29b-41d4-a716-446655440006" env="staging" Payment processing timeout after 30s
+2024-01-15T10:30:10Z FATAL service="payment-service" request_id="550e8400-e29b-41d4-a716-446655440007" env="staging" Out of memory error
+at java.lang.OutOfMemoryError.<init>(Native Method)
+2024-01-15T10:30:11Z INFO service="payment-service" request_id="550e8400-e29b-41d4-a716-446655440008" env="staging" Payment refund initiated
+2024-01-15T10:30:12Z ERROR service="payment-service" request_id="550e8400-e29b-41d4-a716-446655440006" env="staging" Payment processing timeout after 30s
+2024-01-15T10:30:13Z INFO service="order-service" request_id="550e8400-e29b-41d4-a716-446655440009" env="production" Order created successfully
+2024-01-15T10:30:14Z ERROR service="order-service" request_id="550e8400-e29b-41d4-a716-446655440010" env="production" Inventory check failed for product 98765
+2024-01-15T10:30:15Z WARN service="order-service" request_id="550e8400-e29b-41d4-a716-446655440011" env="production" Slow query detected: took 5.2s
+2024-01-15T10:30:16Z ERROR service="order-service" request_id="550e8400-e29b-41d4-a716-446655440012" env="production" Database connection failed
+at com.example.DB.connect(DB.java:123)
+at com.example.OrderService.process(OrderService.java:234)
+2024-01-15T10:30:17Z INFO service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440013" env="production" Request completed successfully
+2024-01-15T10:30:18Z ERROR service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440014" env="production" Null pointer exception
+at com.example.RequestHandler.validate(RequestHandler.java:123)
+2024-01-15T10:30:19Z INFO service="api-gateway" request_id="550e8400-e29b-41d4-a716-446655440015" env="production" Health check passed

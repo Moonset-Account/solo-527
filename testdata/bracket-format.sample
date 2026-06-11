@@ -1,0 +1,17 @@
+2024-01-15 10:30:00 [auth-service] [INFO] [req-auth-001] User authentication started
+2024-01-15 10:30:01 [auth-service] [DEBUG] [req-auth-001] Validating credentials
+2024-01-15 10:30:02 [auth-service] [ERROR] [req-auth-001] Invalid token signature
+	at com.auth.TokenValidator.validate(TokenValidator.java:123)
+	at com.auth.AuthService.authenticate(AuthService.java:45)
+2024-01-15 10:30:03 [auth-service] [WARN] [req-auth-002] Multiple failed login attempts from IP 192.168.1.100
+2024-01-15 10:30:04 [auth-service] [INFO] [req-auth-003] User logged in successfully
+2024-01-15 10:30:05 [auth-service] [ERROR] [req-auth-004] Database connection failed
+	at com.example.DB.connect(DB.java:123)
+	at com.auth.UserRepository.findByUsername(UserRepository.java:78)
+2024-01-15 10:30:06 [notification-service] [INFO] [req-notif-001] Sending email notification
+2024-01-15 10:30:07 [notification-service] [ERROR] [req-notif-001] SMTP connection timeout
+	at com.notif.SmtpClient.send(SmtpClient.java:156)
+	at com.notif.NotificationService.sendEmail(NotificationService.java:89)
+2024-01-15 10:30:08 [notification-service] [WARN] [req-notif-002] Email queue size exceeded threshold
+2024-01-15 10:30:09 [notification-service] [ERROR] [req-notif-001] SMTP connection timeout
+2024-01-15 10:30:10 [auth-service] [ERROR] [req-auth-005] Invalid token signature

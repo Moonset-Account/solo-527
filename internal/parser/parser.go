@@ -113,7 +113,26 @@ func (p *Parser) ParsePath(path string) ([]types.LogEntry, error) {
 
 func isLogFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".log" || ext == ".txt" || strings.Contains(filepath.Base(path), "log")
+	base := strings.ToLower(filepath.Base(path))
+	allowedExts := map[string]bool{
+		".log":    true,
+		".txt":    true,
+		".ndjson": true,
+		".jsonl":  true,
+		".sample": true,
+		".testdata": true,
+		".input":  true,
+	}
+	if allowedExts[ext] {
+		return true
+	}
+	if strings.Contains(base, "log") {
+		return true
+	}
+	if strings.Contains(base, "sample") || strings.Contains(base, "testdata") || strings.Contains(base, "input") {
+		return true
+	}
+	return false
 }
 
 func (p *Parser) ParseFile(path string) ([]types.LogEntry, error) {

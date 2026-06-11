@@ -47,6 +47,25 @@ type fileConfig struct {
 	Verbose        *bool    `json:"verbose"`
 }
 
+type cliArgs struct {
+	inputPaths     []string
+	since          string
+	until          string
+	services       []string
+	requestIDs     []string
+	environment    string
+	topN           int
+	outputJSON     bool
+	noColor        bool
+	verbose        bool
+	configFile     string
+	contextLines   int
+	minClusterSize int
+	outputPath     string
+	ciOutput       bool
+	levels         []string
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{
 		TopN:           10,
@@ -54,22 +73,246 @@ func Load() (*Config, error) {
 		MinClusterSize: 1,
 	}
 
+	configFile, err := parseConfigFileArg()
+	if err != nil {
+		return nil, err
+	}
+	cfg.ConfigFile = configFile
+
+	loadedFromFile, err := applyConfigFile(cfg, configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	loadedFromEnv := applyEnvVars(cfg)
+
+	cli, err := parseCLIArgs()
+	if err != nil {
+		return nil, err
+	}
+
+	applyCLIArgs(cfg, cli)
+
+	if cfg.Until.IsZero() {
+		cfg.Until = time.Now()
+	}
+
+	if len(cfg.Levels) == 0 {
+		cfg.Levels = []types.LogLevel{types.LevelError, types.LevelFatal, types.LevelWarn}
+	}
+
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	if cfg.Verbose {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Config loaded:\n")
+		fmt.Fprintf(os.Stderr, "  Config file: %s (loaded: %v)\n", cfg.ConfigFile, loadedFromFile)
+		fmt.Fprintf(os.Stderr, "  Env vars applied: %v\n", loadedFromEnv)
+		fmt.Fprintf(os.Stderr, "  Input paths: %v\n", cfg.InputPaths)
+		fmt.Fprintf(os.Stderr, "  Since: %v\n", cfg.Since)
+		fmt.Fprintf(os.Stderr, "  Until: %v\n", cfg.Until)
+		fmt.Fprintf(os.Stderr, "  Services: %v\n", cfg.Services)
+	}
+
+	return cfg, nil
+}
+
+func parseConfigFileArg() (string, error) {
+	for i, arg := range os.Args[1:] {
+		if arg == "--config" {
+			if i+2 <= len(os.Args[1:]) {
+				return os.Args[i+2], nil
+			}
+			return "", &types.ProcessError{
+				Code:       "CONFIG_MISSING_VALUE",
+				Message:    "--config requires a value",
+				Suggestion: "Provide a path to the config file: --config /path/to/config.json",
+			}
+		}
+		if strings.HasPrefix(arg, "--config=") {
+			return strings.TrimPrefix(arg, "--config="), nil
+		}
+	}
+	return "", nil
+}
+
+func applyConfigFile(cfg *Config, configFile string) (bool, error) {
+	path := configFile
+	if path == "" {
+		defPath := defaultConfigPath()
+		if defPath == "" {
+			return false, nil
+		}
+		if _, err := os.Stat(defPath); err != nil {
+			return false, nil
+		}
+		path = defPath
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, &types.ProcessError{
+			Code:       "CONFIG_READ_FAILED",
+			Message:    fmt.Sprintf("Failed to read config file %s: %v", path, err),
+			Suggestion: "Ensure the config file exists and is readable",
+			Details:    map[string]interface{}{"path": path},
+		}
+	}
+
+	var fc fileConfig
+	if err := json.Unmarshal(data, &fc); err != nil {
+		return false, &types.ProcessError{
+			Code:       "CONFIG_PARSE_ERROR",
+			Message:    fmt.Sprintf("Failed to parse config file %s: %v", path, err),
+			Suggestion: "Check that the config file contains valid JSON",
+			Details:    map[string]interface{}{"path": path},
+		}
+	}
+
+	if len(fc.InputPaths) > 0 {
+		cfg.InputPaths = fc.InputPaths
+	}
+	if fc.Since != "" {
+		if t, err := parseTimeString(fc.Since); err == nil {
+			cfg.Since = t
+		}
+	}
+	if fc.Until != "" {
+		if t, err := parseTimeString(fc.Until); err == nil {
+			cfg.Until = t
+		}
+	}
+	if len(fc.Services) > 0 {
+		cfg.Services = fc.Services
+	}
+	if len(fc.Levels) > 0 {
+		cfg.Levels = nil
+		for _, l := range fc.Levels {
+			cfg.Levels = append(cfg.Levels, types.LogLevel(strings.ToUpper(l)))
+		}
+	}
+	if len(fc.RequestIDs) > 0 {
+		cfg.RequestIDs = fc.RequestIDs
+	}
+	if fc.Environment != "" {
+		cfg.Environment = fc.Environment
+	}
+	if fc.TopN > 0 {
+		cfg.TopN = fc.TopN
+	}
+	if fc.ContextLines > 0 {
+		cfg.ContextLines = fc.ContextLines
+	}
+	if fc.MinClusterSize > 0 {
+		cfg.MinClusterSize = fc.MinClusterSize
+	}
+	if fc.Color != nil {
+		cfg.NoColor = !*fc.Color
+	}
+	if fc.Verbose != nil {
+		cfg.Verbose = *fc.Verbose
+	}
+
+	return true, nil
+}
+
+func applyEnvVars(cfg *Config) bool {
+	applied := false
+
+	if v := os.Getenv("LOGSUM_INPUT"); v != "" {
+		cfg.InputPaths = strings.Split(v, ",")
+		applied = true
+	}
+	if v := os.Getenv("LOGSUM_SINCE"); v != "" {
+		if t, err := parseTimeString(v); err == nil {
+			cfg.Since = t
+			applied = true
+		}
+	}
+	if v := os.Getenv("LOGSUM_UNTIL"); v != "" {
+		if t, err := parseTimeString(v); err == nil {
+			cfg.Until = t
+			applied = true
+		}
+	}
+	if v := os.Getenv("LOGSUM_SERVICES"); v != "" {
+		cfg.Services = strings.Split(v, ",")
+		applied = true
+	}
+	if v := os.Getenv("LOGSUM_REQUEST_IDS"); v != "" {
+		cfg.RequestIDs = strings.Split(v, ",")
+		applied = true
+	}
+	if v := os.Getenv("LOGSUM_ENV"); v != "" {
+		cfg.Environment = v
+		applied = true
+	}
+	if v := os.Getenv("LOGSUM_TOP"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.TopN = n
+			applied = true
+		}
+	}
+	if v := os.Getenv("LOGSUM_CONTEXT"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 {
+			cfg.ContextLines = n
+			applied = true
+		}
+	}
+	if v := os.Getenv("LOGSUM_MIN_CLUSTER"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			cfg.MinClusterSize = n
+			applied = true
+		}
+	}
+	if os.Getenv("LOGSUM_OUTPUT_JSON") != "" || os.Getenv("LOGSUM_JSON") != "" {
+		cfg.OutputJSON = true
+		applied = true
+	}
+	if os.Getenv("LOGSUM_NO_COLOR") != "" {
+		cfg.NoColor = true
+		applied = true
+	}
+	if os.Getenv("LOGSUM_VERBOSE") != "" {
+		cfg.Verbose = true
+		applied = true
+	}
+	if os.Getenv("LOGSUM_CI") != "" {
+		cfg.CIOutput = true
+		applied = true
+	}
+	if v := os.Getenv("LOGSUM_OUTPUT"); v != "" {
+		cfg.OutputPath = v
+		applied = true
+	}
+
+	return applied
+}
+
+func parseCLIArgs() (*cliArgs, error) {
+	cli := &cliArgs{}
+
 	fs := pflag.NewFlagSet("logsum", pflag.ContinueOnError)
-	fs.StringSliceVar(&cfg.InputPaths, "input", nil, "Log file paths or directories (comma-separated)")
-	fs.String("since", "", "Time range start (e.g., 1h, 24h, 2024-01-01T00:00:00Z)")
-	fs.String("until", "", "Time range end (e.g., now, 2024-01-02T00:00:00Z)")
-	fs.StringSliceVar(&cfg.Services, "service", nil, "Filter by service name (comma-separated)")
-	fs.StringSliceVar(&cfg.RequestIDs, "request-id", nil, "Filter by request ID (comma-separated)")
-	fs.StringVar(&cfg.Environment, "env", "", "Filter by environment")
-	fs.IntVar(&cfg.TopN, "top", 10, "Show top N error clusters")
-	fs.BoolVar(&cfg.OutputJSON, "json", false, "Output in JSON format")
-	fs.BoolVar(&cfg.NoColor, "no-color", false, "Disable colored output")
-	fs.BoolVar(&cfg.Verbose, "verbose", false, "Enable verbose output")
-	fs.StringVar(&cfg.ConfigFile, "config", "", "Path to config file")
-	fs.IntVar(&cfg.ContextLines, "context", 3, "Number of context lines around errors")
-	fs.IntVar(&cfg.MinClusterSize, "min-cluster", 1, "Minimum cluster size to include")
-	fs.StringVar(&cfg.OutputPath, "output", "", "Write output to file")
-	fs.BoolVar(&cfg.CIOutput, "ci", false, "CI-friendly output with stable exit codes")
+	fs.StringSliceVar(&cli.inputPaths, "input", nil, "")
+	fs.StringVar(&cli.since, "since", "", "")
+	fs.StringVar(&cli.until, "until", "", "")
+	fs.StringSliceVar(&cli.services, "service", nil, "")
+	fs.StringSliceVar(&cli.requestIDs, "request-id", nil, "")
+	fs.StringVar(&cli.environment, "env", "", "")
+	fs.IntVar(&cli.topN, "top", 0, "")
+	fs.BoolVar(&cli.outputJSON, "json", false, "")
+	fs.BoolVar(&cli.noColor, "no-color", false, "")
+	fs.BoolVar(&cli.verbose, "verbose", false, "")
+	fs.StringVar(&cli.configFile, "config", "", "")
+	fs.IntVar(&cli.contextLines, "context", 0, "")
+	fs.IntVar(&cli.minClusterSize, "min-cluster", 0, "")
+	fs.StringVar(&cli.outputPath, "output", "", "")
+	fs.BoolVar(&cli.ciOutput, "ci", false, "")
+	fs.StringSliceVar(&cli.levels, "level", nil, "")
 
 	fs.ParseErrorsWhitelist.UnknownFlags = false
 	fs.SetInterspersed(false)
@@ -82,47 +325,62 @@ func Load() (*Config, error) {
 		}
 	}
 
-	if cfg.ConfigFile != "" {
-		if err := loadConfigFile(cfg, cfg.ConfigFile); err != nil {
-			return nil, err
+	return cli, nil
+}
+
+func applyCLIArgs(cfg *Config, cli *cliArgs) {
+	if len(cli.inputPaths) > 0 {
+		cfg.InputPaths = cli.inputPaths
+	}
+	if cli.since != "" {
+		if t, err := parseTimeString(cli.since); err == nil {
+			cfg.Since = t
 		}
-	} else if defPath := defaultConfigPath(); defPath != "" {
-		if _, err := os.Stat(defPath); err == nil {
-			if err := loadConfigFile(cfg, defPath); err != nil {
-				return nil, err
-			}
+	}
+	if cli.until != "" {
+		if t, err := parseTimeString(cli.until); err == nil {
+			cfg.Until = t
 		}
 	}
-
-	loadEnvVars(cfg)
-
-	var err error
-	cfg.Since, err = parseTimeFlag(fs, "since")
-	if err != nil {
-		return nil, err
+	if len(cli.services) > 0 {
+		cfg.Services = cli.services
 	}
-	cfg.Until, err = parseTimeFlag(fs, "until")
-	if err != nil {
-		return nil, err
+	if len(cli.requestIDs) > 0 {
+		cfg.RequestIDs = cli.requestIDs
 	}
-
-	if cfg.Until.IsZero() {
-		cfg.Until = time.Now()
+	if cli.environment != "" {
+		cfg.Environment = cli.environment
 	}
-
-	levelsStr, _ := fs.GetStringSlice("level")
-	for _, l := range levelsStr {
-		cfg.Levels = append(cfg.Levels, types.LogLevel(strings.ToUpper(l)))
+	if cli.topN > 0 {
+		cfg.TopN = cli.topN
 	}
-	if len(cfg.Levels) == 0 {
-		cfg.Levels = []types.LogLevel{types.LevelError, types.LevelFatal, types.LevelWarn}
+	if cli.outputJSON {
+		cfg.OutputJSON = true
 	}
-
-	if err := validateConfig(cfg); err != nil {
-		return nil, err
+	if cli.noColor {
+		cfg.NoColor = true
 	}
-
-	return cfg, nil
+	if cli.verbose {
+		cfg.Verbose = true
+	}
+	if cli.contextLines > 0 {
+		cfg.ContextLines = cli.contextLines
+	}
+	if cli.minClusterSize > 0 {
+		cfg.MinClusterSize = cli.minClusterSize
+	}
+	if cli.outputPath != "" {
+		cfg.OutputPath = cli.outputPath
+	}
+	if cli.ciOutput {
+		cfg.CIOutput = true
+	}
+	if len(cli.levels) > 0 {
+		cfg.Levels = nil
+		for _, l := range cli.levels {
+			cfg.Levels = append(cfg.Levels, types.LogLevel(strings.ToUpper(l)))
+		}
+	}
 }
 
 func defaultConfigPath() string {
@@ -130,106 +388,6 @@ func defaultConfigPath() string {
 		return filepath.Join(home, ".logsum", "config.json")
 	}
 	return ""
-}
-
-func loadConfigFile(cfg *Config, path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return &types.ProcessError{
-			Code:       "CONFIG_READ_FAILED",
-			Message:    fmt.Sprintf("Failed to read config file %s: %v", path, err),
-			Suggestion: "Ensure the config file exists and is readable",
-			Details:    map[string]interface{}{"path": path},
-		}
-	}
-
-	var fc fileConfig
-	if err := json.Unmarshal(data, &fc); err != nil {
-		return &types.ProcessError{
-			Code:       "CONFIG_PARSE_ERROR",
-			Message:    fmt.Sprintf("Failed to parse config file %s: %v", path, err),
-			Suggestion: "Check that the config file contains valid JSON",
-			Details:    map[string]interface{}{"path": path},
-		}
-	}
-
-	if len(fc.InputPaths) > 0 && len(cfg.InputPaths) == 0 {
-		cfg.InputPaths = fc.InputPaths
-	}
-	if fc.Since != "" && cfg.Since.IsZero() {
-		if t, err := parseTimeString(fc.Since); err == nil {
-			cfg.Since = t
-		}
-	}
-	if fc.Until != "" && cfg.Until.IsZero() {
-		if t, err := parseTimeString(fc.Until); err == nil {
-			cfg.Until = t
-		}
-	}
-	if len(fc.Services) > 0 && len(cfg.Services) == 0 {
-		cfg.Services = fc.Services
-	}
-	if len(fc.Levels) > 0 && len(cfg.Levels) == 0 {
-		for _, l := range fc.Levels {
-			cfg.Levels = append(cfg.Levels, types.LogLevel(strings.ToUpper(l)))
-		}
-	}
-	if len(fc.RequestIDs) > 0 && len(cfg.RequestIDs) == 0 {
-		cfg.RequestIDs = fc.RequestIDs
-	}
-	if fc.Environment != "" && cfg.Environment == "" {
-		cfg.Environment = fc.Environment
-	}
-	if fc.TopN > 0 && cfg.TopN == 10 {
-		cfg.TopN = fc.TopN
-	}
-	if fc.ContextLines > 0 && cfg.ContextLines == 3 {
-		cfg.ContextLines = fc.ContextLines
-	}
-	if fc.MinClusterSize > 0 && cfg.MinClusterSize == 1 {
-		cfg.MinClusterSize = fc.MinClusterSize
-	}
-	if fc.Color != nil && !cfg.NoColor {
-		cfg.NoColor = !*fc.Color
-	}
-	if fc.Verbose != nil && !cfg.Verbose {
-		cfg.Verbose = *fc.Verbose
-	}
-
-	return nil
-}
-
-func loadEnvVars(cfg *Config) {
-	if v := os.Getenv("LOGSUM_SINCE"); v != "" && cfg.Since.IsZero() {
-		if t, err := parseTimeString(v); err == nil {
-			cfg.Since = t
-		}
-	}
-	if v := os.Getenv("LOGSUM_UNTIL"); v != "" && cfg.Until.IsZero() {
-		if t, err := parseTimeString(v); err == nil {
-			cfg.Until = t
-		}
-	}
-	if v := os.Getenv("LOGSUM_SERVICES"); v != "" && len(cfg.Services) == 0 {
-		cfg.Services = strings.Split(v, ",")
-	}
-	if v := os.Getenv("LOGSUM_ENV"); v != "" && cfg.Environment == "" {
-		cfg.Environment = v
-	}
-	if v := os.Getenv("LOGSUM_NO_COLOR"); v != "" {
-		cfg.NoColor = true
-	}
-	if v := os.Getenv("LOGSUM_CI"); v != "" {
-		cfg.CIOutput = true
-	}
-}
-
-func parseTimeFlag(fs *pflag.FlagSet, name string) (time.Time, error) {
-	val, err := fs.GetString(name)
-	if err != nil || val == "" {
-		return time.Time{}, nil
-	}
-	return parseTimeString(val)
 }
 
 func parseTimeString(s string) (time.Time, error) {
