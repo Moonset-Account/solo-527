@@ -1,0 +1,59 @@
+# 示例：GitHub Actions 工作流
+# 放置在 .github/workflows/branch-cleanup.yml
+# 每周一早上自动清理已合并的旧分支
+
+name: Branch Cleanup
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '试运行模式'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install git-brclean
+        run: |
+          # 从 GitHub Releases 下载（请替换为实际的下载地址）
+          # curl -L https://github.com/your-org/git-brclean/releases/latest/download/git-brclean-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          # sudo mv git-brclean /usr/local/bin/
+          echo "请配置实际的安装步骤"
+          exit 1
+
+      - name: Run branch cleanup
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git-brclean clean \
+            --merged \
+            --older-than 30 \
+            --min-risk safe \
+            --no-interactive \
+            --format json-pretty \
+            --output cleanup-report.json
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cleanup-report
+          path: cleanup-report.json

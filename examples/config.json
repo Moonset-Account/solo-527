@@ -1,0 +1,46 @@
+# git-brclean 示例配置文件
+# 放置在 ~/.config/git-brclean/config.json 或项目根目录 .git-brclean.json
+
+{
+  "dry_run": true,
+  "merged_only": false,
+  "older_than_days": 30,
+  "exclude_patterns": [
+    "dependabot/*",
+    "renovate/*"
+  ],
+  "include_remote": false,
+  "remote_name": "origin",
+  "default_branch": "main",
+  "protection_rules": [
+    {
+      "pattern": "main",
+      "reason": "生产主分支"
+    },
+    {
+      "pattern": "master",
+      "reason": "生产主分支"
+    },
+    {
+      "pattern": "develop",
+      "reason": "开发主分支"
+    },
+    {
+      "pattern": "release/*",
+      "reason": "发布分支"
+    },
+    {
+      "pattern": "hotfix/*",
+      "reason": "热修复分支"
+    },
+    {
+      "pattern": "feature/ci-*",
+      "reason": "CI 专用分支"
+    }
+  ],
+  "min_risk_level": "medium",
+  "interactive": true,
+  "format": "human",
+  "rollback_enabled": true,
+  "max_concurrent": 4
+}

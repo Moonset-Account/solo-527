@@ -1,0 +1,381 @@
+use assert_cmd::Command;
+use predicates::prelude::*;
+use std::path::Path;
+use tempfile::TempDir;
+
+fn create_test_repo(dir: &Path) {
+    let run = |args: &[&str]| {
+        std::process::Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
+    };
+
+    run(&["init", "-b", "main"]);
+    run(&["config", "user.email", "test@example.com"]);
+    run(&["config", "user.name", "Test User"]);
+
+    std::fs::write(dir.join("file.txt"), "content").unwrap();
+    run(&["add", "."]);
+    run(&["commit", "-m", "initial commit"]);
+
+    run(&["checkout", "-b", "feature/merged-feature"]);
+    std::fs::write(dir.join("merged.txt"), "merged").unwrap();
+    run(&["add", "."]);
+    run(&["commit", "-m", "add merged feature"]);
+
+    run(&["checkout", "main"]);
+    run(&["merge", "feature/merged-feature"]);
+
+    run(&["checkout", "-b", "feature/active-feature"]);
+    std::fs::write(dir.join("active.txt"), "active").unwrap();
+    run(&["add", "."]);
+    run(&["commit", "-m", "work in progress"]);
+
+    run(&["checkout", "-b", "bugfix/old-fix"]);
+    std::fs::write(dir.join("oldfix.txt"), "old").unwrap();
+    run(&["add", "."]);
+    run(&["commit", "-m", "old bug fix"]);
+
+    run(&["checkout", "main"]);
+}
+
+#[test]
+fn test_scan_command_exit_code_zero() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=json");
+
+    cmd.assert().success();
+}
+
+#[test]
+fn test_scan_json_output_valid() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=json-pretty")
+        .assert();
+
+    let output = assert.get_output();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    let report: serde_json::Value = serde_json::from_str(&stdout)
+        .expect("JSON output should be valid");
+
+    assert!(report.get("summary").is_some());
+    assert!(report.get("items").is_some());
+    assert!(report.get("errors").is_some());
+    assert!(report.get("version").is_some());
+
+    let summary = report.get("summary").unwrap();
+    assert!(summary.get("total_scanned").is_some());
+    assert!(summary.get("dry_run").is_some());
+    assert_eq!(summary["dry_run"], true);
+}
+
+#[test]
+fn test_scan_finds_all_branches() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=json")
+        .assert();
+
+    let output = assert.get_output();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    let total = report["summary"]["total_scanned"].as_i64().unwrap();
+    assert!(total >= 3, "Expected at least 3 branches, got {}", total);
+
+    let items = report["items"].as_array().unwrap();
+    let names: Vec<&str> = items
+        .iter()
+        .map(|i| i["branch"]["name"].as_str().unwrap())
+        .collect();
+
+    assert!(names.contains(&"main"));
+    assert!(names.contains(&"feature/merged-feature"));
+    assert!(names.contains(&"feature/active-feature"));
+}
+
+#[test]
+fn test_dry_run_does_not_delete() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("clean")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--dry-run")
+        .arg("--no-interactive")
+        .arg("--merged")
+        .arg("--no-rollback")
+        .arg("--format=json");
+
+    cmd.assert().success();
+
+    let output = std::process::Command::new("git")
+        .args(["branch", "--list"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    let branches = String::from_utf8_lossy(&output.stdout);
+    assert!(branches.contains("feature/merged-feature"));
+}
+
+#[test]
+fn test_clean_deletes_merged_branches() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("clean")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--no-interactive")
+        .arg("--merged")
+        .arg("--no-rollback")
+        .arg("--min-risk=safe")
+        .arg("--format=json");
+
+    cmd.assert().success();
+
+    let output = std::process::Command::new("git")
+        .args(["branch", "--list"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    let branches = String::from_utf8_lossy(&output.stdout);
+    assert!(!branches.contains("feature/merged-feature"));
+    assert!(branches.contains("feature/active-feature"));
+    assert!(branches.contains("main"));
+}
+
+#[test]
+fn test_report_has_correct_deleted_count() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("clean")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--no-interactive")
+        .arg("--merged")
+        .arg("--no-rollback")
+        .arg("--min-risk=safe")
+        .arg("--format=json")
+        .assert();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    let deleted = report["summary"]["actually_deleted"].as_i64().unwrap();
+    assert!(deleted >= 1, "Expected at least 1 deleted branch, got {}", deleted);
+}
+
+#[test]
+fn test_exclude_pattern_works() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--exclude")
+        .arg("feature/*")
+        .arg("--format=json")
+        .assert();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    let items = report["items"].as_array().unwrap();
+    let kept_count = items
+        .iter()
+        .filter(|i| i["action"] == "keep" || i["action"] == "delete")
+        .count();
+
+    let total = report["summary"]["total_scanned"].as_i64().unwrap();
+    assert!(total >= 3);
+    assert!(kept_count <= total as usize);
+}
+
+#[test]
+fn test_csv_output_format() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=csv")
+        .assert();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("分支名,类型,风险等级"));
+    assert!(stdout.contains("main"));
+}
+
+#[test]
+fn test_markdown_output_format() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=markdown")
+        .assert();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("# Git 分支清理报告"));
+    assert!(stdout.contains("## 摘要"));
+    assert!(stdout.contains("| 指标 | 数值 |"));
+}
+
+#[test]
+fn test_output_file_option() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+    let output_file = dir.path().join("report.json");
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=json")
+        .arg("--output")
+        .arg(&output_file);
+
+    cmd.assert().success();
+    assert!(output_file.exists());
+
+    let content = std::fs::read_to_string(&output_file).unwrap();
+    let report: serde_json::Value = serde_json::from_str(&content).unwrap();
+    assert!(report.get("summary").is_some());
+}
+
+#[test]
+fn test_human_readable_output() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--format=human")
+        .assert();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("Git 分支清理报告"));
+    assert!(stdout.contains("摘要"));
+    assert!(stdout.contains("扫描分支总数"));
+}
+
+#[test]
+fn test_older_than_filter() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--older-than=365")
+        .arg("--format=json")
+        .assert();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let safe_to_delete = report["summary"]["safe_to_delete"].as_i64().unwrap();
+    assert_eq!(safe_to_delete, 0, "New branches should not be old enough to delete");
+}
+
+#[test]
+fn test_version_flag() {
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("--version");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("git-brclean"));
+}
+
+#[test]
+fn test_help_flag() {
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("--help");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("git-brclean"));
+}
+
+#[test]
+fn test_invalid_repo_path() {
+    let dir = TempDir::new().unwrap();
+    let fake_path = dir.path().join("nonexistent");
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("scan").arg("--repo").arg(&fake_path);
+    cmd.assert().failure();
+}
+
+#[test]
+fn test_protected_branches_not_deleted() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    cmd.arg("clean")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--no-interactive")
+        .arg("--no-rollback")
+        .arg("--min-risk=critical")
+        .arg("--format=json");
+
+    let assert = cmd.assert();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    let protected = report["summary"]["protected"].as_i64().unwrap();
+    assert!(protected >= 1, "Expected at least 1 protected branch");
+
+    let items = report["items"].as_array().unwrap();
+    let main_branch = items
+        .iter()
+        .find(|i| i["branch"]["name"] == "main")
+        .unwrap();
+
+    assert_eq!(main_branch["action"], "skip");
+    assert_eq!(main_branch["branch"]["is_protected"], true);
+}
