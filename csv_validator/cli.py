@@ -228,43 +228,26 @@ def run_validation(
 
 
 def _detect_output_format(argv: Optional[Sequence[str]]) -> str:
-    """从原始argv中检测输出格式，用于argparse错误时的机器可读输出。
-
-    当argparse本身解析失败时，我们无法从args对象获取format参数，
-    因此需要直接从命令行参数中检测。
+    """检测是否显式指定了 human 格式，用于argparse错误时的输出决策。
 
     规则：
-    - 指定 -f json / --format json / --report → 返回 "json"
-    - 指定 -f human / --format human → 返回 "human"
-    - 指定了格式选项但值不是 json/human（如非法值）→ 返回 "json"
-      （用户在主动调整输出格式，大概率是CI/脚本场景）
-    - 未指定任何格式选项 → 返回 "human"
+    - 仅当用户显式指定 -f human 或 --format=human 时返回 "human"
+    - 其他所有情况（包括未指定格式、指定json、指定非法格式、指定--report）都返回 "json"
+    - 所有argparse解析失败场景默认输出JSON，确保CI/脚本场景稳定
 
     Returns:
         "json" 或 "human"
     """
     if argv is None:
         argv = sys.argv[1:]
-    has_format_option = False
-    format_value = None
     for i, arg in enumerate(argv):
-        if arg == "--report" or arg.startswith("--report="):
-            return "json"
-        if arg in ("-f", "--format"):
-            has_format_option = True
-            if i + 1 < len(argv):
-                format_value = argv[i + 1]
+        if arg in ("-f", "--format") and i + 1 < len(argv):
+            if argv[i + 1] == "human":
+                return "human"
         if arg.startswith("--format="):
-            has_format_option = True
-            format_value = arg.split("=", 1)[1]
-
-    if format_value == "json":
-        return "json"
-    if format_value == "human":
-        return "human"
-    if has_format_option:
-        return "json"
-    return "human"
+            if arg.split("=", 1)[1] == "human":
+                return "human"
+    return "json"
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

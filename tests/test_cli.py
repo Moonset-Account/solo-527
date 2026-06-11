@@ -156,26 +156,41 @@ class TestCLIExecution:
         assert "csv-validator" in captured.out
         assert "1.0.0" in captured.out
 
-    def test_missing_schema_arg_returns_cli_error(self, capsys):
+    def test_missing_schema_arg_returns_cli_error_json(self, capsys):
         rc = main(["data.csv"])
         assert rc == ExitCode.CLI_ERROR
         captured = capsys.readouterr()
-        assert "错误" in captured.err
         assert captured.out == ""
+        err = json.loads(captured.err)
+        assert set(err.keys()) == {"status", "error_type", "message", "exit_code"}
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
 
-    def test_invalid_format_arg_returns_cli_error(self, capsys):
+    def test_invalid_format_arg_returns_cli_error_json(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
         rc = main(["--schema", schema, "-f", "xml", "data.csv"])
         assert rc == ExitCode.CLI_ERROR
+        captured = capsys.readouterr()
+        err = json.loads(captured.err)
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
 
-    def test_unknown_argument_returns_cli_error(self, capsys):
+    def test_unknown_argument_returns_cli_error_json(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
         rc = main(["--schema", schema, "--unknown-flag", "data.csv"])
         assert rc == ExitCode.CLI_ERROR
+        captured = capsys.readouterr()
+        err = json.loads(captured.err)
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
 
-    def test_missing_option_value_returns_cli_error(self, capsys):
+    def test_missing_option_value_returns_cli_error_json(self, capsys):
         rc = main(["--schema"])
         assert rc == ExitCode.CLI_ERROR
+        captured = capsys.readouterr()
+        err = json.loads(captured.err)
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
 
     def test_argparse_error_json_output_stable_fields(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
@@ -223,14 +238,14 @@ class TestCLIExecution:
         err = json.loads(captured.err)
         assert err["exit_code"] == ExitCode.CLI_ERROR
 
-    def test_argparse_error_human_format_plain_text(self, capsys):
+    def test_argparse_error_human_format_explicit_plain_text(self, capsys):
         rc = main(["-f", "human", "data.csv"])
         assert rc == ExitCode.CLI_ERROR
         captured = capsys.readouterr()
         assert "错误:" in captured.err
         assert "status" not in captured.err
 
-    def test_argparse_error_explicit_human_format_plain_text(self, capsys):
+    def test_argparse_error_human_format_explicit_long_plain_text(self, capsys):
         rc = main(["--format=human", "data.csv"])
         assert rc == ExitCode.CLI_ERROR
         captured = capsys.readouterr()
@@ -246,12 +261,13 @@ class TestCLIExecution:
         assert _detect_output_format(["--format=human", "data.csv"]) == "human"
         assert _detect_output_format(["--report", "out.json", "data.csv"]) == "json"
         assert _detect_output_format(["--report=out.json", "data.csv"]) == "json"
-        assert _detect_output_format(["data.csv"]) == "human"
+        assert _detect_output_format(["data.csv"]) == "json"
         assert _detect_output_format(["-f"]) == "json"
         assert _detect_output_format(["-f", "xml", "data.csv"]) == "json"
         assert _detect_output_format(["--format=xml", "data.csv"]) == "json"
         assert _detect_output_format(["-f", "csv", "data.csv"]) == "json"
         assert _detect_output_format(["-f", "markdown", "data.csv"]) == "json"
+        assert _detect_output_format(["--schema", "x.json", "data.csv"]) == "json"
 
     def test_quiet_mode_on_success(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
