@@ -1,0 +1,15 @@
+{
+  "name": "saas",
+  "product_name": "SaaS 云平台",
+  "feature_title": "🚀 新特性上线",
+  "fix_title": "🛠️ 问题修复",
+  "known_issue_title": "⚡ 已知限制",
+  "upgrade_notice_title": "📢 重要通知",
+  "pending_title": "📋 待完善条目",
+  "category_keywords": {
+    "feature": ["新增", "上线", "特性", "feature"],
+    "fix": ["修复", "解决", "bugfix", "fix"],
+    "known_issue": ["已知", "限制", "known"],
+    "upgrade_notice": ["升级", "迁移", "废弃", "upgrade"]
+  }
+}

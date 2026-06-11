@@ -1,0 +1,30 @@
+[
+  {
+    "id": "PROJ-1001",
+    "title": "用户登录模块支持 SSO 单点登录",
+    "url": "https://jira.example.com/browse/PROJ-1001",
+    "status": "Done",
+    "labels": ["feature", "auth"]
+  },
+  {
+    "id": "PROJ-1002",
+    "title": "修复在 iOS 15 上闪退的问题",
+    "url": "https://jira.example.com/browse/PROJ-1002",
+    "status": "Done",
+    "labels": ["bug", "ios"]
+  },
+  {
+    "id": "PROJ-1003",
+    "title": "数据库连接池在高并发下耗尽",
+    "url": "https://jira.example.com/browse/PROJ-1003",
+    "status": "In Progress",
+    "labels": ["known-issue", "performance"]
+  },
+  {
+    "id": "PROJ-1004",
+    "title": "API v1 将在下版本废弃，请迁移到 v2",
+    "url": "https://jira.example.com/browse/PROJ-1004",
+    "status": "Done",
+    "labels": ["deprecation", "upgrade"]
+  }
+]
