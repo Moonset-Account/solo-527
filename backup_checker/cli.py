@@ -236,7 +236,7 @@ def _run_check(
 
     report.dry_run = ctx.dry_run
 
-    if notify and config.notification.enabled:
+    if config.notification.enabled:
         try:
             notification_results = send_notifications(
                 config.notification, report, dry_run=ctx.dry_run, logger=ctx.logger
