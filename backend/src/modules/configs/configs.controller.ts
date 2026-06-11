@@ -187,10 +187,10 @@ export class ConfigsController {
   @Patch(':id/enable')
   async enable(
     @Param('id') id: string,
-    @Body('modifiedBy') modifiedBy?: string,
+    @Body() body: { modifiedBy?: string; remark?: string },
   ) {
     try {
-      const result = await this.configsService.enable(id, modifiedBy);
+      const result = await this.configsService.enable(id, body?.modifiedBy, body?.remark);
       return {
         code: 0,
         message: '操作成功',
@@ -207,10 +207,10 @@ export class ConfigsController {
   @Patch(':id/disable')
   async disable(
     @Param('id') id: string,
-    @Body('modifiedBy') modifiedBy?: string,
+    @Body() body: { modifiedBy?: string; remark?: string },
   ) {
     try {
-      const result = await this.configsService.disable(id, modifiedBy);
+      const result = await this.configsService.disable(id, body?.modifiedBy, body?.remark);
       return {
         code: 0,
         message: '操作成功',

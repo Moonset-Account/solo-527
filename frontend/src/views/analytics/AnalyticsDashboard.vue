@@ -696,22 +696,26 @@ async function loadOverallStats() {
   try {
     const res = await getOverview(buildOverviewParams())
     const data = (res.data as any)?.data ?? res.data
-    if (data && typeof data.totalOrders === 'number') {
+    if (data && (typeof data.totalOrders === 'number' || typeof data.todayOrders === 'number')) {
+      const total = data.totalOrders ?? 0
+      const cancelled = data.cancelledOrders ?? 0
+      const avg = data.averageRating ?? data.avgRating ?? 0
+      const onTime = data.overallOnTimeRate ?? data.onTimeRate ?? 0
       Object.assign(overallStats.value, {
-        totalOrders: data.totalOrders ?? 0,
+        totalOrders: total,
         completedOrders: data.completedOrders,
-        cancelledOrders: data.cancelledOrders,
-        rescheduledCount: data.rescheduledCount,
-        onTimeRate: data.onTimeRate ?? 0,
-        averageRating: data.averageRating ?? data.avgRating,
+        cancelledOrders: cancelled,
+        rescheduledCount: data.rescheduledCount ?? data.rescheduledOrders,
+        onTimeRate: onTime >= 1 ? onTime / 100 : onTime,
+        averageRating: avg,
         reviewCount: data.reviewCount,
-        todayOrders: data.todayOrders,
-        inProgressOrders: data.inProgressOrders,
-        totalOrdersMom: data.totalOrdersMom ?? 0,
+        todayOrders: data.todayOrders ?? data.todayCount,
+        inProgressOrders: data.inProgressOrders ?? data.inTransitOrders,
+        totalOrdersMom: data.totalOrdersMom ?? (data.dateRange ? 0 : 0),
         onTimeRateMom: data.onTimeRateMom ?? 0,
-        cancelRate: data.cancelRate ?? (data.cancelledOrders / (data.totalOrders || 1)),
+        cancelRate: total > 0 ? cancelled / total : 0,
         cancelRateMom: data.cancelRateMom ?? 0,
-        avgRating: data.averageRating ?? data.avgRating ?? 0,
+        avgRating: avg,
         avgRatingMom: data.avgRatingMom ?? 0,
         totalAmount: data.totalAmount ?? 0,
         avgOrderAmount: data.avgOrderAmount ?? 0,
@@ -730,9 +734,37 @@ async function loadOverallStats() {
 async function loadFulfillmentData() {
   try {
     const res = await getOnTimeBreakdown(buildOnTimeParams())
-    const data = (res.data as any)?.data ?? res.data
-    if (Array.isArray(data) && data.length) {
-      fulfillmentData.value = data
+    const payload = (res.data as any)?.data ?? res.data
+    const groups = Array.isArray(payload) ? payload : payload?.groups
+    if (Array.isArray(groups) && groups.length) {
+      fulfillmentData.value = groups.map((g: any) => {
+        const raw = g as any
+        let label = '总计'
+        if (raw.group) {
+          if (raw.group.all) label = '总计'
+          else if (raw.group.community) label = raw.group.community
+          else if (raw.group.date) label = raw.group.date
+          else if (raw.group.reason) label = raw.group.reason || '无'
+        } else if (typeof raw.group === 'string') {
+          label = raw.group
+        }
+        const rateVal = raw.onTimeRate ?? 0
+        const rate = rateVal >= 1 ? rateVal / 100 : rateVal
+        const total = raw.total ?? raw.totalOrders ?? 0
+        const onTime = raw.onTimeCount ?? raw.onTimeOrders ?? 0
+        const late = raw.lateCount ?? raw.lateOrders ?? Math.max(0, total - onTime)
+        const nb = raw.nodeBreakdown || {}
+        return {
+          group: label,
+          totalOrders: total,
+          onTimeOrders: onTime,
+          lateOrders: late,
+          onTimeRate: rate,
+          scheduledOnTime: nb.scheduled?.onTime ?? raw.scheduledOnTime ?? 0,
+          arrivedOnTime: nb.arrived?.onTime ?? raw.arrivedOnTime ?? 0,
+          completedOnTime: nb.completed?.onTime ?? raw.completedOnTime ?? 0,
+        } as FulfillmentBreakdownItem
+      })
     } else {
       fulfillmentData.value = generateMockFulfillmentData(dimension.value)
     }
@@ -744,9 +776,40 @@ async function loadFulfillmentData() {
 async function loadHeatmapData() {
   try {
     const res = await getRegionDemand(buildRegionDemandParams())
-    const data = (res.data as any)?.data ?? res.data
-    if (Array.isArray(data) && data.length) {
-      heatmapData.value = data
+    const payload = (res.data as any)?.data ?? res.data
+    const details = Array.isArray(payload) ? payload : payload?.details
+    const list: HeatmapItem[] = []
+    if (Array.isArray(details) && details.length) {
+      details.forEach((d: any) => {
+        const community = d.community || d.name
+        const category = d.category || d.serviceCategory || '其他'
+        if (community && category) {
+          list.push({
+            community,
+            serviceCategory: category,
+            orderCount: d.orderCount ?? 0,
+            supplyGap: d.demandGap ?? d.supplyGap ?? 0,
+          })
+        }
+      })
+    }
+    const byCommunity = payload?.byCommunity
+    if (Array.isArray(byCommunity) && byCommunity.length) {
+      const existingKeys = new Set(list.map(i => i.community))
+      byCommunity.forEach((c: any) => {
+        const name = c.community || c.name
+        if (name && !existingKeys.has(name)) {
+          list.push({
+            community: name,
+            serviceCategory: '全部',
+            orderCount: c.orderCount ?? 0,
+            supplyGap: c.demandGap ?? c.supplyGap ?? 0,
+          })
+        }
+      })
+    }
+    if (list.length > 0) {
+      heatmapData.value = list
     } else {
       heatmapData.value = generateMockHeatmapData()
     }
@@ -758,9 +821,18 @@ async function loadHeatmapData() {
 async function loadTrendData() {
   try {
     const res = await getTrend(buildTrendParams())
-    const data = (res.data as any)?.data ?? res.data
-    if (Array.isArray(data) && data.length) {
-      trendData.value = data
+    const payload = (res.data as any)?.data ?? res.data
+    const points = Array.isArray(payload) ? payload : payload?.dataPoints
+    if (Array.isArray(points) && points.length) {
+      trendData.value = points.map((p: any) => {
+        const rateVal = p.onTimeRate ?? 0
+        const rate = rateVal >= 1 ? rateVal / 100 : rateVal
+        return {
+          date: p.label ?? p.date ?? '',
+          orderCount: p.orderCount ?? 0,
+          onTimeRate: rate,
+        } as TrendPoint
+      })
     } else {
       trendData.value = generateMockTrendData()
     }

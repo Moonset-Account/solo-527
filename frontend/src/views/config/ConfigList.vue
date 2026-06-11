@@ -481,19 +481,16 @@ async function confirmEnabledChange() {
     const row = enabledChangeConfig.value!
     const targetVal = enabledChangeTargetValue.value
     if (targetVal) {
-      await enableConfig(row._id, enabledRemarkForm.modifiedBy)
+      await enableConfig(row._id, enabledRemarkForm.modifiedBy, enabledRemarkForm.remark)
     } else {
-      await disableConfig(row._id, enabledRemarkForm.modifiedBy)
+      await disableConfig(row._id, enabledRemarkForm.modifiedBy, enabledRemarkForm.remark)
     }
     ElMessage.success(`${targetVal ? '启用' : '禁用'}成功`)
     enabledRemarkDialogVisible.value = false
     enabledChangeConfig.value = null
     loadData()
-  } catch {
-    ElMessage.success(`${enabledChangeTargetValue.value ? '启用' : '禁用'}成功（演示模式）`)
-    if (enabledChangeConfig.value) {
-      enabledChangeConfig.value.enabled = enabledChangeTargetValue.value
-    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || `${enabledChangeTargetValue.value ? '启用' : '禁用'}失败`)
     enabledRemarkDialogVisible.value = false
     enabledChangeConfig.value = null
     loadData()
@@ -541,8 +538,8 @@ async function confirmEdit() {
       }
       editDialogVisible.value = false
       loadData()
-    } catch {
-      ElMessage.success(`${isEditMode.value ? '更新' : '创建'}成功（演示模式）`)
+    } catch (e: any) {
+      ElMessage.error(e?.message || `${isEditMode.value ? '更新' : '创建'}失败`)
       editDialogVisible.value = false
       loadData()
     } finally {

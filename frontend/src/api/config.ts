@@ -101,10 +101,10 @@ export function deleteConfig(id: string) {
   return del<void>(`/configs/${id}`)
 }
 
-export function enableConfig(id: string, modifiedBy?: string) {
-  return patch<ConfigItem>(`/configs/${id}/enable`, { modifiedBy })
+export function enableConfig(id: string, modifiedBy?: string, remark?: string) {
+  return patch<ConfigItem>(`/configs/${id}/enable`, { modifiedBy, remark })
 }
 
-export function disableConfig(id: string, modifiedBy?: string) {
-  return patch<ConfigItem>(`/configs/${id}/disable`, { modifiedBy })
+export function disableConfig(id: string, modifiedBy?: string, remark?: string) {
+  return patch<ConfigItem>(`/configs/${id}/disable`, { modifiedBy, remark })
 }

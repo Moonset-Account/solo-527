@@ -33,6 +33,11 @@ export class UpdateConfigDto {
   changeLog?: ChangeLogItemDto[];
 }
 
+export class ToggleConfigDto {
+  modifiedBy?: string;
+  remark?: string;
+}
+
 export class QueryConfigDto {
   key?: string;
   type?: string;

@@ -128,50 +128,66 @@ export class ConfigsService {
     return deletedConfig;
   }
 
-  async enable(id: string, modifiedBy?: string): Promise<Config> {
+  async enable(id: string, modifiedBy?: string, remark?: string): Promise<Config> {
     const existing = await this.configModel.findById(id).exec();
     if (!existing) {
       throw new NotFoundException(`配置 ID ${id} 不存在`);
     }
 
     const changeLogs: ChangeLogItem[] = [...(existing.changeLog || [])];
-    changeLogs.push(this.createChangeLogItem(modifiedBy || 'system', existing.enabled, true));
+    const operator = modifiedBy || 'system';
+
+    if (existing.enabled !== true) {
+      changeLogs.push(this.createChangeLogItem(operator, existing.enabled, true));
+    }
+    if (remark !== undefined && existing.remark !== remark) {
+      changeLogs.push(this.createChangeLogItem(operator, existing.remark, remark));
+    }
+
+    const updateData: any = {
+      enabled: true,
+      changeLog: changeLogs,
+      modifiedBy: operator,
+      version: (existing.version || 1) + 1,
+    };
+    if (remark !== undefined) {
+      updateData.remark = remark;
+    }
 
     const config = await this.configModel
-      .findByIdAndUpdate(
-        id,
-        {
-          enabled: true,
-          changeLog: changeLogs,
-          modifiedBy: modifiedBy || 'system',
-          version: (existing.version || 1) + 1,
-        },
-        { new: true },
-      )
+      .findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
       .exec();
     return config;
   }
 
-  async disable(id: string, modifiedBy?: string): Promise<Config> {
+  async disable(id: string, modifiedBy?: string, remark?: string): Promise<Config> {
     const existing = await this.configModel.findById(id).exec();
     if (!existing) {
       throw new NotFoundException(`配置 ID ${id} 不存在`);
     }
 
     const changeLogs: ChangeLogItem[] = [...(existing.changeLog || [])];
-    changeLogs.push(this.createChangeLogItem(modifiedBy || 'system', existing.enabled, false));
+    const operator = modifiedBy || 'system';
+
+    if (existing.enabled !== false) {
+      changeLogs.push(this.createChangeLogItem(operator, existing.enabled, false));
+    }
+    if (remark !== undefined && existing.remark !== remark) {
+      changeLogs.push(this.createChangeLogItem(operator, existing.remark, remark));
+    }
+
+    const updateData: any = {
+      enabled: false,
+      changeLog: changeLogs,
+      modifiedBy: operator,
+      version: (existing.version || 1) + 1,
+    };
+    if (remark !== undefined) {
+      updateData.remark = remark;
+    }
 
     const config = await this.configModel
-      .findByIdAndUpdate(
-        id,
-        {
-          enabled: false,
-          changeLog: changeLogs,
-          modifiedBy: modifiedBy || 'system',
-          version: (existing.version || 1) + 1,
-        },
-        { new: true },
-      )
+      .findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
       .exec();
     return config;
   }

@@ -5,27 +5,85 @@ export interface OverallStats {
   completedOrders?: number
   cancelledOrders?: number
   rescheduledCount?: number
-  totalAmount: number
-  avgOrderAmount: number
+  rescheduledOrders?: number
+  totalRescheduleTimes?: number
+  totalAmount?: number
+  avgOrderAmount?: number
   onTimeRate: number
-  onTimeBreakdown?: any
+  overallOnTimeRate?: number
+  onTimeBreakdown?: {
+    scheduled: number
+    arrived: number
+    completed: number
+  }
+  onTimeRateBreakdown?: any
   avgRating: number
   averageRating?: number
   reviewCount?: number
-  activeWorkers: number
-  newUsers: number
+  activeWorkers?: number
+  newUsers?: number
   todayOrders?: number
+  todayCount?: number
   inProgressOrders?: number
+  inTransitOrders?: number
   cancelRate: number
   totalOrdersMom: number
   onTimeRateMom: number
   cancelRateMom: number
   avgRatingMom: number
+  completedOrdersMom?: number
+  dateRange?: {
+    start: string
+    end: string
+  }
 }
 
 export interface OverviewParams {
   startDate?: string
   endDate?: string
+}
+
+export interface OnTimeNodeDetail {
+  total: number
+  onTime: number
+  onTimeRate: number
+}
+
+export interface FulfillmentBreakdownGroup {
+  group: { community?: string; date?: string; reason?: string; all?: boolean }
+  total: number
+  onTimeCount: number
+  lateCount: number
+  onTimeRate: number
+  nodeBreakdown: {
+    scheduled: OnTimeNodeDetail
+    arrived: OnTimeNodeDetail
+    completed: OnTimeNodeDetail
+  }
+  compare?: {
+    totalDiff: number
+    totalDiffRate: number
+    onTimeRateDiff: number
+    lateCountDiff: number
+  }
+}
+
+export interface OnTimeBreakdownResult {
+  summary: {
+    totalGroups: number
+    totalOrders: number
+    avgOnTimeRate: number
+    totalCompare: {
+      totalDiff: number
+      totalDiffRate: number
+    }
+  }
+  groups: FulfillmentBreakdownGroup[]
+  dateRange: {
+    current: { start: string; end: string }
+    previous: { start: string; end: string }
+  }
+  groupBy: 'community' | 'date' | 'reason' | 'all'
 }
 
 export interface FulfillmentBreakdownItem {
@@ -44,6 +102,40 @@ export interface OnTimeParams {
   startDate?: string
   endDate?: string
   communities?: string
+}
+
+export interface RegionDemandItem {
+  community: string
+  category?: string
+  timeSlot?: string
+  name?: string
+  orderCount: number
+  completedCount: number
+  cancelledCount: number
+  completionRate: number
+  availableWorkers?: number
+  supplyCapacity?: number
+  demandGap?: number
+  demandGapStatus?: 'deficit' | 'balanced' | 'surplus'
+}
+
+export interface RegionDemandResult {
+  summary: {
+    totalOrders: number
+    totalCapacity: number
+    totalDemandGap: number
+    totalAvailableWorkers: number
+    daysCovered: number
+    deficitCommunities: number
+  }
+  byCommunity: RegionDemandItem[]
+  byCategory: RegionDemandItem[]
+  byTimeSlot: RegionDemandItem[]
+  details: RegionDemandItem[]
+  dateRange: {
+    start: string
+    end: string
+  }
 }
 
 export interface HeatmapItem {
@@ -71,10 +163,14 @@ export interface WorkerRankItem {
 }
 
 export interface WorkerRankListResult {
-  data: WorkerRankItem[]
-  total: number
-  page: number
-  pageSize: number
+  data?: WorkerRankItem[]
+  list?: WorkerRankItem[]
+  total?: number
+  page?: number
+  pageSize?: number
+  summary?: any
+  topRankings?: any
+  pagination?: any
 }
 
 export interface WorkersParams {
@@ -86,9 +182,38 @@ export interface WorkersParams {
 }
 
 export interface TrendPoint {
-  date: string
+  date?: string
+  label?: string
   orderCount: number
+  completedCount?: number
+  cancelledCount?: number
+  rescheduledCount?: number
+  completionRate?: number
+  revenue?: number
+  totalRevenue?: number
   onTimeRate: number
+  averageRating?: number
+  reviewCount?: number
+}
+
+export interface TrendResult {
+  granularity: 'day' | 'week' | 'month'
+  summary: {
+    totalOrders: number
+    totalRevenue: number
+    avgOnTimeRate: number
+    avgCompletionRate: number
+    periodGrowth?: {
+      orderGrowth?: number
+      revenueGrowth?: number
+      onTimeRateDiff?: number
+    }
+  }
+  dataPoints: TrendPoint[]
+  dateRange: {
+    start: string
+    end: string
+  }
 }
 
 export interface TrendParams {
@@ -102,15 +227,15 @@ export function getOverview(params?: OverviewParams) {
 }
 
 export function getOnTimeBreakdown(params?: OnTimeParams) {
-  return get<FulfillmentBreakdownItem[]>('/analytics/ontime', params)
+  return get<OnTimeBreakdownResult>('/analytics/ontime', params)
 }
 
 export function getRegionDemand(params?: RegionDemandParams) {
-  return get<HeatmapItem[]>('/analytics/region-demand', params)
+  return get<RegionDemandResult>('/analytics/region-demand', params)
 }
 
 export function getTrend(params?: TrendParams) {
-  return get<TrendPoint[]>('/analytics/trend', params)
+  return get<TrendResult>('/analytics/trend', params)
 }
 
 export function getWorkerRanking(params?: WorkersParams) {
