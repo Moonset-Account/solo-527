@@ -12,6 +12,7 @@ from i18n_checker import (
     scan_code_for_keys,
     check_i18n,
     PlaceholderMismatch,
+    MissingKeySuggestion,
     I18nReport,
     suggest_fix,
 )
@@ -535,3 +536,114 @@ def test_dollar_curly_in_json_output(tmp_path):
     assert ph["source_names"] == ["amount"]
     assert ph["target_names"] == ["amount"]
     assert d["summary"]["total_placeholder_mismatches"] == 1
+
+
+def test_missing_key_suggestions_in_report():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+        "ja": str(LOCALES_DIR / "ja.json"),
+    }
+    report = check_i18n(source_file, target_files)
+
+    zh_suggestions = [s for s in report.missing_key_suggestions if s.locale == "zh-CN"]
+    ja_suggestions = [s for s in report.missing_key_suggestions if s.locale == "ja"]
+
+    zh_sugg_keys = {s.key for s in zh_suggestions}
+    assert "common.greeting_duplicate" in zh_sugg_keys
+    assert "auth.error_timeout" in zh_sugg_keys
+    assert "auth.old_key_not_used" in zh_sugg_keys
+    assert "profile.change_password" in zh_sugg_keys
+
+    ja_sugg_keys = {s.key for s in ja_suggestions}
+    assert "common.greeting_duplicate" in ja_sugg_keys
+    assert "auth.old_key_not_used" in ja_sugg_keys
+
+    for s in zh_suggestions:
+        assert s.locale == "zh-CN"
+        assert s.key is not None
+        assert s.source_value is not None
+        assert "保留占位符" in s.note
+
+    for s in ja_suggestions:
+        assert s.locale == "ja"
+
+
+def test_missing_key_suggestions_preserve_placeholder_format():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+    }
+    report = check_i18n(source_file, target_files)
+
+    greeting_s = next(
+        s for s in report.missing_key_suggestions
+        if s.key == "common.greeting_duplicate" and s.locale == "zh-CN"
+    )
+    assert "{{user}}" in greeting_s.source_value
+
+
+def test_missing_key_suggestions_in_json_output(tmp_path):
+    source = tmp_path / "en.json"
+    source.write_text(
+        json.dumps({
+            "hello": "Hello, {name}!",
+            "price": "Total: ${amount}",
+            "score": "Score: %score% / %total%",
+        }),
+        encoding="utf-8",
+    )
+    target = tmp_path / "zh.json"
+    target.write_text(
+        json.dumps({
+            "hello": "你好，{name}！",
+        }),
+        encoding="utf-8",
+    )
+
+    report = check_i18n(str(source), {"zh": str(target)})
+    d = report.to_dict()
+
+    assert "missing_key_suggestions" in d
+    suggestions = d["missing_key_suggestions"]
+    assert len(suggestions) == 2
+
+    price_s = next(s for s in suggestions if s["key"] == "price")
+    assert price_s["locale"] == "zh"
+    assert price_s["source_value"] == "Total: ${amount}"
+    assert "${amount}" in price_s["source_value"]
+    assert "保留占位符" in price_s["note"]
+
+    score_s = next(s for s in suggestions if s["key"] == "score")
+    assert score_s["locale"] == "zh"
+    assert score_s["source_value"] == "Score: %score% / %total%"
+    assert "%score%" in score_s["source_value"]
+    assert "%total%" in score_s["source_value"]
+
+
+def test_missing_key_suggestions_file_not_found(tmp_path):
+    source = tmp_path / "en.json"
+    source.write_text(
+        json.dumps({"hello": "Hello, {name}!"}),
+        encoding="utf-8",
+    )
+
+    report = check_i18n(str(source), {"zh": str(tmp_path / "nonexistent.json")})
+
+    assert len(report.missing_key_suggestions) == 1
+    assert report.missing_key_suggestions[0].locale == "zh"
+    assert report.missing_key_suggestions[0].key == "hello"
+    assert report.missing_key_suggestions[0].source_value == "Hello, {name}!"
+    assert "{name}" in report.missing_key_suggestions[0].source_value
+
+
+def test_missing_keys_still_simple_list():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+    }
+    report = check_i18n(source_file, target_files)
+
+    assert isinstance(report.missing_keys["zh-CN"], list)
+    for key in report.missing_keys["zh-CN"]:
+        assert isinstance(key, str)

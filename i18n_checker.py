@@ -46,8 +46,17 @@ class PlaceholderMismatch:
 
 
 @dataclass
+class MissingKeySuggestion:
+    locale: str
+    key: str
+    source_value: str
+    note: str
+
+
+@dataclass
 class I18nReport:
     missing_keys: Dict[str, List[str]] = field(default_factory=dict)
+    missing_key_suggestions: List[MissingKeySuggestion] = field(default_factory=list)
     unused_keys: List[str] = field(default_factory=list)
     placeholder_mismatches: List[PlaceholderMismatch] = field(default_factory=list)
     duplicate_values: Dict[str, List[str]] = field(default_factory=dict)
@@ -65,6 +74,15 @@ class I18nReport:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "missing_keys": {k: v for k, v in self.missing_keys.items()},
+            "missing_key_suggestions": [
+                {
+                    "locale": s.locale,
+                    "key": s.key,
+                    "source_value": s.source_value,
+                    "note": s.note,
+                }
+                for s in self.missing_key_suggestions
+            ],
             "unused_keys": self.unused_keys,
             "placeholder_mismatches": [
                 {
@@ -197,6 +215,15 @@ def check_i18n(
             target_data = load_json_file(target_path)
         except FileNotFoundError:
             report.missing_keys[locale] = sorted(source_flat.keys())
+            for key in sorted(source_flat.keys()):
+                report.missing_key_suggestions.append(
+                    MissingKeySuggestion(
+                        locale=locale,
+                        key=key,
+                        source_value=source_flat[key],
+                        note="请保留占位符名称，避免翻译时破坏模板变量",
+                    )
+                )
             report.locale_stats[locale] = {
                 "missing": len(source_flat),
                 "present": 0,
@@ -208,6 +235,16 @@ def check_i18n(
 
         missing = sorted(set(source_flat.keys()) - set(target_flat.keys()))
         report.missing_keys[locale] = missing
+
+        for key in missing:
+            report.missing_key_suggestions.append(
+                MissingKeySuggestion(
+                    locale=locale,
+                    key=key,
+                    source_value=source_flat[key],
+                    note="请保留占位符名称，避免翻译时破坏模板变量",
+                )
+            )
 
         mismatch_count = 0
         for key in source_flat.keys():
