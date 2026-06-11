@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  type        String   @db.VarChar(50)
+  floor       Int      @default(1)
+  maxGuests   Int      @default(2)
+  amenities   Json?
+  images      Json?
+  status      RoomStatus @default(AVAILABLE)
+  basePrice   Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("createdAt") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updatedAt") @db.DateTime(3)
+
+  inventories    RoomInventory[]
+  orders         Order[]
+  cleaningTasks  CleaningTask[]
+  reviews        Review[]
+
+  @@index([type], map: "idx_room_type")
+  @@index([status], map: "idx_room_status")
+  @@map("Room")
+}
+
+model RoomInventory {
+  id              Int        @id @default(autoincrement())
+  roomId          Int
+  date            DateTime   @db.Date
+  availableCount  Int        @default(1)
+  totalCount      Int        @default(1)
+  price           Decimal    @db.Decimal(10, 2)
+  syncStatus      SyncStatus @default(PENDING)
+  lastSyncedAt    DateTime?  @map("lastSyncedAt") @db.DateTime(3)
+  createdAt       DateTime   @default(now()) @map("createdAt") @db.DateTime(3)
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, date], map: "idx_room_date")
+  @@index([date], map: "idx_inventory_date")
+  @@index([syncStatus], map: "idx_inventory_sync")
+  @@map("RoomInventory")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(50)
+  password  String   @db.VarChar(255)
+  role      UserRole @default(GUEST)
+  createdAt DateTime @default(now()) @map("createdAt") @db.DateTime(3)
+
+  orders         Order[]
+  todoItems      TodoItem[]
+  cleaningTasks  CleaningTask[]
+  reviews        Review[]
+
+  @@index([role], map: "idx_user_role")
+  @@map("User")
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  orderNo      String      @unique @db.VarChar(32)
+  userId       Int
+  roomId       Int
+  checkIn      DateTime    @db.Date
+  checkOut     DateTime    @db.Date
+  guestCount   Int         @default(1)
+  guestName    String      @db.VarChar(50)
+  guestPhone   String      @db.VarChar(20)
+  totalPrice   Decimal     @db.Decimal(10, 2)
+  status       OrderStatus @default(PENDING_PAYMENT)
+  refundReason String?
+  createdAt    DateTime    @default(now()) @map("createdAt") @db.DateTime(3)
+  updatedAt    DateTime    @updatedAt @map("updatedAt") @db.DateTime(3)
+
+  user    User    @relation(fields: [userId], references: [id])
+  room    Room    @relation(fields: [roomId], references: [id])
+  reviews Review[]
+
+  @@index([userId], map: "idx_order_user")
+  @@index([roomId], map: "idx_order_room")
+  @@index([status], map: "idx_order_status")
+  @@index([checkIn], map: "idx_order_checkin")
+  @@index([checkOut], map: "idx_order_checkout")
+  @@map("Order")
+}
+
+model TodoItem {
+  id           Int       @id @default(autoincrement())
+  type         TodoType
+  title        String    @db.VarChar(200)
+  description  String?
+  priority     Priority  @default(P2)
+  status       TodoStatus @default(PENDING)
+  assigneeId   Int
+  relatedId    Int
+  relatedType  String    @db.VarChar(20)
+  dueAt        DateTime? @map("dueAt") @db.DateTime(3)
+  completedAt  DateTime? @map("completedAt") @db.DateTime(3)
+  createdAt    DateTime  @default(now()) @map("createdAt") @db.DateTime(3)
+
+  assignee User @relation(fields: [assigneeId], references: [id])
+
+  @@index([assigneeId], map: "idx_todo_assignee")
+  @@index([status], map: "idx_todo_status")
+  @@index([priority], map: "idx_todo_priority")
+  @@index([type], map: "idx_todo_type")
+  @@map("TodoItem")
+}
+
+model ReminderRule {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  condition Json
+  priority  Priority @default(P2)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("createdAt") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updatedAt") @db.DateTime(3)
+
+  reminders Reminder[]
+
+  @@map("ReminderRule")
+}
+
+model Reminder {
+  id        Int      @id @default(autoincrement())
+  ruleId    Int?
+  priority  Priority @default(P2)
+  title     String   @db.VarChar(200)
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("createdAt") @db.DateTime(3)
+
+  rule ReminderRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([priority], map: "idx_reminder_priority")
+  @@index([isRead], map: "idx_reminder_read")
+  @@map("Reminder")
+}
+
+model Review {
+  id        Int          @id @default(autoincrement())
+  orderId   Int
+  userId    Int
+  roomId    Int
+  rating    Int
+  content   String
+  images    Json?
+  reply     String?
+  status    ReviewStatus @default(PENDING_REPLY)
+  createdAt DateTime     @default(now()) @map("createdAt") @db.DateTime(3)
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+  room  Room  @relation(fields: [roomId], references: [id])
+
+  @@index([roomId], map: "idx_review_room")
+  @@index([status], map: "idx_review_status")
+  @@map("Review")
+}
+
+model CleaningTask {
+  id          Int            @id @default(autoincrement())
+  roomId      Int
+  assigneeId  Int
+  status      CleaningStatus @default(PENDING)
+  scheduledAt DateTime       @map("scheduledAt") @db.DateTime(3)
+  completedAt DateTime?      @map("completedAt") @db.DateTime(3)
+  createdAt   DateTime       @default(now()) @map("createdAt") @db.DateTime(3)
+
+  room     Room @relation(fields: [roomId], references: [id])
+  assignee User @relation(fields: [assigneeId], references: [id])
+
+  @@index([roomId], map: "idx_cleaning_room")
+  @@index([assigneeId], map: "idx_cleaning_assignee")
+  @@index([status], map: "idx_cleaning_status")
+  @@map("CleaningTask")
+}
+
+model ExportLog {
+  id             Int      @id @default(autoincrement())
+  type           String   @db.VarChar(50)
+  filterSnapshot Json
+  operatorName   String   @db.VarChar(50)
+  downloadUrl    String   @db.VarChar(500)
+  generatedAt    DateTime @default(now()) @map("generatedAt") @db.DateTime(3)
+  createdAt      DateTime @default(now()) @map("createdAt") @db.DateTime(3)
+
+  @@index([type], map: "idx_export_type")
+  @@index([operatorName], map: "idx_export_operator")
+  @@map("ExportLog")
+}
+
+enum RoomStatus {
+  AVAILABLE
+  BOOKED
+  OCCUPIED
+  MAINTENANCE
+  CLEANING
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+}
+
+enum UserRole {
+  GUEST
+  OPERATOR
+  CLEANER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CHECKED_IN
+  CHECKED_OUT
+  REFUNDING
+  REFUNDED
+  CANCELLED
+}
+
+enum TodoType {
+  REFUND_APPROVAL
+  CLEANING
+  REVIEW_REPLY
+}
+
+enum Priority {
+  P0
+  P1
+  P2
+}
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ReviewStatus {
+  PENDING_REPLY
+  REPLIED
+}
+
+enum CleaningStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
