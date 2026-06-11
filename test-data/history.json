@@ -1,0 +1,32 @@
+{
+  "records": [
+    {
+      "test_name": "loginWithEmail",
+      "classname": "com.app.auth.LoginTests",
+      "total_runs": 11,
+      "failure_count": 4,
+      "first_failure": "2026-06-01T02:00:00Z",
+      "last_failure": "2026-06-11T06:50:25.533075Z",
+      "recent_screenshot_hashes": []
+    },
+    {
+      "test_name": "completeCheckout",
+      "classname": "com.app.shop.CheckoutTests",
+      "total_runs": 1,
+      "failure_count": 1,
+      "first_failure": "2026-06-11T06:50:25.533076Z",
+      "last_failure": "2026-06-11T06:50:25.533076Z",
+      "recent_screenshot_hashes": []
+    },
+    {
+      "test_name": "logoutFlow",
+      "classname": "com.app.auth.SessionTests",
+      "total_runs": 1,
+      "failure_count": 1,
+      "first_failure": "2026-06-11T06:50:25.533077Z",
+      "last_failure": "2026-06-11T06:50:25.533077Z",
+      "recent_screenshot_hashes": []
+    }
+  ],
+  "version": 1
+}

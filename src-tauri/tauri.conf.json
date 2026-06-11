@@ -1,0 +1,23 @@
+{
+  "productName": "nightly-failure-summary",
+  "version": "0.1.0",
+  "identifier": "com.nightly-failure-summary.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../ui/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Nightly Failure Summary",
+        "width": 1200,
+        "height": 800
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}
