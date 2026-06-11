@@ -61,6 +61,13 @@ pub fn build_report(rendered: &RenderedReleaseNote) -> ReleaseReport {
 
     ReleaseReport {
         product_line: rendered.product_line.clone(),
+        product_name: rendered.product_name.clone(),
+        feature_title: rendered.feature_title.clone(),
+        fix_title: rendered.fix_title.clone(),
+        known_issue_title: rendered.known_issue_title.clone(),
+        upgrade_notice_title: rendered.upgrade_notice_title.clone(),
+        pending_title: rendered.pending_title.clone(),
+        template_file: rendered.template_file.clone(),
         version: rendered.version.clone(),
         generated_at: rendered.generated_at,
         input_files: rendered.input_files.clone(),

@@ -143,6 +143,13 @@ pub struct GroupedChanges {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenderedReleaseNote {
     pub product_line: String,
+    pub product_name: String,
+    pub feature_title: String,
+    pub fix_title: String,
+    pub known_issue_title: String,
+    pub upgrade_notice_title: String,
+    pub pending_title: String,
+    pub template_file: Option<PathBuf>,
     pub version: String,
     pub generated_at: DateTime<Utc>,
     pub input_files: Vec<PathBuf>,
@@ -153,6 +160,13 @@ pub struct RenderedReleaseNote {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReleaseReport {
     pub product_line: String,
+    pub product_name: String,
+    pub feature_title: String,
+    pub fix_title: String,
+    pub known_issue_title: String,
+    pub upgrade_notice_title: String,
+    pub pending_title: String,
+    pub template_file: Option<PathBuf>,
     pub version: String,
     pub generated_at: DateTime<Utc>,
     pub input_files: Vec<PathBuf>,

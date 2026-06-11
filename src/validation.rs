@@ -127,7 +127,9 @@ pub fn validate_entries(entries: &[ChangeEntry]) -> ValidationResult {
 
 pub fn needs_pending_review(entry: &ChangeEntry) -> bool {
     let issues = validate_entry(entry);
-    issues.iter().any(|i| i.severity == "error")
+    issues.iter().any(|i| {
+        i.severity == "error" || i.rule_id == "R003"
+    })
 }
 
 pub fn build_entries_from_collected(data: &CollectedData) -> Vec<ChangeEntry> {

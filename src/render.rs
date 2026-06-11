@@ -119,6 +119,13 @@ pub fn render(
 
     Ok(RenderedReleaseNote {
         product_line: template.name.clone(),
+        product_name: template.product_name.clone(),
+        feature_title: template.feature_title.clone(),
+        fix_title: template.fix_title.clone(),
+        known_issue_title: template.known_issue_title.clone(),
+        upgrade_notice_title: template.upgrade_notice_title.clone(),
+        pending_title: template.pending_title.clone(),
+        template_file: opts.template_file.clone(),
         version: opts.version.clone(),
         generated_at: chrono::Utc::now(),
         input_files: data.input_files.clone(),
@@ -128,14 +135,8 @@ pub fn render(
 }
 
 pub fn render_markdown(report: &RenderedReleaseNote) -> Result<String> {
-    let templates = default_templates();
-    let template = templates
-        .get(&report.product_line)
-        .cloned()
-        .unwrap_or_else(|| templates.get("default").cloned().unwrap());
-
     let mut md = String::new();
-    md.push_str(&format!("# {} {} 发布说明\n\n", template.product_name, report.version));
+    md.push_str(&format!("# {} {} 发布说明\n\n", report.product_name, report.version));
     md.push_str(&format!(
         "> 生成时间: {}  \n",
         report.generated_at.format("%Y-%m-%d %H:%M:%S UTC")
@@ -149,41 +150,46 @@ pub fn render_markdown(report: &RenderedReleaseNote) -> Result<String> {
             .map(|p| p.display().to_string())
             .collect();
         md.push_str(&files.join(", "));
-        md.push_str("  \n\n");
+        md.push_str("  \n");
+    }
+    if let Some(tf) = &report.template_file {
+        md.push_str(&format!("> 模板文件: {}  \n", tf.display()));
     }
     md.push_str("\n");
 
     md.push_str(&render_section_markdown(
-        &template.feature_title,
+        &report.feature_title,
         &report.grouped.features,
         "暂无新功能",
     ));
     md.push_str(&render_section_markdown(
-        &template.fix_title,
+        &report.fix_title,
         &report.grouped.fixes,
         "暂无修复内容",
     ));
     md.push_str(&render_section_markdown(
-        &template.known_issue_title,
+        &report.known_issue_title,
         &report.grouped.known_issues,
         "暂无已知问题",
     ));
     md.push_str(&render_section_markdown(
-        &template.upgrade_notice_title,
+        &report.upgrade_notice_title,
         &report.grouped.upgrade_notices,
         "暂无升级提醒",
     ));
 
     if !report.grouped.pending_review.is_empty() {
-        md.push_str(&format!("## {}\n\n", template.pending_title));
+        md.push_str(&format!("## {}\n\n", report.pending_title));
         md.push_str(
-            "以下条目缺少必要信息（工单编号、标题或分类），请补充完善后再纳入正式发布说明：\n\n",
+            "以下条目缺少必要信息（工单编号、标题、影响范围或分类），请补充完善后再纳入正式发布说明：\n\n",
         );
         for entry in &report.grouped.pending_review {
             md.push_str(&format!("### {}\n\n", entry.title.clone().unwrap_or_else(|| format!("条目 {}", entry.id))));
             md.push_str(&format!("- ID: `{}`  \n", entry.id));
             if let Some(scope) = &entry.scope {
                 md.push_str(&format!("- 影响范围: {}  \n", scope));
+            } else {
+                md.push_str("- ⚠️ 缺少影响范围  \n");
             }
             md.push_str(&format!("- 分类: `{}`  \n", entry.category));
             if entry.ticket_ids.is_empty() {
