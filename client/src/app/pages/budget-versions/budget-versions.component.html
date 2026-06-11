@@ -1,0 +1,137 @@
+<div class="budget-versions">
+  <div class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1>预算版本管理</h1>
+    </div>
+  </div>
+
+  @if (!showComparison) {
+    <div class="versions-content">
+      <mat-card class="compare-card">
+        <mat-card-content>
+          <div class="compare-controls">
+            <div class="compare-select">
+              <label>版本 A</label>
+              <select [(ngModel)]="leftVersionId" class="version-select">
+                <option value="">选择版本</option>
+                @for (b of budgets; track b.id) {
+                  <option [value]="b.id">版本 {{ b.version }}</option>
+                }
+              </select>
+            </div>
+            <mat-icon class="compare-icon">compare_arrows</mat-icon>
+            <div class="compare-select">
+              <label>版本 B</label>
+              <select [(ngModel)]="rightVersionId" class="version-select">
+                <option value="">选择版本</option>
+                @for (b of budgets; track b.id) {
+                  <option [value]="b.id">版本 {{ b.version }}</option>
+                }
+              </select>
+            </div>
+            <button mat-raised-button color="primary" (click)="compareVersions()" class="compare-btn">
+              <mat-icon>compare</mat-icon> 对比
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <div class="timeline">
+        @for (budget of budgets; track budget.id; let i = $index) {
+          <div class="timeline-item" [class.first]="i === 0">
+            <div class="timeline-dot" [ngClass]="budget.status"></div>
+            <mat-card class="timeline-card">
+              <mat-card-content>
+                <div class="version-header">
+                  <span class="version-number">版本 {{ budget.version }}</span>
+                  <span class="status-chip" [ngClass]="budget.status">
+                    {{ budget.status | statusLabel }}
+                  </span>
+                </div>
+                <div class="version-details">
+                  <div class="detail-row" *ngIf="budget.changeReason">
+                    <span class="detail-label">变更原因:</span>
+                    <span>{{ budget.changeReason }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">总金额:</span>
+                    <span class="detail-value">{{ budget.totalCost | currency }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">创建时间:</span>
+                    <span>{{ budget.createdAt | date:'yyyy-MM-dd HH:mm' }}</span>
+                  </div>
+                </div>
+                <div class="version-actions">
+                  <button mat-stroked-button (click)="editBudget(budget.id)">
+                    <mat-icon>edit</mat-icon> 编辑
+                  </button>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        }
+      </div>
+
+      @if (budgets.length === 0) {
+        <div class="empty-state">
+          <mat-icon>history</mat-icon>
+          <p>暂无预算版本</p>
+        </div>
+      }
+    </div>
+  }
+
+  @if (showComparison && comparison) {
+    <div class="comparison-view">
+      <div class="comparison-header">
+        <h2>版本对比</h2>
+        <button mat-stroked-button (click)="closeComparison()">
+          <mat-icon>close</mat-icon> 关闭
+        </button>
+      </div>
+
+      <div class="comparison-summary">
+        <mat-card class="version-summary left">
+          <mat-card-content>
+            <h3>版本 {{ comparison.left.version }}</h3>
+            <div class="summary-row"><span>人工费</span><span>{{ comparison.left.laborCost | currency }}</span></div>
+            <div class="summary-row"><span>材料费</span><span>{{ comparison.left.materialCost | currency }}</span></div>
+            <div class="summary-row total"><span>总计</span><span>{{ comparison.left.totalCost | currency }}</span></div>
+          </mat-card-content>
+        </mat-card>
+        <mat-card class="version-summary right">
+          <mat-card-content>
+            <h3>版本 {{ comparison.right.version }}</h3>
+            <div class="summary-row"><span>人工费</span><span>{{ comparison.right.laborCost | currency }}</span></div>
+            <div class="summary-row"><span>材料费</span><span>{{ comparison.right.materialCost | currency }}</span></div>
+            <div class="summary-row total"><span>总计</span><span>{{ comparison.right.totalCost | currency }}</span></div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <mat-card class="diff-card">
+        <mat-card-header>
+          <mat-card-title>差异明细</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          @for (diff of comparison.differences; track $index) {
+            <div class="diff-row" [class.changed]="isDiffChanged(diff)">
+              <div class="diff-category">{{ diff.category | categoryLabel }}</div>
+              <div class="diff-field">{{ diff.field }}</div>
+              <div class="diff-left">{{ diff.leftValue ?? '-' }}</div>
+              <div class="diff-arrow"><mat-icon>arrow_forward</mat-icon></div>
+              <div class="diff-right">{{ diff.rightValue ?? '-' }}</div>
+            </div>
+          }
+          @if (comparison.differences.length === 0) {
+            <div class="no-diff">两个版本无差异</div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</div>

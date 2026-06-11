@@ -1,0 +1,188 @@
+<div class="budget-create">
+  <div class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1>创建预算</h1>
+    </div>
+  </div>
+
+  @if (project) {
+    <mat-card class="project-info-card">
+      <mat-card-content>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">项目名称</span>
+            <span class="info-value">{{ project.name }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">客户</span>
+            <span class="info-value">{{ project.customerName }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">面积</span>
+            <span class="info-value">{{ project.area }} m²</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">地址</span>
+            <span class="info-value">{{ project.address }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <form [formGroup]="budgetForm" class="budget-form">
+      <mat-card class="reason-card">
+        <mat-card-content>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>变更原因</mat-label>
+            <textarea matInput formControlName="changeReason" rows="2" placeholder="请输入预算变更原因"></textarea>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="labor-field">
+            <mat-label>人工费</mat-label>
+            <input matInput type="number" formControlName="laborCost" min="0">
+            <span matSuffix>元</span>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
+
+      <div formArrayName="sections">
+        <div *ngFor="let sectionCtrl of sections.controls; let si = index">
+          <mat-card class="section-card" [formGroupName]="si">
+            <mat-card-header>
+              <mat-card-title class="section-title">
+                <mat-form-field appearance="outline" class="category-select">
+                  <mat-label>分类</mat-label>
+                  <mat-select formControlName="category">
+                    @for (opt of categoryOptions; track opt.value) {
+                      <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <span class="section-subtotal">小计: {{ getSectionSubtotal(si) | currency }}</span>
+              </mat-card-title>
+              <button mat-icon-button color="warn" (click)="removeSection(si)" matTooltip="删除分类">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="items-list" formArrayName="items">
+                <div *ngFor="let itemCtrl of getSectionItems(si).controls; let ii = index">
+                  <mat-expansion-panel class="item-panel" [formGroupName]="ii">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title>{{ itemCtrl.get('name')?.value || '新项目' }}</mat-panel-title>
+                      <mat-panel-description>
+                        {{ itemCtrl.get('quantity')?.value || 0 }} {{ itemCtrl.get('unit')?.value || '' }}
+                        × {{ itemCtrl.get('unitPrice')?.value || 0 | currency }}
+                        = {{ (itemCtrl.get('quantity')?.value || 0) * (itemCtrl.get('unitPrice')?.value || 0) | currency }}
+                      </mat-panel-description>
+                    </mat-expansion-panel-header>
+                    <div class="item-fields">
+                      <div class="fields-row">
+                        <mat-form-field appearance="outline" class="field">
+                          <mat-label>名称</mat-label>
+                          <input matInput formControlName="name">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-sm">
+                          <mat-label>数量</mat-label>
+                          <input matInput type="number" formControlName="quantity" min="0"
+                                 (change)="onItemValueChange(si, ii)">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field-sm">
+                          <mat-label>单位</mat-label>
+                          <input matInput formControlName="unit">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="field">
+                          <mat-label>单价</mat-label>
+                          <input matInput type="number" formControlName="unitPrice" min="0"
+                                 (change)="onItemValueChange(si, ii)">
+                        </mat-form-field>
+                      </div>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>描述</mat-label>
+                        <input matInput formControlName="description">
+                      </mat-form-field>
+
+                      <div class="materials-section">
+                        <div class="materials-header">
+                          <span>材料详情</span>
+                          <button mat-button (click)="addMaterial(si, ii)">
+                            <mat-icon>add</mat-icon> 添加材料
+                          </button>
+                        </div>
+                        <div formArrayName="materials">
+                          <div *ngFor="let matCtrl of getItemMaterials(si, ii).controls; let mi = index"
+                               class="material-row" [formGroupName]="mi">
+                            <mat-form-field appearance="outline" class="mat-field">
+                              <mat-label>材料名</mat-label>
+                              <input matInput formControlName="name">
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="mat-field-sm">
+                              <mat-label>规格</mat-label>
+                              <input matInput formControlName="specification">
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="mat-field-sm">
+                              <mat-label>数量</mat-label>
+                              <input matInput type="number" formControlName="quantity" min="0"
+                                     (change)="onMaterialValueChange(si, ii, mi)">
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="mat-field-sm">
+                              <mat-label>单位</mat-label>
+                              <input matInput formControlName="unit">
+                            </mat-form-field>
+                            <mat-form-field appearance="outline" class="mat-field-sm">
+                              <mat-label>单价</mat-label>
+                              <input matInput type="number" formControlName="unitPrice" min="0"
+                                     (change)="onMaterialValueChange(si, ii, mi)">
+                            </mat-form-field>
+                            <button mat-icon-button color="warn" (click)="removeMaterial(si, ii, mi)">
+                              <mat-icon>close</mat-icon>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <mat-action-row>
+                      <button mat-button color="warn" (click)="removeItem(si, ii)">
+                        <mat-icon>delete</mat-icon> 删除项目
+                      </button>
+                    </mat-action-row>
+                  </mat-expansion-panel>
+                </div>
+              </div>
+              <button mat-stroked-button (click)="addItem(si)" class="add-item-btn">
+                <mat-icon>add</mat-icon> 添加项目
+              </button>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+
+      <button mat-raised-button color="accent" (click)="addSection()" class="add-section-btn">
+        <mat-icon>add</mat-icon> 添加分类
+      </button>
+
+      <div class="summary-bar">
+        <div class="summary-content">
+          <div class="summary-item">
+            <span>人工费</span>
+            <span class="summary-value">{{ laborCost | currency }}</span>
+          </div>
+          <div class="summary-item">
+            <span>材料费</span>
+            <span class="summary-value">{{ totalMaterialCost | currency }}</span>
+          </div>
+          <div class="summary-item total">
+            <span>总计</span>
+            <span class="summary-value">{{ totalCost | currency }}</span>
+          </div>
+          <div class="summary-actions">
+            <button mat-stroked-button (click)="saveDraft()" [disabled]="loading">保存草稿</button>
+            <button mat-raised-button color="primary" (click)="submitForReview()" [disabled]="loading">提交审核</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  }
+</div>

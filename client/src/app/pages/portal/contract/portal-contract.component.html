@@ -1,0 +1,72 @@
+<div class="portal-contract">
+  @if (loading) {
+    <div class="loading-state">
+      <mat-icon class="spin">refresh</mat-icon>
+      <p>加载中...</p>
+    </div>
+  } @else if (contract) {
+    <mat-card class="contract-card">
+      <mat-card-content>
+        <div class="contract-header">
+          <h2>装修合同</h2>
+          @if (signed) {
+            <span class="signed-badge">
+              <mat-icon>check_circle</mat-icon> 已签署
+            </span>
+          } @else {
+            <span class="status-chip" [ngClass]="contract.status">
+              {{ contract.status === 'draft' ? '草稿' : contract.status === 'sent' ? '待签署' : '已签署' }}
+            </span>
+          }
+        </div>
+
+        <div class="contract-content" [innerHTML]="contract.content"></div>
+
+        @if (signed && contract.signedAt) {
+          <div class="signed-info">
+            <mat-icon class="signed-icon">verified</mat-icon>
+            <div>
+              <div class="signed-text">合同已签署</div>
+              <div class="signed-time">签署时间: {{ contract.signedAt | date:'yyyy年MM月dd日 HH:mm:ss' }}</div>
+            </div>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    @if (contract.attachments && contract.attachments.length > 0) {
+      <mat-card class="attachments-card">
+        <mat-card-header>
+          <mat-card-title>合同附件</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          @for (att of contract.attachments; track att.id) {
+            <div class="attachment-row">
+              <mat-icon class="att-icon">
+                @switch (att.fileType) {
+                  @case ('pdf') { picture_as_pdf }
+                  @default { insert_drive_file }
+                }
+              </mat-icon>
+              <div class="att-info">
+                <span class="att-name">{{ att.fileName }}</span>
+                <span class="att-size">{{ formatFileSize(att.fileSize) }}</span>
+              </div>
+              <a mat-icon-button [href]="att.url" target="_blank" download>
+                <mat-icon>download</mat-icon>
+              </a>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (canSign()) {
+      <div class="sign-bar">
+        <button mat-raised-button color="primary" (click)="signContract()" class="sign-btn">
+          <mat-icon>draw</mat-icon> 签署确认合同
+        </button>
+      </div>
+    }
+  }
+</div>

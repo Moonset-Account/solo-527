@@ -1,0 +1,154 @@
+<div class="after-sale-list">
+  <div class="page-header">
+    <h1>售后服务工单</h1>
+    <div class="header-actions">
+      <button mat-icon-button (click)="toggleView()" matTooltip="切换视图">
+        <mat-icon>{{ viewMode === 'kanban' ? 'view_list' : 'view_kanban' }}</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>状态</mat-label>
+      <mat-select formControlName="status">
+        <mat-option value="">全部</mat-option>
+        <mat-option value="pending">待处理</mat-option>
+        <mat-option value="processing">处理中</mat-option>
+        <mat-option value="closed">已关闭</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="filter-search">
+      <mat-label>搜索</mat-label>
+      <input matInput formControlName="search" placeholder="搜索工单标题">
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  </div>
+
+  @if (viewMode === 'kanban') {
+    <div class="kanban-container">
+      <div class="kanban-column pending" cdkDropList
+           [cdkDropListData]="pendingOrders"
+           [cdkDropListConnectedTo]="['processing', 'closed']"
+           (cdkDropListDropped)="drop($event, 'pending')">
+        <div class="kanban-header">
+          <span class="kanban-title">待处理</span>
+          <span class="kanban-count">{{ pendingOrders.length }}</span>
+        </div>
+        @for (order of pendingOrders; track order.id) {
+          <mat-card class="kanban-card" cdkDrag>
+            <mat-card-content>
+              <div class="card-title">{{ order.title }}</div>
+              <div class="card-desc">{{ order.description }}</div>
+              <div class="card-meta">
+                <span>{{ order.createdAt | date:'MM-dd' }}</span>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+        @if (pendingOrders.length === 0) {
+          <div class="kanban-empty">暂无工单</div>
+        }
+      </div>
+
+      <div class="kanban-column processing" cdkDropList
+           [cdkDropListData]="processingOrders"
+           [cdkDropListConnectedTo]="['pending', 'closed']"
+           (cdkDropListDropped)="drop($event, 'processing')">
+        <div class="kanban-header">
+          <span class="kanban-title">处理中</span>
+          <span class="kanban-count">{{ processingOrders.length }}</span>
+        </div>
+        @for (order of processingOrders; track order.id) {
+          <mat-card class="kanban-card" cdkDrag>
+            <mat-card-content>
+              <div class="card-title">{{ order.title }}</div>
+              <div class="card-desc">{{ order.description }}</div>
+              <div class="card-meta">
+                <span>{{ order.createdAt | date:'MM-dd' }}</span>
+                <button mat-button color="primary" (click)="closeOrder(order.id)" class="close-btn">
+                  关闭
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+        @if (processingOrders.length === 0) {
+          <div class="kanban-empty">暂无工单</div>
+        }
+      </div>
+
+      <div class="kanban-column closed" cdkDropList
+           [cdkDropListData]="closedOrders"
+           [cdkDropListConnectedTo]="['pending', 'processing']"
+           (cdkDropListDropped)="drop($event, 'closed')">
+        <div class="kanban-header">
+          <span class="kanban-title">已关闭</span>
+          <span class="kanban-count">{{ closedOrders.length }}</span>
+        </div>
+        @for (order of closedOrders; track order.id) {
+          <mat-card class="kanban-card" cdkDrag>
+            <mat-card-content>
+              <div class="card-title">{{ order.title }}</div>
+              <div class="card-desc">{{ order.description }}</div>
+              <div class="card-meta">
+                <span>{{ order.closedAt | date:'MM-dd' }}</span>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
+        @if (closedOrders.length === 0) {
+          <div class="kanban-empty">暂无工单</div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (viewMode === 'list') {
+    <div class="table-container">
+      <table mat-table [dataSource]="filteredOrders" class="order-table">
+        <ng-container matColumnDef="title">
+          <th mat-header-cell *matHeaderCellDef>标题</th>
+          <td mat-cell *matCellDef="let order">{{ order.title }}</td>
+        </ng-container>
+        <ng-container matColumnDef="project">
+          <th mat-header-cell *matHeaderCellDef>项目</th>
+          <td mat-cell *matCellDef="let order">{{ order.projectId }}</td>
+        </ng-container>
+        <ng-container matColumnDef="assignee">
+          <th mat-header-cell *matHeaderCellDef>负责人</th>
+          <td mat-cell *matCellDef="let order">{{ order.assigneeId || '未分配' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>状态</th>
+          <td mat-cell *matCellDef="let order">
+            <span class="status-chip" [ngClass]="order.status">
+              {{ order.status | statusLabel }}
+            </span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef>创建日期</th>
+          <td mat-cell *matCellDef="let order">{{ order.createdAt | date:'yyyy-MM-dd' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>操作</th>
+          <td mat-cell *matCellDef="let order">
+            @if (order.status !== 'closed') {
+              <button mat-button color="primary" (click)="closeOrder(order.id)">关闭</button>
+            }
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+
+      @if (filteredOrders.length === 0) {
+        <div class="empty-state">
+          <mat-icon>build</mat-icon>
+          <p>暂无售后工单</p>
+        </div>
+      }
+    </div>
+  }
+</div>

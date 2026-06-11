@@ -1,0 +1,89 @@
+.portal-feedback {
+  .feedback-card {
+    border-radius: 12px;
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1A365D;
+      margin: 0 0 8px;
+    }
+
+    .feedback-desc {
+      color: #718096;
+      font-size: 14px;
+      margin: 0 0 24px;
+    }
+  }
+
+  .feedback-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .full-width {
+      width: 100%;
+    }
+  }
+
+  .rating-section {
+    .rating-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #4A5568;
+      margin-bottom: 8px;
+    }
+
+    .star-rating {
+      display: flex;
+      gap: 4px;
+
+      .star-btn {
+        width: 48px;
+        height: 48px;
+
+        .star-icon {
+          font-size: 36px;
+          width: 36px;
+          height: 36px;
+          color: #CBD5E0;
+          transition: color 0.15s, transform 0.15s;
+
+          &.hovered {
+            color: #ED8936;
+            transform: scale(1.1);
+          }
+
+          &.selected {
+            color: #DD6B20;
+          }
+        }
+      }
+    }
+
+    .rating-text {
+      font-size: 14px;
+      color: #718096;
+      margin-top: 4px;
+      min-height: 20px;
+    }
+  }
+
+  .submit-btn {
+    height: 48px;
+    border-radius: 8px !important;
+    font-size: 16px;
+    margin-top: 8px;
+
+    .spin {
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -1,0 +1,81 @@
+<div class="contract-detail">
+  <div class="page-header">
+    <div class="header-left">
+      <button mat-icon-button (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1>合同详情</h1>
+    </div>
+  </div>
+
+  @if (!loading && contract) {
+    <mat-card class="status-card">
+      <mat-card-content>
+        <div class="status-timeline">
+          @for (step of statusTimeline; track step.status) {
+            <div class="timeline-step" [class.done]="step.done" [class.current]="step.status === contract.status">
+              <div class="step-icon">
+                <mat-icon>{{ step.icon }}</mat-icon>
+              </div>
+              <span class="step-label">{{ step.label }}</span>
+            </div>
+            @if (!$last) {
+              <div class="timeline-connector" [class.done]="step.done"></div>
+            }
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="content-card">
+      <mat-card-header>
+        <mat-card-title>合同内容</mat-card-title>
+        @if (contract.status === 'draft') {
+          <button mat-raised-button color="primary" (click)="sendContract()" class="action-btn">
+            <mat-icon>send</mat-icon> 发送给客户
+          </button>
+        }
+      </mat-card-header>
+      <mat-card-content>
+        <div class="contract-content" [innerHTML]="contract.content"></div>
+        @if (contract.signedAt) {
+          <div class="signed-info">
+            <mat-icon class="signed-icon">check_circle</mat-icon>
+            <span>签署时间: {{ contract.signedAt | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+            @if (contract.signedIp) {
+              <span>IP: {{ contract.signedIp }}</span>
+            }
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    @if (contract.attachments && contract.attachments.length > 0) {
+      <mat-card class="attachments-card">
+        <mat-card-header>
+          <mat-card-title>附件</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-list>
+            @for (att of contract.attachments; track att.id) {
+              <mat-list-item class="attachment-item">
+                <mat-icon matListItemIcon>
+                  @switch (att.fileType) {
+                    @case ('pdf') { picture_as_pdf }
+                    @case ('image') { image }
+                    @default { insert_drive_file }
+                  }
+                </mat-icon>
+                <span matListItemTitle>{{ att.fileName }}</span>
+                <span matListItemLine>{{ formatFileSize(att.fileSize) }}</span>
+                <a mat-icon-button [href]="att.url" target="_blank">
+                  <mat-icon>download</mat-icon>
+                </a>
+              </mat-list-item>
+            }
+          </mat-list>
+        </mat-card-content>
+      </mat-card>
+    }
+  }
+</div>

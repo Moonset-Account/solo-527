@@ -1,0 +1,303 @@
+<div class="project-detail">
+  @if (loading) {
+    <div class="loading-state">
+      <mat-icon class="spin">refresh</mat-icon>
+      <p>加载中...</p>
+    </div>
+  } @else if (project) {
+    <div class="page-header">
+      <div class="header-left">
+        <button mat-icon-button (click)="goBack()" matTooltip="返回">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <h1>{{ project.name }}</h1>
+      </div>
+      <span class="status-chip" [ngClass]="project.status">
+        {{ project.status | statusLabel }}
+      </span>
+    </div>
+
+    <mat-card class="key-fields-card">
+      <mat-card-content>
+        <div class="fields-grid">
+          <div class="field-item">
+            <div class="field-label">项目名称</div>
+            <div class="field-value">{{ project.name }}</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">客户</div>
+            <div class="field-value">{{ project.customerName }}</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">面积</div>
+            <div class="field-value">{{ project.area }} m²</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">总预算</div>
+            <div class="field-value budget-value">{{ project.latestBudget?.totalCost | currency }}</div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="tabs-card">
+      @if (!isMobile) {
+        <mat-tab-group [(selectedIndex)]="selectedTabIndex" class="project-tabs">
+          <mat-tab label="材料清单">
+            <ng-container *ngTemplateOutlet="materialsTab"></ng-container>
+          </mat-tab>
+          <mat-tab label="现场照片">
+            <ng-container *ngTemplateOutlet="photosTab"></ng-container>
+          </mat-tab>
+          <mat-tab label="附件">
+            <ng-container *ngTemplateOutlet="attachmentsTab"></ng-container>
+          </mat-tab>
+        </mat-tab-group>
+      } @else {
+        <mat-accordion class="mobile-accordion">
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>材料清单</mat-panel-title>
+            </mat-expansion-panel-header>
+            <ng-container *ngTemplateOutlet="materialsTab"></ng-container>
+          </mat-expansion-panel>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>现场照片</mat-panel-title>
+            </mat-expansion-panel-header>
+            <ng-container *ngTemplateOutlet="photosTab"></ng-container>
+          </mat-expansion-panel>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>附件</mat-panel-title>
+            </mat-expansion-panel-header>
+            <ng-container *ngTemplateOutlet="attachmentsTab"></ng-container>
+          </mat-expansion-panel>
+        </mat-accordion>
+      }
+    </mat-card>
+
+    <div class="bottom-sections">
+      @if (project.latestBudget) {
+        <mat-card class="budget-section">
+          <mat-card-header>
+            <mat-card-title>预算摘要</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="budget-summary">
+              <div class="summary-row">
+                <span>人工费</span>
+                <span>{{ project.latestBudget.laborCost | currency }}</span>
+              </div>
+              <div class="summary-row">
+                <span>材料费</span>
+                <span>{{ project.latestBudget.materialCost | currency }}</span>
+              </div>
+              <div class="summary-row total">
+                <span>总计</span>
+                <span>{{ project.latestBudget.totalCost | currency }}</span>
+              </div>
+              <div class="summary-row">
+                <span>状态</span>
+                <span class="status-chip" [ngClass]="project.latestBudget.status">
+                  {{ project.latestBudget.status | statusLabel }}
+                </span>
+              </div>
+            </div>
+            <div class="budget-actions">
+              <button mat-raised-button color="primary" (click)="editBudget()">
+                <mat-icon>edit</mat-icon> 编辑预算
+              </button>
+              <button mat-stroked-button (click)="viewBudgetVersions()">
+                <mat-icon>history</mat-icon> 版本历史
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      } @else {
+        <mat-card class="budget-section">
+          <mat-card-content class="no-budget">
+            <p>暂无预算</p>
+            <button mat-raised-button color="primary" (click)="createBudget()">
+              <mat-icon>add</mat-icon> 创建预算
+            </button>
+          </mat-card-content>
+        </mat-card>
+      }
+
+      @if (project.contract) {
+        <mat-card class="contract-section">
+          <mat-card-header>
+            <mat-card-title>合同信息</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="contract-info">
+              <div class="summary-row">
+                <span>合同状态</span>
+                <span class="status-chip" [ngClass]="project.contract.status">
+                  {{ project.contract.status | statusLabel }}
+                </span>
+              </div>
+              @if (project.contract.signedAt) {
+                <div class="summary-row">
+                  <span>签署时间</span>
+                  <span>{{ project.contract.signedAt | date:'yyyy-MM-dd HH:mm' }}</span>
+                </div>
+              }
+            </div>
+            <button mat-stroked-button (click)="viewContract()">
+              <mat-icon>visibility</mat-icon> 查看合同
+            </button>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+
+  <ng-template #materialsTab>
+    <div class="tab-content">
+      <div class="tab-toolbar">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>搜索材料</mat-label>
+          <input matInput [(ngModel)]="materialSearchTerm" placeholder="输入材料名称">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      </div>
+      @for (group of getFilteredGroups(); track group.category) {
+        <mat-accordion class="category-group">
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                {{ group.category | categoryLabel }}
+                <span class="group-count">({{ group.items.length }}项)</span>
+              </mat-panel-title>
+              <mat-panel-description>
+                小计: {{ getCategorySubtotal(group.items) | currency }}
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+            <div class="items-table">
+              <div class="item-header">
+                <span class="col-name">名称</span>
+                <span class="col-qty">数量</span>
+                <span class="col-unit">单位</span>
+                <span class="col-price">单价</span>
+                <span class="col-total">小计</span>
+              </div>
+              @for (item of group.items; track item.id) {
+                <mat-expansion-panel class="item-row">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title class="item-title">
+                      <span class="col-name">{{ item.name }}</span>
+                      <span class="col-qty">{{ item.quantity }}</span>
+                      <span class="col-unit">{{ item.unit }}</span>
+                      <span class="col-price">{{ item.unitPrice | currency }}</span>
+                      <span class="col-total">{{ item.totalPrice | currency }}</span>
+                    </mat-panel-title>
+                  </mat-expansion-panel-header>
+                  @if (item.materials && item.materials.length > 0) {
+                    <div class="materials-list">
+                      <div class="material-header">
+                        <span>材料名称</span>
+                        <span>规格</span>
+                        <span>数量</span>
+                        <span>单价</span>
+                        <span>小计</span>
+                      </div>
+                      @for (mat of item.materials; track mat.id) {
+                        <div class="material-row">
+                          <span>{{ mat.name }}</span>
+                          <span>{{ mat.specification }}</span>
+                          <span>{{ mat.quantity }} {{ mat.unit }}</span>
+                          <span>{{ mat.unitPrice | currency }}</span>
+                          <span>{{ mat.totalPrice | currency }}</span>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <div class="no-materials">暂无材料详情</div>
+                  }
+                </mat-expansion-panel>
+              }
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      }
+      @if (getFilteredGroups().length === 0) {
+        <div class="empty-tab">暂无材料清单</div>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #photosTab>
+    <div class="tab-content">
+      <div class="tab-toolbar">
+        <button mat-raised-button color="primary" (click)="fileInputPhoto.click()">
+          <mat-icon>{{ isMobile ? 'camera_alt' : 'cloud_upload' }}</mat-icon>
+          {{ isMobile ? '拍照上传' : '上传照片' }}
+        </button>
+        <input #fileInputPhoto type="file" accept="image/*" hidden (change)="onPhotoUpload($event)">
+      </div>
+      @for (areaGroup of getPhotosByArea(); track areaGroup.area) {
+        <div class="photo-area">
+          <h3>{{ areaGroup.area }}</h3>
+          <div class="photo-grid">
+            @for (photo of areaGroup.photos; track photo.id) {
+              <div class="photo-card" [style.background-image]="'url(' + photo.thumbnailUrl + ')'">
+                <div class="photo-overlay">
+                  <button mat-icon-button (click)="openPhoto(photo.url)" matTooltip="查看大图">
+                    <mat-icon>zoom_in</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn" (click)="deletePhoto(photo.id)" matTooltip="删除">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+      @if (getPhotosByArea().length === 0) {
+        <div class="empty-tab">暂无现场照片</div>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #attachmentsTab>
+    <div class="tab-content">
+      <div class="tab-toolbar">
+        <button mat-raised-button color="primary" (click)="fileInputAttachment.click()">
+          <mat-icon>cloud_upload</mat-icon>
+          上传附件
+        </button>
+        <input #fileInputAttachment type="file" hidden (change)="onAttachmentUpload($event)">
+      </div>
+      @if (project.attachments && project.attachments.length > 0) {
+        <mat-list>
+          @for (att of project.attachments; track att.id) {
+            <mat-list-item class="attachment-item">
+              <mat-icon matListItemIcon>
+                @switch (att.fileType) {
+                  @case ('pdf') { picture_as_pdf }
+                  @case ('image') { image }
+                  @default { insert_drive_file }
+                }
+              </mat-icon>
+              <span matListItemTitle>{{ att.fileName }}</span>
+              <span matListItemLine>{{ formatFileSize(att.fileSize) }} · {{ att.createdAt | date:'yyyy-MM-dd' }}</span>
+              <div class="attachment-actions">
+                <a mat-icon-button [href]="att.url" target="_blank" matTooltip="下载">
+                  <mat-icon>download</mat-icon>
+                </a>
+                <button mat-icon-button color="warn" (click)="deleteAttachment(att.id)" matTooltip="删除">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </mat-list-item>
+          }
+        </mat-list>
+      } @else {
+        <div class="empty-tab">暂无附件</div>
+      }
+    </div>
+  </ng-template>
+</div>

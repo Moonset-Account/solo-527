@@ -1,0 +1,36 @@
+<div class="portal-container">
+  <mat-toolbar class="portal-toolbar">
+    <mat-icon class="portal-logo">home_repair_service</mat-icon>
+    <span class="portal-title">装修预算管理系统</span>
+    <span class="toolbar-spacer"></span>
+    <span class="portal-user" *ngIf="currentUser">欢迎，{{ currentUser.username }}</span>
+  </mat-toolbar>
+
+  <div class="portal-breadcrumb">
+    <ng-content select="[breadcrumb]"></ng-content>
+  </div>
+
+  <div class="portal-content">
+    <router-outlet></router-outlet>
+  </div>
+
+  @if (isMobile) {
+    <nav class="portal-bottom-nav">
+      <a class="portal-bottom-item" [routerLink]="'/portal/' + (currentUser?.id || '') + '/proposal/current'"
+         routerLinkActive="portal-bottom-active">
+        <mat-icon>receipt_long</mat-icon>
+        <span>报价单</span>
+      </a>
+      <a class="portal-bottom-item" [routerLink]="'/portal/' + (currentUser?.id || '') + '/contract/current'"
+         routerLinkActive="portal-bottom-active">
+        <mat-icon>description</mat-icon>
+        <span>合同</span>
+      </a>
+      <a class="portal-bottom-item" [routerLink]="'/portal/' + (currentUser?.id || '') + '/feedback/current'"
+         routerLinkActive="portal-bottom-active">
+        <mat-icon>rate_review</mat-icon>
+        <span>反馈</span>
+      </a>
+    </nav>
+  }
+</div>

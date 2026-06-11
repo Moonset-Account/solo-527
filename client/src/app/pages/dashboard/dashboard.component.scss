@@ -1,0 +1,140 @@
+.dashboard {
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+
+    @media (max-width: 767px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .stat-card {
+    border-radius: 12px;
+
+    mat-card-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 0;
+    }
+
+    .stat-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      mat-icon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+        color: white;
+      }
+    }
+
+    .stat-info {
+      .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: white;
+        line-height: 1;
+      }
+
+      .stat-label {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.85);
+        margin-top: 4px;
+      }
+    }
+
+    &.stat-active {
+      background: linear-gradient(135deg, #1A365D, #2C5282);
+
+      .stat-icon {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    }
+
+    &.stat-pending {
+      background: linear-gradient(135deg, #DD6B20, #ED8936);
+
+      .stat-icon {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    }
+
+    &.stat-after-sale {
+      background: linear-gradient(135deg, #38A169, #48BB78);
+
+      .stat-icon {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+
+    @media (max-width: 767px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .dashboard-section {
+    border-radius: 12px;
+
+    mat-card-header {
+      margin-bottom: 8px;
+    }
+
+    mat-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1A365D;
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        color: #1A365D;
+      }
+    }
+  }
+
+  .notif-item, .todo-item {
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: #F7FAFC;
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    color: #A0AEC0;
+    padding: 24px;
+    font-size: 14px;
+  }
+
+  .view-all-btn {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    mat-icon {
+      font-size: 18px;
+    }
+  }
+}

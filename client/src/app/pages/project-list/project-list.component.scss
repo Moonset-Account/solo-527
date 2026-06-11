@@ -1,0 +1,141 @@
+.project-list {
+  .add-btn {
+    border-radius: 8px !important;
+
+    mat-icon {
+      margin-right: 4px;
+    }
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+
+    .filter-status {
+      width: 180px;
+    }
+
+    .filter-search {
+      flex: 1;
+    }
+
+    @media (max-width: 767px) {
+      flex-direction: column;
+
+      .filter-status,
+      .filter-search {
+        width: 100%;
+      }
+    }
+  }
+
+  .table-container {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+    .project-table {
+      width: 100%;
+
+      th {
+        font-weight: 600;
+        color: #4A5568;
+      }
+
+      td {
+        color: #2D3748;
+
+        .mat-mdc-icon-button {
+          width: 36px;
+          height: 36px;
+          line-height: 36px;
+        }
+      }
+
+      tr:hover {
+        background-color: #F7FAFC;
+      }
+    }
+  }
+
+  .card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .project-card {
+    border-radius: 12px;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    mat-card-content {
+      padding: 16px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .card-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1A365D;
+      }
+    }
+
+    .card-info {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      color: #718096;
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    color: #A0AEC0;
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 14px;
+    }
+  }
+
+  .mobile-fab {
+    position: fixed;
+    bottom: 72px;
+    right: 16px;
+    z-index: 100;
+  }
+}

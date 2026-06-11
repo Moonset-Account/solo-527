@@ -1,0 +1,89 @@
+<div class="dashboard">
+  <div class="page-header">
+    <h1>仪表盘</h1>
+  </div>
+
+  <div class="stats-row">
+    <mat-card class="stat-card stat-active">
+      <mat-card-content>
+        <div class="stat-icon"><mat-icon>folder_open</mat-icon></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.activeProjects }}</div>
+          <div class="stat-label">进行中项目</div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card stat-pending">
+      <mat-card-content>
+        <div class="stat-icon"><mat-icon>pending_actions</mat-icon></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.pendingBudgets }}</div>
+          <div class="stat-label">待审核预算</div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card stat-after-sale">
+      <mat-card-content>
+        <div class="stat-icon"><mat-icon>build</mat-icon></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.monthlyAfterSaleOrders }}</div>
+          <div class="stat-label">本月售后工单</div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="dashboard-grid">
+    <mat-card class="dashboard-section">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>notifications_active</mat-icon>
+          预算变更通知
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        @if (budgetNotifications.length === 0) {
+          <div class="empty-state">暂无预算变更通知</div>
+        }
+        <mat-list>
+          @for (notif of budgetNotifications; track notif.id) {
+            <mat-list-item class="notif-item" (click)="goToBudgetDetail(notif.relatedId)">
+              <mat-icon matListItemIcon>account_balance_wallet</mat-icon>
+              <span matListItemTitle>{{ notif.title }}</span>
+              <span matListItemLine>{{ notif.content }}</span>
+            </mat-list-item>
+          }
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="dashboard-section">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>checklist</mat-icon>
+          待办事项
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-list>
+          @for (budget of pendingBudgets; track budget.id) {
+            <mat-list-item class="todo-item" (click)="goToBudgetDetail(budget.id)">
+              <mat-icon matListItemIcon>pending</mat-icon>
+              <span matListItemTitle>预算待审核 - 版本 {{ budget.version }}</span>
+              <span matListItemLine>{{ budget.changeReason || '无变更原因' }}</span>
+            </mat-list-item>
+          }
+          @if (pendingBudgets.length === 0) {
+            <div class="empty-state">暂无待办事项</div>
+          }
+        </mat-list>
+        <button mat-button color="primary" (click)="goToProjectList()" class="view-all-btn">
+          查看所有项目
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

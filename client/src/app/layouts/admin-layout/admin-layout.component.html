@@ -1,0 +1,101 @@
+<mat-sidenav-container class="app-container">
+  <mat-sidenav
+    #sidenav
+    [mode]="isMobile ? 'over' : 'side'"
+    [opened]="sidenavOpened"
+    class="app-sidenav"
+    [fixedInViewport]="isMobile"
+    fixedTopGap="64"
+  >
+    <div class="sidenav-header">
+      <mat-icon class="sidenav-logo">home_repair_service</mat-icon>
+      <span class="sidenav-title">装修管理</span>
+    </div>
+    <mat-nav-list>
+      @for (item of navItems; track item.route) {
+        <a mat-list-item [routerLink]="item.route" routerLinkActive="active-link"
+           (click)="isMobile && sidenav.close()">
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="app-content">
+    <mat-toolbar color="primary" class="app-toolbar">
+      <button mat-icon-button (click)="toggleSidenav()" class="menu-btn">
+        <mat-icon>menu</mat-icon>
+      </button>
+      <span class="toolbar-title">装修预算管理系统</span>
+      <span class="toolbar-spacer"></span>
+
+      <button mat-icon-button class="notification-btn" [matMenuTriggerFor]="notifMenu"
+              [matBadge]="unreadCount > 0 ? unreadCount : ''" matBadgeColor="warn" matBadgeSize="small">
+        <mat-icon>notifications</mat-icon>
+      </button>
+      <mat-menu #notifMenu="matMenu" class="notification-menu" [overlapTrigger]="false">
+        <div class="notification-header">
+          <span>通知</span>
+          <button mat-button (click)="markAllAsRead()" *ngIf="unreadCount > 0">全部已读</button>
+        </div>
+        <mat-divider></mat-divider>
+        @for (notif of notifications.slice(0, 10); track notif.id) {
+          <div class="notification-item" [class.unread]="!notif.read" (click)="markAsRead(notif, $event)">
+            <mat-icon class="notification-icon">
+              @switch (notif.type) {
+                @case ('budget_change') { account_balance_wallet }
+                @case ('contract_signed') { description }
+                @case ('feedback_received') { feedback }
+                @case ('after_sale_created') { build }
+                @default { info }
+              }
+            </mat-icon>
+            <div class="notification-content">
+              <div class="notification-title">{{ notif.title }}</div>
+              <div class="notification-text">{{ notif.content }}</div>
+            </div>
+          </div>
+        }
+        @if (notifications.length === 0) {
+          <div class="notification-empty">暂无通知</div>
+        }
+      </mat-menu>
+
+      <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
+        <mat-icon>account_circle</mat-icon>
+        <span class="user-name">{{ currentUser?.username || '用户' }}</span>
+      </button>
+      <mat-menu #userMenu="matMenu">
+        <button mat-menu-item disabled>
+          <mat-icon>person</mat-icon>
+          <span>{{ currentUser?.username }}</span>
+        </button>
+        <button mat-menu-item disabled>
+          <mat-icon>badge</mat-icon>
+          <span>{{ currentUser?.role === 'owner' ? '管理员' : currentUser?.role === 'worker' ? '工作人员' : '客户' }}</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>退出登录</span>
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <div class="main-content">
+      <router-outlet></router-outlet>
+    </div>
+
+    @if (isMobile) {
+      <nav class="bottom-nav">
+        @for (item of mobileNavItems; track item.label) {
+          <a class="bottom-nav-item" [routerLink]="item.route" routerLinkActive="bottom-active">
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+          </a>
+        }
+      </nav>
+    }
+  </mat-sidenav-content>
+</mat-sidenav-container>

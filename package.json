@@ -1,0 +1,11 @@
+{
+  "name": "renovation-budget-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start:server": "cd server && pnpm start:dev",
+    "start:client": "cd client && pnpm start",
+    "build:server": "cd server && pnpm build",
+    "build:client": "cd client && pnpm build"
+  }
+}

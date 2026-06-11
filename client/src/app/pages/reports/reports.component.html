@@ -1,0 +1,112 @@
+<div class="reports">
+  <div class="page-header">
+    <h1>售后服务报表</h1>
+    <button mat-raised-button color="accent" (click)="exportReport()" class="export-btn">
+      <mat-icon>download</mat-icon> 导出月度报告
+    </button>
+  </div>
+
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" class="period-field">
+      <mat-label>统计周期</mat-label>
+      <mat-select formControlName="period">
+        <mat-option value="month">按月</mat-option>
+        <mat-option value="quarter">按季度</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  @if (report) {
+    <div class="stats-row">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-icon total-icon"><mat-icon>assignment</mat-icon></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ report.totalOrders }}</div>
+            <div class="stat-label">总工单数</div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-icon rate-icon"><mat-icon>check_circle</mat-icon></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ (report.closureRate * 100).toFixed(1) }}%</div>
+            <div class="stat-label">关闭率</div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-icon days-icon"><mat-icon>schedule</mat-icon></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ report.avgResolutionDays.toFixed(1) }}</div>
+            <div class="stat-label">平均解决天数</div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card class="chart-card">
+      <mat-card-header>
+        <mat-card-title>月度统计</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="bar-chart">
+          @for (item of report.monthlyBreakdown; track item.month) {
+            <div class="bar-group">
+              <div class="bar-stack">
+                <div class="bar total-bar" [style.height]="getBarHeight(item.totalOrders)">
+                  <span class="bar-value" *ngIf="item.totalOrders > 0">{{ item.totalOrders }}</span>
+                </div>
+                <div class="bar closed-bar" [style.height]="getClosedBarHeight(item)">
+                  <span class="bar-value" *ngIf="item.closedOrders > 0">{{ item.closedOrders }}</span>
+                </div>
+              </div>
+              <div class="bar-label">{{ item.month }}</div>
+              <div class="bar-rate">{{ (item.closureRate * 100).toFixed(0) }}%</div>
+            </div>
+          }
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <span class="legend-color total"></span>
+            <span>总工单</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color closed"></span>
+            <span>已关闭</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="breakdown-card">
+      <mat-card-header>
+        <mat-card-title>详细数据</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="breakdown-table">
+          <div class="breakdown-header">
+            <span>月份</span>
+            <span>总工单</span>
+            <span>已关闭</span>
+            <span>关闭率</span>
+            <span>平均解决天数</span>
+          </div>
+          @for (item of report.monthlyBreakdown; track item.month) {
+            <div class="breakdown-row">
+              <span>{{ item.month }}</span>
+              <span>{{ item.totalOrders }}</span>
+              <span>{{ item.closedOrders }}</span>
+              <span>{{ (item.closureRate * 100).toFixed(1) }}%</span>
+              <span>{{ item.avgResolutionDays.toFixed(1) }}</span>
+            </div>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

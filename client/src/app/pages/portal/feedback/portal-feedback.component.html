@@ -1,0 +1,70 @@
+<div class="portal-feedback">
+  <mat-card class="feedback-card">
+    <mat-card-content>
+      <h2>客户满意度评价</h2>
+      <p class="feedback-desc">请对本次装修服务进行评价</p>
+
+      <form [formGroup]="feedbackForm" (ngSubmit)="onSubmit()" class="feedback-form">
+        <div class="rating-section">
+          <label class="rating-label">评分</label>
+          <div class="star-rating">
+            @for (star of [1,2,3,4,5]; track star) {
+              <button mat-icon-button
+                      type="button"
+                      class="star-btn"
+                      (click)="setRating(star)"
+                      (mouseenter)="hoverRating = star"
+                      (mouseleave)="hoverRating = 0">
+                <mat-icon class="star-icon" [ngClass]="getStarClass(star - 1)">
+                  {{ getStarIcon(star - 1) }}
+                </mat-icon>
+              </button>
+            }
+          </div>
+          <div class="rating-text">
+            @switch (rating) {
+              @case (1) { 非常不满意 }
+              @case (2) { 不满意 }
+              @case (3) { 一般 }
+              @case (4) { 满意 }
+              @case (5) { 非常满意 }
+              @default { 请选择评分 }
+            }
+          </div>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>评价阶段</mat-label>
+          <mat-select formControlName="stage">
+            @for (opt of stageOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+          @if (feedbackForm.get('stage')?.hasError('required') && feedbackForm.get('stage')?.touched) {
+            <mat-error>请选择评价阶段</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>评价内容</mat-label>
+          <textarea matInput formControlName="comment" rows="5"
+                    placeholder="请详细描述您的评价（至少10个字）"></textarea>
+          @if (feedbackForm.get('comment')?.hasError('required') && feedbackForm.get('comment')?.touched) {
+            <mat-error>请输入评价内容</mat-error>
+          }
+          @if (feedbackForm.get('comment')?.hasError('minlength') && feedbackForm.get('comment')?.touched) {
+            <mat-error>评价内容至少10个字</mat-error>
+          }
+        </mat-form-field>
+
+        <button mat-raised-button color="primary" type="submit" class="submit-btn"
+                [disabled]="submitting">
+          @if (submitting) {
+            <mat-icon class="spin">refresh</mat-icon>
+          }
+          提交评价
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

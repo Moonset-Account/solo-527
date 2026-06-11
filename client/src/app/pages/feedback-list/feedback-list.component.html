@@ -1,0 +1,87 @@
+<div class="feedback-list">
+  <div class="page-header">
+    <h1>客户满意度反馈</h1>
+    <button mat-raised-button color="accent" (click)="exportExcel()" class="export-btn">
+      <mat-icon>download</mat-icon> 导出Excel
+    </button>
+  </div>
+
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>阶段</mat-label>
+      <mat-select formControlName="stage">
+        @for (opt of stageOptions; track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>评分</mat-label>
+      <mat-select formControlName="minRating">
+        @for (opt of ratingOptions; track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>开始日期</mat-label>
+      <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+      <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+      <mat-datepicker #startPicker></mat-datepicker>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>结束日期</mat-label>
+      <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+      <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+      <mat-datepicker #endPicker></mat-datepicker>
+    </mat-form-field>
+  </div>
+
+  <div class="table-container">
+    <table mat-table [dataSource]="feedbacks" class="feedback-table">
+      <ng-container matColumnDef="project">
+        <th mat-header-cell *matHeaderCellDef>项目</th>
+        <td mat-cell *matCellDef="let fb">{{ fb.projectId }}</td>
+      </ng-container>
+      <ng-container matColumnDef="customer">
+        <th mat-header-cell *matHeaderCellDef>客户</th>
+        <td mat-cell *matCellDef="let fb">{{ fb.customerId }}</td>
+      </ng-container>
+      <ng-container matColumnDef="stage">
+        <th mat-header-cell *matHeaderCellDef>阶段</th>
+        <td mat-cell *matCellDef="let fb">{{ getStageLabel(fb.stage) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="rating">
+        <th mat-header-cell *matHeaderCellDef>评分</th>
+        <td mat-cell *matCellDef="let fb">
+          <div class="star-display">
+            @for (star of getStarArray(fb.rating); track $index) {
+              <mat-icon class="star" [class.filled]="star === 1">
+                {{ star === 1 ? 'star' : 'star_border' }}
+              </mat-icon>
+            }
+          </div>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="comment">
+        <th mat-header-cell *matHeaderCellDef>评价</th>
+        <td mat-cell *matCellDef="let fb">
+          <span class="comment-text">{{ fb.comment }}</span>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef>日期</th>
+        <td mat-cell *matCellDef="let fb">{{ fb.createdAt | date:'yyyy-MM-dd' }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+
+    @if (feedbacks.length === 0) {
+      <div class="empty-state">
+        <mat-icon>feedback</mat-icon>
+        <p>暂无反馈数据</p>
+      </div>
+    }
+  </div>
+</div>
