@@ -16,9 +16,9 @@ return new class extends Migration
             $table->foreignId('service_item_id')->constrained('service_items')->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
             $table->string('payment_method');
-            $table->enum('payment_status', ['unpaid', 'partial', 'paid'])->default('unpaid');
+            $table->enum('payment_status', ['unpaid', 'pending', 'partial', 'paid'])->default('unpaid');
             $table->timestamp('paid_at')->nullable();
-            $table->foreignId('operator_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('operator_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('operator_name');
             $table->text('notes')->nullable();
             $table->timestamps();

@@ -8,6 +8,8 @@ class StatusTimeline extends Model
 {
     public $timestamps = false;
 
+    protected $table = 'status_timeline';
+
     protected $fillable = [
         'work_order_id',
         'from_status',

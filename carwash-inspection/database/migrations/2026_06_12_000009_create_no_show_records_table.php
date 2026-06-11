@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('no_show_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('work_order_id')->constrained('work_orders')->cascadeOnDelete();
-            $table->foreignId('handled_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('handled_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('handler_name');
             $table->string('reason');
             $table->unsignedInteger('contact_attempts')->default(0);

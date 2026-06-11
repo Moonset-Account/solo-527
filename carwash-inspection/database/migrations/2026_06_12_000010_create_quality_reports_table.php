@@ -13,7 +13,7 @@ return new class extends Migration
             $table->date('report_date');
             $table->foreignId('work_order_id')->constrained('work_orders')->cascadeOnDelete();
             $table->foreignId('vehicle_id')->constrained('vehicles')->cascadeOnDelete();
-            $table->foreignId('technician_id')->constrained('technicians')->cascadeOnDelete();
+            $table->foreignId('technician_id')->nullable()->constrained('technicians')->nullOnDelete();
             $table->string('service_item');
             $table->unsignedInteger('inspection_pass_count')->default(0);
             $table->unsignedInteger('inspection_fail_count')->default(0);
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('no_show_reason')->nullable();
             $table->decimal('overall_score', 5, 2)->default(0);
             $table->text('remarks')->nullable();
-            $table->foreignId('generated_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('generated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
             $table->index('report_date');

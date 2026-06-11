@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('work_order_id')->constrained('work_orders')->cascadeOnDelete();
             $table->string('from_status');
             $table->string('to_status');
-            $table->foreignId('handler_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('handler_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('handler_name');
             $table->text('remarks')->nullable();
             $table->timestamp('created_at');

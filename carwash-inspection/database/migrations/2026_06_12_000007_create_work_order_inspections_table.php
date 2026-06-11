@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('category');
             $table->enum('result', ['pass', 'fail', 'warning', 'skip']);
             $table->text('remarks')->nullable();
-            $table->foreignId('inspected_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('inspected_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('inspected_at');
 
             $table->index('work_order_id');

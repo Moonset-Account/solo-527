@@ -23,7 +23,7 @@ return new class extends Migration
             $table->decimal('total_amount', 10, 2)->default(0);
             $table->decimal('paid_amount', 10, 2)->default(0);
             $table->string('payment_method')->nullable();
-            $table->enum('payment_status', ['unpaid', 'partial', 'paid'])->default('unpaid');
+            $table->enum('payment_status', ['unpaid', 'pending', 'partial', 'paid'])->default('unpaid');
             $table->timestamp('payment_paid_at')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->enum('action', ['create', 'update', 'delete']);
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
-            $table->foreignId('changed_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('changed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('changed_by_name');
             $table->string('ip_address', 45)->nullable();
             $table->timestamp('created_at');

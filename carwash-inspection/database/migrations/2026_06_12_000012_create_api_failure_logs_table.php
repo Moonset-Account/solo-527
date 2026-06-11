@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('api_failure_logs', function (Blueprint $table) {
             $table->id();
-            $table->enum('api_type', ['payment', 'message']);
-            $table->enum('channel', ['alipay', 'wechat', 'sms', 'push']);
+            $table->enum('api_type', ['payment', 'message', 'sms']);
+            $table->enum('channel', ['alipay', 'wechat', 'sms', 'push', 'aliyun', 'tencent']);
             $table->string('order_no')->nullable();
             $table->json('request_payload')->nullable();
             $table->string('error_message');
