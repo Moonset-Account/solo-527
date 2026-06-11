@@ -48,7 +48,7 @@ class I18nDiffChecker {
     const keyCheck = checkKeyAlignment(baseResult.data, localeResult.data, checkOptions);
     const placeholderCheck = checkPlaceholders(baseResult.data, localeResult.data, this.config, checkOptions);
     const lengthCheck = checkLength(baseResult.data, localeResult.data, this.config, checkOptions);
-    const reviewCheck = checkReviewStatus(localeResult.data, this.config, checkOptions);
+    const reviewCheck = checkReviewStatus(baseResult.data, localeResult.data, this.config, checkOptions);
 
     const checkResults = {
       keyCheck,
