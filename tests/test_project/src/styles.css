@@ -1,0 +1,15 @@
+.logo {
+  background-image: url('../public/images/logo.svg');
+}
+
+.banner {
+  background: url('/images/used.png') no-repeat center;
+}
+
+.hero {
+  background-image: url('../public/images/background.jpg');
+}
+
+.dynamic-bg {
+  background-image: var(--bg-image);
+}

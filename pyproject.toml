@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asset-cleaner"
+version = "0.1.0"
+description = "本地素材引用清理工具 - 扫描并清理未引用的前端资源"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Asset Cleaner Team" }]
+license = { text = "MIT" }
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "pathspec>=0.11.0",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+asset-cleaner = "asset_cleaner.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

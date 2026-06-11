@@ -1,0 +1,9 @@
+asset_dirs:
+  - ./public/images
+
+ignore_patterns:
+  - node_modules/
+  - .git/
+
+exclude_extensions:
+  - .svg

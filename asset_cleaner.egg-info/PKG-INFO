@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: asset-cleaner
+Version: 0.1.0
+Summary: 本地素材引用清理工具 - 扫描并清理未引用的前端资源
+Author: Asset Cleaner Team
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: typer>=0.9.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: pathspec>=0.11.0
+Requires-Dist: PyYAML>=6.0

@@ -1,0 +1,2 @@
+[console_scripts]
+asset-cleaner = asset_cleaner.cli:app
