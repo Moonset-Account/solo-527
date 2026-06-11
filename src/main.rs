@@ -177,6 +177,7 @@ fn main() -> Result<()> {
                 product_line,
                 version,
                 template_file: template,
+                collected_data_file: Some(input),
             })?;
 
             println!("{}", format_validation_summary(&rendered.validation));
@@ -252,6 +253,7 @@ fn main() -> Result<()> {
                 product_line,
                 version,
                 template_file: template,
+                collected_data_file: None,
             })?;
             println!("{}", format_validation_summary(&rendered.validation));
             println!("📦 分组结果: 功能 {} | 修复 {} | 已知问题 {} | 升级提醒 {} | 待补充 {}",

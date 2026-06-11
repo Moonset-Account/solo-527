@@ -8,6 +8,7 @@ pub struct RenderOptions {
     pub product_line: String,
     pub version: String,
     pub template_file: Option<std::path::PathBuf>,
+    pub collected_data_file: Option<std::path::PathBuf>,
 }
 
 pub fn default_templates() -> HashMap<String, ProductLineTemplate> {
@@ -279,6 +280,13 @@ pub fn render(
     let grouped = group_entries(entries.clone());
     let validation = validate_entries(&entries);
 
+    let mut input_files = data.input_files.clone();
+    if let Some(cdf) = &opts.collected_data_file {
+        if !input_files.iter().any(|p| p == cdf) {
+            input_files.insert(0, cdf.clone());
+        }
+    }
+
     Ok(RenderedReleaseNote {
         product_line: template.name.clone(),
         product_name: template.product_name.clone(),
@@ -290,7 +298,7 @@ pub fn render(
         template_file: opts.template_file.clone(),
         version: opts.version.clone(),
         generated_at: chrono::Utc::now(),
-        input_files: data.input_files.clone(),
+        input_files,
         grouped,
         validation,
     })
