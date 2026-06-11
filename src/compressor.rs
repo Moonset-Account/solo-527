@@ -18,6 +18,43 @@ pub struct CompressResult {
     pub output_dimensions: (u32, u32),
 }
 
+pub struct ProbeResult {
+    pub original_size: u64,
+    pub original_dimensions: (u32, u32),
+    pub output_dimensions: (u32, u32),
+}
+
+pub fn probe_image(
+    input_path: &Path,
+    opts: &CompressOptions,
+) -> Result<ProbeResult> {
+    let original_metadata = std::fs::metadata(input_path)
+        .with_context(|| format!("Cannot read metadata for {}", input_path.display()))?;
+    let original_size = original_metadata.len();
+
+    let dims = image::image_dimensions(input_path)
+        .with_context(|| format!("Cannot read dimensions of {}", input_path.display()))?;
+    let original_dimensions = dims;
+
+    let output_dimensions = if let Some(max_w) = opts.max_width {
+        if dims.0 > max_w {
+            let ratio = max_w as f64 / dims.0 as f64;
+            let new_h = (dims.1 as f64 * ratio).round() as u32;
+            (max_w, new_h)
+        } else {
+            dims
+        }
+    } else {
+        dims
+    };
+
+    Ok(ProbeResult {
+        original_size,
+        original_dimensions,
+        output_dimensions,
+    })
+}
+
 pub fn compress_image(
     input_path: &Path,
     output_path: &Path,

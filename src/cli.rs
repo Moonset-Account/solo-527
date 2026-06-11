@@ -17,9 +17,9 @@ use clap::Parser;
 pub struct Cli {
     #[arg(
         index = 1,
-        help = "Input directory or file path (use '-' for stdin JSON list)"
+        help = "Input directory or file path (use '-' for stdin JSON list). Not required when using --undo"
     )]
-    pub input: String,
+    pub input: Option<String>,
 
     #[arg(short, long, default_value = ".", help = "Output directory")]
     pub out: String,

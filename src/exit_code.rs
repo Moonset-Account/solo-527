@@ -11,13 +11,11 @@ impl From<ExitCode> for i32 {
 }
 
 impl ExitCode {
-    pub fn from_results(success: usize, failed: usize) -> Self {
+    pub fn from_results(_success: usize, failed: usize) -> Self {
         if failed == 0 {
             ExitCode::Success
-        } else if success > 0 {
-            ExitCode::PartialFailure
         } else {
-            ExitCode::FatalError
+            ExitCode::PartialFailure
         }
     }
 }

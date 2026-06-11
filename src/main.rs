@@ -8,6 +8,7 @@ mod scanner;
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::process::ExitCode as StdExitCode;
 
 use cli::Cli;
 use compressor::{CompressOptions, CompressResult};
@@ -16,16 +17,18 @@ use report::Report;
 use rollback::RollbackManifest;
 use scanner::{ImageEntry, ImageFormat};
 
-fn main() -> Result<()> {
+fn main() -> StdExitCode {
     let cli: Cli = clap::Parser::parse();
 
     init_logger(&cli.log_level);
 
-    if let Some(ref undo_path) = cli.undo {
-        return run_undo(undo_path, &cli.format);
+    match run(cli) {
+        Ok(code) => StdExitCode::from(code as u8),
+        Err(e) => {
+            eprintln!("Fatal error: {:#}", e);
+            StdExitCode::from(ExitCode::FatalError as u8)
+        }
     }
-
-    run_process(&cli)
 }
 
 fn init_logger(level: &str) {
@@ -43,35 +46,53 @@ fn init_logger(level: &str) {
         .init();
 }
 
-fn run_undo(undo_path: &str, format: &str) -> Result<()> {
+fn run(cli: Cli) -> Result<ExitCode> {
+    if let Some(ref undo_path) = cli.undo {
+        return run_undo(undo_path, &cli.format);
+    }
+
+    let input = match cli.input {
+        Some(ref s) => s.clone(),
+        None => {
+            anyhow::bail!("Missing input path (required unless using --undo)");
+        }
+    };
+
+    run_process(&cli, &input)
+}
+
+fn run_undo(undo_path: &str, format: &str) -> Result<ExitCode> {
     let path = Path::new(undo_path);
     let reverted = rollback::execute_rollback(path)
         .with_context(|| format!("Rollback failed for manifest {}", undo_path))?;
 
     if format == "json" {
         let output = serde_json::json!({
+            "tool": "imgproc",
+            "version": env!("CARGO_PKG_VERSION"),
             "rollback": {
                 "manifest": undo_path,
                 "reverted": reverted
-            }
+            },
+            "status": "success"
         });
         println!("{}", serde_json::to_string_pretty(&output).unwrap());
     } else {
         println!("Rollback complete: {} operations reverted", reverted);
     }
 
-    std::process::exit(ExitCode::Success as i32);
+    Ok(ExitCode::Success)
 }
 
-fn run_process(cli: &Cli) -> Result<()> {
-    let scan_result = scanner::scan_images(&cli.input, cli.recursive, cli.filter.as_deref())
-        .with_context(|| format!("Failed to scan input: {}", cli.input))?;
+fn run_process(cli: &Cli, input: &str) -> Result<ExitCode> {
+    let scan_result = scanner::scan_images(input, cli.recursive, cli.filter.as_deref())
+        .with_context(|| format!("Failed to scan input: {}", input))?;
 
     if scan_result.entries.is_empty() && scan_result.skipped.is_empty() {
-        log::warn!("No images found in {}", cli.input);
+        log::warn!("No images found in {}", input);
         let report = Report::new(vec![]);
         output_report(&report, &cli.format);
-        std::process::exit(ExitCode::Success as i32);
+        return Ok(ExitCode::Success);
     }
 
     let output_format = determine_output_format(cli);
@@ -103,33 +124,47 @@ fn run_process(cli: &Cli) -> Result<()> {
 
         let output_path = compute_output_path(entry, idx, &cli.rename, out_dir, &output_format);
 
-        if is_dry_run {
-            report.add_success(
-                entry,
-                &CompressResult {
-                    output_path: output_path.clone(),
-                    original_size: entry.size_bytes,
-                    compressed_size: 0,
-                    original_dimensions: (0, 0),
-                    output_dimensions: (0, 0),
-                },
-                &output_format.to_string(),
-            );
-            progress.inc(1);
-            continue;
-        }
-
         let opts = CompressOptions {
             quality: cli.quality,
             max_width: cli.width,
             output_format,
         };
 
+        if is_dry_run {
+            match compressor::probe_image(&entry.path, &opts) {
+                Ok(probe) => {
+                    report.add_success(
+                        entry,
+                        &CompressResult {
+                            output_path: output_path.clone(),
+                            original_size: probe.original_size,
+                            compressed_size: 0,
+                            original_dimensions: probe.original_dimensions,
+                            output_dimensions: probe.output_dimensions,
+                        },
+                        &output_format.to_string(),
+                    );
+                }
+                Err(e) => {
+                    let msg = e.to_string();
+                    log::error!("Failed to probe {}: {}", entry.path.display(), msg);
+                    report.add_failure(entry, msg, &output_format.to_string());
+                }
+            }
+            progress.inc(1);
+            continue;
+        }
+
         match compressor::compress_image(&entry.path, &output_path, &opts) {
             Ok(result) => {
                 if let Some(ref mut m) = manifest {
-                    let same_file = entry.path == output_path;
-                    m.add(&entry.path, entry.size_bytes, &output_path, !same_file);
+                    m.add(&entry.path, entry.size_bytes, &output_path)
+                        .with_context(|| {
+                            format!(
+                                "Cannot create rollback entry for {}",
+                                entry.path.display()
+                            )
+                        })?;
                 }
                 report.add_success(entry, &result, &output_format.to_string());
             }
@@ -157,8 +192,10 @@ fn run_process(cli: &Cli) -> Result<()> {
 
     output_report(&report, &cli.format);
 
-    let exit_code = ExitCode::from_results(report.total_success, report.total_failed);
-    std::process::exit(exit_code as i32);
+    Ok(ExitCode::from_results(
+        report.total_success,
+        report.total_failed,
+    ))
 }
 
 fn determine_output_format(cli: &Cli) -> ImageFormat {
