@@ -84,14 +84,19 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	loadedFromEnv := applyEnvVars(cfg)
+	loadedFromEnv, err := applyEnvVars(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	cli, err := parseCLIArgs()
 	if err != nil {
 		return nil, err
 	}
 
-	applyCLIArgs(cfg, cli)
+	if err := applyCLIArgs(cfg, cli); err != nil {
+		return nil, err
+	}
 
 	if cfg.Until.IsZero() {
 		cfg.Until = time.Now()
@@ -176,11 +181,25 @@ func applyConfigFile(cfg *Config, configFile string) (bool, error) {
 	if fc.Since != "" {
 		if t, err := parseTimeString(fc.Since); err == nil {
 			cfg.Since = t
+		} else {
+			return false, &types.ProcessError{
+				Code:       "INVALID_TIME_FORMAT",
+				Message:    fmt.Sprintf("Invalid 'since' value in config file: %v", err),
+				Suggestion: "Use RFC3339 format (2024-01-01T00:00:00Z), duration (1h, 30m, 7d), or 'now'",
+				Details:    map[string]interface{}{"value": fc.Since, "source": "config_file"},
+			}
 		}
 	}
 	if fc.Until != "" {
 		if t, err := parseTimeString(fc.Until); err == nil {
 			cfg.Until = t
+		} else {
+			return false, &types.ProcessError{
+				Code:       "INVALID_TIME_FORMAT",
+				Message:    fmt.Sprintf("Invalid 'until' value in config file: %v", err),
+				Suggestion: "Use RFC3339 format (2024-01-01T00:00:00Z), duration (1h, 30m, 7d), or 'now'",
+				Details:    map[string]interface{}{"value": fc.Until, "source": "config_file"},
+			}
 		}
 	}
 	if len(fc.Services) > 0 {
@@ -217,7 +236,7 @@ func applyConfigFile(cfg *Config, configFile string) (bool, error) {
 	return true, nil
 }
 
-func applyEnvVars(cfg *Config) bool {
+func applyEnvVars(cfg *Config) (bool, error) {
 	applied := false
 
 	if v := os.Getenv("LOGSUM_INPUT"); v != "" {
@@ -228,12 +247,26 @@ func applyEnvVars(cfg *Config) bool {
 		if t, err := parseTimeString(v); err == nil {
 			cfg.Since = t
 			applied = true
+		} else {
+			return applied, &types.ProcessError{
+				Code:       "INVALID_TIME_FORMAT",
+				Message:    fmt.Sprintf("Invalid LOGSUM_SINCE value: %v", err),
+				Suggestion: "Use RFC3339 format (2024-01-01T00:00:00Z), duration (1h, 30m, 7d), or 'now'",
+				Details:    map[string]interface{}{"value": v, "source": "environment"},
+			}
 		}
 	}
 	if v := os.Getenv("LOGSUM_UNTIL"); v != "" {
 		if t, err := parseTimeString(v); err == nil {
 			cfg.Until = t
 			applied = true
+		} else {
+			return applied, &types.ProcessError{
+				Code:       "INVALID_TIME_FORMAT",
+				Message:    fmt.Sprintf("Invalid LOGSUM_UNTIL value: %v", err),
+				Suggestion: "Use RFC3339 format (2024-01-01T00:00:00Z), duration (1h, 30m, 7d), or 'now'",
+				Details:    map[string]interface{}{"value": v, "source": "environment"},
+			}
 		}
 	}
 	if v := os.Getenv("LOGSUM_SERVICES"); v != "" {
@@ -290,7 +323,7 @@ func applyEnvVars(cfg *Config) bool {
 		applied = true
 	}
 
-	return applied
+	return applied, nil
 }
 
 func parseCLIArgs() (*cliArgs, error) {
@@ -328,18 +361,32 @@ func parseCLIArgs() (*cliArgs, error) {
 	return cli, nil
 }
 
-func applyCLIArgs(cfg *Config, cli *cliArgs) {
+func applyCLIArgs(cfg *Config, cli *cliArgs) error {
 	if len(cli.inputPaths) > 0 {
 		cfg.InputPaths = cli.inputPaths
 	}
 	if cli.since != "" {
 		if t, err := parseTimeString(cli.since); err == nil {
 			cfg.Since = t
+		} else {
+			return &types.ProcessError{
+				Code:       "INVALID_TIME_FORMAT",
+				Message:    fmt.Sprintf("Invalid --since value: %v", err),
+				Suggestion: "Use RFC3339 format (2024-01-01T00:00:00Z), duration (1h, 30m, 7d), or 'now'",
+				Details:    map[string]interface{}{"value": cli.since, "source": "cli"},
+			}
 		}
 	}
 	if cli.until != "" {
 		if t, err := parseTimeString(cli.until); err == nil {
 			cfg.Until = t
+		} else {
+			return &types.ProcessError{
+				Code:       "INVALID_TIME_FORMAT",
+				Message:    fmt.Sprintf("Invalid --until value: %v", err),
+				Suggestion: "Use RFC3339 format (2024-01-01T00:00:00Z), duration (1h, 30m, 7d), or 'now'",
+				Details:    map[string]interface{}{"value": cli.until, "source": "cli"},
+			}
 		}
 	}
 	if len(cli.services) > 0 {
@@ -381,6 +428,7 @@ func applyCLIArgs(cfg *Config, cli *cliArgs) {
 			cfg.Levels = append(cfg.Levels, types.LogLevel(strings.ToUpper(l)))
 		}
 	}
+	return nil
 }
 
 func defaultConfigPath() string {

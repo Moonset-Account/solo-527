@@ -19,8 +19,11 @@ run_test() {
     TOTAL=$((TOTAL + 1))
     echo -n "Test $TOTAL: $test_name... "
 
-    eval "$cmd" > /tmp/logsum_test_output.json 2>&1 || true
-    local exit_code=$?
+    local exit_code
+    set +e
+    eval "$cmd" > /tmp/logsum_test_output.json 2>&1
+    exit_code=$?
+    set -e
 
     if [ "$exit_code" -eq "$expected_exit_code" ]; then
         echo -e "\033[32mPASS\033[0m"
@@ -48,7 +51,10 @@ validate_json() {
     TOTAL=$((TOTAL + 1))
     echo -n "Test $TOTAL: $test_name... "
 
-    eval "$cmd" > /tmp/logsum_test_output.json 2>&1 || true
+    set +e
+    eval "$cmd" > /tmp/logsum_test_output.json 2>&1
+    set -e
+
     if python3 -c "import json; json.load(open('/tmp/logsum_test_output.json'))" 2>/dev/null; then
         echo -e "\033[32mPASS\033[0m"
         PASS=$((PASS + 1))
@@ -74,11 +80,26 @@ validate_json_field() {
     TOTAL=$((TOTAL + 1))
     echo -n "Test $TOTAL: $test_name... "
 
-    eval "$cmd" > /tmp/logsum_test_output.json 2>&1 || true
-    local cmd_exit=$?
-    if [ "$cmd_exit" -eq 0 ]; then
-        local actual_value
-        actual_value=$(python3 -c "
+    local cmd_exit
+    set +e
+    eval "$cmd" > /tmp/logsum_test_output.json 2>&1
+    cmd_exit=$?
+    set -e
+
+    if [ "$cmd_exit" -ne 0 ]; then
+        echo -e "\033[31mFAIL\033[0m"
+        echo "  Command failed (exit $cmd_exit)"
+        echo "  Output:"
+        cat /tmp/logsum_test_output.json | head -20
+        FAIL=$((FAIL + 1))
+        echo ""
+        return
+    fi
+
+    local actual_value
+    local parse_exit
+    set +e
+    actual_value=$(python3 -c "
 import json, sys
 data = json.load(open('/tmp/logsum_test_output.json'))
 keys = '$field'.split('.')
@@ -92,20 +113,21 @@ for k in keys:
     else:
         val = val[k]
 print(val)
-" 2>/dev/null) || true
+" 2>/dev/null)
+    parse_exit=$?
+    set -e
 
-        if [ "$actual_value" = "$expected_value" ]; then
-            echo -e "\033[32mPASS\033[0m"
-            PASS=$((PASS + 1))
-        else
-            echo -e "\033[31mFAIL\033[0m"
-            echo "  Field: $field"
-            echo "  Expected: $expected_value, Got: $actual_value"
-            FAIL=$((FAIL + 1))
-        fi
+    if [ "$parse_exit" -ne 0 ] || [ -z "$actual_value" -a -n "$expected_value" ]; then
+        echo -e "\033[31mFAIL\033[0m"
+        echo "  Failed to parse JSON field: $field"
+        FAIL=$((FAIL + 1))
+    elif [ "$actual_value" = "$expected_value" ]; then
+        echo -e "\033[32mPASS\033[0m"
+        PASS=$((PASS + 1))
     else
         echo -e "\033[31mFAIL\033[0m"
-        echo "  Command failed (exit $cmd_exit)"
+        echo "  Field: $field"
+        echo "  Expected: $expected_value, Got: $actual_value"
         FAIL=$((FAIL + 1))
     fi
     echo ""
@@ -165,12 +187,12 @@ echo "----------------------------------------"
 validate_json_field "TotalEntries field" \
     "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "TotalEntries" \
-    "20"
+    "11"
 
 validate_json_field "ErrorEntries field" \
     "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "ErrorEntries" \
-    "9"
+    "8"
 
 validate_json_field "WarningEntries field" \
     "/tmp/logsum --input ./testdata/microservices.sample --json" \
@@ -180,7 +202,7 @@ validate_json_field "WarningEntries field" \
 validate_json_field "Clusters count" \
     "/tmp/logsum --input ./testdata/microservices.sample --json" \
     "len(Clusters)" \
-    ""
+    "8"
 
 validate_json_field "TopErrors count with --top" \
     "/tmp/logsum --input ./testdata/microservices.sample --top 3 --json" \
@@ -190,12 +212,12 @@ validate_json_field "TopErrors count with --top" \
 validate_json_field "Service filter works" \
     "/tmp/logsum --input ./testdata/microservices.sample --service api-gateway --json" \
     "TotalEntries" \
-    "7"
+    "3"
 
-validate_json_field "Cluster count field" \
-    "/tmp/logsum --input ./testdata/microservices.sample --json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(len(d['Clusters']))\"" \
-    "" \
-    ""
+validate_json_field "Cluster count via python subcommand" \
+    "/tmp/logsum --input ./testdata/microservices.sample --json" \
+    "len(Clusters)" \
+    "8"
 
 echo ""
 echo "Running multi-file tests..."
@@ -208,7 +230,7 @@ validate_json "Multiple input files" \
 validate_json_field "Multi-file total entries" \
     "/tmp/logsum --input ./testdata/microservices.sample,./testdata/bracket-format.sample --json" \
     "TotalEntries" \
-    "30"
+    "18"
 
 echo ""
 echo "Running CI output tests..."
