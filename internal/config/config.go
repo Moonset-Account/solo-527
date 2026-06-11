@@ -38,7 +38,7 @@ func Default() *Config {
 		Required:     []string{},
 		MaskPatterns: []string{"PASSWORD", "SECRET", "TOKEN", "KEY", "PRIVATE", "CREDENTIAL", "API_KEY"},
 		CI:           false,
-		Format:       "text",
+		Format:       "",
 		Strict:       false,
 		Quiet:        false,
 		Verbose:      false,
@@ -87,6 +87,17 @@ func Merge(base *Config, ov Override) *Config {
 		result.Verbose = *ov.Verbose
 	}
 	return &result
+}
+
+func Resolve(cfg *Config) {
+	if cfg.Format != "" {
+		return
+	}
+	if cfg.CI {
+		cfg.Format = "ci"
+	} else {
+		cfg.Format = "text"
+	}
 }
 
 func Validate(cfg *Config) error {

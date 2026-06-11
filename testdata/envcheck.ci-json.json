@@ -1,9 +1,10 @@
 {
-  "env_files": ["testdata/.env", "testdata/.env.production"],
+  "env_files": ["testdata/.env"],
   "example_files": ["testdata/.env.example"],
-  "required": ["DATABASE_URL", "REDIS_URL"],
+  "required": ["DATABASE_URL"],
   "mask_patterns": ["PASSWORD", "SECRET", "TOKEN", "KEY", "PRIVATE"],
-  "ci": false,
+  "ci": true,
+  "format": "json",
   "strict": false,
   "quiet": false,
   "verbose": false

@@ -43,11 +43,14 @@ func run() int {
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nEXAMPLES:\n")
 		fmt.Fprintf(os.Stderr, "  envcheck --env .env --example .env.example\n")
-		fmt.Fprintf(os.Stderr, "  envcheck --env .env,.env.prod --required DATABASE_URL,REDIS_URL\n")
+		fmt.Fprintf(os.Stderr, "  envcheck --env .env,.env.production --required DATABASE_URL,REDIS_URL\n")
 		fmt.Fprintf(os.Stderr, "  envcheck --config envcheck.json --ci\n")
 		fmt.Fprintf(os.Stderr, "  envcheck --config envcheck.json --format json\n")
-		fmt.Fprintf(os.Stderr, "  envcheck --ci --format json  # explicit --format overrides --ci default\n")
+		fmt.Fprintf(os.Stderr, "  envcheck --ci --format json    # --format overrides --ci default output\n")
 		fmt.Fprintf(os.Stderr, "  cat .env | envcheck --stdin --example .env.example\n")
+		fmt.Fprintf(os.Stderr, "\nPRIORITY:\n")
+		fmt.Fprintf(os.Stderr, "  CLI flags > config file > defaults\n")
+		fmt.Fprintf(os.Stderr, "  Explicit --format always wins; --ci without --format defaults to ci output\n")
 		fmt.Fprintf(os.Stderr, "\nEXIT CODES:\n")
 		fmt.Fprintf(os.Stderr, "  0 - All checks passed\n")
 		fmt.Fprintf(os.Stderr, "  1 - Errors found (missing required, etc.)\n")
@@ -76,15 +79,9 @@ func run() int {
 	}
 	if *ci {
 		ov.CI = ci
-		if *format == "" {
-			ov.Format = "ci"
-		} else {
-			ov.Format = *format
-		}
-	} else {
-		if *format != "" {
-			ov.Format = *format
-		}
+	}
+	if *format != "" {
+		ov.Format = *format
 	}
 	if *strict {
 		ov.Strict = strict
@@ -97,6 +94,7 @@ func run() int {
 	}
 
 	cfg = config.Merge(cfg, ov)
+	config.Resolve(cfg)
 
 	if err := config.Validate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "configuration error: %v\n", err)

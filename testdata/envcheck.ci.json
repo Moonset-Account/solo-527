@@ -3,7 +3,7 @@
   "example_files": ["testdata/.env.example"],
   "required": ["DATABASE_URL", "REDIS_URL"],
   "mask_patterns": ["PASSWORD", "SECRET", "TOKEN", "KEY", "PRIVATE"],
-  "ci": false,
+  "ci": true,
   "strict": false,
   "quiet": false,
   "verbose": false
