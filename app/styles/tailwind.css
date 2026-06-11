@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans;
+    font-feature-settings: "tnum" on, "lnum" on;
+  }
+  * {
+    @apply border-slate-200;
+  }
+  ::selection {
+    @apply bg-slate-800 text-white;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-sm;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg2 text-sm font-medium transition-all select-none focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-slate-800 text-white border border-slate-900 shadow-inset hover:bg-slate-700 focus:ring-slate-700;
+  }
+  .btn-outline {
+    @apply btn border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 focus:ring-slate-400;
+  }
+  .btn-warn {
+    @apply btn bg-amber-500 text-white border border-amber-500/60 hover:bg-amber-400 focus:ring-amber-400;
+  }
+  .btn-success {
+    @apply btn bg-mint-500 text-white border border-mint-500/60 hover:bg-mint-400 focus:ring-mint-400;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100 focus:ring-slate-300;
+  }
+  .btn-sm { @apply px-2.5 py-1 text-xs; }
+  .btn-lg { @apply px-5 py-2.5 text-base; }
+
+  .input {
+    @apply w-full rounded-lg2 border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition-colors;
+  }
+  .input-label {
+    @apply block text-xs font-medium text-slate-600 mb-1;
+  }
+  .card {
+    @apply bg-white border border-slate-200 rounded-lg2 shadow-card;
+  }
+  .card-hover {
+    @apply transition-shadow hover:shadow-card-hover;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .chip-blue { @apply chip bg-slate-800/10 text-slate-800; }
+  .chip-amber { @apply chip bg-amber-500/12 text-amber-500; }
+  .chip-green { @apply chip bg-mint-500/12 text-mint-500; }
+  .chip-red { @apply chip bg-red-500/10 text-red-600; }
+  .chip-gray { @apply chip bg-slate-100 text-slate-600; }
+
+  .divider-v { @apply w-px bg-slate-200 h-full; }
+  .divider-h { @apply h-px bg-slate-200 w-full; }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm align-middle;
+  }
+
+  .kbd {
+    @apply inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 border border-slate-200 rounded text-slate-500;
+  }
+}
+
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+  .font-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .animate-breathe {
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+}
