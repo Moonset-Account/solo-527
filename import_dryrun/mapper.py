@@ -473,11 +473,13 @@ class DataReader:
                     row_dict[name] = raw_row[idx] if idx < len(raw_row) else None
 
                 if len(raw_row) > len(fieldnames):
-                    row_dict["__extra_columns__"] = [
+                    extras = [
                         {"column": len(fieldnames) + i + 1, "value": v}
                         for i, v in enumerate(raw_row[len(fieldnames):])
                         if v is not None and str(v).strip() != ""
                     ]
+                    if extras:
+                        row_dict["__extra_columns__"] = extras
 
                 rows.append(row_dict)
         return rows

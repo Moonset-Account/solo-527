@@ -265,7 +265,7 @@ class TestDataReader:
         assert "__extra_columns__" not in rows[1]
 
     def test_extra_columns_ignores_blank_values(self, tmp_path: Path):
-        """超列中空白值不进入 __extra_columns__。"""
+        """超列中空白值不进入 __extra_columns__，且全空白时不写该键。"""
         p = tmp_path / "extra_blank.csv"
         p.write_text("a,b\n1,2,x,,y\n", encoding="utf-8")
         rows = DataReader().read(str(p))
@@ -274,6 +274,22 @@ class TestDataReader:
         assert "x" in values
         assert "y" in values
         assert "" not in values
+
+    def test_extra_columns_all_blank_no_key(self, tmp_path: Path):
+        """超列值全部为空白时，__extra_columns__ 键不应存在。"""
+        p = tmp_path / "extra_all_blank.csv"
+        p.write_text("a,b\n1,2,,,   \n", encoding="utf-8")
+        rows = DataReader().read(str(p))
+        assert "__extra_columns__" not in rows[0]
+
+    def test_empty_row_with_trailing_delimiters_skipped(self, tmp_path: Path):
+        """空字段加尾部分隔符的行（如 ',,,\n'）仍应视作空行，不产生超列键。"""
+        p = tmp_path / "trailing_empty.csv"
+        p.write_text("a,b,c\n,,,  \n1,2,3\n", encoding="utf-8")
+        rows = DataReader().read(str(p))
+        assert len(rows) == 2
+        assert "__extra_columns__" not in rows[0]
+        assert all(v is None or str(v).strip() == "" for v in rows[0].values())
 
     def test_fewer_columns_padded_with_none(self, tmp_path: Path):
         """CSV 行列数少于表头时，缺失列填充 None。"""

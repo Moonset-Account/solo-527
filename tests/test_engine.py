@@ -212,6 +212,52 @@ class TestDryRunEngineSmall:
         ]
         assert len(unmapped) == 2
 
+    def test_trailing_delimiter_empty_row_counted_as_skipped(self, target_schema_users):
+        """尾部分隔符的空行（如 ',,,\n'）应进入 skipped_count，而非失败。"""
+        from import_dryrun.models import TargetSchema
+        schema = TargetSchema(**target_schema_users)
+        cfg = _cfg(skip_empty_rows=True)
+        engine = DryRunEngine(cfg, schema=schema)
+        rows = [
+            {"用户编号": "1", "姓名": "x", "邮箱": "a@b.com"},
+            {"用户编号": "", "姓名": "", "邮箱": "", "年龄": ""},
+            {"用户编号": "2", "姓名": "y", "邮箱": "c@d.com"},
+        ]
+        result = engine.run(source_rows=rows)
+        assert result.total_records == 3
+        assert result.skipped_count == 1
+        assert result.processed_count == 2
+        assert result.failed_count == 0
+
+    def test_extra_columns_all_blank_no_unmapped_errors(self, target_users_file: Path, tmp_path: Path):
+        """超列全空白时，不产生 UNMAPPED_FIELD 错误；且带空白超列的空行仍算 skipped。"""
+        csv_path = tmp_path / "mixed.csv"
+        csv_path.write_text(
+            "用户编号,姓名,邮箱\n"
+            "1,张三,a@a.com\n"
+            ",, , , ,\n"
+            "2,李四,b@b.com,real_extra\n",
+            encoding="utf-8",
+        )
+        cfg = _cfg(
+            target_file=str(target_users_file),
+            input_file=str(csv_path),
+            skip_empty_rows=True,
+            strict_mode=True,
+        )
+        engine = DryRunEngine(cfg)
+        result = engine.run()
+        # 第 2 行是空行（只有空白和尾部空白分隔符）→ skipped
+        # 第 3 行有一个非空超列 real_extra → 1 个 UNMAPPED_FIELD(超列) 错误
+        assert result.total_records == 3
+        assert result.skipped_count == 1
+        unmapped_extra = [
+            e for r in result.records for e in r.errors
+            if e.category == ErrorCategory.UNMAPPED_FIELD and "超列" in (e.target_field or "")
+        ]
+        assert len(unmapped_extra) == 1
+        assert "real_extra" in unmapped_extra[0].message
+
 
 @pytest.mark.slow
 class TestDryRunEngineLarge:
