@@ -40,9 +40,9 @@ type fileConfig struct {
 	Levels         []string `json:"levels"`
 	RequestIDs     []string `json:"request_ids"`
 	Environment    string   `json:"environment"`
-	TopN           int      `json:"top_n"`
-	ContextLines   int      `json:"context_lines"`
-	MinClusterSize int      `json:"min_cluster_size"`
+	TopN           *int     `json:"top_n"`
+	ContextLines   *int     `json:"context_lines"`
+	MinClusterSize *int     `json:"min_cluster_size"`
 	Color          *bool    `json:"color"`
 	Verbose        *bool    `json:"verbose"`
 }
@@ -217,14 +217,14 @@ func applyConfigFile(cfg *Config, configFile string) (bool, error) {
 	if fc.Environment != "" {
 		cfg.Environment = fc.Environment
 	}
-	if fc.TopN > 0 {
-		cfg.TopN = fc.TopN
+	if fc.TopN != nil && *fc.TopN > 0 {
+		cfg.TopN = *fc.TopN
 	}
-	if fc.ContextLines > 0 {
-		cfg.ContextLines = fc.ContextLines
+	if fc.ContextLines != nil && *fc.ContextLines >= 0 {
+		cfg.ContextLines = *fc.ContextLines
 	}
-	if fc.MinClusterSize > 0 {
-		cfg.MinClusterSize = fc.MinClusterSize
+	if fc.MinClusterSize != nil && *fc.MinClusterSize > 0 {
+		cfg.MinClusterSize = *fc.MinClusterSize
 	}
 	if fc.Color != nil {
 		cfg.NoColor = !*fc.Color
@@ -327,7 +327,11 @@ func applyEnvVars(cfg *Config) (bool, error) {
 }
 
 func parseCLIArgs() (*cliArgs, error) {
-	cli := &cliArgs{}
+	cli := &cliArgs{
+		topN:           -1,
+		contextLines:   -1,
+		minClusterSize: -1,
+	}
 
 	fs := pflag.NewFlagSet("logsum", pflag.ContinueOnError)
 	fs.StringSliceVar(&cli.inputPaths, "input", nil, "")
@@ -336,13 +340,13 @@ func parseCLIArgs() (*cliArgs, error) {
 	fs.StringSliceVar(&cli.services, "service", nil, "")
 	fs.StringSliceVar(&cli.requestIDs, "request-id", nil, "")
 	fs.StringVar(&cli.environment, "env", "", "")
-	fs.IntVar(&cli.topN, "top", 0, "")
+	fs.IntVar(&cli.topN, "top", -1, "")
 	fs.BoolVar(&cli.outputJSON, "json", false, "")
 	fs.BoolVar(&cli.noColor, "no-color", false, "")
 	fs.BoolVar(&cli.verbose, "verbose", false, "")
 	fs.StringVar(&cli.configFile, "config", "", "")
-	fs.IntVar(&cli.contextLines, "context", 0, "")
-	fs.IntVar(&cli.minClusterSize, "min-cluster", 0, "")
+	fs.IntVar(&cli.contextLines, "context", -1, "")
+	fs.IntVar(&cli.minClusterSize, "min-cluster", -1, "")
 	fs.StringVar(&cli.outputPath, "output", "", "")
 	fs.BoolVar(&cli.ciOutput, "ci", false, "")
 	fs.StringSliceVar(&cli.levels, "level", nil, "")
@@ -410,7 +414,7 @@ func applyCLIArgs(cfg *Config, cli *cliArgs) error {
 	if cli.verbose {
 		cfg.Verbose = true
 	}
-	if cli.contextLines > 0 {
+	if cli.contextLines >= 0 {
 		cfg.ContextLines = cli.contextLines
 	}
 	if cli.minClusterSize > 0 {

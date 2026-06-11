@@ -64,7 +64,7 @@ func run() (int, error) {
 		fmt.Fprintf(os.Stderr, "[DEBUG] Context lines: %d\n", cfg.ContextLines)
 	}
 
-	logParser := parser.New(cfg.Verbose)
+	logParser := parser.New(cfg.Verbose, cfg.ContextLines)
 
 	entries, err := logParser.ParsePaths(cfg.InputPaths)
 	if err != nil {

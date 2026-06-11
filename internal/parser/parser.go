@@ -45,11 +45,15 @@ var (
 )
 
 type Parser struct {
-	verbose bool
+	verbose      bool
+	contextLines int
 }
 
-func New(verbose bool) *Parser {
-	return &Parser{verbose: verbose}
+func New(verbose bool, contextLines int) *Parser {
+	if contextLines < 0 {
+		contextLines = 0
+	}
+	return &Parser{verbose: verbose, contextLines: contextLines}
 }
 
 func (p *Parser) ParsePaths(paths []string) ([]types.LogEntry, error) {
@@ -207,8 +211,8 @@ func (p *Parser) ParseReader(r io.Reader, sourceName string) ([]types.LogEntry, 
 
 	for i := range entries {
 		idx := lineIndexMap[i]
-		entries[i].ContextBefore = getContextLines(lines, idx, 3, true)
-		entries[i].ContextAfter = getContextLines(lines, idx, 3, false)
+		entries[i].ContextBefore = getContextLines(lines, idx, p.contextLines, true)
+		entries[i].ContextAfter = getContextLines(lines, idx, p.contextLines, false)
 	}
 
 	return entries, nil

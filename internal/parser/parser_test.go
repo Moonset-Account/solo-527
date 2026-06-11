@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseLine(t *testing.T) {
-	p := New(false)
+	p := New(false, 3)
 
 	tests := []struct {
 		name          string
@@ -82,7 +82,7 @@ func TestParseLine(t *testing.T) {
 }
 
 func TestIsNewLogEntry(t *testing.T) {
-	p := New(false)
+	p := New(false, 3)
 
 	tests := []struct {
 		name string
@@ -162,7 +162,7 @@ func TestFindLevel(t *testing.T) {
 }
 
 func TestParseReader(t *testing.T) {
-	p := New(false)
+	p := New(false, 3)
 
 	logContent := `2024-01-15T10:30:00Z INFO service="api" request_id="r1" Starting request
 2024-01-15T10:30:01Z DEBUG service="api" request_id="r1" Processing step 1
