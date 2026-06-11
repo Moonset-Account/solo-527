@@ -1,0 +1,6 @@
+prod-backups,db/daily/2025-06-01.sql.gz,1048576,sha256:aaa111,2025-07-01
+prod-backups,db/daily/2025-06-02.sql.gz,2097152,sha256:bbb222,2025-07-02
+prod-backups,db/weekly/2025-06-01.sql.gz,5242880,sha256:ccc333,2025-06-15
+prod-backups,db/daily/2025-06-03.sql.gz,1048576,sha256:ddd444,2025-07-03
+prod-backups,db/daily/2025-06-04.sql.gz,999999,sha256:eee555,2025-07-04
+prod-backups,db/daily/2025-06-05.sql.gz,1048576,sha256:fff666,2025-07-05
