@@ -9,7 +9,8 @@
     "welcome": "Welcome to our app, {{user}}",
     "items": "You have {count} items in your cart",
     "price": "Total: ${amount}",
-    "greeting_duplicate": "Welcome to our app, {{user}}"
+    "greeting_duplicate": "Welcome to our app, {{user}}",
+    "discount": "Discount: ${discount}% off"
   },
   "auth": {
     "login": "Login",

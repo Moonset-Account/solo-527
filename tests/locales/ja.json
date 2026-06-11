@@ -8,7 +8,8 @@
     "retry": "再試行",
     "welcome": "{{user}}様、アプリへようこそ",
     "items": "カートに{count}個の商品があります",
-    "price": "合計: ${amount}"
+    "price": "合計: ${amount}",
+    "discount": "割引: {discount}% OFF"
   },
   "auth": {
     "login": "ログイン",

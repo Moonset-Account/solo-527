@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from i18n_checker import (
     check_i18n,
     PlaceholderMismatch,
     I18nReport,
+    suggest_fix,
 )
 
 TEST_DIR = Path(__file__).parent
@@ -39,14 +41,24 @@ def test_extract_placeholders_dollar():
     assert result == ["$amount"]
 
 
+def test_extract_placeholders_dollar_curly():
+    result = extract_placeholders("Total: ${price} USD")
+    assert result == ["${price}"]
+
+
+def test_extract_placeholders_dollar_not_confused_with_dollar():
+    result = extract_placeholders("Price: $a, Total: ${b}, Count: {c}")
+    assert result == ["$a", "${b}", "{c}"]
+
+
 def test_extract_placeholders_percent():
     result = extract_placeholders("Score: %score% / %total%")
     assert result == ["%score%", "%total%"]
 
 
 def test_extract_placeholders_mixed():
-    result = extract_placeholders("{name} has {{count}} :items at $price")
-    assert result == ["$price", ":items", "{name}", "{{count}}"]
+    result = extract_placeholders("{name} has {{count}} :items at ${price} and $tax")
+    assert result == ["$tax", "${price}", ":items", "{name}", "{{count}}"]
 
 
 def test_extract_placeholders_none():
@@ -70,8 +82,18 @@ def test_extract_placeholder_names_colon():
 
 
 def test_extract_placeholder_names_mixed():
-    result = extract_placeholder_names("{name} has {{count}} :items at $price")
-    assert result == ["count", "items", "name", "price"]
+    result = extract_placeholder_names("{name} has {{count}} :items at ${price} and $tax")
+    assert result == ["count", "items", "name", "price", "tax"]
+
+
+def test_extract_placeholder_names_dollar_curly():
+    result = extract_placeholder_names("Total: ${price} USD")
+    assert result == ["price"]
+
+
+def test_extract_placeholder_names_all_variants():
+    result = extract_placeholder_names("a ${x} b {y} c $z d {{w}}")
+    assert result == ["w", "x", "y", "z"]
 
 
 def test_flatten_keys_simple():
@@ -248,7 +270,7 @@ def test_check_i18n_basic():
     }
     report = check_i18n(source_file, target_files)
 
-    assert report.total_source_keys == 27
+    assert report.total_source_keys == 28
 
     assert "zh-CN" in report.missing_keys
     zh_missing = set(report.missing_keys["zh-CN"])
@@ -303,6 +325,24 @@ def test_check_i18n_placeholder_mismatches():
     assert login_success_mismatch.source_names == ["username"]
     assert login_success_mismatch.target_names == ["user"]
     assert login_success_mismatch.mismatch_type == "name"
+
+    price_mismatch = next(
+        m for m in report.placeholder_mismatches if m.key == "common.price"
+    )
+    assert price_mismatch.source_placeholders == ["${amount}"]
+    assert price_mismatch.target_placeholders == ["$amount"]
+    assert price_mismatch.source_names == ["amount"]
+    assert price_mismatch.target_names == ["amount"]
+    assert price_mismatch.mismatch_type == "format"
+
+    discount_mismatch = next(
+        m for m in report.placeholder_mismatches if m.key == "common.discount"
+    )
+    assert discount_mismatch.source_placeholders == ["${discount}"]
+    assert discount_mismatch.target_placeholders == ["{discount}"]
+    assert discount_mismatch.source_names == ["discount"]
+    assert discount_mismatch.target_names == ["discount"]
+    assert discount_mismatch.mismatch_type == "format"
 
 
 def test_check_i18n_unused_keys():
@@ -408,3 +448,90 @@ def test_check_i18n_locale_stats():
     assert "ja" in report.locale_stats
     ja_stats = report.locale_stats["ja"]
     assert ja_stats["missing"] + ja_stats["present"] == report.total_source_keys
+
+
+def test_dollar_curly_placeholder_format_mismatch_detected(tmp_path):
+    source = tmp_path / "en.json"
+    source.write_text(
+        json.dumps({
+            "price": "Total: ${amount}",
+            "discount": "Save ${percent}%",
+        }),
+        encoding="utf-8",
+    )
+
+    target_wrong_both = tmp_path / "zh.json"
+    target_wrong_both.write_text(
+        json.dumps({
+            "price": "总计: $amount",
+            "discount": "节省 {percent}%",
+        }),
+        encoding="utf-8",
+    )
+
+    target_correct = tmp_path / "ja.json"
+    target_correct.write_text(
+        json.dumps({
+            "price": "合計: ${amount}",
+            "discount": "割引: ${percent}%",
+        }),
+        encoding="utf-8",
+    )
+
+    report = check_i18n(
+        str(source),
+        {"zh": str(target_wrong_both), "ja": str(target_correct)},
+    )
+
+    zh_mismatches = [m for m in report.placeholder_mismatches if m.locale == "zh"]
+    assert len(zh_mismatches) == 2
+
+    price_m = next(m for m in zh_mismatches if m.key == "price")
+    assert price_m.mismatch_type == "format"
+    assert price_m.source_placeholders == ["${amount}"]
+    assert price_m.target_placeholders == ["$amount"]
+
+    discount_m = next(m for m in zh_mismatches if m.key == "discount")
+    assert discount_m.mismatch_type == "format"
+    assert discount_m.source_placeholders == ["${percent}"]
+    assert discount_m.target_placeholders == ["{percent}"]
+
+    ja_mismatches = [m for m in report.placeholder_mismatches if m.locale == "ja"]
+    assert len(ja_mismatches) == 0
+
+    assert report.has_errors() is True
+
+
+def test_dollar_curly_placeholder_suggest_fix_preserves_format(tmp_path):
+    source_value = "Total: ${amount}"
+    suggestion = suggest_fix("price", source_value, "zh-CN")
+    assert suggestion["source_value"] == source_value
+    assert "${amount}" in suggestion["source_value"]
+    assert "保留占位符名称" in suggestion["note"]
+    assert suggestion["locale"] == "zh-CN"
+    assert suggestion["key"] == "price"
+
+
+def test_dollar_curly_in_json_output(tmp_path):
+    source = tmp_path / "en.json"
+    source.write_text(
+        json.dumps({"price": "Total: ${amount}"}),
+        encoding="utf-8",
+    )
+    target = tmp_path / "zh.json"
+    target.write_text(
+        json.dumps({"price": "Total: {amount}"}),
+        encoding="utf-8",
+    )
+
+    report = check_i18n(str(source), {"zh": str(target)})
+    d = report.to_dict()
+
+    ph = d["placeholder_mismatches"][0]
+    assert ph["key"] == "price"
+    assert ph["mismatch_type"] == "format"
+    assert ph["source_placeholders"] == ["${amount}"]
+    assert ph["target_placeholders"] == ["{amount}"]
+    assert ph["source_names"] == ["amount"]
+    assert ph["target_names"] == ["amount"]
+    assert d["summary"]["total_placeholder_mismatches"] == 1

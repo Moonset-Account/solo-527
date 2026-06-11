@@ -8,7 +8,8 @@
     "retry": "重试",
     "welcome": "欢迎来到我们的应用，{{username}}",
     "items": "你的购物车中有 {count} 件商品",
-    "price": "总计：{amount} 元"
+    "price": "总计：$amount 元",
+    "discount": "优惠：{discount}% 折扣"
   },
   "auth": {
     "login": "登录",

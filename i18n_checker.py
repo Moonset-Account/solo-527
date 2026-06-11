@@ -7,19 +7,21 @@ from typing import Dict, List, Set, Tuple, Optional, Any
 
 
 PLACEHOLDER_PATTERNS = [
+    (re.compile(r'\$\{(\w+)\}'), lambda m: f'${{{m}}}'),
     (re.compile(r'\{\{(\w+)\}\}'), lambda m: f'{{{{{m}}}}}'),
-    (re.compile(r'(?<!\{)\{(\w+)\}(?!\})'), lambda m: f'{{{m}}}'),
+    (re.compile(r'(?<![\$\{])\{(\w+)\}(?!\})'), lambda m: f'{{{m}}}'),
+    (re.compile(r'(?<!\$)\$(\w+)(?!\{)'), lambda m: f'${m}'),
     (re.compile(r'%(\w+)%'), lambda m: f'%{m}%'),
     (re.compile(r'(?<!\w):(\w+)'), lambda m: f':{m}'),
-    (re.compile(r'(?<!\w)\$(\w+)'), lambda m: f'${m}'),
 ]
 
 PLACEHOLDER_NAME_PATTERNS = [
+    re.compile(r'\$\{(\w+)\}'),
     re.compile(r'\{\{(\w+)\}\}'),
-    re.compile(r'(?<!\{)\{(\w+)\}(?!\})'),
+    re.compile(r'(?<![\$\{])\{(\w+)\}(?!\})'),
+    re.compile(r'(?<!\$)\$(\w+)(?!\{)'),
     re.compile(r'%(\w+)%'),
     re.compile(r'(?<!\w):(\w+)'),
-    re.compile(r'(?<!\w)\$(\w+)'),
 ]
 
 
