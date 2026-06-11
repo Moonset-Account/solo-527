@@ -647,3 +647,43 @@ def test_missing_keys_still_simple_list():
     assert isinstance(report.missing_keys["zh-CN"], list)
     for key in report.missing_keys["zh-CN"]:
         assert isinstance(key, str)
+
+
+def test_cli_nonexistent_target_preserved_in_report(tmp_path, capsys):
+    import subprocess
+
+    source = tmp_path / "en.json"
+    source.write_text(
+        json.dumps({"hello": "Hello, {name}!"}),
+        encoding="utf-8",
+    )
+    nonexistent = tmp_path / "zh-CN.json"
+
+    project_root = Path(__file__).parent.parent
+
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "main", "check",
+            str(source),
+            "-t", str(nonexistent),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(project_root),
+    )
+
+    output = result.stdout.strip()
+    d = json.loads(output)
+
+    assert "zh-CN" in d["missing_keys"]
+    assert "zh-CN" in d["locale_stats"]
+    assert len(d["missing_keys"]["zh-CN"]) == 1
+    assert d["locale_stats"]["zh-CN"]["missing"] == 1
+    assert d["locale_stats"]["zh-CN"]["present"] == 0
+
+    zh_sug = [s for s in d["missing_key_suggestions"] if s["locale"] == "zh-CN"]
+    assert len(zh_sug) == 1
+    assert zh_sug[0]["key"] == "hello"
+    assert zh_sug[0]["source_value"] == "Hello, {name}!"
+    assert "{name}" in zh_sug[0]["source_value"]

@@ -18,6 +18,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+err_console = Console(stderr=True)
 
 
 def _render_locale_stats_table(report: I18nReport) -> None:
@@ -308,8 +309,7 @@ def check(
             for t in targets:
                 t_path = Path(t)
                 if not t_path.exists():
-                    console.print(f"[bold yellow]警告:[/bold yellow] 目标文件不存在: {t}")
-                    continue
+                    err_console.print(f"[bold yellow]警告:[/bold yellow] 目标文件不存在: {t} (将按缺失全部 key 处理)")
                 target_map[t_path.stem] = t
         else:
             target_map = _auto_detect_targets(source)
