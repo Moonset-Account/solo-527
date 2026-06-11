@@ -48,6 +48,7 @@ struct ReviewItemData<'a> {
     license: &'a str,
     risk_level: String,
     reason: &'a str,
+    category: String,
     package_manager: String,
 }
 
@@ -80,16 +81,16 @@ impl ReportGenerator for JsonReport {
             .collect();
 
         let review_queue: Vec<ReviewItemData> = result
-            .dependencies
+            .review_queue
             .iter()
-            .filter(|d| d.needs_review)
-            .map(|d| ReviewItemData {
-                name: &d.name,
-                version: &d.version,
-                license: &d.license,
-                risk_level: d.risk_level.to_string(),
-                reason: d.review_reason.as_deref().unwrap_or("Needs review"),
-                package_manager: d.package_manager.to_string(),
+            .map(|r| ReviewItemData {
+                name: &r.dependency.name,
+                version: &r.dependency.version,
+                license: &r.dependency.license,
+                risk_level: r.dependency.risk_level.to_string(),
+                reason: &r.reason,
+                category: r.category.to_string(),
+                package_manager: r.dependency.package_manager.to_string(),
             })
             .collect();
 
@@ -165,6 +166,7 @@ mod tests {
             critical_risk_count: 0,
             unknown_license_count: 0,
             needs_review_count: 0,
+            review_queue: vec![],
             scanned_paths: vec![PathBuf::from("/test")],
             package_managers: vec![PackageManager::Npm],
         }

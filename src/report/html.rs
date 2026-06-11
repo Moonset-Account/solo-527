@@ -322,28 +322,28 @@ impl ReportGenerator for HtmlReport {
 }
 
 fn render_review_queue(result: &ScanResult) -> String {
-    let review_deps: Vec<_> = result.dependencies.iter().filter(|d| d.needs_review).collect();
-
-    if review_deps.is_empty() {
+    if result.review_queue.is_empty() {
         return "<p style='color: #22c55e; font-weight: 500;'>✓ 没有需要人工复核的依赖项</p>".to_string();
     }
 
-    review_deps
+    result
+        .review_queue
         .iter()
-        .map(|d| {
+        .map(|r| {
             format!(
                 r#"<div class="review-item">
                     <h3>{} <span style="font-weight: normal; color: #b91c1c;">v{}</span>
                     <span class="pm-badge" style="margin-left: 8px;">{}</span>
                     </h3>
-                    <p>许可证：{} | 风险：{} | 原因：{}</p>
+                    <p>许可证：{} | 风险：{} | 类别：{} | 原因：{}</p>
                 </div>"#,
-                d.name,
-                d.version,
-                d.package_manager,
-                d.license,
-                d.risk_level,
-                d.review_reason.as_deref().unwrap_or("需人工复核")
+                r.dependency.name,
+                r.dependency.version,
+                r.dependency.package_manager,
+                r.dependency.license,
+                r.dependency.risk_level,
+                r.category,
+                r.reason
             )
         })
         .collect()
@@ -393,15 +393,14 @@ fn render_all_deps_table(result: &ScanResult) -> String {
 }
 
 fn render_review_table(result: &ScanResult) -> String {
-    let review_deps: Vec<_> = result.dependencies.iter().filter(|d| d.needs_review).collect();
-
-    if review_deps.is_empty() {
+    if result.review_queue.is_empty() {
         return "<tr><td colspan='5' style='text-align: center; color: #94a3b8; padding: 32px;'>没有需要复核的依赖</td></tr>".to_string();
     }
 
-    review_deps
+    result
+        .review_queue
         .iter()
-        .map(|d| {
+        .map(|r| {
             format!(
                 r#"<tr>
                     <td><strong>{}</strong></td>
@@ -410,12 +409,12 @@ fn render_review_table(result: &ScanResult) -> String {
                     <td><span class="risk-badge {}">{}</span></td>
                     <td>{}</td>
                 </tr>"#,
-                d.name,
-                d.version,
-                d.license,
-                risk_class(d.risk_level),
-                d.risk_level,
-                d.review_reason.as_deref().unwrap_or("需人工复核")
+                r.dependency.name,
+                r.dependency.version,
+                r.dependency.license,
+                risk_class(r.dependency.risk_level),
+                r.dependency.risk_level,
+                r.reason
             )
         })
         .collect()
@@ -531,6 +530,7 @@ mod tests {
             critical_risk_count: 0,
             unknown_license_count: 0,
             needs_review_count: 0,
+            review_queue: vec![],
             scanned_paths: vec![PathBuf::from("/test")],
             package_managers: vec![PackageManager::Npm],
         }

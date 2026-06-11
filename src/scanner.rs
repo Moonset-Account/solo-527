@@ -143,7 +143,9 @@ impl Scanner {
 
         let mut deps = deps;
 
-        let _reviews: Vec<ReviewItem> = evaluator.evaluate_all(&mut deps);
+        let all_reviews: Vec<ReviewItem> = evaluator.evaluate_all(&mut deps);
+
+        let needs_review_count = all_reviews.len();
 
         let unique_deps = LicenseEvaluator::deduplicate_by_highest_risk(&deps);
 
@@ -161,7 +163,6 @@ impl Scanner {
             .iter()
             .filter(|d| d.risk_level == RiskLevel::Unknown)
             .count();
-        let needs_review_count = unique_deps.iter().filter(|d| d.needs_review).count();
 
         let mut package_managers = HashSet::new();
         for dep in &unique_deps {
@@ -186,6 +187,7 @@ impl Scanner {
             critical_risk_count,
             unknown_license_count,
             needs_review_count,
+            review_queue: all_reviews,
             scanned_paths,
             package_managers,
         })

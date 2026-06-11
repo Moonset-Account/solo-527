@@ -39,6 +39,17 @@ impl LicenseEvaluator {
                 reason: "License type cannot be determined automatically.".to_string(),
                 category: ReviewCategory::UnknownLicense,
             });
+
+            if dep.source_url.is_none() && dep.source.is_none() {
+                dep.review_reason = Some("Unknown license; Unknown source".to_string());
+                review_items.push(ReviewItem {
+                    dependency: dep.clone(),
+                    reason: "Source repository URL is not available; requires manual confirmation."
+                        .to_string(),
+                    category: ReviewCategory::UnknownSource,
+                });
+            }
+
             return review_items;
         }
 
@@ -688,5 +699,118 @@ mod tests {
         let unknown_dep = result.iter().find(|d| d.name == "foo").unwrap();
         assert_eq!(unknown_dep.risk_level, RiskLevel::Unknown);
         assert!(unknown_dep.needs_review);
+    }
+
+    #[test]
+    fn test_review_items_preserved_before_dedup() {
+        let mut dep1 = Dependency {
+            name: "foo".to_string(),
+            version: "1.0.0".to_string(),
+            license: "UNKNOWN".to_string(),
+            license_spdx: None,
+            source: None,
+            source_url: None,
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+        let mut dep2 = Dependency {
+            name: "foo".to_string(),
+            version: "2.0.0".to_string(),
+            license: "MIT".to_string(),
+            license_spdx: Some("MIT".to_string()),
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: false,
+            review_reason: None,
+            is_direct: false,
+        };
+
+        let config = AuditConfig::default();
+        let evaluator = LicenseEvaluator::new(config);
+
+        let reviews1 = evaluator.evaluate(&mut dep1);
+        let reviews2 = evaluator.evaluate(&mut dep2);
+
+        assert!(!reviews1.is_empty(), "UNKNOWN license dep1 should generate review items");
+        assert!(dep1.needs_review);
+        assert_eq!(dep1.risk_level, RiskLevel::Unknown);
+
+        assert!(reviews2.is_empty() || dep2.risk_level == RiskLevel::Low,
+            "MIT dep2 should be low risk, reviews only for unknown source");
+
+        let all_reviews: Vec<_> = reviews1.into_iter().chain(reviews2.into_iter()).collect();
+        let unknown_license_reviews: Vec<_> = all_reviews
+            .iter()
+            .filter(|r| r.category == ReviewCategory::UnknownLicense)
+            .collect();
+        assert_eq!(unknown_license_reviews.len(), 1, "Should have 1 UNKNOWN license review from dep1");
+        assert_eq!(unknown_license_reviews[0].dependency.version, "1.0.0");
+
+        let deduped = LicenseEvaluator::deduplicate_by_highest_risk(&[dep1.clone(), dep2.clone()]);
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].risk_level, RiskLevel::Low, "After dedup, foo shows MIT (Low)");
+        assert_eq!(deduped[0].version, "2.0.0");
+
+        assert_eq!(all_reviews.len(), 2, "But all_reviews still has both items (UNKNOWN license + unknown source)");
+    }
+
+    #[test]
+    fn test_deny_list_reviews_preserved_across_versions() {
+        let mut dep1 = Dependency {
+            name: "bar".to_string(),
+            version: "1.0.0".to_string(),
+            license: "AGPL-3.0".to_string(),
+            license_spdx: Some("AGPL-3.0".to_string()),
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+        let mut dep2 = Dependency {
+            name: "bar".to_string(),
+            version: "2.0.0".to_string(),
+            license: "MIT".to_string(),
+            license_spdx: Some("MIT".to_string()),
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: false,
+            review_reason: None,
+            is_direct: false,
+        };
+
+        let mut config = AuditConfig::default();
+        config.add_deny("AGPL-3.0");
+        let evaluator = LicenseEvaluator::new(config);
+
+        let reviews1 = evaluator.evaluate(&mut dep1);
+        let reviews2 = evaluator.evaluate(&mut dep2);
+
+        let denied_reviews: Vec<_> = reviews1
+            .iter()
+            .filter(|r| r.category == ReviewCategory::DeniedLicense)
+            .collect();
+        assert!(!denied_reviews.is_empty(), "AGPL-3.0 should be denied");
+        assert_eq!(dep1.risk_level, RiskLevel::Critical);
+        assert_eq!(dep2.risk_level, RiskLevel::Low);
+
+        let deduped = LicenseEvaluator::deduplicate_by_highest_risk(&[dep1.clone(), dep2.clone()]);
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].risk_level, RiskLevel::Critical, "Dedup shows Critical (AGPL-3.0 denied)");
+
+        assert!(!reviews1.is_empty(), "Review items from dep1 preserved even though dedup keeps dep1");
     }
 }

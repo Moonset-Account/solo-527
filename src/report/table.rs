@@ -39,14 +39,15 @@ impl ReportGenerator for TableReport {
 
         if result.needs_review_count > 0 {
             output.push_str("=== 人工复核队列 ===\n\n");
-            for dep in result.dependencies.iter().filter(|d| d.needs_review) {
+            for item in &result.review_queue {
                 output.push_str(&format!(
-                    "  [{}] {}@{} - {} - {}\n",
-                    risk_level_label(dep.risk_level),
-                    dep.name,
-                    dep.version,
-                    dep.license,
-                    dep.review_reason.as_deref().unwrap_or("需复核")
+                    "  [{}] {}@{} - {} - {} ({})\n",
+                    risk_level_label(item.dependency.risk_level),
+                    item.dependency.name,
+                    item.dependency.version,
+                    item.dependency.license,
+                    item.reason,
+                    item.category,
                 ));
             }
             output.push('\n');
@@ -169,6 +170,7 @@ mod tests {
             critical_risk_count: 0,
             unknown_license_count: 0,
             needs_review_count: 0,
+            review_queue: vec![],
             scanned_paths: vec![PathBuf::from("/test")],
             package_managers: vec![PackageManager::Npm],
         };

@@ -112,6 +112,7 @@ pub struct ScanResult {
     pub critical_risk_count: usize,
     pub unknown_license_count: usize,
     pub needs_review_count: usize,
+    pub review_queue: Vec<ReviewItem>,
     pub scanned_paths: Vec<PathBuf>,
     pub package_managers: Vec<PackageManager>,
 }
@@ -126,6 +127,7 @@ impl ScanResult {
             critical_risk_count: 0,
             unknown_license_count: 0,
             needs_review_count: 0,
+            review_queue: Vec::new(),
             scanned_paths: Vec::new(),
             package_managers: Vec::new(),
         }
