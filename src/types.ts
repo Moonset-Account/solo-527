@@ -58,6 +58,7 @@ export interface DriftItem {
   expectedType?: FlagType;
   actualType?: FlagType;
   environments?: string[];
+  cluster?: string;
   sources: Array<{
     name: string;
     value?: FlagValue;

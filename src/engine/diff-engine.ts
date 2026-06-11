@@ -73,6 +73,8 @@ export class DiffEngine {
 
     const allEnvironments = this.collectEnvironments(configFlags, deployFlags);
 
+    const envClusterIndex = this.buildEnvClusterIndex(deployFlags);
+
     for (const key of allKeys) {
       const codeEntries = codeMap[key] || [];
       const configEntries = configMap[key] || {};
@@ -91,32 +93,59 @@ export class DiffEngine {
       const configDeprecated = Object.values(configEntries).some(f => f.deprecated);
       const isDeprecated = codeDeprecated || configDeprecated;
 
-      const lastModified = this.getLastModified(codeEntries, Object.values(configEntries), Object.values(deployEntries).flat());
+      const allDeployForFlag = Object.values(deployEntries).flat();
+      const lastModified = this.getLastModified(codeEntries, Object.values(configEntries), allDeployForFlag);
 
       for (const env of allEnvironments) {
         const hasCode = codeEntries.length > 0;
         const hasConfig = !!configEntries[env];
-        const hasDeploy = (deployEntries[env]?.length || 0) > 0;
+        const envDeployFlags = deployEntries[env] || [];
+        const hasDeploy = envDeployFlags.length > 0;
 
         const codeFlag = codeEntries[0];
         const configFlag = configEntries[env];
-        const deployFlag = deployEntries[env]?.[0];
 
-        const envDrifts = this.checkFlagForEnv(
-          key,
-          env,
-          hasCode,
-          hasConfig,
-          hasDeploy,
-          codeFlag,
-          configFlag,
-          deployFlag,
-          isDeprecated,
-          resolvedOwner,
-          lastModified
-        );
+        const clustersForEnv = this.collectClusters(envDeployFlags);
+        const envAllClusters = envClusterIndex.get(env);
 
-        drifts.push(...envDrifts);
+        if (clustersForEnv.length === 0 && (!envAllClusters || envAllClusters.size === 0)) {
+          const envDrifts = this.checkFlagForCluster(
+            key, env, undefined,
+            hasCode, hasConfig, hasDeploy,
+            codeFlag, configFlag, undefined,
+            isDeprecated, resolvedOwner, lastModified
+          );
+          drifts.push(...envDrifts);
+        } else {
+          const clusterSet = envAllClusters || new Set<string>();
+          if (clusterSet.size === 0) {
+            const clusterNames = clustersForEnv.map(c => c.cluster).filter((c): c is string => !!c);
+            for (const cn of clusterNames) clusterSet.add(cn);
+          }
+
+          if (clusterSet.size === 0) {
+            const envDrifts = this.checkFlagForCluster(
+              key, env, undefined,
+              hasCode, hasConfig, hasDeploy,
+              codeFlag, configFlag, undefined,
+              isDeprecated, resolvedOwner, lastModified
+            );
+            drifts.push(...envDrifts);
+          } else {
+            for (const clusterName of clusterSet) {
+              const clusterFlag = envDeployFlags.find(f => f.cluster === clusterName);
+              const hasClusterDeploy = !!clusterFlag;
+
+              const envDrifts = this.checkFlagForCluster(
+                key, env, clusterName,
+                hasCode, hasConfig, hasClusterDeploy,
+                codeFlag, configFlag, clusterFlag,
+                isDeprecated, resolvedOwner, lastModified
+              );
+              drifts.push(...envDrifts);
+            }
+          }
+        }
       }
     }
 
@@ -127,9 +156,27 @@ export class DiffEngine {
     return this.deduplicateDrifts(drifts);
   }
 
-  private checkFlagForEnv(
+  private collectClusters(deployFlags: DeployEnvFlag[]): DeployEnvFlag[] {
+    return deployFlags.filter(f => !!f.cluster);
+  }
+
+  private buildEnvClusterIndex(deployFlags: DeployEnvFlag[]): Map<string, Set<string>> {
+    const index = new Map<string, Set<string>>();
+    for (const f of deployFlags) {
+      if (f.cluster) {
+        if (!index.has(f.environment)) {
+          index.set(f.environment, new Set());
+        }
+        index.get(f.environment)!.add(f.cluster);
+      }
+    }
+    return index;
+  }
+
+  private checkFlagForCluster(
     key: string,
     environment: string,
+    cluster: string | undefined,
     hasCode: boolean,
     hasConfig: boolean,
     hasDeploy: boolean,
@@ -141,35 +188,24 @@ export class DiffEngine {
     lastModified: string | undefined
   ): DriftItem[] {
     const drifts: DriftItem[] = [];
+    const clusterSuffix = cluster ? `/${cluster}` : '';
 
     if (isDeprecated && (hasConfig || hasDeploy)) {
       drifts.push(this.createDrift(
         'deprecated_in_use',
-        key,
-        environment,
-        owner,
-        codeFlag,
-        configFlag,
-        deployFlag,
-        undefined,
-        undefined,
-        lastModified,
-        `开关已被标记为废弃，但仍在 ${environment} 环境中使用`
+        key, environment, cluster,
+        owner, codeFlag, configFlag, deployFlag,
+        undefined, undefined, lastModified,
+        `开关已被标记为废弃，但仍在 ${environment}${clusterSuffix} 环境中使用`
       ));
     }
 
     if (hasCode && !hasConfig) {
       drifts.push(this.createDrift(
         'missing_in_config',
-        key,
-        environment,
-        owner,
-        codeFlag,
-        configFlag,
-        deployFlag,
-        undefined,
-        undefined,
-        lastModified,
+        key, environment, cluster,
+        owner, codeFlag, configFlag, deployFlag,
+        undefined, undefined, lastModified,
         `代码中定义的开关在 ${environment} 环境的配置中心缺失`
       ));
     }
@@ -177,31 +213,19 @@ export class DiffEngine {
     if (hasCode && !hasDeploy) {
       drifts.push(this.createDrift(
         'missing_in_deploy',
-        key,
-        environment,
-        owner,
-        codeFlag,
-        configFlag,
-        deployFlag,
-        undefined,
-        undefined,
-        lastModified,
-        `代码中定义的开关在 ${environment} 环境的部署配置中缺失`
+        key, environment, cluster,
+        owner, codeFlag, configFlag, deployFlag,
+        undefined, undefined, lastModified,
+        `代码中定义的开关在 ${environment}${clusterSuffix} 的部署配置中缺失`
       ));
     }
 
     if (!hasCode && (hasConfig || hasDeploy)) {
       drifts.push(this.createDrift(
         'missing_in_code',
-        key,
-        environment,
-        owner,
-        codeFlag,
-        configFlag,
-        deployFlag,
-        undefined,
-        undefined,
-        lastModified,
+        key, environment, cluster,
+        owner, codeFlag, configFlag, deployFlag,
+        undefined, undefined, lastModified,
         `配置中心/部署中存在的开关在代码中未找到定义`
       ));
     }
@@ -210,15 +234,9 @@ export class DiffEngine {
       if (!valuesEqual(codeFlag.value, configFlag.value)) {
         drifts.push(this.createDrift(
           'default_mismatch',
-          key,
-          environment,
-          owner,
-          codeFlag,
-          configFlag,
-          deployFlag,
-          codeFlag.type,
-          configFlag.type,
-          lastModified,
+          key, environment, cluster,
+          owner, codeFlag, configFlag, deployFlag,
+          codeFlag.type, configFlag.type, lastModified,
           `代码默认值与配置中心值不一致（${environment}）`
         ));
       }
@@ -228,15 +246,9 @@ export class DiffEngine {
         if (!existingTypeMismatch) {
           drifts.push(this.createDrift(
             'type_mismatch',
-            key,
-            environment,
-            owner,
-            codeFlag,
-            configFlag,
-            deployFlag,
-            codeFlag.type,
-            configFlag.type,
-            lastModified,
+            key, environment, cluster,
+            owner, codeFlag, configFlag, deployFlag,
+            codeFlag.type, configFlag.type, lastModified,
             `开关类型不一致：代码为 ${codeFlag.type}，配置中心为 ${configFlag.type}（${environment}）`
           ));
         }
@@ -247,16 +259,10 @@ export class DiffEngine {
       if (!valuesEqual(codeFlag.value, deployFlag.value)) {
         drifts.push(this.createDrift(
           'deploy_mismatch',
-          key,
-          environment,
-          owner,
-          codeFlag,
-          configFlag,
-          deployFlag,
-          codeFlag.type,
-          deployFlag.type,
-          lastModified,
-          `代码默认值与部署值不一致（${environment}）`
+          key, environment, cluster,
+          owner, codeFlag, configFlag, deployFlag,
+          codeFlag.type, deployFlag.type, lastModified,
+          `代码默认值与部署值不一致（${environment}${clusterSuffix}）`
         ));
       }
 
@@ -265,16 +271,10 @@ export class DiffEngine {
         if (!existingTypeMismatch) {
           drifts.push(this.createDrift(
             'type_mismatch',
-            key,
-            environment,
-            owner,
-            codeFlag,
-            configFlag,
-            deployFlag,
-            codeFlag.type,
-            deployFlag.type,
-            lastModified,
-            `开关类型不一致：代码为 ${codeFlag.type}，部署为 ${deployFlag.type}（${environment}）`
+            key, environment, cluster,
+            owner, codeFlag, configFlag, deployFlag,
+            codeFlag.type, deployFlag.type, lastModified,
+            `开关类型不一致：代码为 ${codeFlag.type}，部署为 ${deployFlag.type}（${environment}${clusterSuffix}）`
           ));
         }
       }
@@ -284,16 +284,10 @@ export class DiffEngine {
       if (!valuesEqual(configFlag.value, deployFlag.value)) {
         drifts.push(this.createDrift(
           'deploy_mismatch',
-          key,
-          environment,
-          owner,
-          codeFlag,
-          configFlag,
-          deployFlag,
-          configFlag.type,
-          deployFlag.type,
-          lastModified,
-          `配置中心值与部署值不一致（${environment}）`
+          key, environment, cluster,
+          owner, codeFlag, configFlag, deployFlag,
+          configFlag.type, deployFlag.type, lastModified,
+          `配置中心值与部署值不一致（${environment}${clusterSuffix}）`
         ));
       }
     }
@@ -305,6 +299,7 @@ export class DiffEngine {
     type: DriftType,
     key: string,
     environment: string,
+    cluster: string | undefined,
     owner: string | undefined,
     codeFlag: CodeDefaultFlag | undefined,
     configFlag: ConfigCenterFlag | undefined,
@@ -347,7 +342,7 @@ export class DiffEngine {
     }
 
     return {
-      id: generateDriftId(type, key, environment),
+      id: generateDriftId(type, key, environment, cluster),
       key,
       type,
       severity,
@@ -359,6 +354,7 @@ export class DiffEngine {
       expectedType,
       actualType,
       environments: [environment],
+      cluster: cluster || undefined,
       sources,
       lastModified,
     };
@@ -473,8 +469,9 @@ export class DiffEngine {
     const seen = new Map<string, DriftItem>();
 
     for (const drift of drifts) {
-      const key = `${drift.type}:${drift.key}`;
-      const existing = seen.get(key);
+      const dedupKey = drift.id;
+
+      const existing = seen.get(dedupKey);
 
       if (existing) {
         const mergedEnvs = new Set([...(existing.environments || []), ...(drift.environments || [])]);
@@ -491,8 +488,14 @@ export class DiffEngine {
         if (newSeverityRank > existingSeverityRank) {
           existing.severity = drift.severity;
         }
+
+        for (const src of drift.sources) {
+          if (!existing.sources.some(s => s.name === src.name)) {
+            existing.sources.push(src);
+          }
+        }
       } else {
-        seen.set(key, { ...drift });
+        seen.set(dedupKey, { ...drift, sources: [...drift.sources] });
       }
     }
 
@@ -514,8 +517,9 @@ export class DiffEngine {
       if (!involvesStrictEnv) continue;
 
       if (drift.severity === 'critical') {
+        const clusterSuffix = drift.cluster ? ` [${drift.cluster}]` : '';
         reasons.push(
-          `[${drift.key}] ${drift.type}: ${drift.description}`
+          `[${drift.key}${clusterSuffix}] ${drift.type}: ${drift.description}`
         );
       }
     }

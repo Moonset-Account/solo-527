@@ -71,9 +71,10 @@ export function truncate(str: string, max: number): string {
   return str.slice(0, max - 3) + '...';
 }
 
-export function generateDriftId(type: DriftType, key: string, env?: string): string {
+export function generateDriftId(type: DriftType, key: string, env?: string, cluster?: string): string {
   const base = `${type}:${key}`;
-  return env ? `${base}:${env}` : base;
+  const withEnv = env ? `${base}:${env}` : base;
+  return cluster ? `${withEnv}:${cluster}` : withEnv;
 }
 
 export function getISODate(): string {

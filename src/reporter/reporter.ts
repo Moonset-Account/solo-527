@@ -328,11 +328,12 @@ export class Reporter {
         this.pad('Severity', 10) +
         this.pad('Type', 20) +
         this.pad('Key', 35) +
+        this.pad('Cluster', 12) +
         this.pad('Owner', 18) +
         this.pad('Envs', 15) +
         'Last Modified'
       );
-      lines.push('-'.repeat(120));
+      lines.push('-'.repeat(130));
 
       const sorted = [...report.drifts].sort((a, b) => {
         const rank = { critical: 0, warning: 1, info: 2 };
@@ -345,6 +346,7 @@ export class Reporter {
           this.pad(d.severity.toUpperCase(), 10) +
           this.pad(truncate(d.type, 19), 20) +
           this.pad(truncate(d.key, 34), 35) +
+          this.pad(truncate(d.cluster || '-', 11), 12) +
           this.pad(truncate(d.owner || 'UNASSIGNED', 17), 18) +
           this.pad(truncate((d.environments || []).join(','), 14), 15) +
           (d.lastModified || '-')
@@ -353,7 +355,8 @@ export class Reporter {
       lines.push('');
 
       for (const d of report.drifts.filter(x => x.severity !== 'info')) {
-        lines.push(`[${d.severity.toUpperCase()}] ${d.key} (${d.type})`);
+        const clusterLabel = d.cluster ? ` [${d.cluster}]` : '';
+        lines.push(`[${d.severity.toUpperCase()}] ${d.key}${clusterLabel} (${d.type})`);
         lines.push(`  ${d.description}`);
         if (d.codeDefault !== undefined) {
           lines.push(`  Code Default: ${valueToString(d.codeDefault)}`);
@@ -455,10 +458,12 @@ export class Reporter {
         lines.push(`### ${title} (${list.length})`);
         lines.push('');
         for (const d of list) {
-          lines.push(`#### \`${d.key}\` — ${d.type}`);
+          const clusterLabel = d.cluster ? ` [${d.cluster}]` : '';
+          lines.push(`#### \`${d.key}${clusterLabel}\` — ${d.type}`);
           lines.push('');
           lines.push(`- **Owner**: ${d.owner || 'Unassigned'}`);
           lines.push(`- **Environments**: ${(d.environments || []).join(', ')}`);
+          if (d.cluster) lines.push(`- **Cluster**: ${d.cluster}`);
           if (d.lastModified) lines.push(`- **Last Modified**: ${d.lastModified}`);
           lines.push(`- **Description**: ${d.description}`);
           if (d.codeDefault !== undefined) lines.push(`- **Code Default**: \`${valueToString(d.codeDefault)}\``);
