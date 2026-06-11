@@ -22,6 +22,11 @@ async function main(): Promise<number> {
     const transcriptResult = scanTranscriptDirectory(options.transcriptDir);
     const scheduleResult = parseScheduleCsv(options.scheduleFile);
 
+    if (scheduleResult.fatalError) {
+      logDiagnostic(`错误: ${scheduleResult.fatalError}`);
+      return 5;
+    }
+
     const allErrors = [
       ...audioResult.errors,
       ...transcriptResult.errors,

@@ -113,4 +113,5 @@ export interface IndexReport {
 export interface ParseResult<T> {
   data: T;
   errors: string[];
+  fatalError?: string;
 }

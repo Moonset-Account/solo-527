@@ -5,17 +5,25 @@ export function parseScheduleCsv(filePath: string): ParseResult<ScheduleEntry[]>
   const errors: string[] = [];
   const entries: ScheduleEntry[] = [];
 
+  if (!fs.existsSync(filePath)) {
+    return { data: [], errors, fatalError: `排班表文件不存在: ${filePath}` };
+  }
+
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split(/\r?\n/).filter(line => line.trim());
 
     if (lines.length === 0) {
-      errors.push('排班表文件为空');
-      return { data: [], errors };
+      return { data: [], errors, fatalError: '排班表文件为空' };
     }
 
     const headers = parseCsvLine(lines[0]);
     const headerMap = mapHeaders(headers);
+
+    if (headerMap.date === undefined || headerMap.agentId === undefined ||
+        headerMap.shiftStart === undefined || headerMap.shiftEnd === undefined) {
+      return { data: [], errors, fatalError: '排班表表头缺少必要列（日期/坐席ID/上班时间/下班时间）' };
+    }
 
     for (let i = 1; i < lines.length; i++) {
       const values = parseCsvLine(lines[i]);
@@ -33,9 +41,13 @@ export function parseScheduleCsv(filePath: string): ParseResult<ScheduleEntry[]>
         }
       }
     }
+
+    if (entries.length === 0 && lines.length > 1) {
+      return { data: [], errors, fatalError: '排班表无有效排班记录（所有行解析失败）' };
+    }
   } catch (err) {
     if (err instanceof Error) {
-      errors.push(`读取文件失败: ${err.message}`);
+      return { data: [], errors, fatalError: `读取排班表失败: ${err.message}` };
     }
   }
 

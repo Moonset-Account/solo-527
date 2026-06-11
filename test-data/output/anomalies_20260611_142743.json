@@ -1,0 +1,112 @@
+{
+  "generatedAt": "2026-06-11 14:27:43",
+  "summary": {
+    "MISSING_TRANSCRIPT": 2,
+    "AGENT_MISMATCH": 1,
+    "DURATION_ABNORMAL": 2,
+    "DUPLICATE_SAMPLE": 1,
+    "AGENT_NOT_SCHEDULED": 2
+  },
+  "anomalies": [
+    {
+      "type": "DUPLICATE_SAMPLE",
+      "severity": "warning",
+      "audioId": "5ac4f413042ee002",
+      "message": "检测到重复样本，共 2 个相同通话记录",
+      "details": {
+        "duplicateCount": 2,
+        "duplicateFiles": [
+          "20240115_093015_AG001_张三_180.mp3",
+          "20240115_093015_AG001_张三_180_copy.mp3"
+        ],
+        "callDateTime": "2024-01-15 09:30:15",
+        "agentId": "AG001"
+      }
+    },
+    {
+      "type": "MISSING_TRANSCRIPT",
+      "severity": "critical",
+      "audioId": "58cfd38e51db627b",
+      "message": "录音文件缺少对应的转写文本",
+      "details": {
+        "audioFile": "20240115_120000_AG001_张三_180.mp3",
+        "expectedTranscriptPattern": "20240115_120000_AG001_张三.txt"
+      }
+    },
+    {
+      "type": "MISSING_TRANSCRIPT",
+      "severity": "critical",
+      "audioId": "8db78f637867b4e6",
+      "message": "录音文件缺少对应的转写文本",
+      "details": {
+        "audioFile": "20240115_162000_AG001_张三_4000.mp3",
+        "expectedTranscriptPattern": "20240115_162000_AG001_张三.txt"
+      }
+    },
+    {
+      "type": "DURATION_ABNORMAL",
+      "severity": "warning",
+      "audioId": "8db78f637867b4e6",
+      "message": "录音时长超出正常范围 [10s, 3600s]",
+      "details": {
+        "actualDuration": 4000,
+        "minDuration": 10,
+        "maxDuration": 3600,
+        "audioFile": "20240115_162000_AG001_张三_4000.mp3"
+      }
+    },
+    {
+      "type": "AGENT_MISMATCH",
+      "severity": "warning",
+      "audioId": "32283ba8bea18a3f",
+      "message": "录音坐席ID与转写坐席ID不匹配（通过通话时间匹配到转写）",
+      "details": {
+        "audioAgentId": "AG002",
+        "transcriptAgentId": "AG003",
+        "audioFile": "20240115_110522_AG002_李四_300.mp3",
+        "transcriptFile": "20240115_110522_AG003_李四.txt",
+        "callDateTime": "2024-01-15 11:05:22"
+      }
+    },
+    {
+      "type": "DURATION_ABNORMAL",
+      "severity": "warning",
+      "audioId": "f011513860eb5450",
+      "message": "录音时长超出正常范围 [10s, 3600s]",
+      "details": {
+        "actualDuration": 5,
+        "minDuration": 10,
+        "maxDuration": 3600,
+        "audioFile": "20240115_154510_AG004_赵六_5.mp3"
+      }
+    },
+    {
+      "type": "AGENT_NOT_SCHEDULED",
+      "severity": "info",
+      "audioId": "fdd84a34f08bbfbb",
+      "message": "通话时间不在坐席排班时段内",
+      "details": {
+        "agentId": "AG001",
+        "agentName": "张三",
+        "callDateTime": "2024-01-16 08:00:00",
+        "scheduledShifts": [
+          "09:00:00-18:00:00"
+        ],
+        "audioFile": "20240116_080000_AG001_张三_150.mp3"
+      }
+    },
+    {
+      "type": "AGENT_NOT_SCHEDULED",
+      "severity": "warning",
+      "audioId": "e879bbec7a4f3482",
+      "message": "该坐席在通话日期没有排班记录",
+      "details": {
+        "agentId": "AG005",
+        "agentName": "钱七",
+        "callDate": "2024-01-16",
+        "callTime": "10:00:00",
+        "audioFile": "20240116_100000_AG005_钱七_200.mp3"
+      }
+    }
+  ]
+}
