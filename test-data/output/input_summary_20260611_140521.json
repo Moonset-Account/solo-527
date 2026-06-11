@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-06-11 14:05:21",
+  "audioDir": "test-data/audio",
+  "transcriptDir": "test-data/transcripts",
+  "scheduleFile": "test-data/schedule.csv",
+  "audioCount": 10,
+  "transcriptCount": 8,
+  "scheduleCount": 7,
+  "audioFiles": [
+    "20240115_093015_AG001_张三_180.mp3",
+    "20240115_093015_AG001_张三_180_copy.mp3",
+    "20240115_101530_AG001_张三_240.mp3",
+    "20240115_110522_AG002_李四_300.mp3",
+    "20240115_120000_AG001_张三_180.mp3",
+    "20240115_143000_AG003_王五_120.mp3",
+    "20240115_154510_AG004_赵六_5.mp3",
+    "20240115_162000_AG001_张三_4000.mp3",
+    "20240116_080000_AG001_张三_150.mp3",
+    "20240116_100000_AG005_钱七_200.mp3"
+  ],
+  "transcriptFiles": [
+    "20240115_093015_AG001_张三.txt",
+    "20240115_093015_AG001_张三_copy.txt",
+    "20240115_101530_AG001_张三.txt",
+    "20240115_110522_AG003_李四.txt",
+    "20240115_143000_AG003_王五.txt",
+    "20240115_154510_AG004_赵六.txt",
+    "20240116_080000_AG001_张三.txt",
+    "20240116_100000_AG005_钱七.txt"
+  ],
+  "options": {
+    "agent": "AG001",
+    "date": "2024-01-15",
+    "minDuration": 10,
+    "maxDuration": 3600
+  },
+  "checksum": "5ce41067ece227c2f056660ce3dbc1ac"
+}

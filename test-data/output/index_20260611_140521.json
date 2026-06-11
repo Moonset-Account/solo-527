@@ -1,0 +1,121 @@
+{
+  "generatedAt": "2026-06-11 14:05:21",
+  "summary": {
+    "totalAudio": 10,
+    "totalTranscript": 8,
+    "validSamples": 2,
+    "totalAnomalies": 4,
+    "anomaliesByType": {
+      "MISSING_TRANSCRIPT": 2,
+      "AGENT_MISMATCH": 0,
+      "DURATION_ABNORMAL": 1,
+      "DUPLICATE_SAMPLE": 1,
+      "AGENT_NOT_SCHEDULED": 0
+    },
+    "agents": [
+      "AG001"
+    ],
+    "dateRange": {
+      "start": "2024-01-15",
+      "end": "2024-01-15"
+    }
+  },
+  "indices": [
+    {
+      "audioId": "5ac4f413042ee002",
+      "audioFile": "test-data/audio/20240115_093015_AG001_张三_180.mp3",
+      "transcriptFile": "test-data/transcripts/20240115_093015_AG001_张三_copy.txt",
+      "callDate": "2024-01-15",
+      "callTime": "09:30:15",
+      "agentId": "AG001",
+      "agentName": "张三",
+      "duration": 180,
+      "anomalies": [
+        {
+          "type": "DUPLICATE_SAMPLE",
+          "severity": "warning",
+          "audioId": "5ac4f413042ee002",
+          "message": "检测到重复样本，共 2 个相同通话记录",
+          "details": {
+            "duplicateCount": 2,
+            "duplicateFiles": [
+              "20240115_093015_AG001_张三_180.mp3",
+              "20240115_093015_AG001_张三_180_copy.mp3"
+            ],
+            "callDateTime": "2024-01-15 09:30:15",
+            "agentId": "AG001"
+          }
+        }
+      ],
+      "isValid": true
+    },
+    {
+      "audioId": "187eeac339f80e0c",
+      "audioFile": "test-data/audio/20240115_101530_AG001_张三_240.mp3",
+      "transcriptFile": "test-data/transcripts/20240115_101530_AG001_张三.txt",
+      "callDate": "2024-01-15",
+      "callTime": "10:15:30",
+      "agentId": "AG001",
+      "agentName": "张三",
+      "duration": 240,
+      "anomalies": [],
+      "isValid": true
+    },
+    {
+      "audioId": "58cfd38e51db627b",
+      "audioFile": "test-data/audio/20240115_120000_AG001_张三_180.mp3",
+      "callDate": "2024-01-15",
+      "callTime": "12:00:00",
+      "agentId": "AG001",
+      "agentName": "张三",
+      "duration": 180,
+      "anomalies": [
+        {
+          "type": "MISSING_TRANSCRIPT",
+          "severity": "critical",
+          "audioId": "58cfd38e51db627b",
+          "message": "录音文件缺少对应的转写文本",
+          "details": {
+            "audioFile": "20240115_120000_AG001_张三_180.mp3",
+            "expectedTranscriptPattern": "20240115_120000_AG001_张三.txt"
+          }
+        }
+      ],
+      "isValid": false
+    },
+    {
+      "audioId": "8db78f637867b4e6",
+      "audioFile": "test-data/audio/20240115_162000_AG001_张三_4000.mp3",
+      "callDate": "2024-01-15",
+      "callTime": "16:20:00",
+      "agentId": "AG001",
+      "agentName": "张三",
+      "duration": 4000,
+      "anomalies": [
+        {
+          "type": "MISSING_TRANSCRIPT",
+          "severity": "critical",
+          "audioId": "8db78f637867b4e6",
+          "message": "录音文件缺少对应的转写文本",
+          "details": {
+            "audioFile": "20240115_162000_AG001_张三_4000.mp3",
+            "expectedTranscriptPattern": "20240115_162000_AG001_张三.txt"
+          }
+        },
+        {
+          "type": "DURATION_ABNORMAL",
+          "severity": "warning",
+          "audioId": "8db78f637867b4e6",
+          "message": "录音时长超出正常范围 [10s, 3600s]",
+          "details": {
+            "actualDuration": 4000,
+            "minDuration": 10,
+            "maxDuration": 3600,
+            "audioFile": "20240115_162000_AG001_张三_4000.mp3"
+          }
+        }
+      ],
+      "isValid": false
+    }
+  ]
+}

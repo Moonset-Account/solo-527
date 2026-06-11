@@ -7,11 +7,16 @@ import { IndexGenerator, GeneratorContext } from './core/indexGenerator';
 import { Reporter } from './core/reporter';
 import { AnomalyType } from './types';
 
+function logDiagnostic(message: string): void {
+  process.stderr.write(message + '\n');
+}
+
 async function main(): Promise<number> {
   try {
     const options = setupCli();
+    const isJson = options.json;
 
-    console.log('🔍 开始扫描输入文件...\n');
+    logDiagnostic('开始扫描输入文件...\n');
 
     const audioResult = scanAudioDirectory(options.audioDir);
     const transcriptResult = scanTranscriptDirectory(options.transcriptDir);
@@ -24,20 +29,20 @@ async function main(): Promise<number> {
     ];
 
     if (allErrors.length > 0) {
-      console.log('⚠️  文件扫描警告:');
+      logDiagnostic('文件扫描警告:');
       for (const error of allErrors) {
-        console.log(`   - ${error}`);
+        logDiagnostic(`   - ${error}`);
       }
-      console.log('');
+      logDiagnostic('');
     }
 
-    console.log(`📁 扫描完成:`);
-    console.log(`   - 录音文件: ${audioResult.data.length} 个`);
-    console.log(`   - 转写文件: ${transcriptResult.data.length} 个`);
-    console.log(`   - 排班记录: ${scheduleResult.data.length} 条\n`);
+    logDiagnostic(`扫描完成:`);
+    logDiagnostic(`   - 录音文件: ${audioResult.data.length} 个`);
+    logDiagnostic(`   - 转写文件: ${transcriptResult.data.length} 个`);
+    logDiagnostic(`   - 排班记录: ${scheduleResult.data.length} 条\n`);
 
     if (audioResult.data.length === 0) {
-      console.error('❌ 错误: 未找到任何录音文件');
+      logDiagnostic('错误: 未找到任何录音文件');
       return 2;
     }
 
@@ -61,20 +66,20 @@ async function main(): Promise<number> {
     const hasCritical = generator.hasCriticalAnomalies(report);
 
     if (hasCritical) {
-      console.log(`\n❌ 检测到 ${criticalCount} 个严重异常，处理完成但返回非零退出码`);
+      logDiagnostic(`\n检测到 ${criticalCount} 个严重异常，处理完成但返回非零退出码`);
       return 1;
     }
 
-    console.log('\n✅ 处理完成，未检测到严重异常');
+    logDiagnostic('\n处理完成，未检测到严重异常');
     return 0;
 
   } catch (error) {
-    console.error('\n❌ 程序执行出错:');
+    process.stderr.write('\n程序执行出错:\n');
     if (error instanceof Error) {
-      console.error(`   ${error.message}`);
-      console.error(error.stack);
+      process.stderr.write(`   ${error.message}\n`);
+      if (error.stack) process.stderr.write(error.stack + '\n');
     } else {
-      console.error(`   ${String(error)}`);
+      process.stderr.write(`   ${String(error)}\n`);
     }
     return 3;
   }
@@ -83,6 +88,6 @@ async function main(): Promise<number> {
 main().then(exitCode => {
   process.exit(exitCode);
 }).catch(error => {
-  console.error('❌ 未捕获的异常:', error);
+  process.stderr.write('未捕获的异常: ' + String(error) + '\n');
   process.exit(4);
 });

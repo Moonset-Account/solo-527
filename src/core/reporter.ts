@@ -32,6 +32,10 @@ export class Reporter {
     this.options = options;
   }
 
+  private logDiagnostic(message: string): void {
+    process.stderr.write(message + '\n');
+  }
+
   public printConsoleReport(report: IndexReport): void {
     if (this.options.json) {
       this.printJsonReport(report);
@@ -46,14 +50,14 @@ export class Reporter {
 
   private printJsonReport(report: IndexReport): void {
     const jsonOutput = JSON.stringify(report, null, 2);
-    console.log(jsonOutput);
+    process.stdout.write(jsonOutput + '\n');
   }
 
   private printSummary(report: IndexReport): void {
     const { summary } = report;
 
     console.log('\n' + '='.repeat(70));
-    console.log('📊 客服通话录音索引报告');
+    console.log('客服通话录音索引报告');
     console.log('='.repeat(70));
     console.log(`生成时间: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`);
     console.log(`日期范围: ${summary.dateRange.start || '-'} 至 ${summary.dateRange.end || '-'}`);
@@ -69,7 +73,7 @@ export class Reporter {
   private printAnomalySummary(report: IndexReport): void {
     const { summary } = report;
 
-    console.log('📋 异常类型统计:');
+    console.log('异常类型统计:');
     console.log('-'.repeat(50));
 
     for (const [type, count] of Object.entries(summary.anomaliesByType)) {
@@ -84,11 +88,11 @@ export class Reporter {
     const { anomalies } = report;
 
     if (anomalies.length === 0) {
-      console.log('✅ 未检测到任何异常\n');
+      console.log('未检测到任何异常\n');
       return;
     }
 
-    console.log('🔍 异常详情:');
+    console.log('异常详情:');
     console.log('-'.repeat(70));
 
     const groupedByType = this.groupAnomaliesByType(anomalies);
@@ -114,23 +118,23 @@ export class Reporter {
   private printIndexSummary(report: IndexReport): void {
     const { indices } = report;
 
-    console.log('📑 索引清单 (按坐席+日期分组):');
+    console.log('索引清单 (按坐席+日期分组):');
     console.log('-'.repeat(70));
 
     const groupedByAgentAndDate = this.groupIndicesByAgentAndDate(indices);
 
     for (const [agentKey, dateGroups] of Object.entries(groupedByAgentAndDate)) {
       const [agentId, agentName] = agentKey.split('|');
-      console.log(`\n👤 坐席: ${agentId} (${agentName})`);
+      console.log(`\n坐席: ${agentId} (${agentName})`);
 
       for (const [date, entries] of Object.entries(dateGroups)) {
         const validCount = entries.filter(e => e.isValid).length;
         const totalCount = entries.length;
 
-        console.log(`  📅 ${date}: 共 ${totalCount} 条, 有效 ${validCount} 条`);
+        console.log(`  ${date}: 共 ${totalCount} 条, 有效 ${validCount} 条`);
 
         for (const entry of entries) {
-          const status = entry.isValid ? '✅' : '❌';
+          const status = entry.isValid ? '[OK]' : '[!!]';
           const anomaliesInfo = entry.anomalies.length > 0
             ? ` (${entry.anomalies.map(a => ANOMALY_TYPE_LABELS[a.type]).join(', ')})`
             : '';
@@ -151,10 +155,10 @@ export class Reporter {
     const summaryFile = path.join(outputDir, `input_summary_${timestamp}.json`);
 
     if (dryRun) {
-      console.log('🔍 [Dry Run] 以下文件将被生成:');
-      console.log(`   - ${indexFile}`);
-      console.log(`   - ${anomalyFile}`);
-      console.log(`   - ${summaryFile}`);
+      this.logDiagnostic('[Dry Run] 以下文件将被生成:');
+      this.logDiagnostic(`   - ${indexFile}`);
+      this.logDiagnostic(`   - ${anomalyFile}`);
+      this.logDiagnostic(`   - ${summaryFile}`);
       return { indexFile, anomalyFile, summaryFile };
     }
 
@@ -176,10 +180,10 @@ export class Reporter {
 
     fs.writeFileSync(summaryFile, JSON.stringify(report.inputSummary, null, 2));
 
-    console.log(`📄 报告文件已生成:`);
-    console.log(`   - 索引文件: ${indexFile}`);
-    console.log(`   - 异常清单: ${anomalyFile}`);
-    console.log(`   - 输入摘要: ${summaryFile}`);
+    this.logDiagnostic(`报告文件已生成:`);
+    this.logDiagnostic(`   - 索引文件: ${indexFile}`);
+    this.logDiagnostic(`   - 异常清单: ${anomalyFile}`);
+    this.logDiagnostic(`   - 输入摘要: ${summaryFile}`);
 
     return { indexFile, anomalyFile, summaryFile };
   }
@@ -218,10 +222,10 @@ export class Reporter {
     const { agent, date } = this.options;
 
     if (agent || date) {
-      console.log('🔍 当前筛选条件:');
-      if (agent) console.log(`   - 坐席: ${agent}`);
-      if (date) console.log(`   - 日期: ${date}`);
-      console.log('');
+      this.logDiagnostic('当前筛选条件:');
+      if (agent) this.logDiagnostic(`   - 坐席: ${agent}`);
+      if (date) this.logDiagnostic(`   - 日期: ${date}`);
+      this.logDiagnostic('');
     }
   }
 }
