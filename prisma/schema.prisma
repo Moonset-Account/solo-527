@@ -1,0 +1,318 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR_SUPERVISOR
+  EDITOR
+  CREATOR
+  VIEWER
+}
+
+enum TopicStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  REVISION_REQUIRED
+  IN_PRODUCTION
+  COMPLETED
+}
+
+enum ScriptStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  REVISION_REQUIRED
+  RECORDING
+  COMPLETED
+}
+
+enum MaterialType {
+  VIDEO
+  IMAGE
+  AUDIO
+  DOCUMENT
+  COVER
+}
+
+enum MaterialAccessLevel {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+}
+
+enum AnomalyType {
+  SCHEDULE_CONFLICT
+  MATERIAL_MISSING
+  APPROVAL_DELAY
+  QUALITY_ISSUE
+  OTHER
+}
+
+enum AnomalyStatus {
+  OPEN
+  PROCESSING
+  RESOLVED
+  CLOSED
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ExportFormat {
+  CSV
+  EXCEL
+  PDF
+}
+
+enum TodoType {
+  READ_FEEDBACK
+  REVIEW_OPINION
+  COVER_VERSION
+  SCRIPT_REVIEW
+  TOPIC_REVIEW
+}
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id              String          @id @default(uuid())
+  name            String
+  email           String          @unique
+  password        String
+  role            UserRole        @default(CREATOR)
+  avatarUrl       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdTopics   Topic[]         @relation("TopicCreator")
+  assignedTopics  Topic[]         @relation("TopicAssignee")
+  createdScripts  Script[]        @relation("ScriptCreator")
+  assignedScripts Script[]        @relation("ScriptAssignee")
+  materials       Material[]
+  comments        Comment[]
+  todos           Todo[]          @relation("TodoAssignee")
+  createdTodos    Todo[]          @relation("TodoCreator")
+  anomalies       Anomaly[]       @relation("AnomalyHandler")
+  createdAnomalies Anomaly[]      @relation("AnomalyCreator")
+  exportTasks     ExportTask[]
+  materialPermissions MaterialPermission[]
+  productions         ProductionRecord[]
+}
+
+model Topic {
+  id              String          @id @default(uuid())
+  title           String
+  description     String
+  tags            String[]
+  priority        Int             @default(1)
+  status          TopicStatus     @default(DRAFT)
+  scheduledDate   DateTime?
+  deadline        DateTime?
+  creatorId       String
+  creator         User            @relation("TopicCreator", fields: [creatorId], references: [id])
+  assigneeId      String?
+  assignee        User?           @relation("TopicAssignee", fields: [assigneeId], references: [id])
+  scripts         Script[]
+  materials       Material[]
+  comments        Comment[]
+  todos           Todo[]
+  anomalies       Anomaly[]
+  productions     ProductionRecord[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Script {
+  id              String          @id @default(uuid())
+  topicId         String
+  topic           Topic           @relation(fields: [topicId], references: [id])
+  version         String          @default("1.0")
+  content         String
+  duration        Int?
+  status          ScriptStatus    @default(DRAFT)
+  creatorId       String
+  creator         User            @relation("ScriptCreator", fields: [creatorId], references: [id])
+  assigneeId      String?
+  assignee        User?           @relation("ScriptAssignee", fields: [assigneeId], references: [id])
+  reviewOpinion   String?
+  readingFeedback String?
+  materials       Material[]
+  comments        Comment[]
+  todos           Todo[]
+  coverVersions   CoverVersion[]
+  anomalies       Anomaly[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Material {
+  id              String              @id @default(uuid())
+  name            String
+  type            MaterialType
+  url             String
+  thumbnailUrl    String?
+  fileSize        Int?
+  mimeType        String?
+  tags            String[]
+  permission      MaterialAccessLevel  @default(INTERNAL)
+  topicId         String?
+  topic           Topic?              @relation(fields: [topicId], references: [id])
+  scriptId        String?
+  script          Script?             @relation(fields: [scriptId], references: [id])
+  uploaderId      String
+  uploader        User                @relation(fields: [uploaderId], references: [id])
+  comments            Comment[]
+  materialPermissions MaterialPermission[]
+  productions         ProductionRecord[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model CoverVersion {
+  id              String          @id @default(uuid())
+  scriptId        String
+  script          Script          @relation(fields: [scriptId], references: [id])
+  version         String          @default("1.0")
+  imageUrl        String
+  description     String?
+  isSelected      Boolean         @default(false)
+  feedback        String?
+  todos           Todo[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Comment {
+  id              String          @id @default(uuid())
+  content         String
+  type            String?
+  topicId         String?
+  topic           Topic?          @relation(fields: [topicId], references: [id])
+  scriptId        String?
+  script          Script?         @relation(fields: [scriptId], references: [id])
+  materialId      String?
+  material        Material?       @relation(fields: [materialId], references: [id])
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Todo {
+  id              String          @id @default(uuid())
+  type            TodoType
+  title           String
+  description     String?
+  status          TodoStatus      @default(PENDING)
+  priority        Int             @default(1)
+  dueDate         DateTime?
+  readFeedback    String?
+  reviewOpinion   String?
+  coverVersionId  String?
+  coverVersion    CoverVersion?   @relation(fields: [coverVersionId], references: [id])
+  topicId         String?
+  topic           Topic?          @relation(fields: [topicId], references: [id])
+  scriptId        String?
+  script          Script?         @relation(fields: [scriptId], references: [id])
+  assigneeId      String
+  assignee        User            @relation("TodoAssignee", fields: [assigneeId], references: [id])
+  creatorId       String
+  creator         User            @relation("TodoCreator", fields: [creatorId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Anomaly {
+  id              String          @id @default(uuid())
+  type            AnomalyType
+  title           String
+  description     String
+  status          AnomalyStatus   @default(OPEN)
+  conflictDetails Json?
+  closeReason     String?
+  closeResult     String?
+  closedAt        DateTime?
+  topicId         String?
+  topic           Topic?          @relation(fields: [topicId], references: [id])
+  scriptId        String?
+  script          Script?         @relation(fields: [scriptId], references: [id])
+  handlerId       String?
+  handler         User?           @relation("AnomalyHandler", fields: [handlerId], references: [id])
+  creatorId       String
+  creator         User            @relation("AnomalyCreator", fields: [creatorId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ProductionRecord {
+  id              String          @id @default(uuid())
+  date            DateTime
+  topicId         String?
+  topic           Topic?          @relation(fields: [topicId], references: [id])
+  materialId      String?
+  material        Material?       @relation(fields: [materialId], references: [id])
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  contentType     String
+  outputCount     Int             @default(0)
+  videoDuration   Int?
+  qualityScore    Int?
+  tags            String[]
+  remarks         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ExportTask {
+  id              String          @id @default(uuid())
+  name            String
+  description     String?
+  format          ExportFormat    @default(CSV)
+  filters         Json?
+  status          ExportStatus    @default(PENDING)
+  progress        Int             @default(0)
+  totalRecords    Int             @default(0)
+  processedRecords Int            @default(0)
+  errorMessage    String?
+  fileUrl         String?
+  fileSize        Int?
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  completedAt     DateTime?
+}
+
+model MaterialPermission {
+  id              String          @id @default(uuid())
+  materialId      String
+  material        Material        @relation(fields: [materialId], references: [id])
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  canView         Boolean         @default(true)
+  canEdit         Boolean         @default(false)
+  canDownload     Boolean         @default(false)
+  canShare        Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  @@unique([materialId, userId])
+}
