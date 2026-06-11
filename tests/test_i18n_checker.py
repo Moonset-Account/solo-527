@@ -1,0 +1,342 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from i18n_checker import (
+    extract_placeholders,
+    extract_placeholder_names,
+    flatten_keys,
+    find_duplicate_values,
+    scan_code_for_keys,
+    check_i18n,
+    PlaceholderMismatch,
+    I18nReport,
+)
+
+TEST_DIR = Path(__file__).parent
+LOCALES_DIR = TEST_DIR / "locales"
+SRC_DIR = TEST_DIR / "src"
+
+
+def test_extract_placeholders_curly_braces():
+    result = extract_placeholders("Hello, {name}! You have {count} items.")
+    assert result == ["{count}", "{name}"]
+
+
+def test_extract_placeholders_double_curly():
+    result = extract_placeholders("Welcome, {{user}} to {{app}}!")
+    assert result == ["{{app}}", "{{user}}"]
+
+
+def test_extract_placeholders_colon():
+    result = extract_placeholders("Go to :page for :action")
+    assert result == [":action", ":page"]
+
+
+def test_extract_placeholders_dollar():
+    result = extract_placeholders("Price: $amount USD")
+    assert result == ["$amount"]
+
+
+def test_extract_placeholders_percent():
+    result = extract_placeholders("Score: %score% / %total%")
+    assert result == ["%score%", "%total%"]
+
+
+def test_extract_placeholders_mixed():
+    result = extract_placeholders("{name} has {{count}} :items at $price")
+    assert result == ["$price", ":items", "{name}", "{{count}}"]
+
+
+def test_extract_placeholders_none():
+    result = extract_placeholders("Just plain text with no placeholders")
+    assert result == []
+
+
+def test_extract_placeholder_names_curly_braces():
+    result = extract_placeholder_names("Hello, {name}! You have {count} items.")
+    assert result == ["count", "name"]
+
+
+def test_extract_placeholder_names_double_curly():
+    result = extract_placeholder_names("Welcome, {{user}} to {{app}}!")
+    assert result == ["app", "user"]
+
+
+def test_extract_placeholder_names_colon():
+    result = extract_placeholder_names("Go to :page for :action")
+    assert result == ["action", "page"]
+
+
+def test_extract_placeholder_names_mixed():
+    result = extract_placeholder_names("{name} has {{count}} :items at $price")
+    assert result == ["count", "items", "name", "price"]
+
+
+def test_flatten_keys_simple():
+    data = {"a": "1", "b": "2", "c": "3"}
+    result = flatten_keys(data)
+    assert result == {"a": "1", "b": "2", "c": "3"}
+
+
+def test_flatten_keys_nested():
+    data = {
+        "common": {
+            "hello": "Hello",
+            "goodbye": "Goodbye",
+        },
+        "auth": {
+            "login": "Login",
+        },
+    }
+    result = flatten_keys(data)
+    assert result == {
+        "common.hello": "Hello",
+        "common.goodbye": "Goodbye",
+        "auth.login": "Login",
+    }
+
+
+def test_flatten_keys_deep_nested():
+    data = {
+        "a": {
+            "b": {
+                "c": {
+                    "d": "deep_value",
+                }
+            }
+        }
+    }
+    result = flatten_keys(data)
+    assert result == {"a.b.c.d": "deep_value"}
+
+
+def test_find_duplicate_values():
+    data = {
+        "key1": "same value",
+        "key2": "different",
+        "key3": "same value",
+        "key4": "other",
+        "key5": "same value",
+    }
+    result = find_duplicate_values(data)
+    assert "same value" in result
+    assert set(result["same value"]) == {"key1", "key3", "key5"}
+    assert "different" not in result
+    assert "other" not in result
+
+
+def test_find_duplicate_values_no_duplicates():
+    data = {
+        "key1": "value1",
+        "key2": "value2",
+        "key3": "value3",
+    }
+    result = find_duplicate_values(data)
+    assert len(result) == 0
+
+
+def test_find_duplicate_values_empty_ignored():
+    data = {
+        "key1": "",
+        "key2": "",
+        "key3": "   ",
+    }
+    result = find_duplicate_values(data)
+    assert len(result) == 0
+
+
+def test_scan_code_for_keys():
+    keys = scan_code_for_keys([str(SRC_DIR)])
+    assert "common.hello" in keys
+    assert "common.welcome" in keys
+    assert "common.submit" in keys
+    assert "common.cancel" in keys
+    assert "auth.login" in keys
+    assert "auth.logout" in keys
+    assert "auth.register" in keys
+    assert "auth.forgot_password" in keys
+    assert "auth.email_sent" in keys
+    assert "auth.login_success" in keys
+    assert "auth.error_invalid" in keys
+    assert "auth.error_timeout" in keys
+    assert "auth.reset_password" in keys
+    assert "profile.title" in keys
+    assert "profile.edit" in keys
+    assert "profile.save" in keys
+    assert "profile.score" in keys
+    assert "profile.update_success" in keys
+    assert "common.loading" in keys
+    assert "common.retry" in keys
+    assert "common.goodbye" in keys
+
+
+def test_check_i18n_basic():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+        "ja": str(LOCALES_DIR / "ja.json"),
+    }
+    report = check_i18n(source_file, target_files)
+
+    assert report.total_source_keys == 27
+
+    assert "zh-CN" in report.missing_keys
+    zh_missing = set(report.missing_keys["zh-CN"])
+    assert "common.greeting_duplicate" in zh_missing
+    assert "auth.error_timeout" in zh_missing
+    assert "auth.old_key_not_used" in zh_missing
+    assert "profile.change_password" in zh_missing
+
+    assert "ja" in report.missing_keys
+    ja_missing = set(report.missing_keys["ja"])
+    assert "common.greeting_duplicate" in ja_missing
+    assert "auth.old_key_not_used" in ja_missing
+
+    assert report.duplicate_values
+    dup_values = list(report.duplicate_values.keys())
+    assert any("Welcome to our app" in v for v in dup_values)
+
+
+def test_check_i18n_placeholder_mismatches():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+    }
+    report = check_i18n(source_file, target_files)
+
+    mismatch_keys = {m.key for m in report.placeholder_mismatches}
+    assert "common.welcome" in mismatch_keys
+    assert "auth.email_sent" in mismatch_keys
+    assert "auth.login_success" in mismatch_keys
+
+    welcome_mismatch = next(
+        m for m in report.placeholder_mismatches if m.key == "common.welcome"
+    )
+    assert welcome_mismatch.source_placeholders == ["{{user}}"]
+    assert welcome_mismatch.target_placeholders == ["{{username}}"]
+    assert welcome_mismatch.source_names == ["user"]
+    assert welcome_mismatch.target_names == ["username"]
+    assert welcome_mismatch.mismatch_type == "name"
+
+    email_mismatch = next(
+        m for m in report.placeholder_mismatches if m.key == "auth.email_sent"
+    )
+    assert email_mismatch.source_placeholders == [":email"]
+    assert email_mismatch.target_placeholders == ["{email}"]
+    assert email_mismatch.source_names == ["email"]
+    assert email_mismatch.target_names == ["email"]
+    assert email_mismatch.mismatch_type == "format"
+
+    login_success_mismatch = next(
+        m for m in report.placeholder_mismatches if m.key == "auth.login_success"
+    )
+    assert login_success_mismatch.source_names == ["username"]
+    assert login_success_mismatch.target_names == ["user"]
+    assert login_success_mismatch.mismatch_type == "name"
+
+
+def test_check_i18n_unused_keys():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+    }
+    report = check_i18n(source_file, target_files, code_dirs=[str(SRC_DIR)])
+
+    assert "auth.old_key_not_used" in report.unused_keys
+    assert "profile.settings" in report.unused_keys
+    assert "profile.change_password" in report.unused_keys
+
+
+def test_check_i18n_locale_filter():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+        "ja": str(LOCALES_DIR / "ja.json"),
+    }
+    report = check_i18n(source_file, target_files, specific_locales=["zh-CN"])
+
+    assert "zh-CN" in report.missing_keys
+    assert "ja" not in report.missing_keys
+    assert "ja" not in report.locale_stats
+
+
+def test_i18n_report_has_errors_placeholder_mismatch():
+    report = I18nReport()
+    assert report.has_errors() is False
+
+    report.placeholder_mismatches.append(
+        PlaceholderMismatch(
+            key="test.key",
+            source_placeholders=["{name}"],
+            target_placeholders=["{user}"],
+            source_names=["name"],
+            target_names=["user"],
+            locale="zh-CN",
+            mismatch_type="name",
+        )
+    )
+    assert report.has_errors() is True
+    assert report.has_errors(fail_on_missing=True) is True
+
+
+def test_i18n_report_has_errors_fail_on_missing():
+    report = I18nReport()
+    report.missing_keys = {"zh-CN": ["missing.key"]}
+
+    assert report.has_errors() is False
+    assert report.has_errors(fail_on_missing=True) is True
+
+
+def test_i18n_report_to_dict():
+    report = I18nReport()
+    report.total_source_keys = 10
+    report.missing_keys = {"zh-CN": ["key1", "key2"]}
+    report.unused_keys = ["unused1"]
+    report.placeholder_mismatches = [
+        PlaceholderMismatch(
+            key="test.key",
+            source_placeholders=["{name}"],
+            target_placeholders=["{user}"],
+            source_names=["name"],
+            target_names=["user"],
+            locale="zh-CN",
+            mismatch_type="name",
+        )
+    ]
+    report.locale_stats = {
+        "zh-CN": {"missing": 2, "present": 8, "placeholder_mismatches": 1}
+    }
+    report.duplicate_values = {"same": ["k1", "k2"]}
+
+    d = report.to_dict()
+    assert d["summary"]["total_source_keys"] == 10
+    assert d["summary"]["total_missing"] == 2
+    assert d["summary"]["total_unused"] == 1
+    assert d["summary"]["total_placeholder_mismatches"] == 1
+    assert d["summary"]["total_duplicates"] == 1
+    assert len(d["placeholder_mismatches"]) == 1
+    assert d["placeholder_mismatches"][0]["key"] == "test.key"
+    assert d["placeholder_mismatches"][0]["mismatch_type"] == "name"
+    assert d["placeholder_mismatches"][0]["source_names"] == ["name"]
+    assert d["placeholder_mismatches"][0]["target_names"] == ["user"]
+    assert d["locale_stats"]["zh-CN"]["missing"] == 2
+
+
+def test_check_i18n_locale_stats():
+    source_file = str(LOCALES_DIR / "en.json")
+    target_files = {
+        "zh-CN": str(LOCALES_DIR / "zh-CN.json"),
+        "ja": str(LOCALES_DIR / "ja.json"),
+    }
+    report = check_i18n(source_file, target_files)
+
+    assert "zh-CN" in report.locale_stats
+    zh_stats = report.locale_stats["zh-CN"]
+    assert zh_stats["missing"] + zh_stats["present"] == report.total_source_keys
+    assert zh_stats["placeholder_mismatches"] >= 3
+
+    assert "ja" in report.locale_stats
+    ja_stats = report.locale_stats["ja"]
+    assert ja_stats["missing"] + ja_stats["present"] == report.total_source_keys

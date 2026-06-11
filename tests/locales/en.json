@@ -1,0 +1,35 @@
+{
+  "common": {
+    "hello": "Hello, {name}!",
+    "goodbye": "Goodbye",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "welcome": "Welcome to our app, {{user}}",
+    "items": "You have {count} items in your cart",
+    "price": "Total: ${amount}",
+    "greeting_duplicate": "Welcome to our app, {{user}}"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "forgot_password": "Forgot Password",
+    "reset_password": "Reset Password",
+    "email_sent": "Reset link sent to :email",
+    "login_success": "Welcome back, {username}!",
+    "error_invalid": "Invalid credentials",
+    "error_timeout": "Request timed out",
+    "old_key_not_used": "This key is no longer used"
+  },
+  "profile": {
+    "title": "My Profile",
+    "edit": "Edit Profile",
+    "save": "Save Changes",
+    "settings": "Settings",
+    "change_password": "Change Password",
+    "update_success": "Profile updated successfully",
+    "score": "Your score is %score% out of %total%"
+  }
+}

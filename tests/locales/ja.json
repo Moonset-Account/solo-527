@@ -1,0 +1,33 @@
+{
+  "common": {
+    "hello": "こんにちは、{name}さん！",
+    "goodbye": "さようなら",
+    "submit": "送信",
+    "cancel": "キャンセル",
+    "loading": "読み込み中...",
+    "retry": "再試行",
+    "welcome": "{{user}}様、アプリへようこそ",
+    "items": "カートに{count}個の商品があります",
+    "price": "合計: ${amount}"
+  },
+  "auth": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "register": "新規登録",
+    "forgot_password": "パスワードを忘れた",
+    "reset_password": "パスワードリセット",
+    "email_sent": "リセットリンクを :email に送信しました",
+    "login_success": "おかえりなさい、{username}！",
+    "error_invalid": "認証情報が無効です",
+    "error_timeout": "リクエストがタイムアウトしました"
+  },
+  "profile": {
+    "title": "マイプロフィール",
+    "edit": "プロフィール編集",
+    "save": "変更を保存",
+    "settings": "設定",
+    "change_password": "パスワード変更",
+    "update_success": "プロフィールを更新しました",
+    "score": "スコア: %score% / %total%"
+  }
+}
