@@ -405,7 +405,12 @@ class FieldMapper:
 
 
 class DataReader:
-    """从 CSV 或 JSON 文件读取数据。"""
+    """从 CSV 或 JSON 文件读取数据。
+
+    注意: DataReader 层不再过滤空行，空行会保留并交给 DryRunEngine 决定是否跳过，
+    以便在最终报告中正确统计 total_records 和 skipped_count。
+    skip_empty_rows 参数保留用于接口兼容，但默认已不再在本层生效。
+    """
 
     def __init__(
         self,
@@ -415,6 +420,7 @@ class DataReader:
     ) -> None:
         self._delimiter = delimiter
         self._encoding = encoding
+        # 空行跳过逻辑已移至 DryRunEngine，保证空行被计入总记录数和跳过数
         self._skip_empty_rows = skip_empty_rows
 
     def read(self, file_path: str) -> List[Dict[str, Any]]:
@@ -434,16 +440,39 @@ class DataReader:
 
     def _read_csv(self, path: Path) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
-        with open(path, "r", encoding=self._encoding) as f:
-            reader = csv.DictReader(f, delimiter=self._delimiter)
-            if reader.fieldnames is None:
+        with open(path, "r", encoding=self._encoding, newline="") as f:
+            # 使用 csv.reader 而不是 DictReader，因为 DictReader 会自动跳过空行。
+            # 我们需要保留空行，让 DryRunEngine 决定是否标记为 skipped，
+            # 以确保总记录数和跳过计数准确。
+            reader = csv.reader(f, delimiter=self._delimiter)
+            try:
+                fieldnames = next(reader)
+            except StopIteration:
                 return rows
-            for row in reader:
-                if self._skip_empty_rows and all(
-                    (v is None or str(v).strip() == "") for v in row.values()
-                ):
+            if not fieldnames:
+                return rows
+
+            for raw_row in reader:
+                if raw_row is None:
+                    rows.append({name: None for name in fieldnames})
                     continue
-                rows.append(row)
+
+                # 空行（csv.reader 返回 []）→ 视为全空字典
+                if len(raw_row) == 0:
+                    rows.append({name: None for name in fieldnames})
+                    continue
+
+                # 列数与表头不一致时，用 None 补齐
+                if len(raw_row) < len(fieldnames):
+                    raw_row = raw_row + [None] * (len(fieldnames) - len(raw_row))
+
+                row_dict: Dict[str, Any] = {}
+                for idx, name in enumerate(fieldnames):
+                    # None key 是 DictReader 处理超列的 restkey 机制，这里忽略
+                    if name is None:
+                        continue
+                    row_dict[name] = raw_row[idx] if idx < len(raw_row) else None
+                rows.append(row_dict)
         return rows
 
     def _read_json(
@@ -452,25 +481,25 @@ class DataReader:
         with open(path, "r", encoding=self._encoding) as f:
             if suffix in (".jsonl", ".ndjson"):
                 rows: List[Dict[str, Any]] = []
-                for line in f:
-                    line = line.strip()
+                line_no = 0
+                for raw_line in f:
+                    line_no += 1
+                    line = raw_line.strip()
                     if not line:
+                        # JSONL 空行 → 视为空记录 {}，让 Engine 标记跳过
+                        rows.append({})
                         continue
                     data = json.loads(line)
-                    if self._skip_empty_rows and not data:
-                        continue
                     if isinstance(data, dict):
                         rows.append(data)
                     else:
                         raise ValueError(
-                            "JSONL 文件每行必须是对象"
+                            f"JSONL 文件第 {line_no} 行必须是对象"
                         )
                 return rows
             else:
                 data = json.load(f)
                 if isinstance(data, list):
-                    if self._skip_empty_rows:
-                        data = [r for r in data if r]
                     for item in data:
                         if not isinstance(item, dict):
                             raise ValueError(
@@ -478,7 +507,7 @@ class DataReader:
                             )
                     return data
                 if isinstance(data, dict):
-                    return [data] if data else []
+                    return [data]
                 raise ValueError(
                     "JSON 文件根节点必须是数组或对象"
                 )

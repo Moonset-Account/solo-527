@@ -52,8 +52,9 @@ class ReportGenerator:
             self._stringio = StringIO()
             self._capture_console = Console(
                 file=self._stringio,
-                color_system=None,
-                force_terminal=False,
+                color_system="standard",
+                force_terminal=True,
+                highlight=False,
             )
         else:
             self._console = None

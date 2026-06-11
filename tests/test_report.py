@@ -79,6 +79,23 @@ class TestReportColored:
         text = reporter.generate(result)
         assert len(text) > 0
 
+    def test_color_contains_ansi_escape(self, target_schema_users, sample_source_rows):
+        """开启 --color 时报告字符串应包含 ANSI 颜色转义码。"""
+        result, _ = _run(target_schema_users, sample_source_rows)
+        cfg = _cfg(color=True)
+        reporter = ReportGenerator(cfg)
+        text = reporter.generate(result)
+        assert "\x1b[" in text, "彩色报告应包含 ANSI 转义序列"
+
+    def test_no_color_plain_text(self, target_schema_users, sample_source_rows):
+        """关闭 --color 时报告字符串不应包含 ANSI 颜色转义码。"""
+        result, _ = _run(target_schema_users, sample_source_rows)
+        cfg = _cfg(color=False)
+        reporter = ReportGenerator(cfg)
+        text = reporter.generate(result)
+        assert "\x1b[" not in text, "非彩色报告不应包含 ANSI 转义序列"
+        assert "总记录数" in text
+
     def test_verbose_colored(self, target_schema_users, sample_source_rows_errors):
         result, _ = _run(target_schema_users, sample_source_rows_errors)
         cfg = _cfg(color=True, verbose=True)

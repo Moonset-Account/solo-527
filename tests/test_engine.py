@@ -57,8 +57,12 @@ class TestDryRunEngineSmall:
         cfg = _cfg(target_file=str(target_users_file), input_file=str(users_with_errors_csv))
         engine = DryRunEngine(cfg)
         result = engine.run()
-        assert result.total_records >= 8
+        # 含 1 条空行，应计入 total_records 并标记为 skipped
+        assert result.total_records >= 9
+        assert result.skipped_count >= 1
         assert result.failed_count > 0
+        assert (result.processed_count + result.skipped_count + result.failed_count
+                == result.total_records)
 
     def test_limit_applied(self, target_users_file: Path, users_valid_csv: Path):
         cfg = _cfg(target_file=str(target_users_file), input_file=str(users_valid_csv), limit=3)
