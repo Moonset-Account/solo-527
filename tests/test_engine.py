@@ -258,6 +258,54 @@ class TestDryRunEngineSmall:
         assert len(unmapped_extra) == 1
         assert "real_extra" in unmapped_extra[0].message
 
+    def test_blank_headers_with_nonempty_extras_not_skipped(self, target_users_file: Path, tmp_path: Path):
+        """表头字段全为空但存在非空超列值 → 不被当作空行跳过，应生成 UNMAPPED_FIELD。"""
+        csv_path = tmp_path / "blank_headers_with_extra.csv"
+        csv_path.write_text(
+            "用户编号,姓名,邮箱\n"
+            ",,,surprise_value\n"
+            ",, ,   , , \n"
+            "1,张三,a@a.com\n",
+            encoding="utf-8",
+        )
+        cfg = _cfg(
+            target_file=str(target_users_file),
+            input_file=str(csv_path),
+            skip_empty_rows=True,
+            strict_mode=True,
+        )
+        engine = DryRunEngine(cfg)
+        result = engine.run()
+        # 第 1 行：表头全空但有非空超列 surprise_value → 不 skipped，应有 UNMAPPED_FIELD
+        # 第 2 行：全空（含空白超列，已被过滤）→ skipped
+        # 第 3 行：正常 → processed
+        assert result.total_records == 3
+        assert result.skipped_count == 1
+        assert result.processed_count == 1
+        # 有超列的行应为 failed（有 UNMAPPED_FIELD 错误）或 failed 取决于是否有其他错误
+        # 严格模式下 superise_value 是超列 → UNMAPPED_FIELD；同时表头全空可能触发 MISSING_REQUIRED
+        assert result.failed_count >= 1
+        unmapped_extra = [
+            e for r in result.records for e in r.errors
+            if e.category == ErrorCategory.UNMAPPED_FIELD and "超列" in (e.target_field or "")
+        ]
+        assert len(unmapped_extra) == 1
+        assert "surprise_value" in unmapped_extra[0].message
+
+    def test_blank_headers_with_blank_extras_still_skipped(self, target_schema_users):
+        """表头全空且 __extra_columns__ 不存在（或为空）时，仍按空行 skipped。"""
+        from import_dryrun.models import TargetSchema
+        schema = TargetSchema(**target_schema_users)
+        cfg = _cfg(skip_empty_rows=True)
+        engine = DryRunEngine(cfg, schema=schema)
+        rows = [
+            {"用户编号": "", "姓名": "", "邮箱": ""},
+            {"用户编号": "1", "姓名": "x", "邮箱": "a@b.com"},
+        ]
+        result = engine.run(source_rows=rows)
+        assert result.skipped_count == 1
+        assert result.processed_count == 1
+
 
 @pytest.mark.slow
 class TestDryRunEngineLarge:

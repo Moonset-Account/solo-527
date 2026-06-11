@@ -211,6 +211,9 @@ class DryRunEngine:
     def _is_empty_row(row: Dict[str, Any]) -> bool:
         if not row:
             return True
+        extras = row.get("__extra_columns__")
+        if extras:
+            return False
         for k, v in row.items():
             if k == "__extra_columns__":
                 continue
