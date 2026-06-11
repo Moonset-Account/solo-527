@@ -145,16 +145,22 @@ def _format_manifest_info(report: CheckReport) -> str:
     return "\n".join(lines)
 
 
-def format_human_readable(report: CheckReport, verbose: bool = False) -> str:
+def format_human_readable(report: CheckReport, verbose: bool = False, use_color: bool = False) -> str:
     """Format report as human-readable text.
 
     Args:
         report: CheckReport to format
         verbose: If True, include more details
+        use_color: If True, include ANSI color codes (only for TTY output)
 
     Returns:
         Formatted string
     """
+    green = "\033[32m" if use_color else ""
+    red = "\033[31m" if use_color else ""
+    yellow = "\033[33m" if use_color else ""
+    reset = "\033[0m" if use_color else ""
+
     parts = [
         "=" * 58,
         "         BACKUP INTEGRITY CHECK REPORT",
@@ -163,10 +169,10 @@ def format_human_readable(report: CheckReport, verbose: bool = False) -> str:
 
     if getattr(report, "dry_run", False):
         parts.append("")
-        parts.append("  ****************************")
-        parts.append("  *     DRY RUN MODE         *")
-        parts.append("  *  No changes were made    *")
-        parts.append("  ****************************")
+        parts.append(f"  {yellow}****************************{reset}")
+        parts.append(f"  {yellow}*     DRY RUN MODE         *{reset}")
+        parts.append(f"  {yellow}*  No changes were made    *{reset}")
+        parts.append(f"  {yellow}****************************{reset}")
 
     parts.extend([
         "",
@@ -187,12 +193,11 @@ def format_human_readable(report: CheckReport, verbose: bool = False) -> str:
 
     if report.exit_code == 0:
         status = "SUCCESS"
-        status_color = "\033[32m"
+        status_color = green
     else:
         status = "FAILURE"
-        status_color = "\033[31m"
+        status_color = red
 
-    reset = "\033[0m" if sys.stdout.isatty() else ""
     parts.append("")
     parts.append("=" * 58)
     parts.append(f"  STATUS: {status_color}{status}{reset} (exit code: {report.exit_code})")
@@ -224,6 +229,10 @@ def write_report(
 ) -> str | None:
     """Write report to file or stdout.
 
+    ANSI color codes are only used when BOTH conditions are met:
+    1. Output target is stdout (not a file)
+    2. stdout is a TTY (interactive terminal)
+
     Args:
         report: CheckReport to write
         output_file: Path to output file (or None for stdout)
@@ -234,9 +243,13 @@ def write_report(
     Returns:
         The formatted report as a string
     """
-    formatted = format_json(report) if json_output else format_human_readable(report, verbose=verbose)
-
     out = stdout or sys.stdout
+    use_color = output_file is None and out.isatty()
+
+    if json_output:
+        formatted = format_json(report)
+    else:
+        formatted = format_human_readable(report, verbose=verbose, use_color=use_color)
 
     if output_file:
         path = Path(output_file)
