@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -320,6 +321,7 @@ Reports are persisted in the local SQLite database for historical review.`,
 			started := time.Now().UTC()
 
 			var manifestBuckets, storageBuckets map[string]bool
+			hasAnyInput := false
 
 			if manifestPath != "" {
 				entries, err := parseManifestFile(manifestPath)
@@ -330,6 +332,7 @@ Reports are persisted in the local SQLite database for historical review.`,
 				for _, e := range entries {
 					manifestBuckets[e.Bucket] = true
 				}
+				hasAnyInput = true
 				if err := ingestManifestToDB(database, entries, bucket); err != nil {
 					return err
 				}
@@ -344,35 +347,40 @@ Reports are persisted in the local SQLite database for historical review.`,
 				for _, o := range objects {
 					storageBuckets[o.Bucket] = true
 				}
+				hasAnyInput = true
 				if err := ingestStorageToDB(database, objects, bucket); err != nil {
 					return err
 				}
 			}
 
-			if bucket == "" {
-				if manifestBuckets != nil {
-					allManifestBuckets, err := listManifestBuckets(database)
-					if err != nil {
-						return fmt.Errorf("list manifest buckets for cleanup: %w", err)
-					}
-					for _, b := range allManifestBuckets {
-						if !manifestBuckets[b] {
-							if err := db.ClearManifest(database, b); err != nil {
-								return fmt.Errorf("clear stale manifest bucket %s: %w", b, err)
-							}
+			inputBuckets := make(map[string]bool)
+			for b := range manifestBuckets {
+				inputBuckets[b] = true
+			}
+			for b := range storageBuckets {
+				inputBuckets[b] = true
+			}
+
+			if bucket == "" && hasAnyInput {
+				allManifestBuckets, err := listManifestBuckets(database)
+				if err != nil {
+					return fmt.Errorf("list manifest buckets for cleanup: %w", err)
+				}
+				for _, b := range allManifestBuckets {
+					if !inputBuckets[b] {
+						if err := db.ClearManifest(database, b); err != nil {
+							return fmt.Errorf("clear stale manifest bucket %s: %w", b, err)
 						}
 					}
 				}
-				if storageBuckets != nil {
-					allStorageBuckets, err := listStorageBuckets(database)
-					if err != nil {
-						return fmt.Errorf("list storage buckets for cleanup: %w", err)
-					}
-					for _, b := range allStorageBuckets {
-						if !storageBuckets[b] {
-							if err := db.ClearStorage(database, b); err != nil {
-								return fmt.Errorf("clear stale storage bucket %s: %w", b, err)
-							}
+				allStorageBuckets, err := listStorageBuckets(database)
+				if err != nil {
+					return fmt.Errorf("list storage buckets for cleanup: %w", err)
+				}
+				for _, b := range allStorageBuckets {
+					if !inputBuckets[b] {
+						if err := db.ClearStorage(database, b); err != nil {
+							return fmt.Errorf("clear stale storage bucket %s: %w", b, err)
 						}
 					}
 				}
@@ -381,6 +389,11 @@ Reports are persisted in the local SQLite database for historical review.`,
 			var buckets []string
 			if bucket != "" {
 				buckets = []string{bucket}
+			} else if hasAnyInput {
+				for b := range inputBuckets {
+					buckets = append(buckets, b)
+				}
+				sort.Strings(buckets)
 			} else {
 				buckets, err = db.ListBuckets(database)
 				if err != nil {
