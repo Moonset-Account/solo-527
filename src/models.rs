@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RiskLevel {
     Low,
@@ -10,6 +10,30 @@ pub enum RiskLevel {
     High,
     Critical,
     Unknown,
+}
+
+impl PartialOrd for RiskLevel {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RiskLevel {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use RiskLevel::*;
+
+        fn rank(level: &RiskLevel) -> u8 {
+            match level {
+                Critical => 4,
+                High => 3,
+                Medium => 2,
+                Low => 1,
+                Unknown => 0,
+            }
+        }
+
+        rank(self).cmp(&rank(other))
+    }
 }
 
 impl fmt::Display for RiskLevel {

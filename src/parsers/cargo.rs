@@ -307,19 +307,24 @@ impl CargoParser {
     ) -> Result<Vec<Dependency>> {
         let mut all_deps = Vec::new();
 
-        let root_deps = self.parse(manifest_path, options)?;
+        let mut root_options = options.clone();
+        root_options.workspace = false;
+        let root_deps = self.parse(manifest_path, &root_options)?;
         all_deps.extend(root_deps);
 
         if let Some(workspace) = &cargo_toml.workspace {
             if let Some(members) = &workspace.members {
                 let base_dir = manifest_path.parent().unwrap_or_else(|| Path::new("."));
                 for member in members {
-                    let member_path = base_dir.join(member).join("Cargo.toml");
-                    if member_path.exists() {
-                        let mut member_options = options.clone();
-                        member_options.workspace = false;
-                        let member_deps = self.parse(&member_path, &member_options)?;
-                        all_deps.extend(member_deps);
+                    let member_paths = glob_workspace_members(base_dir, member)?;
+                    for member_path in member_paths {
+                        let cargo_path = member_path.join("Cargo.toml");
+                        if cargo_path.exists() {
+                            let mut member_options = options.clone();
+                            member_options.workspace = false;
+                            let member_deps = self.parse(&cargo_path, &member_options)?;
+                            all_deps.extend(member_deps);
+                        }
                     }
                 }
             }
@@ -384,6 +389,36 @@ fn source_to_url(source: &str) -> String {
 
 fn get_license_from_crates_io_cache(_name: &str) -> Option<String> {
     None
+}
+
+fn glob_workspace_members(base_dir: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
+    let mut result = Vec::new();
+
+    if pattern.contains('*') {
+        use walkdir::WalkDir;
+        let pattern_clean = pattern.trim_end_matches('*').trim_end_matches('/');
+        let search_dir = base_dir.join(pattern_clean);
+        let parent_dir = search_dir.parent().unwrap_or(base_dir);
+
+        if parent_dir.exists() {
+            for entry in WalkDir::new(parent_dir).max_depth(2).min_depth(1) {
+                let entry = entry?;
+                if entry.file_type().is_dir() {
+                    let cargo_toml = entry.path().join("Cargo.toml");
+                    if cargo_toml.exists() {
+                        result.push(entry.path().to_path_buf());
+                    }
+                }
+            }
+        }
+    } else {
+        let path = base_dir.join(pattern);
+        if path.exists() {
+            result.push(path);
+        }
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -468,5 +503,69 @@ checksum = "def456"
         assert_eq!(deps.len(), 2);
         assert!(deps.iter().any(|d| d.name == "serde" && d.is_direct));
         assert!(deps.iter().any(|d| d.name == "serde_derive" && !d.is_direct));
+    }
+
+    #[test]
+    fn test_parse_cargo_workspace_no_infinite_recursion() {
+        let dir = tempdir().unwrap();
+
+        let root_cargo_toml = r#"
+[workspace]
+members = ["crates/*"]
+
+[package]
+name = "root"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+"#;
+        std::fs::write(dir.path().join("Cargo.toml"), root_cargo_toml).unwrap();
+
+        let crates_dir = dir.path().join("crates");
+        std::fs::create_dir_all(&crates_dir).unwrap();
+
+        let crate1_dir = crates_dir.join("crate1");
+        std::fs::create_dir_all(&crate1_dir).unwrap();
+        std::fs::write(
+            crate1_dir.join("Cargo.toml"),
+            r#"
+[package]
+name = "crate1"
+version = "0.1.0"
+
+[dependencies]
+tokio = "1.0"
+"#,
+        )
+        .unwrap();
+
+        let crate2_dir = crates_dir.join("crate2");
+        std::fs::create_dir_all(&crate2_dir).unwrap();
+        std::fs::write(
+            crate2_dir.join("Cargo.toml"),
+            r#"
+[package]
+name = "crate2"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1.0"
+"#,
+        )
+        .unwrap();
+
+        let mut options = ScanOptions::default();
+        options.workspace = true;
+
+        let deps = CargoParser
+            .parse(&dir.path().join("Cargo.toml"), &options)
+            .unwrap();
+
+        assert_eq!(deps.len(), 3);
+        let dep_names: Vec<_> = deps.iter().map(|d| d.name.as_str()).collect();
+        assert!(dep_names.contains(&"serde"));
+        assert!(dep_names.contains(&"tokio"));
+        assert!(dep_names.contains(&"anyhow"));
     }
 }

@@ -534,4 +534,159 @@ mod tests {
         assert_eq!(result[0].risk_level, RiskLevel::High);
         assert_eq!(result[0].version, "2.0.0");
     }
+
+    #[test]
+    fn test_risk_level_ordering() {
+        use RiskLevel::*;
+        assert!(Critical > High);
+        assert!(High > Medium);
+        assert!(Medium > Low);
+        assert!(Low > Unknown);
+        assert!(Critical > Unknown);
+        assert!(High > Low);
+        assert!(Critical == Critical);
+        assert!(Unknown == Unknown);
+
+        let mut levels = vec![Low, Critical, Medium, Unknown, High];
+        levels.sort();
+        assert_eq!(levels, vec![Unknown, Low, Medium, High, Critical]);
+
+        levels.sort_by(|a, b| b.cmp(a));
+        assert_eq!(levels, vec![Critical, High, Medium, Low, Unknown]);
+    }
+
+    #[test]
+    fn test_deduplicate_unknown_does_not_override_higher_risk() {
+        let dep_low = Dependency {
+            name: "foo".to_string(),
+            version: "1.0.0".to_string(),
+            license: "MIT".to_string(),
+            license_spdx: Some("MIT".to_string()),
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Low,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+        let mut dep_unknown = dep_low.clone();
+        dep_unknown.version = "2.0.0".to_string();
+        dep_unknown.license = "UNKNOWN".to_string();
+        dep_unknown.risk_level = RiskLevel::Unknown;
+        dep_unknown.needs_review = true;
+        dep_unknown.review_reason = Some("Unknown license".to_string());
+
+        let deps = vec![dep_low, dep_unknown];
+        let result = LicenseEvaluator::deduplicate_by_highest_risk(&deps);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].risk_level, RiskLevel::Low);
+        assert_eq!(result[0].version, "1.0.0");
+    }
+
+    #[test]
+    fn test_deduplicate_higher_risk_overrides_unknown() {
+        let dep_unknown = Dependency {
+            name: "foo".to_string(),
+            version: "1.0.0".to_string(),
+            license: "UNKNOWN".to_string(),
+            license_spdx: None,
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: true,
+            review_reason: Some("Unknown license".to_string()),
+            is_direct: true,
+        };
+        let mut dep_high = dep_unknown.clone();
+        dep_high.version = "2.0.0".to_string();
+        dep_high.license = "GPL-3.0".to_string();
+        dep_high.risk_level = RiskLevel::High;
+        dep_high.needs_review = true;
+        dep_high.review_reason = Some("High risk license".to_string());
+
+        let deps = vec![dep_unknown, dep_high];
+        let result = LicenseEvaluator::deduplicate_by_highest_risk(&deps);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].risk_level, RiskLevel::High);
+        assert_eq!(result[0].version, "2.0.0");
+    }
+
+    #[test]
+    fn test_deduplicate_critical_overrides_all() {
+        let dep_low = Dependency {
+            name: "foo".to_string(),
+            version: "1.0.0".to_string(),
+            license: "MIT".to_string(),
+            license_spdx: Some("MIT".to_string()),
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Low,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+        let mut dep_medium = dep_low.clone();
+        dep_medium.version = "2.0.0".to_string();
+        dep_medium.license = "LGPL-3.0".to_string();
+        dep_medium.risk_level = RiskLevel::Medium;
+        let mut dep_high = dep_low.clone();
+        dep_high.version = "3.0.0".to_string();
+        dep_high.license = "GPL-3.0".to_string();
+        dep_high.risk_level = RiskLevel::High;
+        let mut dep_critical = dep_low.clone();
+        dep_critical.version = "4.0.0".to_string();
+        dep_critical.license = "AGPL-3.0".to_string();
+        dep_critical.risk_level = RiskLevel::Critical;
+
+        let deps = vec![dep_low, dep_medium, dep_high, dep_critical];
+        let result = LicenseEvaluator::deduplicate_by_highest_risk(&deps);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].risk_level, RiskLevel::Critical);
+        assert_eq!(result[0].version, "4.0.0");
+    }
+
+    #[test]
+    fn test_unknown_license_still_needs_review_after_dedup() {
+        let dep1 = Dependency {
+            name: "foo".to_string(),
+            version: "1.0.0".to_string(),
+            license: "UNKNOWN".to_string(),
+            license_spdx: None,
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: true,
+            review_reason: Some("Unknown license".to_string()),
+            is_direct: true,
+        };
+        let dep2 = Dependency {
+            name: "bar".to_string(),
+            version: "1.0.0".to_string(),
+            license: "MIT".to_string(),
+            license_spdx: Some("MIT".to_string()),
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Low,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+
+        let deps = vec![dep1, dep2];
+        let result = LicenseEvaluator::deduplicate_by_highest_risk(&deps);
+        assert_eq!(result.len(), 2);
+        let unknown_dep = result.iter().find(|d| d.name == "foo").unwrap();
+        assert_eq!(unknown_dep.risk_level, RiskLevel::Unknown);
+        assert!(unknown_dep.needs_review);
+    }
 }

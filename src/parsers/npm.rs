@@ -273,7 +273,9 @@ impl NpmParser {
     ) -> Result<Vec<Dependency>> {
         let mut all_deps = Vec::new();
 
-        let root_deps = self.parse(manifest_path, options)?;
+        let mut root_options = options.clone();
+        root_options.workspace = false;
+        let root_deps = self.parse(manifest_path, &root_options)?;
         all_deps.extend(root_deps);
 
         if let Some(workspaces) = &package_json.workspaces {
@@ -283,7 +285,9 @@ impl NpmParser {
                 for ws_path in workspace_paths {
                     let pkg_path = ws_path.join("package.json");
                     if pkg_path.exists() {
-                        let ws_deps = self.parse(&pkg_path, options)?;
+                        let mut member_options = options.clone();
+                        member_options.workspace = false;
+                        let ws_deps = self.parse(&pkg_path, &member_options)?;
                         all_deps.extend(ws_deps);
                     }
                 }
@@ -438,5 +442,88 @@ mod tests {
         options.include_dev = false;
         let deps = NpmParser.parse(&dir.path().join("package.json"), &options).unwrap();
         assert_eq!(deps.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_workspace_no_infinite_recursion() {
+        let dir = tempdir().unwrap();
+
+        create_package_json(
+            dir.path(),
+            r#"{
+                "name": "root",
+                "version": "1.0.0",
+                "private": true,
+                "workspaces": ["packages/*"],
+                "dependencies": {
+                    "lodash": "^4.17.0"
+                }
+            }"#,
+        );
+
+        let packages_dir = dir.path().join("packages");
+        std::fs::create_dir_all(&packages_dir).unwrap();
+
+        let pkg1_dir = packages_dir.join("pkg1");
+        std::fs::create_dir_all(&pkg1_dir).unwrap();
+        create_package_json(
+            &pkg1_dir,
+            r#"{
+                "name": "pkg1",
+                "version": "1.0.0",
+                "dependencies": {
+                    "react": "^18.0.0"
+                }
+            }"#,
+        );
+
+        let pkg2_dir = packages_dir.join("pkg2");
+        std::fs::create_dir_all(&pkg2_dir).unwrap();
+        create_package_json(
+            &pkg2_dir,
+            r#"{
+                "name": "pkg2",
+                "version": "1.0.0",
+                "dependencies": {
+                    "vue": "^3.0.0"
+                }
+            }"#,
+        );
+
+        let mut options = ScanOptions::default();
+        options.workspace = true;
+
+        let deps = NpmParser.parse(&dir.path().join("package.json"), &options).unwrap();
+
+        assert_eq!(deps.len(), 3);
+        let dep_names: Vec<_> = deps.iter().map(|d| d.name.as_str()).collect();
+        assert!(dep_names.contains(&"lodash"));
+        assert!(dep_names.contains(&"react"));
+        assert!(dep_names.contains(&"vue"));
+    }
+
+    #[test]
+    fn test_parse_workspace_member_without_workspace_flag() {
+        let dir = tempdir().unwrap();
+        let pkg_dir = dir.path().join("packages").join("pkg1");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+
+        create_package_json(
+            &pkg_dir,
+            r#"{
+                "name": "pkg1",
+                "version": "1.0.0",
+                "dependencies": {
+                    "react": "^18.0.0"
+                }
+            }"#,
+        );
+
+        let mut options = ScanOptions::default();
+        options.workspace = false;
+
+        let deps = NpmParser.parse(&pkg_dir.join("package.json"), &options).unwrap();
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "react");
     }
 }
