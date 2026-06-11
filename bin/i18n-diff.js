@@ -126,7 +126,12 @@ async function main() {
     process.exit(result.exitCode);
   } catch (error) {
     console.error(`执行失败: ${error.message}`);
-    process.exit(EXIT_CODES.UNKNOWN_ERROR);
+    let exitCode = EXIT_CODES.UNKNOWN_ERROR;
+    const msg = error.message.toLowerCase();
+    if (msg.includes('配置无效') || msg.includes('placeholderpattern') || msg.includes('无效的占位符正则表达式')) {
+      exitCode = EXIT_CODES.VALIDATION_ERROR;
+    }
+    process.exit(exitCode);
   }
 }
 

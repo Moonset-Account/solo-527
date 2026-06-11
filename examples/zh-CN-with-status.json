@@ -3,12 +3,89 @@
     "greeting": "你好，{username}！",
     "greeting_status": "approved",
     "welcome": "欢迎使用我们的应用",
-    "welcome_status": "translated",
+    "welcome_status": "approved",
     "loading": "加载中...",
     "loading_status": "draft",
     "error": "发生错误：{message}",
     "error_status": "approved",
     "success": "操作成功完成",
-    "success_status": "approved"
+    "success_status": "approved",
+    "cancel": "取消",
+    "cancel_status": "approved",
+    "confirm": "确认",
+    "confirm_status": "approved",
+    "save": "保存",
+    "save_status": "approved",
+    "delete": "删除",
+    "delete_status": "approved",
+    "edit": "编辑",
+    "edit_status": "approved"
+  },
+  "user": {
+    "profile": {
+      "title": "用户资料",
+      "title_status": "approved",
+      "name": "姓名",
+      "name_status": "approved",
+      "email": "电子邮箱",
+      "email_status": "approved",
+      "phone": "电话号码",
+      "phone_status": "approved",
+      "address": "地址",
+      "address_status": "approved"
+    },
+    "notifications": {
+      "unread": "您有 {count} 条未读消息",
+      "unread_status": "approved",
+      "allRead": "所有消息已读",
+      "allRead_status": "approved",
+      "settings": "通知设置",
+      "settings_status": "approved"
+    }
+  },
+  "forms": {
+    "validation": {
+      "required": "此字段为必填项",
+      "required_status": "approved",
+      "email": "请输入有效的邮箱地址",
+      "email_status": "approved",
+      "minLength": "最少需要 {min} 个字符",
+      "minLength_status": "approved",
+      "maxLength": "最多允许 {max} 个字符",
+      "maxLength_status": "approved"
+    },
+    "placeholders": {
+      "search": "搜索...",
+      "search_status": "approved",
+      "username": "请输入用户名",
+      "username_status": "approved",
+      "password": "请输入密码",
+      "password_status": "approved"
+    }
+  },
+  "dashboard": {
+    "stats": {
+      "totalUsers": "总用户数：{count}",
+      "totalUsers_status": "approved",
+      "activeUsers": "活跃用户：{count}",
+      "activeUsers_status": "approved",
+      "revenue": "收入：${amount}",
+      "revenue_status": "approved"
+    },
+    "menu": {
+      "home": "首页",
+      "home_status": "approved",
+      "analytics": "数据分析",
+      "analytics_status": "approved",
+      "reports": "报表",
+      "reports_status": "approved",
+      "settings": "设置",
+      "settings_status": "approved"
+    }
+  },
+  "_metadata": {
+    "version": "1.0.0",
+    "language": "zh-CN",
+    "lastUpdated": "2024-01-15T10:30:00Z"
   }
 }

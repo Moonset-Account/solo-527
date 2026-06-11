@@ -331,4 +331,112 @@ describe('CLI exit codes and report format', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
+
+  test('should handle --placeholder-pattern CLI option correctly', () => {
+    const baseData = { test: 'Hello %name%!' };
+    const localeData = { test: '你好 %wrong%!' };
+
+    const baseFile = path.join(tmpDir.name, 'base.json');
+    const localeFile = path.join(tmpDir.name, 'locale.json');
+    fs.writeFileSync(baseFile, JSON.stringify(baseData));
+    fs.writeFileSync(localeFile, JSON.stringify(localeData));
+
+    // Without custom pattern, no placeholder error
+    const result1 = runCli([
+      '--base', baseFile, '--locale', localeFile, '-f', 'json'
+    ]);
+    const report1 = JSON.parse(result1.stdout);
+    expect(report1.errors.filter(e => e.type === 'placeholder_mismatch').length).toBe(0);
+
+    // With custom pattern, placeholder error is detected
+    const result2 = runCli([
+      '--base', baseFile, '--locale', localeFile,
+      '--placeholder-pattern', '%(\\w+)%',
+      '-f', 'json'
+    ]);
+    expect(result2.exitCode).toBe(EXIT_CODES.PLACEHOLDER_MISMATCH);
+    const report2 = JSON.parse(result2.stdout);
+    const phError = report2.errors.find(e => e.type === 'placeholder_mismatch');
+    expect(phError).toBeDefined();
+    expect(phError.key).toBe('test');
+    expect(phError.details.missingPlaceholders).toEqual(['name']);
+    expect(phError.details.extraPlaceholders).toEqual(['wrong']);
+  });
+
+  test('should return VALIDATION_ERROR for invalid --placeholder-pattern', () => {
+    const baseFile = path.join(EXAMPLES_DIR, 'base.json');
+    const localeFile = path.join(EXAMPLES_DIR, 'zh-CN-perfect.json');
+
+    const result = runCli([
+      '--base', baseFile, '--locale', localeFile,
+      '--placeholder-pattern', '[invalid',
+      '-f', 'json'
+    ]);
+
+    expect(result.exitCode).toBe(EXIT_CODES.VALIDATION_ERROR);
+    expect(result.stderr).toContain('无效的占位符正则表达式');
+  });
+
+  test('should not treat status keys as extra_key in strict mode', () => {
+    const baseData = { common: { greeting: 'Hello', welcome: 'Welcome' } };
+    const localeData = {
+      common: {
+        greeting: '你好',
+        greeting_status: 'approved',
+        welcome: '欢迎',
+        welcome_review: 'draft',
+        real_extra: '真的多余键'
+      }
+    };
+
+    const baseFile = path.join(tmpDir.name, 'base.json');
+    const localeFile = path.join(tmpDir.name, 'locale.json');
+    fs.writeFileSync(baseFile, JSON.stringify(baseData));
+    fs.writeFileSync(localeFile, JSON.stringify(localeData));
+
+    const result = runCli([
+      '--base', baseFile, '--locale', localeFile,
+      '--strict', '-f', 'json'
+    ]);
+
+    const report = JSON.parse(result.stdout);
+    const extraKeyErrors = report.errors.filter(e => e.type === 'extra_key');
+    expect(extraKeyErrors.length).toBe(1);
+    expect(extraKeyErrors[0].key).toBe('common.real_extra');
+  });
+
+  test('should still detect review_status_invalid with correct content key', () => {
+    const baseData = { common: { greeting: 'Hello', welcome: 'Welcome' } };
+    const localeData = {
+      common: {
+        greeting: '你好',
+        greeting_status: 'approved',
+        welcome: '欢迎',
+        welcome_status: 'draft'
+      }
+    };
+
+    const baseFile = path.join(tmpDir.name, 'base.json');
+    const localeFile = path.join(tmpDir.name, 'locale.json');
+    fs.writeFileSync(baseFile, JSON.stringify(baseData));
+    fs.writeFileSync(localeFile, JSON.stringify(localeData));
+
+    const result = runCli([
+      '--base', baseFile, '--locale', localeFile,
+      '--require-review', '--strict', '-f', 'json'
+    ]);
+
+    expect(result.exitCode).toBe(EXIT_CODES.REVIEW_STATUS_ERROR);
+    const report = JSON.parse(result.stdout);
+
+    // Status keys should NOT be in extra_key errors
+    const extraKeyErrors = report.errors.filter(e => e.type === 'extra_key');
+    expect(extraKeyErrors.length).toBe(0);
+
+    // review_status_invalid should point to content key, not status key
+    const statusErrors = report.errors.filter(e => e.type === 'review_status_invalid');
+    expect(statusErrors.length).toBe(1);
+    expect(statusErrors[0].key).toBe('common.welcome');
+    expect(statusErrors[0].details.actualStatus).toBe('draft');
+  });
 });

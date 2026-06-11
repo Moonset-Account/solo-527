@@ -219,4 +219,76 @@ describe('key-checker', () => {
       expect(getMissingKeys(baseData, localeData)).toEqual({});
     });
   });
+
+  describe('status key filtering', () => {
+    test('should not treat _status suffix keys as extra_key in strict mode', () => {
+      const baseData = {
+        common: {
+          greeting: 'Hello'
+        }
+      };
+      const localeData = {
+        common: {
+          greeting: '你好',
+          greeting_status: 'approved',
+          greeting_review: 'translated'
+        }
+      };
+      const result = checkKeyAlignment(baseData, localeData, { strictMode: true });
+      const extraErrors = result.errors.filter(e => e.type === ERROR_TYPES.EXTRA_KEY);
+      expect(extraErrors.length).toBe(0);
+      expect(result.warnings.length).toBe(0);
+    });
+
+    test('should not treat .status suffix keys as extra_key in strict mode', () => {
+      const baseData = {
+        common: {
+          greeting: 'Hello'
+        }
+      };
+      const localeData = {
+        common: {
+          greeting: '你好',
+          'greeting.status': 'approved',
+          'greeting.review': 'translated'
+        }
+      };
+      const result = checkKeyAlignment(baseData, localeData, { strictMode: true });
+      const extraErrors = result.errors.filter(e => e.type === ERROR_TYPES.EXTRA_KEY);
+      expect(extraErrors.length).toBe(0);
+    });
+
+    test('should still detect real extra keys alongside status keys', () => {
+      const baseData = {
+        common: {
+          greeting: 'Hello'
+        }
+      };
+      const localeData = {
+        common: {
+          greeting: '你好',
+          greeting_status: 'approved',
+          extra_regular_key: '真的多余键'
+        }
+      };
+      const result = checkKeyAlignment(baseData, localeData, { strictMode: true });
+      const extraErrors = result.errors.filter(e => e.type === ERROR_TYPES.EXTRA_KEY);
+      expect(extraErrors.length).toBe(1);
+      expect(extraErrors[0].key).toBe('common.extra_regular_key');
+    });
+
+    test('should include status key count in stats', () => {
+      const baseData = { greeting: 'Hello' };
+      const localeData = { 
+        greeting: '你好',
+        greeting_status: 'approved',
+        other_key: 'other',
+        other_key_status: 'draft'
+      };
+      const result = checkKeyAlignment(baseData, localeData, { strictMode: false });
+      expect(result.stats.statusKeys).toBe(2);
+      expect(result.stats.totalLocaleContentKeys).toBe(2);
+      expect(result.stats.totalLocaleKeys).toBe(4);
+    });
+  });
 });
