@@ -8,6 +8,9 @@ pub enum AppError {
     #[error("Screenshot directory not found: {path}")]
     ScreenshotDirMissing { path: String },
 
+    #[error("History file not found: {path}")]
+    HistoryFileNotFound { path: String },
+
     #[error("History file read error in {path}: {message}")]
     HistoryRead { path: String, message: String },
 
@@ -33,6 +36,7 @@ impl AppError {
             self,
             AppError::JunitParse { .. }
                 | AppError::NoJunitFiles { .. }
+                | AppError::HistoryFileNotFound { .. }
                 | AppError::HistoryRead { .. }
                 | AppError::HistoryParse { .. }
                 | AppError::Io(_)

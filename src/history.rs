@@ -4,9 +4,8 @@ use std::path::Path;
 
 pub fn load_history(path: &Path) -> Result<HistoryFile, AppError> {
     if !path.exists() {
-        return Ok(HistoryFile {
-            records: Vec::new(),
-            version: 1,
+        return Err(AppError::HistoryFileNotFound {
+            path: path.display().to_string(),
         });
     }
 
