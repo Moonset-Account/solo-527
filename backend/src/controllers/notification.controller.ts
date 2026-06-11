@@ -100,6 +100,22 @@ router.post('/check-escalation', authMiddleware, requireRole('admin'), async (re
   }
 });
 
+router.post('/test-score-dispute', authMiddleware, requireRole('admin', 'hr'), async (req: AuthRequest, res) => {
+  try {
+    const { candidateName = '张三', disputeReason = '评分与预期不符' } = req.body;
+    
+    await notificationService.sendScoreDisputeNotification(
+      'test-assessment-' + Date.now(),
+      disputeReason,
+      candidateName
+    );
+    
+    successResponse(res, null, '测试评分争议通知已发送');
+  } catch (error: any) {
+    errorResponse(res, error.message, 500);
+  }
+});
+
 router.get('/tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
     if (!req.user) {

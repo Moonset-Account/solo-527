@@ -299,6 +299,27 @@ const NotificationCenter: React.FC = () => {
     }
   };
 
+  const handleTestScoreDispute = async () => {
+    try {
+      Modal.confirm({
+        title: '触发测试评分争议',
+        content: '将创建一条测试评分争议通知，按升级规则分派给负责人',
+        okText: '确认触发',
+        onOk: async () => {
+          const res = await notificationApi.testScoreDispute();
+          if (res.success) {
+            message.success('测试评分争议已发送');
+            loadNotifications();
+            loadTasks();
+            loadUnreadCount();
+          }
+        },
+      });
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
   const typeMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
     urgent: { label: '紧急', color: 'red', icon: <WarningOutlined /> },
     warning: { label: '提醒', color: 'orange', icon: <WarningOutlined /> },
@@ -531,6 +552,9 @@ const NotificationCenter: React.FC = () => {
         <Space>
           {isManager && (
             <>
+              <Button icon={<WarningOutlined />} danger onClick={handleTestScoreDispute}>
+                测试评分争议
+              </Button>
               <Button icon={<ArrowUpOutlined />} onClick={handleCheckEscalation}>
                 执行升级检查
               </Button>

@@ -9,6 +9,7 @@ import assessmentRoutes from './controllers/assessment.controller';
 import interviewRoutes from './controllers/interview.controller';
 import notificationRoutes from './controllers/notification.controller';
 import recruitmentRoutes from './controllers/recruitment.controller';
+import { NotificationService } from './services/NotificationService';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+let escalationCheckInterval: NodeJS.Timeout | null = null;
+
 async function startServer() {
   try {
     await initializeDatabase();
@@ -47,11 +50,51 @@ async function startServer() {
       console.log(`Server is running on port ${PORT}`);
       console.log(`API base URL: http://localhost:${PORT}/api`);
     });
+
+    const notificationService = new NotificationService();
+    setTimeout(async () => {
+      try {
+        console.log('[Scheduled Task] Running initial escalation check...');
+        await notificationService.checkAndEscalateTasks();
+        console.log('[Scheduled Task] Initial escalation check completed');
+      } catch (error) {
+        console.error('[Scheduled Task] Initial escalation check failed:', error);
+      }
+    }, 5000);
+
+    escalationCheckInterval = setInterval(async () => {
+      try {
+        console.log(`[Scheduled Task] Running periodic escalation check at ${new Date().toISOString()}...`);
+        await notificationService.checkAndEscalateTasks();
+        console.log('[Scheduled Task] Periodic escalation check completed');
+      } catch (error) {
+        console.error('[Scheduled Task] Periodic escalation check failed:', error);
+      }
+    }, 5 * 60 * 1000);
+
+    escalationCheckInterval.unref();
+
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
 }
+
+process.on('SIGTERM', () => {
+  if (escalationCheckInterval) {
+    clearInterval(escalationCheckInterval);
+    console.log('Escalation check interval stopped');
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  if (escalationCheckInterval) {
+    clearInterval(escalationCheckInterval);
+    console.log('Escalation check interval stopped');
+  }
+  process.exit(0);
+});
 
 startServer();
 

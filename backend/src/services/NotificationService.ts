@@ -116,17 +116,24 @@ export class NotificationService {
   }
 
   async sendScoreDisputeNotification(assessmentId: string, disputeReason: string, candidateName: string): Promise<void> {
-    const hrUsers = await this.userRepository.find({
-      where: { role: 'hr', isActive: true },
+    const rule = await this.escalationRuleRepository.findOne({
+      where: { eventType: 'score_dispute', isActive: true },
     });
 
-    for (const hr of hrUsers) {
+    const primaryRole = rule?.primaryRole || 'hr';
+    const timeoutHours = rule?.timeoutHours || 24;
+
+    const primaryUsers = await this.userRepository.find({
+      where: { role: primaryRole as any, isActive: true },
+    });
+
+    for (const user of primaryUsers) {
       const notification = await this.createNotification({
         title: '评分争议提醒',
-        content: `候选人 ${candidateName} 的测评评分存在争议：${disputeReason}，请及时处理。`,
+        content: `候选人 ${candidateName} 的测评评分存在争议：${disputeReason}，请在 ${timeoutHours} 小时内处理。`,
         type: 'warning',
         category: 'score_dispute',
-        recipientId: hr.id,
+        recipientId: user.id,
         relatedType: 'assessment',
         relatedId: assessmentId,
         actionUrl: `/assessments/${assessmentId}`,
@@ -134,11 +141,11 @@ export class NotificationService {
       });
 
       const deadline = new Date();
-      deadline.setHours(deadline.getHours() + 24);
+      deadline.setHours(deadline.getHours() + timeoutHours);
 
       await this.createNotificationTask({
         notificationId: notification.id,
-        assigneeId: hr.id,
+        assigneeId: user.id,
         deadline,
         escalationLevel: 0,
       });
@@ -245,31 +252,36 @@ export class NotificationService {
   async escalateTask(taskId: string): Promise<void> {
     const task = await this.notificationTaskRepository.findOneBy({ id: taskId });
     if (!task) return;
+    if (task.status !== 'pending') return;
 
     const currentAssignee = await this.userRepository.findOneBy({ id: task.assigneeId });
     if (!currentAssignee) return;
 
-    const escalationRules = await this.escalationRuleRepository.find({
-      where: { isActive: true },
+    const notification = await this.notificationRepository.findOneBy({ id: task.notificationId });
+    if (!notification) return;
+
+    const rule = await this.escalationRuleRepository.findOne({
+      where: { eventType: notification.category, isActive: true },
     });
 
-    let nextRole = '';
-    if (currentAssignee.role === 'interviewer') {
-      nextRole = 'hr';
-    } else if (currentAssignee.role === 'hr') {
-      nextRole = 'admin';
+    let nextRole = rule?.escalateToRole;
+    let nextTimeoutHours = 12;
+
+    if (!nextRole) {
+      if (currentAssignee.role === 'interviewer') {
+        nextRole = 'hr';
+      } else if (currentAssignee.role === 'hr') {
+        nextRole = 'admin';
+      }
     }
 
-    if (!nextRole) return;
+    if (!nextRole || nextRole === currentAssignee.role) return;
 
     const nextLevelUsers = await this.userRepository.find({
       where: { role: nextRole as any, isActive: true },
     });
 
     if (nextLevelUsers.length === 0) return;
-
-    const notification = await this.notificationRepository.findOneBy({ id: task.notificationId });
-    if (!notification) return;
 
     for (const nextUser of nextLevelUsers) {
       const escalatedNotification = await this.createNotification({
@@ -285,7 +297,7 @@ export class NotificationService {
       });
 
       const deadline = new Date();
-      deadline.setHours(deadline.getHours() + 12);
+      deadline.setHours(deadline.getHours() + nextTimeoutHours);
 
       await this.createNotificationTask({
         notificationId: escalatedNotification.id,

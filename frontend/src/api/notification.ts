@@ -64,4 +64,7 @@ export const notificationApi = {
 
   manualEscalate: (id: string): Promise<ApiResponse<null>> =>
     api.post(`/notifications/${id}/escalate`),
+
+  testScoreDispute: (data?: { candidateName?: string; disputeReason?: string }): Promise<ApiResponse<null>> =>
+    api.post('/notifications/test-score-dispute', data),
 };
