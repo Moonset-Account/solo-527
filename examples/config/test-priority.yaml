@@ -1,0 +1,15 @@
+$comment: "测试配置文件，用于验证 CLI 参数覆盖优先级。文件中设置的是 shallow/concat/quiet:false，CLI 传 deep/replace/--quiet 应该覆盖。"
+
+base: examples/config/base.yaml
+overlays:
+  - examples/config/dev.yaml
+
+strategy: shallow
+arrayStrategy: concat
+output: examples/output/from-config-file.yaml
+
+quiet: false
+verbose: true
+preview: true
+
+maskType: full

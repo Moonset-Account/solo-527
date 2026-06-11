@@ -103,9 +103,9 @@ JSON/YAML 配置合并器
 
   program
     .option('-b, --base <file>', '基础配置文件 (JSON/YAML) - 优先级最低')
-    .option('-o, --overlay <files...>', '覆盖配置文件，可多次指定，后指定的优先级更高', [])
-    .option('-s, --strategy <type>', `合并策略: ${Object.values(MERGE_STRATEGIES).join(' | ')} (默认: deep)`, MERGE_STRATEGIES.DEEP)
-    .option('-a, --array-strategy <type>', `数组合并策略: ${Object.values(ARRAY_STRATEGIES).join(' | ')} (默认: replace)`, ARRAY_STRATEGIES.REPLACE)
+    .option('-o, --overlay <files...>', '覆盖配置文件，可多次指定，后指定的优先级更高')
+    .option('-s, --strategy <type>', `合并策略: ${Object.values(MERGE_STRATEGIES).join(' | ')} (默认: deep)`)
+    .option('-a, --array-strategy <type>', `数组合并策略: ${Object.values(ARRAY_STRATEGIES).join(' | ')} (默认: replace)`)
     .option('--schema <file>', 'Schema 校验文件 (JSON Schema)')
     .option('-O, --output <file>', '输出文件路径 (如不指定则仅打印摘要)')
     .option('-p, --print [format]', '打印合并结果到控制台，可选格式: json | yaml | yml (默认: json)')
@@ -115,10 +115,10 @@ JSON/YAML 配置合并器
     .option('-q, --quiet', '安静模式，仅显示严重错误和最终退出码')
     .option('--machine-readable', '机器可读输出，摘要以 JSON 格式输出 (适用于 CI/CD)')
     .option('--no-color', '禁用彩色输出 (自动检测非 TTY 环境)')
-    .option('--sensitive-keys <keys>', '指定额外的敏感键名，逗号分隔 (例: db_pass,api_token)', '')
+    .option('--sensitive-keys <keys>', '指定额外的敏感键名，逗号分隔 (例: db_pass,api_token)')
     .option('--no-sensitive', '禁用敏感键自动检测和脱敏')
-    .option('--mask-type <type>', '脱敏类型: default | full | partial | hash | remove (默认: default)', 'default')
-    .option('--detect-conflicts', '启用冲突检测 (默认启用)', true)
+    .option('--mask-type <type>', '脱敏类型: default | full | partial | hash | remove (默认: default)')
+    .option('--detect-conflicts', '启用冲突检测 (默认启用)')
     .option('--no-conflicts', '禁用冲突检测')
     .option('-c, --config <file>', '参数配置文件 (JSON/YAML)，文件中的参数会被命令行参数覆盖')
     .option('--examples', '显示使用示例')
@@ -221,6 +221,24 @@ function processSensitiveKeys(keysInput) {
   return String(keysInput).split(',').map(k => k.trim()).filter(Boolean);
 }
 
+function isExplicitlySet(argv, longName, shortName = null) {
+  const args = argv.slice(2);
+  const patterns = [`--${longName}`, `--no-${longName}`];
+  if (shortName) patterns.push(`-${shortName}`);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    for (const pattern of patterns) {
+      if (arg === pattern || arg.startsWith(`${pattern}=`)) {
+        return true;
+      }
+    }
+    if (shortName && arg.startsWith(`-${shortName}`) && arg.length > 2 && !arg.startsWith('--')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function ensureDir(filePath) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
@@ -281,33 +299,79 @@ async function main() {
     fileOptions = parseConfigFile(opts.config);
   }
 
-  const mergedOpts = {
-    base: opts.base || fileOptions.base,
-    overlay: (opts.overlay && opts.overlay.length > 0) ? opts.overlay : fileOptions.overlay,
-    strategy: opts.strategy !== MERGE_STRATEGIES.DEEP || !fileOptions.strategy
-      ? opts.strategy : fileOptions.strategy,
-    arrayStrategy: opts.arrayStrategy !== ARRAY_STRATEGIES.REPLACE || !fileOptions.arrayStrategy
-      ? opts.arrayStrategy : fileOptions.arrayStrategy,
-    schema: opts.schema || fileOptions.schema,
-    output: opts.output || fileOptions.output,
-    print: opts.print !== undefined ? opts.print : fileOptions.print,
-    dryRun: opts.dryRun !== undefined ? opts.dryRun : fileOptions.dryRun,
-    preview: opts.preview !== undefined ? opts.preview : fileOptions.preview,
-    verbose: opts.verbose !== undefined ? opts.verbose : fileOptions.verbose,
-    quiet: opts.quiet !== undefined ? opts.quiet : fileOptions.quiet,
-    machineReadable: opts.machineReadable !== undefined ? opts.machineReadable : fileOptions.machineReadable,
-    noColor: opts.noColor !== undefined ? opts.noColor : fileOptions.noColor,
-    sensitive: opts.sensitive !== undefined ? opts.sensitive : fileOptions.sensitive,
-    sensitiveKeys: opts.sensitiveKeys !== '' ? opts.sensitiveKeys : fileOptions.sensitiveKeys,
-    maskType: opts.maskType !== 'default' || !fileOptions.maskType
-      ? opts.maskType : fileOptions.maskType,
-    conflicts: opts.conflicts !== undefined ? opts.conflicts : fileOptions.conflicts
+  const argv = process.argv;
+
+  const explicitlySet = {
+    base: isExplicitlySet(argv, 'base', 'b'),
+    overlay: isExplicitlySet(argv, 'overlay', 'o'),
+    strategy: isExplicitlySet(argv, 'strategy', 's'),
+    arrayStrategy: isExplicitlySet(argv, 'array-strategy', 'a'),
+    schema: isExplicitlySet(argv, 'schema'),
+    output: isExplicitlySet(argv, 'output', 'O'),
+    print: isExplicitlySet(argv, 'print', 'p'),
+    dryRun: isExplicitlySet(argv, 'dry-run'),
+    preview: isExplicitlySet(argv, 'preview'),
+    verbose: isExplicitlySet(argv, 'verbose', 'v'),
+    quiet: isExplicitlySet(argv, 'quiet', 'q'),
+    machineReadable: isExplicitlySet(argv, 'machine-readable'),
+    noColor: isExplicitlySet(argv, 'no-color'),
+    sensitive: isExplicitlySet(argv, 'no-sensitive') || isExplicitlySet(argv, 'sensitive'),
+    sensitiveKeys: isExplicitlySet(argv, 'sensitive-keys'),
+    maskType: isExplicitlySet(argv, 'mask-type'),
+    conflicts: isExplicitlySet(argv, 'detect-conflicts') || isExplicitlySet(argv, 'no-conflicts')
   };
 
-  if (mergedOpts.dryRun && !mergedOpts.preview) {
+  const pickValue = (cliVal, fileVal, defaultVal, explicit) => {
+    if (explicit) return cliVal !== undefined ? cliVal : defaultVal;
+    if (fileVal !== undefined) return fileVal;
+    return defaultVal;
+  };
+
+  const mergedOpts = {
+    base: explicitlySet.base
+      ? opts.base
+      : (fileOptions.base || opts.base),
+    overlay: explicitlySet.overlay
+      ? opts.overlay
+      : (fileOptions.overlay || opts.overlay || []),
+    strategy: pickValue(opts.strategy, fileOptions.strategy, MERGE_STRATEGIES.DEEP, explicitlySet.strategy),
+    arrayStrategy: pickValue(opts.arrayStrategy, fileOptions.arrayStrategy, ARRAY_STRATEGIES.REPLACE, explicitlySet.arrayStrategy),
+    schema: explicitlySet.schema
+      ? opts.schema
+      : (fileOptions.schema || opts.schema),
+    output: explicitlySet.output
+      ? opts.output
+      : (fileOptions.output || opts.output),
+    print: explicitlySet.print
+      ? opts.print
+      : (fileOptions.print !== undefined ? fileOptions.print : opts.print),
+    dryRun: pickValue(opts.dryRun, fileOptions.dryRun, false, explicitlySet.dryRun),
+    preview: pickValue(opts.preview, fileOptions.preview, false, explicitlySet.preview),
+    verbose: pickValue(opts.verbose, fileOptions.verbose, false, explicitlySet.verbose),
+    quiet: pickValue(opts.quiet, fileOptions.quiet, false, explicitlySet.quiet),
+    machineReadable: pickValue(opts.machineReadable, fileOptions.machineReadable, false, explicitlySet.machineReadable),
+    noColor: pickValue(opts.noColor, fileOptions.noColor, false, explicitlySet.noColor),
+    sensitive: explicitlySet.sensitive
+      ? (opts.sensitive !== undefined ? opts.sensitive : true)
+      : (fileOptions.sensitive !== undefined ? fileOptions.sensitive : true),
+    sensitiveKeys: explicitlySet.sensitiveKeys
+      ? opts.sensitiveKeys
+      : (fileOptions.sensitiveKeys || opts.sensitiveKeys || ''),
+    maskType: pickValue(opts.maskType, fileOptions.maskType, 'default', explicitlySet.maskType),
+    conflicts: explicitlySet.conflicts
+      ? (opts.conflicts !== undefined ? opts.conflicts : true)
+      : (fileOptions.conflicts !== undefined ? fileOptions.conflicts : true)
+  };
+
+  if (mergedOpts.dryRun && !mergedOpts.preview && !explicitlySet.preview) {
     mergedOpts.preview = true;
   }
-  if (mergedOpts.verbose && mergedOpts.quiet) {
+  if (explicitlySet.quiet && mergedOpts.quiet) {
+    mergedOpts.verbose = false;
+    mergedOpts.preview = explicitlySet.preview ? mergedOpts.preview : false;
+  } else if (explicitlySet.verbose && mergedOpts.verbose) {
+    mergedOpts.quiet = false;
+  } else if (mergedOpts.verbose && mergedOpts.quiet) {
     mergedOpts.quiet = false;
   }
 
@@ -350,14 +414,14 @@ async function main() {
     process.exit(1);
   }
 
-  if (mergedOpts.preview && !mergedOpts.quiet) {
+  if (mergedOpts.preview && !mergedOpts.quiet && !mergedOpts.machineReadable) {
     console.log(formatter.formatPreview(result.mergeResult, {
       useColor: opts.color !== false,
       showDiff: true
     }));
   }
 
-  if (mergedOpts.print && result.output && !mergedOpts.quiet) {
+  if (mergedOpts.print && result.output && !mergedOpts.quiet && !mergedOpts.machineReadable) {
     console.log(result.output);
   }
 
@@ -368,27 +432,33 @@ async function main() {
       fs.writeFileSync(resolvedOutput, result.output, 'utf8');
       result.summary.outputFile = resolvedOutput;
     } catch (err) {
-      console.error(formatter.formatError({
-        name: 'WriteError',
-        message: `写入文件失败: ${err.message}`,
-        filePath: mergedOpts.output
-      }, { useColor: opts.color !== false }));
+      if (!mergedOpts.machineReadable) {
+        console.error(formatter.formatError({
+          name: 'WriteError',
+          message: `写入文件失败: ${err.message}`,
+          filePath: mergedOpts.output
+        }, { useColor: opts.color !== false }));
+      } else {
+        result.summary.exitCode = 1;
+        result.summary.failedCount = (result.summary.failedCount || 0) + 1;
+        result.summary.error = err.message;
+      }
       process.exit(1);
     }
   }
 
-  if (mergedOpts.output && mergedOpts.dryRun && !mergedOpts.quiet) {
+  if (mergedOpts.output && mergedOpts.dryRun && !mergedOpts.quiet && !mergedOpts.machineReadable) {
     console.log(chalk.yellow(`[dry-run] 将写入: ${path.resolve(process.cwd(), mergedOpts.output)}`));
   }
 
-  if (!mergedOpts.quiet) {
+  if (mergedOpts.machineReadable) {
+    console.log(JSON.stringify(result.summary, null, 2));
+  } else if (!mergedOpts.quiet) {
     console.log(formatter.formatSummary(result.summary, {
       useColor: opts.color !== false,
       detailed: mergedOpts.verbose,
-      machineReadable: mergedOpts.machineReadable
+      machineReadable: false
     }));
-  } else if (mergedOpts.machineReadable) {
-    console.log(JSON.stringify(result.summary, null, 2));
   }
 
   if (result.schemaResult && !result.schemaResult.valid && mergedOpts.verbose && !mergedOpts.machineReadable) {
@@ -398,7 +468,18 @@ async function main() {
   process.exit(result.summary.exitCode);
 }
 
-main().catch(err => {
-  console.error(formatter.formatError(err, { useColor: !process.env.NO_COLOR, showStack: true }));
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    console.error(formatter.formatError(err, { useColor: !process.env.NO_COLOR, showStack: true }));
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  isExplicitlySet,
+  processSensitiveKeys,
+  validateOptions,
+  parseConfigFile,
+  createProgram,
+  main
+};

@@ -76,6 +76,7 @@ function createAjvInstance(options = {}) {
     removeAdditional: false,
     useDefaults: false,
     coerceTypes: false,
+    logger: false,
     ...options
   });
 }
