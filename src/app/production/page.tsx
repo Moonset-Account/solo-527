@@ -121,8 +121,8 @@ export default function ProductionPage() {
   } = useForm<ExportForm>({
     resolver: zodResolver(exportSchema),
     defaultValues: {
+      name: '',
       format: 'CSV',
-      ...filters,
     },
   })
 

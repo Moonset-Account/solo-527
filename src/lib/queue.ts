@@ -1,15 +1,26 @@
 import { Queue, Worker } from 'bullmq'
-import getRedis from './redis'
 import prisma from './prisma'
 import { ExportStatus } from '@prisma/client'
+
+function getRedisConnection() {
+  return {
+    host: process.env.REDIS_URL
+      ? new URL(process.env.REDIS_URL).hostname
+      : 'localhost',
+    port: process.env.REDIS_URL
+      ? parseInt(new URL(process.env.REDIS_URL).port) || 6379
+      : 6379,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  }
+}
 
 let exportQueue: Queue | null = null
 
 export const getExportQueue = () => {
   if (!exportQueue) {
-    const connection = getRedis()
     exportQueue = new Queue('export-queue', {
-      connection,
+      connection: getRedisConnection(),
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -73,7 +84,6 @@ const processExport = async (job: any) => {
 
     let fileContent = ''
     let fileName = ''
-    let mimeType = ''
 
     if (format === 'CSV') {
       const headers = ['日期', '内容类型', '产出数量', '视频时长(秒)', '质量评分', '用户', '选题', '素材', '标签', '备注']
@@ -91,15 +101,12 @@ const processExport = async (job: any) => {
       ])
       fileContent = [headers, ...rows].map(row => row.join(',')).join('\n')
       fileName = `产能记录_${new Date().toISOString().split('T')[0]}.csv`
-      mimeType = 'text/csv'
     } else if (format === 'EXCEL') {
       fileContent = JSON.stringify(records)
       fileName = `产能记录_${new Date().toISOString().split('T')[0]}.json`
-      mimeType = 'application/json'
     } else {
       fileContent = JSON.stringify(records)
       fileName = `产能记录_${new Date().toISOString().split('T')[0]}.json`
-      mimeType = 'application/json'
     }
 
     const fileUrl = `/exports/${exportTaskId}/${fileName}`
@@ -136,8 +143,8 @@ function buildWhere(filters: any) {
   if (filters.endDate) where.date = { ...where.date, lte: new Date(filters.endDate) }
   if (filters.userId) where.userId = filters.userId
   if (filters.contentType) where.contentType = filters.contentType
-  if (filters.minQuality) where.qualityScore = { ...where.qualityScore, gte: parseInt(filters.minQuality) }
-  if (filters.maxQuality) where.qualityScore = { ...where.qualityScore, lte: parseInt(filters.maxQuality) }
+  if (filters.minQuality) where.qualityScore = { ...where.qualityScore, gte: Number(filters.minQuality) }
+  if (filters.maxQuality) where.qualityScore = { ...where.qualityScore, lte: Number(filters.maxQuality) }
   return where
 }
 
@@ -147,9 +154,8 @@ export function initWorker() {
   if (workerInitialized) return
   workerInitialized = true
 
-  const connection = getRedis()
   const worker = new Worker('export-queue', processExport, {
-    connection,
+    connection: getRedisConnection(),
   })
 
   worker.on('failed', (job, err) => {

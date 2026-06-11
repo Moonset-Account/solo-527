@@ -114,7 +114,7 @@ model User {
   anomalies       Anomaly[]       @relation("AnomalyHandler")
   createdAnomalies Anomaly[]      @relation("AnomalyCreator")
   exportTasks     ExportTask[]
-  materialPermissions MaterialPermission[]
+  permissions     MaterialPermission[]
   productions         ProductionRecord[]
 }
 
@@ -181,7 +181,7 @@ model Material {
   uploaderId      String
   uploader        User                @relation(fields: [uploaderId], references: [id])
   comments            Comment[]
-  materialPermissions MaterialPermission[]
+  permissions         MaterialPermission[]
   productions         ProductionRecord[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
