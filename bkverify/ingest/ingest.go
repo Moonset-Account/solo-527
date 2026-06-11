@@ -137,45 +137,77 @@ When --bucket is not specified, buckets present in old indices but absent from n
 
 			now := time.Now().UTC()
 
+			var manifestEntries []manifestLine
+			var storageLines []storageLine
+
+			inputBuckets := make(map[string]bool)
 			if manifestPath != "" {
-				entries, err := parseManifestFile(manifestPath)
+				var err error
+				manifestEntries, err = parseManifestFile(manifestPath)
 				if err != nil {
 					return err
 				}
-				if bucket == "" {
-					newBuckets := make(map[string]bool)
-					for _, e := range entries {
-						newBuckets[e.bucket] = true
-					}
-					oldBuckets, err := listManifestBuckets(database)
-					if err != nil {
-						return fmt.Errorf("list old manifest buckets: %w", err)
-					}
-					for _, b := range oldBuckets {
-						if !newBuckets[b] {
-							if err := db.ClearManifest(database, b); err != nil {
-								return fmt.Errorf("clear stale manifest bucket %s: %w", b, err)
-							}
+				for _, e := range manifestEntries {
+					inputBuckets[e.bucket] = true
+				}
+			}
+			if storagePath != "" {
+				var err error
+				storageLines, err = parseStorageFile(storagePath)
+				if err != nil {
+					return err
+				}
+				for _, o := range storageLines {
+					inputBuckets[o.bucket] = true
+				}
+			}
+
+			if bucket == "" && len(inputBuckets) > 0 {
+				oldManifestBuckets, err := listManifestBuckets(database)
+				if err != nil {
+					return fmt.Errorf("list old manifest buckets: %w", err)
+				}
+				for _, b := range oldManifestBuckets {
+					if !inputBuckets[b] {
+						if err := db.ClearManifest(database, b); err != nil {
+							return fmt.Errorf("clear stale manifest bucket %s: %w", b, err)
 						}
 					}
-					for _, e := range entries {
-						if !newBuckets[e.bucket] {
-							continue
-						}
-						if _, done := newBuckets[e.bucket+"_cleared"]; !done {
-							if err := db.ClearManifest(database, e.bucket); err != nil {
-								return fmt.Errorf("clear manifest bucket %s: %w", e.bucket, err)
-							}
-							newBuckets[e.bucket+"_cleared"] = true
+				}
+				oldStorageBuckets, err := listStorageBuckets(database)
+				if err != nil {
+					return fmt.Errorf("list old storage buckets: %w", err)
+				}
+				for _, b := range oldStorageBuckets {
+					if !inputBuckets[b] {
+						if err := db.ClearStorage(database, b); err != nil {
+							return fmt.Errorf("clear stale storage bucket %s: %w", b, err)
 						}
 					}
-				} else {
+				}
+			}
+
+			if manifestEntries != nil {
+				clearedBuckets := make(map[string]bool)
+				if bucket != "" {
 					if err := db.ClearManifest(database, bucket); err != nil {
 						return fmt.Errorf("clear old manifest for bucket %s: %w", bucket, err)
 					}
+					clearedBuckets[bucket] = true
+				}
+				for _, e := range manifestEntries {
+					if bucket != "" && e.bucket != bucket {
+						continue
+					}
+					if bucket == "" && !clearedBuckets[e.bucket] {
+						if err := db.ClearManifest(database, e.bucket); err != nil {
+							return fmt.Errorf("clear manifest bucket %s: %w", e.bucket, err)
+						}
+						clearedBuckets[e.bucket] = true
+					}
 				}
 				count := 0
-				for _, e := range entries {
+				for _, e := range manifestEntries {
 					if bucket != "" && e.bucket != bucket {
 						continue
 					}
@@ -196,42 +228,27 @@ When --bucket is not specified, buckets present in old indices but absent from n
 				fmt.Fprintf(cmd.OutOrStdout(), "Ingested %d manifest entries\n", count)
 			}
 
-			if storagePath != "" {
-				objects, err := parseStorageFile(storagePath)
-				if err != nil {
-					return err
-				}
-				if bucket == "" {
-					newBuckets := make(map[string]bool)
-					for _, o := range objects {
-						newBuckets[o.bucket] = true
-					}
-					oldBuckets, err := listStorageBuckets(database)
-					if err != nil {
-						return fmt.Errorf("list old storage buckets: %w", err)
-					}
-					for _, b := range oldBuckets {
-						if !newBuckets[b] {
-							if err := db.ClearStorage(database, b); err != nil {
-								return fmt.Errorf("clear stale storage bucket %s: %w", b, err)
-							}
-						}
-					}
-					for _, o := range objects {
-						if _, done := newBuckets[o.bucket+"_cleared"]; !done {
-							if err := db.ClearStorage(database, o.bucket); err != nil {
-								return fmt.Errorf("clear storage bucket %s: %w", o.bucket, err)
-							}
-							newBuckets[o.bucket+"_cleared"] = true
-						}
-					}
-				} else {
+			if storageLines != nil {
+				clearedBuckets := make(map[string]bool)
+				if bucket != "" {
 					if err := db.ClearStorage(database, bucket); err != nil {
 						return fmt.Errorf("clear old storage for bucket %s: %w", bucket, err)
 					}
+					clearedBuckets[bucket] = true
+				}
+				for _, o := range storageLines {
+					if bucket != "" && o.bucket != bucket {
+						continue
+					}
+					if bucket == "" && !clearedBuckets[o.bucket] {
+						if err := db.ClearStorage(database, o.bucket); err != nil {
+							return fmt.Errorf("clear storage bucket %s: %w", o.bucket, err)
+						}
+						clearedBuckets[o.bucket] = true
+					}
 				}
 				count := 0
-				for _, o := range objects {
+				for _, o := range storageLines {
 					if bucket != "" && o.bucket != bucket {
 						continue
 					}
