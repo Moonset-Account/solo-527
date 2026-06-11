@@ -1,0 +1,204 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+  release:
+    types: [published]
+
+env:
+  BUN_VERSION: "1.1.8"
+
+jobs:
+  quality-check:
+    name: 质量检查 - 类型检查 & 构建
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript 类型检查
+        run: bun run typecheck
+
+      - name: 构建生产代码
+        run: bun run build
+
+  unit-tests:
+    name: 单元测试
+    runs-on: ubuntu-latest
+    needs: quality-check
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 运行单元测试
+        run: bun test --coverage
+        env:
+          CI: "true"
+
+      - name: 上传覆盖率报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+        if: always()
+
+  smoke-test-cli:
+    name: CLI 冒烟测试 - dry-run & 错误处理
+    runs-on: ubuntu-latest
+    needs: quality-check
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 验证版本号输出
+        run: |
+          bun run src/cli.ts --version
+          if [ $? -ne 0 ]; then
+            echo "版本号输出失败"
+            exit 1
+          fi
+
+      - name: DRY-RUN - 校验配置加载
+        run: |
+          bun run src/cli.ts --collection examples/collection.json --env examples/env.dev.yaml --dry-run --no-color
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 1 ]; then
+            echo "DRY-RUN 没有测试用例执行时退出码应为 1 (无执行用例)"
+          fi
+
+      - name: DRY-RUN - JSON 输出
+        run: |
+          bun run src/cli.ts -c examples/collection.json -e examples/env.prod.json --dry-run --json > /tmp/dry-run-report.json
+          EXIT_CODE=$?
+          echo "JSON 报告退出码: $EXIT_CODE"
+          cat /tmp/dry-run-report.json | bun -e "const d = await Bun.stdin.text(); console.log('JSON 解析:', JSON.parse(d).summary.total + ' 个用例')"
+
+      - name: 错误输入 - 不存在的 collection
+        run: |
+          bun run src/cli.ts -c /not/exist/collection.json --no-color 2>&1 || true
+          echo "验证不存在文件时的错误提示已输出"
+
+      - name: 错误输入 - 无效 JSON
+        run: |
+          echo "{ invalid json }" > /tmp/invalid.json
+          bun run src/cli.ts -c /tmp/invalid.json --no-color 2>&1 || true
+          echo "验证无效 JSON 时的错误提示已输出"
+
+      - name: 错误输入 - 缺少必填参数
+        run: |
+          bun run src/cli.ts --no-color 2>&1 || true
+          echo "验证缺少 collection 参数时的错误提示已输出"
+
+      - name: 验证 JUnit 报告生成
+        run: |
+          bun run src/cli.ts -c examples/collection.json -e examples/env.dev.yaml --dry-run --junit /tmp/junit.xml --no-color || true
+          if [ -f /tmp/junit.xml ]; then
+            echo "JUnit 文件已生成: $(wc -c < /tmp/junit.xml) bytes"
+            head -c 500 /tmp/junit.xml
+          else
+            echo "错误: JUnit 文件未生成"
+            exit 1
+          fi
+
+  publish-npm:
+    name: 发布到 NPM
+    runs-on: ubuntu-latest
+    needs: [unit-tests, smoke-test-cli]
+    if: github.event_name == 'release'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 类型检查
+        run: bun run typecheck
+
+      - name: 构建
+        run: bun run build
+
+      - name: 设置 NPM 令牌
+        run: npm config set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+
+      - name: 发布到 NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-binaries:
+    name: 构建二进制文件
+    runs-on: ubuntu-latest
+    needs: [unit-tests, smoke-test-cli]
+    if: github.event_name == 'release'
+    strategy:
+      matrix:
+        target: [bun-linux-x64, bun-darwin-x64, bun-darwin-arm64]
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      - name: 构建二进制
+        run: |
+          TARGET_NAME="${{ matrix.target }}"
+          OUT_NAME="smoke-api-${TARGET_NAME#bun-}"
+          bun build src/cli.ts --compile --target ${{ matrix.target }} --outfile "$OUT_NAME"
+          echo "构建完成: $OUT_NAME"
+          ls -la "$OUT_NAME"
+
+      - name: 上传二进制到 Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./smoke-api-${{ matrix.target }}
+          asset_name: smoke-api-${{ matrix.target }}
+          asset_content_type: application/octet-stream

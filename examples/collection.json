@@ -1,0 +1,116 @@
+{
+  "name": "User Service API Smoke Tests",
+  "version": "1.2.0",
+  "description": "用户服务核心接口冒烟测试集合",
+  "baseUrl": "${BASE_URL}",
+  "auth": {
+    "type": "bearer",
+    "token": "${API_TOKEN}"
+  },
+  "headers": {
+    "Accept": "application/json",
+    "X-Client": "smoke-api-cli"
+  },
+  "timeoutMs": 10000,
+  "retry": {
+    "maxAttempts": 3,
+    "delayMs": 500,
+    "backoffMultiplier": 2,
+    "retryOnStatus": [429, 500, 502, 503, 504]
+  },
+  "tests": [
+    {
+      "id": "health-001",
+      "name": "健康检查接口 - GET /health",
+      "description": "验证服务健康状态端点正常返回",
+      "tags": ["health", "smoke"],
+      "method": "GET",
+      "url": "/health",
+      "auth": { "type": "none" },
+      "assertions": [
+        { "type": "statusCode", "value": 200 },
+        { "type": "responseTime", "maxMs": 500 },
+        { "type": "contentType", "value": "application/json" },
+        { "type": "bodyJsonPath", "path": "$.status", "value": "ok" }
+      ]
+    },
+    {
+      "id": "user-001",
+      "name": "获取用户列表 - GET /api/users",
+      "tags": ["user", "smoke"],
+      "method": "GET",
+      "url": "/api/users",
+      "queryParams": { "page": 1, "limit": 10 },
+      "assertions": [
+        { "type": "statusCode", "value": 200 },
+        { "type": "statusCodeRange", "min": 200, "max": 299 },
+        { "type": "responseTime", "maxMs": 2000 },
+        { "type": "headerExists", "name": "X-Request-Id" },
+        { "type": "jsonSchema", "schema": {
+          "type": "object",
+          "required": ["data", "pagination"],
+          "properties": {
+            "data": { "type": "array" },
+            "pagination": { "type": "object" }
+          }
+        }}
+      ],
+      "extract": {
+        "firstUserId": "$.data[0].id"
+      }
+    },
+    {
+      "id": "user-002",
+      "name": "获取单个用户 - GET /api/users/{firstUserId}",
+      "tags": ["user"],
+      "method": "GET",
+      "url": "/api/users/${firstUserId}",
+      "dependsOn": ["user-001"],
+      "assertions": [
+        { "type": "statusCode", "value": 200 },
+        { "type": "bodyJsonPath", "path": "$.id", "value": "${firstUserId}" },
+        { "type": "bodyJsonPath", "path": "$.name", "value": null, "strict": false },
+        { "type": "bodyContains", "value": "id" }
+      ]
+    },
+    {
+      "id": "user-003",
+      "name": "创建用户 - POST /api/users",
+      "tags": ["user", "write"],
+      "method": "POST",
+      "url": "/api/users",
+      "body": {
+        "name": "测试用户 ${TIMESTAMP}",
+        "email": "test-${TIMESTAMP}@example.com",
+        "role": "tester"
+      },
+      "assertions": [
+        { "type": "statusCode", "value": 201 },
+        { "type": "bodyJsonPath", "path": "$.role", "value": "tester" },
+        { "type": "header", "name": "Location", "value": "/api/users/", "caseInsensitive": true }
+      ]
+    },
+    {
+      "id": "auth-001",
+      "name": "未授权访问验证 - 验证 401",
+      "tags": ["auth", "negative"],
+      "method": "GET",
+      "url": "/api/users/profile",
+      "auth": { "type": "none" },
+      "assertions": [
+        { "type": "statusCode", "value": 401 }
+      ]
+    },
+    {
+      "id": "skip-001",
+      "name": "待实现测试用例",
+      "tags": ["wip"],
+      "skip": true,
+      "method": "GET",
+      "url": "/api/experimental",
+      "assertions": [
+        { "type": "statusCode", "value": 200 }
+      ]
+    }
+  ]
+}
