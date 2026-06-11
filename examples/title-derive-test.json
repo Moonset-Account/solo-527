@@ -1,0 +1,112 @@
+{
+  "git_tag": "v2.2.0",
+  "from_tag": null,
+  "to_tag": "v2.2.0",
+  "commits": [
+    {
+      "hash": "fff0000000000000000000000000000000000001",
+      "short_hash": "fff0001",
+      "message": "PROJ-2001 scope: ui",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T10:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": [
+        {
+          "url": "https://jira.example.com/browse/PROJ-2001",
+          "label": "PROJ-2001",
+          "source_type": "ticket"
+        }
+      ]
+    },
+    {
+      "hash": "fff0000000000000000000000000000000000002",
+      "short_hash": "fff0002",
+      "message": "PROJ-2002 scope: backend",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T11:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": [
+        {
+          "url": "https://jira.example.com/browse/PROJ-2002",
+          "label": "PROJ-2002",
+          "source_type": "ticket"
+        }
+      ]
+    },
+    {
+      "hash": "fff0000000000000000000000000000000000003",
+      "short_hash": "fff0003",
+      "message": "PROJ-2003 scope: api",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T12:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": [
+        {
+          "url": "https://jira.example.com/browse/PROJ-2003",
+          "label": "PROJ-2003",
+          "source_type": "ticket"
+        }
+      ]
+    },
+    {
+      "hash": "fff0000000000000000000000000000000000004",
+      "short_hash": "fff0004",
+      "message": "PROJ-2004 scope: auth",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T13:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": [
+        {
+          "url": "https://jira.example.com/browse/PROJ-2004",
+          "label": "PROJ-2004",
+          "source_type": "ticket"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "id": "PROJ-2001",
+      "title": "修复密码重置邮件无法发送的缺陷",
+      "url": "https://jira.example.com/browse/PROJ-2001",
+      "status": "Done",
+      "labels": []
+    },
+    {
+      "id": "PROJ-2002",
+      "title": "在极端延迟下出现已知问题：连接自动断开",
+      "url": "https://jira.example.com/browse/PROJ-2002",
+      "status": "In Progress",
+      "labels": []
+    },
+    {
+      "id": "PROJ-2003",
+      "title": "API v1 废弃通知：请在 90 天内迁移升级到 v2",
+      "url": "https://jira.example.com/browse/PROJ-2003",
+      "status": "Done",
+      "labels": []
+    },
+    {
+      "id": "PROJ-2004",
+      "title": "内部重构：模块 B 的命名整理",
+      "url": "https://jira.example.com/browse/PROJ-2004",
+      "status": "Done",
+      "labels": []
+    }
+  ],
+  "manual_notes": [],
+  "input_files": [],
+  "collected_at": "2026-06-11T00:00:00Z"
+}

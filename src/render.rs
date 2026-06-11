@@ -129,8 +129,39 @@ pub fn derive_category_from_issues(
     }
 
     if best.is_none() {
+        let all_titles_lower: Vec<String> = issues
+            .iter()
+            .map(|i| i.title.to_lowercase())
+            .filter(|t| !t.is_empty())
+            .collect();
+
+        for (cat_key, keywords) in &template.category_keywords {
+            if let Some(cat) = category_from_keyword(cat_key) {
+                let matches = keywords
+                    .iter()
+                    .filter(|kw| {
+                        let kw_lower = kw.to_lowercase();
+                        all_titles_lower.iter().any(|t| t.contains(&kw_lower))
+                    })
+                    .count();
+                if matches > 0 && (best.is_none() || matches > best.as_ref().unwrap().1) {
+                    best = Some((cat, matches));
+                }
+            }
+        }
+    }
+
+    if best.is_none() {
         for label in &all_labels {
             if let Some(cat) = category_from_keyword(label) {
+                return Some(cat);
+            }
+        }
+    }
+
+    if best.is_none() {
+        for title_lower in issues.iter().map(|i| i.title.to_lowercase()) {
+            if let Some(cat) = category_from_keyword(&title_lower) {
                 return Some(cat);
             }
         }
