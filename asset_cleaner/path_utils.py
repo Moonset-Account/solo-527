@@ -52,7 +52,7 @@ class ScanProgress:
         self._notify()
 
     def set_total(self, total: int):
-        self.total_files = max(self.total_files, total)
+        self.total_files = total
         self._notify()
 
     def add_skipped(self, path: str, reason: str):
@@ -197,7 +197,6 @@ def safe_walk(
                         dirs.append(entry.name)
                     else:
                         files.append(entry.name)
-                        progress.total_files += 1
                 except OSError as e:
                     progress.add_skipped(str(entry), f"无法读取: {str(e)}")
 
