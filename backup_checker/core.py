@@ -131,11 +131,13 @@ class CheckReport:
     missing_files: list[dict[str, Any]] = field(default_factory=list)
     expired_backups: list[dict[str, Any]] = field(default_factory=list)
     errors: list[dict[str, Any]] = field(default_factory=list)
+    notification_results: list[dict[str, Any]] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
     started_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     completed_at: str | None = None
     duration_seconds: float | None = None
     exit_code: int = 0
+    dry_run: bool = False
 
     @property
     def has_errors(self) -> bool:
@@ -154,11 +156,13 @@ class CheckReport:
             "missing_files": self.missing_files,
             "expired_backups": self.expired_backups,
             "errors": self.errors,
+            "notification_results": self.notification_results,
             "config": self.config,
             "started_at": self.started_at,
             "completed_at": self.completed_at,
             "duration_seconds": self.duration_seconds,
             "exit_code": self.exit_code,
+            "dry_run": self.dry_run,
         }
 
     def set_exit_code(self, config: Config) -> None:

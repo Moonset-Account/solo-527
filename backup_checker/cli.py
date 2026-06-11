@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import Any
 
 import click
 
@@ -49,6 +50,27 @@ class CliContext:
 
 
 pass_ctx = click.make_pass_decorator(CliContext, ensure=True)
+
+
+def _apply_config_to_ctx(ctx: CliContext) -> None:
+    """Apply configuration file and environment variable settings to CliContext.
+
+    Only applies values when CLI flags were not explicitly set (i.e. are False).
+    """
+    try:
+        cli_args: dict[str, Any] = {}
+        config = build_config(ctx.config_file, cli_args, ctx.logger)
+
+        if not ctx.verbose:
+            ctx.verbose = config.verbose
+        if not ctx.json_output:
+            ctx.json_output = config.json_output
+        if not ctx.dry_run:
+            ctx.dry_run = config.dry_run
+
+        ctx.setup_logger()
+    except ConfigError:
+        pass
 
 
 def _validate_hash_algorithm(ctx: click.Context, param: click.Parameter, value: str) -> str:
@@ -121,15 +143,17 @@ def main(ctx: CliContext, verbose: bool, json_output: bool, dry_run: bool, confi
     ctx.config_file = config
     ctx.setup_logger()
 
+    _apply_config_to_ctx(ctx)
+
     if ctx.logger:
         log_with_context(
             ctx.logger,
             10,
             "Backup Integrity Checker started",
             version=__version__,
-            verbose=verbose,
-            json_output=json_output,
-            dry_run=dry_run,
+            verbose=ctx.verbose,
+            json_output=ctx.json_output,
+            dry_run=ctx.dry_run,
         )
 
 
@@ -149,19 +173,32 @@ def _run_check(
     no_fail_on_integrity: bool,
 ) -> None:
     """Internal function to run backup integrity checks."""
-    cli_args = {
-        "manifest_path": manifest_path,
-        "backup_dir": backup_dir,
-        "hash_algorithm": hash_algorithm,
-        "retention_days": retention_days,
-        "check_integrity": not no_integrity,
-        "check_missing": not no_missing,
-        "check_expired": not no_expired,
-        "fail_on_expired": fail_on_expired,
-        "fail_on_missing": not no_fail_on_missing,
-        "fail_on_integrity": not no_fail_on_integrity,
-        "output_file": output_file,
-    }
+    cli_args: dict[str, Any] = {}
+
+    if manifest_path is not None:
+        cli_args["manifest_path"] = manifest_path
+    if backup_dir is not None:
+        cli_args["backup_dir"] = backup_dir
+    if hash_algorithm is not None:
+        cli_args["hash_algorithm"] = hash_algorithm
+    if retention_days is not None:
+        cli_args["retention_days"] = retention_days
+    if output_file is not None:
+        cli_args["output_file"] = output_file
+
+    if no_integrity:
+        cli_args["check_integrity"] = False
+    if no_missing:
+        cli_args["check_missing"] = False
+    if no_expired:
+        cli_args["check_expired"] = False
+
+    if fail_on_expired:
+        cli_args["fail_on_expired"] = True
+    if no_fail_on_missing:
+        cli_args["fail_on_missing"] = False
+    if no_fail_on_integrity:
+        cli_args["fail_on_integrity"] = False
 
     if notify:
         cli_args["notification"] = {"enabled": True}
@@ -175,6 +212,19 @@ def _run_check(
         _handle_error(ctx, e)
         sys.exit(e.exit_code)
 
+    verbose_changed = not ctx.verbose and config.verbose
+    json_changed = not ctx.json_output and config.json_output
+
+    if not ctx.verbose:
+        ctx.verbose = config.verbose
+    if not ctx.json_output:
+        ctx.json_output = config.json_output
+    if not ctx.dry_run:
+        ctx.dry_run = config.dry_run
+
+    if verbose_changed or json_changed:
+        ctx.setup_logger()
+
     if ctx.dry_run and ctx.logger:
         ctx.logger.info("Dry run mode - no changes will be made")
 
@@ -184,11 +234,14 @@ def _run_check(
         _handle_error(ctx, e)
         sys.exit(e.exit_code)
 
+    report.dry_run = ctx.dry_run
+
     if notify and config.notification.enabled:
         try:
             notification_results = send_notifications(
                 config.notification, report, dry_run=ctx.dry_run, logger=ctx.logger
             )
+            report.notification_results = [r.to_dict() for r in notification_results]
             failed_notifications = [r for r in notification_results if not r.success]
             if failed_notifications:
                 report.errors.append({
@@ -196,11 +249,18 @@ def _run_check(
                     "message": f"{len(failed_notifications)} notification(s) failed",
                     "details": [r.to_dict() for r in failed_notifications],
                 })
+                report.set_exit_code(config)
         except Exception as e:
+            report.notification_results.append({
+                "channel": "unknown",
+                "success": False,
+                "error": str(e),
+            })
             report.errors.append({
                 "type": "NotificationError",
                 "message": str(e),
             })
+            report.set_exit_code(config)
 
     if ctx.dry_run:
         report.exit_code = 0
