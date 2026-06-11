@@ -228,25 +228,15 @@ def run_validation(
 
 
 def _detect_output_format(argv: Optional[Sequence[str]]) -> str:
-    """检测是否显式指定了 human 格式，用于argparse错误时的输出决策。
+    """argparse解析失败时的错误输出格式决策。
 
-    规则：
-    - 仅当用户显式指定 -f human 或 --format=human 时返回 "human"
-    - 其他所有情况（包括未指定格式、指定json、指定非法格式、指定--report）都返回 "json"
-    - 所有argparse解析失败场景默认输出JSON，确保CI/脚本场景稳定
+    规则：所有 argparse 解析失败场景一律输出 JSON 错误，确保 CI 和脚本场景稳定。
+    `human` 格式仅影响校验成功/失败后的报告输出（由 `args.format` 控制），
+    不影响 argparse 参数解析错误时的输出。
 
     Returns:
-        "json" 或 "human"
+        永远返回 "json"
     """
-    if argv is None:
-        argv = sys.argv[1:]
-    for i, arg in enumerate(argv):
-        if arg in ("-f", "--format") and i + 1 < len(argv):
-            if argv[i + 1] == "human":
-                return "human"
-        if arg.startswith("--format="):
-            if arg.split("=", 1)[1] == "human":
-                return "human"
     return "json"
 
 

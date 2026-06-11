@@ -238,36 +238,34 @@ class TestCLIExecution:
         err = json.loads(captured.err)
         assert err["exit_code"] == ExitCode.CLI_ERROR
 
-    def test_argparse_error_human_format_explicit_plain_text(self, capsys):
+    def test_argparse_error_with_explicit_f_human_outputs_json(self, capsys):
         rc = main(["-f", "human", "data.csv"])
         assert rc == ExitCode.CLI_ERROR
         captured = capsys.readouterr()
-        assert "错误:" in captured.err
-        assert "status" not in captured.err
+        assert captured.out == ""
+        err = json.loads(captured.err)
+        assert set(err.keys()) == {"status", "error_type", "message", "exit_code"}
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
 
-    def test_argparse_error_human_format_explicit_long_plain_text(self, capsys):
+    def test_argparse_error_with_explicit_format_human_outputs_json(self, capsys):
         rc = main(["--format=human", "data.csv"])
         assert rc == ExitCode.CLI_ERROR
         captured = capsys.readouterr()
-        assert "错误:" in captured.err
-        assert "{" not in captured.err
+        err = json.loads(captured.err)
+        assert err["status"] == "error"
+        assert err["exit_code"] == ExitCode.CLI_ERROR
 
     def test_detect_output_format_helper(self):
         from csv_validator.cli import _detect_output_format
-        assert _detect_output_format(["-f", "json", "data.csv"]) == "json"
-        assert _detect_output_format(["--format", "json", "data.csv"]) == "json"
-        assert _detect_output_format(["--format=json", "data.csv"]) == "json"
-        assert _detect_output_format(["-f", "human", "data.csv"]) == "human"
-        assert _detect_output_format(["--format=human", "data.csv"]) == "human"
-        assert _detect_output_format(["--report", "out.json", "data.csv"]) == "json"
-        assert _detect_output_format(["--report=out.json", "data.csv"]) == "json"
         assert _detect_output_format(["data.csv"]) == "json"
-        assert _detect_output_format(["-f"]) == "json"
+        assert _detect_output_format(["-f", "json", "data.csv"]) == "json"
+        assert _detect_output_format(["-f", "human", "data.csv"]) == "json"
+        assert _detect_output_format(["--format=human", "data.csv"]) == "json"
         assert _detect_output_format(["-f", "xml", "data.csv"]) == "json"
-        assert _detect_output_format(["--format=xml", "data.csv"]) == "json"
-        assert _detect_output_format(["-f", "csv", "data.csv"]) == "json"
-        assert _detect_output_format(["-f", "markdown", "data.csv"]) == "json"
-        assert _detect_output_format(["--schema", "x.json", "data.csv"]) == "json"
+        assert _detect_output_format(["--report", "out.json"]) == "json"
+        assert _detect_output_format(["--schema"]) == "json"
+        assert _detect_output_format(None) == "json"
 
     def test_quiet_mode_on_success(self, capsys):
         schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
@@ -276,6 +274,34 @@ class TestCLIExecution:
         captured = capsys.readouterr()
         assert captured.out == ""
         assert rc == ExitCode.SUCCESS
+
+    def test_human_format_report_works_for_validation(self, capsys):
+        schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
+        csv_file = os.path.join(EXAMPLES_DIR, "orders_valid.csv")
+        rc = main(["--schema", schema, "-f", "human", csv_file])
+        assert rc == ExitCode.SUCCESS
+        captured = capsys.readouterr()
+        assert "CSV校验结果" in captured.out
+        assert "通过" in captured.out
+        assert "总行数" in captured.out
+
+    def test_human_format_report_works_for_validation_errors(self, capsys):
+        schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
+        csv_file = os.path.join(EXAMPLES_DIR, "orders_invalid.csv")
+        rc = main(["--schema", schema, "-f", "human", csv_file])
+        assert rc == ExitCode.VALIDATION_ERRORS
+        captured = capsys.readouterr()
+        assert "CSV校验结果" in captured.out
+        assert "失败" in captured.out
+        assert "问题明细" in captured.out
+
+    def test_format_human_short_flag_for_validation(self, capsys):
+        schema = os.path.join(EXAMPLES_DIR, "schema_orders.json")
+        csv_file = os.path.join(EXAMPLES_DIR, "orders_valid.csv")
+        rc = main(["--schema", schema, "--format=human", csv_file])
+        assert rc == ExitCode.SUCCESS
+        captured = capsys.readouterr()
+        assert "CSV校验结果" in captured.out
 
     def test_strict_mode_with_unknown_column_only(self, capsys):
         schema_dict = {

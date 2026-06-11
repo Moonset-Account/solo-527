@@ -27,12 +27,8 @@ def check(name, cmd, expect_exit=4, expect_json=True, stdout_empty=True):
         except Exception as e:
             json_ok = False
     else:
-        # 非JSON场景：--help/--version正常输出到stdout，stderr为空；
-        # 显式-f human时stderr为文本错误
-        if "help" in name or "version" in name or "dry-run" in name or "标准输入" in name or "报告文件" in name:
-            json_ok = (r.stderr == "")
-        else:
-            json_ok = "{" not in r.stderr and "错误:" in r.stderr
+        # 非JSON场景：--help/--version正常输出到stdout，stderr为空
+        json_ok = (r.stderr == "")
 
     status = PASS if (exit_ok and json_ok and stdout_ok) else FAIL
     if status == FAIL:
@@ -68,38 +64,55 @@ check("场景4: 非法--format -f xml",
 check("场景5: 显式-f json → JSON错误",
       ["csv-validator", "-f", "json", "data.csv"])
 
-check("场景6: 显式-f human → 文本错误（仅该场景降级）",
-      ["csv-validator", "-f", "human", "data.csv"],
-      expect_json=False)
+check("场景6: 显式-f human（参数错误）→ JSON错误",
+      ["csv-validator", "-f", "human", "data.csv"])
 
-check("场景7: --report → JSON错误",
+check("场景7: 显式--format=human（参数错误）→ JSON错误",
+      ["csv-validator", "--format=human", "data.csv"])
+
+check("场景8: --report → JSON错误",
       ["csv-validator", "--report", "out.json", "data.csv"])
 
-check("场景8: --help → 正常帮助",
+check("场景9: -f human + 非法format值 → JSON错误",
+      ["csv-validator", "--schema", "examples/schema_orders.json", "-f", "xml", "data.csv"])
+
+check("场景10: --help → 正常帮助",
       ["csv-validator", "--help"],
       expect_exit=0,
       expect_json=False,
       stdout_empty=False)
 
-check("场景9: --version → 正常版本",
+check("场景11: --version → 正常版本",
       ["csv-validator", "--version"],
       expect_exit=0,
       expect_json=False,
       stdout_empty=False)
 
-check("场景10: dry-run 正常工作",
+check("场景12: dry-run 正常工作",
       ["csv-validator", "--schema", "examples/schema_orders.json", "--dry-run", "-f", "json"],
       expect_exit=0,
       expect_json=False,
       stdout_empty=False)
 
-check("场景11: 标准输入正常工作",
+check("场景13: 标准输入正常工作",
       ["sh", "-c", "head -3 examples/orders_valid.csv | csv-validator --schema examples/schema_orders.json -f json -"],
       expect_exit=0,
       expect_json=False,
       stdout_empty=False)
 
-check("场景12: --report 正常输出报告文件",
+check("场景14: human格式校验报告正常（成功）",
+      ["csv-validator", "--schema", "examples/schema_orders.json", "-f", "human", "examples/orders_valid.csv"],
+      expect_exit=0,
+      expect_json=False,
+      stdout_empty=False)
+
+check("场景15: human格式校验报告正常（失败）",
+      ["csv-validator", "--schema", "examples/schema_orders.json", "-f", "human", "examples/orders_invalid.csv"],
+      expect_exit=1,
+      expect_json=False,
+      stdout_empty=False)
+
+check("场景16: --report 正常输出报告文件",
       ["csv-validator", "--schema", "examples/schema_orders.json", "--report", "/tmp/accept_report.json", "examples/orders_valid.csv"],
       expect_exit=0,
       expect_json=False,
