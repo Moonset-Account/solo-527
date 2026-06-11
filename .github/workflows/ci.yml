@@ -84,50 +84,96 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
+      - name: 构建 CLI 产物
+        run: npm run build
+
       - name: 验证版本号输出
         run: |
           node dist/cli.js --version
-          if [ $? -ne 0 ]; then
-            echo "版本号输出失败"
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "版本号输出失败，期望退出码 0，实际 $EXIT_CODE"
             exit 1
           fi
 
-      - name: DRY-RUN - 校验配置加载
+      - name: DRY-RUN - 完整环境 (env.dev.yaml) 退出码 0
         run: |
-          node dist/cli.js --collection examples/collection.json --env examples/env.dev.yaml --dry-run --no-color || true
-          echo "DRY-RUN 输出已验证"
+          node dist/cli.js --collection examples/collection.json --env examples/env.dev.yaml --dry-run --no-color
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "DRY-RUN (env.dev.yaml) 应返回 0，实际 $EXIT_CODE"
+            exit 1
+          fi
 
-      - name: DRY-RUN - JSON 输出
+      - name: DRY-RUN - JSON 输出 (env.dev.yaml)
         run: |
-          node dist/cli.js -c examples/collection.json -e examples/env.prod.json --dry-run --json > /tmp/dry-run-report.json || true
-          echo "JSON 报告已生成: $(wc -c < /tmp/dry-run-report.json) bytes"
-          node -e "const d = require('fs').readFileSync('/tmp/dry-run-report.json','utf8'); console.log('JSON 解析成功, 用例数:', JSON.parse(d).summary?.total ?? 'N/A')"
+          node dist/cli.js -c examples/collection.json -e examples/env.dev.yaml --dry-run --json > /tmp/dry-run-report.json
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "DRY-RUN JSON 输出应返回 0，实际 $EXIT_CODE"
+            exit 1
+          fi
+          echo "JSON 报告大小: $(wc -c < /tmp/dry-run-report.json) bytes"
+          node -e "const d = require('fs').readFileSync('/tmp/dry-run-report.json','utf8'); const r = JSON.parse(d); if (!r.summary || typeof r.summary.total !== 'number') { process.exit(1); } console.log('JSON 解析成功, 用例数:', r.summary.total);"
 
-      - name: 错误输入 - 不存在的 collection
+      - name: DRY-RUN - 未解析鉴权变量返回 CONFIG_ERROR (2)
         run: |
-          node dist/cli.js -c /not/exist/collection.json --no-color 2>&1 || true
-          echo "验证不存在文件时的错误提示已输出"
+          EXIT_CODE=0
+          node dist/cli.js -c examples/collection.json -e examples/env.prod.json --dry-run --no-color || EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 2 ]; then
+            echo "env.prod.json 含未解析 \${PROD_API_TOKEN}，期望退出码 2 (CONFIG_ERROR)，实际 $EXIT_CODE"
+            exit 1
+          fi
 
-      - name: 错误输入 - 无效 JSON
+      - name: 错误输入 - 不存在的 collection 返回非 0
+        run: |
+          EXIT_CODE=0
+          node dist/cli.js -c /not/exist/collection.json --no-color 2>&1 || EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "不存在的 collection 文件应返回非 0 退出码"
+            exit 1
+          fi
+
+      - name: 错误输入 - 无效 JSON 返回非 0
         run: |
           echo "{ invalid json }" > /tmp/invalid.json
-          node dist/cli.js -c /tmp/invalid.json --no-color 2>&1 || true
-          echo "验证无效 JSON 时的错误提示已输出"
+          EXIT_CODE=0
+          node dist/cli.js -c /tmp/invalid.json --no-color 2>&1 || EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "无效 JSON 应返回非 0 退出码"
+            exit 1
+          fi
 
-      - name: 错误输入 - 缺少必填参数
+      - name: 错误输入 - 缺少必填参数返回非 0
         run: |
-          node dist/cli.js --no-color 2>&1 || true
-          echo "验证缺少 collection 参数时的错误提示已输出"
+          EXIT_CODE=0
+          node dist/cli.js --no-color 2>&1 || EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "缺少 --collection 参数应返回非 0 退出码"
+            exit 1
+          fi
 
       - name: 验证 JUnit 报告生成
         run: |
-          node dist/cli.js -c examples/collection.json -e examples/env.dev.yaml --dry-run --junit /tmp/junit.xml --no-color || true
-          if [ -f /tmp/junit.xml ]; then
-            echo "JUnit 文件已生成: $(wc -c < /tmp/junit.xml) bytes"
-          else
+          node dist/cli.js -c examples/collection.json -e examples/env.dev.yaml --dry-run --junit /tmp/junit.xml --no-color
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "JUnit 场景应返回 0，实际 $EXIT_CODE"
+            exit 1
+          fi
+          if [ ! -f /tmp/junit.xml ]; then
             echo "错误: JUnit 文件未生成"
             exit 1
           fi
+          echo "JUnit 文件已生成: $(wc -c < /tmp/junit.xml) bytes"
 
   publish-npm:
     name: 发布到 NPM
@@ -189,6 +235,7 @@ jobs:
           bun build src/cli.ts --compile --target ${{ matrix.target }} --outfile "$OUT_NAME"
           echo "构建完成: $OUT_NAME"
           ls -la "$OUT_NAME"
+          echo "ARTIFACT_NAME=$OUT_NAME" >> "$GITHUB_ENV"
 
       - name: 上传二进制到 Release
         uses: actions/upload-release-asset@v1
@@ -196,6 +243,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./smoke-api-${{ matrix.target }}
-          asset_name: smoke-api-${{ matrix.target }}
+          asset_path: ./${{ env.ARTIFACT_NAME }}
+          asset_name: ${{ env.ARTIFACT_NAME }}
           asset_content_type: application/octet-stream
