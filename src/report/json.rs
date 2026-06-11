@@ -49,6 +49,9 @@ struct ReviewItemData<'a> {
     risk_level: String,
     reason: &'a str,
     category: String,
+    review_reason: Option<&'a str>,
+    source: Option<&'a str>,
+    source_url: Option<&'a str>,
     package_manager: String,
 }
 
@@ -90,6 +93,9 @@ impl ReportGenerator for JsonReport {
                 risk_level: r.dependency.risk_level.to_string(),
                 reason: &r.reason,
                 category: r.category.to_string(),
+                review_reason: r.dependency.review_reason.as_deref(),
+                source: r.dependency.source.as_deref(),
+                source_url: r.dependency.source_url.as_deref(),
                 package_manager: r.dependency.package_manager.to_string(),
             })
             .collect();

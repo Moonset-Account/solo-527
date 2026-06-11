@@ -40,14 +40,20 @@ impl ReportGenerator for TableReport {
         if result.needs_review_count > 0 {
             output.push_str("=== 人工复核队列 ===\n\n");
             for item in &result.review_queue {
+                let source_info = match (&item.dependency.source_url, &item.dependency.source) {
+                    (Some(url), _) => url.as_str(),
+                    (None, Some(s)) => s.as_str(),
+                    (None, None) => "未知",
+                };
                 output.push_str(&format!(
-                    "  [{}] {}@{} - {} - {} ({})\n",
+                    "  [{}] {}@{} - {} - {} ({}) [来源: {}]\n",
                     risk_level_label(item.dependency.risk_level),
                     item.dependency.name,
                     item.dependency.version,
                     item.dependency.license,
                     item.reason,
                     item.category,
+                    source_info,
                 ));
             }
             output.push('\n');
@@ -76,47 +82,75 @@ impl ReportGenerator for TableReport {
             .max()
             .unwrap_or(15)
             .max(12);
+        let source_width = result
+            .dependencies
+            .iter()
+            .map(|d| {
+                d.source_url
+                    .as_deref()
+                    .or(d.source.as_deref())
+                    .map(|s| s.len().min(40))
+                    .unwrap_or(4)
+            })
+            .max()
+            .unwrap_or(20)
+            .max(10);
         let pm_width = 8;
-        let risk_width = 10;
+        let risk_width = 6;
 
         output.push_str(&format!(
-            "{:<name_width$} {:<version_width$} {:<pm_width$} {:<license_width$} {:<risk_width$} 直接\n",
+            "{:<name_width$} {:<version_width$} {:<pm_width$} {:<license_width$} {:<risk_width$} {:<source_width$} 直接\n",
             "包名",
             "版本",
             "类型",
             "许可证",
             "风险",
+            "来源",
             name_width = name_width,
             version_width = version_width,
             pm_width = pm_width,
             license_width = license_width,
-            risk_width = risk_width
+            risk_width = risk_width,
+            source_width = source_width
         ));
 
         output.push_str(&format!(
-            "{:-<name_width$} {:-<version_width$} {:-<pm_width$} {:-<license_width$} {:-<risk_width$} ----\n",
-            "", "", "", "", "",
+            "{:-<name_width$} {:-<version_width$} {:-<pm_width$} {:-<license_width$} {:-<risk_width$} {:-<source_width$} ----\n",
+            "", "", "", "", "", "",
             name_width = name_width,
             version_width = version_width,
             pm_width = pm_width,
             license_width = license_width,
-            risk_width = risk_width
+            risk_width = risk_width,
+            source_width = source_width
         ));
 
         for dep in &result.dependencies {
+            let source_display = dep
+                .source_url
+                .as_deref()
+                .or(dep.source.as_deref())
+                .unwrap_or("未知");
+            let source_truncated = if source_display.len() > source_width {
+                &source_display[..source_width.saturating_sub(3)]
+            } else {
+                source_display
+            };
             output.push_str(&format!(
-                "{:<name_width$} {:<version_width$} {:<pm_width$} {:<license_width$} {:<risk_width$} {}\n",
+                "{:<name_width$} {:<version_width$} {:<pm_width$} {:<license_width$} {:<risk_width$} {:<source_width$} {}\n",
                 dep.name,
                 dep.version,
                 dep.package_manager,
                 dep.license,
                 risk_level_label(dep.risk_level),
+                source_truncated,
                 if dep.is_direct { "是" } else { "否" },
                 name_width = name_width,
                 version_width = version_width,
                 pm_width = pm_width,
                 license_width = license_width,
-                risk_width = risk_width
+                risk_width = risk_width,
+                source_width = source_width
             ));
         }
 
@@ -131,11 +165,11 @@ impl ReportGenerator for TableReport {
 
 fn risk_level_label(level: RiskLevel) -> &'static str {
     match level {
-        RiskLevel::Low => "低",
-        RiskLevel::Medium => "中",
-        RiskLevel::High => "高",
-        RiskLevel::Critical => "严重",
-        RiskLevel::Unknown => "未知",
+        RiskLevel::Low => "LOW",
+        RiskLevel::Medium => "MED",
+        RiskLevel::High => "HIGH",
+        RiskLevel::Critical => "CRIT",
+        RiskLevel::Unknown => "UNKN",
     }
 }
 

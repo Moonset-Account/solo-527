@@ -231,6 +231,7 @@ impl ReportGenerator for HtmlReport {
                             <th>版本</th>
                             <th>许可证</th>
                             <th>风险等级</th>
+                            <th>来源</th>
                             <th>复核原因</th>
                         </tr>
                     </thead>
@@ -248,6 +249,7 @@ impl ReportGenerator for HtmlReport {
                             <th>版本</th>
                             <th>许可证</th>
                             <th>风险等级</th>
+                            <th>来源</th>
                             <th>复核原因</th>
                         </tr>
                     </thead>
@@ -330,12 +332,17 @@ fn render_review_queue(result: &ScanResult) -> String {
         .review_queue
         .iter()
         .map(|r| {
+            let source_info = match (&r.dependency.source_url, &r.dependency.source) {
+                (Some(url), _) => format!("<a href='{}' target='_blank'>{}</a>", url, shorten_url(url)),
+                (None, Some(s)) => s.clone(),
+                (None, None) => "<span style='color: #ef4444;'>未知</span>".to_string(),
+            };
             format!(
                 r#"<div class="review-item">
                     <h3>{} <span style="font-weight: normal; color: #b91c1c;">v{}</span>
                     <span class="pm-badge" style="margin-left: 8px;">{}</span>
                     </h3>
-                    <p>许可证：{} | 风险：{} | 类别：{} | 原因：{}</p>
+                    <p>许可证：{} | 风险：{} | 类别：{} | 来源：{} | 原因：{}</p>
                 </div>"#,
                 r.dependency.name,
                 r.dependency.version,
@@ -343,6 +350,7 @@ fn render_review_queue(result: &ScanResult) -> String {
                 r.dependency.license,
                 r.dependency.risk_level,
                 r.category,
+                source_info,
                 r.reason
             )
         })
@@ -394,13 +402,18 @@ fn render_all_deps_table(result: &ScanResult) -> String {
 
 fn render_review_table(result: &ScanResult) -> String {
     if result.review_queue.is_empty() {
-        return "<tr><td colspan='5' style='text-align: center; color: #94a3b8; padding: 32px;'>没有需要复核的依赖</td></tr>".to_string();
+        return "<tr><td colspan='6' style='text-align: center; color: #94a3b8; padding: 32px;'>没有需要复核的依赖</td></tr>".to_string();
     }
 
     result
         .review_queue
         .iter()
         .map(|r| {
+            let source_info = match (&r.dependency.source_url, &r.dependency.source) {
+                (Some(url), _) => format!("<a href='{}' target='_blank'>{}</a>", url, shorten_url(url)),
+                (None, Some(s)) => format!("<span style='color: #94a3b8;'>{}</span>", s),
+                (None, None) => "<span style='color: #ef4444;'>未知</span>".to_string(),
+            };
             format!(
                 r#"<tr>
                     <td><strong>{}</strong></td>
@@ -408,12 +421,14 @@ fn render_review_table(result: &ScanResult) -> String {
                     <td>{}</td>
                     <td><span class="risk-badge {}">{}</span></td>
                     <td>{}</td>
+                    <td>{}</td>
                 </tr>"#,
                 r.dependency.name,
                 r.dependency.version,
                 r.dependency.license,
                 risk_class(r.dependency.risk_level),
                 r.dependency.risk_level,
+                source_info,
                 r.reason
             )
         })
@@ -428,12 +443,17 @@ fn render_high_risk_table(result: &ScanResult) -> String {
         .collect();
 
     if high_deps.is_empty() {
-        return "<tr><td colspan='5' style='text-align: center; color: #94a3b8; padding: 32px;'>没有高或严重风险的依赖</td></tr>".to_string();
+        return "<tr><td colspan='6' style='text-align: center; color: #94a3b8; padding: 32px;'>没有高或严重风险的依赖</td></tr>".to_string();
     }
 
     high_deps
         .iter()
         .map(|d| {
+            let source_info = match (&d.source_url, &d.source) {
+                (Some(url), _) => format!("<a href='{}' target='_blank'>{}</a>", url, shorten_url(url)),
+                (None, Some(s)) => format!("<span style='color: #94a3b8;'>{}</span>", s),
+                (None, None) => "<span style='color: #ef4444;'>未知</span>".to_string(),
+            };
             format!(
                 r#"<tr>
                     <td><strong>{}</strong></td>
@@ -441,12 +461,14 @@ fn render_high_risk_table(result: &ScanResult) -> String {
                     <td>{}</td>
                     <td><span class="risk-badge {}">{}</span></td>
                     <td>{}</td>
+                    <td>{}</td>
                 </tr>"#,
                 d.name,
                 d.version,
                 d.license,
                 risk_class(d.risk_level),
                 d.risk_level,
+                source_info,
                 d.review_reason.as_deref().unwrap_or("-")
             )
         })

@@ -126,6 +126,11 @@ impl LicenseEvaluator {
             });
         }
 
+        for item in review_items.iter_mut() {
+            item.dependency.risk_level = dep.risk_level;
+            item.dependency.review_reason = dep.review_reason.clone();
+        }
+
         review_items
     }
 
