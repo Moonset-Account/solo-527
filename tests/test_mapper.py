@@ -250,6 +250,40 @@ class TestDataReader:
         rows = DataReader(delimiter="\t").read(str(p))
         assert rows[0]["a"] == "1"
 
+    def test_extra_columns_preserved(self, tmp_path: Path):
+        """CSV 行列数多于表头时，额外值存入 __extra_columns__。"""
+        p = tmp_path / "extra.csv"
+        p.write_text("a,b\n1,2,extra1,extra2\n3,4\n", encoding="utf-8")
+        rows = DataReader().read(str(p))
+        assert len(rows) == 2
+        assert rows[0]["a"] == "1"
+        assert rows[0]["b"] == "2"
+        assert "__extra_columns__" in rows[0]
+        assert len(rows[0]["__extra_columns__"]) == 2
+        assert rows[0]["__extra_columns__"][0] == {"column": 3, "value": "extra1"}
+        assert rows[0]["__extra_columns__"][1] == {"column": 4, "value": "extra2"}
+        assert "__extra_columns__" not in rows[1]
+
+    def test_extra_columns_ignores_blank_values(self, tmp_path: Path):
+        """超列中空白值不进入 __extra_columns__。"""
+        p = tmp_path / "extra_blank.csv"
+        p.write_text("a,b\n1,2,x,,y\n", encoding="utf-8")
+        rows = DataReader().read(str(p))
+        extras = rows[0]["__extra_columns__"]
+        values = [e["value"] for e in extras]
+        assert "x" in values
+        assert "y" in values
+        assert "" not in values
+
+    def test_fewer_columns_padded_with_none(self, tmp_path: Path):
+        """CSV 行列数少于表头时，缺失列填充 None。"""
+        p = tmp_path / "short.csv"
+        p.write_text("a,b,c\n1\n", encoding="utf-8")
+        rows = DataReader().read(str(p))
+        assert rows[0]["a"] == "1"
+        assert rows[0]["b"] is None
+        assert rows[0]["c"] is None
+
 
 class TestMappingLoader:
     def test_load_mapping_yaml(self, mapping_users_file: Path):

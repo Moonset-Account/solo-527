@@ -468,10 +468,17 @@ class DataReader:
 
                 row_dict: Dict[str, Any] = {}
                 for idx, name in enumerate(fieldnames):
-                    # None key 是 DictReader 处理超列的 restkey 机制，这里忽略
                     if name is None:
                         continue
                     row_dict[name] = raw_row[idx] if idx < len(raw_row) else None
+
+                if len(raw_row) > len(fieldnames):
+                    row_dict["__extra_columns__"] = [
+                        {"column": len(fieldnames) + i + 1, "value": v}
+                        for i, v in enumerate(raw_row[len(fieldnames):])
+                        if v is not None and str(v).strip() != ""
+                    ]
+
                 rows.append(row_dict)
         return rows
 

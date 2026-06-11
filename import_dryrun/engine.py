@@ -152,7 +152,48 @@ class DryRunEngine:
             )
             return record
 
-        target_data, map_errors = mapper.map_record(row_number, source_row)
+        extra_columns = source_row.get("__extra_columns__")
+        if extra_columns:
+            for extra in extra_columns:
+                col_idx = extra["column"]
+                val = extra["value"]
+                if self._config.strict_mode:
+                    record.errors.append(
+                        ImportError(
+                            category=ErrorCategory.UNMAPPED_FIELD,
+                            target_field=f"第{col_idx}列(超列)",
+                            source_field=f"第{col_idx}列",
+                            message=(
+                                f"第 {row_number} 行第 {col_idx} 列有多余数据"
+                                f" '{val}'，超出表头定义（严格模式下视为错误）"
+                            ),
+                            actual_value=str(val),
+                            row_number=row_number,
+                            suggestion=(
+                                "删除多余列数据，或在表头中补充对应列名"
+                            ),
+                        )
+                    )
+                else:
+                    record.errors.append(
+                        ImportError(
+                            category=ErrorCategory.UNMAPPED_FIELD,
+                            target_field=f"第{col_idx}列(超列)",
+                            source_field=f"第{col_idx}列",
+                            message=(
+                                f"第 {row_number} 行第 {col_idx} 列有多余数据"
+                                f" '{val}'，超出表头定义（非严格模式，仅提醒）"
+                            ),
+                            actual_value=str(val),
+                            row_number=row_number,
+                            suggestion=(
+                                "删除多余列数据，或在表头中补充对应列名"
+                            ),
+                        )
+                    )
+
+        mapper_row = {k: v for k, v in source_row.items() if k != "__extra_columns__"}
+        target_data, map_errors = mapper.map_record(row_number, mapper_row)
         record.target_data = target_data
         record.errors.extend(map_errors)
 
