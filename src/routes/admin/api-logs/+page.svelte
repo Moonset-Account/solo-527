@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import {
@@ -13,47 +14,42 @@
     Filter,
     Search
   } from 'lucide-svelte';
-  import { mockApiLogs } from '$lib/mock-data';
+  import type { ApiLog } from '$lib/types';
   import { formatDateTime } from '$lib/utils';
+
+  export let data: { apiLogs: ApiLog[] };
 
   let onlyFailed = true;
   let search = '';
   let expandedId: string | null = null;
 
-  $: filtered = mockApiLogs.filter((l) => {
+  $: filtered = data.apiLogs.filter((l) => {
     if (onlyFailed && l.success) return false;
     if (search && !l.endpoint.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  $: totalFail = mockApiLogs.filter((l) => !l.success).length;
-  $: totalSuccess = mockApiLogs.filter((l) => l.success).length;
-  $: totalRetries = mockApiLogs.reduce((sum, l) => sum + l.retryCount, 0);
+  $: totalFail = data.apiLogs.filter((l) => !l.success).length;
+  $: totalSuccess = data.apiLogs.filter((l) => l.success).length;
+  $: totalRetries = data.apiLogs.reduce((sum, l) => sum + l.retryCount, 0);
 
   const toggle = (id: string) => {
     expandedId = expandedId === id ? null : id;
   };
 
   const retry = async (id: string) => {
-    const idx = mockApiLogs.findIndex((l) => l.id === id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/api-logs/retry', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockApiLogs[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockApiLogs[idx] = {
-        ...mockApiLogs[idx],
-        lastRetryAt: new Date().toISOString(),
-        retryCount: mockApiLogs[idx].retryCount + 1
-      };
+    try {
+      const res = await fetch('/api/api-logs/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 </script>
@@ -65,7 +61,7 @@
     <StatCard label="失败请求" value={totalFail} accent="warn" iconComponent={AlertCircle} />
     <StatCard label="成功请求" value={totalSuccess} accent="success" iconComponent={CheckCircle2} />
     <StatCard label="累计重试" value={totalRetries} accent="amber" iconComponent={Repeat} />
-    <StatCard label="今日请求" value={mockApiLogs.length} accent="navy" iconComponent={Terminal} />
+    <StatCard label="今日请求" value={data.apiLogs.length} accent="navy" iconComponent={Terminal} />
   </section>
 
   <div class="card p-5 flex flex-wrap items-center gap-3">

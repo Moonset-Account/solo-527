@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
-import { apiLogs } from '$drizzle/schema';
+import { apiLogs } from '$lib/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { mockApiLogs } from '$lib/mock-data';
 

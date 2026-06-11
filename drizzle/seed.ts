@@ -110,32 +110,34 @@ async function seed() {
     );
     console.log(`Inserted ${mockExceptions.length} exceptions`);
 
-    for (const order of mockOrders) {
-      await db.insert(schema.orders).values({
-        id: order.id,
-        orderNo: order.orderNo,
-        memberId: order.memberId,
-        brandId: order.brandId,
-        amount: order.amount,
-        status: order.status,
-        paidAt: order.paidAt ? new Date(order.paidAt) : null,
-        createdAt: new Date(order.createdAt)
-      });
+    await db.insert(schema.orders).values(
+      mockOrders.map((o) => ({
+        id: o.id,
+        orderNo: o.orderNo,
+        memberId: o.memberId,
+        brandId: o.brandId,
+        amount: o.amount,
+        status: o.status,
+        paidAt: o.paidAt ? new Date(o.paidAt) : null,
+        createdAt: new Date(o.createdAt)
+      }))
+    );
+    console.log(`Inserted ${mockOrders.length} orders`);
 
-      for (const node of order.deliveryNodes) {
-        await db.insert(schema.deliveryNodes).values({
-          id: node.id,
-          orderId: order.id,
-          name: node.name,
-          status: node.status,
-          assigneeId: node.assigneeId,
-          completedAt: node.completedAt ? new Date(node.completedAt) : null,
-          deadline: new Date(node.deadline),
-          sortOrder: node.sortOrder
-        });
-      }
-    }
-    console.log(`Inserted ${mockOrders.length} orders with delivery nodes`);
+    const allDeliveryNodes = mockOrders.flatMap((o) =>
+      o.deliveryNodes.map((node) => ({
+        id: node.id,
+        orderId: o.id,
+        name: node.name,
+        status: node.status,
+        assigneeId: node.assigneeId,
+        completedAt: node.completedAt ? new Date(node.completedAt) : null,
+        deadline: new Date(node.deadline),
+        sortOrder: node.sortOrder
+      }))
+    );
+    await db.insert(schema.deliveryNodes).values(allDeliveryNodes);
+    console.log(`Inserted ${allDeliveryNodes.length} delivery nodes`);
 
     await db.insert(schema.retentionAlerts).values(
       mockRetentionAlerts.map((a) => ({

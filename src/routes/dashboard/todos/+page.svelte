@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -14,7 +15,6 @@
     FileCheck2,
     Clock
   } from 'lucide-svelte';
-  import { mockTodos } from '$lib/mock-data';
   import type { TodoItem } from '$lib/types';
   import {
     materialAuthLabel,
@@ -28,6 +28,8 @@
   } from '$lib/utils';
   import { currentUser } from '$lib/stores';
 
+  export let data: { todos: TodoItem[] };
+
   let typeFilter = '';
   let statusFilter = '';
   let priorityFilter = '';
@@ -40,7 +42,7 @@
   ];
 
   $: hostId = $currentUser.id;
-  $: todos = mockTodos.filter((t) => t.assigneeId === hostId || $currentUser.role === 'operator');
+  $: todos = data.todos.filter((t) => t.assigneeId === hostId || $currentUser.role === 'operator');
   $: filtered = todos.filter((t) => {
     if (typeFilter && t.type !== typeFilter) return false;
     if (statusFilter && t.status !== statusFilter) return false;
@@ -49,40 +51,34 @@
   });
 
   const markProcessing = async (todo: TodoItem) => {
-    const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/todos/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: todo.id, status: 'processing' })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockTodos[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockTodos[idx] = { ...mockTodos[idx], status: 'processing' };
+    try {
+      const res = await fetch('/api/todos/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: todo.id, status: 'processing' })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 
   const markDone = async (todo: TodoItem) => {
-    const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/todos/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: todo.id, status: 'done' })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockTodos[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockTodos[idx] = { ...mockTodos[idx], status: 'done' };
+    try {
+      const res = await fetch('/api/todos/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: todo.id, status: 'done' })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 </script>

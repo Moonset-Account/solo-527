@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -13,7 +14,6 @@
     Clock,
     Circle
   } from 'lucide-svelte';
-  import { mockOrders } from '$lib/mock-data';
   import type { Order } from '$lib/types';
   import {
     orderStatusLabel,
@@ -22,11 +22,13 @@
     formatDate
   } from '$lib/utils';
 
+  export let data: { orders: Order[] };
+
   let search = '';
   let statusFilter = '';
   let viewOrder: Order | null = null;
 
-  $: filtered = mockOrders.filter((o) => {
+  $: filtered = data.orders.filter((o) => {
     if (search) {
       const s = search.toLowerCase();
       if (!o.orderNo.toLowerCase().includes(s) && !o.memberName.toLowerCase().includes(s)) return false;
@@ -36,27 +38,18 @@
   });
 
   const updateOrderStatus = async (order: Order, status: Order['status']) => {
-    const idx = mockOrders.findIndex((o) => o.id === order.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/orders/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: order.id, status })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockOrders[idx] = json.data;
-          if (viewOrder && viewOrder.id === order.id) {
-            viewOrder = json.data;
-          }
-          return;
-        }
-      } catch {}
-      mockOrders[idx] = { ...mockOrders[idx], status };
-      if (viewOrder && viewOrder.id === order.id) {
-        viewOrder = { ...viewOrder, status };
+    try {
+      const res = await fetch('/api/orders/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: order.id, status })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
       }
+    } catch {
+      await invalidateAll();
     }
   };
 </script>

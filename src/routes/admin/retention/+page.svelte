@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
@@ -12,9 +13,10 @@
     Clock,
     RefreshCw
   } from 'lucide-svelte';
-  import { mockRetentionAlerts } from '$lib/mock-data';
   import type { RetentionAlert } from '$lib/types';
   import { alertStatusLabel, formatDateTime } from '$lib/utils';
+
+  export let data: { retentionAlerts: RetentionAlert[] };
 
   let statusFilter = '';
 
@@ -25,47 +27,41 @@
     { v: 'resolved', l: '已解决' }
   ];
 
-  $: filtered = mockRetentionAlerts.filter((a) => !statusFilter || a.status === statusFilter);
+  $: filtered = data.retentionAlerts.filter((a) => !statusFilter || a.status === statusFilter);
 
-  $: activeCount = mockRetentionAlerts.filter((a) => a.status === 'active').length;
-  $: ackCount = mockRetentionAlerts.filter((a) => a.status === 'acknowledged').length;
-  $: resolvedCount = mockRetentionAlerts.filter((a) => a.status === 'resolved').length;
+  $: activeCount = data.retentionAlerts.filter((a) => a.status === 'active').length;
+  $: ackCount = data.retentionAlerts.filter((a) => a.status === 'acknowledged').length;
+  $: resolvedCount = data.retentionAlerts.filter((a) => a.status === 'resolved').length;
 
   const acknowledge = async (alert: RetentionAlert) => {
-    const idx = mockRetentionAlerts.findIndex((a) => a.id === alert.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/alerts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: alert.id, action: 'acknowledge' })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockRetentionAlerts[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockRetentionAlerts[idx] = { ...mockRetentionAlerts[idx], status: 'acknowledged', notifiedAt: new Date().toISOString() };
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alert.id, action: 'acknowledge' })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 
   const resolve = async (alert: RetentionAlert) => {
-    const idx = mockRetentionAlerts.findIndex((a) => a.id === alert.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/alerts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: alert.id, action: 'resolve' })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockRetentionAlerts[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockRetentionAlerts[idx] = { ...mockRetentionAlerts[idx], status: 'resolved' };
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alert.id, action: 'resolve' })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 </script>

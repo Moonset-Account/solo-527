@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { invalidateAll } from '$app/navigation';
   import { currentUser as userStore } from '$lib/stores';
-  import { mockUsers, mockSubscriptions, mockTodos, mockExceptions } from '$lib/mock-data';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
@@ -36,11 +36,18 @@
     formatDateTime,
     daysFromNow
   } from '$lib/utils';
-  import type { ExceptionRecord, TodoItem } from '$lib/types';
+  import type { ExceptionRecord, TodoItem, User, MemberSubscription } from '$lib/types';
+
+  export let data: {
+    users: User[];
+    subscriptions: MemberSubscription[];
+    todos: TodoItem[];
+    exceptions: ExceptionRecord[];
+  };
 
   $: {
     const role = ($page.url.searchParams.get('role') as 'host' | 'operator') || 'host';
-    const user = mockUsers.find((u) => u.role === role) || mockUsers[0];
+    const user = data.users.find((u) => u.role === role) || data.users[0];
     userStore.set(user);
   }
 
@@ -50,16 +57,16 @@
 
   $: host = $userStore;
 
-  $: hostSubscriptions = mockSubscriptions.filter((s) => {
+  $: hostSubscriptions = data.subscriptions.filter((s) => {
     if (host.role === 'operator') return true;
-    const brand = mockSubscriptions.find((x) => x.brandId === s.brandId);
+    const brand = data.subscriptions.find((x) => x.brandId === s.brandId);
     return s.brandId !== '';
   });
 
-  $: hostTodos = mockTodos.filter((t) => t.assigneeId === host.id || host.role === 'operator');
+  $: hostTodos = data.todos.filter((t) => t.assigneeId === host.id || host.role === 'operator');
   $: pendingTodos = hostTodos.filter((t) => t.status !== 'done');
 
-  $: hostExceptions = mockExceptions;
+  $: hostExceptions = data.exceptions;
   $: exceptionsByBrand = hostExceptions.reduce<Record<string, ExceptionRecord[]>>((acc, ex) => {
     if (!acc[ex.brandId]) acc[ex.brandId] = [];
     acc[ex.brandId].push(ex);
@@ -79,84 +86,57 @@
 
   const handleResolve = async () => {
     if (!selectedException) return;
-    const idx = mockExceptions.findIndex((e) => e.id === selectedException!.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/exceptions/resolve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: selectedException.id,
-            result: resolveResult,
-            remark: resolveRemark,
-            hostId: host.id,
-            hostName: host.name
-          })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockExceptions[idx] = json.data;
-        } else {
-          mockExceptions[idx] = {
-            ...mockExceptions[idx],
-            status: 'resolved',
-            result: resolveResult,
-            remark: resolveRemark,
-            hostId: host.id,
-            hostName: host.name,
-            resolvedAt: new Date().toISOString()
-          };
-        }
-      } catch {
-        mockExceptions[idx] = {
-          ...mockExceptions[idx],
-          status: 'resolved',
+    try {
+      const res = await fetch('/api/exceptions/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedException.id,
           result: resolveResult,
           remark: resolveRemark,
           hostId: host.id,
-          hostName: host.name,
-          resolvedAt: new Date().toISOString()
-        };
+          hostName: host.name
+        })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
       }
+    } catch {
+      await invalidateAll();
     }
     closeResolve();
   };
 
   const markTodoProcessing = async (todo: TodoItem) => {
-    const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/todos/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: todo.id, status: 'processing' })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockTodos[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockTodos[idx] = { ...mockTodos[idx], status: 'processing' };
+    try {
+      const res = await fetch('/api/todos/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: todo.id, status: 'processing' })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 
   const markTodoDone = async (todo: TodoItem) => {
-    const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/todos/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: todo.id, status: 'done' })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockTodos[idx] = json.data;
-          return;
-        }
-      } catch {}
-      mockTodos[idx] = { ...mockTodos[idx], status: 'done' };
+    try {
+      const res = await fetch('/api/todos/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: todo.id, status: 'done' })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
+      }
+    } catch {
+      await invalidateAll();
     }
   };
 </script>

@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
-import { exceptions } from '$drizzle/schema';
+import { exceptions } from '$lib/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { mockExceptions } from '$lib/mock-data';
 import type { ExceptionRecord } from '$lib/types';

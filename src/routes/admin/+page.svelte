@@ -12,27 +12,29 @@
     ChevronRight,
     Bell
   } from 'lucide-svelte';
-  import {
-    mockOrders,
-    mockSubscriptions,
-    mockRetentionAlerts,
-    mockApiLogs
-  } from '$lib/mock-data';
   import { orderStatusLabel, formatDateTime, alertStatusLabel } from '$lib/utils';
   import { currentUser } from '$lib/stores';
-  import { mockUsers } from '$lib/mock-data';
+  import type { Order, MemberSubscription, RetentionAlert, ApiLog, User } from '$lib/types';
 
-  $: currentUser.set(mockUsers.find((u) => u.role === 'operator') || mockUsers[2]);
+  export let data: {
+    orders: Order[];
+    subscriptions: MemberSubscription[];
+    retentionAlerts: RetentionAlert[];
+    apiLogs: ApiLog[];
+    users: User[];
+  };
 
-  $: totalRevenue = mockOrders
+  $: currentUser.set(data.users.find((u) => u.role === 'operator') || data.users[2]);
+
+  $: totalRevenue = data.orders
     .filter((o) => ['paid', 'delivering', 'completed'].includes(o.status))
     .reduce((sum, o) => sum + Number(o.amount), 0)
     .toLocaleString('zh-CN');
 
-  $: activeSubs = mockSubscriptions.filter((s) => s.subscriptionStatus === 'active').length;
-  $: pendingOrders = mockOrders.filter((o) => ['pending', 'paid', 'delivering'].includes(o.status)).length;
-  $: activeAlerts = mockRetentionAlerts.filter((a) => a.status === 'active').length;
-  $: failedApis = mockApiLogs.filter((l) => !l.success).length;
+  $: activeSubs = data.subscriptions.filter((s) => s.subscriptionStatus === 'active').length;
+  $: pendingOrders = data.orders.filter((o) => ['pending', 'paid', 'delivering'].includes(o.status)).length;
+  $: activeAlerts = data.retentionAlerts.filter((a) => a.status === 'active').length;
+  $: failedApis = data.apiLogs.filter((l) => !l.success).length;
 </script>
 
 <PageHeader title="运营后台" subtitle="订单、交付、留存全链路监控" />
@@ -71,7 +73,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-navy-100">
-            {#each mockOrders.slice(0, 5) as order, i (order.id)}
+            {#each data.orders.slice(0, 5) as order, i (order.id)}
               <tr class="hover:bg-navy-50/50 transition">
                 <td class="py-3 pr-4 font-mono text-xs text-navy-700">{order.orderNo}</td>
                 <td class="py-3 pr-4">
@@ -105,7 +107,7 @@
         </a>
       </div>
       <div class="space-y-3">
-        {#each mockRetentionAlerts as alert, i (alert.id)}
+        {#each data.retentionAlerts as alert, i (alert.id)}
           <div
             class="p-3.5 rounded-xl border border-navy-100 hover:border-warn-orange-200 bg-white hover:bg-warn-orange-50/30 transition animate-fade-in-up"
             style="animation-delay: {0.08 + i * 0.04}s"

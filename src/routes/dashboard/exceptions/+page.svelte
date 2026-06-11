@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
@@ -13,10 +14,11 @@
     UserCircle,
     Plus
   } from 'lucide-svelte';
-  import { mockExceptions } from '$lib/mock-data';
   import type { ExceptionRecord } from '$lib/types';
   import { exceptionStatusLabel, formatDateTime } from '$lib/utils';
   import { currentUser } from '$lib/stores';
+
+  export let data: { exceptions: ExceptionRecord[] };
 
   let brandFilter = '';
   let statusFilter = '';
@@ -26,9 +28,9 @@
   let resolveRemark = '';
   let viewDetail: ExceptionRecord | null = null;
 
-  $: brands = Array.from(new Set(mockExceptions.map((e) => e.brandName)));
+  $: brands = Array.from(new Set(data.exceptions.map((e) => e.brandName)));
 
-  $: filtered = mockExceptions.filter((e) => {
+  $: filtered = data.exceptions.filter((e) => {
     if (brandFilter && e.brandName !== brandFilter) return false;
     if (statusFilter && e.status !== statusFilter) return false;
     return true;
@@ -65,52 +67,31 @@
 
   const handleResolve = async () => {
     if (!selectedException) return;
-    const idx = mockExceptions.findIndex((e) => e.id === selectedException!.id);
-    if (idx >= 0) {
-      try {
-        const res = await fetch('/api/exceptions/resolve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: selectedException.id,
-            result: resolveResult,
-            remark: resolveRemark,
-            hostId: $currentUser.id,
-            hostName: $currentUser.name
-          })
-        });
-        const json = await res.json();
-        if (json.ok && json.data) {
-          mockExceptions[idx] = json.data;
-        } else {
-          mockExceptions[idx] = {
-            ...mockExceptions[idx],
-            status: 'resolved',
-            result: resolveResult,
-            remark: resolveRemark,
-            hostId: $currentUser.id,
-            hostName: $currentUser.name,
-            resolvedAt: new Date().toISOString()
-          };
-        }
-      } catch {
-        mockExceptions[idx] = {
-          ...mockExceptions[idx],
-          status: 'resolved',
+    try {
+      const res = await fetch('/api/exceptions/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedException.id,
           result: resolveResult,
           remark: resolveRemark,
           hostId: $currentUser.id,
-          hostName: $currentUser.name,
-          resolvedAt: new Date().toISOString()
-        };
+          hostName: $currentUser.name
+        })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await invalidateAll();
       }
+    } catch {
+      await invalidateAll();
     }
     closeResolve();
   };
 
-  const unconfirmed = mockExceptions.filter((e) => e.status === 'unconfirmed').length;
-  const confirmed = mockExceptions.filter((e) => e.status === 'confirmed').length;
-  const resolved = mockExceptions.filter((e) => e.status === 'resolved').length;
+  $: unconfirmed = data.exceptions.filter((e) => e.status === 'unconfirmed').length;
+  $: confirmed = data.exceptions.filter((e) => e.status === 'confirmed').length;
+  $: resolved = data.exceptions.filter((e) => e.status === 'resolved').length;
 </script>
 
 <PageHeader title="异常池" subtitle="按品牌归类的异常记录，办结后需补充结果和说明" />
