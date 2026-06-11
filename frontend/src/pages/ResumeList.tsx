@@ -112,7 +112,7 @@ const ResumeList: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 180,
-      fixed: 'right',
+      fixed: 'right' as const,
       render: (_: any, record: any) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => navigate(`/resumes/${record.id}`)}>

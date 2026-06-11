@@ -315,6 +315,102 @@ export class NotificationService {
     const rule = this.escalationRuleRepository.create(params);
     return await this.escalationRuleRepository.save(rule);
   }
+
+  async getMyTasks(userId: string): Promise<NotificationTask[]> {
+    return await this.notificationTaskRepository
+      .createQueryBuilder('task')
+      .where('task.assigneeId = :userId', { userId })
+      .andWhere('task.status IN (:...statuses)', { statuses: ['pending', 'escalated'] })
+      .orderBy('task.createdAt', 'DESC')
+      .getMany();
+  }
+
+  async getNotificationTasks(notificationId: string): Promise<any[]> {
+    const tasks = await this.notificationTaskRepository
+      .createQueryBuilder('task')
+      .where('task.notificationId = :notificationId', { notificationId })
+      .orderBy('task.createdAt', 'ASC')
+      .getMany();
+
+    const result = [];
+    for (const task of tasks) {
+      const assignee = await this.userRepository.findOneBy({ id: task.assigneeId });
+      result.push({
+        ...task,
+        assigneeName: assignee?.name || '未知',
+        assigneeRole: assignee?.role || 'unknown',
+      });
+    }
+    return result;
+  }
+
+  async assignTask(notificationId: string, assigneeId: string, assignedBy: string, deadlineHours?: number): Promise<NotificationTask> {
+    const user = await this.userRepository.findOneBy({ id: assigneeId });
+    if (!user) {
+      throw new Error('指定的处理人不存在');
+    }
+
+    const notification = await this.notificationRepository.findOneBy({ id: notificationId });
+    if (!notification) {
+      throw new Error('通知不存在');
+    }
+
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + (deadlineHours || 24));
+
+    const task = await this.createNotificationTask({
+      notificationId,
+      assigneeId,
+      deadline,
+      escalationLevel: 0,
+    });
+
+    notification.recipientId = assigneeId;
+    await this.notificationRepository.save(notification);
+
+    return task;
+  }
+
+  async completeTask(taskId: string, userId: string, remark?: string): Promise<void> {
+    const task = await this.notificationTaskRepository.findOneBy({ id: taskId });
+    if (!task) {
+      throw new Error('任务不存在');
+    }
+    if (task.assigneeId !== userId) {
+      throw new Error('无权处理此任务');
+    }
+
+    task.status = 'completed';
+    task.completedAt = new Date();
+    await this.notificationTaskRepository.save(task);
+  }
+
+  async manualEscalate(notificationId: string, escalatedBy: string): Promise<void> {
+    const pendingTasks = await this.notificationTaskRepository
+      .createQueryBuilder('task')
+      .where('task.notificationId = :notificationId', { notificationId })
+      .andWhere('task.status = :status', { status: 'pending' })
+      .getMany();
+
+    for (const task of pendingTasks) {
+      await this.escalateTask(task.id);
+    }
+  }
+
+  async getNotificationDetail(notificationId: string): Promise<any> {
+    const notification = await this.notificationRepository.findOneBy({ id: notificationId });
+    if (!notification) return null;
+
+    const recipient = await this.userRepository.findOneBy({ id: notification.recipientId });
+    const tasks = await this.getNotificationTasks(notificationId);
+
+    return {
+      ...notification,
+      recipientName: recipient?.name || '未知',
+      recipientRole: recipient?.role || 'unknown',
+      tasks,
+    };
+  }
 }
 
 export const notificationService = new NotificationService();

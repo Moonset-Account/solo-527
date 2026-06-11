@@ -100,4 +100,73 @@ router.post('/check-escalation', authMiddleware, requireRole('admin'), async (re
   }
 });
 
+router.get('/tasks', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    if (!req.user) {
+      return errorResponse(res, '未登录', 401);
+    }
+    const tasks = await notificationService.getMyTasks(req.user.id);
+    successResponse(res, tasks);
+  } catch (error: any) {
+    errorResponse(res, error.message, 500);
+  }
+});
+
+router.get('/:id/detail', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const detail = await notificationService.getNotificationDetail(id);
+    if (!detail) {
+      return errorResponse(res, '通知不存在', 404);
+    }
+    successResponse(res, detail);
+  } catch (error: any) {
+    errorResponse(res, error.message, 500);
+  }
+});
+
+router.post('/:id/assign', authMiddleware, requireRole('admin', 'hr'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.user) {
+      return errorResponse(res, '未登录', 401);
+    }
+    const { id } = req.params;
+    const { assigneeId, deadlineHours } = req.body;
+    if (!assigneeId) {
+      return errorResponse(res, '请指定处理人', 400);
+    }
+    const task = await notificationService.assignTask(id, assigneeId, req.user.id, deadlineHours);
+    successResponse(res, task, '分派成功');
+  } catch (error: any) {
+    errorResponse(res, error.message, 500);
+  }
+});
+
+router.post('/tasks/:taskId/complete', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    if (!req.user) {
+      return errorResponse(res, '未登录', 401);
+    }
+    const { taskId } = req.params;
+    const { remark } = req.body;
+    await notificationService.completeTask(taskId, req.user.id, remark);
+    successResponse(res, null, '任务已完成');
+  } catch (error: any) {
+    errorResponse(res, error.message, 500);
+  }
+});
+
+router.post('/:id/escalate', authMiddleware, requireRole('admin', 'hr'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.user) {
+      return errorResponse(res, '未登录', 401);
+    }
+    const { id } = req.params;
+    await notificationService.manualEscalate(id, req.user.id);
+    successResponse(res, null, '已手动升级');
+  } catch (error: any) {
+    errorResponse(res, error.message, 500);
+  }
+});
+
 export default router;

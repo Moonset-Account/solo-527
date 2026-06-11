@@ -28,6 +28,7 @@ export const interviewApi = {
 
   getInterviews: (params?: {
     interviewerId?: string;
+    resumeId?: string;
     status?: string;
     dateFrom?: string;
     dateTo?: string;

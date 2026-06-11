@@ -49,4 +49,19 @@ export const notificationApi = {
 
   checkEscalation: (): Promise<ApiResponse<null>> =>
     api.post('/notifications/check-escalation'),
+
+  getMyTasks: (): Promise<ApiResponse<any[]>> =>
+    api.get('/notifications/tasks'),
+
+  getNotificationDetail: (id: string): Promise<ApiResponse<any>> =>
+    api.get(`/notifications/${id}/detail`),
+
+  assignNotification: (id: string, data: { assigneeId: string; deadlineHours?: number }): Promise<ApiResponse<any>> =>
+    api.post(`/notifications/${id}/assign`, data),
+
+  completeTask: (taskId: string, remark?: string): Promise<ApiResponse<null>> =>
+    api.post(`/notifications/tasks/${taskId}/complete`, { remark }),
+
+  manualEscalate: (id: string): Promise<ApiResponse<null>> =>
+    api.post(`/notifications/${id}/escalate`),
 };

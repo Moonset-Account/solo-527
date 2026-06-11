@@ -183,7 +183,6 @@ const RecruitmentCycles: React.FC = () => {
                   <div style={{ marginTop: 16 }}>
                     <Text strong style={{ fontSize: 12 }}>里程碑</Text>
                     <Timeline
-                      size="small"
                       style={{ marginTop: 8 }}
                       items={item.milestones.slice(0, 3).map((m: any) => ({
                         color: dayjs(m.date).isBefore(dayjs()) ? 'green' : 'blue',

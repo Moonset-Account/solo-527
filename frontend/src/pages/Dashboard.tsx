@@ -16,6 +16,8 @@ import { interviewApi } from '../api/interview';
 import { recruitmentApi } from '../api/recruitment';
 import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 

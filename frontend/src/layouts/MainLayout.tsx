@@ -14,13 +14,13 @@ import {
   StarOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { notificationApi } from '../api/notification';
 
 const { Header, Sider, Content } = Layout;
 
-const MainLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
@@ -212,7 +212,7 @@ const MainLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
           </Space>
         </Header>
         <Content className="layout-content">
-          {children}
+          <Outlet />
         </Content>
       </Layout>
     </Layout>

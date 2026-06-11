@@ -5,7 +5,7 @@ import { interviewApi } from '../api/interview';
 import { authApi } from '../api/auth';
 import dayjs, { Dayjs } from 'dayjs';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
 const InterviewSchedule: React.FC = () => {
