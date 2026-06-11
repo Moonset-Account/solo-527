@@ -294,7 +294,10 @@ model ExportTask {
   processedRecords Int            @default(0)
   errorMessage    String?
   fileUrl         String?
+  fileName        String?
   fileSize        Int?
+  fileContent     String?
+  mimeType        String?
   userId          String
   user            User            @relation(fields: [userId], references: [id])
   createdAt       DateTime        @default(now())

@@ -84,6 +84,7 @@ const processExport = async (job: any) => {
 
     let fileContent = ''
     let fileName = ''
+    let mimeType = ''
 
     if (format === 'CSV') {
       const headers = ['日期', '内容类型', '产出数量', '视频时长(秒)', '质量评分', '用户', '选题', '素材', '标签', '备注']
@@ -99,17 +100,34 @@ const processExport = async (job: any) => {
         r.tags.join(';'),
         r.remarks || '',
       ])
-      fileContent = [headers, ...rows].map(row => row.join(',')).join('\n')
+      fileContent = [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
       fileName = `产能记录_${new Date().toISOString().split('T')[0]}.csv`
+      mimeType = 'text/csv; charset=utf-8'
     } else if (format === 'EXCEL') {
-      fileContent = JSON.stringify(records)
-      fileName = `产能记录_${new Date().toISOString().split('T')[0]}.json`
+      const xlsxHeaders = ['日期', '内容类型', '产出数量', '视频时长(秒)', '质量评分', '用户', '选题', '素材', '标签', '备注']
+      const xlsxRows = records.map(r => [
+        new Date(r.date).toLocaleDateString('zh-CN'),
+        r.contentType,
+        r.outputCount,
+        r.videoDuration || '',
+        r.qualityScore || '',
+        r.user?.name || '',
+        r.topic?.title || '',
+        r.material?.name || '',
+        r.tags.join(';'),
+        r.remarks || '',
+      ])
+      const csvWithBom = '\uFEFF' + [xlsxHeaders, ...xlsxRows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+      fileContent = csvWithBom
+      fileName = `产能记录_${new Date().toISOString().split('T')[0]}.csv`
+      mimeType = 'text/csv; charset=utf-8'
     } else {
-      fileContent = JSON.stringify(records)
+      fileContent = JSON.stringify(records, null, 2)
       fileName = `产能记录_${new Date().toISOString().split('T')[0]}.json`
+      mimeType = 'application/json; charset=utf-8'
     }
 
-    const fileUrl = `/exports/${exportTaskId}/${fileName}`
+    const fileUrl = `/api/exports/${exportTaskId}/download/${encodeURIComponent(fileName)}`
 
     await prisma.exportTask.update({
       where: { id: exportTaskId },
@@ -118,6 +136,9 @@ const processExport = async (job: any) => {
         progress: 100,
         processedRecords: totalRecords,
         fileUrl,
+        fileName,
+        fileContent,
+        mimeType,
         fileSize: Buffer.byteLength(fileContent, 'utf8'),
         completedAt: new Date(),
       },
