@@ -94,6 +94,7 @@ sitemap-checker check \
 | `--markdown / -o` | 输出 Markdown 报告路径 | — |
 | `--replace-script` | 生成 sed 批量替换脚本 | — |
 | `--print-json` | 将 JSON 报告打印到 stdout | false |
+| `--no-summary` | 不打印终端汇总表格 | false |
 
 ## 退出码
 
