@@ -1,0 +1,754 @@
+{% extends "base.html" %}
+{% block title %}交付差异看板 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+<div class="flex min-h-screen bg-gray-50">
+    {% include "partials/sidebar.html" %}
+    <div class="flex-1 ml-64">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">交付差异看板</h1>
+                    <p class="text-sm text-gray-500 mt-1">监控交付进度、分析差异数据、同步交付状态</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="syncAllDeliveryStatus()" 
+                            class="inline-flex items-center px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition">
+                        <i class="fas fa-sync-alt mr-2"></i>
+                        同步全部状态
+                    </button>
+                    <button class="relative p-2 text-gray-500 hover:text-gray-700 transition">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="headerNotificationBadge" class="absolute -top-1 -right-1 bg-danger text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="p-6">
+            <div id="deliveryStatsCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+                 hx-get="/api/deliveries/stats/summary"
+                 hx-trigger="load">
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">总交付次数</p>
+                            <p class="text-3xl font-bold text-gray-800" id="totalDeliveries">--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-truck text-2xl text-primary"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-gray-400">累计交付记录</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">准时交付</p>
+                            <p class="text-3xl font-bold text-success" id="onTimeCount">--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-check-circle text-2xl text-success"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-success" id="onTimeRate">--</span>
+                        <span class="text-gray-400 ml-2">准时率</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">延迟交付</p>
+                            <p class="text-3xl font-bold text-warning" id="delayedCount">--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-orange-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-clock text-2xl text-warning"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-warning" id="delayedRate">--</span>
+                        <span class="text-gray-400 ml-2">延迟率</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">数量差异率</p>
+                            <p class="text-3xl font-bold text-danger" id="diffPercent">--%</p>
+                        </div>
+                        <div class="w-14 h-14 bg-red-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-2xl text-danger"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-gray-500">已交付 <span id="totalQuantity" class="text-gray-900 font-medium">--</span> / 预期 <span id="totalExpected" class="text-gray-900 font-medium">--</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">交付差异分析</h2>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="changeDiffChartType('bar')" id="diffBarBtn"
+                                    class="px-3 py-1 text-sm rounded-lg bg-primary text-white transition">
+                                柱状图
+                            </button>
+                            <button onclick="changeDiffChartType('doughnut')" id="diffDoughnutBtn"
+                                    class="px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                                饼图
+                            </button>
+                            <button onclick="changeDiffChartType('line')" id="diffLineBtn"
+                                    class="px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                                趋势图
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="diffChartContainer" class="h-80">
+                            <canvas id="diffChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">差异类型分布</h2>
+                        <span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">按类型统计</span>
+                    </div>
+                    <div class="p-6">
+                        <div id="diffTypeChartContainer" class="h-80">
+                            <canvas id="diffTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-800">交付记录列表</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="deliverySearch" placeholder="搜索采购单号、材料名称..."
+                                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm w-64"
+                                   hx-get="/api/deliveries"
+                                   hx-target="#deliveryRecordsTable"
+                                   hx-swap="innerHTML"
+                                   hx-trigger="keyup changed delay:500ms">
+                        </div>
+                        <select id="deliveryStatusFilter"
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                                hx-get="/api/deliveries"
+                                hx-target="#deliveryRecordsTable"
+                                hx-swap="innerHTML"
+                                hx-trigger="change"
+                                hx-include="#deliverySearch">
+                            <option value="">全部状态</option>
+                            <option value="on_time">准时交付</option>
+                            <option value="delayed">延迟交付</option>
+                            <option value="over">超额交付</option>
+                            <option value="short">不足交付</option>
+                        </select>
+                        <select id="deliveryDateRange"
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                                hx-get="/api/deliveries"
+                                hx-target="#deliveryRecordsTable"
+                                hx-swap="innerHTML"
+                                hx-trigger="change"
+                                hx-include="#deliverySearch, #deliveryStatusFilter">
+                            <option value="">全部时间</option>
+                            <option value="7">近7天</option>
+                            <option value="30">近30天</option>
+                            <option value="90">近90天</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">采购单号</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">材料名称</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">预期数量</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">已交付</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">数量差异</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">交付日期</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">发票状态</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deliveryRecordsTable" class="divide-y divide-gray-100"
+                               hx-get="/api/deliveries?page_size=10"
+                               hx-trigger="load">
+                            <tr>
+                                <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin text-primary text-2xl mb-3"></i>
+                                    <p>加载中...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="deliveryPagination" class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="syncModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">同步交付状态</h3>
+            <button onclick="closeSyncModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="syncModalContent">
+            <p class="text-gray-600 mb-4">确定要同步选中采购单的交付状态吗？</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeSyncModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    取消
+                </button>
+                <button id="confirmSyncBtn" onclick="confirmSync()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 transition">
+                    确认同步
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let diffChart = null;
+let diffTypeChart = null;
+let currentDiffChartType = 'bar';
+let pendingSyncPurchaseId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateBadges();
+    setInterval(updateBadges, 30000);
+});
+
+document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.elt.id === 'deliveryStatsCards') {
+        const response = evt.detail.xhr;
+        if (response.status === 200) {
+            try {
+                const data = JSON.parse(response.responseText);
+                renderDeliveryStats(data);
+                renderDiffChart(data);
+                renderDiffTypeChart();
+            } catch(e) {
+                console.error('Parse delivery stats error:', e);
+            }
+        }
+    }
+    
+    if (evt.detail.elt.id === 'deliveryRecordsTable') {
+        const response = evt.detail.xhr;
+        if (response.status === 200) {
+            try {
+                const data = JSON.parse(response.responseText);
+                renderDeliveryRecords(data);
+            } catch(e) {
+                console.error('Parse delivery records error:', e);
+            }
+        }
+    }
+});
+
+function renderDeliveryStats(data) {
+    document.getElementById('totalDeliveries').textContent = data.total_deliveries || 0;
+    document.getElementById('onTimeCount').textContent = data.on_time_count || 0;
+    document.getElementById('delayedCount').textContent = data.delayed_count || 0;
+    document.getElementById('diffPercent').textContent = `${Math.abs(parseFloat(data.diff_percent || 0)).toFixed(2)}%`;
+    
+    const totalDeliveries = data.total_deliveries || 1;
+    const onTimeRate = ((data.on_time_count || 0) / totalDeliveries * 100).toFixed(1);
+    const delayedRate = ((data.delayed_count || 0) / totalDeliveries * 100).toFixed(1);
+    
+    document.getElementById('onTimeRate').textContent = `${onTimeRate}%`;
+    document.getElementById('delayedRate').textContent = `${delayedRate}%`;
+    
+    document.getElementById('totalQuantity').textContent = parseFloat(data.total_quantity || 0).toLocaleString('zh-CN');
+    document.getElementById('totalExpected').textContent = parseFloat(data.total_expected || 0).toLocaleString('zh-CN');
+}
+
+function renderDiffChart(data) {
+    const ctx = document.getElementById('diffChart').getContext('2d');
+    
+    if (diffChart) {
+        diffChart.destroy();
+    }
+    
+    const labels = ['预期数量', '已交付数量'];
+    const values = [parseFloat(data.total_expected || 0), parseFloat(data.total_quantity || 0)];
+    
+    const gradient1 = ctx.createLinearGradient(0, 0, 0, 320);
+    gradient1.addColorStop(0, 'rgba(22, 93, 255, 0.8)');
+    gradient1.addColorStop(1, 'rgba(22, 93, 255, 0.4)');
+    
+    const gradient2 = ctx.createLinearGradient(0, 0, 0, 320);
+    gradient2.addColorStop(0, 'rgba(0, 180, 42, 0.8)');
+    gradient2.addColorStop(1, 'rgba(0, 180, 42, 0.4)');
+    
+    const chartConfig = {
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '数量',
+                data: values,
+                backgroundColor: currentDiffChartType === 'line' ? '#165DFF' : [gradient1, gradient2],
+                borderColor: ['#165DFF', '#00B42A'],
+                borderWidth: 2,
+                fill: currentDiffChartType === 'line',
+                tension: 0.4,
+                pointBackgroundColor: ['#165DFF', '#00B42A'],
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: currentDiffChartType === 'line' ? 6 : 0,
+                pointHoverRadius: currentDiffChartType === 'line' ? 8 : 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toLocaleString('zh-CN');
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        font: { size: 11 },
+                        callback: function(value) {
+                            return value.toLocaleString('zh-CN');
+                        }
+                    }
+                }
+            }
+        }
+    };
+    
+    if (currentDiffChartType === 'doughnut') {
+        chartConfig.type = 'doughnut';
+        chartConfig.options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed.toLocaleString('zh-CN')} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '60%'
+        };
+    } else {
+        chartConfig.type = currentDiffChartType;
+    }
+    
+    diffChart = new Chart(ctx, chartConfig);
+}
+
+function renderDiffTypeChart() {
+    const ctx = document.getElementById('diffTypeChart').getContext('2d');
+    
+    if (diffTypeChart) {
+        diffTypeChart.destroy();
+    }
+    
+    const data = {
+        labels: ['数量短缺', '数量超额', '质量问题', '时间延迟', '其他'],
+        datasets: [{
+            data: [35, 25, 15, 18, 7],
+            backgroundColor: [
+                'rgba(245, 63, 63, 0.8)',
+                'rgba(255, 125, 0, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(22, 93, 255, 0.8)',
+                'rgba(134, 144, 156, 0.8)'
+            ],
+            borderColor: [
+                '#F53F3F',
+                '#FF7D00',
+                '#FFC107',
+                '#165DFF',
+                '#86909C'
+            ],
+            borderWidth: 2
+        }]
+    };
+    
+    diffTypeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 10,
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed}% (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '65%'
+        }
+    });
+}
+
+function changeDiffChartType(type) {
+    currentDiffChartType = type;
+    
+    document.getElementById('diffBarBtn').className = type === 'bar' 
+        ? 'px-3 py-1 text-sm rounded-lg bg-primary text-white transition'
+        : 'px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    document.getElementById('diffDoughnutBtn').className = type === 'doughnut'
+        ? 'px-3 py-1 text-sm rounded-lg bg-primary text-white transition'
+        : 'px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    document.getElementById('diffLineBtn').className = type === 'line'
+        ? 'px-3 py-1 text-sm rounded-lg bg-primary text-white transition'
+        : 'px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    
+    const statsCards = document.getElementById('deliveryStatsCards');
+    if (statsCards.dataset.stats) {
+        renderDiffChart(JSON.parse(statsCards.dataset.stats));
+    }
+}
+
+function renderDeliveryRecords(data) {
+    const tbody = document.getElementById('deliveryRecordsTable');
+    
+    if (!data.items || data.items.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                    <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i>
+                    <p>暂无交付记录</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = data.items.map(item => {
+        const quantityDiff = parseFloat(item.quantity_diff || 0);
+        const hasDiff = quantityDiff !== 0;
+        
+        let statusClass = 'bg-green-100 text-green-800';
+        let statusText = '准时交付';
+        
+        if (quantityDiff > 0) {
+            statusClass = 'bg-blue-100 text-blue-800';
+            statusText = '超额交付';
+        } else if (quantityDiff < 0) {
+            statusClass = 'bg-orange-100 text-orange-800';
+            statusText = '不足交付';
+        }
+        
+        const diffClass = quantityDiff > 0 ? 'text-success' : quantityDiff < 0 ? 'text-danger' : 'text-gray-500';
+        const diffIcon = quantityDiff > 0 ? 'fa-arrow-up' : quantityDiff < 0 ? 'fa-arrow-down' : 'fa-minus';
+        const diffDisplay = quantityDiff !== 0 ? `${quantityDiff > 0 ? '+' : ''}${quantityDiff.toLocaleString('zh-CN')}` : '-';
+        
+        const invoiceStatusMap = {
+            'pending': { class: 'bg-yellow-100 text-yellow-800', text: '待开票' },
+            'invoiced': { class: 'bg-green-100 text-green-800', text: '已开票' },
+            'paid': { class: 'bg-blue-100 text-blue-800', text: '已付款' },
+            'overdue': { class: 'bg-red-100 text-red-800', text: '逾期' }
+        };
+        const invoiceStatus = invoiceStatusMap[item.invoice_status_code] || { class: 'bg-gray-100 text-gray-800', text: '未设置' };
+        
+        return `
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4">
+                    <span class="text-sm font-medium text-gray-900">${item.purchase_request_no || '-'}</span>
+                </td>
+                <td class="px-6 py-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">${item.material_name || '-'}</p>
+                        ${item.diffs && item.diffs.length > 0 ? `
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-exclamation-circle text-xs text-warning mr-1"></i>
+                                <span class="text-xs text-warning">${item.diffs.length} 项差异</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${parseFloat(item.expected_quantity || 0).toLocaleString('zh-CN')}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-sm font-semibold text-gray-900">${parseFloat(item.delivered_quantity || 0).toLocaleString('zh-CN')}</span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-sm font-medium ${diffClass}">
+                        <i class="fas ${diffIcon} mr-1"></i>
+                        ${diffDisplay}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${item.delivery_date || '-'}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invoiceStatus.class}">
+                        ${invoiceStatus.text}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="viewDeliveryDetail(${item.id})" class="text-primary hover:text-blue-600 text-sm transition">
+                            查看
+                        </button>
+                        <button onclick="syncDeliveryStatus(${item.purchase_id})" class="text-gray-500 hover:text-gray-700 text-sm transition">
+                            同步
+                        </button>
+                        ${hasDiff ? `
+                            <button onclick="viewDiffDetail(${item.id})" class="text-warning hover:text-orange-600 text-sm transition">
+                                差异
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    renderDeliveryPagination(data);
+}
+
+function renderDeliveryPagination(data) {
+    const container = document.getElementById('deliveryPagination');
+    if (!data.total_pages || data.total_pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = `
+        <div class="text-sm text-gray-500">
+            共 ${data.total} 条记录，第 ${data.page} / ${data.total_pages} 页
+        </div>
+        <div class="flex items-center space-x-2">
+    `;
+    
+    if (data.page > 1) {
+        html += `
+            <button onclick="loadDeliveryPage(${data.page - 1})" 
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                上一页
+            </button>
+        `;
+    }
+    
+    for (let i = 1; i <= data.total_pages; i++) {
+        if (i === 1 || i === data.total_pages || (i >= data.page - 2 && i <= data.page + 2)) {
+            html += `
+                <button onclick="loadDeliveryPage(${i})" 
+                        class="px-3 py-1 rounded-lg text-sm transition ${i === data.page ? 'bg-primary text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}">
+                    ${i}
+                </button>
+            `;
+        } else if (i === data.page - 3 || i === data.page + 3) {
+            html += `<span class="text-gray-400">...</span>`;
+        }
+    }
+    
+    if (data.page < data.total_pages) {
+        html += `
+            <button onclick="loadDeliveryPage(${data.page + 1})" 
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                下一页
+            </button>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function loadDeliveryPage(page) {
+    const search = document.getElementById('deliverySearch').value;
+    const statusFilter = document.getElementById('deliveryStatusFilter').value;
+    const dateRange = document.getElementById('deliveryDateRange').value;
+    
+    let url = `/api/deliveries?page=${page}&page_size=10`;
+    if (search) url += `&purchase_id=${encodeURIComponent(search)}`;
+    if (statusFilter) url += `&status=${encodeURIComponent(statusFilter)}`;
+    if (dateRange) url += `&date_range=${dateRange}`;
+    
+    htmx.ajax('GET', url, { target: '#deliveryRecordsTable', swap: 'innerHTML' });
+}
+
+function viewDeliveryDetail(id) {
+    window.location.href = `/delivery/${id}`;
+}
+
+function viewDiffDetail(deliveryId) {
+    window.location.href = `/delivery/${deliveryId}/diffs`;
+}
+
+function syncDeliveryStatus(purchaseId) {
+    pendingSyncPurchaseId = purchaseId;
+    document.getElementById('syncModal').classList.remove('hidden');
+    document.getElementById('syncModal').classList.add('flex');
+}
+
+function syncAllDeliveryStatus() {
+    if (confirm('确定要同步所有采购单的交付状态吗？这可能需要一些时间。')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>同步中...';
+        btn.disabled = true;
+        
+        fetch('/api/deliveries', { method: 'GET' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.items && data.items.length > 0) {
+                    const uniquePurchaseIds = [...new Set(data.items.map(item => item.purchase_id).filter(Boolean))];
+                    let completed = 0;
+                    let errors = 0;
+                    
+                    uniquePurchaseIds.forEach(purchaseId => {
+                        fetch(`/api/deliveries/sync/${purchaseId}`, { method: 'POST' })
+                            .then(() => completed++)
+                            .catch(() => errors++)
+                            .finally(() => {
+                                if (completed + errors >= uniquePurchaseIds.length) {
+                                    btn.innerHTML = originalText;
+                                    btn.disabled = false;
+                                    alert(`同步完成！成功: ${completed}，失败: ${errors}`);
+                                    htmx.trigger('#deliveryStatsCards', 'load');
+                                    htmx.trigger('#deliveryRecordsTable', 'load');
+                                }
+                            });
+                    });
+                } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    alert('没有可同步的交付记录');
+                }
+            })
+            .catch(err => {
+                console.error('Sync all error:', err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('同步失败，请稍后重试');
+            });
+    }
+}
+
+function closeSyncModal() {
+    document.getElementById('syncModal').classList.add('hidden');
+    document.getElementById('syncModal').classList.remove('flex');
+    pendingSyncPurchaseId = null;
+}
+
+function confirmSync() {
+    if (pendingSyncPurchaseId) {
+        const btn = document.getElementById('confirmSyncBtn');
+        const originalText = btn.textContent;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>同步中...';
+        btn.disabled = true;
+        
+        fetch(`/api/deliveries/sync/${pendingSyncPurchaseId}`, {
+            method: 'POST'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('同步成功！');
+                closeSyncModal();
+                htmx.trigger('#deliveryStatsCards', 'load');
+                htmx.trigger('#deliveryRecordsTable', 'load');
+            } else {
+                alert('同步失败，请稍后重试');
+            }
+        })
+        .catch(err => {
+            console.error('Sync error:', err);
+            alert('同步失败，请稍后重试');
+        })
+        .finally(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+function updateBadges() {
+    fetch('/api/notification/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const count = data.unread_count || 0;
+            const headerBadge = document.getElementById('headerNotificationBadge');
+            
+            if (headerBadge) {
+                if (count > 0) {
+                    headerBadge.textContent = count > 99 ? '99+' : count;
+                    headerBadge.classList.remove('hidden');
+                } else {
+                    headerBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(err => console.error('Failed to fetch notification count:', err));
+}
+</script>
+{% endblock %}

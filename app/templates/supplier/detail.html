@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block title %}供应商详情 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+{% include 'partials/sidebar.html' %}
+<div class="ml-64 min-h-screen">
+    <div class="bg-white border-b border-gray-200 px-8 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <a href="/supplier" class="mr-4 text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800" id="supplierName">{{ supplier.name if supplier else '供应商详情' }}</h1>
+                    <div class="flex items-center mt-1">
+                        <span id="supplierStatus" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if supplier and supplier.status == 'approved' %}bg-green-100 text-green-800{% elif supplier and supplier.status == 'rejected' %}bg-red-100 text-red-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {% if supplier %}{% if supplier.status == 'approved' %}<i class="fas fa-check-circle mr-1"></i>已通过{% elif supplier.status == 'rejected' %}<i class="fas fa-times-circle mr-1"></i>已拒绝{% else %}<i class="fas fa-clock mr-1"></i>待审核{% endif %}{% endif %}
+                        </span>
+                        <span class="mx-2 text-gray-300">|</span>
+                        <span class="text-gray-500 text-sm" id="supplierCode">编号：{{ supplier.id if supplier else '-' }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if supplier and supplier.status == 'pending' and current_user.role in ['auditor', 'manager', 'admin'] %}
+                <button onclick="showAuditModal()" class="inline-flex items-center px-4 py-2 bg-success hover:bg-green-600 text-white rounded-lg transition">
+                    <i class="fas fa-check-double mr-2"></i>
+                    资质审核
+                </button>
+                {% endif %}
+                {% if current_user.role in ['manager', 'admin'] %}
+                <button onclick="showRiskModal()" class="inline-flex items-center px-4 py-2 bg-warning hover:bg-orange-600 text-white rounded-lg transition">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    风险评估
+                </button>
+                {% endif %}
+                <button onclick="window.location.href='/supplier/{{ supplier.id if supplier else 0 }}/edit'" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-edit mr-2"></i>
+                    编辑
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-building text-primary mr-3"></i>
+                            基本信息
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">供应商名称</label>
+                                <p class="text-gray-800 font-medium">{{ supplier.name if supplier else '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">联系人</label>
+                                <p class="text-gray-800">{{ supplier.contact_person if supplier else '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">联系电话</label>
+                                <p class="text-gray-800">{{ supplier.contact_phone if supplier else '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">创建时间</label>
+                                <p class="text-gray-800">{{ supplier.created_at.strftime('%Y-%m-%d %H:%M') if supplier and supplier.created_at else '-' }}</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm text-gray-500 mb-1">地址</label>
+                                <p class="text-gray-800">{{ supplier.address if supplier else '-' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-certificate text-primary mr-3"></i>
+                            资质信息
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">营业执照号码</label>
+                                <p class="text-gray-800">{{ supplier.business_license if supplier and supplier.business_license else '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">资质证书编号</label>
+                                <p class="text-gray-800">{{ supplier.qualification_cert if supplier and supplier.qualification_cert else '-' }}</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <label class="block text-sm text-gray-500 mb-3">资质附件</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <i class="fas fa-file-pdf text-danger text-2xl mr-3"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 truncate">营业执照扫描件.pdf</p>
+                                        <p class="text-xs text-gray-500">2.4 MB</p>
+                                    </div>
+                                    <button class="text-primary hover:text-blue-600 transition">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <i class="fas fa-file-image text-info text-2xl mr-3"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 truncate">资质证书扫描件.jpg</p>
+                                        <p class="text-xs text-gray-500">1.8 MB</p>
+                                    </div>
+                                    <button class="text-primary hover:text-blue-600 transition">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-chart-pie text-primary mr-3"></i>
+                            合作概览
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500">累计合作订单</span>
+                                <span class="text-2xl font-bold text-primary">12</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500">累计交易金额</span>
+                                <span class="text-2xl font-bold text-success">¥586.5万</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500">按时交付率</span>
+                                <span class="text-2xl font-bold text-warning">91.7%</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500">当前风险等级</span>
+                                <span id="currentRiskLevel" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    中风险
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-tags text-primary mr-3"></i>
+                            资质类别
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex flex-wrap gap-2">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
+                                建筑工程
+                            </span>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-50 text-green-700">
+                                市政公用
+                            </span>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-50 text-purple-700">
+                                机电安装
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="border-b border-gray-200">
+                <nav class="flex">
+                    <button onclick="switchTab('audit')" id="tab-audit" class="tab-btn flex-1 py-4 px-6 text-sm font-medium border-b-2 border-primary text-primary">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        资质审核记录
+                    </button>
+                    <button onclick="switchTab('risk')" id="tab-risk" class="tab-btn flex-1 py-4 px-6 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-shield-alt mr-2"></i>
+                        风险评估
+                    </button>
+                    <button onclick="switchTab('history')" id="tab-history" class="tab-btn flex-1 py-4 px-6 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-history mr-2"></i>
+                        历史合作
+                    </button>
+                </nav>
+            </div>
+
+            <div id="panel-audit" class="tab-panel p-6">
+                <div id="auditList" hx-get="/api/suppliers/{{ supplier.id if supplier else 0 }}/audits" hx-trigger="load">
+                    <div class="flex items-center justify-center py-12">
+                        <i class="fas fa-spinner fa-spin text-primary text-2xl"></i>
+                        <span class="ml-3 text-gray-500">加载中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="panel-risk" class="tab-panel p-6 hidden">
+                <div id="riskList" hx-get="/api/suppliers/{{ supplier.id if supplier else 0 }}/risk-assessments" hx-trigger="load">
+                    <div class="flex items-center justify-center py-12">
+                        <i class="fas fa-spinner fa-spin text-primary text-2xl"></i>
+                        <span class="ml-3 text-gray-500">加载中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="panel-history" class="tab-panel p-6 hidden">
+                <div id="historyList" hx-get="/api/suppliers/{{ supplier.id if supplier else 0 }}/purchase-history" hx-trigger="load">
+                    <div class="flex items-center justify-center py-12">
+                        <i class="fas fa-spinner fa-spin text-primary text-2xl"></i>
+                        <span class="ml-3 text-gray-500">加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="auditModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">资质审核</h3>
+            <button onclick="closeAuditModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="auditForm" hx-post="/api/suppliers/{{ supplier.id if supplier else 0 }}/audit" hx-target="#auditFormError" hx-swap="innerHTML">
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        审核结果 <span class="text-danger">*</span>
+                    </label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="audit_result" value="approved" class="w-4 h-4 text-success focus:ring-success border-gray-300" checked>
+                            <span class="ml-2 text-gray-700">通过</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="audit_result" value="rejected" class="w-4 h-4 text-danger focus:ring-danger border-gray-300">
+                            <span class="ml-2 text-gray-700">拒绝</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        审核意见
+                    </label>
+                    <textarea name="audit_opinion" rows="4"
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition resize-none"
+                              placeholder="请输入审核意见"></textarea>
+                </div>
+                <div id="auditFormError" class="text-danger text-sm"></div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" onclick="closeAuditModal()" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    取消
+                </button>
+                <button type="submit" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition">
+                    提交审核
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="riskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">风险评估</h3>
+            <button onclick="closeRiskModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="riskForm" hx-post="/api/suppliers/{{ supplier.id if supplier else 0 }}/risk-assessment" hx-target="#riskFormError" hx-swap="innerHTML">
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        风险等级 <span class="text-danger">*</span>
+                    </label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="risk_level" value="low" class="w-4 h-4 text-success focus:ring-success border-gray-300">
+                            <span class="ml-2 text-gray-700 flex items-center">
+                                <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>低风险
+                            </span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="risk_level" value="medium" class="w-4 h-4 text-warning focus:ring-warning border-gray-300" checked>
+                            <span class="ml-2 text-gray-700 flex items-center">
+                                <span class="w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>中风险
+                            </span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="risk_level" value="high" class="w-4 h-4 text-danger focus:ring-danger border-gray-300">
+                            <span class="ml-2 text-gray-700 flex items-center">
+                                <span class="w-2 h-2 bg-red-500 rounded-full mr-1"></span>高风险
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        评估说明 <span class="text-danger">*</span>
+                    </label>
+                    <textarea name="description" rows="4" required
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition resize-none"
+                              placeholder="请详细说明风险评估依据"></textarea>
+                </div>
+                <div id="riskFormError" class="text-danger text-sm"></div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" onclick="closeRiskModal()" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    取消
+                </button>
+                <button type="submit" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition">
+                    提交评估
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-primary', 'text-primary');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.add('hidden');
+    });
+    
+    document.getElementById('tab-' + tabName).classList.remove('border-transparent', 'text-gray-500');
+    document.getElementById('tab-' + tabName).classList.add('border-primary', 'text-primary');
+    document.getElementById('panel-' + tabName).classList.remove('hidden');
+}
+
+function showAuditModal() {
+    document.getElementById('auditModal').classList.remove('hidden');
+    document.getElementById('auditModal').classList.add('flex');
+}
+
+function closeAuditModal() {
+    document.getElementById('auditModal').classList.add('hidden');
+    document.getElementById('auditModal').classList.remove('flex');
+}
+
+function showRiskModal() {
+    document.getElementById('riskModal').classList.remove('hidden');
+    document.getElementById('riskModal').classList.add('flex');
+}
+
+function closeRiskModal() {
+    document.getElementById('riskModal').classList.add('hidden');
+    document.getElementById('riskModal').classList.remove('flex');
+}
+
+document.getElementById('auditForm').addEventListener('htmx:afterRequest', function(evt) {
+    const response = evt.detail.xhr;
+    if (response.status === 201 || response.status === 200) {
+        closeAuditModal();
+        htmx.trigger('#auditList', 'load');
+        location.reload();
+    } else {
+        const errorDiv = document.getElementById('auditFormError');
+        try {
+            const data = JSON.parse(response.responseText);
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i>${data.detail || '提交失败'}`;
+        } catch {
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>提交失败，请稍后重试';
+        }
+    }
+});
+
+document.getElementById('riskForm').addEventListener('htmx:afterRequest', function(evt) {
+    const response = evt.detail.xhr;
+    if (response.status === 201 || response.status === 200) {
+        closeRiskModal();
+        htmx.trigger('#riskList', 'load');
+        location.reload();
+    } else {
+        const errorDiv = document.getElementById('riskFormError');
+        try {
+            const data = JSON.parse(response.responseText);
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i>${data.detail || '提交失败'}`;
+        } catch {
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>提交失败，请稍后重试';
+        }
+    }
+});
+
+document.getElementById('auditModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAuditModal();
+});
+
+document.getElementById('riskModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRiskModal();
+});
+</script>
+{% endblock %}

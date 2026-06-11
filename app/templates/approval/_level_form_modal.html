@@ -1,0 +1,122 @@
+<div id="levelModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+        <div class="p-6 border-b border-gray-200 flex-shrink-0">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-gray-900">
+                    {% if level %}编辑审批层级{% else %}添加审批层级{% endif %}
+                </h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+        <form {% if level %}
+              hx-put="/api/approval/levels/{{ level.id }}"
+              {% else %}
+              hx-post="/api/approval/levels"
+              {% endif %}
+              hx-target="#levelsContainer"
+              hx-swap="none"
+              class="flex flex-col flex-1 overflow-hidden">
+            <div class="p-6 overflow-y-auto flex-1">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">层级 <span class="text-danger">*</span></label>
+                            <input type="number" 
+                                   name="level" 
+                                   min="1"
+                                   value="{{ level.level if level else '' }}"
+                                   placeholder="1"
+                                   required
+                                   {% if level %}disabled{% endif %}
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition disabled:bg-gray-100 disabled:cursor-not-allowed">
+                            <p class="text-xs text-gray-500 mt-1">数字越小，审批顺序越靠前</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">状态</label>
+                            <div class="flex items-center space-x-4 mt-2">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="radio" name="is_active" value="true" 
+                                           {% if level is none or level.is_active %}checked{% endif %}
+                                           class="w-4 h-4 text-primary focus:ring-primary border-gray-300">
+                                    <span class="text-sm text-gray-700">启用</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="radio" name="is_active" value="false" 
+                                           {% if level and not level.is_active %}checked{% endif %}
+                                           class="w-4 h-4 text-primary focus:ring-primary border-gray-300">
+                                    <span class="text-sm text-gray-700">停用</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">层级名称 <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               name="name" 
+                               value="{{ level.name if level else '' }}"
+                               placeholder="例如：部门经理审批、财务总监审批"
+                               required
+                               maxlength="100"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">审批条件</label>
+                        <div class="relative">
+                            <input type="text" 
+                                   name="condition" 
+                                   value="{{ level.condition if level else '' }}"
+                                   placeholder="例如：budget < 10000 或 budget >= 10000 and budget < 50000"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition font-mono text-sm">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            使用 Python 表达式，变量为 <code class="bg-gray-100 px-1 rounded">budget</code>（预算金额）。留空表示默认层级。
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">审批人 <span class="text-danger">*</span></label>
+                        <div class="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                            {% if users %}
+                            {% for user in users %}
+                            <label class="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition">
+                                <input type="checkbox" 
+                                       name="approver_ids" 
+                                       value="{{ user.id }}"
+                                       {% if level and user.id in level_approver_ids %}checked{% endif %}
+                                       class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-primary text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ user.real_name }}</p>
+                                        <p class="text-xs text-gray-500">{{ user.username }} · {{ user.role }}</p>
+                                    </div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                            {% else %}
+                            <p class="text-sm text-gray-500 text-center py-4">暂无可用用户</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-3 flex-shrink-0">
+                <button type="button" 
+                        onclick="closeModal()" 
+                        class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    取消
+                </button>
+                <button type="submit" 
+                        class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition">
+                    <i class="fas fa-save mr-2"></i>{% if level %}保存修改{% else %}添加{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

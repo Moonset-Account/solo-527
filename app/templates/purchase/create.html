@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}新建采购需求 - 工程材料供应商准入管理系统{% endblock %}
+
+{% block body %}
+<div class="flex h-screen">
+    {% include "partials/sidebar.html" %}
+    
+    <div class="flex-1 ml-64 flex flex-col">
+        <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">新建采购需求</h1>
+                <p class="text-sm text-gray-500 mt-1">填写采购需求信息并提交审批</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="/purchase" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    返回列表
+                </a>
+            </div>
+        </header>
+
+        <main class="flex-1 p-8 overflow-auto">
+            <form id="purchaseForm" class="space-y-6" hx-post="/purchase" hx-encoding="multipart/form-data" hx-target="#formResult">
+                <div id="formResult"></div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-info-circle text-primary mr-2"></i>
+                        基本信息
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                材料名称 <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="material_name" 
+                                   required
+                                   maxlength="200"
+                                   placeholder="请输入材料名称"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                规格型号
+                            </label>
+                            <input type="text" 
+                                   name="specification" 
+                                   maxlength="500"
+                                   placeholder="请输入规格型号"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                采购数量 <span class="text-danger">*</span>
+                            </label>
+                            <div class="flex space-x-3">
+                                <input type="number" 
+                                       name="quantity" 
+                                       required
+                                       min="0.01"
+                                       step="0.01"
+                                       placeholder="0.00"
+                                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                <input type="text" 
+                                       name="unit" 
+                                       required
+                                       maxlength="20"
+                                       placeholder="单位"
+                                       class="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                预算金额 (元) <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" 
+                                   name="budget" 
+                                   required
+                                   min="0.01"
+                                   step="0.01"
+                                   placeholder="0.00"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                期望交付日期 <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" 
+                                   name="expected_delivery" 
+                                   required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                指定供应商
+                            </label>
+                            <select name="supplier_id" 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                <option value="">请选择供应商（可选）</option>
+                                {% if suppliers %}
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                规格附件
+                            </label>
+                            <select name="spec_attachment_id" 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition">
+                                <option value="">请选择规格附件（可选）</option>
+                                {% if spec_attachments %}
+                                {% for att in spec_attachments %}
+                                <option value="{{ att.id }}">{{ att.name }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                备注说明
+                            </label>
+                            <textarea name="remark" 
+                                      rows="3"
+                                      maxlength="1000"
+                                      placeholder="请输入备注说明（可选）"
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-list text-primary mr-2"></i>
+                            材料明细
+                        </h2>
+                        <button type="button" 
+                                onclick="addMaterialRow()"
+                                class="inline-flex items-center px-3 py-1.5 text-sm border border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-primary hover:text-primary transition">
+                            <i class="fas fa-plus mr-1"></i>
+                            添加明细
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="materialTable">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">序号</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">材料名称</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">规格型号</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">数量</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">单位</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">单价 (元)</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">小计 (元)</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materialTbody" class="divide-y divide-gray-200">
+                                <tr class="material-row">
+                                    <td class="px-4 py-3 text-sm text-gray-600 row-index">1</td>
+                                    <td class="px-4 py-3">
+                                        <input type="text" 
+                                               name="detail_material_name[]" 
+                                               class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                                               placeholder="材料名称">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="text" 
+                                               name="detail_specification[]" 
+                                               class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                                               placeholder="规格型号">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="number" 
+                                               name="detail_quantity[]" 
+                                               step="0.01"
+                                               min="0"
+                                               class="w-24 px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition detail-quantity"
+                                               placeholder="0"
+                                               oninput="calculateRowTotal(this)">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="text" 
+                                               name="detail_unit[]" 
+                                               class="w-20 px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                                               placeholder="单位">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <input type="number" 
+                                               name="detail_price[]" 
+                                               step="0.01"
+                                               min="0"
+                                               class="w-28 px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition detail-price"
+                                               placeholder="0.00"
+                                               oninput="calculateRowTotal(this)">
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="text-sm font-medium text-gray-900 detail-total">0.00</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button type="button" 
+                                                onclick="removeMaterialRow(this)"
+                                                class="text-danger hover:text-danger/80 transition"
+                                                title="删除">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-gray-50">
+                                    <td colspan="6" class="px-4 py-3 text-right text-sm font-medium text-gray-700">合计：</td>
+                                    <td class="px-4 py-3">
+                                        <span class="text-lg font-bold text-primary" id="grandTotal">0.00</span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-paperclip text-primary mr-2"></i>
+                        附件上传
+                    </h2>
+                    <div 
+                        id="dropZone"
+                        class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary transition cursor-pointer"
+                        onclick="document.getElementById('fileInput').click()"
+                        ondragover="handleDragOver(event)"
+                        ondragleave="handleDragLeave(event)"
+                        ondrop="handleDrop(event)">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                        <p class="text-gray-600 mb-1">点击或拖拽文件到此处上传</p>
+                        <p class="text-sm text-gray-400">支持 PDF、Word、Excel、图片等格式，单个文件不超过 10MB</p>
+                        <input type="file" 
+                               id="fileInput" 
+                               name="attachments" 
+                               multiple
+                               class="hidden"
+                               onchange="handleFileSelect(event)">
+                    </div>
+                    
+                    <div id="fileList" class="mt-4 space-y-2"></div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-4 pt-4">
+                    <a href="/purchase" class="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        取消
+                    </a>
+                    <button type="submit" 
+                            name="action" 
+                            value="save"
+                            class="px-6 py-2.5 border border-primary text-primary rounded-lg hover:bg-primary/5 transition">
+                        <i class="fas fa-save mr-2"></i>
+                        保存草稿
+                    </button>
+                    <button type="submit" 
+                            name="action" 
+                            value="submit"
+                            class="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition">
+                        <i class="fas fa-paper-plane mr-2"></i>
+                        提交审批
+                    </button>
+                </div>
+            </form>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedFiles = [];
+
+function addMaterialRow() {
+    const tbody = document.getElementById('materialTbody');
+    const rows = tbody.querySelectorAll('.material-row');
+    const newIndex = rows.length + 1;
+    
+    const newRow = document.createElement('tr');
+    newRow.className = 'material-row';
+    newRow.innerHTML = `
+        <td class="px-4 py-3 text-sm text-gray-600 row-index">${newIndex}</td>
+        <td class="px-4 py-3">
+            <input type="text" 
+                   name="detail_material_name[]" 
+                   class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                   placeholder="材料名称">
+        </td>
+        <td class="px-4 py-3">
+            <input type="text" 
+                   name="detail_specification[]" 
+                   class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                   placeholder="规格型号">
+        </td>
+        <td class="px-4 py-3">
+            <input type="number" 
+                   name="detail_quantity[]" 
+                   step="0.01"
+                   min="0"
+                   class="w-24 px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition detail-quantity"
+                   placeholder="0"
+                   oninput="calculateRowTotal(this)">
+        </td>
+        <td class="px-4 py-3">
+            <input type="text" 
+                   name="detail_unit[]" 
+                   class="w-20 px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                   placeholder="单位">
+        </td>
+        <td class="px-4 py-3">
+            <input type="number" 
+                   name="detail_price[]" 
+                   step="0.01"
+                   min="0"
+                   class="w-28 px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition detail-price"
+                   placeholder="0.00"
+                   oninput="calculateRowTotal(this)">
+        </td>
+        <td class="px-4 py-3">
+            <span class="text-sm font-medium text-gray-900 detail-total">0.00</span>
+        </td>
+        <td class="px-4 py-3 text-center">
+            <button type="button" 
+                    onclick="removeMaterialRow(this)"
+                    class="text-danger hover:text-danger/80 transition"
+                    title="删除">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(newRow);
+}
+
+function removeMaterialRow(btn) {
+    const tbody = document.getElementById('materialTbody');
+    const rows = tbody.querySelectorAll('.material-row');
+    if (rows.length <= 1) {
+        alert('至少保留一行明细');
+        return;
+    }
+    btn.closest('tr').remove();
+    updateRowIndexes();
+    calculateGrandTotal();
+}
+
+function updateRowIndexes() {
+    const rows = document.querySelectorAll('.material-row');
+    rows.forEach((row, index) => {
+        row.querySelector('.row-index').textContent = index + 1;
+    });
+}
+
+function calculateRowTotal(input) {
+    const row = input.closest('tr');
+    const quantity = parseFloat(row.querySelector('.detail-quantity').value) || 0;
+    const price = parseFloat(row.querySelector('.detail-price').value) || 0;
+    const total = (quantity * price).toFixed(2);
+    row.querySelector('.detail-total').textContent = total;
+    calculateGrandTotal();
+}
+
+function calculateGrandTotal() {
+    let grandTotal = 0;
+    document.querySelectorAll('.detail-total').forEach(el => {
+        grandTotal += parseFloat(el.textContent) || 0;
+    });
+    document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.add('border-primary', 'bg-primary/5');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('border-primary', 'bg-primary/5');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('border-primary', 'bg-primary/5');
+    const files = Array.from(e.dataTransfer.files);
+    addFiles(files);
+}
+
+function handleFileSelect(e) {
+    const files = Array.from(e.target.files);
+    addFiles(files);
+}
+
+function addFiles(files) {
+    const maxSize = 10 * 1024 * 1024;
+    const fileList = document.getElementById('fileList');
+    
+    files.forEach(file => {
+        if (file.size > maxSize) {
+            alert(`文件 ${file.name} 超过 10MB 限制`);
+            return;
+        }
+        
+        selectedFiles.push(file);
+        
+        const fileItem = document.createElement('div');
+        fileItem.className = 'flex items-center justify-between bg-gray-50 rounded-lg p-3';
+        fileItem.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                    ${getFileIcon(file.type)}
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">${file.name}</p>
+                    <p class="text-xs text-gray-500">${formatFileSize(file.size)}</p>
+                </div>
+            </div>
+            <button type="button" 
+                    onclick="removeFile(this, ${selectedFiles.length - 1})"
+                    class="text-gray-400 hover:text-danger transition">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        fileList.appendChild(fileItem);
+    });
+}
+
+function removeFile(btn, index) {
+    selectedFiles.splice(index, 1);
+    btn.closest('div').remove();
+}
+
+function getFileIcon(fileType) {
+    if (fileType.includes('pdf')) {
+        return '<i class="fas fa-file-pdf text-red-500"></i>';
+    } else if (fileType.includes('word') || fileType.includes('document')) {
+        return '<i class="fas fa-file-word text-blue-500"></i>';
+    } else if (fileType.includes('sheet') || fileType.includes('excel')) {
+        return '<i class="fas fa-file-excel text-green-500"></i>';
+    } else if (fileType.includes('image')) {
+        return '<i class="fas fa-file-image text-purple-500"></i>';
+    } else {
+        return '<i class="fas fa-file text-gray-400"></i>';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+document.getElementById('purchaseForm').addEventListener('htmx:beforeRequest', function(e) {
+    const formData = e.detail.formData;
+    selectedFiles.forEach(file => {
+        formData.append('attachments', file);
+    });
+});
+</script>
+{% endblock %}

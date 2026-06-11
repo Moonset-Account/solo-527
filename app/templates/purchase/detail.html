@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}采购需求详情 - 工程材料供应商准入管理系统{% endblock %}
+
+{% block body %}
+<div class="flex h-screen">
+    {% include "partials/sidebar.html" %}
+    
+    <div class="flex-1 ml-64 flex flex-col">
+        <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-2xl font-bold text-gray-800">采购需求详情</h1>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if purchase.status == 'draft' %}bg-gray-100 text-gray-800
+                        {% elif purchase.status == 'pending' %}bg-yellow-100 text-yellow-800
+                        {% elif purchase.status == 'approved' %}bg-green-100 text-green-800
+                        {% elif purchase.status == 'rejected' %}bg-red-100 text-red-800
+                        {% elif purchase.status == 'quoted' %}bg-blue-100 text-blue-800
+                        {% elif purchase.status == 'expired' %}bg-orange-100 text-orange-800
+                        {% elif purchase.status == 'delivered' %}bg-cyan-100 text-cyan-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {% if purchase.status == 'draft' %}<i class="fas fa-edit mr-1"></i>草稿
+                        {% elif purchase.status == 'pending' %}<i class="fas fa-clock mr-1"></i>待审批
+                        {% elif purchase.status == 'approved' %}<i class="fas fa-check-circle mr-1"></i>已通过
+                        {% elif purchase.status == 'rejected' %}<i class="fas fa-times-circle mr-1"></i>已拒绝
+                        {% elif purchase.status == 'quoted' %}<i class="fas fa-tags mr-1"></i>已报价
+                        {% elif purchase.status == 'expired' %}<i class="fas fa-calendar-times mr-1"></i>已过期
+                        {% elif purchase.status == 'delivered' %}<i class="fas fa-truck mr-1"></i>已交付
+                        {% else %}<i class="fas fa-lock mr-1"></i>已关闭{% endif %}
+                    </span>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">需求编号：{{ purchase.request_no }}</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="/purchase" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    返回列表
+                </a>
+                {% if purchase.status == 'draft' %}
+                <a href="/purchase/{{ purchase.id }}/edit" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition">
+                    <i class="fas fa-edit mr-2"></i>
+                    编辑
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <main class="flex-1 p-8 overflow-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-info-circle text-primary mr-2"></i>
+                            基本信息
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">材料名称</label>
+                                <p class="text-base font-medium text-gray-900">{{ purchase.material_name }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">规格型号</label>
+                                <p class="text-base text-gray-900">{{ purchase.specification or '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">采购数量</label>
+                                <p class="text-base font-medium text-gray-900">{{ purchase.quantity }} {{ purchase.unit }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">预算金额</label>
+                                <p class="text-lg font-bold text-primary">¥{{ "%.2f"|format(purchase.budget) }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">期望交付日期</label>
+                                <p class="text-base text-gray-900">{{ purchase.expected_delivery }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">指定供应商</label>
+                                <p class="text-base text-gray-900">{{ supplier_name or '未指定' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">创建人</label>
+                                <p class="text-base text-gray-900">{{ creator_name or '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">创建时间</label>
+                                <p class="text-base text-gray-900">{{ purchase.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm text-gray-500 mb-1">备注说明</label>
+                                <p class="text-base text-gray-900">{{ purchase.remark or '暂无备注' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if attachments and attachments | length > 0 %}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-paperclip text-primary mr-2"></i>
+                            附件列表
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {% for att in attachments %}
+                            <div class="flex items-center space-x-3 bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition">
+                                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                                    {% if att.file_type and 'pdf' in att.file_type %}
+                                    <i class="fas fa-file-pdf text-red-500 text-lg"></i>
+                                    {% elif att.file_type and ('word' in att.file_type or 'document' in att.file_type) %}
+                                    <i class="fas fa-file-word text-blue-500 text-lg"></i>
+                                    {% elif att.file_type and ('sheet' in att.file_type or 'excel' in att.file_type) %}
+                                    <i class="fas fa-file-excel text-green-500 text-lg"></i>
+                                    {% elif att.file_type and 'image' in att.file_type %}
+                                    <i class="fas fa-file-image text-purple-500 text-lg"></i>
+                                    {% else %}
+                                    <i class="fas fa-file text-gray-400 text-lg"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 truncate" title="{{ att.original_name }}">
+                                        {{ att.original_name }}
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        {{ att.file_size | filesizeformat }} · {{ att.uploaded_at.strftime('%Y-%m-%d') }}
+                                    </p>
+                                </div>
+                                <a href="/attachments/{{ att.id }}/download" 
+                                   class="text-primary hover:text-primary/80 transition p-2"
+                                   title="下载">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if approval_records and approval_records | length > 0 %}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-sitemap text-primary mr-2"></i>
+                            审批流程
+                        </h2>
+                        <div class="relative">
+                            {% for record in approval_records %}
+                            <div class="flex pb-6 last:pb-0">
+                                <div class="flex flex-col items-center mr-4">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                                        {% if record.action == 'approve' %}bg-green-100
+                                        {% elif record.action == 'reject' %}bg-red-100
+                                        {% else %}bg-gray-100{% endif %}">
+                                        {% if record.action == 'approve' %}
+                                        <i class="fas fa-check text-green-600 text-sm"></i>
+                                        {% elif record.action == 'reject' %}
+                                        <i class="fas fa-times text-red-600 text-sm"></i>
+                                        {% else %}
+                                        <i class="fas fa-share text-gray-600 text-sm"></i>
+                                        {% endif %}
+                                    </div>
+                                    {% if not loop.last %}
+                                    <div class="w-0.5 bg-gray-200 flex-1 mt-2"></div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <span class="font-medium text-gray-900">{{ record.approver_name or '审批人' }}</span>
+                                        <span class="text-sm text-gray-500">{{ record.level_name or '第' ~ record.level_id ~ '级' }}</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                            {% if record.action == 'approve' %}bg-green-100 text-green-800
+                                            {% elif record.action == 'reject' %}bg-red-100 text-red-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {% if record.action == 'approve' %}同意
+                                            {% elif record.action == 'reject' %}拒绝
+                                            {% else %}转交{% endif %}
+                                        </span>
+                                    </div>
+                                    {% if record.opinion %}
+                                    <p class="text-sm text-gray-600 mb-1">{{ record.opinion }}</p>
+                                    {% endif %}
+                                    <p class="text-xs text-gray-400">{{ record.approved_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-comments text-primary mr-2"></i>
+                            备注记录
+                        </h2>
+                        
+                        <form class="mb-4" hx-post="/purchase/{{ purchase.id }}/notes" hx-target="#notesList" hx-swap="afterbegin">
+                            <div class="flex space-x-3">
+                                <textarea name="content" 
+                                          rows="2" 
+                                          required
+                                          maxlength="500"
+                                          placeholder="添加备注..."
+                                          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"></textarea>
+                                <button type="submit" 
+                                        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition self-end">
+                                    <i class="fas fa-paper-plane mr-1"></i>
+                                    发送
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="notesList" class="space-y-4">
+                            {% if notes and notes | length > 0 %}
+                            {% for note in notes %}
+                            <div class="flex space-x-3">
+                                <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-user text-white text-sm"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <span class="font-medium text-gray-900">{{ note.creator_name or '用户' }}</span>
+                                        <span class="text-xs text-gray-400">{{ note.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{{ note.content }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <div class="text-center py-8">
+                                <i class="fas fa-comment-slash text-4xl text-gray-300 mb-2"></i>
+                                <p class="text-gray-500">暂无备注记录</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-cog text-primary mr-2"></i>
+                            操作
+                        </h2>
+                        <div class="space-y-3">
+                            {% if purchase.status == 'draft' %}
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
+                                    hx-post="/purchase/{{ purchase.id }}/submit"
+                                    hx-confirm="确定要提交审批吗？提交后将无法修改。">
+                                <i class="fas fa-paper-plane mr-2"></i>
+                                提交审批
+                            </button>
+                            {% endif %}
+                            
+                            {% if purchase.status == 'pending' and current_user.role in ['auditor', 'manager', 'admin'] %}
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-success text-white rounded-lg hover:bg-success/90 transition"
+                                    onclick="openApprovalModal('approve')">
+                                <i class="fas fa-check mr-2"></i>
+                                审批通过
+                            </button>
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-danger text-white rounded-lg hover:bg-danger/90 transition"
+                                    onclick="openApprovalModal('reject')">
+                                <i class="fas fa-times mr-2"></i>
+                                审批拒绝
+                            </button>
+                            {% endif %}
+                            
+                            {% if purchase.status == 'approved' %}
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-info text-white rounded-lg hover:bg-info/90 transition">
+                                <i class="fas fa-tags mr-2"></i>
+                                记录报价
+                            </button>
+                            {% endif %}
+                            
+                            {% if purchase.status == 'quoted' %}
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition">
+                                <i class="fas fa-truck mr-2"></i>
+                                记录交付
+                            </button>
+                            {% endif %}
+                            
+                            {% if purchase.status in ['approved', 'quoted', 'delivered'] %}
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                                    onclick="openCloseModal()">
+                                <i class="fas fa-lock mr-2"></i>
+                                关闭需求
+                            </button>
+                            {% endif %}
+                            
+                            {% if purchase.status == 'rejected' %}
+                            <button type="button" 
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-warning text-white rounded-lg hover:bg-warning/90 transition">
+                                <i class="fas fa-redo mr-2"></i>
+                                重新提交
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-history text-primary mr-2"></i>
+                            状态变更
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-gray-400"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">创建草稿</p>
+                                    <p class="text-xs text-gray-500">{{ purchase.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                </div>
+                            </div>
+                            {% if purchase.status != 'draft' %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">提交审批</p>
+                                    <p class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if purchase.status in ['approved', 'quoted', 'delivered', 'closed'] %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">审批通过</p>
+                                    <p class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if purchase.status in ['quoted', 'delivered', 'closed'] %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">已报价</p>
+                                    <p class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if purchase.status in ['delivered', 'closed'] %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-cyan-500"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">已交付</p>
+                                    <p class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if purchase.status == 'closed' %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">已关闭</p>
+                                    <p class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if purchase.status == 'rejected' %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">已拒绝</p>
+                                    <p class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="approvalModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-800" id="approvalModalTitle">审批意见</h3>
+        </div>
+        <form id="approvalForm" class="p-6" hx-post="/purchase/{{ purchase.id }}/approve" hx-target="body">
+            <input type="hidden" name="action" id="approvalAction" value="">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">审批意见</label>
+                <textarea name="opinion" 
+                          rows="3"
+                          maxlength="500"
+                          placeholder="请输入审批意见（可选）"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3">
+                <button type="button" 
+                        onclick="closeApprovalModal()"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    取消
+                </button>
+                <button type="submit" 
+                        id="approvalSubmitBtn"
+                        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition">
+                    确认
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="closeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-800">关闭采购需求</h3>
+        </div>
+        <form id="closeForm" class="p-6" hx-post="/purchase/{{ purchase.id }}/close" hx-target="body">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    关闭说明 <span class="text-danger">*</span>
+                </label>
+                <textarea name="closing_note" 
+                          rows="3"
+                          required
+                          maxlength="500"
+                          placeholder="请输入关闭原因说明"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition resize-none"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3">
+                <button type="button" 
+                        onclick="closeCloseModal()"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    取消
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition">
+                    确认关闭
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openApprovalModal(action) {
+    const modal = document.getElementById('approvalModal');
+    const title = document.getElementById('approvalModalTitle');
+    const actionInput = document.getElementById('approvalAction');
+    const submitBtn = document.getElementById('approvalSubmitBtn');
+    
+    actionInput.value = action;
+    if (action === 'approve') {
+        title.textContent = '审批通过';
+        submitBtn.className = 'px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition';
+    } else {
+        title.textContent = '审批拒绝';
+        submitBtn.className = 'px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition';
+    }
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeApprovalModal() {
+    const modal = document.getElementById('approvalModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function openCloseModal() {
+    const modal = document.getElementById('closeModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeCloseModal() {
+    const modal = document.getElementById('closeModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+document.getElementById('approvalModal').addEventListener('click', function(e) {
+    if (e.target === this) closeApprovalModal();
+});
+
+document.getElementById('closeModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCloseModal();
+});
+
+document.addEventListener('htmx:confirm', function(e) {
+    e.preventDefault();
+    if (confirm(e.detail.question)) {
+        e.detail.issueRequest();
+    }
+});
+</script>
+{% endblock %}

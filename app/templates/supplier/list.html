@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}供应商列表 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+{% include 'partials/sidebar.html' %}
+<div class="ml-64 min-h-screen">
+    <div class="bg-white border-b border-gray-200 px-8 py-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">供应商管理</h1>
+                <p class="text-gray-500 text-sm mt-1">管理所有供应商信息、资质审核及风险评估</p>
+            </div>
+            <a href="/supplier/create" class="inline-flex items-center px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition">
+                <i class="fas fa-plus mr-2"></i>
+                新建供应商
+            </a>
+        </div>
+    </div>
+    <div class="p-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex flex-wrap gap-4">
+                    <div class="flex-1 min-w-64">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="searchInput" placeholder="搜索供应商名称、联系人、电话..."
+                                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                   hx-get="/supplier"
+                                   hx-target="#supplierList"
+                                   hx-swap="innerHTML"
+                                   hx-trigger="keyup changed delay:500ms, search"
+                                   hx-include="#statusFilter">
+                        </div>
+                    </div>
+                    <select id="statusFilter"
+                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                            hx-get="/supplier"
+                            hx-target="#supplierList"
+                            hx-swap="innerHTML"
+                            hx-trigger="change"
+                            hx-include="#searchInput">
+                        <option value="">全部状态</option>
+                        <option value="pending">待审核</option>
+                        <option value="approved">已通过</option>
+                        <option value="rejected">已拒绝</option>
+                    </select>
+                </div>
+            </div>
+            <div id="supplierList" hx-get="/supplier/list" hx-trigger="load">
+                <div class="flex items-center justify-center py-20">
+                    <i class="fas fa-spinner fa-spin text-primary text-3xl"></i>
+                    <span class="ml-3 text-gray-500">加载中...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.elt.id === 'deleteForm') {
+        const response = evt.detail.xhr;
+        if (response.status === 200) {
+            htmx.trigger('#supplierList', 'load');
+        }
+    }
+});
+
+function confirmDelete(id, name) {
+    if (confirm(`确定要删除供应商「${name}」吗？此操作不可恢复。`)) {
+        const form = document.createElement('form');
+        form.id = 'deleteForm';
+        form.method = 'POST';
+        form.setAttribute('hx-delete', `/api/suppliers/${id}`);
+        form.setAttribute('hx-target', 'body');
+        document.body.appendChild(form);
+        htmx.trigger(form, 'submit');
+    }
+}
+</script>
+{% endblock %}

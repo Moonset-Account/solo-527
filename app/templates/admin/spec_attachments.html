@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+{% block title %}规格附件管理 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+<div class="flex min-h-screen bg-gray-50">
+    {% include "partials/sidebar.html" %}
+    <div class="flex-1 ml-64">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">规格附件管理</h1>
+                    <p class="text-sm text-gray-500 mt-1">管理材料规格标准附件</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="relative p-2 text-gray-500 hover:text-gray-700 transition">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="headerNotificationBadge" class="absolute -top-1 -right-1 bg-danger text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-800">附件列表</h2>
+                        <p class="text-sm text-gray-500 mt-1">共 {{ spec_attachments|length }} 个附件</p>
+                    </div>
+                    <button onclick="openUploadModal()" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-600 transition">
+                        <i class="fas fa-upload mr-1"></i> 上传附件
+                    </button>
+                </div>
+                <div id="uploadDropZone" class="mx-6 mt-6 p-8 border-2 border-dashed border-gray-300 rounded-xl text-center hover:border-primary hover:bg-blue-50/30 transition cursor-pointer" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" class="hidden" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" onchange="handleFileSelect(event)">
+                    <i class="fas fa-cloud-upload-alt text-5xl text-gray-300 mb-3"></i>
+                    <p class="text-lg font-medium text-gray-600">拖拽文件到此处上传</p>
+                    <p class="text-sm text-gray-400 mt-1">或点击选择文件，支持 PDF、Word、Excel、图片等格式</p>
+                    <p class="text-xs text-gray-400 mt-2">单个文件最大 50MB</p>
+                </div>
+                <div class="px-6 py-4">
+                    <div id="uploadProgress" class="hidden mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span id="uploadFileName" class="text-sm text-gray-600"></span>
+                            <span id="uploadPercent" class="text-sm font-medium text-primary">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="uploadProgressBar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="attachmentList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {% for attachment in spec_attachments %}
+                        <div class="group relative bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-primary hover:shadow-md transition" data-id="{{ attachment.id }}">
+                            <div class="flex items-start space-x-4">
+                                <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0
+                                    {% if attachment.file_type == 'pdf' %}bg-red-100
+                                    {% elif attachment.file_type in ['doc', 'docx'] %}bg-blue-100
+                                    {% elif attachment.file_type in ['xls', 'xlsx'] %}bg-green-100
+                                    {% elif attachment.file_type in ['jpg', 'jpeg', 'png', 'gif'] %}bg-purple-100
+                                    {% else %}bg-gray-100{% endif %}">
+                                    <i class="fas
+                                        {% if attachment.file_type == 'pdf' %}fa-file-pdf text-red-500
+                                        {% elif attachment.file_type in ['doc', 'docx'] %}fa-file-word text-blue-500
+                                        {% elif attachment.file_type in ['xls', 'xlsx'] %}fa-file-excel text-green-500
+                                        {% elif attachment.file_type in ['jpg', 'jpeg', 'png', 'gif'] %}fa-file-image text-purple-500
+                                        {% else %}fa-file text-gray-500{% endif %} text-xl"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 truncate" title="{{ attachment.name }}">{{ attachment.name }}</p>
+                                    <p class="text-xs text-gray-500 mt-1">{{ attachment.filename }}</p>
+                                    <div class="flex items-center space-x-2 mt-2">
+                                        <span class="text-xs text-gray-400">{{ formatFileSize(attachment.file_size) }}</span>
+                                        {% if attachment.file_type %}
+                                        <span class="text-xs text-gray-400">·</span>
+                                        <span class="text-xs text-gray-400 uppercase">{{ attachment.file_type }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if attachment.description %}
+                                    <p class="text-xs text-gray-400 mt-2 line-clamp-1" title="{{ attachment.description }}">{{ attachment.description }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition flex items-center space-x-1">
+                                <button onclick="downloadAttachment({{ attachment.id }})" class="p-1.5 bg-white shadow-sm rounded-lg text-gray-400 hover:text-primary transition" title="下载">
+                                    <i class="fas fa-download text-sm"></i>
+                                </button>
+                                <button onclick="editAttachment({{ attachment.id }})" class="p-1.5 bg-white shadow-sm rounded-lg text-gray-400 hover:text-primary transition" title="编辑">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </button>
+                                <button onclick="deleteAttachment({{ attachment.id }})" class="p-1.5 bg-white shadow-sm rounded-lg text-gray-400 hover:text-danger transition" title="删除">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                                <span class="text-xs text-gray-400">上传时间: {{ attachment.created_at.strftime('%Y-%m-%d') }}</span>
+                                {% if attachment.uploader %}
+                                <span class="text-xs text-gray-400">{{ attachment.uploader.real_name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-span-full p-16 text-center text-gray-500">
+                            <i class="fas fa-clipboard-list text-5xl mb-4 text-gray-300"></i>
+                            <p class="text-lg font-medium text-gray-600">暂无规格附件</p>
+                            <p class="text-sm mt-1">拖拽文件或点击上传按钮添加附件</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="uploadModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800">上传附件</h3>
+            <button onclick="closeUploadModal()" class="p-2 text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="uploadForm" onsubmit="handleUploadSubmit(event)">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">附件名称 <span class="text-danger">*</span></label>
+                    <input type="text" id="attachmentName" name="name" required maxlength="200" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="请输入附件名称">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">选择文件 <span class="text-danger">*</span></label>
+                    <input type="file" id="modalFileInput" name="file" required accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm">
+                    <p class="text-xs text-gray-400 mt-1">支持 PDF、Word、Excel、图片等格式，单个文件最大 50MB</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                    <textarea id="attachmentDescription" name="description" rows="3" maxlength="500" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none" placeholder="附件说明"></textarea>
+                </div>
+            </div>
+            <div class="flex items-center justify-end px-6 py-4 border-t border-gray-100 space-x-3">
+                <button type="button" onclick="closeUploadModal()" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-upload mr-1"></i> 上传
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800">编辑附件</h3>
+            <button onclick="closeEditModal()" class="p-2 text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="editForm" onsubmit="handleEditSubmit(event)">
+            <input type="hidden" id="editAttachmentId" name="id">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">附件名称 <span class="text-danger">*</span></label>
+                    <input type="text" id="editAttachmentName" name="name" required maxlength="200" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="请输入附件名称">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                    <textarea id="editAttachmentDescription" name="description" rows="3" maxlength="500" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none" placeholder="附件说明"></textarea>
+                </div>
+            </div>
+            <div class="flex items-center justify-end px-6 py-4 border-t border-gray-100 space-x-3">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-600 transition">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function openUploadModal() {
+    document.getElementById('uploadModal').classList.remove('hidden');
+    document.getElementById('uploadForm').reset();
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadModal').classList.add('hidden');
+}
+
+function openEditModal() {
+    document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('uploadDropZone').classList.add('border-primary', 'bg-blue-50/30');
+}
+
+function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('uploadDropZone').classList.remove('border-primary', 'bg-blue-50/30');
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('uploadDropZone').classList.remove('border-primary', 'bg-blue-50/30');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        handleFiles(files);
+    }
+}
+
+function handleFileSelect(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        handleFiles(files);
+    }
+}
+
+function handleFiles(files) {
+    for (let i = 0; i < files.length; i++) {
+        uploadFile(files[i]);
+    }
+}
+
+function uploadFile(file) {
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+        alert(`文件 "${file.name}" 超过 50MB 限制`);
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', file.name);
+    
+    const progressContainer = document.getElementById('uploadProgress');
+    const fileName = document.getElementById('uploadFileName');
+    const uploadPercent = document.getElementById('uploadPercent');
+    const progressBar = document.getElementById('uploadProgressBar');
+    
+    progressContainer.classList.remove('hidden');
+    fileName.textContent = file.name;
+    uploadPercent.textContent = '0%';
+    progressBar.style.width = '0%';
+    
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            uploadPercent.textContent = percent + '%';
+            progressBar.style.width = percent + '%';
+        }
+    });
+    
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            const result = JSON.parse(xhr.responseText);
+            if (result.success) {
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    location.reload();
+                }, 500);
+            } else {
+                progressContainer.classList.add('hidden');
+                alert(result.message || '上传失败');
+            }
+        } else {
+            progressContainer.classList.add('hidden');
+            alert('上传失败，请重试');
+        }
+    });
+    
+    xhr.addEventListener('error', () => {
+        progressContainer.classList.add('hidden');
+        alert('上传失败，请重试');
+    });
+    
+    xhr.open('POST', '/api/admin/spec-attachment');
+    xhr.send(formData);
+}
+
+function handleUploadSubmit(event) {
+    event.preventDefault();
+    
+    const fileInput = document.getElementById('modalFileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('请选择要上传的文件');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', document.getElementById('attachmentName').value.trim());
+    formData.append('description', document.getElementById('attachmentDescription').value.trim() || '');
+    
+    const progressContainer = document.getElementById('uploadProgress');
+    const fileName = document.getElementById('uploadFileName');
+    const uploadPercent = document.getElementById('uploadPercent');
+    const progressBar = document.getElementById('uploadProgressBar');
+    
+    closeUploadModal();
+    progressContainer.classList.remove('hidden');
+    fileName.textContent = file.name;
+    uploadPercent.textContent = '0%';
+    progressBar.style.width = '0%';
+    
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            uploadPercent.textContent = percent + '%';
+            progressBar.style.width = percent + '%';
+        }
+    });
+    
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            const result = JSON.parse(xhr.responseText);
+            if (result.success) {
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    location.reload();
+                }, 500);
+            } else {
+                progressContainer.classList.add('hidden');
+                alert(result.message || '上传失败');
+            }
+        } else {
+            progressContainer.classList.add('hidden');
+            alert('上传失败，请重试');
+        }
+    });
+    
+    xhr.addEventListener('error', () => {
+        progressContainer.classList.add('hidden');
+        alert('上传失败，请重试');
+    });
+    
+    xhr.open('POST', '/api/admin/spec-attachment');
+    xhr.send(formData);
+}
+
+function downloadAttachment(id) {
+    window.location.href = `/api/admin/spec-attachment/${id}/download`;
+}
+
+function editAttachment(id) {
+    fetch(`/api/admin/spec-attachment/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data) {
+                document.getElementById('editAttachmentId').value = data.id;
+                document.getElementById('editAttachmentName').value = data.name;
+                document.getElementById('editAttachmentDescription').value = data.description || '';
+                openEditModal();
+            }
+        })
+        .catch(err => console.error('Failed to fetch attachment:', err));
+}
+
+function handleEditSubmit(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('editAttachmentId').value;
+    const data = {
+        name: document.getElementById('editAttachmentName').value.trim(),
+        description: document.getElementById('editAttachmentDescription').value.trim() || null
+    };
+    
+    fetch(`/api/admin/spec-attachment/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            closeEditModal();
+            location.reload();
+        } else {
+            alert(result.message || '保存失败');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to update attachment:', err);
+        alert('保存失败，请重试');
+    });
+}
+
+function deleteAttachment(id) {
+    if (!confirm('确定要删除这个附件吗？')) return;
+    
+    fetch(`/api/admin/spec-attachment/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const item = document.querySelector(`div[data-id="${id}"]`);
+            if (item) item.remove();
+            checkEmpty();
+        } else {
+            alert(result.message || '删除失败');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to delete attachment:', err);
+        alert('删除失败，请重试');
+    });
+}
+
+function checkEmpty() {
+    const container = document.getElementById('attachmentList');
+    const items = container.querySelectorAll('div[data-id]');
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full p-16 text-center text-gray-500">
+                <i class="fas fa-clipboard-list text-5xl mb-4 text-gray-300"></i>
+                <p class="text-lg font-medium text-gray-600">暂无规格附件</p>
+                <p class="text-sm mt-1">拖拽文件或点击上传按钮添加附件</p>
+            </div>
+        `;
+    }
+}
+
+function updateBadges() {
+    fetch('/api/notification/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const count = data.unread_count || 0;
+            const badge = document.getElementById('notificationBadge');
+            const headerBadge = document.getElementById('headerNotificationBadge');
+            
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (headerBadge) {
+                if (count > 0) {
+                    headerBadge.textContent = count > 99 ? '99+' : count;
+                    headerBadge.classList.remove('hidden');
+                } else {
+                    headerBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(err => console.error('Failed to fetch notification count:', err));
+}
+
+updateBadges();
+setInterval(updateBadges, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% block title %}通知中心 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+<div class="flex min-h-screen bg-gray-50">
+    {% include "partials/sidebar.html" %}
+    <div class="flex-1 ml-64">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">通知中心</h1>
+                    <p class="text-sm text-gray-500 mt-1">查看和管理所有系统通知</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="relative p-2 text-gray-500 hover:text-gray-700 transition">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="headerNotificationBadge" class="absolute -top-1 -right-1 bg-danger text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="selectAll" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" onchange="toggleSelectAll()">
+                            <label for="selectAll" class="text-sm text-gray-600">全选</label>
+                        </div>
+                        <select id="filterType" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" onchange="filterNotifications()">
+                            <option value="all">全部类型</option>
+                            <option value="approval">审批通知</option>
+                            <option value="price_expiry">价格预警</option>
+                            <option value="delivery">交付提醒</option>
+                            <option value="risk">风险预警</option>
+                            <option value="system">系统通知</option>
+                        </select>
+                        <select id="filterStatus" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" onchange="filterNotifications()">
+                            <option value="all">全部状态</option>
+                            <option value="unread">未读</option>
+                            <option value="read">已读</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="batchReadBtn" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed" onclick="batchMarkRead()" disabled>
+                            <i class="fas fa-check-double mr-1"></i> 标记已读
+                        </button>
+                        <button id="batchDeleteBtn" class="px-4 py-2 bg-danger text-white text-sm rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed" onclick="batchDelete()" disabled>
+                            <i class="fas fa-trash mr-1"></i> 删除选中
+                        </button>
+                        <button id="markAllReadBtn" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition" onclick="markAllRead()">
+                            <i class="fas fa-envelope-open mr-1"></i> 全部已读
+                        </button>
+                    </div>
+                </div>
+                <div id="notificationList" class="divide-y divide-gray-100 max-h-[calc(100vh-340px)] overflow-y-auto">
+                    {% for notification in notifications %}
+                    <div class="notification-item p-4 hover:bg-gray-50 transition cursor-pointer {% if not notification.is_read %}bg-blue-50/30{% endif %}" data-id="{{ notification.id }}" data-type="{{ notification.type.value }}" data-read="{{ notification.is_read }}">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 pt-1">
+                                <input type="checkbox" class="notification-checkbox w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" data-id="{{ notification.id }}" onchange="updateBatchButtons()">
+                            </div>
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
+                                {% if notification.type.value == 'approval' %}bg-yellow-100
+                                {% elif notification.type.value == 'price_expiry' %}bg-red-100
+                                {% elif notification.type.value == 'delivery' %}bg-blue-100
+                                {% elif notification.type.value == 'risk' %}bg-orange-100
+                                {% else %}bg-gray-100{% endif %}">
+                                <i class="fas
+                                    {% if notification.type.value == 'approval' %}fa-check-circle text-warning
+                                    {% elif notification.type.value == 'price_expiry' %}fa-exclamation-triangle text-danger
+                                    {% elif notification.type.value == 'delivery' %}fa-shipping-fast text-primary
+                                    {% elif notification.type.value == 'risk' %}fa-shield-alt text-warning
+                                    {% else %}fa-bell text-gray-500{% endif %}"></i>
+                            </div>
+                            <div class="flex-1 min-w-0" onclick="viewNotification({{ notification.id }})">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <p class="text-sm font-medium text-gray-900 {% if not notification.is_read %}font-semibold{% endif %}">
+                                            {{ notification.title }}
+                                        </p>
+                                        {% if not notification.is_read %}
+                                        <span class="w-2 h-2 bg-primary rounded-full flex-shrink-0"></span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="text-xs text-gray-400 flex-shrink-0">
+                                        {{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-1 line-clamp-2">
+                                    {{ notification.content or '-' }}
+                                </p>
+                                <div class="flex items-center space-x-2 mt-2">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                        {% if notification.type.value == 'approval' %}bg-yellow-100 text-yellow-800
+                                        {% elif notification.type.value == 'price_expiry' %}bg-red-100 text-red-800
+                                        {% elif notification.type.value == 'delivery' %}bg-blue-100 text-blue-800
+                                        {% elif notification.type.value == 'risk' %}bg-orange-100 text-orange-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {% if notification.type.value == 'approval' %}审批
+                                        {% elif notification.type.value == 'price_expiry' %}价格
+                                        {% elif notification.type.value == 'delivery' %}交付
+                                        {% elif notification.type.value == 'risk' %}风险
+                                        {% else %}系统{% endif %}
+                                    </span>
+                                    {% if notification.is_read %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-check mr-1"></i>已读
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0 flex items-center space-x-1">
+                                {% if not notification.is_read %}
+                                <button class="p-2 text-gray-400 hover:text-primary transition" onclick="event.stopPropagation(); markAsRead({{ notification.id }})" title="标记已读">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                                <button class="p-2 text-gray-400 hover:text-danger transition" onclick="event.stopPropagation(); deleteNotification({{ notification.id }})" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-16 text-center text-gray-500">
+                        <i class="fas fa-bell-slash text-5xl mb-4 text-gray-300"></i>
+                        <p class="text-lg font-medium text-gray-600">暂无通知</p>
+                        <p class="text-sm mt-1">您目前没有任何通知消息</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let selectedIds = new Set();
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.notification-checkbox');
+    checkboxes.forEach(cb => {
+        const item = cb.closest('.notification-item');
+        if (item.style.display !== 'none') {
+            cb.checked = selectAll.checked;
+            const id = parseInt(cb.dataset.id);
+            if (cb.checked) {
+                selectedIds.add(id);
+            } else {
+                selectedIds.delete(id);
+            }
+        }
+    });
+    updateBatchButtons();
+}
+
+function updateBatchButtons() {
+    const checkboxes = document.querySelectorAll('.notification-checkbox:checked');
+    selectedIds = new Set(Array.from(checkboxes).map(cb => parseInt(cb.dataset.id)));
+    const batchReadBtn = document.getElementById('batchReadBtn');
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+    batchReadBtn.disabled = selectedIds.size === 0;
+    batchDeleteBtn.disabled = selectedIds.size === 0;
+}
+
+function filterNotifications() {
+    const typeFilter = document.getElementById('filterType').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    const items = document.querySelectorAll('.notification-item');
+    
+    items.forEach(item => {
+        const type = item.dataset.type;
+        const isRead = item.dataset.read === 'true';
+        let show = true;
+        
+        if (typeFilter !== 'all' && type !== typeFilter) {
+            show = false;
+        }
+        if (statusFilter === 'unread' && isRead) {
+            show = false;
+        }
+        if (statusFilter === 'read' && !isRead) {
+            show = false;
+        }
+        
+        item.style.display = show ? '' : 'none';
+    });
+}
+
+function viewNotification(id) {
+    markAsRead(id);
+}
+
+function markAsRead(id) {
+    fetch(`/api/notification/${id}/read`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+            if (item) {
+                item.classList.remove('bg-blue-50/30');
+                item.dataset.read = 'true';
+                const badge = item.querySelector('.w-2.h-2.bg-primary');
+                if (badge) badge.remove();
+                const title = item.querySelector('p.font-medium');
+                if (title) title.classList.remove('font-semibold');
+                const statusBadge = document.createElement('span');
+                statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800';
+                statusBadge.innerHTML = '<i class="fas fa-check mr-1"></i>已读';
+                const badgeContainer = item.querySelector('.flex.items-center.space-x-2.mt-2');
+                if (badgeContainer && !badgeContainer.querySelector('.bg-green-100')) {
+                    badgeContainer.appendChild(statusBadge);
+                }
+                const readBtn = item.querySelector('button[title="标记已读"]');
+                if (readBtn) readBtn.remove();
+            }
+            updateBadges();
+        }
+    })
+    .catch(err => console.error('Failed to mark as read:', err));
+}
+
+function markAllRead() {
+    if (!confirm('确定要将所有通知标记为已读吗？')) return;
+    
+    fetch('/api/notification/mark-all-read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.classList.remove('bg-blue-50/30');
+                item.dataset.read = 'true';
+                const badge = item.querySelector('.w-2.h-2.bg-primary');
+                if (badge) badge.remove();
+                const title = item.querySelector('p.font-medium');
+                if (title) title.classList.remove('font-semibold');
+                const badgeContainer = item.querySelector('.flex.items-center.space-x-2.mt-2');
+                if (badgeContainer && !badgeContainer.querySelector('.bg-green-100')) {
+                    const statusBadge = document.createElement('span');
+                    statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800';
+                    statusBadge.innerHTML = '<i class="fas fa-check mr-1"></i>已读';
+                    badgeContainer.appendChild(statusBadge);
+                }
+                const readBtn = item.querySelector('button[title="标记已读"]');
+                if (readBtn) readBtn.remove();
+            });
+            updateBadges();
+        }
+    })
+    .catch(err => console.error('Failed to mark all as read:', err));
+}
+
+function batchMarkRead() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定要将选中的 ${selectedIds.size} 条通知标记为已读吗？`)) return;
+    
+    fetch('/api/notification/batch-read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            selectedIds.forEach(id => {
+                const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+                if (item) {
+                    item.classList.remove('bg-blue-50/30');
+                    item.dataset.read = 'true';
+                    const badge = item.querySelector('.w-2.h-2.bg-primary');
+                    if (badge) badge.remove();
+                    const title = item.querySelector('p.font-medium');
+                    if (title) title.classList.remove('font-semibold');
+                    const badgeContainer = item.querySelector('.flex.items-center.space-x-2.mt-2');
+                    if (badgeContainer && !badgeContainer.querySelector('.bg-green-100')) {
+                        const statusBadge = document.createElement('span');
+                        statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800';
+                        statusBadge.innerHTML = '<i class="fas fa-check mr-1"></i>已读';
+                        badgeContainer.appendChild(statusBadge);
+                    }
+                    const readBtn = item.querySelector('button[title="标记已读"]');
+                    if (readBtn) readBtn.remove();
+                }
+            });
+            selectedIds.clear();
+            document.querySelectorAll('.notification-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBatchButtons();
+            updateBadges();
+        }
+    })
+    .catch(err => console.error('Failed to batch mark read:', err));
+}
+
+function deleteNotification(id) {
+    if (!confirm('确定要删除这条通知吗？')) return;
+    
+    fetch(`/api/notification/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+            if (item) item.remove();
+            selectedIds.delete(id);
+            updateBatchButtons();
+            checkEmpty();
+            updateBadges();
+        }
+    })
+    .catch(err => console.error('Failed to delete notification:', err));
+}
+
+function batchDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定要删除选中的 ${selectedIds.size} 条通知吗？此操作不可恢复。`)) return;
+    
+    fetch('/api/notification/batch-delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            selectedIds.forEach(id => {
+                const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+                if (item) item.remove();
+            });
+            selectedIds.clear();
+            document.querySelectorAll('.notification-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBatchButtons();
+            checkEmpty();
+            updateBadges();
+        }
+    })
+    .catch(err => console.error('Failed to batch delete:', err));
+}
+
+function checkEmpty() {
+    const container = document.getElementById('notificationList');
+    const items = container.querySelectorAll('.notification-item');
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="p-16 text-center text-gray-500">
+                <i class="fas fa-bell-slash text-5xl mb-4 text-gray-300"></i>
+                <p class="text-lg font-medium text-gray-600">暂无通知</p>
+                <p class="text-sm mt-1">您目前没有任何通知消息</p>
+            </div>
+        `;
+    }
+}
+
+function updateBadges() {
+    fetch('/api/notification/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const count = data.unread_count || 0;
+            const badge = document.getElementById('notificationBadge');
+            const headerBadge = document.getElementById('headerNotificationBadge');
+            
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (headerBadge) {
+                if (count > 0) {
+                    headerBadge.textContent = count > 99 ? '99+' : count;
+                    headerBadge.classList.remove('hidden');
+                } else {
+                    headerBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(err => console.error('Failed to fetch notification count:', err));
+}
+
+updateBadges();
+setInterval(updateBadges, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+<div id="approvalModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+        <div class="p-6 border-b border-gray-200 flex-shrink-0">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900">审批历史</h3>
+                    <p class="text-sm text-gray-500 mt-1">{{ purchase.request_no }} - {{ purchase.material_name }}</p>
+                </div>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            {% if history %}
+            <div class="relative">
+                <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                {% for record in history %}
+                <div class="relative flex items-start mb-6 last:mb-0">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 z-10
+                                {% if record.action == 'approve' %}bg-success/20{% elif record.action == 'reject' %}bg-danger/20{% else %}bg-gray-100{% endif %}">
+                        {% if record.action == 'approve' %}
+                        <i class="fas fa-check text-success"></i>
+                        {% elif record.action == 'reject' %}
+                        <i class="fas fa-times text-danger"></i>
+                        {% else %}
+                        <i class="fas fa-exchange-alt text-gray-500"></i>
+                        {% endif %}
+                    </div>
+                    <div class="ml-4 flex-1 bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium text-gray-900">{{ record.approver_name or '-' }}</span>
+                                <span class="text-sm text-gray-500">{{ record.level_name or '' }}</span>
+                            </div>
+                            <span class="text-xs text-gray-400">{{ record.approved_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                        </div>
+                        <div class="mb-2">
+                            {% if record.action == 'approve' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i>已通过
+                            </span>
+                            {% elif record.action == 'reject' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-times-circle mr-1"></i>已拒绝
+                            </span>
+                            {% elif record.action == 'transfer' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="fas fa-exchange-alt mr-1"></i>已转交
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if record.opinion %}
+                        <p class="text-sm text-gray-600 bg-white rounded p-3 border border-gray-200">
+                            {{ record.opinion }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <i class="fas fa-history text-5xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">暂无审批历史记录</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="p-6 border-t border-gray-200 flex justify-end flex-shrink-0">
+            <button type="button" 
+                    onclick="closeModal()" 
+                    class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                关闭
+            </button>
+        </div>
+    </div>
+</div>

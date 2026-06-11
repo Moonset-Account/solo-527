@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}发票状态维护 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+<div class="flex min-h-screen bg-gray-50">
+    {% include "partials/sidebar.html" %}
+    <div class="flex-1 ml-64">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">发票状态维护</h1>
+                    <p class="text-sm text-gray-500 mt-1">管理系统发票状态字典</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="relative p-2 text-gray-500 hover:text-gray-700 transition">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="headerNotificationBadge" class="absolute -top-1 -right-1 bg-danger text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-800">状态列表</h2>
+                        <p class="text-sm text-gray-500 mt-1">共 {{ invoice_statuses|length }} 个状态</p>
+                    </div>
+                    <button onclick="openModal()" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-600 transition">
+                        <i class="fas fa-plus mr-1"></i> 新增状态
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">排序</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">状态编码</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">状态名称</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">描述</th>
+                                <th class="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statusTableBody" class="divide-y divide-gray-100">
+                            {% for status in invoice_statuses %}
+                            <tr class="hover:bg-gray-50 transition" data-id="{{ status.id }}">
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full text-sm font-medium text-gray-600">
+                                        {{ status.sort_order }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <code class="px-2 py-1 bg-gray-100 rounded text-sm text-gray-700">{{ status.code }}</code>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="text-sm font-medium text-gray-900">{{ status.name }}</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <p class="text-sm text-gray-500 max-w-xs truncate">{{ status.description or '-' }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    <div class="flex items-center justify-end space-x-2">
+                                        <button onclick="editStatus({{ status.id }})" class="p-2 text-gray-400 hover:text-primary transition" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="deleteStatus({{ status.id }})" class="p-2 text-gray-400 hover:text-danger transition" title="删除">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-16 text-center text-gray-500">
+                                    <i class="fas fa-file-invoice text-4xl mb-3 text-gray-300"></i>
+                                    <p class="text-lg font-medium text-gray-600">暂无发票状态</p>
+                                    <p class="text-sm mt-1">点击右上角按钮添加第一个状态</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="statusModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 id="modalTitle" class="text-lg font-semibold text-gray-800">新增状态</h3>
+            <button onclick="closeModal()" class="p-2 text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="statusForm" onsubmit="handleSubmit(event)">
+            <input type="hidden" id="statusId" name="id">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">排序 <span class="text-danger">*</span></label>
+                    <input type="number" id="sortOrder" name="sort_order" required min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="数字越小越靠前">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">状态编码 <span class="text-danger">*</span></label>
+                    <input type="text" id="statusCode" name="code" required maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="如: pending, paid">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">状态名称 <span class="text-danger">*</span></label>
+                    <input type="text" id="statusName" name="name" required maxlength="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="如: 待开票, 已开票">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                    <textarea id="statusDescription" name="description" rows="3" maxlength="500" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none" placeholder="状态说明"></textarea>
+                </div>
+            </div>
+            <div class="flex items-center justify-end px-6 py-4 border-t border-gray-100 space-x-3">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-600 transition">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let isEditing = false;
+
+function openModal(statusId = null) {
+    const modal = document.getElementById('statusModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const form = document.getElementById('statusForm');
+    
+    if (statusId) {
+        isEditing = true;
+        modalTitle.textContent = '编辑状态';
+        fetch(`/api/admin/invoice-status/${statusId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    document.getElementById('statusId').value = data.id;
+                    document.getElementById('sortOrder').value = data.sort_order;
+                    document.getElementById('statusCode').value = data.code;
+                    document.getElementById('statusName').value = data.name;
+                    document.getElementById('statusDescription').value = data.description || '';
+                }
+            })
+            .catch(err => console.error('Failed to fetch status:', err));
+    } else {
+        isEditing = false;
+        modalTitle.textContent = '新增状态';
+        form.reset();
+        document.getElementById('statusId').value = '';
+        document.getElementById('sortOrder').value = '0';
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('statusModal').classList.add('hidden');
+}
+
+function editStatus(id) {
+    openModal(id);
+}
+
+function handleSubmit(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('statusId').value;
+    const data = {
+        sort_order: parseInt(document.getElementById('sortOrder').value),
+        code: document.getElementById('statusCode').value.trim(),
+        name: document.getElementById('statusName').value.trim(),
+        description: document.getElementById('statusDescription').value.trim() || null
+    };
+    
+    const url = id ? `/api/admin/invoice-status/${id}` : '/api/admin/invoice-status';
+    const method = id ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            closeModal();
+            location.reload();
+        } else {
+            alert(result.message || '操作失败');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to save status:', err);
+        alert('保存失败，请重试');
+    });
+}
+
+function deleteStatus(id) {
+    if (!confirm('确定要删除这个发票状态吗？删除后可能影响已有数据。')) return;
+    
+    fetch(`/api/admin/invoice-status/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (row) row.remove();
+            checkEmpty();
+        } else {
+            alert(result.message || '删除失败');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to delete status:', err);
+        alert('删除失败，请重试');
+    });
+}
+
+function checkEmpty() {
+    const tbody = document.getElementById('statusTableBody');
+    const rows = tbody.querySelectorAll('tr[data-id]');
+    if (rows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-6 py-16 text-center text-gray-500">
+                    <i class="fas fa-file-invoice text-4xl mb-3 text-gray-300"></i>
+                    <p class="text-lg font-medium text-gray-600">暂无发票状态</p>
+                    <p class="text-sm mt-1">点击右上角按钮添加第一个状态</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function updateBadges() {
+    fetch('/api/notification/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const count = data.unread_count || 0;
+            const badge = document.getElementById('notificationBadge');
+            const headerBadge = document.getElementById('headerNotificationBadge');
+            
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (headerBadge) {
+                if (count > 0) {
+                    headerBadge.textContent = count > 99 ? '99+' : count;
+                    headerBadge.classList.remove('hidden');
+                } else {
+                    headerBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(err => console.error('Failed to fetch notification count:', err));
+}
+
+updateBadges();
+setInterval(updateBadges, 30000);
+</script>
+{% endblock %}

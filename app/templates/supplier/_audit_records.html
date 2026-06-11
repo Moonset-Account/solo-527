@@ -1,0 +1,41 @@
+{% if audits %}
+<div class="space-y-4">
+    {% for audit in audits %}
+    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+        <div class="flex items-start justify-between">
+            <div class="flex items-start">
+                <div class="w-10 h-10 {% if audit.audit_result == 'approved' %}bg-green-100{% else %}bg-red-100{% endif %} rounded-full flex items-center justify-center mr-4">
+                    {% if audit.audit_result == 'approved' %}
+                    <i class="fas fa-check text-green-600"></i>
+                    {% else %}
+                    <i class="fas fa-times text-red-600"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="flex items-center">
+                        <span class="font-medium text-gray-900">{{ audit.auditor.username if audit.auditor else '系统' }}</span>
+                        <span class="mx-2 text-gray-300">·</span>
+                        <span class="{% if audit.audit_result == 'approved' %}text-green-600{% else %}text-red-600{% endif %} font-medium">
+                            {{ '审核通过' if audit.audit_result == 'approved' else '审核拒绝' }}
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {{ audit.audited_at.strftime('%Y-%m-%d %H:%M') if audit.audited_at else '-' }}
+                    </p>
+                    {% if audit.audit_opinion %}
+                    <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-700">{{ audit.audit_opinion }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="py-12 text-center">
+    <i class="fas fa-clipboard-check text-5xl text-gray-300 mb-4"></i>
+    <p class="text-gray-500">暂无审核记录</p>
+</div>
+{% endif %}

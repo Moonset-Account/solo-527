@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}新建供应商 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+{% include 'partials/sidebar.html' %}
+<div class="ml-64 min-h-screen">
+    <div class="bg-white border-b border-gray-200 px-8 py-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">新建供应商</h1>
+                <p class="text-gray-500 text-sm mt-1">录入供应商基本信息及资质材料</p>
+            </div>
+            <a href="/supplier" class="inline-flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                返回列表
+            </a>
+        </div>
+    </div>
+    <div class="p-8">
+        <form id="supplierForm" hx-post="/api/suppliers" hx-target="#formError" hx-swap="innerHTML" class="max-w-4xl mx-auto">
+            <div class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-building text-primary mr-3"></i>
+                            基本信息
+                        </h2>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    供应商名称 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="name" required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                       placeholder="请输入供应商全称">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    联系人 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="contact_person" required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                       placeholder="请输入联系人姓名">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    联系电话 <span class="text-danger">*</span>
+                                </label>
+                                <input type="tel" name="contact_phone" required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                       placeholder="请输入联系电话">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    所在地区
+                                </label>
+                                <div class="flex gap-2">
+                                    <select name="province"
+                                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition">
+                                        <option value="">请选择省份</option>
+                                        <option value="北京市">北京市</option>
+                                        <option value="上海市">上海市</option>
+                                        <option value="广东省">广东省</option>
+                                        <option value="江苏省">江苏省</option>
+                                        <option value="浙江省">浙江省</option>
+                                        <option value="山东省">山东省</option>
+                                        <option value="四川省">四川省</option>
+                                        <option value="湖北省">湖北省</option>
+                                        <option value="湖南省">湖南省</option>
+                                        <option value="河南省">河南省</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                详细地址
+                            </label>
+                            <textarea name="address" rows="2"
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition resize-none"
+                                      placeholder="请输入详细地址"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-certificate text-primary mr-3"></i>
+                            资质信息
+                        </h2>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    营业执照号码
+                                </label>
+                                <input type="text" name="business_license"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                       placeholder="请输入统一社会信用代码">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    资质证书编号
+                                </label>
+                                <input type="text" name="qualification_cert"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                       placeholder="请输入资质证书编号">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    营业执照附件
+                                </label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition cursor-pointer">
+                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                    <p class="text-sm text-gray-500">点击或拖拽上传营业执照扫描件</p>
+                                    <p class="text-xs text-gray-400 mt-1">支持 PDF、JPG、PNG 格式，最大 10MB</p>
+                                    <input type="file" name="business_license_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" id="businessLicenseFile">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    资质证书附件
+                                </label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition cursor-pointer">
+                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                    <p class="text-sm text-gray-500">点击或拖拽上传资质证书扫描件</p>
+                                    <p class="text-xs text-gray-400 mt-1">支持 PDF、JPG、PNG 格式，最大 10MB</p>
+                                    <input type="file" name="qualification_cert_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" id="qualificationCertFile">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-3">
+                                资质类别（可多选）
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="construction" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">建筑工程</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="municipal" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">市政公用</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="mechanical" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">机电安装</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="steel" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">钢结构</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="waterproof" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">防水防腐</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="decoration" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">装饰装修</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="earthwork" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">土石方</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                    <input type="checkbox" name="qualification_types" value="other" class="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                    <span class="ml-2 text-sm text-gray-700">其他</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="fas fa-info-circle text-primary mr-3"></i>
+                            备注信息
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <textarea name="remark" rows="3"
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition resize-none"
+                                  placeholder="请输入其他需要说明的信息"></textarea>
+                    </div>
+                </div>
+
+                <div id="formError" class="text-danger text-sm"></div>
+
+                <div class="flex items-center justify-end gap-4">
+                    <button type="button" onclick="window.location.href='/supplier'"
+                            class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-8 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition flex items-center">
+                        <i class="fas fa-save mr-2"></i>
+                        保存并提交审核
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.border-dashed').forEach(function(uploadArea, index) {
+    uploadArea.addEventListener('click', function() {
+        const fileInputs = ['businessLicenseFile', 'qualificationCertFile'];
+        document.getElementById(fileInputs[index]).click();
+    });
+
+    const fileInput = document.getElementById(['businessLicenseFile', 'qualificationCertFile'][index]);
+    fileInput.addEventListener('change', function(e) {
+        const fileName = e.target.files[0]?.name;
+        if (fileName) {
+            uploadArea.innerHTML = `
+                <i class="fas fa-check-circle text-3xl text-success mb-2"></i>
+                <p class="text-sm text-gray-700">${fileName}</p>
+                <p class="text-xs text-success mt-1">已选择文件</p>
+            `;
+        }
+    });
+});
+
+document.getElementById('supplierForm').addEventListener('htmx:afterRequest', function(evt) {
+    const response = evt.detail.xhr;
+    if (response.status === 201 || response.status === 200) {
+        const data = JSON.parse(response.responseText);
+        window.location.href = `/supplier/${data.id}`;
+    } else {
+        const errorDiv = document.getElementById('formError');
+        try {
+            const data = JSON.parse(response.responseText);
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i>${data.detail || '提交失败，请检查表单信息'}`;
+        } catch {
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>提交失败，请稍后重试';
+        }
+    }
+});
+</script>
+{% endblock %}

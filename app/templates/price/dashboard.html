@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+{% block title %}价格波动看板 - 工程材料供应商准入管理系统{% endblock %}
+{% block body %}
+<div class="flex min-h-screen bg-gray-50">
+    {% include "partials/sidebar.html" %}
+    <div class="flex-1 ml-64">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">价格波动看板</h1>
+                    <p class="text-sm text-gray-500 mt-1">实时监控材料价格变动趋势与统计分析</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="relative p-2 text-gray-500 hover:text-gray-700 transition">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="headerNotificationBadge" class="absolute -top-1 -right-1 bg-danger text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="flex-1 min-w-64">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">材料筛选</label>
+                        <select id="materialFilter"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                hx-get="/api/prices/trend"
+                                hx-target="#priceChartContainer"
+                                hx-swap="innerHTML"
+                                hx-trigger="change"
+                                hx-include="#specFilter, #dateRangeStart, #dateRangeEnd">
+                            <option value="">请选择材料</option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-48">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">规格型号</label>
+                        <select id="specFilter"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                hx-get="/api/prices/trend"
+                                hx-target="#priceChartContainer"
+                                hx-swap="innerHTML"
+                                hx-trigger="change"
+                                hx-include="#materialFilter, #dateRangeStart, #dateRangeEnd">
+                            <option value="">全部规格</option>
+                        </select>
+                    </div>
+                    <div class="w-48">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">开始日期</label>
+                        <input type="date" id="dateRangeStart"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                               hx-get="/api/prices/trend"
+                               hx-target="#priceChartContainer"
+                               hx-swap="innerHTML"
+                               hx-trigger="change"
+                               hx-include="#materialFilter, #specFilter, #dateRangeEnd">
+                    </div>
+                    <div class="w-48">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">结束日期</label>
+                        <input type="date" id="dateRangeEnd"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                               hx-get="/api/prices/trend"
+                               hx-target="#priceChartContainer"
+                               hx-swap="innerHTML"
+                               hx-trigger="change"
+                               hx-include="#materialFilter, #specFilter, #dateRangeStart">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="refreshPriceData()"
+                                class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition flex items-center">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            刷新数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="priceStatsCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">当前价格</p>
+                            <p class="text-3xl font-bold text-gray-800" id="currentPrice">¥--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-tag text-2xl text-primary"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm" id="priceChangeContainer">
+                        <span class="text-gray-400">请选择材料查看详情</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">平均价格</p>
+                            <p class="text-3xl font-bold text-gray-800" id="avgPrice">¥--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-line text-2xl text-success"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-gray-400">统计周期内均值</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">最高价格</p>
+                            <p class="text-3xl font-bold text-danger" id="maxPrice">¥--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-red-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-arrow-trend-up text-2xl text-danger"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-gray-400" id="maxPriceDate">--</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">最低价格</p>
+                            <p class="text-3xl font-bold text-success" id="minPrice">¥--</p>
+                        </div>
+                        <div class="w-14 h-14 bg-emerald-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-arrow-trend-down text-2xl text-success"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-sm">
+                        <span class="text-gray-400" id="minPriceDate">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">价格趋势图</h2>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="changeChartType('line')" id="lineChartBtn"
+                                    class="px-3 py-1 text-sm rounded-lg bg-primary text-white transition">
+                                折线图
+                            </button>
+                            <button onclick="changeChartType('bar')" id="barChartBtn"
+                                    class="px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                                柱状图
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="priceChartContainer" class="h-80">
+                            <div class="flex items-center justify-center h-full">
+                                <i class="fas fa-chart-line text-gray-300 text-5xl mr-4"></i>
+                                <p class="text-gray-400">请选择材料查看价格趋势</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">即将过期价格</h2>
+                        <span class="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-full" id="expiringCount">0 条</span>
+                    </div>
+                    <div id="expiringPricesList" class="divide-y divide-gray-100 max-h-96 overflow-y-auto"
+                         hx-get="/api/prices/expiring?days=7"
+                         hx-trigger="load">
+                        <div class="flex items-center justify-center py-12">
+                            <i class="fas fa-spinner fa-spin text-primary text-2xl"></i>
+                            <span class="ml-3 text-gray-500">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-800">材料价格列表</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="priceSearch" placeholder="搜索材料名称..."
+                                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm w-64"
+                                   hx-get="/api/prices/records"
+                                   hx-target="#priceRecordsTable"
+                                   hx-swap="innerHTML"
+                                   hx-trigger="keyup changed delay:500ms"
+                                   hx-include="#materialFilter, #specFilter">
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">材料名称</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">规格型号</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">供应商</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">价格</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">记录日期</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">有效期至</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                                <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="priceRecordsTable" class="divide-y divide-gray-100"
+                               hx-get="/api/prices/records?page_size=10"
+                               hx-trigger="load">
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                    <i class="fas fa-spinner fa-spin text-primary text-2xl mb-3"></i>
+                                    <p>加载中...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="pricePagination" class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let priceChart = null;
+let currentChartType = 'line';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadMaterials();
+    updateBadges();
+    setInterval(updateBadges, 30000);
+});
+
+function loadMaterials() {
+    fetch('/api/prices/materials')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('materialFilter');
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.material_name;
+                option.textContent = item.material_name;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => console.error('Failed to load materials:', err));
+}
+
+document.getElementById('materialFilter').addEventListener('change', function() {
+    const materialName = this.value;
+    if (materialName) {
+        loadSpecifications(materialName);
+        loadPriceStats(materialName);
+    } else {
+        clearPriceStats();
+    }
+});
+
+function loadSpecifications(materialName) {
+    fetch(`/api/prices/materials?material_name=${encodeURIComponent(materialName)}`)
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('specFilter');
+            select.innerHTML = '<option value="">全部规格</option>';
+            const specs = [...new Set(data.filter(d => d.material_name === materialName).map(d => d.specification).filter(Boolean))];
+            specs.forEach(spec => {
+                const option = document.createElement('option');
+                option.value = spec;
+                option.textContent = spec;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => console.error('Failed to load specifications:', err));
+}
+
+function loadPriceStats(materialName) {
+    const spec = document.getElementById('specFilter').value;
+    let url = `/api/prices/stats?material_name=${encodeURIComponent(materialName)}`;
+    if (spec) {
+        url += `&specification=${encodeURIComponent(spec)}`;
+    }
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data) {
+                document.getElementById('currentPrice').textContent = `¥${parseFloat(data.current_price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('avgPrice').textContent = `¥${parseFloat(data.avg_price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('maxPrice').textContent = `¥${parseFloat(data.max_price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('minPrice').textContent = `¥${parseFloat(data.min_price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+                const changePercent = parseFloat(data.change_percent);
+                const changeContainer = document.getElementById('priceChangeContainer');
+                if (changePercent > 0) {
+                    changeContainer.innerHTML = `
+                        <span class="text-danger"><i class="fas fa-arrow-up mr-1"></i>${changePercent.toFixed(2)}%</span>
+                        <span class="text-gray-400 ml-2">较上期上涨</span>
+                    `;
+                } else if (changePercent < 0) {
+                    changeContainer.innerHTML = `
+                        <span class="text-success"><i class="fas fa-arrow-down mr-1"></i>${Math.abs(changePercent).toFixed(2)}%</span>
+                        <span class="text-gray-400 ml-2">较上期下跌</span>
+                    `;
+                } else {
+                    changeContainer.innerHTML = `
+                        <span class="text-info"><i class="fas fa-minus mr-1"></i>0.00%</span>
+                        <span class="text-gray-400 ml-2">价格持平</span>
+                    `;
+                }
+            }
+        })
+        .catch(err => console.error('Failed to load price stats:', err));
+}
+
+function clearPriceStats() {
+    document.getElementById('currentPrice').textContent = '¥--';
+    document.getElementById('avgPrice').textContent = '¥--';
+    document.getElementById('maxPrice').textContent = '¥--';
+    document.getElementById('minPrice').textContent = '¥--';
+    document.getElementById('priceChangeContainer').innerHTML = '<span class="text-gray-400">请选择材料查看详情</span>';
+}
+
+function refreshPriceData() {
+    const materialName = document.getElementById('materialFilter').value;
+    if (materialName) {
+        loadPriceStats(materialName);
+        htmx.trigger('#priceChartContainer', 'change');
+        htmx.trigger('#expiringPricesList', 'load');
+        htmx.trigger('#priceRecordsTable', 'load');
+    }
+}
+
+function changeChartType(type) {
+    currentChartType = type;
+    document.getElementById('lineChartBtn').className = type === 'line' 
+        ? 'px-3 py-1 text-sm rounded-lg bg-primary text-white transition'
+        : 'px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    document.getElementById('barChartBtn').className = type === 'bar'
+        ? 'px-3 py-1 text-sm rounded-lg bg-primary text-white transition'
+        : 'px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    
+    if (priceChart) {
+        priceChart.config.type = type;
+        priceChart.update();
+    }
+}
+
+function renderPriceChart(labels, data, materialName) {
+    const container = document.getElementById('priceChartContainer');
+    container.innerHTML = '<canvas id="priceChart"></canvas>';
+    
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    
+    if (priceChart) {
+        priceChart.destroy();
+    }
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+    gradient.addColorStop(0, 'rgba(22, 93, 255, 0.3)');
+    gradient.addColorStop(1, 'rgba(22, 93, 255, 0)');
+    
+    priceChart = new Chart(ctx, {
+        type: currentChartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: materialName + ' 价格',
+                data: data,
+                borderColor: '#165DFF',
+                backgroundColor: currentChartType === 'line' ? gradient : 'rgba(22, 93, 255, 0.6)',
+                borderWidth: 2,
+                fill: currentChartType === 'line',
+                tension: 0.4,
+                pointBackgroundColor: '#165DFF',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            return '价格: ¥' + context.parsed.y.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: { size: 11 }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        font: { size: 11 },
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString('zh-CN');
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.elt.id === 'expiringPricesList') {
+        const response = evt.detail.xhr;
+        if (response.status === 200) {
+            try {
+                const data = JSON.parse(response.responseText);
+                renderExpiringPrices(data);
+            } catch(e) {
+                console.error('Parse expiring prices error:', e);
+            }
+        }
+    }
+    
+    if (evt.detail.elt.id === 'priceRecordsTable') {
+        const response = evt.detail.xhr;
+        if (response.status === 200) {
+            try {
+                const data = JSON.parse(response.responseText);
+                renderPriceRecords(data);
+            } catch(e) {
+                console.error('Parse price records error:', e);
+            }
+        }
+    }
+    
+    if (evt.detail.elt.id === 'priceChartContainer') {
+        const response = evt.detail.xhr;
+        if (response.status === 200) {
+            try {
+                const data = JSON.parse(response.responseText);
+                if (data.labels && data.data && data.labels.length > 0) {
+                    renderPriceChart(data.labels, data.data, data.material_name || '');
+                    if (data.max_price_date) document.getElementById('maxPriceDate').textContent = data.max_price_date;
+                    if (data.min_price_date) document.getElementById('minPriceDate').textContent = data.min_price_date;
+                }
+            } catch(e) {
+                console.error('Parse trend data error:', e);
+            }
+        }
+    }
+});
+
+function renderExpiringPrices(data) {
+    const container = document.getElementById('expiringPricesList');
+    document.getElementById('expiringCount').textContent = `${data.length} 条`;
+    
+    if (data.length === 0) {
+        container.innerHTML = `
+            <div class="p-12 text-center text-gray-500">
+                <i class="fas fa-check-circle text-4xl mb-3 text-success"></i>
+                <p>暂无即将过期的价格</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = data.map(item => {
+        const today = new Date();
+        const expireDate = new Date(item.expires_at);
+        const daysLeft = Math.ceil((expireDate - today) / (1000 * 60 * 60 * 24));
+        
+        let urgencyClass = 'bg-blue-50 text-primary';
+        let urgencyText = `${daysLeft}天后过期`;
+        if (daysLeft <= 1) {
+            urgencyClass = 'bg-red-50 text-danger';
+            urgencyText = '即将过期';
+        } else if (daysLeft <= 3) {
+            urgencyClass = 'bg-orange-50 text-warning';
+            urgencyText = `${daysLeft}天后过期`;
+        }
+        
+        return `
+            <div class="p-4 hover:bg-gray-50 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">${item.material_name}</p>
+                        <p class="text-xs text-gray-500 mt-1">${item.specification || '-'}</p>
+                        <p class="text-xs text-gray-400 mt-1">供应商: ${item.supplier || '-'}</p>
+                    </div>
+                    <div class="text-right ml-4">
+                        <p class="text-sm font-bold text-gray-900">¥${parseFloat(item.price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-2 ${urgencyClass}">
+                            ${urgencyText}
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center text-xs text-gray-400">
+                    <i class="fas fa-calendar-alt mr-1"></i>
+                    有效期至: ${item.expires_at}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderPriceRecords(data) {
+    const tbody = document.getElementById('priceRecordsTable');
+    
+    if (!data.items || data.items.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                    <i class="fas fa-inbox text-4xl mb-3 text-gray-300"></i>
+                    <p>暂无价格记录</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = data.items.map(item => {
+        const isExpired = item.is_expired;
+        const today = new Date();
+        const expireDate = item.expires_at ? new Date(item.expires_at) : null;
+        const isExpiringSoon = expireDate && !isExpired && Math.ceil((expireDate - today) / (1000 * 60 * 60 * 24)) <= 7;
+        
+        let statusClass = 'bg-green-100 text-green-800';
+        let statusText = '有效';
+        if (isExpired) {
+            statusClass = 'bg-gray-100 text-gray-800';
+            statusText = '已过期';
+        } else if (isExpiringSoon) {
+            statusClass = 'bg-orange-100 text-orange-800';
+            statusText = '即将过期';
+        }
+        
+        return `
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4">
+                    <p class="text-sm font-medium text-gray-900">${item.material_name}</p>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${item.specification || '-'}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${item.supplier_name || '-'}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-sm font-semibold text-gray-900">¥${parseFloat(item.price).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${item.record_date}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    ${item.expires_at || '-'}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="viewPriceDetail(${item.id})" class="text-primary hover:text-blue-600 text-sm transition">
+                            查看
+                        </button>
+                        <button onclick="editPriceRecord(${item.id})" class="text-gray-500 hover:text-gray-700 text-sm transition">
+                            编辑
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    renderPagination(data, 'pricePagination', loadPricePage);
+}
+
+function renderPagination(data, containerId, callback) {
+    const container = document.getElementById(containerId);
+    if (!data.total_pages || data.total_pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = `
+        <div class="text-sm text-gray-500">
+            共 ${data.total} 条记录，第 ${data.page} / ${data.total_pages} 页
+        </div>
+        <div class="flex items-center space-x-2">
+    `;
+    
+    if (data.page > 1) {
+        html += `
+            <button onclick="${callback.name}(${data.page - 1})" 
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                上一页
+            </button>
+        `;
+    }
+    
+    for (let i = 1; i <= data.total_pages; i++) {
+        if (i === 1 || i === data.total_pages || (i >= data.page - 2 && i <= data.page + 2)) {
+            html += `
+                <button onclick="${callback.name}(${i})" 
+                        class="px-3 py-1 rounded-lg text-sm transition ${i === data.page ? 'bg-primary text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}">
+                    ${i}
+                </button>
+            `;
+        } else if (i === data.page - 3 || i === data.page + 3) {
+            html += `<span class="text-gray-400">...</span>`;
+        }
+    }
+    
+    if (data.page < data.total_pages) {
+        html += `
+            <button onclick="${callback.name}(${data.page + 1})" 
+                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                下一页
+            </button>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function loadPricePage(page) {
+    const materialName = document.getElementById('materialFilter').value;
+    const spec = document.getElementById('specFilter').value;
+    const search = document.getElementById('priceSearch').value;
+    
+    let url = `/api/prices/records?page=${page}&page_size=10`;
+    if (materialName) url += `&material_name=${encodeURIComponent(materialName)}`;
+    if (spec) url += `&specification=${encodeURIComponent(spec)}`;
+    if (search) url += `&material_name=${encodeURIComponent(search)}`;
+    
+    htmx.ajax('GET', url, { target: '#priceRecordsTable', swap: 'innerHTML' });
+}
+
+function viewPriceDetail(id) {
+    window.location.href = `/price/records/${id}`;
+}
+
+function editPriceRecord(id) {
+    window.location.href = `/price/records/${id}/edit`;
+}
+
+function updateBadges() {
+    fetch('/api/notification/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            const count = data.unread_count || 0;
+            const headerBadge = document.getElementById('headerNotificationBadge');
+            
+            if (headerBadge) {
+                if (count > 0) {
+                    headerBadge.textContent = count > 99 ? '99+' : count;
+                    headerBadge.classList.remove('hidden');
+                } else {
+                    headerBadge.classList.add('hidden');
+                }
+            }
+        })
+        .catch(err => console.error('Failed to fetch notification count:', err));
+}
+</script>
+{% endblock %}
