@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import type { TrackingPoint } from "@/types";
+import type { TrackingPoint, RouteRecord } from "@/types";
 
 function dbTrackingPointToTrackingPoint(dbPoint: any): TrackingPoint {
   return {
@@ -10,6 +10,24 @@ function dbTrackingPointToTrackingPoint(dbPoint: any): TrackingPoint {
     lng: dbPoint.location?.coordinates?.[0] || 0,
     speed: dbPoint.speed,
     timestamp: new Date(dbPoint.timestamp),
+  };
+}
+
+function dbDeliveryRouteToRouteRecord(dbRoute: any): RouteRecord {
+  return {
+    id: dbRoute.id,
+    riderId: dbRoute.rider_id,
+    riderName: dbRoute.rider_name,
+    orderId: dbRoute.order_id,
+    orderNo: dbRoute.order_no,
+    distance: dbRoute.distance,
+    duration: dbRoute.duration,
+    startTime: new Date(dbRoute.start_time),
+    endTime: new Date(dbRoute.end_time),
+    orderCount: dbRoute.order_count,
+    totalDistance: dbRoute.total_distance,
+    totalTime: dbRoute.total_time,
+    points: [],
   };
 }
 
@@ -72,7 +90,7 @@ export async function createTrackingPoint(
   return true;
 }
 
-export async function getDeliveryRoutesByRider(riderId: string): Promise<any[]> {
+export async function getDeliveryRoutesByRider(riderId: string): Promise<RouteRecord[]> {
   const supabase = createClient() as any;
   const { data, error } = await supabase
     .from("delivery_routes")
@@ -85,5 +103,5 @@ export async function getDeliveryRoutesByRider(riderId: string): Promise<any[]> 
     return [];
   }
 
-  return data || [];
+  return data?.map(dbDeliveryRouteToRouteRecord) || [];
 }

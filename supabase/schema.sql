@@ -52,8 +52,10 @@ CREATE TYPE operation_log_type AS ENUM (
   'inventory'
 );
 
+CREATE TYPE discrepancy_status AS ENUM ('pending', 'investigating', 'resolved');
+
 -- ============================================================
--- 站点表
+-- 站点表（无外键依赖，最先创建）
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS sites (
@@ -65,10 +67,10 @@ CREATE TABLE IF NOT EXISTS sites (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_sites_location ON sites USING GIST (location);
+CREATE INDEX IF NOT EXISTS idx_sites_location ON sites USING GIST (location);
 
 -- ============================================================
--- 骑手表
+-- 骑手表（先创建表结构，后加外键）
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS riders (
@@ -77,7 +79,7 @@ CREATE TABLE IF NOT EXISTS riders (
   phone VARCHAR(20) NOT NULL UNIQUE,
   status rider_status NOT NULL DEFAULT 'idle',
   current_location GEOGRAPHY(Point, 4326),
-  current_order_id UUID REFERENCES orders(id),
+  current_order_id UUID,
   battery_level INTEGER,
   today_mileage DECIMAL(10, 2) DEFAULT 0,
   today_working_hours DECIMAL(5, 2) DEFAULT 0,
@@ -87,8 +89,8 @@ CREATE TABLE IF NOT EXISTS riders (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_riders_status ON riders(status);
-CREATE INDEX idx_riders_location ON riders USING GIST (current_location);
+CREATE INDEX IF NOT EXISTS idx_riders_status ON riders(status);
+CREATE INDEX IF NOT EXISTS idx_riders_location ON riders USING GIST (current_location);
 
 -- ============================================================
 -- 订单表
@@ -120,11 +122,24 @@ CREATE TABLE IF NOT EXISTS orders (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_rider_id ON orders(rider_id);
-CREATE INDEX idx_orders_created_at ON orders(created_at);
-CREATE INDEX idx_orders_pickup_location ON orders USING GIST (pickup_location);
-CREATE INDEX idx_orders_delivery_location ON orders USING GIST (delivery_location);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_rider_id ON orders(rider_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_orders_pickup_location ON orders USING GIST (pickup_location);
+CREATE INDEX IF NOT EXISTS idx_orders_delivery_location ON orders USING GIST (delivery_location);
+
+-- 补充 riders 表的外键约束（orders 表已创建）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'riders_current_order_id_fkey'
+  ) THEN
+    ALTER TABLE riders
+      ADD CONSTRAINT riders_current_order_id_fkey
+      FOREIGN KEY (current_order_id) REFERENCES orders(id);
+  END IF;
+END $$;
 
 -- ============================================================
 -- 轨迹追踪点表
@@ -139,10 +154,10 @@ CREATE TABLE IF NOT EXISTS tracking_points (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_tracking_points_order_id ON tracking_points(order_id);
-CREATE INDEX idx_tracking_points_rider_id ON tracking_points(rider_id);
-CREATE INDEX idx_tracking_points_timestamp ON tracking_points(timestamp);
-CREATE INDEX idx_tracking_points_location ON tracking_points USING GIST (location);
+CREATE INDEX IF NOT EXISTS idx_tracking_points_order_id ON tracking_points(order_id);
+CREATE INDEX IF NOT EXISTS idx_tracking_points_rider_id ON tracking_points(rider_id);
+CREATE INDEX IF NOT EXISTS idx_tracking_points_timestamp ON tracking_points(timestamp);
+CREATE INDEX IF NOT EXISTS idx_tracking_points_location ON tracking_points USING GIST (location);
 
 -- ============================================================
 -- 温度记录表
@@ -157,9 +172,9 @@ CREATE TABLE IF NOT EXISTS temperature_records (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_temperature_records_order_id ON temperature_records(order_id);
-CREATE INDEX idx_temperature_records_timestamp ON temperature_records(timestamp);
-CREATE INDEX idx_temperature_records_is_normal ON temperature_records(is_normal);
+CREATE INDEX IF NOT EXISTS idx_temperature_records_order_id ON temperature_records(order_id);
+CREATE INDEX IF NOT EXISTS idx_temperature_records_timestamp ON temperature_records(timestamp);
+CREATE INDEX IF NOT EXISTS idx_temperature_records_is_normal ON temperature_records(is_normal);
 
 -- ============================================================
 -- 异常记录表
@@ -188,11 +203,11 @@ CREATE TABLE IF NOT EXISTS exceptions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_exceptions_status ON exceptions(status);
-CREATE INDEX idx_exceptions_order_id ON exceptions(order_id);
-CREATE INDEX idx_exceptions_assignee_id ON exceptions(assignee_id);
-CREATE INDEX idx_exceptions_type ON exceptions(type);
-CREATE INDEX idx_exceptions_created_at ON exceptions(created_at);
+CREATE INDEX IF NOT EXISTS idx_exceptions_status ON exceptions(status);
+CREATE INDEX IF NOT EXISTS idx_exceptions_order_id ON exceptions(order_id);
+CREATE INDEX IF NOT EXISTS idx_exceptions_assignee_id ON exceptions(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_exceptions_type ON exceptions(type);
+CREATE INDEX IF NOT EXISTS idx_exceptions_created_at ON exceptions(created_at);
 
 -- ============================================================
 -- 库存表
@@ -216,9 +231,9 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX idx_inventory_site_sku ON inventory_items(site_id, sku);
-CREATE INDEX idx_inventory_site_id ON inventory_items(site_id);
-CREATE INDEX idx_inventory_available ON inventory_items(available_quantity);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_site_sku ON inventory_items(site_id, sku);
+CREATE INDEX IF NOT EXISTS idx_inventory_site_id ON inventory_items(site_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_available ON inventory_items(available_quantity);
 
 -- ============================================================
 -- 配送路线记录表
@@ -240,8 +255,8 @@ CREATE TABLE IF NOT EXISTS delivery_routes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_delivery_routes_rider_id ON delivery_routes(rider_id);
-CREATE INDEX idx_delivery_routes_start_time ON delivery_routes(start_time);
+CREATE INDEX IF NOT EXISTS idx_delivery_routes_rider_id ON delivery_routes(rider_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_routes_start_time ON delivery_routes(start_time);
 
 -- ============================================================
 -- 签收差异记录表
@@ -257,12 +272,12 @@ CREATE TABLE IF NOT EXISTS discrepancy_records (
   reason TEXT,
   reported_by VARCHAR(50) NOT NULL,
   reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  status discrepancy_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_discrepancy_order_id ON discrepancy_records(order_id);
-CREATE INDEX idx_discrepancy_status ON discrepancy_records(status);
+CREATE INDEX IF NOT EXISTS idx_discrepancy_order_id ON discrepancy_records(order_id);
+CREATE INDEX IF NOT EXISTS idx_discrepancy_status ON discrepancy_records(status);
 
 -- ============================================================
 -- 操作日志表
@@ -282,10 +297,10 @@ CREATE TABLE IF NOT EXISTS operation_logs (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_operation_logs_type ON operation_logs(type);
-CREATE INDEX idx_operation_logs_timestamp ON operation_logs(timestamp);
-CREATE INDEX idx_operation_logs_user_id ON operation_logs(user_id);
-CREATE INDEX idx_operation_logs_order_no ON operation_logs(order_no);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_type ON operation_logs(type);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_timestamp ON operation_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_user_id ON operation_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_order_no ON operation_logs(order_no);
 
 -- ============================================================
 -- 通知表
@@ -301,8 +316,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notifications_is_read ON notifications(is_read);
-CREATE INDEX idx_notifications_created_at ON notifications(created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
 
 -- ============================================================
 -- 履约时效统计表
@@ -333,21 +348,27 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 为各表添加触发器
+DROP TRIGGER IF EXISTS update_sites_updated_at ON sites;
 CREATE TRIGGER update_sites_updated_at BEFORE UPDATE ON sites
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_riders_updated_at ON riders;
 CREATE TRIGGER update_riders_updated_at BEFORE UPDATE ON riders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_exceptions_updated_at ON exceptions;
 CREATE TRIGGER update_exceptions_updated_at BEFORE UPDATE ON exceptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_inventory_updated_at ON inventory_items;
 CREATE TRIGGER update_inventory_updated_at BEFORE UPDATE ON inventory_items
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_performance_stats_updated_at ON performance_stats;
 CREATE TRIGGER update_performance_stats_updated_at BEFORE UPDATE ON performance_stats
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -369,41 +390,149 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE performance_stats ENABLE ROW LEVEL SECURITY;
 
 -- 管理员可以查看所有数据
-CREATE POLICY "All tables are viewable by authenticated users" ON sites
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'sites'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON sites
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON riders
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'riders'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON riders
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON orders
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'orders'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON orders
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON tracking_points
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'tracking_points'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON tracking_points
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON temperature_records
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'temperature_records'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON temperature_records
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON exceptions
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'exceptions'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON exceptions
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON inventory_items
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'inventory_items'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON inventory_items
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON delivery_routes
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'delivery_routes'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON delivery_routes
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON discrepancy_records
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'discrepancy_records'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON discrepancy_records
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON operation_logs
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'operation_logs'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON operation_logs
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON notifications
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'notifications'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON notifications
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
-CREATE POLICY "All tables are viewable by authenticated users" ON performance_stats
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE policy_name = 'All tables are viewable by authenticated users'
+      AND tablename = 'performance_stats'
+  ) THEN
+    CREATE POLICY "All tables are viewable by authenticated users" ON performance_stats
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
 -- ============================================================
 -- Realtime 发布

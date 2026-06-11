@@ -64,6 +64,8 @@ interface DashboardState {
   fetchLogs: () => Promise<void>;
   fetchTrackingPoints: (orderId: string) => Promise<void>;
   fetchTemperatureRecords: (orderId: string) => Promise<void>;
+  fetchDeliveryRoutes: (riderId: string) => Promise<void>;
+  fetchInventory: () => Promise<void>;
 
   acceptOrder: (orderId: string) => Promise<void>;
   assignRider: (orderId: string, riderId: string) => Promise<void>;
@@ -267,6 +269,36 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set((state) => ({
         temperatureRecords: { ...state.temperatureRecords, [orderId]: data },
       }));
+    }
+  },
+
+  fetchDeliveryRoutes: async (riderId: string) => {
+    const data = await apiFetch<RouteRecord[]>(
+      `/api/tracking?routes=true&riderId=${riderId}`
+    );
+
+    if (data && data.length > 0) {
+      set((state) => ({
+        deliveryRoutes: data,
+      }));
+    }
+  },
+
+  fetchInventory: async () => {
+    set({ isLoading: true });
+
+    const params = new URLSearchParams();
+    const { filters } = get();
+    if (filters.assignee) params.set("siteName", filters.assignee);
+
+    const data = await apiFetch<InventoryItem[]>(
+      `/api/inventory?${params.toString()}`
+    );
+
+    if (data && data.length > 0) {
+      set({ inventory: data, isLoading: false });
+    } else {
+      set({ isLoading: false });
     }
   },
 
@@ -817,9 +849,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (USE_SUPABASE) {
       apiPost("/api/logs", {
-        user_id: "user_001",
-        ...log,
-        ip_address: "192.168.1.1",
+        userId: "user_001",
+        operatorName: log.operatorName,
+        operatorRole: log.operatorRole,
+        action: log.action,
+        type: log.type,
+        targetId: log.targetId,
+        details: log.details,
+        orderNo: log.orderNo,
+        ipAddress: "192.168.1.1",
       }).catch(() => {});
     }
 
@@ -829,12 +867,30 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   },
 
   updateTemperatureLog: (orderId, log) => {
+    const newRecord: TemperatureRecord = {
+      id: `temp_${Date.now()}`,
+      orderId,
+      temperature: log.temperature || 0,
+      humidity: log.humidity ?? 0,
+      isNormal: log.isNormal ?? true,
+      timestamp: new Date(),
+    };
+
+    if (USE_SUPABASE) {
+      apiPost("/api/temperature", {
+        orderId,
+        temperature: log.temperature,
+        humidity: log.humidity,
+        isNormal: log.isNormal,
+      }).catch(() => {});
+    }
+
     set((state) => {
       const existing = state.temperatureRecords[orderId] || [];
-      const updated = [...existing, log as TemperatureRecord];
+      const updated = [...existing, newRecord];
       return {
         temperatureRecords: { ...state.temperatureRecords, [orderId]: updated },
-        temperatureLogs: [...state.temperatureLogs, log as TemperatureRecord],
+        temperatureLogs: [...state.temperatureLogs, newRecord],
       };
     });
   },

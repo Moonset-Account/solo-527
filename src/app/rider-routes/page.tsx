@@ -36,7 +36,14 @@ import {
 import { cn } from "@/utils/cn";
 
 export default function RiderRoutesPage() {
-  const { riders, orders, deliveryRoutes, fetchRiders, fetchOrders, useSupabase } = useDashboardStore();
+  const { riders, orders, deliveryRoutes, fetchRiders, fetchOrders, fetchDeliveryRoutes, useSupabase } = useDashboardStore();
+
+  const [selectedRider, setSelectedRider] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<"today" | "week" | "month">("today");
+
+  const activeRider =
+    riders.find((r) => r.id === selectedRider) || riders[0];
 
   useEffect(() => {
     if (useSupabase) {
@@ -45,12 +52,11 @@ export default function RiderRoutesPage() {
     }
   }, [useSupabase, fetchRiders, fetchOrders]);
 
-  const [selectedRider, setSelectedRider] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<"today" | "week" | "month">("today");
-
-  const activeRider =
-    riders.find((r) => r.id === selectedRider) || riders[0];
+  useEffect(() => {
+    if (useSupabase && activeRider) {
+      fetchDeliveryRoutes(activeRider.id);
+    }
+  }, [useSupabase, activeRider?.id, fetchDeliveryRoutes]);
 
   const riderStats = useMemo(() => {
     const today = new Date().toDateString();

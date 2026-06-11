@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { getOrders, acceptOrder, assignRider } from "@/services/ordersService";
+import { getOrders, acceptOrder, assignRider, updateOrderStatus } from "@/services/ordersService";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +55,11 @@ export async function POST(request: Request) {
 
     if (action === "assign") {
       const success = await assignRider(orderId, riderId, riderName);
+      return NextResponse.json({ success });
+    }
+
+    if (action === "updateStatus") {
+      const success = await updateOrderStatus(orderId, status);
       return NextResponse.json({ success });
     }
 

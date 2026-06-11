@@ -26,11 +26,13 @@ import { formatDate, formatCurrency, formatRelativeTime } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
 export default function InventoryPage() {
-  const { inventory, exportInventory, useSupabase } = useDashboardStore();
+  const { inventory, exportInventory, fetchInventory, useSupabase } = useDashboardStore();
 
   useEffect(() => {
-    // TODO: 待实现库存 API 后添加 fetchInventory 调用
-  }, [useSupabase]);
+    if (useSupabase) {
+      fetchInventory();
+    }
+  }, [useSupabase, fetchInventory]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"availableQuantity" | "inTransitQuantity" | "lastUpdated">(
