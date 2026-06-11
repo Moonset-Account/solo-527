@@ -19,8 +19,8 @@ struct Cli {
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
     verbose: u8,
 
-    #[arg(long, global = true, value_enum, default_value_t = OutputFormatCli::Human)]
-    format: OutputFormatCli,
+    #[arg(long, global = true, value_enum)]
+    format: Option<OutputFormatCli>,
 
     #[arg(short, long, global = true)]
     output: Option<PathBuf>,
@@ -55,10 +55,21 @@ enum Commands {
 
         #[arg(long, num_args = 0..)]
         protect: Vec<String>,
+
+        #[arg(long)]
+        pr_source: Option<PrSourceCli>,
+
+        #[arg(long)]
+        pr_api_url: Option<String>,
+
+        #[arg(long)]
+        pr_token: Option<String>,
     },
     Clean {
-        #[arg(long)]
+        #[arg(long, default_value_t = false)]
         dry_run: bool,
+        #[arg(long, default_value_t = false)]
+        no_dry_run: bool,
 
         #[arg(long)]
         merged: bool,
@@ -84,14 +95,14 @@ enum Commands {
         #[arg(long, num_args = 0..)]
         protect: Vec<String>,
 
-        #[arg(long, default_value_t = true)]
-        interactive: bool,
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        interactive: Option<bool>,
 
-        #[arg(long)]
-        no_interactive: bool,
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        no_interactive: Option<bool>,
 
-        #[arg(long)]
-        no_rollback: bool,
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        no_rollback: Option<bool>,
 
         #[arg(long)]
         pr_source: Option<PrSourceCli>,
@@ -212,6 +223,9 @@ fn run(mut cli: Cli) -> anyhow::Result<i32> {
         default_branch: "main".to_string(),
         min_risk: None,
         protect: vec![],
+        pr_source: None,
+        pr_api_url: None,
+        pr_token: None,
     });
 
     match command {
@@ -239,8 +253,11 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
             default_branch,
             min_risk,
             protect,
+            pr_source,
+            pr_api_url,
+            pr_token,
         } => (false, CleanOpts {
-            dry_run: true,
+            dry_run: None,
             merged: *merged,
             older_than: *older_than,
             exclude: exclude.clone(),
@@ -249,15 +266,16 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
             default_branch: default_branch.clone(),
             min_risk: *min_risk,
             protect: protect.clone(),
-            interactive: false,
-            no_interactive: true,
-            no_rollback: true,
-            pr_source: None,
-            pr_api_url: None,
-            pr_token: None,
+            interactive: None,
+            no_interactive: None,
+            no_rollback: None,
+            pr_source: *pr_source,
+            pr_api_url: pr_api_url.clone(),
+            pr_token: pr_token.clone(),
         }),
         Commands::Clean {
             dry_run,
+            no_dry_run,
             merged,
             older_than,
             exclude,
@@ -273,7 +291,13 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
             pr_api_url,
             pr_token,
         } => (true, CleanOpts {
-            dry_run: *dry_run,
+            dry_run: if *dry_run {
+                Some(true)
+            } else if *no_dry_run {
+                Some(false)
+            } else {
+                None
+            },
             merged: *merged,
             older_than: *older_than,
             exclude: exclude.clone(),
@@ -326,7 +350,7 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
 
     let report = executor.execute()?;
 
-    let reporter = reporter::ReportGenerator::new(cli.format.into());
+    let reporter = reporter::ReportGenerator::new(config.format);
     let output = reporter.generate(&report)?;
 
     if let Some(output_path) = &cli.output {
@@ -343,7 +367,7 @@ fn run_clean_command(cli: Cli, command: Commands) -> anyhow::Result<i32> {
 }
 
 struct CleanOpts {
-    dry_run: bool,
+    dry_run: Option<bool>,
     merged: bool,
     older_than: Option<i64>,
     exclude: Vec<String>,
@@ -352,9 +376,9 @@ struct CleanOpts {
     default_branch: String,
     min_risk: Option<RiskLevelCli>,
     protect: Vec<String>,
-    interactive: bool,
-    no_interactive: bool,
-    no_rollback: bool,
+    interactive: Option<bool>,
+    no_interactive: Option<bool>,
+    no_rollback: Option<bool>,
     pr_source: Option<PrSourceCli>,
     pr_api_url: Option<String>,
     pr_token: Option<String>,
@@ -367,8 +391,8 @@ fn build_cli_overrides(cli: &Cli, opts: &CleanOpts, is_clean: bool) -> config::C
         overrides.repo_path = cli.repo.clone();
     }
 
-    if is_clean {
-        overrides.dry_run = Some(opts.dry_run);
+    if opts.dry_run.is_some() {
+        overrides.dry_run = opts.dry_run;
     }
 
     if opts.merged {
@@ -403,12 +427,19 @@ fn build_cli_overrides(cli: &Cli, opts: &CleanOpts, is_clean: bool) -> config::C
         overrides.protect_patterns = opts.protect.clone();
     }
 
-    if is_clean {
-        overrides.interactive = Some(opts.interactive && !opts.no_interactive);
-        overrides.rollback_enabled = Some(!opts.no_rollback);
+    if is_clean && opts.interactive.unwrap_or(false) {
+        overrides.interactive = Some(true);
+    } else if is_clean && opts.no_interactive.unwrap_or(false) {
+        overrides.interactive = Some(false);
     }
 
-    overrides.format = Some(cli.format.into());
+    if is_clean && opts.no_rollback.unwrap_or(false) {
+        overrides.rollback_enabled = Some(false);
+    }
+
+    if cli.format.is_some() {
+        overrides.format = cli.format.map(|f| f.into());
+    }
 
     if cli.output.is_some() {
         overrides.output_file = cli.output.clone();

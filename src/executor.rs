@@ -89,7 +89,7 @@ impl CleanupExecutor {
             }
 
             let item = self.perform_delete(branch, &mut errors);
-            if item.success && item.action == CleanupAction::Delete {
+            if item.success && item.action == CleanupAction::Delete && !self.config.dry_run {
                 actually_deleted += 1;
                 if let Some(size) = branch.size_bytes {
                     total_freed += size;

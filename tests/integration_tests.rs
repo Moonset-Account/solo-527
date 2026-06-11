@@ -151,6 +151,7 @@ fn test_clean_deletes_merged_branches() {
     cmd.arg("clean")
         .arg("--repo")
         .arg(dir.path())
+        .arg("--no-dry-run")
         .arg("--no-interactive")
         .arg("--merged")
         .arg("--no-rollback")
@@ -176,18 +177,21 @@ fn test_report_has_correct_deleted_count() {
     create_test_repo(dir.path());
 
     let mut cmd = Command::cargo_bin("git-brclean").unwrap();
-    let assert = cmd
+    let output = cmd
         .arg("clean")
         .arg("--repo")
         .arg(dir.path())
+        .arg("--no-dry-run")
         .arg("--no-interactive")
         .arg("--merged")
         .arg("--no-rollback")
         .arg("--min-risk=safe")
         .arg("--format=json")
-        .assert();
+        .output()
+        .unwrap();
 
-    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
 
     let deleted = report["summary"]["actually_deleted"].as_i64().unwrap();
@@ -355,16 +359,21 @@ fn test_protected_branches_not_deleted() {
     create_test_repo(dir.path());
 
     let mut cmd = Command::cargo_bin("git-brclean").unwrap();
-    cmd.arg("clean")
+    let output = cmd
+        .arg("clean")
         .arg("--repo")
         .arg(dir.path())
+        .arg("--no-dry-run")
         .arg("--no-interactive")
         .arg("--no-rollback")
-        .arg("--min-risk=critical")
-        .arg("--format=json");
+        .arg("--merged")
+        .arg("--min-risk=safe")
+        .arg("--format=json")
+        .output()
+        .unwrap();
 
-    let assert = cmd.assert();
-    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
 
     let protected = report["summary"]["protected"].as_i64().unwrap();
@@ -525,4 +534,360 @@ fn test_invalid_config_file_returns_error() {
         .arg(&bad_config);
 
     cmd.assert().failure();
+}
+
+#[test]
+fn test_config_file_format_not_overridden_by_default() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("format-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": true,
+        "merged_only": false,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "medium",
+        "interactive": false,
+        "format": "csv",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": true,
+        "pr_source": null,
+        "pr_api_url": null,
+        "pr_token": null,
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.starts_with("分支名,类型,风险等级,"),
+        "配置文件指定 format=csv，输出应该是 CSV 格式。实际输出开头: {}",
+        stdout.lines().next().unwrap_or("")
+    );
+}
+
+#[test]
+fn test_cli_explicit_format_overrides_config_file() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("format-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": true,
+        "merged_only": false,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "medium",
+        "interactive": false,
+        "format": "csv",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": true,
+        "pr_source": null,
+        "pr_api_url": null,
+        "pr_token": null,
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--format=json")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let result: Result<serde_json::Value, _> = serde_json::from_str(&stdout);
+    assert!(
+        result.is_ok(),
+        "CLI 显式指定 --format=json 应该覆盖配置文件的 csv，输出应该是 JSON 格式。错误: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_config_file_dry_run_not_overridden_by_default() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("dryrun-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": false,
+        "merged_only": true,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "medium",
+        "interactive": false,
+        "format": "json",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": false,
+        "pr_source": null,
+        "pr_api_url": null,
+        "pr_token": null,
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("clean")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--no-interactive")
+        .arg("--min-risk=safe")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    assert!(
+        report["summary"]["actually_deleted"].as_i64().unwrap() > 0,
+        "配置文件指定 dry_run=false，应该真正删除合并的分支。删除数量: {}",
+        report["summary"]["actually_deleted"]
+    );
+}
+
+#[test]
+fn test_scan_supports_pr_args() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let assert = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--pr-source=git-hub")
+        .arg("--pr-api-url=https://api.github.com")
+        .arg("--pr-token=test-token")
+        .arg("--format=json")
+        .assert();
+
+    assert.success();
+}
+
+#[test]
+fn test_pr_config_from_file_used() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("pr-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": true,
+        "merged_only": false,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "medium",
+        "interactive": false,
+        "format": "json",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": true,
+        "pr_source": "github",
+        "pr_api_url": "https://api.github.com",
+        "pr_token": "test-token-from-config",
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "PR 配置从配置文件加载，命令应该成功执行。stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_cli_pr_args_override_config_file() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo(dir.path());
+
+    let config_path = dir.path().join("pr-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": true,
+        "merged_only": false,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "medium",
+        "interactive": false,
+        "format": "json",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": true,
+        "pr_source": "github",
+        "pr_api_url": "https://api.github.com",
+        "pr_token": "config-token",
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("scan")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--pr-source=git-lab")
+        .arg("--pr-api-url=https://gitlab.com/api/v4")
+        .arg("--pr-token=cli-token")
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "CLI PR 参数应该覆盖配置文件。stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn create_test_repo_with_merged_branch(path: &Path) {
+    let run = |args: &[&str]| {
+        Command::new("git")
+            .args(args)
+            .current_dir(path)
+            .output()
+            .unwrap();
+    };
+
+    run(&["init", "-b", "main"]);
+    run(&["config", "user.email", "test@example.com"]);
+    run(&["config", "user.name", "Test User"]);
+
+    std::fs::write(path.join("file.txt"), "content").unwrap();
+    run(&["add", "."]);
+    run(&["commit", "-m", "initial"]);
+
+    run(&["checkout", "-b", "feature/merged"]);
+    std::fs::write(path.join("merged.txt"), "merged").unwrap();
+    run(&["add", "."]);
+    run(&["commit", "-m", "merged feature"]);
+
+    run(&["checkout", "main"]);
+    run(&["merge", "feature/merged"]);
+}
+
+#[test]
+fn test_cli_dry_run_explicit_overrides_config() {
+    let dir = TempDir::new().unwrap();
+    create_test_repo_with_merged_branch(dir.path());
+
+    let config_path = dir.path().join("dryrun-config.json");
+    let config_json = r#"{
+        "repo_path": ".",
+        "dry_run": false,
+        "merged_only": true,
+        "older_than_days": null,
+        "exclude_patterns": [],
+        "include_remote": false,
+        "remote_name": "origin",
+        "default_branch": "main",
+        "protection_rules": [
+            {"pattern": "main", "reason": "default"}
+        ],
+        "min_risk_level": "medium",
+        "interactive": false,
+        "format": "json",
+        "output_file": null,
+        "log_dir": null,
+        "rollback_enabled": false,
+        "pr_source": null,
+        "pr_api_url": null,
+        "pr_token": null,
+        "max_concurrent": 4
+    }"#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = Command::cargo_bin("git-brclean").unwrap();
+    let output = cmd
+        .arg("clean")
+        .arg("--repo")
+        .arg(dir.path())
+        .arg("--config")
+        .arg(&config_path)
+        .arg("--no-interactive")
+        .arg("--dry-run")
+        .arg("--min-risk=safe")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let report: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    assert_eq!(
+        report["summary"]["actually_deleted"].as_i64().unwrap(),
+        0,
+        "CLI 显式指定 --dry-run 应该覆盖配置文件的 dry_run=false，不应该真正删除分支。删除数量: {}",
+        report["summary"]["actually_deleted"]
+    );
 }
