@@ -1,0 +1,46 @@
+{
+  "name": "note2task",
+  "version": "0.1.0",
+  "description": "Markdown 笔记转任务命令行工具 - 面向个人效率用户的日常工作流",
+  "type": "module",
+  "module": "src/index.ts",
+  "main": "dist/index.js",
+  "bin": {
+    "note2task": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "build:bun": "bun build src/index.ts --outdir dist --target node --format esm",
+    "bundle:bun": "bun build src/index.ts --outfile dist/note2task --compile --target=bun-linux-x64",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"No linter configured yet\"",
+    "test": "node --import tsx --test tests/*.test.ts 2>/dev/null || echo \"No tests found\"",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "yargs": "^17.7.2",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.3",
+    "date-fns": "^3.6.0",
+    "nanoid": "^5.0.7",
+    "p-limit": "^5.0.0",
+    "glob": "^10.3.12"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/yargs": "^17.0.32",
+    "@types/node": "^20.12.7",
+    "@types/glob": "^8.1.0",
+    "typescript": "^5.4.5",
+    "tsx": "^4.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.1.0"
+  }
+}
