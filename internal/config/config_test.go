@@ -187,6 +187,55 @@ func TestMerge_CIWithExplicitFormat(t *testing.T) {
 	}
 }
 
+func TestMerge_ExplicitFalseOverridesBaseTrue(t *testing.T) {
+	base := Default()
+	base.CI = true
+	base.Strict = true
+	base.Quiet = true
+	base.Verbose = true
+
+	falseVal := false
+	ov := Override{
+		CI:      &falseVal,
+		Strict:  &falseVal,
+		Quiet:   &falseVal,
+		Verbose: &falseVal,
+	}
+
+	result := Merge(base, ov)
+	if result.CI {
+		t.Error("explicit false CI should override base true")
+	}
+	if result.Strict {
+		t.Error("explicit false Strict should override base true")
+	}
+	if result.Quiet {
+		t.Error("explicit false Quiet should override base true")
+	}
+	if result.Verbose {
+		t.Error("explicit false Verbose should override base true")
+	}
+}
+
+func TestMerge_NilPointerDoesNotOverride(t *testing.T) {
+	base := Default()
+	base.CI = true
+	base.Strict = true
+
+	ov := Override{
+		CI:     nil,
+		Strict: nil,
+	}
+
+	result := Merge(base, ov)
+	if !result.CI {
+		t.Error("nil CI should NOT override base true")
+	}
+	if !result.Strict {
+		t.Error("nil Strict should NOT override base true")
+	}
+}
+
 func TestMerge_PartialOverride(t *testing.T) {
 	base := Default()
 	base.Required = []string{"DB_URL"}
