@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db';
-import { refunds, orders, orderItems, seats, seatZones, participationStats, notifications } from '../db/schema';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { refunds, orders, orderItems, seats, seatZones, participationStats, notifications, shows } from '../db/schema';
+import { eq, and, desc, sql, inArray, ne } from 'drizzle-orm';
 import { authMiddleware, staffMiddleware, adminMiddleware, type Env } from '../middleware/auth';
 import { generateRefundNo } from '../utils/auth';
 import { auditOrderChange } from './audit';
@@ -16,7 +16,7 @@ app.get('/', authMiddleware, async (c) => {
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
 
-  let query = db
+  let query: any = db
     .select({
       id: refunds.id,
       refundNo: refunds.refundNo,
@@ -47,7 +47,7 @@ app.get('/', authMiddleware, async (c) => {
     query = query.where(eq(refunds.userId, user.userId));
   }
 
-  if (status !== 'all') query = query.where(eq(refunds.status, status));
+  if (status !== 'all') query = query.where(eq(refunds.status, status as any));
   if (showId) query = query.where(eq(orders.showId, parseInt(showId)));
   if (isAbnormal !== undefined) {
     query = query.where(eq(refunds.isAbnormal, isAbnormal === 'true'));
@@ -87,7 +87,7 @@ app.post('/', authMiddleware,
       .from(orderItems)
       .where(and(
         eq(orderItems.orderId, data.orderId),
-        ne(orderItems.ticketStatus, 'refunded')
+        ne(orderItems.ticketStatus, 'refunded' as any)
       ));
 
     const refundItems = data.orderItemIds
@@ -124,14 +124,14 @@ app.post('/', authMiddleware,
 
       for (const item of refundItems) {
         await tx.update(orderItems)
-          .set({ ticketStatus: 'refunded', updatedAt: new Date() })
+          .set({ ticketStatus: 'refunded', updatedAt: new Date() } as any)
           .where(eq(orderItems.id, item.id));
 
         if (item.seatId) {
           const [seat] = await tx.select().from(seats).where(eq(seats.id, item.seatId)).for('update');
           if (seat) {
             await tx.update(seats)
-              .set({ status: 'refunded', updatedAt: new Date() })
+              .set({ status: 'refunded', updatedAt: new Date() } as any)
               .where(eq(seats.id, item.seatId));
             await tx.execute(
               sql`UPDATE ${seatZones} SET ${seatZones.soldSeats} = GREATEST(${seatZones.soldSeats} - 1, 0) WHERE ${seatZones.id} = ${seat.zoneId}`
@@ -142,14 +142,18 @@ app.post('/', authMiddleware,
 
       if (isFull) {
         await tx.update(orders)
-          .set({ status: 'refunded', updatedAt: new Date() })
+          .set({ status: 'refunded', updatedAt: new Date() } as any)
           .where(eq(orders.id, order.id));
       }
 
       return [r];
     });
 
-    const showDaysUntil = Math.ceil((new Date(order.showDate as unknown as string).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    let showDaysUntil = 999;
+    const [showRecord] = await db.select({ showDate: shows.showDate }).from(shows).where(eq(shows.id, order.showId)).limit(1);
+    if (showRecord) {
+      showDaysUntil = Math.ceil((new Date(showRecord.showDate as unknown as string).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    }
     const isHighRisk = showDaysUntil <= 7 && serviceFee > 0;
 
     if (isHighRisk) {
@@ -282,12 +286,12 @@ app.post('/:id/review', authMiddleware, staffMiddleware,
         and(eq(orderItems.orderId, refund.orderId), eq(orderItems.ticketStatus, 'refunded'))
       );
       for (const item of orderItemsRej) {
-        await db.update(orderItems).set({ ticketStatus: 'sold', updatedAt: new Date() })
+        await db.update(orderItems).set({ ticketStatus: 'sold', updatedAt: new Date() } as any)
           .where(eq(orderItems.id, item.id));
         if (item.seatId) {
           const [seat] = await db.select().from(seats).where(eq(seats.id, item.seatId)).for('update');
           if (seat) {
-            await db.update(seats).set({ status: 'sold', updatedAt: new Date() })
+            await db.update(seats).set({ status: 'sold', updatedAt: new Date() } as any)
               .where(eq(seats.id, item.seatId));
             await db.execute(
               sql`UPDATE ${seatZones} SET ${seatZones.soldSeats} = ${seatZones.soldSeats} + 1 WHERE ${seatZones.id} = ${seat.zoneId}`
@@ -297,7 +301,7 @@ app.post('/:id/review', authMiddleware, staffMiddleware,
       }
       const [ord] = await db.select().from(orders).where(eq(orders.id, refund.orderId));
       if (ord && ord.status === 'refunded') {
-        await db.update(orders).set({ status: 'verified', updatedAt: new Date() })
+        await db.update(orders).set({ status: 'verified', updatedAt: new Date() } as any)
           .where(eq(orders.id, refund.orderId));
       }
     }
@@ -339,7 +343,7 @@ app.post('/:id/process', authMiddleware, adminMiddleware,
         paymentRefundId: data.paymentRefundId || `MOCK_REF_${Date.now()}`,
         reviewNote: data.note ? `${refund.reviewNote || ''}\n${data.note}`.trim() : refund.reviewNote,
         updatedAt: new Date(),
-      }).where(eq(refunds.id, id)).returning();
+      } as any).where(eq(refunds.id, id)).returning();
 
       await syncParticipationData(refund.orderId);
 
@@ -356,7 +360,7 @@ app.post('/:id/process', authMiddleware, adminMiddleware,
         isAbnormal: true,
         abnormalReason: `退款失败：${e.message}`,
         updatedAt: new Date(),
-      }).where(eq(refunds.id, id));
+      } as any).where(eq(refunds.id, id));
 
       await triggerRefundAbnormal(id, refund.orderId, `处理退款失败：${e.message}`);
 
@@ -437,10 +441,10 @@ async function syncParticipationData(orderId: number) {
   };
 
   if (existing.length > 0) {
-    await db.update(participationStats).set({ ...statData, updatedAt: new Date() })
+    await db.update(participationStats).set({ ...statData, updatedAt: new Date() } as any)
       .where(eq(participationStats.id, existing[0].id));
   } else {
-    await db.insert(participationStats).values({ showId, date: today, ...statData });
+    await db.insert(participationStats).values({ showId, date: today, ...statData } as any);
   }
 }
 

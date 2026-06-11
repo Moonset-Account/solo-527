@@ -10,7 +10,7 @@ const app = new Hono<Env>();
 
 app.get('/', async (c) => {
   const { status = 'all', search = '' } = c.req.query();
-  let query = db
+  let query: any = db
     .select({
       id: concerts.id,
       title: concerts.title,
@@ -50,7 +50,7 @@ app.post('/', authMiddleware, adminMiddleware,
   })),
   async (c) => {
     const data = c.req.valid('json');
-    const [concert] = await db.insert(concerts).values(data).returning();
+    const [concert] = await db.insert(concerts).values(data as any).returning();
     return c.json(concert, 201);
   }
 );
@@ -97,7 +97,7 @@ app.put('/:id', authMiddleware, adminMiddleware,
   async (c) => {
     const id = parseInt(c.req.param('id'));
     const data = c.req.valid('json');
-    const [updated] = await db.update(concerts).set({ ...data, updatedAt: new Date() })
+    const [updated] = await db.update(concerts).set({ ...data, updatedAt: new Date() } as any)
       .where(eq(concerts.id, id)).returning();
     return c.json(updated);
   }
@@ -126,7 +126,7 @@ app.get('/:id/shows', async (c) => {
 
 app.get('/shows/list', async (c) => {
   const { concertId, dateFrom, dateTo, status = 'all' } = c.req.query();
-  let query = db
+  let query: any = db
     .select({
       id: shows.id,
       concertId: shows.concertId,
@@ -215,7 +215,7 @@ app.post('/shows/:id/zones', authMiddleware, adminMiddleware,
       showId,
       totalSeats,
       availableSeats: totalSeats,
-    }).returning();
+    } as any).returning();
 
     const seatRows = [];
     for (let r = 1; r <= data.rows; r++) {
@@ -240,7 +240,7 @@ app.get('/shows/:id/seats', async (c) => {
   const showId = parseInt(c.req.param('id'));
   const { zoneId } = c.req.query();
 
-  let query = db.select().from(seats).where(eq(seats.showId, showId));
+  let query: any = db.select().from(seats).where(eq(seats.showId, showId));
   if (zoneId) query = query.where(eq(seats.zoneId, parseInt(zoneId)));
 
   const seatList = await query.orderBy(asc(seats.rowNumber), asc(seats.seatNumber));

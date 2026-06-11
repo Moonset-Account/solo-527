@@ -13,7 +13,7 @@ app.get('/', authMiddleware, staffMiddleware, async (c) => {
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
 
-  let query = db
+  let query: any = db
     .select({
       id: notifications.id,
       type: notifications.type,
@@ -32,7 +32,7 @@ app.get('/', authMiddleware, staffMiddleware, async (c) => {
     })
     .from(notifications);
 
-  if (status !== 'all') query = query.where(eq(notifications.status, status));
+  if (status !== 'all') query = query.where(eq(notifications.status, status as any));
   if (type !== 'all') query = query.where(eq(notifications.type, type as any));
 
   const totalQ = await db.select({ count: sql<number>`COUNT(*)`.as('count') }).from(query.as('base'));
@@ -74,7 +74,7 @@ app.post('/:id/read', authMiddleware, staffMiddleware, async (c) => {
     status: notif.status === 'unread' ? 'read' : notif.status,
     readBy: staff.userId,
     readAt: new Date(),
-  }).where(eq(notifications.id, id)).returning();
+  } as any).where(eq(notifications.id, id)).returning();
 
   return c.json(updated);
 });
@@ -85,7 +85,7 @@ app.post('/read-all', authMiddleware, staffMiddleware, async (c) => {
     status: 'read',
     readBy: staff.userId,
     readAt: new Date(),
-  }).where(eq(notifications.status, 'unread'));
+  } as any).where(eq(notifications.status, 'unread'));
   return c.json({ success: true });
 });
 
@@ -106,7 +106,7 @@ app.post('/:id/resolve', authMiddleware, staffMiddleware,
       resolvedBy: staff.userId,
       resolvedAt: new Date(),
       resolutionNote: note,
-    }).where(eq(notifications.id, id)).returning();
+    } as any).where(eq(notifications.id, id)).returning();
 
     return c.json(updated);
   }
@@ -126,7 +126,7 @@ app.post('/batch/resolve', authMiddleware, staffMiddleware,
       resolvedBy: staff.userId,
       resolvedAt: new Date(),
       resolutionNote: note,
-    }).where(inArray(notifications.id, ids));
+    } as any).where(inArray(notifications.id, ids));
 
     return c.json({ success: true, count: ids.length });
   }

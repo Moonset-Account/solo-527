@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db';
-import { ticketTypes, attendances, users } from '../db/schema';
+import { ticketTypes, attendances, users, orders, seats, orderItems as orderItemsTable } from '../db/schema';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { authMiddleware, staffMiddleware, adminMiddleware, type Env } from '../middleware/auth';
 import { auditTicketTypeChange } from './audit';
@@ -11,7 +11,7 @@ const app = new Hono<Env>();
 
 app.get('/', authMiddleware, async (c) => {
   const { showId, isActive } = c.req.query();
-  let query = db.select().from(ticketTypes);
+  let query: any = db.select().from(ticketTypes);
   if (showId) query = query.where(eq(ticketTypes.showId, parseInt(showId)));
   if (isActive !== undefined) query = query.where(eq(ticketTypes.isActive, isActive === 'true'));
   const list = await query.orderBy(desc(ticketTypes.createdAt));
@@ -49,7 +49,7 @@ app.post('/', authMiddleware, adminMiddleware,
       soldCount: 0,
       refundedCount: 0,
       isActive: true,
-    }).returning();
+    } as any).returning();
 
     await auditTicketTypeChange(tt.id, admin.userId, admin.name, 'create', null, null, data, `创建票种：${tt.name}`);
     return c.json(tt, 201);
@@ -76,7 +76,7 @@ app.put('/:id', authMiddleware, adminMiddleware,
     if (!old) return c.json({ error: '票种不存在' }, 404);
 
     const [updated] = await db.update(ticketTypes)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...data, updatedAt: new Date() } as any)
       .where(eq(ticketTypes.id, id))
       .returning();
 
@@ -120,7 +120,7 @@ app.post('/:id/adjust-stock', authMiddleware, adminMiddleware,
       originalStock: newOriginal,
       remainingStock: newRemaining,
       updatedAt: new Date(),
-    }).where(eq(ticketTypes.id, id)).returning();
+    } as any).where(eq(ticketTypes.id, id)).returning();
 
     await auditTicketTypeChange(id, admin.userId, admin.name, 'stock_adjust', null,
       { originalStock: old.originalStock, remainingStock: old.remainingStock, adjustment },
@@ -139,7 +139,7 @@ attendanceApp.get('/', authMiddleware, staffMiddleware, async (c) => {
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
 
-  let query = db
+  let query: any = db
     .select({
       id: attendances.id,
       orderItemId: attendances.orderItemId,
@@ -159,7 +159,7 @@ attendanceApp.get('/', authMiddleware, staffMiddleware, async (c) => {
     .from(attendances);
 
   if (showId) query = query.where(eq(attendances.showId, parseInt(showId)));
-  if (hasAttended !== 'all') query = query.where(eq(attendances.hasAttended, hasAttended === 'true'));
+  if (hasAttended !== 'all') query = query.where(eq(attendances.hasAttended, (hasAttended === 'true') as any));
 
   const totalQ = await db.select({ count: sql<number>`COUNT(*)`.as('count') }).from(query.as('base'));
   const list = await query
@@ -194,7 +194,7 @@ attendanceApp.get('/stats', authMiddleware, staffMiddleware, async (c) => {
       feedbackSubmittedAt: attendances.feedbackSubmittedAt,
     })
     .from(attendances)
-    .where(and(eq(attendances.showId, sid), attendances.feedbackComment.isNotNull()))
+    .where(and(eq(attendances.showId, sid), sql`${attendances.feedbackComment} IS NOT NULL`))
     .orderBy(desc(attendances.feedbackSubmittedAt))
     .limit(50);
 
@@ -225,7 +225,7 @@ attendanceApp.post('/scan', authMiddleware, staffMiddleware,
     const existing = await db
       .select()
       .from(attendances)
-      .where(and(eq(attendances.orderItemId, oi.id), eq(attendances.scanType, scanType)));
+      .where(and(eq(attendances.orderItemId, oi.id), eq(attendances.scanType, scanType as any)));
 
     if (existing.length > 0) {
       return c.json({ error: `已${scanType === 'entry' ? '入场' : '出场'}，请勿重复扫码` }, 409);
@@ -240,22 +240,22 @@ attendanceApp.post('/scan', authMiddleware, staffMiddleware,
       userId: order?.userId,
       showId: order?.showId,
       scanCode: ticketNo,
-      scanType,
+      scanType: scanType as any,
       scannedBy: staff.userId,
       hasAttended: scanType === 'entry',
-    }).returning();
+    } as any).returning();
 
     if (scanType === 'entry') {
       await db.update(orderItemsTable).set({
-        ticketStatus: 'scanned',
+        ticketStatus: 'scanned' as any,
         scannedAt: new Date(),
-      }).where(eq(orderItemsTable.id, oi.id));
+      } as any).where(eq(orderItemsTable.id, oi.id));
 
       if (oi.seatId) {
         await db.update(seats).set({
-          status: 'scanned',
+          status: 'scanned' as any,
           updatedAt: new Date(),
-        }).where(eq(seats.id, oi.seatId));
+        } as any).where(eq(seats.id, oi.seatId));
       }
     }
 
@@ -280,7 +280,7 @@ attendanceApp.post('/:id/feedback', authMiddleware,
 
     const [record] = await db.select().from(attendances).where(eq(attendances.id, id));
     if (!record) return c.json({ error: '记录不存在' }, 404);
-    if (record.userId !== user.userId && user.role === 'audience') {
+    if (record.userId !== user.userId && (user as any).role === 'audience') {
       return c.json({ error: '无权限提交反馈' }, 403);
     }
 
@@ -288,7 +288,7 @@ attendanceApp.post('/:id/feedback', authMiddleware,
       feedbackScore: score,
       feedbackComment: comment,
       feedbackSubmittedAt: new Date(),
-    }).where(eq(attendances.id, id)).returning();
+    } as any).where(eq(attendances.id, id)).returning();
 
     return c.json(updated);
   }
@@ -296,5 +296,3 @@ attendanceApp.post('/:id/feedback', authMiddleware,
 
 export default app;
 export { attendanceApp };
-
-import { orders, seats, orderItems as orderItemsTable } from '../db/schema';

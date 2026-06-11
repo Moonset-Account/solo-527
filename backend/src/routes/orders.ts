@@ -16,7 +16,7 @@ app.get('/', authMiddleware, async (c) => {
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
 
-  let query = db
+  let query: any = db
     .select({
       id: orders.id,
       orderNo: orders.orderNo,
@@ -42,7 +42,7 @@ app.get('/', authMiddleware, async (c) => {
     query = query.where(eq(orders.userId, user.userId));
   }
 
-  if (status !== 'all') query = query.where(eq(orders.status, status));
+  if (status !== 'all') query = query.where(eq(orders.status, status as any));
   if (showId) query = query.where(eq(orders.showId, parseInt(showId)));
 
   const totalResult = await db
@@ -129,7 +129,7 @@ app.post('/', authMiddleware,
 
       for (let i = 0; i < availableSeats.length; i++) {
         await tx.update(seats)
-          .set({ status: 'sold', orderItemId: items[i].id, updatedAt: new Date() })
+          .set({ status: 'sold', orderItemId: items[i].id, updatedAt: new Date() } as any)
           .where(eq(seats.id, availableSeats[i].id));
       }
 
@@ -266,7 +266,7 @@ app.post('/:id/pay', authMiddleware,
         paymentMethod: data.paymentMethod,
         paidAt: new Date(),
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(orders.id, id))
       .returning();
 
@@ -305,14 +305,14 @@ app.post('/:id/cancel', authMiddleware,
           const [seat] = await tx.select().from(seats).where(eq(seats.id, item.seatId)).for('update');
           if (seat) {
             await tx.update(seats)
-              .set({ status: 'available', orderItemId: null, updatedAt: new Date() })
+              .set({ status: 'available', orderItemId: null, updatedAt: new Date() } as any)
               .where(eq(seats.id, item.seatId));
             await tx.execute(
               sql`UPDATE ${seatZones} SET ${seatZones.soldSeats} = GREATEST(${seatZones.soldSeats} - 1, 0), ${seatZones.availableSeats} = ${seatZones.availableSeats} + 1 WHERE ${seatZones.id} = ${seat.zoneId}`
             );
           }
         }
-        await tx.update(orderItems).set({ ticketStatus: 'cancelled', updatedAt: new Date() })
+        await tx.update(orderItems).set({ ticketStatus: 'refunded' as any, updatedAt: new Date() })
           .where(eq(orderItems.id, item.id));
       }
 
@@ -321,7 +321,7 @@ app.post('/:id/cancel', authMiddleware,
         cancelledAt: new Date(),
         cancelledReason: reason,
         updatedAt: new Date(),
-      }).where(eq(orders.id, id));
+      } as any).where(eq(orders.id, id));
     });
 
     await auditOrderChange(id, user.userId, user.name, 'cancel',
@@ -356,14 +356,14 @@ app.post('/:id/verify', authMiddleware, staffMiddleware,
       verifiedBy: staff.userId,
       status: data.status === 'approved' ? 'verified' : order.status,
       updatedAt: new Date(),
-    }).where(eq(orders.id, id)).returning();
+    } as any).where(eq(orders.id, id)).returning();
 
     await db.update(verifications).set({
       status: data.status,
       reviewedBy: staff.userId,
       reviewedAt: new Date(),
       reviewNote: data.note,
-    }).where(eq(verifications.orderId, id));
+    } as any).where(eq(verifications.orderId, id));
 
     await auditOrderChange(id, staff.userId, staff.name, 'verify',
       { verificationStatus: oldStatus },
@@ -380,7 +380,7 @@ app.get('/verifications/list', authMiddleware, staffMiddleware, async (c) => {
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
 
-  let query = db
+  let query: any = db
     .select({
       id: verifications.id,
       orderId: verifications.orderId,
@@ -399,7 +399,7 @@ app.get('/verifications/list', authMiddleware, staffMiddleware, async (c) => {
     .from(verifications)
     .leftJoin(orders, eq(verifications.orderId, orders.id));
 
-  if (status !== 'all') query = query.where(eq(verifications.status, status));
+  if (status !== 'all') query = query.where(eq(verifications.status, status as any));
   if (showId) query = query.where(eq(orders.showId, parseInt(showId)));
 
   const totalResult = await db.select({ count: sql<number>`COUNT(*)`.as('count') }).from(query.as('base'));

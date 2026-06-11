@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db';
 import { auditLogs, attachments, notes, users } from '../db/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { authMiddleware, type Env } from '../middleware/auth';
 
 export const auditOrderChange = async (
@@ -16,7 +16,7 @@ export const auditOrderChange = async (
   note?: string
 ) => {
   await db.insert(auditLogs).values({
-    entityType: 'order',
+    entityType: 'order' as any,
     entityId: orderId,
     action,
     oldValue: oldValue,
@@ -24,7 +24,7 @@ export const auditOrderChange = async (
     changedBy,
     changedByName,
     changeNote: note,
-  });
+  } as any);
 };
 
 export const auditRefundChange = async (
@@ -37,7 +37,7 @@ export const auditRefundChange = async (
   note?: string
 ) => {
   await db.insert(auditLogs).values({
-    entityType: 'refund',
+    entityType: 'refund' as any,
     entityId: refundId,
     action,
     oldValue,
@@ -45,7 +45,7 @@ export const auditRefundChange = async (
     changedBy,
     changedByName,
     changeNote: note,
-  });
+  } as any);
 };
 
 export const auditTicketTypeChange = async (
@@ -59,7 +59,7 @@ export const auditTicketTypeChange = async (
   note?: string
 ) => {
   await db.insert(auditLogs).values({
-    entityType: 'ticket_type',
+    entityType: 'ticket_type' as any,
     entityId: ticketTypeId,
     action,
     field,
@@ -68,7 +68,7 @@ export const auditTicketTypeChange = async (
     changedBy,
     changedByName,
     changeNote: note,
-  });
+  } as any);
 };
 
 const app = new Hono<Env>();
@@ -78,8 +78,8 @@ app.get('/logs', authMiddleware, async (c) => {
   const pageNum = parseInt(page);
   const size = parseInt(pageSize);
 
-  let query = db.select().from(auditLogs);
-  if (entityType) query = query.where(eq(auditLogs.entityType, entityType));
+  let query: any = db.select().from(auditLogs);
+  if (entityType) query = query.where(eq(auditLogs.entityType, entityType as any));
   if (entityId) query = query.where(eq(auditLogs.entityId, parseInt(entityId)));
 
   const [{ count }] = await db
@@ -101,10 +101,10 @@ app.get('/logs', authMiddleware, async (c) => {
 
 app.get('/logs/count', authMiddleware, async (c) => {
   const { entityType, entityId } = c.req.query();
-  let query = db
+  let query: any = db
     .select({ count: z.coerce.number().parse(auditLogs.id) as any })
     .from(auditLogs);
-  if (entityType) query = query.where(eq(auditLogs.entityType, entityType));
+  if (entityType) query = query.where(eq(auditLogs.entityType, entityType as any));
   if (entityId) query = query.where(eq(auditLogs.entityId, parseInt(entityId)));
   const [result] = await query;
   return c.json({ count: result.count });
@@ -127,7 +127,7 @@ app.post('/attachments', authMiddleware,
     const [att] = await db.insert(attachments).values({
       ...data,
       uploadedBy: user.userId,
-    }).returning();
+    } as any).returning();
 
     return c.json(att, 201);
   }
@@ -136,7 +136,7 @@ app.post('/attachments', authMiddleware,
 app.get('/attachments', authMiddleware, async (c) => {
   const { entityType, entityId } = c.req.query();
 
-  let query = db
+  let query: any = db
     .select({
       id: attachments.id,
       entityType: attachments.entityType,
@@ -152,7 +152,7 @@ app.get('/attachments', authMiddleware, async (c) => {
     })
     .from(attachments);
 
-  if (entityType) query = query.where(eq(attachments.entityType, entityType));
+  if (entityType) query = query.where(eq(attachments.entityType, entityType as any));
   if (entityId) query = query.where(eq(attachments.entityId, parseInt(entityId)));
 
   const list = await query.orderBy(desc(attachments.createdAt));
@@ -166,7 +166,7 @@ app.delete('/attachments/:id', authMiddleware, async (c) => {
   const [att] = await db.select().from(attachments).where(eq(attachments.id, id));
   if (!att) return c.json({ error: '附件不存在' }, 404);
 
-  if (user.role === 'audience' && att.uploadedBy !== user.userId) {
+  if ((user as any).role === 'audience' && att.uploadedBy !== user.userId) {
     return c.json({ error: '无权限删除此附件' }, 403);
   }
 
@@ -186,13 +186,13 @@ app.post('/notes', authMiddleware,
     const data = c.req.valid('json');
 
     const [note] = await db.insert(notes).values({
-      entityType: data.entityType,
+      entityType: data.entityType as any,
       entityId: data.entityId,
       content: data.content,
       isPrivate: data.isPrivate,
       createdBy: user.userId,
       createdByName: user.name,
-    }).returning();
+    } as any).returning();
 
     return c.json(note, 201);
   }
@@ -202,15 +202,15 @@ app.get('/notes', authMiddleware, async (c) => {
   const user = c.get('user')!;
   const { entityType, entityId, includePrivate = 'false' } = c.req.query();
 
-  let query = db.select().from(notes);
+  let query: any = db.select().from(notes);
   const conditions: any[] = [];
 
-  if (entityType) conditions.push(eq(notes.entityType, entityType));
+  if (entityType) conditions.push(eq(notes.entityType, entityType as any));
   if (entityId) conditions.push(eq(notes.entityId, parseInt(entityId)));
 
-  if (user.role === 'audience' || includePrivate === 'false') {
+  if ((user as any).role === 'audience' || includePrivate === 'false') {
     conditions.push(eq(notes.isPrivate, false));
-  } else if (user.role !== 'audience' && includePrivate === 'true') {
+  } else if ((user as any).role !== 'audience' && includePrivate === 'true') {
   }
 
   if (conditions.length > 0) {
@@ -228,7 +228,7 @@ app.delete('/notes/:id', authMiddleware, async (c) => {
   const [note] = await db.select().from(notes).where(eq(notes.id, id));
   if (!note) return c.json({ error: '备注不存在' }, 404);
 
-  if (note.createdBy !== user.userId && user.role === 'audience') {
+  if (note.createdBy !== user.userId && (user as any).role === 'audience') {
     return c.json({ error: '无权限删除此备注' }, 403);
   }
 
