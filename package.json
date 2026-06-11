@@ -6,6 +6,15 @@
   "bin": {
     "i18n-diff": "bin/i18n-diff.js"
   },
+  "files": [
+    "bin/",
+    "lib/",
+    "src/",
+    "examples/",
+    "benchmarks/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "jest --coverage",
     "test:watch": "jest --watch",
