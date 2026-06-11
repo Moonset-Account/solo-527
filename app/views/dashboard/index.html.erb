@@ -50,13 +50,7 @@
             <td><%= slot.booked_count %>/<%= slot.capacity %></td>
             <td><%= slot.waiting_count %></td>
             <td>
-              <% if slot.status == "available" %>
-                <span class="tag tag-green">可预约</span>
-              <% elsif slot.status == "full" %>
-                <span class="tag tag-orange">已满</span>
-              <% else %>
-                <span class="tag tag-gray"><%= slot.status %></span>
-              <% end %>
+              <%= time_slot_status_tag(slot.status) %>
             </td>
           </tr>
         <% end %>
@@ -126,14 +120,7 @@
             <td><%= wl.doctor.name %></td>
             <td>#<%= wl.position %></td>
             <td>
-              <% case wl.status %>
-              <% when "waiting" %><span class="tag tag-blue">候补中</span>
-              <% when "notified" %><span class="tag tag-orange">已通知</span>
-              <% when "confirmed" %><span class="tag tag-green">已确认</span>
-              <% when "converted" %><span class="tag tag-green">已转化</span>
-              <% when "cancelled" %><span class="tag tag-red">已取消</span>
-              <% when "expired" %><span class="tag tag-gray">已过期</span>
-              <% end %>
+              <%= waiting_list_status_tag(wl.status) %>
             </td>
           </tr>
         <% end %>
@@ -164,14 +151,7 @@
             <td><%= apt.doctor.name %></td>
             <td>¥<%= apt.total_amount %></td>
             <td>
-              <% case apt.status %>
-              <% when "pending" %><span class="tag tag-orange">待确认</span>
-              <% when "confirmed" %><span class="tag tag-blue">已确认</span>
-              <% when "completed" %><span class="tag tag-green">已完成</span>
-              <% when "cancelled" %><span class="tag tag-gray">已取消</span>
-              <% when "no_show" %><span class="tag tag-red">爽约</span>
-              <% when "refunded" %><span class="tag tag-gray">已退款</span>
-              <% end %>
+              <%= appointment_status_tag(apt.status) %>
               <% if apt.from_waiting_list? %><span class="tag tag-blue">候补</span><% end %>
             </td>
           </tr>

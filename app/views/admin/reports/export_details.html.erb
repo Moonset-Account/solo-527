@@ -4,10 +4,10 @@
   <div class="card-header">
     导出范围
     <%= link_to "导出CSV",
-        export_details_admin_reports_path(format: :csv, start_date: params[:start_date], end_date: params[:end_date]),
+        admin_reports_export_details_path(format: :csv, start_date: params[:start_date], end_date: params[:end_date]),
         class: "btn btn-primary", style: "float:right;" %>
   </div>
-  <%= form_tag export_details_admin_reports_path, method: :get do %>
+  <%= form_tag admin_reports_export_details_path, method: :get do %>
     <div class="form-row">
       <div class="form-group">
         <label>开始日期</label>
@@ -82,14 +82,7 @@
           <td><%= row[:customer_name] %></td>
           <td><%= row[:doctor_name] %></td>
           <td>
-            <% case row[:status] %>
-            <% when "completed" %><span class="tag tag-green">已完成</span>
-            <% when "confirmed" %><span class="tag tag-blue">已确认</span>
-            <% when "pending" %><span class="tag tag-orange">待确认</span>
-            <% when "cancelled" %><span class="tag tag-gray">已取消</span>
-            <% when "no_show" %><span class="tag tag-red">爽约</span>
-            <% when "refunded" %><span class="tag tag-gray">已退款</span>
-            <% end %>
+            <%= appointment_status_tag(row[:status]) %>
           </td>
           <td>¥<%= row[:total_amount] %></td>
           <td>¥<%= row[:paid_amount] %></td>

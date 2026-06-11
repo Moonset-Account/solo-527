@@ -4,10 +4,10 @@
   <div class="card-header">
     查询范围
     <%= link_to "导出CSV",
-        daily_load_admin_reports_path(format: :csv, start_date: params[:start_date], end_date: params[:end_date]),
+        admin_reports_daily_load_path(format: :csv, start_date: params[:start_date], end_date: params[:end_date]),
         class: "btn btn-primary", style: "float:right;" %>
   </div>
-  <%= form_tag daily_load_admin_reports_path, method: :get do %>
+  <%= form_tag admin_reports_daily_load_path, method: :get do %>
     <div class="form-row">
       <div class="form-group">
         <label>开始日期</label>

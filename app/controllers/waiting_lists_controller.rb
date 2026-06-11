@@ -30,14 +30,14 @@ class WaitingListsController < ApplicationController
   end
 
   def create
-    customer = Customer.find_or_create_by(phone: waiting_list_params[:phone]) do |c|
-      c.name = waiting_list_params[:customer_name]
-      c.phone = waiting_list_params[:phone]
+    customer = Customer.find_or_create_by(phone: params[:phone]) do |c|
+      c.name = params[:customer_name]
+      c.phone = params[:phone]
     end
 
-    doctor = Doctor.find(waiting_list_params[:doctor_id])
-    time_slot = TimeSlot.find_by(id: waiting_list_params[:time_slot_id])
-    service_item = ServiceItem.find_by(id: waiting_list_params[:service_item_id])
+    doctor = Doctor.find(params[:doctor_id])
+    time_slot = TimeSlot.find_by(id: params[:time_slot_id])
+    service_item = ServiceItem.find_by(id: params[:service_item_id])
 
     entry = WaitingList.add_customer(
       customer, doctor,

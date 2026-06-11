@@ -22,82 +22,12 @@
     </div>
 
     <div class="section-title">要更新的字段</div>
-    <% case @record_type %>
-    <% when "Appointment" %>
-      <div class="form-row">
-        <div class="form-group">
-          <label>状态（留空不更新）</label>
-          <%= select_tag "attributes[status]",
-              options_for_select([["", ""], ["待确认", "pending"], ["已确认", "confirmed"], ["已完成", "completed"], ["已取消", "cancelled"]]),
-              class: "form-control" %>
-        </div>
-        <div class="form-group">
-          <label>备注（留空不更新）</label>
-          <%= text_field_tag "attributes[notes]", nil, class: "form-control" %>
-        </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>记录类型</label>
+        <div class="form-control-static"><%= @record_type %></div>
       </div>
-    <% when "WaitingList" %>
-      <div class="form-row">
-        <div class="form-group">
-          <label>状态（留空不更新）</label>
-          <%= select_tag "attributes[status]",
-              options_for_select([["", ""], ["候补中", "waiting"], ["已通知", "notified"], ["已确认", "confirmed"]]),
-              class: "form-control" %>
-        </div>
-        <div class="form-group">
-          <label>备注（留空不更新）</label>
-          <%= text_field_tag "attributes[notes]", nil, class: "form-control" %>
-        </div>
-      </div>
-    <% when "Doctor" %>
-      <div class="form-row">
-        <div class="form-group">
-          <label>科室（留空不更新）</label>
-          <%= text_field_tag "attributes[department]", nil, class: "form-control" %>
-        </div>
-        <div class="form-group">
-          <label>最大接待量（留空不更新）</label>
-          <%= number_field_tag "attributes[daily_max_patients]", nil, class: "form-control" %>
-        </div>
-      </div>
-    <% when "Customer" %>
-      <div class="form-row">
-        <div class="form-group">
-          <label>VIP状态（留空不更新）</label>
-          <%= select_tag "attributes[vip]",
-              options_for_select([["", ""], ["是", true], ["否", false]]),
-              class: "form-control" %>
-        </div>
-        <div class="form-group">
-          <label>备注（留空不更新）</label>
-          <%= text_field_tag "attributes[notes]", nil, class: "form-control" %>
-        </div>
-      </div>
-    <% when "TimeSlot" %>
-      <div class="form-row">
-        <div class="form-group">
-          <label>容量（留空不更新）</label>
-          <%= number_field_tag "attributes[capacity]", nil, class: "form-control" %>
-        </div>
-        <div class="form-group">
-          <label>备注（留空不更新）</label>
-          <%= text_field_tag "attributes[notes]", nil, class: "form-control" %>
-        </div>
-      </div>
-    <% when "ServiceItem" %>
-      <div class="form-row">
-        <div class="form-group">
-          <label>价格（留空不更新）</label>
-          <%= number_field_tag "attributes[price]", nil, class: "form-control", step: "0.01" %>
-        </div>
-        <div class="form-group">
-          <label>启用状态（留空不更新）</label>
-          <%= select_tag "attributes[active]",
-              options_for_select([["", ""], ["启用", true], ["停用", false]]),
-              class: "form-control" %>
-        </div>
-      </div>
-    <% end %>
+    </div>
 
     <div class="actions" style="margin-top:16px;">
       <%= submit_tag "预览变更", class: "btn btn-warning" %>

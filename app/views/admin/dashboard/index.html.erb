@@ -61,10 +61,10 @@
     <div class="actions" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
       <%= link_to "候补释放规则管理", waiting_list_rules_path, class: "btn btn-default" %>
       <%= link_to "批量操作", new_admin_batch_operation_path, class: "btn btn-default" %>
-      <%= link_to "人员负荷报表", daily_load_admin_reports_path, class: "btn btn-default" %>
-      <%= link_to "爽约记录", no_shows_admin_reports_path, class: "btn btn-default" %>
-      <%= link_to "明细导出", export_details_admin_reports_path, class: "btn btn-primary" %>
-      <%= link_to "Sidekiq监控", sidekiq_web_path, class: "btn btn-warning" %>
+      <%= link_to "人员负荷报表", admin_reports_daily_load_path, class: "btn btn-default" %>
+      <%= link_to "爽约记录", admin_reports_no_shows_path, class: "btn btn-default" %>
+      <%= link_to "明细导出", admin_reports_export_details_path, class: "btn btn-primary" %>
+      <%= link_to "Sidekiq监控", "/sidekiq", class: "btn btn-warning" %>
     </div>
   </div>
 

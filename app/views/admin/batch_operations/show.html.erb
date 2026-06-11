@@ -4,12 +4,7 @@
   <div class="card-header">
     批量操作结果
     <span style="float:right;">
-      <% case @batch_log.status %>
-      <% when "pending" %><span class="tag tag-orange">待处理</span>
-      <% when "processing" %><span class="tag tag-blue">处理中</span>
-      <% when "completed" %><span class="tag tag-green">已完成</span>
-      <% when "failed" %><span class="tag tag-red">失败</span>
-      <% end %>
+      <%= batch_status_tag(@batch_log.status) %>
     </span>
   </div>
 

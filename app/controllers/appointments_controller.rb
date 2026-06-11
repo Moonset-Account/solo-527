@@ -36,14 +36,14 @@ class AppointmentsController < ApplicationController
   end
 
   def create
-    customer = Customer.find_or_create_by(phone: appointment_params[:phone]) do |c|
-      c.name = appointment_params[:customer_name]
-      c.phone = appointment_params[:phone]
+    customer = Customer.find_or_create_by(phone: params[:phone]) do |c|
+      c.name = params[:customer_name]
+      c.phone = params[:phone]
     end
 
-    doctor = Doctor.find(appointment_params[:doctor_id])
-    time_slot = TimeSlot.find(appointment_params[:time_slot_id])
-    service_items = ServiceItem.where(id: Array(appointment_params[:service_item_ids]))
+    doctor = Doctor.find(params[:doctor_id])
+    time_slot = TimeSlot.find(params[:time_slot_id])
+    service_items = ServiceItem.where(id: Array(params[:service_item_ids]))
 
     if time_slot.has_available_spots?
       appointment = Appointment.create_direct!(
@@ -52,8 +52,8 @@ class AppointmentsController < ApplicationController
         operator: current_operator
       )
 
-      if appointment_params[:paid_amount].present?
-        appointment.update!(paid_amount: appointment_params[:paid_amount])
+      if params[:paid_amount].present?
+        appointment.update!(paid_amount: params[:paid_amount])
         appointment.confirm_appointment! if appointment.may_confirm_appointment?
       end
 

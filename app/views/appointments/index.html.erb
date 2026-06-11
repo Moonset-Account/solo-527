@@ -67,14 +67,7 @@
             <% end %>
           </td>
           <td>
-            <% case apt.status %>
-            <% when "pending" %><span class="tag tag-orange">待确认</span>
-            <% when "confirmed" %><span class="tag tag-blue">已确认</span>
-            <% when "completed" %><span class="tag tag-green">已完成</span>
-            <% when "cancelled" %><span class="tag tag-gray">已取消</span>
-            <% when "no_show" %><span class="tag tag-red">爽约</span>
-            <% when "refunded" %><span class="tag tag-gray">已退款</span>
-            <% end %>
+            <%= appointment_status_tag(apt.status) %>
             <% if apt.refunded_amount > 0 %><span class="tag tag-red">部分退款</span><% end %>
           </td>
           <td class="actions">

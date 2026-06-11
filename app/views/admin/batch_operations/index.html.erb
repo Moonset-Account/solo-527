@@ -30,12 +30,7 @@
           <td style="color:#67c23a;"><%= log.success_count %></td>
           <td style="color:#f56c6c;"><%= log.failed_count %></td>
           <td>
-            <% case log.status %>
-            <% when "pending" %><span class="tag tag-orange">待处理</span>
-            <% when "processing" %><span class="tag tag-blue">处理中</span>
-            <% when "completed" %><span class="tag tag-green">已完成</span>
-            <% when "failed" %><span class="tag tag-red">失败</span>
-            <% end %>
+            <%= batch_status_tag(log.status) %>
           </td>
           <td><%= log.operator %></td>
           <td><%= log.completed_at&.strftime("%m-%d %H:%M") %></td>

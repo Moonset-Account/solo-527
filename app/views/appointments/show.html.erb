@@ -4,14 +4,7 @@
   <div class="card-header">
     预约单详情
     <span style="float:right;">
-      <% case @appointment.status %>
-      <% when "pending" %><span class="tag tag-orange">待确认</span>
-      <% when "confirmed" %><span class="tag tag-blue">已确认</span>
-      <% when "completed" %><span class="tag tag-green">已完成</span>
-      <% when "cancelled" %><span class="tag tag-gray">已取消</span>
-      <% when "no_show" %><span class="tag tag-red">爽约</span>
-      <% when "refunded" %><span class="tag tag-gray">已退款</span>
-      <% end %>
+      <%= appointment_status_tag(@appointment.status) %>
       <% if @appointment.from_waiting_list? %><span class="tag tag-blue">候补转化</span><% end %>
     </span>
   </div>
@@ -104,11 +97,7 @@
           <td><%= item.discount > 0 ? "¥#{item.discount}" : "-" %></td>
           <td style="font-weight:600;">¥<%= item.subtotal %></td>
           <td>
-            <% case item.status %>
-            <% when "pending" %><span class="tag tag-orange">待服务</span>
-            <% when "completed" %><span class="tag tag-green">已完成</span>
-            <% when "refunded" %><span class="tag tag-red">已退款</span>
-            <% end %>
+            <%= service_item_status_tag(item.status) %>
           </td>
           <td>
             <% if item.remaining_refundable > 0 %>
