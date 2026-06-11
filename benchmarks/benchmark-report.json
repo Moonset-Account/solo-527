@@ -1,0 +1,58 @@
+{
+  "systemInfo": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "x64",
+    "cpu": "Apple M1 Pro",
+    "totalMemory": 17179869184,
+    "nodeVersion": "v24.13.0"
+  },
+  "timestamp": "2026-06-11T05:39:04.084Z",
+  "results": [
+    {
+      "name": "100 键 (10% 缺失)",
+      "avgTime": 11.6792416,
+      "minTime": 1.093958,
+      "maxTime": 70.179166,
+      "avgMemory": 149669.6,
+      "baseSize": 4451,
+      "localeSize": 4013
+    },
+    {
+      "name": "1000 键 (10% 缺失)",
+      "avgTime": 17.610125400000005,
+      "minTime": 10.198875,
+      "maxTime": 35.132292,
+      "avgMemory": 449614.4,
+      "baseSize": 45851,
+      "localeSize": 41423
+    },
+    {
+      "name": "10000 键 (10% 缺失)",
+      "avgTime": 134.19368066666667,
+      "minTime": 103.534042,
+      "maxTime": 185.144084,
+      "avgMemory": 2369992,
+      "baseSize": 474851,
+      "localeSize": 429023
+    },
+    {
+      "name": "100000 键 (5% 缺失)",
+      "avgTime": 1244.2716255,
+      "minTime": 1166.180459,
+      "maxTime": 1322.362792,
+      "avgMemory": 22979984,
+      "baseSize": 4914851,
+      "localeSize": 4678361
+    },
+    {
+      "name": "1000 键 (含占位符错误、空值)",
+      "avgTime": 10.5696666,
+      "minTime": 8.979583,
+      "maxTime": 13.907417,
+      "avgMemory": 6038604.8,
+      "baseSize": 45851,
+      "localeSize": 45822
+    }
+  ]
+}

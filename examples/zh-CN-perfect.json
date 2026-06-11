@@ -1,0 +1,59 @@
+{
+  "common": {
+    "greeting": "你好，{username}！",
+    "welcome": "欢迎使用我们的应用",
+    "loading": "加载中...",
+    "error": "发生错误：{message}",
+    "success": "操作成功完成",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑"
+  },
+  "user": {
+    "profile": {
+      "title": "用户资料",
+      "name": "姓名",
+      "email": "电子邮箱",
+      "phone": "电话号码",
+      "address": "地址"
+    },
+    "notifications": {
+      "unread": "您有 {count} 条未读消息",
+      "allRead": "所有消息已读",
+      "settings": "通知设置"
+    }
+  },
+  "forms": {
+    "validation": {
+      "required": "此字段为必填项",
+      "email": "请输入有效的邮箱地址",
+      "minLength": "最少需要 {min} 个字符",
+      "maxLength": "最多允许 {max} 个字符"
+    },
+    "placeholders": {
+      "search": "搜索...",
+      "username": "请输入用户名",
+      "password": "请输入密码"
+    }
+  },
+  "dashboard": {
+    "stats": {
+      "totalUsers": "总用户数：{count}",
+      "activeUsers": "活跃用户：{count}",
+      "revenue": "收入：${amount}"
+    },
+    "menu": {
+      "home": "首页",
+      "analytics": "数据分析",
+      "reports": "报表",
+      "settings": "设置"
+    }
+  },
+  "_metadata": {
+    "version": "1.0.0",
+    "language": "zh-CN",
+    "lastUpdated": "2024-01-15T10:30:00Z"
+  }
+}

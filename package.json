@@ -1,0 +1,40 @@
+{
+  "name": "i18n-diff-checker",
+  "version": "1.0.0",
+  "description": "多语言文案差异检查器 - 检查 JSON 语言包的键对齐、占位符、长度和审核状态",
+  "main": "src/index.js",
+  "bin": {
+    "i18n-diff": "bin/i18n-diff.js"
+  },
+  "scripts": {
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.js",
+    "benchmark": "node benchmarks/run.js",
+    "example": "node bin/i18n-diff.js --base examples/base.json --locale examples/zh-CN.json --missing --csv report.csv"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "i18n",
+    "internationalization",
+    "localization",
+    "l10n",
+    "translation",
+    "diff",
+    "checker",
+    "cli"
+  ],
+  "author": "Team i18n",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "csv-writer": "^1.6.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.56.0",
+    "tmp": "^0.2.1"
+  }
+}

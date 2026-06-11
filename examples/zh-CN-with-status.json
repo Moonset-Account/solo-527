@@ -1,0 +1,14 @@
+{
+  "common": {
+    "greeting": "你好，{username}！",
+    "greeting_status": "approved",
+    "welcome": "欢迎使用我们的应用",
+    "welcome_status": "translated",
+    "loading": "加载中...",
+    "loading_status": "draft",
+    "error": "发生错误：{message}",
+    "error_status": "approved",
+    "success": "操作成功完成",
+    "success_status": "approved"
+  }
+}
