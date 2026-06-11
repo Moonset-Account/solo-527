@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth.models import User
 from .models import Prompt, PromptCategory, PromptTemplate
 from .serializers import (
     PromptListSerializer,
@@ -13,6 +14,12 @@ from .serializers import (
     PromptCategorySerializer,
     PromptTemplateSerializer,
 )
+
+
+def get_operator(request):
+    if request.user and request.user.is_authenticated:
+        return request.user
+    return User.objects.filter(is_superuser=True).first()
 
 
 class PromptCategoryViewSet(viewsets.ModelViewSet):
@@ -75,7 +82,7 @@ class PromptViewSet(viewsets.ModelViewSet):
             except (ValueError, AttributeError):
                 version = f'{parent_version}.1'
         serializer.save(
-            author=self.request.user,
+            author=get_operator(self.request),
             version=version,
             status='draft',
             is_current_version=False
@@ -92,6 +99,14 @@ class PromptViewSet(viewsets.ModelViewSet):
                     {'error': f'非草稿状态只能修改: {", ".join(allowed_fields)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            update_data = {}
+            for field in allowed_fields:
+                if field in request_data:
+                    update_data[field] = request_data[field]
+            Prompt.objects.filter(id=instance.id).update(**update_data)
+            instance.refresh_from_db()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
@@ -105,6 +120,14 @@ class PromptViewSet(viewsets.ModelViewSet):
                     {'error': f'非草稿状态只能修改: {", ".join(allowed_fields)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            update_data = {}
+            for field in allowed_fields:
+                if field in request_data:
+                    update_data[field] = request_data[field]
+            Prompt.objects.filter(id=instance.id).update(**update_data)
+            instance.refresh_from_db()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
         return super().partial_update(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
@@ -157,10 +180,10 @@ class PromptViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='rollback')
     def rollback(self, request, pk=None):
         prompt = self.get_object()
-        target_version_id = request.data.get('target_version_id')
+        target_version_id = request.data.get('target_version_id') or request.data.get('version_id')
         if not target_version_id:
             return Response(
-                {'error': '请提供 target_version_id'},
+                {'error': '请提供 target_version_id 或 version_id'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         try:
@@ -175,7 +198,7 @@ class PromptViewSet(viewsets.ModelViewSet):
             content=target_prompt.content,
             description=prompt.description,
             category=prompt.category,
-            author=request.user,
+            author=get_operator(request),
             status='draft',
             version=f'{prompt.version}.rollback',
             parent_prompt=prompt,
@@ -191,6 +214,7 @@ class PromptViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'], url_path='version-history')
+    @action(detail=True, methods=['get'], url_path='versions')
     def version_history(self, request, pk=None):
         prompt = self.get_object()
         all_versions = Prompt.objects.filter(

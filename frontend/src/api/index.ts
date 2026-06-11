@@ -90,11 +90,11 @@ export const promptApi = {
   },
 
   rollbackPrompt: (id: number | string, versionId: number | string) => {
-    return request.post<Prompt>(`/api/prompts/${id}/rollback/`, { version_id: versionId })
+    return request.post<Prompt>(`/api/prompts/${id}/rollback/`, { target_version_id: versionId })
   },
 
   getPromptVersionHistory: (id: number | string) => {
-    return request.get<Prompt[]>(`/api/prompts/${id}/versions/`)
+    return request.get<Prompt[]>(`/api/prompts/${id}/version-history/`)
   },
 
   getPromptStats: (id: number | string) => {

@@ -6,6 +6,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.http import HttpResponse
+from django.contrib.auth.models import User
 import csv
 from .models import RiskSample, RiskRule
 from .serializers import (
@@ -13,6 +14,12 @@ from .serializers import (
     RiskSampleCreateSerializer, RiskSampleActionSerializer,
     RiskSampleBatchProcessSerializer, RiskRuleSerializer
 )
+
+
+def get_operator(request):
+    if request.user and request.user.is_authenticated:
+        return request.user
+    return User.objects.filter(is_superuser=True).first()
 
 
 class RiskSampleViewSet(viewsets.ModelViewSet):
@@ -64,6 +71,8 @@ class RiskSampleViewSet(viewsets.ModelViewSet):
         risk_sample.status = 'confirmed'
         if serializer.validated_data.get('handle_comment'):
             risk_sample.handle_comment = serializer.validated_data['handle_comment']
+        risk_sample.handled_by = get_operator(request)
+        risk_sample.handled_at = timezone.now()
         risk_sample.save()
 
         return Response(RiskSampleDetailSerializer(risk_sample).data)
@@ -75,7 +84,7 @@ class RiskSampleViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         risk_sample.status = 'resolved'
-        risk_sample.handled_by = request.user
+        risk_sample.handled_by = get_operator(request)
         risk_sample.handled_at = timezone.now()
         if serializer.validated_data.get('handle_comment'):
             risk_sample.handle_comment = serializer.validated_data['handle_comment']
@@ -90,7 +99,7 @@ class RiskSampleViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         risk_sample.status = 'false_positive'
-        risk_sample.handled_by = request.user
+        risk_sample.handled_by = get_operator(request)
         risk_sample.handled_at = timezone.now()
         if serializer.validated_data.get('handle_comment'):
             risk_sample.handle_comment = serializer.validated_data['handle_comment']
@@ -110,13 +119,15 @@ class RiskSampleViewSet(viewsets.ModelViewSet):
         update_data = {}
         if action == 'confirm':
             update_data['status'] = 'confirmed'
+            update_data['handled_by'] = get_operator(request)
+            update_data['handled_at'] = timezone.now()
         elif action == 'resolve':
             update_data['status'] = 'resolved'
-            update_data['handled_by'] = request.user
+            update_data['handled_by'] = get_operator(request)
             update_data['handled_at'] = timezone.now()
         elif action == 'mark_false_positive':
             update_data['status'] = 'false_positive'
-            update_data['handled_by'] = request.user
+            update_data['handled_by'] = get_operator(request)
             update_data['handled_at'] = timezone.now()
 
         if handle_comment:

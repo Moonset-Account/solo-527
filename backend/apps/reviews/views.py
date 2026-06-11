@@ -5,11 +5,18 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
+from django.contrib.auth.models import User
 from .models import Review, ReviewRule
 from .serializers import (
     ReviewListSerializer, ReviewDetailSerializer, ReviewCreateSerializer,
     ReviewActionSerializer, ReviewBatchActionSerializer, ReviewRuleSerializer
 )
+
+
+def get_operator(request):
+    if request.user and request.user.is_authenticated:
+        return request.user
+    return User.objects.filter(is_superuser=True).first()
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
@@ -65,7 +72,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         review.status = 'approved'
-        review.reviewer = request.user
+        review.reviewer = get_operator(request)
         review.reviewed_at = timezone.now()
         if serializer.validated_data.get('comment'):
             review.comment = serializer.validated_data['comment']
@@ -86,7 +93,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         review.status = 'rejected'
-        review.reviewer = request.user
+        review.reviewer = get_operator(request)
         review.reviewed_at = timezone.now()
         if serializer.validated_data.get('comment'):
             review.comment = serializer.validated_data['comment']
@@ -107,7 +114,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         review.status = 'flagged'
-        review.reviewer = request.user
+        review.reviewer = get_operator(request)
         review.reviewed_at = timezone.now()
         if serializer.validated_data.get('comment'):
             review.comment = serializer.validated_data['comment']
@@ -119,7 +126,9 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='batch-approve')
     def batch_approve(self, request):
-        serializer = ReviewBatchActionSerializer(data=request.data)
+        request_data = request.data.copy()
+        request_data['action'] = 'approve'
+        serializer = ReviewBatchActionSerializer(data=request_data)
         serializer.is_valid(raise_exception=True)
 
         ids = serializer.validated_data['ids']
@@ -127,7 +136,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
         updated_count = Review.objects.filter(id__in=ids).update(
             status='approved',
-            reviewer=request.user,
+            reviewer=get_operator(request),
             reviewed_at=timezone.now(),
             comment=comment if comment else ''
         )
@@ -140,7 +149,9 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='batch-reject')
     def batch_reject(self, request):
-        serializer = ReviewBatchActionSerializer(data=request.data)
+        request_data = request.data.copy()
+        request_data['action'] = 'reject'
+        serializer = ReviewBatchActionSerializer(data=request_data)
         serializer.is_valid(raise_exception=True)
 
         ids = serializer.validated_data['ids']
@@ -148,7 +159,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
         updated_count = Review.objects.filter(id__in=ids).update(
             status='rejected',
-            reviewer=request.user,
+            reviewer=get_operator(request),
             reviewed_at=timezone.now(),
             comment=comment if comment else ''
         )

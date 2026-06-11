@@ -221,7 +221,10 @@ const Prompts: React.FC = () => {
       const values = await grayForm.validateFields()
       setGrayLoading(true)
       if (currentPromptId) {
-        await promptApi.updatePrompt(String(currentPromptId), values)
+        await promptApi.updatePrompt(currentPromptId, {
+          gray_scale_percent: values.gray_scale_percent,
+          target_sales_operations: values.target_sales_operations,
+        })
         message.success('灰度配置保存成功')
         setGrayModalVisible(false)
         fetchData()

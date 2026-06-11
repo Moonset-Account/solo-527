@@ -7,7 +7,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   PlusOutlined, EditOutlined, PlayCircleOutlined,
-  PauseCircleOutlined, DeleteOutlined, SettingOutlined,
+  PauseCircleOutlined, DeleteOutlined, SettingOutlined, HistoryOutlined,
+  RollbackOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { promptApi, riskApi } from '@/api'
@@ -58,6 +59,11 @@ const Config: React.FC = () => {
   const [grayForm] = Form.useForm()
   const [grayLoading, setGrayLoading] = useState(false)
   const [grayPromptId, setGrayPromptId] = useState<number | null>(null)
+
+  const [historyModal, setHistoryModal] = useState(false)
+  const [historyList, setHistoryList] = useState<Prompt[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [currentPromptId, setCurrentPromptId] = useState<number | null>(null)
 
   // ===== Risk Rules =====
   const [ruleLoading, setRuleLoading] = useState(false)
@@ -122,7 +128,14 @@ const Config: React.FC = () => {
       const values = await promptForm.validateFields()
       setPromptActionLoading(true)
       if (editingPrompt) {
-        await promptApi.updatePrompt(String(editingPrompt.id), values)
+        if (editingPrompt.status === 'draft') {
+          await promptApi.updatePrompt(editingPrompt.id, values)
+        } else {
+          await promptApi.updatePrompt(editingPrompt.id, {
+            gray_scale_percent: values.gray_scale_percent,
+            target_sales_operations: values.target_sales_operations,
+          })
+        }
         message.success('更新成功')
       } else {
         await promptApi.createPrompt(values)
@@ -192,7 +205,10 @@ const Config: React.FC = () => {
       const values = await grayForm.validateFields()
       setGrayLoading(true)
       if (grayPromptId) {
-        await promptApi.updatePrompt(String(grayPromptId), values)
+        await promptApi.updatePrompt(grayPromptId, {
+          gray_scale_percent: values.gray_scale_percent,
+          target_sales_operations: values.target_sales_operations,
+        })
         message.success('灰度配置保存成功')
         setGrayModalVisible(false)
         loadPrompts()
@@ -201,6 +217,39 @@ const Config: React.FC = () => {
       if ((err as { errorFields?: unknown[] })?.errorFields) return
       message.error('保存失败')
     } finally { setGrayLoading(false) }
+  }
+
+  const handleViewHistory = async (id: number) => {
+    setCurrentPromptId(id)
+    setHistoryLoading(true)
+    try {
+      const result = await promptApi.getPromptVersionHistory(id) as unknown as DRFPaginationResult<Prompt>
+      setHistoryList(result.results || (result as unknown as Prompt[]))
+      setHistoryModal(true)
+    } catch {
+      message.error('获取版本历史失败')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const handleRollback = (versionId: number) => {
+    Modal.confirm({
+      title: '版本回滚',
+      content: '确定要回滚到此版本吗？回滚后将创建一个新版本草稿。',
+      onOk: async () => {
+        try {
+          if (currentPromptId) {
+            await promptApi.rollbackPrompt(currentPromptId, versionId)
+            message.success('回滚成功')
+            setHistoryModal(false)
+            loadPrompts()
+          }
+        } catch {
+          message.error('回滚失败')
+        }
+      },
+    })
   }
 
   const promptColumns: ColumnsType<Prompt> = [
@@ -241,7 +290,7 @@ const Config: React.FC = () => {
       render: t => t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
-      title: '操作', key: 'action', width: 280, fixed: 'right',
+      title: '操作', key: 'action', width: 340, fixed: 'right',
       render: (_, record) => (
         <Space size="small">
           {record.status === 'draft' && (
@@ -262,6 +311,7 @@ const Config: React.FC = () => {
               <Button type="link" size="small" icon={<SettingOutlined />} onClick={() => handleGrayConfig(record)}>灰度</Button>
             </>
           )}
+          <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => handleViewHistory(record.id)}>版本</Button>
         </Space>
       ),
     },
@@ -509,7 +559,7 @@ const Config: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <Slider
                 min={0} max={100} style={{ flex: 1 }}
-                onChange={v => grayForm.setFieldsValue({ gray_scale_percent: v })}
+                onChange={(val: number) => grayForm.setFieldsValue({ gray_scale_percent: val })}
               />
               <InputNumber
                 min={0} max={100} style={{ width: 90 }} suffix="%"
@@ -531,6 +581,50 @@ const Config: React.FC = () => {
             提示：灰度比例为 0% 时不生效，为 100% 时全部流量使用。
           </div>
         </Form>
+      </Modal>
+
+      {/* History Modal */}
+      <Modal title="版本历史" open={historyModal} onCancel={() => setHistoryModal(false)} width={700}
+        footer={[<Button key="close" onClick={() => setHistoryModal(false)}>关闭</Button>]} destroyOnClose>
+        <Table
+          rowKey="id"
+          columns={[
+            { title: '版本号', dataIndex: 'version', key: 'version', width: 140 },
+            {
+              title: '状态', dataIndex: 'status', key: 'status', width: 90,
+              render: (s: PromptStatus) => (
+                <Tag color={promptStatusMap[s]?.color || 'default'}>{promptStatusMap[s]?.label || s}</Tag>
+              ),
+            },
+            {
+              title: '当前版本', dataIndex: 'is_current_version', key: 'is_current_version', width: 90,
+              render: (v: boolean) => v ? <Tag color="green">是</Tag> : <Tag>否</Tag>,
+            },
+            {
+              title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 170,
+              render: (t: string) => dayjs(t).format('YYYY-MM-DD HH:mm:ss'),
+            },
+            {
+              title: '作者', dataIndex: 'author_name', key: 'author_name', width: 90,
+              render: (t: string) => t || '-',
+            },
+            {
+              title: '操作', key: 'action', width: 100,
+              render: (_, record) => (
+                <Popconfirm
+                  title="确认回滚？" description="回滚到此版本将创建一个新版本"
+                  onConfirm={() => handleRollback(record.id)} okText="确认" cancelText="取消"
+                >
+                  <Button type="link" size="small" icon={<RollbackOutlined />}>回滚</Button>
+                </Popconfirm>
+              ),
+            },
+          ]}
+          dataSource={historyList}
+          loading={historyLoading}
+          pagination={false}
+          size="small"
+        />
       </Modal>
 
       {/* Rule Modal */}
