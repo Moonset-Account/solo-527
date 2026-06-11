@@ -14,6 +14,20 @@ interface ParsedComment {
   lastModified?: string;
 }
 
+interface ConstMapping {
+  name: string;
+  key: string;
+  line: number;
+  comment?: ParsedComment;
+}
+
+interface FunctionCall {
+  funcName: string;
+  keyArg: string;
+  valueArg?: string;
+  line: number;
+}
+
 export interface CodeScannerOptions {
   paths: string[];
   ignoreDirs?: string[];
@@ -35,12 +49,6 @@ export class CodeScanner {
 
   private getDefaultPatterns(): RegExp[] {
     return [
-      /(?:const|let|var)\s+(?:FF|FEATURE|FLAG)[A-Z_]*\s*[:=]\s*['"]([^'"]+)['"]/g,
-      /feature[Ff]lag\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+?)\s*\)/g,
-      /get[Ff]lag\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+?)\s*\)/g,
-      /getBoolean\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+?)\s*\)/g,
-      /getString\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+?)\s*\)/g,
-      /getInt\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+?)\s*\)/g,
       /flags?\[['"]([^'"]+)['"]\]\s*=\s*([^;\n]+)/g,
       /@FeatureFlag\s*\(\s*["']([^"']+)["']\s*,\s*defaultValue\s*=\s*([^)]+)/g,
       /\.isEnabled\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
@@ -49,7 +57,6 @@ export class CodeScanner {
 
   async scan(): Promise<CodeDefaultFlag[]> {
     const flags: CodeDefaultFlag[] = [];
-    const seenKeys = new Set<string>();
 
     for (const inputPath of this.options.paths) {
       const resolvedPath = path.resolve(inputPath);
@@ -57,17 +64,48 @@ export class CodeScanner {
 
       for (const file of files) {
         const fileFlags = this.scanFile(file);
-        for (const flag of fileFlags) {
-          const dedupKey = `${flag.key}:${flag.file}:${flag.line}`;
-          if (!seenKeys.has(dedupKey)) {
-            seenKeys.add(dedupKey);
-            flags.push(flag);
-          }
-        }
+        flags.push(...fileFlags);
       }
     }
 
-    return flags;
+    const merged = this.mergeFlagsByKey(flags);
+    return merged;
+  }
+
+  private mergeFlagsByKey(flags: CodeDefaultFlag[]): CodeDefaultFlag[] {
+    const map = new Map<string, CodeDefaultFlag>();
+
+    for (const flag of flags) {
+      const existing = map.get(flag.key);
+      if (!existing) {
+        map.set(flag.key, { ...flag });
+        continue;
+      }
+
+      if (existing.value === null && flag.value !== null) {
+        existing.value = flag.value;
+        existing.type = flag.type;
+      }
+      if (!existing.owner && flag.owner) {
+        existing.owner = flag.owner;
+      }
+      if (!existing.description && flag.description) {
+        existing.description = flag.description;
+      }
+      if (!existing.deprecated && flag.deprecated) {
+        existing.deprecated = flag.deprecated;
+        existing.deprecatedReason = flag.deprecatedReason;
+      }
+      if (!existing.lastModified && flag.lastModified) {
+        existing.lastModified = flag.lastModified;
+      }
+      if (flag.line < existing.line) {
+        existing.line = flag.line;
+        existing.file = flag.file;
+      }
+    }
+
+    return Array.from(map.values());
   }
 
   private async collectFiles(dir: string): Promise<string[]> {
@@ -122,6 +160,77 @@ export class CodeScanner {
     const lines = content.split('\n');
     const commentMap = this.buildCommentMap(lines);
 
+    const constMappings = this.extractConstMappings(content, commentMap);
+
+    const constMap = new Map<string, ConstMapping>();
+    for (const cm of constMappings) {
+      constMap.set(cm.name, cm);
+    }
+
+    for (const cm of constMappings) {
+      if (this.isValidKey(cm.key)) {
+        const comment = cm.comment;
+        flags.push({
+          key: cm.key,
+          value: null,
+          type: 'null',
+          source: 'code',
+          file: filePath,
+          line: cm.line,
+          owner: comment?.owner,
+          description: comment?.description,
+          deprecated: comment?.deprecated,
+          deprecatedReason: comment?.deprecatedReason,
+          lastModified: comment?.lastModified,
+        });
+      }
+    }
+
+    const functionCalls = this.extractFunctionCalls(content);
+
+    for (const call of functionCalls) {
+      let flagKey: string | undefined;
+      let comment: ParsedComment | undefined;
+      let sourceLine = call.line;
+
+      if (/^['"]/.test(call.keyArg)) {
+        flagKey = call.keyArg.replace(/^['"]|['"]$/g, '');
+      } else {
+        const constName = call.keyArg.trim();
+        const cm = constMap.get(constName);
+        if (cm) {
+          flagKey = cm.key;
+          comment = cm.comment;
+          sourceLine = cm.line;
+        }
+      }
+
+      if (!flagKey || !this.isValidKey(flagKey)) continue;
+
+      const defaultValue = call.valueArg ? this.parseValue(call.valueArg.trim()) : undefined;
+      const lineComment = commentMap.get(call.line) || commentMap.get(call.line - 1);
+
+      const mergedComment: ParsedComment = {
+        ...comment,
+        ...lineComment,
+        description: [comment?.description, lineComment?.description].filter(Boolean).join(' ').trim() || undefined,
+      };
+
+      flags.push({
+        key: flagKey,
+        value: defaultValue ?? null,
+        type: detectType(defaultValue ?? null),
+        source: 'code',
+        file: filePath,
+        line: sourceLine,
+        owner: mergedComment.owner,
+        description: mergedComment.description,
+        deprecated: mergedComment.deprecated,
+        deprecatedReason: mergedComment.deprecatedReason,
+        lastModified: mergedComment.lastModified,
+      });
+    }
+
     for (const pattern of this.options.flagPatterns) {
       pattern.lastIndex = 0;
       let match: RegExpExecArray | null;
@@ -134,7 +243,7 @@ export class CodeScanner {
         const defaultValue = match[2] ? this.parseValue(match[2].trim()) : undefined;
         const comment = commentMap.get(lineNumber) || commentMap.get(lineNumber - 1);
 
-        const flag: CodeDefaultFlag = {
+        flags.push({
           key,
           value: defaultValue ?? null,
           type: detectType(defaultValue ?? null),
@@ -146,13 +255,61 @@ export class CodeScanner {
           deprecated: comment?.deprecated,
           deprecatedReason: comment?.deprecatedReason,
           lastModified: comment?.lastModified,
-        };
-
-        flags.push(flag);
+        });
       }
     }
 
     return flags;
+  }
+
+  private extractConstMappings(content: string, commentMap: Map<number, ParsedComment>): ConstMapping[] {
+    const mappings: ConstMapping[] = [];
+    const constPattern = /(?:const|let|var)\s+(FF_[A-Z0-9_]+|FEATURE_[A-Z0-9_]+|FLAG_[A-Z0-9_]+)\s*[:=]\s*['"]([^'"]+)['"]/g;
+
+    let match: RegExpExecArray | null;
+    while ((match = constPattern.exec(content)) !== null) {
+      const name = match[1];
+      const key = match[2];
+      const lineNumber = this.getLineNumber(content, match.index);
+      const comment = commentMap.get(lineNumber) || commentMap.get(lineNumber - 1);
+
+      mappings.push({
+        name,
+        key,
+        line: lineNumber,
+        comment,
+      });
+    }
+
+    return mappings;
+  }
+
+  private extractFunctionCalls(content: string): FunctionCall[] {
+    const calls: FunctionCall[] = [];
+
+    const patterns = [
+      /(feature[Ff]lag|get[Ff]lag|getBoolean|getString|getInt|getNumber|getObject)\s*\(\s*([^,]+?)(?:\s*,\s*([^)]+?))?\s*\)/g,
+    ];
+
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(content)) !== null) {
+        const funcName = match[1];
+        const keyArg = match[2].trim();
+        const valueArg = match[3];
+        const lineNumber = this.getLineNumber(content, match.index);
+
+        calls.push({
+          funcName,
+          keyArg,
+          valueArg: valueArg ? valueArg.trim() : undefined,
+          line: lineNumber,
+        });
+      }
+    }
+
+    return calls;
   }
 
   private buildCommentMap(lines: string[]): Map<number, ParsedComment> {

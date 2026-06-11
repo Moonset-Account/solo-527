@@ -78,9 +78,14 @@ export class DiffEngine {
       const configEntries = configMap[key] || {};
       const deployEntries = deployMap[key] || {};
 
-      const codeOwner = codeEntries.length > 0
-        ? this.ownerLoader.resolveOwner(key, ownerConfig, codeEntries[0].owner)
-        : this.ownerLoader.resolveOwner(key, ownerConfig);
+      const codeOwner = codeEntries.length > 0 ? codeEntries[0].owner : undefined;
+      const configOwners = Object.values(configEntries)
+        .map(f => f.owner)
+        .filter((o): o is string => !!o);
+      const firstConfigOwner = configOwners.length > 0 ? configOwners[0] : undefined;
+      const annotatedOwner = codeOwner || firstConfigOwner;
+
+      const resolvedOwner = this.ownerLoader.resolveOwner(key, ownerConfig, annotatedOwner);
 
       const codeDeprecated = codeEntries.some(f => f.deprecated);
       const configDeprecated = Object.values(configEntries).some(f => f.deprecated);
@@ -107,7 +112,7 @@ export class DiffEngine {
           configFlag,
           deployFlag,
           isDeprecated,
-          codeOwner,
+          resolvedOwner,
           lastModified
         );
 

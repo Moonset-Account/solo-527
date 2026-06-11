@@ -10,6 +10,11 @@
     "build": "tsc",
     "start": "tsx src/cli.ts",
     "dev": "tsx src/cli.ts",
+    "cli": "tsx src/cli.ts",
+    "example": "tsx src/cli.ts diff --code examples/src/app --config examples/config/feature-flags.json --deploy examples/deploy/deployment-flags.yaml --owners examples/config/owners.json -e production",
+    "example:json": "tsx src/cli.ts diff --code examples/src/app --config examples/config/feature-flags.json --deploy examples/deploy/deployment-flags.yaml --owners examples/config/owners.json -e production --format json",
+    "example:strict": "tsx src/cli.ts diff --code examples/src/app --config examples/config/feature-flags.json --deploy examples/deploy/deployment-flags.yaml --owners examples/config/owners.json -e production --strict",
+    "typecheck": "tsc --noEmit",
     "test": "echo \"No tests yet\""
   },
   "keywords": ["feature-flags", "drift", "config", "release", "devops"],

@@ -141,10 +141,22 @@ export class DeployEnvLoader {
     }
 
     if ('environments' in obj && typeof obj.environments === 'object') {
-      const envs = obj.environments as Record<string, RawDeployConfig>;
+      const envs = obj.environments as Record<string, RawDeployConfig | Record<string, unknown>>;
       for (const [envName, envConfig] of Object.entries(envs)) {
-        const envFlags = this.parseFlatConfig(envConfig, envName);
-        results.push(...envFlags);
+        if (envConfig && typeof envConfig === 'object') {
+          const ec = envConfig as Record<string, unknown>;
+
+          if ('clusters' in ec && typeof ec.clusters === 'object') {
+            const clusters = ec.clusters as Record<string, RawDeployConfig>;
+            for (const [clusterName, clusterConfig] of Object.entries(clusters)) {
+              const clusterFlags = this.parseFlatConfig(clusterConfig, envName, clusterName);
+              results.push(...clusterFlags);
+            }
+          } else {
+            const envFlags = this.parseFlatConfig(ec as RawDeployConfig, envName);
+            results.push(...envFlags);
+          }
+        }
       }
       return results;
     }

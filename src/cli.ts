@@ -153,8 +153,9 @@ async function loadAllData(options: CLIOptions & { strictEnv?: string[] }) {
     files: deployFiles,
     environments: environments.length > 0 ? environments : undefined,
   });
+  const ownerFile = options.ownerFile || options.owners;
   const ownerLoader = new OwnerLoader({
-    ownerFile: options.ownerFile,
+    ownerFile,
   });
 
   const [codeFlags, configFlags, deployFlags, ownerConfig] = await Promise.all([
