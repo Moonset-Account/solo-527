@@ -277,10 +277,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       `/api/tracking?routes=true&riderId=${riderId}`
     );
 
-    if (data && data.length > 0) {
-      set((state) => ({
-        deliveryRoutes: data,
-      }));
+    if (data) {
+      set((state) => {
+        const otherRoutes = state.deliveryRoutes.filter((r) => r.riderId !== riderId);
+        return {
+          deliveryRoutes: [...otherRoutes, ...data],
+        };
+      });
     }
   },
 

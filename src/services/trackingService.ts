@@ -103,5 +103,18 @@ export async function getDeliveryRoutesByRider(riderId: string): Promise<RouteRe
     return [];
   }
 
-  return data?.map(dbDeliveryRouteToRouteRecord) || [];
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  const routes = data.map(dbDeliveryRouteToRouteRecord);
+
+  for (const route of routes) {
+    if (route.orderId) {
+      const points = await getTrackingPointsByOrder(route.orderId);
+      route.points = points;
+    }
+  }
+
+  return routes;
 }

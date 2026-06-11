@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS exceptions (
   dispute_evidence TEXT[] DEFAULT '{}',
   compensation_amount DECIMAL(10, 2),
   status exception_status NOT NULL DEFAULT 'pending',
-  assignee_id UUID NOT NULL,
+  assignee_id VARCHAR(100) NOT NULL,
   assignee_name VARCHAR(50) NOT NULL,
   processing_start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   processing_end_time TIMESTAMPTZ,
@@ -285,7 +285,7 @@ CREATE INDEX IF NOT EXISTS idx_discrepancy_status ON discrepancy_records(status)
 
 CREATE TABLE IF NOT EXISTS operation_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+  user_id VARCHAR(100) NOT NULL,
   operator_name VARCHAR(50) NOT NULL,
   operator_role VARCHAR(50) NOT NULL,
   action VARCHAR(100) NOT NULL,
@@ -389,150 +389,53 @@ ALTER TABLE operation_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE performance_stats ENABLE ROW LEVEL SECURITY;
 
--- 管理员可以查看所有数据
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'sites'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON sites
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view sites" ON sites;
+CREATE POLICY "Authenticated users can view sites" ON sites
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'riders'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON riders
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view riders" ON riders;
+CREATE POLICY "Authenticated users can view riders" ON riders
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'orders'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON orders
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view orders" ON orders;
+CREATE POLICY "Authenticated users can view orders" ON orders
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'tracking_points'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON tracking_points
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view tracking_points" ON tracking_points;
+CREATE POLICY "Authenticated users can view tracking_points" ON tracking_points
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'temperature_records'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON temperature_records
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view temperature_records" ON temperature_records;
+CREATE POLICY "Authenticated users can view temperature_records" ON temperature_records
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'exceptions'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON exceptions
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view exceptions" ON exceptions;
+CREATE POLICY "Authenticated users can view exceptions" ON exceptions
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'inventory_items'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON inventory_items
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view inventory_items" ON inventory_items;
+CREATE POLICY "Authenticated users can view inventory_items" ON inventory_items
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'delivery_routes'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON delivery_routes
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view delivery_routes" ON delivery_routes;
+CREATE POLICY "Authenticated users can view delivery_routes" ON delivery_routes
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'discrepancy_records'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON discrepancy_records
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view discrepancy_records" ON discrepancy_records;
+CREATE POLICY "Authenticated users can view discrepancy_records" ON discrepancy_records
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'operation_logs'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON operation_logs
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view operation_logs" ON operation_logs;
+CREATE POLICY "Authenticated users can view operation_logs" ON operation_logs
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'notifications'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON notifications
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view notifications" ON notifications;
+CREATE POLICY "Authenticated users can view notifications" ON notifications
+  FOR SELECT USING (auth.role() = 'authenticated');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE policy_name = 'All tables are viewable by authenticated users'
-      AND tablename = 'performance_stats'
-  ) THEN
-    CREATE POLICY "All tables are viewable by authenticated users" ON performance_stats
-      FOR SELECT USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Authenticated users can view performance_stats" ON performance_stats;
+CREATE POLICY "Authenticated users can view performance_stats" ON performance_stats
+  FOR SELECT USING (auth.role() = 'authenticated');
 
 -- ============================================================
 -- Realtime 发布
