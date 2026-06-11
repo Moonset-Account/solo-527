@@ -116,51 +116,74 @@ func (c *Checker) Check() *Result {
 }
 
 func (c *Checker) checkMissingRequired(r *Result) {
-	for _, req := range c.required {
-		found := false
-		for _, ef := range c.envFiles {
-			if _, ok := ef.Vars[req]; ok {
-				found = true
-				break
+	for _, ef := range c.envFiles {
+		for _, req := range c.required {
+			v, ok := ef.Vars[req]
+			if !ok {
+				r.Issues = append(r.Issues, Issue{
+					Severity: SeverityError,
+					Category: "missing_required",
+					Key:      req,
+					Message:  fmt.Sprintf("required variable %q is missing from %s", req, ef.Path),
+					Source:   ef.Path,
+				})
+				if !containsString(r.MissingInEnv, req) {
+					r.MissingInEnv = append(r.MissingInEnv, req)
+				}
+			} else if strings.TrimSpace(v.Value) == "" {
+				r.Issues = append(r.Issues, Issue{
+					Severity: SeverityError,
+					Category: "empty_required",
+					Key:      req,
+					Message:  fmt.Sprintf("required variable %q in %s has an empty value", req, ef.Path),
+					Source:   ef.Path,
+				})
 			}
-		}
-		if !found {
-			r.Issues = append(r.Issues, Issue{
-				Severity: SeverityError,
-				Category: "missing_required",
-				Key:      req,
-				Message:  fmt.Sprintf("required variable %q is missing from all env files", req),
-			})
-			r.MissingInEnv = append(r.MissingInEnv, req)
 		}
 	}
 }
 
 func (c *Checker) checkExampleCoverage(r *Result) {
-	allEnvKeys := c.collectKeys(c.envFiles)
 	allExKeys := c.collectKeys(c.exampleFiles)
 
-	for k := range allEnvKeys {
-		if _, ok := allExKeys[k]; !ok && len(c.exampleFiles) > 0 {
-			r.Issues = append(r.Issues, Issue{
-				Severity: SeverityWarning,
-				Category: "missing_in_example",
-				Key:      k,
-				Message:  fmt.Sprintf("variable %q exists in env but is missing from example files", k),
-			})
-			r.MissingInEx = append(r.MissingInEx, k)
+	for _, ef := range c.envFiles {
+		for k := range ef.Vars {
+			if _, ok := allExKeys[k]; !ok && len(c.exampleFiles) > 0 {
+				r.Issues = append(r.Issues, Issue{
+					Severity: SeverityWarning,
+					Category: "missing_in_example",
+					Key:      k,
+					Message:  fmt.Sprintf("variable %q in %s is missing from example files", k, ef.Path),
+					Source:   ef.Path,
+				})
+				if !containsString(r.MissingInEx, k) {
+					r.MissingInEx = append(r.MissingInEx, k)
+				}
+			}
 		}
 	}
 
-	for k := range allExKeys {
-		if _, ok := allEnvKeys[k]; !ok && len(c.envFiles) > 0 {
-			r.Issues = append(r.Issues, Issue{
-				Severity: SeverityWarning,
-				Category: "missing_in_env",
-				Key:      k,
-				Message:  fmt.Sprintf("variable %q exists in example but is missing from env files", k),
-			})
-			r.MissingInEnv = append(r.MissingInEnv, k)
+	for _, ex := range c.exampleFiles {
+		for k := range ex.Vars {
+			foundInAnyEnv := false
+			for _, ef := range c.envFiles {
+				if _, ok := ef.Vars[k]; ok {
+					foundInAnyEnv = true
+					break
+				}
+			}
+			if !foundInAnyEnv && len(c.envFiles) > 0 {
+				r.Issues = append(r.Issues, Issue{
+					Severity: SeverityWarning,
+					Category: "missing_in_env",
+					Key:      k,
+					Message:  fmt.Sprintf("variable %q in %s is missing from env files", k, ex.Path),
+					Source:   ex.Path,
+				})
+				if !containsString(r.MissingInEnv, k) {
+					r.MissingInEnv = append(r.MissingInEnv, k)
+				}
+			}
 		}
 	}
 }
@@ -197,8 +220,15 @@ func (c *Checker) checkEnvDiff(r *Result) {
 }
 
 func (c *Checker) checkEmptyValues(r *Result) {
+	requiredSet := make(map[string]bool)
+	for _, req := range c.required {
+		requiredSet[req] = true
+	}
 	for _, ef := range c.envFiles {
 		for k, v := range ef.Vars {
+			if requiredSet[k] {
+				continue
+			}
 			if strings.TrimSpace(v.Value) == "" {
 				r.Issues = append(r.Issues, Issue{
 					Severity: SeverityWarning,
@@ -237,6 +267,15 @@ func (c *Checker) collectKeys(files []*envfile.EnvFile) map[string]bool {
 		}
 	}
 	return keys
+}
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
 
 func SortKeys(m map[string]envfile.EnvVar) []string {

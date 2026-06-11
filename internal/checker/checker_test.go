@@ -30,10 +30,64 @@ func TestMissingRequired(t *testing.T) {
 	for _, iss := range result.Issues {
 		if iss.Category == "missing_required" {
 			missingCount++
+			if iss.Source != ".env" {
+				t.Errorf("missing_required issue should have Source=\".env\", got %q", iss.Source)
+			}
 		}
 	}
 	if missingCount != 1 {
 		t.Errorf("expected 1 missing required, got %d", missingCount)
+	}
+}
+
+func TestMissingRequired_PerFile(t *testing.T) {
+	m := mask.New(nil)
+	chk := New(m, []string{"DATABASE_URL"}, false)
+	chk.AddEnvFile(makeEnvFile(".env", map[string]string{
+		"DATABASE_URL": "postgres://localhost",
+	}))
+	chk.AddEnvFile(makeEnvFile(".env.prod", map[string]string{
+		"OTHER_VAR": "value",
+	}))
+
+	result := chk.Check()
+	missingCount := 0
+	for _, iss := range result.Issues {
+		if iss.Category == "missing_required" {
+			missingCount++
+			if iss.Source != ".env.prod" {
+				t.Errorf("missing_required issue should have Source=\".env.prod\", got %q", iss.Source)
+			}
+		}
+	}
+	if missingCount != 1 {
+		t.Errorf("expected 1 missing required (only in .env.prod), got %d", missingCount)
+	}
+}
+
+func TestEmptyRequired(t *testing.T) {
+	m := mask.New(nil)
+	chk := New(m, []string{"DATABASE_URL", "API_KEY"}, false)
+	chk.AddEnvFile(makeEnvFile(".env", map[string]string{
+		"DATABASE_URL": "",
+		"API_KEY":      "sk-123",
+	}))
+
+	result := chk.Check()
+	emptyRequiredCount := 0
+	for _, iss := range result.Issues {
+		if iss.Category == "empty_required" {
+			emptyRequiredCount++
+			if iss.Severity != SeverityError {
+				t.Errorf("empty_required should be error severity, got %s", iss.Severity)
+			}
+			if iss.Source != ".env" {
+				t.Errorf("empty_required issue should have Source=\".env\", got %q", iss.Source)
+			}
+		}
+	}
+	if emptyRequiredCount != 1 {
+		t.Errorf("expected 1 empty_required error, got %d", emptyRequiredCount)
 	}
 }
 
@@ -68,6 +122,9 @@ func TestExampleCoverage_MissingInExample(t *testing.T) {
 	for _, iss := range result.Issues {
 		if iss.Category == "missing_in_example" && iss.Key == "NEW_VAR" {
 			found = true
+			if iss.Source != ".env" {
+				t.Errorf("missing_in_example issue should have Source=\".env\", got %q", iss.Source)
+			}
 		}
 	}
 	if !found {
@@ -82,7 +139,7 @@ func TestExampleCoverage_MissingInEnv(t *testing.T) {
 		"APP_NAME": "myapp",
 	}))
 	chk.AddExampleFile(makeEnvFile(".env.example", map[string]string{
-		"APP_NAME": "",
+		"APP_NAME":  "",
 		"REDIS_URL": "",
 	}))
 
@@ -91,6 +148,9 @@ func TestExampleCoverage_MissingInEnv(t *testing.T) {
 	for _, iss := range result.Issues {
 		if iss.Category == "missing_in_env" && iss.Key == "REDIS_URL" {
 			found = true
+			if iss.Source != ".env.example" {
+				t.Errorf("missing_in_env issue should have Source=\".env.example\", got %q", iss.Source)
+			}
 		}
 	}
 	if !found {

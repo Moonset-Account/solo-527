@@ -18,7 +18,8 @@ func makeResult() *checker.Result {
 				Severity: checker.SeverityError,
 				Category: "missing_required",
 				Key:      "DATABASE_URL",
-				Message:  `required variable "DATABASE_URL" is missing from all env files`,
+				Message:  `required variable "DATABASE_URL" is missing from .env`,
+				Source:   ".env",
 			},
 			{
 				Severity: checker.SeverityWarning,
@@ -67,6 +68,9 @@ func TestJSONFormatter(t *testing.T) {
 	if parsed.TotalIssues != 2 {
 		t.Errorf("expected 2 issues in JSON, got %d", parsed.TotalIssues)
 	}
+	if len(parsed.Issues) < 2 || parsed.Issues[0].Source != ".env" {
+		t.Errorf("Source field should be present and set to \".env\" in JSON output, got: %+v", parsed.Issues)
+	}
 }
 
 func TestCIFormatter(t *testing.T) {
@@ -82,6 +86,9 @@ func TestCIFormatter(t *testing.T) {
 	}
 	if !strings.Contains(output, "::warning") {
 		t.Error("CI output should contain ::warning annotation")
+	}
+	if !strings.Contains(output, "::.env::DATABASE_URL") {
+		t.Errorf("CI output should include source file path in annotation, got: %s", output)
 	}
 }
 

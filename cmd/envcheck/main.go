@@ -44,7 +44,9 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "\nEXAMPLES:\n")
 		fmt.Fprintf(os.Stderr, "  envcheck --env .env --example .env.example\n")
 		fmt.Fprintf(os.Stderr, "  envcheck --env .env,.env.prod --required DATABASE_URL,REDIS_URL\n")
-		fmt.Fprintf(os.Stderr, "  envcheck --config envcheck.json --ci --format json\n")
+		fmt.Fprintf(os.Stderr, "  envcheck --config envcheck.json --ci\n")
+		fmt.Fprintf(os.Stderr, "  envcheck --config envcheck.json --format json\n")
+		fmt.Fprintf(os.Stderr, "  envcheck --ci --format json  # explicit --format overrides --ci default\n")
 		fmt.Fprintf(os.Stderr, "  cat .env | envcheck --stdin --example .env.example\n")
 		fmt.Fprintf(os.Stderr, "\nEXIT CODES:\n")
 		fmt.Fprintf(os.Stderr, "  0 - All checks passed\n")
@@ -71,11 +73,18 @@ func run() int {
 		ExampleFiles: splitCSV(*exampleFiles),
 		MaskPatterns: splitCSV(*maskPatterns),
 		Required:     splitCSV(*required),
-		Format:       *format,
 	}
 	if *ci {
 		ov.CI = ci
-		ov.Format = "ci"
+		if *format == "" {
+			ov.Format = "ci"
+		} else {
+			ov.Format = *format
+		}
+	} else {
+		if *format != "" {
+			ov.Format = *format
+		}
 	}
 	if *strict {
 		ov.Strict = strict
