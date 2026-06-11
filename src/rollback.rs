@@ -49,6 +49,44 @@ pub fn same_file(a: &Path, b: &Path) -> Result<bool> {
     }
 }
 
+fn should_unlink_before_compress(original_path: &Path, output_path: &Path) -> Result<bool> {
+    if !same_file(original_path, output_path)? {
+        return Ok(false);
+    }
+
+    let sym_meta = fs::symlink_metadata(output_path)
+        .with_context(|| format!("Cannot lstat {}", output_path.display()))?;
+    if sym_meta.file_type().is_symlink() {
+        log::info!(
+            "Output {} is a symlink to original, safe to unlink",
+            output_path.display()
+        );
+        return Ok(true);
+    }
+
+    let canon_orig = fs::canonicalize(original_path)
+        .with_context(|| format!("Cannot canonicalize {}", original_path.display()))?;
+    let canon_out = fs::canonicalize(output_path)
+        .with_context(|| format!("Cannot canonicalize {}", output_path.display()))?;
+
+    if canon_orig == canon_out {
+        log::info!(
+            "Output {} and original {} resolve to same directory entry ({}) — will NOT unlink",
+            output_path.display(),
+            original_path.display(),
+            canon_out.display()
+        );
+        Ok(false)
+    } else {
+        log::info!(
+            "Output {} and original {} are different directory entries (hardlink) sharing inode — will unlink output",
+            output_path.display(),
+            original_path.display()
+        );
+        Ok(true)
+    }
+}
+
 fn generate_backup_path(output_path: &Path) -> PathBuf {
     let ext = output_path
         .extension()
@@ -73,24 +111,22 @@ impl RollbackManifest {
         original_size: u64,
         output_path: &Path,
     ) -> Result<()> {
-        let (is_same_file, same_path_string) = if output_path.exists() {
-            let same_inode = same_file(original_path, output_path)?;
-            let same_str = original_path == output_path;
-            (same_inode, same_str)
+        let is_same = if output_path.exists() {
+            same_file(original_path, output_path)?
         } else {
-            (false, false)
+            false
         };
 
-        let (action, backup_path) = if is_same_file {
+        let (action, backup_path) = if is_same {
             let backup = generate_backup_path(output_path);
             fs::copy(original_path, &backup)
                 .with_context(|| format!("Cannot create backup of {} to {}", output_path.display(), backup.display()))?;
             log::info!("Backed up {} -> {}", output_path.display(), backup.display());
 
-            if !same_path_string {
+            if should_unlink_before_compress(original_path, output_path)? {
                 fs::remove_file(output_path)
                     .with_context(|| format!("Cannot unlink output {} to break hard/sym link association with original", output_path.display()))?;
-                log::info!("Unlinked {} to break association with original (different path, same inode)", output_path.display());
+                log::info!("Unlinked {} to break association with original", output_path.display());
             }
 
             (RollbackAction::RestoreFromBackup, Some(backup.display().to_string()))
@@ -152,6 +188,10 @@ pub fn execute_rollback(manifest_path: &Path) -> Result<u32> {
                             if !parent.as_os_str().is_empty() {
                                 fs::create_dir_all(parent).ok();
                             }
+                        }
+                        if output.exists() {
+                            fs::remove_file(&output)
+                                .with_context(|| format!("Cannot remove current output before restoring from backup {}", entry.output_path))?;
                         }
                         fs::rename(&backup, &output)
                             .with_context(|| format!("Cannot restore {} from backup {}", entry.output_path, backup_str))?;
@@ -222,6 +262,57 @@ mod tests {
 
         #[cfg(unix)]
         assert!(same_file(&file, &sym).unwrap());
+    }
+
+    #[test]
+    fn test_should_unlink_same_directory_entry_different_writing() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("photo.png");
+        fs::write(&file, b"dummy").unwrap();
+
+        let alias = dir.path().join("./photo.png");
+        assert!(!should_unlink_before_compress(&file, &alias).unwrap(),
+            "same directory entry with different path writing must NOT be unlinked");
+    }
+
+    #[test]
+    fn test_should_unlink_hardlink() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("orig.png");
+        fs::write(&file, b"dummy content").unwrap();
+
+        let link = dir.path().join("link.png");
+        fs::hard_link(&file, &link).unwrap();
+
+        assert!(should_unlink_before_compress(&file, &link).unwrap(),
+            "hardlink (different directory entry) should be unlinked before compress");
+    }
+
+    #[test]
+    fn test_should_unlink_symlink() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("orig.png");
+        fs::write(&file, b"dummy content").unwrap();
+
+        let sym = dir.path().join("sym.png");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&file, &sym).unwrap();
+
+        #[cfg(unix)]
+        assert!(should_unlink_before_compress(&file, &sym).unwrap(),
+            "symlink should be unlinked before compress");
+    }
+
+    #[test]
+    fn test_should_unlink_different_files() {
+        let dir = TempDir::new().unwrap();
+        let file_a = dir.path().join("a.png");
+        let file_b = dir.path().join("b.png");
+        fs::write(&file_a, b"aaa").unwrap();
+        fs::write(&file_b, b"bbb").unwrap();
+
+        assert!(!should_unlink_before_compress(&file_a, &file_b).unwrap(),
+            "different files should not be unlinked");
     }
 
     #[test]

@@ -743,3 +743,181 @@ fn test_rollback_different_paths_same_file_not_delete_output() {
         "original png must remain untouched after rollback"
     );
 }
+
+#[test]
+fn test_rollback_relative_path_same_directory_entry_no_delete_input() {
+    let work_dir = TempDir::new().unwrap();
+    let img_path = create_test_image(work_dir.path(), "photo.png", 80, 80);
+    let original_bytes = fs::read(&img_path).unwrap();
+
+    let dot_path = work_dir.path().join("./photo.png");
+    assert_eq!(
+        fs::canonicalize(&dot_path).unwrap(),
+        fs::canonicalize(&img_path).unwrap(),
+        "precondition: ./photo.png and photo.png resolve to same canonical path"
+    );
+
+    imgproc_bin()
+        .arg(&dot_path)
+        .arg("--out")
+        .arg(work_dir.path())
+        .arg("--rollback")
+        .arg("--png")
+        .assert()
+        .success();
+
+    assert!(
+        img_path.exists(),
+        "input file must still exist (not deleted before compress)"
+    );
+
+    let after_compress = fs::read(&img_path).unwrap();
+    assert_eq!(
+        after_compress.len(),
+        original_bytes.len(),
+        "same format re-encode should produce roughly same size"
+    );
+
+    let manifest_path = work_dir.path().join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    assert_eq!(
+        manifest["operations"][0]["action"].as_str(),
+        Some("RestoreFromBackup"),
+        "same directory entry (different path writing) must use RestoreFromBackup"
+    );
+
+    let backup = work_dir.path().join("photo.png.imgproc-orig");
+    assert!(backup.exists(), "backup must exist for same-directory-entry overwrite");
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    let restored = fs::read(&img_path).unwrap();
+    assert_eq!(
+        original_bytes, restored,
+        "rollback must restore original bytes exactly"
+    );
+    assert!(
+        !backup.exists(),
+        "backup should be consumed after rollback"
+    );
+}
+
+#[test]
+fn test_rollback_parent_dotdot_same_directory_entry_no_delete_input() {
+    let work_dir = TempDir::new().unwrap();
+    let sub_dir = work_dir.path().join("sub");
+    fs::create_dir_all(&sub_dir).unwrap();
+    let img_path = create_test_image(&sub_dir, "photo.png", 80, 80);
+    let original_bytes = fs::read(&img_path).unwrap();
+
+    let dotdot_path = sub_dir.join("../sub/photo.png");
+    assert_eq!(
+        fs::canonicalize(&dotdot_path).unwrap(),
+        fs::canonicalize(&img_path).unwrap(),
+        "precondition: ../sub/photo.png resolves to same canonical path"
+    );
+
+    imgproc_bin()
+        .arg(&dotdot_path)
+        .arg("--out")
+        .arg(&sub_dir)
+        .arg("--rollback")
+        .arg("--png")
+        .assert()
+        .success();
+
+    assert!(
+        img_path.exists(),
+        "input must still exist after compress-in-place"
+    );
+
+    let manifest_path = sub_dir.join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    assert_eq!(
+        manifest["operations"][0]["action"].as_str(),
+        Some("RestoreFromBackup"),
+        "same directory entry via ../sub/ must use RestoreFromBackup, not DeleteOutput"
+    );
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    let restored = fs::read(&img_path).unwrap();
+    assert_eq!(
+        original_bytes, restored,
+        "rollback must restore original bytes"
+    );
+}
+
+#[test]
+fn test_rollback_hardlink_unlinks_output_safely() {
+    use std::os::unix::fs::MetadataExt;
+
+    let work_dir = TempDir::new().unwrap();
+    let original_path = create_test_image(work_dir.path(), "real.png", 80, 80);
+    let original_bytes = fs::read(&original_path).unwrap();
+    let original_ino = fs::metadata(&original_path).unwrap().ino();
+
+    let link_path = work_dir.path().join("hardlink.png");
+    fs::hard_link(&original_path, &link_path).unwrap();
+    assert_eq!(fs::metadata(&link_path).unwrap().ino(), original_ino);
+
+    imgproc_bin()
+        .arg(&original_path)
+        .arg("--out")
+        .arg(work_dir.path())
+        .arg("--rename")
+        .arg("hardlink.{ext}")
+        .arg("--rollback")
+        .arg("--png")
+        .assert()
+        .success();
+
+    let original_after = fs::read(&original_path).unwrap();
+    assert_eq!(
+        original_bytes, original_after,
+        "hardlink scenario: original must be untouched after compress"
+    );
+
+    let link_meta = fs::symlink_metadata(&link_path).unwrap();
+    let link_ino = link_meta.ino();
+    assert_ne!(
+        link_ino, original_ino,
+        "hardlink must have been removed and replaced with a new file"
+    );
+
+    let manifest_path = work_dir.path().join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    assert_eq!(
+        manifest["operations"][0]["action"].as_str(),
+        Some("RestoreFromBackup")
+    );
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    let restored_link = fs::read(&link_path).unwrap();
+    assert_eq!(
+        original_bytes, restored_link,
+        "rollback must restore hardlink path from backup"
+    );
+
+    let original_final = fs::read(&original_path).unwrap();
+    assert_eq!(
+        original_bytes, original_final,
+        "original must remain untouched through entire cycle"
+    );
+}
