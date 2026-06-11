@@ -1,0 +1,9 @@
+# 白名单文件 - 每行一个 URL，支持 * 通配符
+# 以 # 开头的行为注释
+
+# 已知的外部资源 (测试域名)
+https://example.com/legacy/*
+https://cdn.example.com/deprecated/*
+
+# 内部临时跳转
+http://localhost:*/staging/*

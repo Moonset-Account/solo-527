@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sitemap-checker"
+version = "0.1.0"
+description = "站点地图死链检查 CLI - 检查 404、重定向链、标题缺失和 canonical 冲突"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "httpx>=0.27.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.1.0",
+    "tenacity>=8.2.0",
+    "aiometer>=0.5.0",
+    "pydantic>=2.6.0",
+    "python-slugify>=8.0.0",
+    "tldextract>=5.1.0",
+    "url-normalize>=1.4.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-httpx>=0.28.0",
+    "respx>=0.20.0",
+]
+
+[project.scripts]
+sitemap-checker = "sitemap_checker.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["sitemap_checker*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

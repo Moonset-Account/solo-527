@@ -1,0 +1,2 @@
+[console_scripts]
+sitemap-checker = sitemap_checker.cli:app
