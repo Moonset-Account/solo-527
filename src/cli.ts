@@ -185,12 +185,16 @@ async function main(): Promise<number> {
     }
 
     const collection = mergeAndInterpolate(collectionResult.data, envResult.data);
+    if (!collection.success || !collection.data) {
+      printLoadErrors(collection.errors as LoadError[], noColor);
+      return EXIT_CODES.CONFIG_ERROR;
+    }
 
     let report;
     if (argv.dryRun) {
-      report = buildDryRunReport(collection, argv, pkg.version);
+      report = buildDryRunReport(collection.data, argv, pkg.version);
     } else {
-      report = await runCollection(collection, argv, pkg.version);
+      report = await runCollection(collection.data, argv, pkg.version);
     }
 
     if (argv.junit) {

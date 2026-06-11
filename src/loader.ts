@@ -12,11 +12,13 @@ export interface LoadResult<T> {
 }
 
 export interface LoadError {
-  type: 'file_not_found' | 'parse_error' | 'validation_error' | 'unsupported_format';
+  type: 'file_not_found' | 'parse_error' | 'validation_error' | 'unsupported_format' | 'unresolved_placeholder';
   message: string;
   path?: string;
   suggestion?: string;
   details?: unknown;
+  fieldPath?: string;
+  placeholder?: string;
 }
 
 function readFile(filePath: string): string | null {
@@ -197,8 +199,16 @@ export function loadEnvironment(filePath?: string): LoadResult<ParsedEnvironment
   return { success: true, data: validateResult.data as ParsedEnvironment };
 }
 
+export interface InterpolateResult {
+  success: boolean;
+  data?: Collection;
+  errors?: LoadError[];
+}
+
+const PLACEHOLDER_REGEX = /\$\{([^}]+)\}/g;
+
 function interpolate(str: string, vars: Record<string, string | number | boolean>): string {
-  return str.replace(/\$\{([^}]+)\}/g, (match, key) => {
+  return str.replace(PLACEHOLDER_REGEX, (match, key) => {
     const k = key.trim();
     if (k in vars) {
       return String(vars[k]);
@@ -224,15 +234,118 @@ function interpolateObject<T>(obj: T, vars: Record<string, string | number | boo
   return obj;
 }
 
+interface UnresolvedPlaceholder {
+  fieldPath: string;
+  placeholder: string;
+  isAuthField: boolean;
+}
+
+function findUnresolvedPlaceholders(
+  obj: unknown,
+  basePath: string,
+  authFieldPaths: Set<string>
+): UnresolvedPlaceholder[] {
+  const results: UnresolvedPlaceholder[] = [];
+
+  if (typeof obj === 'string') {
+    const matches = obj.match(PLACEHOLDER_REGEX);
+    if (matches) {
+      for (const m of matches) {
+        const placeholder = m.slice(2, -1).trim();
+        results.push({
+          fieldPath: basePath,
+          placeholder,
+          isAuthField: authFieldPaths.has(basePath),
+        });
+      }
+    }
+  } else if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      results.push(...findUnresolvedPlaceholders(obj[i], `${basePath}[${i}]`, authFieldPaths));
+    }
+  } else if (obj !== null && typeof obj === 'object') {
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      const childPath = basePath ? `${basePath}.${key}` : key;
+      results.push(...findUnresolvedPlaceholders(value, childPath, authFieldPaths));
+    }
+  }
+
+  return results;
+}
+
+const AUTH_SENSITIVE_FIELDS = new Set([
+  'token',
+  'username',
+  'password',
+  'accessToken',
+  'value',
+]);
+
+function collectAuthFieldPaths(prefix: string): Set<string> {
+  const paths = new Set<string>();
+  for (const field of AUTH_SENSITIVE_FIELDS) {
+    paths.add(`${prefix}.${field}`);
+  }
+  return paths;
+}
+
+function buildVariableSource(
+  env?: ParsedEnvironment,
+  extraVars?: Record<string, string>
+): Record<string, string | number | boolean> {
+  const processEnv: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v !== undefined) {
+      processEnv[k] = v;
+    }
+  }
+
+  const allVars: Record<string, string | number | boolean> = {
+    ...processEnv,
+    ...env?.variables,
+    ...extraVars,
+  };
+
+  if (!allVars['TIMESTAMP']) {
+    allVars['TIMESTAMP'] = String(Date.now());
+  }
+  if (!allVars['DATE']) {
+    allVars['DATE'] = new Date().toISOString().slice(0, 10);
+  }
+  if (!allVars['RANDOM']) {
+    allVars['RANDOM'] = String(Math.floor(Math.random() * 1_000_000));
+  }
+
+  return allVars;
+}
+
+function buildSuggestion(placeholder: string, fieldPath: string): string {
+  const parts = [
+    `变量 \${${placeholder}} 未解析，请按以下任一方式设置：`,
+    `  1. 在进程环境变量中导出: export ${placeholder}="your-value"`,
+  ];
+  if (fieldPath.startsWith('auth.') || fieldPath.includes('.auth.')) {
+    parts.push(`  2. 在 environment 文件的 variables 中添加: ${placeholder}: "your-secret"`);
+    parts.push(`  3. 如果是 CI 环境，在流水线 secrets 中配置 ${placeholder}`);
+    if (fieldPath.includes('token') || fieldPath.includes('Token')) {
+      parts.push(`  4. 验证鉴权服务是否正常，token 是否仍在有效期内`);
+    }
+    if (fieldPath.includes('password')) {
+      parts.push(`  4. 避免在配置文件中硬编码密码，使用密钥管理服务`);
+    }
+  } else {
+    parts.push(`  2. 在 environment 文件的 variables 中添加: ${placeholder}: "your-value"`);
+    parts.push(`  3. 在 collection 的 tests[].extract 中确认前序用例是否正确提取了该变量`);
+  }
+  return parts.join('\n');
+}
+
 export function mergeAndInterpolate(
   collection: ParsedCollection,
   env?: ParsedEnvironment,
   extraVars?: Record<string, string>
-): Collection {
-  const allVars: Record<string, string | number | boolean> = {
-    ...env?.variables,
-    ...extraVars,
-  };
+): InterpolateResult {
+  const allVars = buildVariableSource(env, extraVars);
 
   const baseUrl = env?.baseUrl || collection.baseUrl || '';
 
@@ -252,25 +365,32 @@ export function mergeAndInterpolate(
       fullUrl = baseUrl.replace(/\/$/, '') + '/' + fullUrl.replace(/^\//, '');
     }
 
+    const testAuth = test.auth || mergedAuth;
+    const interpolatedTest = interpolateObject(test, allVars) as Record<string, unknown>;
+
     return {
-      ...test,
+      ...interpolatedTest,
+      id: interpolatedTest.id as string,
+      name: interpolatedTest.name as string,
+      description: interpolatedTest.description,
+      method: interpolatedTest.method,
       url: interpolate(fullUrl, allVars),
-      headers: interpolateObject({ ...mergedHeaders, ...test.headers }, allVars),
+      headers: interpolateObject({ ...mergedHeaders, ...(test.headers || {}) }, allVars),
       queryParams: interpolateObject(test.queryParams || {}, allVars),
       body: interpolateObject(test.body, allVars),
-      auth: test.auth || mergedAuth,
+      auth: interpolateObject(testAuth, allVars),
       timeoutMs: test.timeoutMs || mergedTimeoutMs,
       retry: {
         ...mergedRetry,
         ...test.retry,
       },
-      tags: test.tags || [],
-      dependsOn: test.dependsOn || [],
+      tags: interpolatedTest.tags as string[] | undefined || [],
+      dependsOn: (interpolatedTest.dependsOn as string[] | undefined) || [],
       assertions: test.assertions.map((a) => interpolateObject(a, allVars)),
     };
   });
 
-  return {
+  const merged: Collection = {
     name: interpolate(collection.name, allVars),
     version: interpolate(collection.version, allVars),
     description: collection.description ? interpolate(collection.description, allVars) : undefined,
@@ -281,4 +401,65 @@ export function mergeAndInterpolate(
     retry: mergedRetry,
     tests: tests as Collection['tests'],
   };
+
+  const runtimeVars = new Set<string>();
+  for (const test of collection.tests) {
+    if (test.extract) {
+      for (const varName of Object.keys(test.extract)) {
+        runtimeVars.add(varName);
+      }
+    }
+  }
+
+  const authFieldPaths = new Set<string>();
+  for (const p of collectAuthFieldPaths('auth')) authFieldPaths.add(p);
+  for (let i = 0; i < merged.tests.length; i++) {
+    for (const p of collectAuthFieldPaths(`tests[${i}].auth`)) authFieldPaths.add(p);
+  }
+
+  const allUnresolved = findUnresolvedPlaceholders(merged, '', authFieldPaths);
+  const unresolved = allUnresolved.filter((u) => !runtimeVars.has(u.placeholder));
+
+  const runtimeOnly = allUnresolved.filter((u) => runtimeVars.has(u.placeholder));
+  const runtimeAuth = runtimeOnly.filter((u) => u.isAuthField);
+  if (runtimeAuth.length > 0) {
+    unresolved.unshift({
+      fieldPath: runtimeAuth[0].fieldPath,
+      placeholder: runtimeAuth[0].placeholder,
+      isAuthField: true,
+    });
+  }
+
+  if (unresolved.length > 0) {
+    const errors: LoadError[] = unresolved.map((u) => {
+      const isRuntime = runtimeVars.has(u.placeholder);
+      const msg = isRuntime
+        ? `鉴权字段 "${u.fieldPath}" 依赖运行时提取变量 \${${u.placeholder}}，加载阶段无法验证`
+        : u.isAuthField
+          ? `鉴权字段 "${u.fieldPath}" 中的变量 \${${u.placeholder}} 未能解析，值仍包含未替换占位符`
+          : `字段 "${u.fieldPath}" 中的变量 \${${u.placeholder}} 未能解析`;
+      return {
+        type: 'unresolved_placeholder',
+        message: msg,
+        fieldPath: u.fieldPath,
+        placeholder: u.placeholder,
+        suggestion: isRuntime
+          ? `运行时提取变量 \${${u.placeholder}} 在加载阶段不可用，但该字段属于鉴权字段。建议将鉴权凭据放入 env.variables、process.env 或 CI secrets，避免依赖前序用例提取`
+          : buildSuggestion(u.placeholder, u.fieldPath),
+      };
+    });
+
+    const authUnresolved = unresolved.filter((u) => u.isAuthField && !runtimeVars.has(u.placeholder));
+    if (authUnresolved.length > 0) {
+      errors.unshift({
+        type: 'unresolved_placeholder',
+        message: `检测到 ${authUnresolved.length} 个鉴权相关字段存在未解析的占位符，可能导致接口鉴权失败`,
+        suggestion: `请优先处理鉴权字段的变量问题，涉及字段: ${authUnresolved.map((u) => u.fieldPath).join(', ')}`,
+      });
+    }
+
+    return { success: false, errors };
+  }
+
+  return { success: true, data: merged };
 }

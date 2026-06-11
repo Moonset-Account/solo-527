@@ -145,10 +145,11 @@ describe('变量插值 & 合并', () => {
       variables: { ENV_NAME: '开发', USER_ID: '123', TOKEN: 'abc', INCLUDE: 'profile' },
     };
     const result = mergeAndInterpolate(collection, env);
-    expect(result.name).toBe('开发 测试集合');
-    expect(result.tests[0].url).toBe('http://localhost:3000/api/users/123');
-    expect(result.tests[0].headers?.Authorization).toBe('Bearer abc');
-    expect(result.tests[0].queryParams?.include).toBe('profile');
+    expect(result.success).toBe(true);
+    expect(result.data!.name).toBe('开发 测试集合');
+    expect(result.data!.tests[0].url).toBe('http://localhost:3000/api/users/123');
+    expect(result.data!.tests[0].headers?.Authorization).toBe('Bearer abc');
+    expect(result.data!.tests[0].queryParams?.include).toBe('profile');
   });
 
   test('mergeAndInterpolate - baseUrl 自动拼接', () => {
@@ -158,7 +159,208 @@ describe('变量插值 & 合并', () => {
       tests: [{ id: 't1', name: 'T', method: 'GET', url: '/users', assertions: [] }],
     };
     const result = mergeAndInterpolate(collection);
-    expect(result.tests[0].url).toBe('https://api.example.com/users');
+    expect(result.success).toBe(true);
+    expect(result.data!.tests[0].url).toBe('https://api.example.com/users');
+  });
+
+  test('mergeAndInterpolate - 进程环境变量参与解析', () => {
+    process.env.SMOKE_TEST_API_TOKEN = 'from-process-env';
+    try {
+      const collection: any = {
+        name: 'P', version: '1.0',
+        baseUrl: 'https://api.example.com',
+        auth: { type: 'bearer', token: '${SMOKE_TEST_API_TOKEN}' },
+        tests: [{ id: 't1', name: 'T', method: 'GET', url: '/x', assertions: [{ type: 'statusCode', value: 200 }] }],
+      };
+      const result = mergeAndInterpolate(collection);
+      expect(result.success).toBe(true);
+      expect((result.data!.auth as any).token).toBe('from-process-env');
+    } finally {
+      delete process.env.SMOKE_TEST_API_TOKEN;
+    }
+  });
+
+  test('mergeAndInterpolate - env.variables 优先级高于 process.env', () => {
+    process.env.SMOKE_PRIORITY_VAR = 'from-process';
+    try {
+      const collection: any = {
+        name: 'P', version: '1.0', baseUrl: 'http://x',
+        tests: [{ id: 't1', name: '${SMOKE_PRIORITY_VAR}', method: 'GET', url: '/', assertions: [] }],
+      };
+      const env: any = {
+        name: 'e',
+        variables: { SMOKE_PRIORITY_VAR: 'from-env-file' },
+      };
+      const result = mergeAndInterpolate(collection, env);
+      expect(result.success).toBe(true);
+      expect(result.data!.tests[0].name).toBe('from-env-file');
+    } finally {
+      delete process.env.SMOKE_PRIORITY_VAR;
+    }
+  });
+
+  test('mergeAndInterpolate - 全局 auth 字段占位符解析', () => {
+    const collection: any = {
+      name: 'A', version: '1.0',
+      baseUrl: 'http://x',
+      auth: { type: 'bearer', token: '${GLOBAL_TOKEN}' },
+      tests: [{ id: 't1', name: 'T', method: 'GET', url: '/', assertions: [{ type: 'statusCode', value: 200 }] }],
+    };
+    const env: any = { name: 'e', variables: { GLOBAL_TOKEN: 'global-secret-42' } };
+    const result = mergeAndInterpolate(collection, env);
+    expect(result.success).toBe(true);
+    expect((result.data!.auth as any).token).toBe('global-secret-42');
+  });
+
+  test('mergeAndInterpolate - 用例级 basic auth 占位符解析', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      tests: [{
+        id: 't1', name: 'T', method: 'GET', url: '/',
+        auth: { type: 'basic', username: '${BASIC_USER}', password: '${BASIC_PASS}' },
+        assertions: [{ type: 'statusCode', value: 200 }],
+      }],
+    };
+    const env: any = { name: 'e', variables: { BASIC_USER: 'admin', BASIC_PASS: 's3cret' } };
+    const result = mergeAndInterpolate(collection, env);
+    expect(result.success).toBe(true);
+    const auth = result.data!.tests[0].auth as any;
+    expect(auth.username).toBe('admin');
+    expect(auth.password).toBe('s3cret');
+  });
+
+  test('mergeAndInterpolate - apiKey auth value 占位符解析', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      tests: [{
+        id: 't1', name: 'T', method: 'GET', url: '/',
+        auth: { type: 'apiKey', key: 'X-API-Key', value: '${API_KEY_VALUE}', in: 'header' },
+        assertions: [{ type: 'statusCode', value: 200 }],
+      }],
+    };
+    const env: any = { name: 'e', variables: { API_KEY_VALUE: 'sk-live-abc123' } };
+    const result = mergeAndInterpolate(collection, env);
+    expect(result.success).toBe(true);
+    expect((result.data!.tests[0].auth as any).value).toBe('sk-live-abc123');
+  });
+
+  test('mergeAndInterpolate - oauth2 accessToken 占位符解析', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      tests: [{
+        id: 't1', name: 'T', method: 'GET', url: '/',
+        auth: { type: 'oauth2', accessToken: '${OAUTH_TOKEN}' },
+        assertions: [{ type: 'statusCode', value: 200 }],
+      }],
+    };
+    const env: any = { name: 'e', variables: { OAUTH_TOKEN: 'ya29.a0Ab' } };
+    const result = mergeAndInterpolate(collection, env);
+    expect(result.success).toBe(true);
+    expect((result.data!.tests[0].auth as any).accessToken).toBe('ya29.a0Ab');
+  });
+
+  test('mergeAndInterpolate - 未解析鉴权占位符返回配置错误', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      auth: { type: 'bearer', token: '${MISSING_AUTH_TOKEN}' },
+      tests: [{ id: 't1', name: 'T', method: 'GET', url: '/', assertions: [{ type: 'statusCode', value: 200 }] }],
+    };
+    const result = mergeAndInterpolate(collection);
+    expect(result.success).toBe(false);
+    const authErrors = result.errors!.filter((e) => e.type === 'unresolved_placeholder');
+    expect(authErrors.length).toBeGreaterThanOrEqual(1);
+    const fieldErr = authErrors.find((e) => e.fieldPath === 'auth.token');
+    expect(fieldErr).toBeDefined();
+    expect(fieldErr!.placeholder).toBe('MISSING_AUTH_TOKEN');
+    expect(fieldErr!.suggestion).toContain('export MISSING_AUTH_TOKEN');
+    expect(fieldErr!.suggestion).toContain('CI 环境');
+  });
+
+  test('mergeAndInterpolate - 用例级未解析鉴权占位符带具体对象路径', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      tests: [
+        { id: 't1', name: 'T1', method: 'GET', url: '/', assertions: [{ type: 'statusCode', value: 200 }] },
+        {
+          id: 't2', name: 'T2', method: 'GET', url: '/',
+          auth: { type: 'basic', username: 'u', password: '${T2_PASSWORD}' },
+          assertions: [{ type: 'statusCode', value: 200 }],
+        },
+      ],
+    };
+    const result = mergeAndInterpolate(collection);
+    expect(result.success).toBe(false);
+    const err = result.errors!.find((e) => e.fieldPath === 'tests[1].auth.password');
+    expect(err).toBeDefined();
+    expect(err!.placeholder).toBe('T2_PASSWORD');
+    expect(err!.message).toContain('鉴权字段');
+    expect(err!.suggestion).toContain('避免在配置文件中硬编码密码');
+  });
+
+  test('mergeAndInterpolate - 未解析非鉴权占位符也返回错误', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      tests: [{
+        id: 't1', name: 'T', method: 'GET', url: '/users/${USER_ID}',
+        assertions: [{ type: 'bodyJsonPath', path: '$.name', value: '${EXPECTED_NAME}' }],
+      }],
+    };
+    const result = mergeAndInterpolate(collection);
+    expect(result.success).toBe(false);
+    const urlErr = result.errors!.find((e) => e.fieldPath === 'tests[0].url');
+    expect(urlErr).toBeDefined();
+    expect(urlErr!.placeholder).toBe('USER_ID');
+    expect(urlErr!.suggestion).toContain('tests[].extract');
+  });
+
+  test('mergeAndInterpolate - 鉴权错误置顶并汇总提示', () => {
+    const collection: any = {
+      name: 'A', version: '1.0', baseUrl: 'http://x',
+      auth: { type: 'bearer', token: '${BAD_TOKEN}' },
+      tests: [{
+        id: 't1', name: 'T', method: 'GET', url: '/${PATH_VAR}',
+        assertions: [{ type: 'statusCode', value: 200 }],
+      }],
+    };
+    const result = mergeAndInterpolate(collection);
+    expect(result.success).toBe(false);
+    expect(result.errors![0].message).toContain('鉴权相关字段');
+    expect(result.errors![0].suggestion).toContain('auth.token');
+  });
+
+  test('mergeAndInterpolate - 内置 TIMESTAMP/DATE/RANDOM 变量可用', () => {
+    const collection: any = {
+      name: 'B', version: '${DATE}', baseUrl: 'http://x',
+      tests: [{
+        id: 't1', name: 'test-${TIMESTAMP}-${RANDOM}', method: 'GET', url: '/',
+        assertions: [{ type: 'statusCode', value: 200 }],
+      }],
+    };
+    const result = mergeAndInterpolate(collection);
+    expect(result.success).toBe(true);
+    expect(result.data!.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.data!.tests[0].name).toMatch(/^test-\d+-\d+$/);
+  });
+
+  test('mergeAndInterpolate - assertions 中的占位符统一解析', () => {
+    const expectedPattern = 'user_\\d+';
+    const collection: any = {
+      name: 'B', version: '1.0', baseUrl: 'http://x',
+      tests: [{
+        id: 't1', name: 'T', method: 'GET', url: '/',
+        assertions: [
+          { type: 'header', name: 'X-Tenant', value: '${EXPECTED_TENANT}' },
+          { type: 'bodyRegex', pattern: '${REGEX_PATTERN}', flags: 'i' },
+        ],
+      }],
+    };
+    const env: any = { name: 'e', variables: { EXPECTED_TENANT: 'acme', REGEX_PATTERN: expectedPattern } };
+    const result = mergeAndInterpolate(collection, env);
+    expect(result.success).toBe(true);
+    const assertions = result.data!.tests[0].assertions as any[];
+    expect(assertions[0].value).toBe('acme');
+    expect(assertions[1].pattern).toBe(expectedPattern);
+    expect(assertions[1].pattern.length).toBe(expectedPattern.length);
   });
 });
 
