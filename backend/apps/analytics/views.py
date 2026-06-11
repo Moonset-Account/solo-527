@@ -1,7 +1,6 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
@@ -19,7 +18,6 @@ from .serializers import (
 
 
 class OverviewAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         days = int(request.query_params.get('days', 30))
@@ -77,18 +75,15 @@ class OverviewAPIView(APIView):
             'approval_rate': round(approval_rate, 2),
             'risk_resolution_rate': round(risk_resolution_rate, 2),
             'total_tokens': total_tokens,
-            'total_cost': total_cost
+            'total_cost': float(total_cost)
         }
 
-        serializer = StatsOverviewSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.data)
+        return Response(data)
 
 
 class AccuracyStatsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AccuracyStats.objects.all()
     serializer_class = AccuracyStatsSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['sales_operation', 'prompt_version']
     ordering_fields = ['date', 'accuracy_rate', 'total_calls']
@@ -161,7 +156,6 @@ class AccuracyStatsViewSet(viewsets.ReadOnlyModelViewSet):
 class DailyStatsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DailyStats.objects.all()
     serializer_class = DailyStatsSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['date']
     ordering_fields = ['date', 'total_conversations', 'total_messages']
@@ -189,7 +183,6 @@ class DailyStatsViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ErrorStatsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         start_date = request.query_params.get('start_date')
@@ -257,7 +250,6 @@ class ErrorStatsAPIView(APIView):
 
 
 class SalesOperationRankingAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         start_date = request.query_params.get('start_date')
@@ -298,7 +290,6 @@ class SalesOperationRankingAPIView(APIView):
 
 
 class PromptVersionRankingAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         start_date = request.query_params.get('start_date')
@@ -343,7 +334,6 @@ class PromptVersionRankingAPIView(APIView):
 class UsageStatsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UsageStats.objects.all()
     serializer_class = UsageStatsSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['date']
     ordering_fields = ['date', 'total_conversations', 'total_tokens']
@@ -373,7 +363,6 @@ class UsageStatsViewSet(viewsets.ReadOnlyModelViewSet):
 class TokenUsageViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TokenUsage.objects.all()
     serializer_class = TokenUsageSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['user', 'date', 'model']
     ordering_fields = ['date', 'total_tokens', 'cost']

@@ -1,7 +1,6 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -15,7 +14,6 @@ from .serializers import (
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'review_type', 'risk_level', 'flagged_by_ai']
     search_fields = ['comment', 'message__content']
@@ -234,7 +232,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
 class ReviewRuleViewSet(viewsets.ModelViewSet):
     queryset = ReviewRule.objects.all()
     serializer_class = ReviewRuleSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['rule_type', 'is_active', 'severity']
     search_fields = ['name', 'description', 'pattern']

@@ -67,20 +67,95 @@ class ConversationViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        message = Message.objects.create(
+        user_message = Message.objects.create(
             conversation=conversation,
             role='user',
             content=serializer.validated_data['content'],
             review_status='approved'
         )
 
-        from celery_tasks.tasks import process_ai_request
-        process_ai_request.delay(conversation.id, message.id)
+        try:
+            from apps.ai_service.services.ai_generator import AIService
+            from apps.prompts.models import Prompt
 
-        return Response(
-            MessageSerializer(message).data,
-            status=status.HTTP_201_CREATED
-        )
+            prompt_content = ''
+            prompt_version = ''
+            try:
+                prompt_obj = Prompt.objects.filter(
+                    status='enabled',
+                    target_sales_operations__contains=[conversation.sales_operation]
+                ).first()
+                if not prompt_obj:
+                    prompt_obj = Prompt.objects.filter(status='enabled').first()
+                if prompt_obj:
+                    prompt_content = prompt_obj.content
+                    prompt_version = prompt_obj.version
+            except Exception:
+                pass
+
+            if not prompt_content:
+                prompt_content = '你是一位专业的客服助手，请根据用户的问题提供友好、专业的回答。'
+
+            conversation_history = []
+            for msg in conversation.messages.filter(role__in=['user', 'assistant']).order_by('created_at')[:20]:
+                conversation_history.append({'role': msg.role, 'content': msg.content})
+
+            ai_result = AIService.generate_reply(
+                conversation_history=conversation_history,
+                prompt_content=prompt_content,
+                variables={
+                    'customer_name': conversation.customer_name,
+                    'sales_operation': conversation.sales_operation,
+                    'channel': conversation.channel,
+                },
+                model='gpt-4',
+            )
+
+            if ai_result.get('success'):
+                ai_message = Message.objects.create(
+                    conversation=conversation,
+                    role='assistant',
+                    content=ai_result['content'],
+                    is_ai_suggestion=True,
+                    suggested_reply=ai_result['content'],
+                    ai_model=ai_result.get('model', 'gpt-4'),
+                    prompt_version=prompt_version,
+                    tokens_used=ai_result.get('tokens', {}).get('total', 0),
+                    review_status='pending',
+                    error_type='none',
+                )
+            else:
+                error_type = ai_result.get('error_type', 'api_error')
+                ai_message = Message.objects.create(
+                    conversation=conversation,
+                    role='assistant',
+                    content='',
+                    is_ai_suggestion=True,
+                    suggested_reply='',
+                    ai_model=ai_result.get('model', 'gpt-4'),
+                    prompt_version=prompt_version,
+                    error_type=error_type,
+                    error_message=ai_result.get('error_message', '生成失败'),
+                    review_status='pending',
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f'AI generation failed: {e}', exc_info=True)
+            ai_message = Message.objects.create(
+                conversation=conversation,
+                role='assistant',
+                content='',
+                is_ai_suggestion=True,
+                suggested_reply='',
+                error_type='api_error',
+                error_message=str(e),
+                review_status='pending',
+            )
+
+        return Response({
+            'user_message': MessageSerializer(user_message).data,
+            'ai_message': MessageSerializer(ai_message).data,
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'], url_path='ai-suggestion')
     def get_ai_suggestion(self, request, pk=None):

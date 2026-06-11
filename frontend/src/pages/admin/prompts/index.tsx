@@ -1,57 +1,30 @@
 import { useState, useEffect } from 'react'
 import {
-  Card,
-  Table,
-  Tag,
-  Button,
-  Space,
-  Form,
-  Select,
-  Input,
-  Modal,
-  message,
-  Popconfirm,
-  Empty,
-  Spin,
-  Descriptions,
-  InputNumber,
-  Checkbox,
-  Row,
-  Col,
+  Card, Table, Tag, Button, Space, Form, Select, Input,
+  Modal, message, Popconfirm, Empty, Spin, Descriptions,
+  InputNumber, Row, Col, Slider,
 } from 'antd'
 import {
-  PlusOutlined,
-  EyeOutlined,
-  EditOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  HistoryOutlined,
-  SearchOutlined,
+  PlusOutlined, EyeOutlined, EditOutlined, PlayCircleOutlined,
+  PauseCircleOutlined, HistoryOutlined, SearchOutlined,
   RollbackOutlined,
-  DiffOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { mockPromptApi as promptApi } from '@/api'
-import type { PromptItem, PromptStatus, PromptVersionHistory } from '@/types/api'
-import { formatDate } from '@/utils'
+import dayjs from 'dayjs'
+import { promptApi } from '@/api'
+import type { Prompt, PromptStatus, PromptCategory, DRFPaginationResult } from '@/types/api'
 
 const { TextArea } = Input
-const { Option } = Select
-const { confirm } = Modal
 
-const statusMap: Record<PromptStatus | 'all', { label: string; color: string }> = {
-  all: { label: '全部', color: 'default' },
+const statusMap: Record<PromptStatus, { label: string; color: string }> = {
   draft: { label: '草稿', color: 'default' },
-  active: { label: '启用', color: 'green' },
-  inactive: { label: '停用', color: 'red' },
+  enabled: { label: '启用', color: 'green' },
+  disabled: { label: '停用', color: 'red' },
 }
-
-const categories = ['问候类', '产品类', '售后类', '投诉类', '通用类']
-const salesGroups = ['华东组', '华北组', '华南组', '西南组']
 
 const Prompts: React.FC = () => {
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<PromptItem[]>([])
+  const [data, setData] = useState<Prompt[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
@@ -61,51 +34,50 @@ const Prompts: React.FC = () => {
   const [editForm] = Form.useForm()
   const [editLoading, setEditLoading] = useState(false)
   const [detailModal, setDetailModal] = useState(false)
-  const [currentDetail, setCurrentDetail] = useState<PromptItem | null>(null)
+  const [currentDetail, setCurrentDetail] = useState<Prompt | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [historyModal, setHistoryModal] = useState(false)
-  const [historyList, setHistoryList] = useState<PromptVersionHistory[]>([])
+  const [historyList, setHistoryList] = useState<Prompt[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [compareModal, setCompareModal] = useState(false)
-  const [compareVersions, setCompareVersions] = useState<PromptVersionHistory[]>([])
-  const [currentPromptId, setCurrentPromptId] = useState<string>('')
+  const [grayModalVisible, setGrayModalVisible] = useState(false)
+  const [grayForm] = Form.useForm()
+  const [grayLoading, setGrayLoading] = useState(false)
+  const [currentPromptId, setCurrentPromptId] = useState<number | null>(null)
+  const [categories, setCategories] = useState<PromptCategory[]>([])
+
+  useEffect(() => {
+    promptApi.getPromptCategories().then(res => {
+      const data = (res as unknown as PromptCategory[]) || []
+      setCategories(data)
+    }).catch(() => {})
+  }, [])
 
   const fetchData = async () => {
     setLoading(true)
     try {
       const values = filterForm.getFieldsValue()
-      const params = {
+      const params: Record<string, unknown> = {
         page,
-        pageSize,
-        status: values.status,
-        category: values.category,
-        version: values.version,
-        keyword: values.keyword,
+        page_size: pageSize,
+        status: values.status && values.status !== 'all' ? values.status : undefined,
+        category: values.category || undefined,
+        version: values.version || undefined,
+        keyword: values.keyword || undefined,
       }
-      const result = await promptApi.getList(params)
-      setData(result.list)
-      setTotal(result.total)
-    } catch (error) {
+      const result = await promptApi.getPrompts(params) as unknown as DRFPaginationResult<Prompt>
+      setData(result.results || [])
+      setTotal(result.count || 0)
+    } catch {
       message.error('获取数据失败')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [page])
+  useEffect(() => { fetchData() }, [page])
 
-  const handleSearch = () => {
-    setPage(1)
-    fetchData()
-  }
-
-  const handleReset = () => {
-    filterForm.resetFields()
-    setPage(1)
-    setTimeout(fetchData, 0)
-  }
+  const handleSearch = () => { setPage(1); fetchData() }
+  const handleReset = () => { filterForm.resetFields(); setPage(1); setTimeout(fetchData, 0) }
 
   const handleCreate = () => {
     setEditType('create')
@@ -113,34 +85,35 @@ const Prompts: React.FC = () => {
     setEditModal(true)
   }
 
-  const handleEdit = async (record: PromptItem) => {
+  const handleEdit = async (record: Prompt) => {
     setEditType('edit')
     setCurrentPromptId(record.id)
     setEditLoading(true)
     try {
-      const detail = await promptApi.getDetail(record.id)
-      if (detail) {
-        editForm.setFieldsValue({
-          ...detail,
-        })
-        setEditModal(true)
-      }
-    } catch (error) {
+      const detail = await promptApi.getPrompt(record.id) as unknown as Prompt
+      editForm.setFieldsValue({
+        title: detail.title,
+        description: detail.description,
+        category: detail.category,
+        content: detail.content,
+        gray_scale_percent: detail.gray_scale_percent,
+        target_sales_operations: detail.target_sales_operations,
+      })
+      setEditModal(true)
+    } catch {
       message.error('获取详情失败')
     } finally {
       setEditLoading(false)
     }
   }
 
-  const handleViewDetail = async (id: string) => {
+  const handleViewDetail = async (id: number) => {
     setDetailLoading(true)
     try {
-      const detail = await promptApi.getDetail(id)
-      if (detail) {
-        setCurrentDetail(detail)
-        setDetailModal(true)
-      }
-    } catch (error) {
+      const detail = await promptApi.getPrompt(id) as unknown as Prompt
+      setCurrentDetail(detail)
+      setDetailModal(true)
+    } catch {
       message.error('获取详情失败')
     } finally {
       setDetailLoading(false)
@@ -152,10 +125,10 @@ const Prompts: React.FC = () => {
       const values = await editForm.validateFields()
       setEditLoading(true)
       if (editType === 'create') {
-        await promptApi.create(values)
+        await promptApi.createPrompt(values)
         message.success('创建成功')
-      } else {
-        await promptApi.update(currentPromptId, values)
+      } else if (currentPromptId) {
+        await promptApi.updatePrompt(currentPromptId, values)
         message.success('更新成功')
       }
       setEditModal(false)
@@ -168,86 +141,102 @@ const Prompts: React.FC = () => {
     }
   }
 
-  const handlePublish = (id: string) => {
-    confirm({
+  const handlePublish = (id: number) => {
+    Modal.confirm({
       title: '发布提示词',
       content: '确定要发布此提示词吗？发布后将对指定分组生效。',
       onOk: async () => {
         try {
-          await promptApi.publish(id)
+          await promptApi.publishPrompt(id)
           message.success('发布成功')
           fetchData()
-        } catch (error) {
+        } catch {
           message.error('发布失败')
         }
       },
     })
   }
 
-  const handleDeactivate = (id: string) => {
-    confirm({
+  const handleDisable = (id: number) => {
+    Modal.confirm({
       title: '停用提示词',
-      content: '确定要停用此提示词吗？停用后将不再使用。',
+      content: '确定要停用此提示词吗？',
       okType: 'danger',
       onOk: async () => {
         try {
-          await promptApi.deactivate(id)
+          await promptApi.disablePrompt(id)
           message.success('停用成功')
           fetchData()
-        } catch (error) {
+        } catch {
           message.error('停用失败')
         }
       },
     })
   }
 
-  const handleViewHistory = async (id: string) => {
+  const handleViewHistory = async (id: number) => {
     setCurrentPromptId(id)
     setHistoryLoading(true)
     try {
-      const history = await promptApi.getVersionHistory(id)
-      setHistoryList(history)
+      const result = await promptApi.getPromptVersionHistory(id) as unknown as DRFPaginationResult<Prompt>
+      setHistoryList(result.results || (result as unknown as Prompt[]))
       setHistoryModal(true)
-    } catch (error) {
+    } catch {
       message.error('获取版本历史失败')
     } finally {
       setHistoryLoading(false)
     }
   }
 
-  const handleRollback = (versionId: string) => {
-    confirm({
+  const handleRollback = (versionId: number) => {
+    Modal.confirm({
       title: '版本回滚',
-      content: '确定要回滚到此版本吗？回滚后将创建一个新版本。',
+      content: '确定要回滚到此版本吗？回滚后将创建一个新版本草稿。',
       onOk: async () => {
         try {
-          await promptApi.rollback(currentPromptId, versionId)
-          message.success('回滚成功')
-          setHistoryModal(false)
-          fetchData()
-        } catch (error) {
+          if (currentPromptId) {
+            await promptApi.rollbackPrompt(currentPromptId, versionId)
+            message.success('回滚成功')
+            setHistoryModal(false)
+            fetchData()
+          }
+        } catch {
           message.error('回滚失败')
         }
       },
     })
   }
 
-  const handleCompare = (version: PromptVersionHistory) => {
-    const currentVersion = historyList[0]
-    if (currentVersion.id === version.id) {
-      message.info('请选择不同的版本进行对比')
-      return
-    }
-    setCompareVersions([currentVersion, version])
-    setCompareModal(true)
+  const handleGrayConfig = (record: Prompt) => {
+    setCurrentPromptId(record.id)
+    grayForm.setFieldsValue({
+      gray_scale_percent: record.gray_scale_percent ?? 100,
+      target_sales_operations: record.target_sales_operations ?? [],
+    })
+    setGrayModalVisible(true)
   }
 
-  const columns: ColumnsType<PromptItem> = [
+  const handleGraySubmit = async () => {
+    try {
+      const values = await grayForm.validateFields()
+      setGrayLoading(true)
+      if (currentPromptId) {
+        await promptApi.updatePrompt(String(currentPromptId), values)
+        message.success('灰度配置保存成功')
+        setGrayModalVisible(false)
+        fetchData()
+      }
+    } catch (error) {
+      if ((error as { errorFields?: unknown[] }).errorFields) return
+      message.error('保存失败')
+    } finally {
+      setGrayLoading(false)
+    }
+  }
+
+  const columns: ColumnsType<Prompt> = [
     {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      width: 200,
+      title: '标题', dataIndex: 'title', key: 'title', width: 200,
       render: (text: string, record) => (
         <div>
           <div style={{ fontWeight: 500 }}>{text}</div>
@@ -256,169 +245,79 @@ const Prompts: React.FC = () => {
       ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 90,
-      render: (status: PromptStatus) => (
-        <Tag color={statusMap[status].color}>{statusMap[status].label}</Tag>
-      ),
+      title: '状态', dataIndex: 'status', key: 'status', width: 90,
+      render: (status: PromptStatus) => <Tag color={statusMap[status]?.color || 'default'}>{statusMap[status]?.label || status}</Tag>,
     },
     {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 90,
+      title: '分类', dataIndex: 'category_name', key: 'category_name', width: 100,
+      render: (text: string) => text || '-',
     },
     {
-      title: '使用次数',
-      dataIndex: 'usageCount',
-      key: 'usageCount',
-      width: 100,
-      render: (count: number) => count.toLocaleString(),
+      title: '使用次数', dataIndex: 'usage_count', key: 'usage_count', width: 100,
+      render: (count: number) => (count || 0).toLocaleString(),
     },
     {
-      title: '准确率',
-      dataIndex: 'accuracy',
-      key: 'accuracy',
-      width: 90,
-      render: (val: number) => `${val}%`,
+      title: '准确率', dataIndex: 'accuracy_rate', key: 'accuracy_rate', width: 90,
+      render: (val: number) => val != null ? `${val}%` : '-',
     },
     {
-      title: '灰度百分比',
-      dataIndex: 'grayScale',
-      key: 'grayScale',
-      width: 110,
-      render: (val: number) => `${val}%`,
+      title: '灰度百分比', dataIndex: 'gray_scale_percent', key: 'gray_scale_percent', width: 110,
+      render: (val: number) => val != null ? `${val}%` : '-',
     },
     {
-      title: '适用分组',
-      dataIndex: 'applicableGroups',
-      key: 'applicableGroups',
-      width: 150,
-      render: (groups: string[]) => (
-        <Space wrap size={[4, 4]}>
-          {groups.map((g) => (
-            <Tag key={g} color="blue" style={{ fontSize: 11, margin: 0 }}>
-              {g}
-            </Tag>
-          ))}
-        </Space>
-      ),
+      title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 170,
+      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
     },
     {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      key: 'createTime',
-      width: 160,
-      render: (time: string) => formatDate(time),
-    },
-    {
-      title: '作者',
-      dataIndex: 'author',
-      key: 'author',
-      width: 80,
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 260,
-      fixed: 'right',
+      title: '操作', key: 'action', width: 260, fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record.id)}>
-            查看
-          </Button>
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record.id)}>查看</Button>
           {record.status === 'draft' && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-              编辑
-            </Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
           )}
-          {(record.status === 'draft' || record.status === 'inactive') && (
-            <Button
-              type="link"
-              size="small"
-              icon={<PlayCircleOutlined />}
-              style={{ color: '#52c41a' }}
-              onClick={() => handlePublish(record.id)}
-            >
-              发布
-            </Button>
+          {record.status === 'draft' && (
+            <Button type="link" size="small" icon={<PlayCircleOutlined />} style={{ color: '#52c41a' }} onClick={() => handlePublish(record.id)}>发布</Button>
           )}
-          {record.status === 'active' && (
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<PauseCircleOutlined />}
-              onClick={() => handleDeactivate(record.id)}
-            >
-              停用
-            </Button>
+          {record.status === 'enabled' && (
+            <>
+              <Button type="link" size="small" danger icon={<PauseCircleOutlined />} onClick={() => handleDisable(record.id)}>停用</Button>
+              <Button type="link" size="small" onClick={() => handleGrayConfig(record)}>灰度</Button>
+            </>
           )}
-          <Button
-            type="link"
-            size="small"
-            icon={<HistoryOutlined />}
-            onClick={() => handleViewHistory(record.id)}
-          >
-            版本历史
-          </Button>
+          <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => handleViewHistory(record.id)}>版本</Button>
         </Space>
       ),
     },
   ]
 
-  const historyColumns: ColumnsType<PromptVersionHistory> = [
+  const historyColumns: ColumnsType<Prompt> = [
+    { title: '版本号', dataIndex: 'version', key: 'version', width: 120 },
     {
-      title: '版本号',
-      dataIndex: 'version',
-      key: 'version',
-      width: 120,
+      title: '状态', dataIndex: 'status', key: 'status', width: 80,
+      render: (status: PromptStatus) => <Tag color={statusMap[status]?.color || 'default'}>{statusMap[status]?.label || status}</Tag>,
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status: PromptStatus) => (
-        <Tag color={statusMap[status].color}>{statusMap[status].label}</Tag>
-      ),
+      title: '当前版本', dataIndex: 'is_current_version', key: 'is_current_version', width: 80,
+      render: (val: boolean) => val ? <Tag color="green">是</Tag> : <Tag>否</Tag>,
     },
     {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      key: 'createTime',
-      width: 160,
-      render: (time: string) => formatDate(time),
+      title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 170,
+      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
     },
     {
-      title: '作者',
-      dataIndex: 'author',
-      key: 'author',
-      width: 80,
+      title: '作者', dataIndex: 'author_name', key: 'author_name', width: 80,
+      render: (text: string) => text || '-',
     },
     {
-      title: '操作',
-      key: 'action',
-      width: 180,
+      title: '操作', key: 'action', width: 100,
       render: (_, record) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<DiffOutlined />} onClick={() => handleCompare(record)}>
-            对比
-          </Button>
-          <Popconfirm
-            title="确认回滚？"
-            description="回滚到此版本将创建一个新版本"
-            onConfirm={() => handleRollback(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button type="link" size="small" icon={<RollbackOutlined />}>
-              回滚
-            </Button>
-          </Popconfirm>
-        </Space>
+        <Popconfirm
+          title="确认回滚？" description="回滚到此版本将创建一个新版本"
+          onConfirm={() => handleRollback(record.id)} okText="确认" cancelText="取消"
+        >
+          <Button type="link" size="small" icon={<RollbackOutlined />}>回滚</Button>
+        </Popconfirm>
       ),
     },
   ]
@@ -431,19 +330,16 @@ const Prompts: React.FC = () => {
         <Form form={filterForm} layout="inline" initialValues={{ status: 'all' }}>
           <Form.Item name="status" label="状态">
             <Select style={{ width: 120 }}>
+              <Select.Option value="all">全部</Select.Option>
               {Object.entries(statusMap).map(([key, val]) => (
-                <Option key={key} value={key}>
-                  {val.label}
-                </Option>
+                <Select.Option key={key} value={key}>{val.label}</Select.Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="category" label="分类">
             <Select style={{ width: 120 }} placeholder="请选择" allowClear>
-              {categories.map((c) => (
-                <Option key={c} value={c}>
-                  {c}
-                </Option>
+              {categories.map(c => (
+                <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -451,147 +347,78 @@ const Prompts: React.FC = () => {
             <Input placeholder="输入版本号" style={{ width: 150 }} allowClear />
           </Form.Item>
           <Form.Item name="keyword">
-            <Input
-              placeholder="搜索标题"
-              prefix={<SearchOutlined />}
-              style={{ width: 200 }}
-              allowClear
-              onPressEnter={handleSearch}
-            />
+            <Input placeholder="搜索标题" prefix={<SearchOutlined />} style={{ width: 200 }} allowClear onPressEnter={handleSearch} />
           </Form.Item>
           <Form.Item>
             <Space>
-              <Button type="primary" onClick={handleSearch}>
-                查询
-              </Button>
+              <Button type="primary" onClick={handleSearch}>查询</Button>
               <Button onClick={handleReset}>重置</Button>
             </Space>
           </Form.Item>
         </Form>
       </Card>
 
-      <Card
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            新建提示词
-          </Button>
-        }
-      >
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={data}
-          loading={loading}
+      <Card extra={
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新建提示词</Button>
+      }>
+        <Table rowKey="id" columns={columns} dataSource={data} loading={loading}
           pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: false,
-            showQuickJumper: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p) => setPage(p),
+            current: page, pageSize, total, showSizeChanger: false, showQuickJumper: true,
+            showTotal: t => `共 ${t} 条`, onChange: p => setPage(p),
           }}
           scroll={{ x: 1300 }}
-          locale={{
-            emptyText: loading ? <Spin tip="加载中..." /> : <Empty description="暂无数据" />,
-          }}
+          locale={{ emptyText: loading ? <Spin tip="加载中..." /> : <Empty description="暂无数据" /> }}
         />
       </Card>
 
-      <Modal
-        title={editType === 'create' ? '新建提示词' : '编辑提示词'}
-        open={editModal}
-        onOk={handleEditSubmit}
-        onCancel={() => setEditModal(false)}
-        confirmLoading={editLoading}
-        width={720}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
-      >
+      <Modal title={editType === 'create' ? '新建提示词' : '编辑提示词'} open={editModal}
+        onOk={handleEditSubmit} onCancel={() => setEditModal(false)} confirmLoading={editLoading}
+        width={720} okText="保存" cancelText="取消" destroyOnClose>
         <Form form={editForm} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item
-                name="title"
-                label="标题"
-                rules={[{ required: true, message: '请输入标题' }]}
-              >
+              <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
                 <Input placeholder="请输入提示词标题" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                name="version"
-                label="版本号"
-                rules={[{ required: true, message: '请输入版本号' }]}
-              >
-                <Input placeholder="例如：v1.0.0" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="category"
-                label="分类"
-                rules={[{ required: true, message: '请选择分类' }]}
-              >
+              <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
                 <Select placeholder="请选择分类">
-                  {categories.map((c) => (
-                    <Option key={c} value={c}>
-                      {c}
-                    </Option>
+                  {categories.map(c => (
+                    <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
             </Col>
+          </Row>
+          <Form.Item name="description" label="描述">
+            <Input placeholder="请输入描述" />
+          </Form.Item>
+          <Row gutter={16}>
             <Col span={12}>
-              <Form.Item
-                name="grayScale"
-                label="灰度百分比"
-                rules={[{ required: true, message: '请输入灰度百分比' }]}
-              >
+              <Form.Item name="gray_scale_percent" label="灰度百分比">
                 <InputNumber min={0} max={100} style={{ width: '100%' }} suffix="%" />
               </Form.Item>
             </Col>
+            <Col span={12}>
+              <Form.Item name="target_sales_operations" label="适用分组">
+                <Select mode="multiple" placeholder="请选择" allowClear>
+                  <Select.Option value="华东组">华东组</Select.Option>
+                  <Select.Option value="华北组">华北组</Select.Option>
+                  <Select.Option value="华南组">华南组</Select.Option>
+                  <Select.Option value="西南组">西南组</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
           </Row>
-          <Form.Item
-            name="applicableGroups"
-            label="适用分组"
-            rules={[{ required: true, message: '请选择适用分组' }]}
-          >
-            <Checkbox.Group style={{ width: '100%' }}>
-              <Row>
-                {salesGroups.map((g) => (
-                  <Col span={6} key={g}>
-                    <Checkbox value={g}>{g}</Checkbox>
-                  </Col>
-                ))}
-              </Row>
-            </Checkbox.Group>
-          </Form.Item>
-          <Form.Item
-            name="content"
-            label="提示词内容"
-            rules={[{ required: true, message: '请输入提示词内容' }]}
-          >
+          <Form.Item name="content" label="提示词内容" rules={[{ required: true, message: '请输入提示词内容' }]}>
             <TextArea rows={10} placeholder="请输入提示词内容" />
           </Form.Item>
         </Form>
       </Modal>
 
-      <Modal
-        title="提示词详情"
-        open={detailModal}
-        onCancel={() => setDetailModal(false)}
-        width={720}
-        footer={[
-          <Button key="close" onClick={() => setDetailModal(false)}>
-            关闭
-          </Button>,
-        ]}
-      >
+      <Modal title="提示词详情" open={detailModal} onCancel={() => setDetailModal(false)} width={720}
+        footer={[<Button key="close" onClick={() => setDetailModal(false)}>关闭</Button>]}>
         <Spin spinning={detailLoading}>
           {currentDetail && (
             <div>
@@ -599,84 +426,65 @@ const Prompts: React.FC = () => {
                 <Descriptions.Item label="标题">{currentDetail.title}</Descriptions.Item>
                 <Descriptions.Item label="版本号">{currentDetail.version}</Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  <Tag color={statusMap[currentDetail.status].color}>
-                    {statusMap[currentDetail.status].label}
-                  </Tag>
+                  <Tag color={statusMap[currentDetail.status]?.color}>{statusMap[currentDetail.status]?.label}</Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="分类">{currentDetail.category}</Descriptions.Item>
-                <Descriptions.Item label="使用次数">{currentDetail.usageCount.toLocaleString()}</Descriptions.Item>
-                <Descriptions.Item label="准确率">{currentDetail.accuracy}%</Descriptions.Item>
-                <Descriptions.Item label="灰度百分比">{currentDetail.grayScale}%</Descriptions.Item>
-                <Descriptions.Item label="作者">{currentDetail.author}</Descriptions.Item>
-                <Descriptions.Item label="创建时间" span={2}>
-                  {formatDate(currentDetail.createTime)}
-                </Descriptions.Item>
+                <Descriptions.Item label="分类">{currentDetail.category_name || '-'}</Descriptions.Item>
+                <Descriptions.Item label="使用次数">{(currentDetail.usage_count || 0).toLocaleString()}</Descriptions.Item>
+                <Descriptions.Item label="准确率">{currentDetail.accuracy_rate != null ? `${currentDetail.accuracy_rate}%` : '-'}</Descriptions.Item>
+                <Descriptions.Item label="灰度百分比">{currentDetail.gray_scale_percent != null ? `${currentDetail.gray_scale_percent}%` : '-'}</Descriptions.Item>
+                <Descriptions.Item label="作者">{currentDetail.author_name || '-'}</Descriptions.Item>
+                <Descriptions.Item label="创建时间" span={2}>{dayjs(currentDetail.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
               </Descriptions>
-
-              <Card title="适用分组" size="small" style={{ marginBottom: 16 }}>
-                {currentDetail.applicableGroups.map((g) => (
-                  <Tag key={g} color="blue">
-                    {g}
-                  </Tag>
-                ))}
-              </Card>
-
-              <Card title="提示词内容" size="small">
-                <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'monospace' }}>
-                  {currentDetail.content}
-                </pre>
-              </Card>
+              {currentDetail.target_sales_operations && currentDetail.target_sales_operations.length > 0 && (
+                <Card title="适用分组" size="small" style={{ marginBottom: 16 }}>
+                  {currentDetail.target_sales_operations.map(g => <Tag key={g} color="blue">{g}</Tag>)}
+                </Card>
+              )}
+              {currentDetail.content && (
+                <Card title="提示词内容" size="small">
+                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'monospace' }}>{currentDetail.content}</pre>
+                </Card>
+              )}
             </div>
           )}
         </Spin>
       </Modal>
 
-      <Modal
-        title="版本历史"
-        open={historyModal}
-        onCancel={() => setHistoryModal(false)}
-        width={700}
-        footer={[
-          <Button key="close" onClick={() => setHistoryModal(false)}>
-            关闭
-          </Button>,
-        ]}
-      >
-        <Table
-          rowKey="id"
-          columns={historyColumns}
-          dataSource={historyList}
-          loading={historyLoading}
-          pagination={false}
-          size="small"
-        />
+      <Modal title="版本历史" open={historyModal} onCancel={() => setHistoryModal(false)} width={700}
+        footer={[<Button key="close" onClick={() => setHistoryModal(false)}>关闭</Button>]}>
+        <Table rowKey="id" columns={historyColumns} dataSource={historyList} loading={historyLoading}
+          pagination={false} size="small" />
       </Modal>
 
-      <Modal
-        title="版本对比"
-        open={compareModal}
-        onCancel={() => setCompareModal(false)}
-        width={900}
-        footer={[
-          <Button key="close" onClick={() => setCompareModal(false)}>
-            关闭
-          </Button>,
-        ]}
-      >
-        <Row gutter={16}>
-          {compareVersions.map((v, index) => (
-            <Col span={12} key={v.id}>
-              <Card title={`${index === 0 ? '当前版本' : '对比版本'} - ${v.version}`} size="small">
-                <p style={{ color: '#666', fontSize: 12 }}>
-                  {v.author} · {formatDate(v.createTime)}
-                </p>
-                <pre style={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
-                  {v.content}
-                </pre>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+      <Modal title="灰度配置" open={grayModalVisible} onOk={handleGraySubmit} onCancel={() => setGrayModalVisible(false)}
+        confirmLoading={grayLoading} okText="保存" cancelText="取消" width={520} destroyOnClose>
+        <Form form={grayForm} layout="vertical">
+          <Form.Item label="灰度百分比" name="gray_scale_percent" rules={[{ required: true, message: '请设置灰度比例' }]}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <Slider
+                min={0} max={100} style={{ flex: 1 }}
+                onChange={val => grayForm.setFieldsValue({ gray_scale_percent: val })}
+              />
+              <InputNumber
+                min={0} max={100} style={{ width: 90 }} suffix="%"
+                onChange={val => {
+                  const n = Number(val)
+                  if (!isNaN(n)) grayForm.setFieldsValue({ gray_scale_percent: Math.max(0, Math.min(100, n)) })
+                }}
+              />
+            </div>
+          </Form.Item>
+          <Form.Item label="适用销售运营分组" name="target_sales_operations">
+            <Select mode="multiple" placeholder="请选择（不选表示全部分组）" allowClear style={{ width: '100%' }}>
+              <Select.Option value="销售一组">销售一组</Select.Option>
+              <Select.Option value="销售二组">销售二组</Select.Option>
+              <Select.Option value="运营组">运营组</Select.Option>
+            </Select>
+          </Form.Item>
+          <div style={{ fontSize: 12, color: '#999' }}>
+            提示：灰度比例为 0% 时不生效；为 100% 时全部使用。
+          </div>
+        </Form>
       </Modal>
     </div>
   )

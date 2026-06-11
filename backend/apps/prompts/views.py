@@ -83,20 +83,28 @@ class PromptViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
+        allowed_fields = {'gray_scale_percent', 'target_sales_operations'}
         if instance.status != 'draft':
-            return Response(
-                {'error': '只有草稿状态的提示词才能编辑'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            request_data = request.data.copy()
+            non_allowed = set(request_data.keys()) - allowed_fields
+            if non_allowed:
+                return Response(
+                    {'error': f'非草稿状态只能修改: {", ".join(allowed_fields)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
+        allowed_fields = {'gray_scale_percent', 'target_sales_operations'}
         if instance.status != 'draft':
-            return Response(
-                {'error': '只有草稿状态的提示词才能编辑'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            request_data = request.data.copy()
+            non_allowed = set(request_data.keys()) - allowed_fields
+            if non_allowed:
+                return Response(
+                    {'error': f'非草稿状态只能修改: {", ".join(allowed_fields)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return super().partial_update(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):

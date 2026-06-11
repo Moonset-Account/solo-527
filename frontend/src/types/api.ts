@@ -1,7 +1,8 @@
-export interface ApiResponse<T = unknown> {
-  code: number
-  message: string
-  data: T
+export interface DRFPaginationResult<T> {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }
 
 export interface PageParams {
@@ -16,13 +17,6 @@ export interface PageResult<T> {
   pageSize: number
 }
 
-export interface DRFPaginationResult<T> {
-  count: number
-  next: string | null
-  previous: string | null
-  results: T[]
-}
-
 export interface Conversation {
   id: number
   title: string
@@ -34,7 +28,6 @@ export interface Conversation {
   status: string
   messages_count?: number
   last_message_time?: string
-  last_message_content?: string
   ai_suggestion_adoption_rate?: number
   created_at: string
   updated_at?: string
@@ -60,6 +53,11 @@ export interface Message {
   created_at: string
 }
 
+export interface SendMessageResponse {
+  user_message: Message
+  ai_message: Message
+}
+
 export interface AISuggestion {
   message_id?: number
   suggested_reply?: string
@@ -72,69 +70,105 @@ export interface AISuggestion {
   created_at?: string
 }
 
-export interface ConversationFilterParams {
+export interface ConversationListParams {
   sales_operation?: string
   channel?: string
   priority?: string
   status?: string
   keyword?: string
   page?: number
-  pageSize?: number
+  page_size?: number
 }
 
-export type ConversationListParams = ConversationFilterParams
-
-export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'followup'
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'flagged'
 export type ReviewType = 'text' | 'image' | 'voice' | 'video'
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
-export type PromptStatus = 'draft' | 'active' | 'inactive'
-export type RiskStatus = 'pending' | 'confirmed' | 'processed' | 'false_positive'
+export type PromptStatus = 'draft' | 'enabled' | 'disabled'
+export type RiskStatus = 'pending' | 'confirmed' | 'resolved' | 'false_positive'
 
 export interface Review {
   id: number
-  content: string
-  type: ReviewType
+  message: number
+  message_content?: string
+  message_role?: string
+  conversation_id?: number
+  review_type: string
+  review_type_display?: string
   status: ReviewStatus
-  sales_operation: string
-  prompt_version: string
-  risk_level: RiskLevel
-  submitted_at: string
-  ai_suggestion?: string
-  risk_tags?: string[]
-  review_history?: ReviewHistoryItem[]
-}
-
-export interface ReviewHistoryItem {
-  id: string
-  action: string
-  operator: string
-  time: string
+  status_display?: string
+  reviewer?: number
+  reviewer_name?: string
   comment?: string
-}
-
-export type ReviewListParams = {
-  status?: ReviewStatus
-  type?: ReviewType
+  risk_level: RiskLevel
+  flagged_by_ai?: boolean
   sales_operation?: string
   prompt_version?: string
+  ai_model?: string
+  is_accurate?: boolean
+  inaccuracy_reason?: string
+  risk_tags?: string[]
+  created_at: string
+  reviewed_at?: string
+}
+
+export interface ReviewListParams {
+  status?: ReviewStatus
+  review_type?: string
+  risk_level?: RiskLevel
+  sales_operation?: string
+  prompt_version?: string
+  start_date?: string
+  end_date?: string
   keyword?: string
   page?: number
-  pageSize?: number
+  page_size?: number
+}
+
+export interface ReviewStatsResult {
+  total: number
+  pending: number
+  approved: number
+  rejected: number
+  flagged: number
+  approval_rate: number
+  rejection_rate: number
+  flagged_rate: number
+  accuracy_rate: number
+  reviewed_with_accuracy: number
+}
+
+export interface ReviewRule {
+  id: number
+  name: string
+  description: string
+  rule_type: string
+  pattern: string
+  is_active: boolean
+  severity: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Prompt {
   id: number
   title: string
-  version: string
-  status: PromptStatus
-  category: string
-  usage_count: number
-  accuracy_rate: number
-  gray_scale: number
-  applicable_groups: string[]
-  created_at: string
-  author: string
   content?: string
+  description?: string
+  category?: number
+  category_name?: string
+  author?: number
+  author_name?: string
+  status: PromptStatus
+  version: string
+  is_current_version?: boolean
+  gray_scale_percent?: number
+  target_sales_operations?: string[]
+  accuracy_rate: number
+  usage_count: number
+  variables?: Record<string, unknown>
+  parent_prompt?: number
+  versions?: PromptVersion[]
+  created_at: string
   updated_at?: string
 }
 
@@ -142,45 +176,88 @@ export interface PromptCategory {
   id: number
   name: string
   description?: string
+  parent?: number
+  sort_order?: number
+  created_at: string
 }
 
-export type PromptListParams = {
+export interface PromptVersion {
+  id: number
+  title: string
+  version: string
+  status: PromptStatus
+  author_name?: string
+  is_current_version: boolean
+  created_at: string
+  updated_at?: string
+}
+
+export interface PromptListParams {
   status?: PromptStatus
-  category?: string
+  category?: number | string
   version?: string
   keyword?: string
   page?: number
-  pageSize?: number
+  page_size?: number
 }
 
 export interface OverviewStats {
   total_conversations: number
   total_messages: number
-  ai_suggestions_count: number
-  adoption_rate: number
-  average_response_time: number
-  customer_satisfaction: number
+  total_ai_calls: number
+  total_reviews: number
+  total_risks: number
+  accuracy_rate: number
+  ai_adoption_rate: number
+  approval_rate: number
+  risk_resolution_rate: number
+  total_tokens: number
+  total_cost: number
 }
 
 export interface AccuracyStats {
+  id: number
   date: string
-  total_count: number
-  correct_count: number
+  sales_operation: string
+  prompt_version: string
+  total_calls: number
+  accurate_calls: number
   accuracy_rate: number
+  error_timeout: number
+  error_rate_limit: number
+  error_api_error: number
+  error_content_filter: number
+  error_other: number
+  avg_response_time: number
+  created_at: string
 }
 
 export interface DailyStats {
+  id: number
   date: string
-  conversations_count: number
-  messages_count: number
-  ai_suggestions_count: number
+  total_conversations: number
+  total_messages: number
+  ai_suggestion_count: number
+  ai_adoption_count: number
+  ai_adoption_rate: number
+  total_reviews: number
+  approved_reviews: number
+  rejected_reviews: number
+  pending_reviews: number
+  total_risks: number
+  resolved_risks: number
+  avg_response_time: number
+  total_tokens: number
+  total_cost: number
+  created_at: string
 }
 
 export interface AccuracyStatsParams {
   start_date?: string
   end_date?: string
-  prompt_version?: string
   sales_operation?: string
+  prompt_version?: string
+  group_by?: string
 }
 
 export interface DailyStatsParams {
@@ -192,44 +269,101 @@ export interface DailyStatsParams {
 export interface ErrorStatsParams {
   start_date?: string
   end_date?: string
+  sales_operation?: string
+  prompt_version?: string
+}
+
+export interface ErrorStatItem {
+  error_type: string
+  error_type_name: string
+  count: number
+  percentage: number
+}
+
+export interface ErrorStatsResult {
+  total_errors: number
+  errors: ErrorStatItem[]
+}
+
+export interface SalesOperationRankingItem {
+  sales_operation: string
+  total_calls: number
+  accurate_calls: number
+  accuracy_rate: number
+}
+
+export interface PromptVersionRankingItem {
+  prompt_version: string
+  total_calls: number
+  accurate_calls: number
+  accuracy_rate: number
 }
 
 export interface RiskSample {
   id: number
   title: string
-  risk_level: RiskLevel
-  category: string
-  source: string
-  status: RiskStatus
-  tags: string[]
-  created_at: string
-  handler?: string
   content?: string
-  related_session_id?: string
-  process_history?: RiskProcessHistoryItem[]
+  risk_level: RiskLevel
+  risk_level_display?: string
+  risk_category: string
+  risk_category_display?: string
+  source: string
+  source_display?: string
+  status: RiskStatus
+  status_display?: string
+  tags?: string[]
+  assignee?: number
+  assignee_name?: string
+  handled_by?: number
+  handled_by_name?: string
+  handle_comment?: string
+  handled_at?: string
+  conversation?: number
+  conversation_title?: string
+  message?: number
+  message_content?: string
+  created_at: string
+  updated_at?: string
 }
 
 export interface RiskRule {
   id: number
   name: string
-  description: string
   rule_type: string
-  is_enabled: boolean
+  rule_type_display?: string
+  pattern: string
+  risk_level: RiskLevel
+  risk_level_display?: string
+  is_active: boolean
+  description?: string
   created_at: string
   updated_at: string
 }
 
-export type RiskSampleListParams = {
+export interface RiskSampleListParams {
   risk_level?: RiskLevel
-  category?: string
+  risk_category?: string
   source?: string
   status?: RiskStatus
+  start_date?: string
+  end_date?: string
   keyword?: string
   page?: number
-  pageSize?: number
+  page_size?: number
 }
 
-// ========== 以下为页面使用的类型 (camelCase) ==========
+export interface RiskStatsResult {
+  total: number
+  pending: number
+  confirmed: number
+  resolved: number
+  false_positive: number
+  resolution_rate: number
+  by_level: { risk_level: string; count: number }[]
+  by_category: { risk_category: string; count: number }[]
+}
+
+// ========== 页面组件使用的 camelCase 类型 ==========
 
 export interface ReviewItem {
   id: string
@@ -245,6 +379,14 @@ export interface ReviewItem {
   reviewHistory?: ReviewHistoryItem[]
 }
 
+export interface ReviewHistoryItem {
+  id: string
+  action: string
+  operator: string
+  time: string
+  comment?: string
+}
+
 export interface ReviewQueryParams extends PageParams {
   status?: ReviewStatus | 'all'
   type?: ReviewType | 'all'
@@ -252,13 +394,6 @@ export interface ReviewQueryParams extends PageParams {
   promptVersion?: string
   dateRange?: [string, string]
   keyword?: string
-}
-
-export interface ReviewStats {
-  pending: number
-  approved: number
-  rejected: number
-  passRate: number
 }
 
 export interface PromptItem {
@@ -323,11 +458,4 @@ export interface RiskQueryParams extends PageParams {
   status?: RiskStatus | 'all'
   dateRange?: [string, string]
   keyword?: string
-}
-
-export interface RiskStats {
-  total: number
-  pending: number
-  highRisk: number
-  weeklyNew: number
 }

@@ -1,7 +1,6 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -18,7 +17,6 @@ from .serializers import (
 
 class RiskSampleViewSet(viewsets.ModelViewSet):
     queryset = RiskSample.objects.all()
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['risk_level', 'risk_category', 'status', 'source']
     search_fields = ['title', 'content', 'tags']
@@ -214,7 +212,6 @@ class RiskSampleViewSet(viewsets.ModelViewSet):
 class RiskRuleViewSet(viewsets.ModelViewSet):
     queryset = RiskRule.objects.all()
     serializer_class = RiskRuleSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['rule_type', 'risk_level', 'is_active']
     search_fields = ['name', 'pattern']
