@@ -33,7 +33,15 @@ const LeafletMap = dynamic(
 );
 
 export default function TrackingPage() {
-  const { orders, riders, updateRiderLocation } = useDashboardStore();
+  const { orders, riders, updateRiderLocation, fetchRiders, fetchOrders, useSupabase } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchRiders();
+      fetchOrders();
+    }
+  }, [useSupabase, fetchRiders, fetchOrders]);
+
   const [selectedRider, setSelectedRider] = useState<string | null>(null);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [showTrail, setShowTrail] = useState(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import {
   Package,
   Clock,
@@ -33,7 +33,15 @@ export default function DashboardPage() {
     performanceStats,
     getFilteredOrders,
     getFilteredExceptions,
+    refreshData,
+    useSupabase,
   } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      refreshData();
+    }
+  }, [useSupabase, refreshData]);
 
   const stats = useMemo(() => {
     const todayOrders = orders.filter(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   FileText,
   User,
@@ -35,7 +35,14 @@ import { cn } from "@/utils/cn";
 import { OperationLog } from "@/types";
 
 export default function LogsPage() {
-  const { operationLogs, exportLogs } = useDashboardStore();
+  const { operationLogs, exportLogs, fetchLogs, useSupabase } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchLogs();
+    }
+  }, [useSupabase, fetchLogs]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
 

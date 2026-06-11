@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Package,
   MapPin,
@@ -37,7 +37,17 @@ export default function OrdersPage() {
     updateOrderStatus,
     getFilteredOrders,
     exportOrders,
+    fetchOrders,
+    fetchRiders,
+    useSupabase,
   } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchOrders();
+      fetchRiders();
+    }
+  }, [useSupabase, fetchOrders, fetchRiders]);
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   MapPin,
   Navigation,
@@ -36,7 +36,15 @@ import {
 import { cn } from "@/utils/cn";
 
 export default function RiderRoutesPage() {
-  const { riders, orders, deliveryRoutes } = useDashboardStore();
+  const { riders, orders, deliveryRoutes, fetchRiders, fetchOrders, useSupabase } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchRiders();
+      fetchOrders();
+    }
+  }, [useSupabase, fetchRiders, fetchOrders]);
+
   const [selectedRider, setSelectedRider] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<"today" | "week" | "month">("today");
@@ -479,7 +487,7 @@ export default function RiderRoutesPage() {
                 {riderRoutes.map((route) => (
                   <TableRow key={route.id}>
                     <TableCell className="font-mono text-xs">
-                      {formatDate(route.startTime, "YYYY-MM-dd")}
+                      {formatDate(route.startTime, "yyyy-MM-dd")}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {formatDate(route.startTime, "HH:mm")}
@@ -489,7 +497,9 @@ export default function RiderRoutesPage() {
                     </TableCell>
                     <TableCell className="text-center">{route.orderCount}</TableCell>
                     <TableCell className="font-mono">
-                      {formatDistance(route.totalDistance)}
+                      {route.totalDistance !== undefined
+                        ? formatDistance(route.totalDistance)
+                        : "-"}
                     </TableCell>
                     <TableCell className="font-mono">
                       {route.totalTime

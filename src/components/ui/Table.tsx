@@ -28,18 +28,22 @@ export function TableHeader({ children, className }: TableHeaderProps) {
   );
 }
 
-interface TableHeadProps {
+interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
-export function TableHead({ children, className }: TableHeadProps) {
+export function TableHead({ children, className, onClick, ...props }: TableHeadProps) {
   return (
     <th
       className={cn(
         "px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider",
+        onClick && "cursor-pointer select-none hover:text-slate-200",
         className
       )}
+      onClick={onClick}
+      {...props}
     >
       {children}
     </th>

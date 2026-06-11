@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import { MapPin, Navigation, Clock, Gauge } from "lucide-react";
-import type { TrackingPoint, Order } from "@/types";
+import type { TrackingPoint, Order, Rider } from "@/types";
 import { formatDate, formatDistance, formatDuration } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -64,28 +64,49 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
 
 interface TrackingMapProps {
   order?: Order;
-  trackingPoints: TrackingPoint[];
+  trackingPoints?: TrackingPoint[];
   height?: string;
   showControls?: boolean;
+  selectedRiderId?: string;
+  riders?: Rider[];
+  orders?: Order[];
+  showTrail?: boolean;
 }
 
 export function TrackingMap({
   order,
-  trackingPoints,
+  trackingPoints = [],
   height = "500px",
   showControls = true,
+  selectedRiderId,
+  riders = [],
+  orders = [],
+  showTrail = false,
 }: TrackingMapProps) {
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.9042, 116.4074]);
   const [isLive, setIsLive] = useState(true);
 
+  const isMultiRiderMode = riders.length > 0;
+
   useEffect(() => {
-    if (trackingPoints.length > 0) {
+    if (isMultiRiderMode) {
+      if (selectedRiderId) {
+        const selected = riders.find((r) => r.id === selectedRiderId);
+        if (selected?.currentLocation) {
+          setMapCenter([selected.currentLocation.lat, selected.currentLocation.lng]);
+        } else if (selected?.currentLat && selected?.currentLng) {
+          setMapCenter([selected.currentLat, selected.currentLng]);
+        }
+      } else if (riders.length > 0 && riders[0].currentLocation) {
+        setMapCenter([riders[0].currentLocation.lat, riders[0].currentLocation.lng]);
+      }
+    } else if (trackingPoints.length > 0) {
       const latestPoint = trackingPoints[trackingPoints.length - 1];
       setMapCenter([latestPoint.lat, latestPoint.lng]);
     } else if (order) {
       setMapCenter([order.pickupLat, order.pickupLng]);
     }
-  }, [trackingPoints, order]);
+  }, [trackingPoints, order, riders, selectedRiderId, isMultiRiderMode]);
 
   const routeCoords = trackingPoints.map(
     (p): [number, number] => [p.lat, p.lng]
@@ -197,7 +218,7 @@ export function TrackingMap({
           </>
         )}
 
-        {trackingPoints.length > 0 && (
+        {trackingPoints.length > 0 && !isMultiRiderMode && (
           <>
             <Polyline
               positions={routeCoords}
@@ -234,6 +255,62 @@ export function TrackingMap({
             </Marker>
           </>
         )}
+
+        {isMultiRiderMode &&
+          riders.map((rider) => {
+            const lat = rider.currentLocation?.lat ?? rider.currentLat;
+            const lng = rider.currentLocation?.lng ?? rider.currentLng;
+            if (lat === undefined || lng === undefined) return null;
+            return (
+              <Marker key={rider.id} position={[lat, lng]} icon={riderIcon}>
+                <Popup>
+                  <div className="text-sm">
+                    <p className="font-medium text-brand-500 mb-2">{rider.name}</p>
+                    <div className="space-y-1 text-slate-300">
+                      <p>
+                        <span className="text-slate-500">状态:</span>{" "}
+                        {rider.status === "delivering" ? "配送中" : rider.status === "idle" ? "空闲" : "离线"}
+                      </p>
+                      {rider.currentLocation && (
+                        <p>
+                          <span className="text-slate-500">速度:</span>{" "}
+                          {rider.currentLocation.speed.toFixed(1)} km/h
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+
+        {isMultiRiderMode &&
+          orders.flatMap((o) => [
+            <Marker
+              key={`${o.id}-pickup`}
+              position={[o.pickupLat, o.pickupLng]}
+              icon={pickupIcon}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-medium text-success-500 mb-1">取货点</p>
+                  <p className="text-slate-300">{o.pickupAddress}</p>
+                </div>
+              </Popup>
+            </Marker>,
+            <Marker
+              key={`${o.id}-delivery`}
+              position={[o.deliveryLat, o.deliveryLng]}
+              icon={deliveryIcon}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-medium text-warning-500 mb-1">送货点</p>
+                  <p className="text-slate-300">{o.deliveryAddress}</p>
+                </div>
+              </Popup>
+            </Marker>,
+          ])}
       </MapContainer>
     </div>
   );

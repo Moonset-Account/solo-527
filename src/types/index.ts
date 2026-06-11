@@ -1,5 +1,6 @@
 export type OrderStatus =
   | "pending"
+  | "accepted"
   | "assigned"
   | "picked"
   | "delivering"
@@ -15,9 +16,31 @@ export type ExceptionType =
   | "temperature"
   | "discrepancy"
   | "damage"
+  | "signature"
   | "other";
 
 export type ExceptionStatus = "pending" | "processing" | "resolved" | "closed";
+
+export type ExceptionPriority = "low" | "medium" | "high" | "critical";
+
+export interface SignatureInfo {
+  name: string;
+  phone?: string;
+  signatureImageUrl?: string;
+  signedAt?: Date;
+  signerName?: string;
+  deliveryMethod?: string;
+  notes?: string;
+  photoUrl?: string;
+}
+
+export interface ProcessingNote {
+  id: string;
+  content: string;
+  author: string;
+  operatorName: string;
+  timestamp: Date;
+}
 
 export interface Order {
   id: string;
@@ -35,6 +58,9 @@ export interface Order {
   riderId?: string;
   riderName?: string;
   goodsType: string;
+  recipient?: string;
+  recipientPhone?: string;
+  signature?: SignatureInfo;
   temperatureRequired?: { min: number; max: number };
   createdAt: Date;
   updatedAt: Date;
@@ -56,7 +82,10 @@ export interface Rider {
   currentLng?: number;
   currentLocation?: RiderLocation;
   currentOrderId?: string;
+  currentOrderStartTime?: Date;
   batteryLevel?: number;
+  todayMileage?: number;
+  todayWorkingHours?: number;
   rating: number;
   totalDeliveries: number;
 }
@@ -78,6 +107,7 @@ export interface TemperatureRecord {
   humidity: number;
   timestamp: Date;
   isNormal: boolean;
+  isAbnormal?: boolean;
 }
 
 export interface ExceptionRecord {
@@ -85,8 +115,11 @@ export interface ExceptionRecord {
   orderId: string;
   orderNo: string;
   type: ExceptionType;
+  priority: ExceptionPriority;
   reason: string;
+  isDispute?: boolean;
   disputeReason?: string;
+  disputeEvidence?: string[];
   compensationAmount?: number;
   status: ExceptionStatus;
   assigneeId: string;
@@ -94,7 +127,10 @@ export interface ExceptionRecord {
   processingStartTime: Date;
   processingEndTime?: Date;
   processingDuration?: number;
+  processingNotes?: ProcessingNote[];
+  resolutionNotes?: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Site {
@@ -114,6 +150,10 @@ export interface InventoryItem {
   quantity: number;
   reservedQuantity: number;
   availableQuantity: number;
+  inTransitQuantity?: number;
+  inTransitFrom?: string;
+  inTransitEstimatedArrival?: Date;
+  unitCost?: number;
   warningThreshold: number;
   lastUpdated: Date;
 }
@@ -128,7 +168,8 @@ export type OperationLogType =
   | "config"
   | "export"
   | "compensation"
-  | "notification";
+  | "notification"
+  | "inventory";
 
 export interface OperationLog {
   id: string;
@@ -171,6 +212,9 @@ export interface RouteRecord {
   startTime: Date;
   endTime: Date;
   points: TrackingPoint[];
+  orderCount?: number;
+  totalDistance?: number;
+  totalTime?: number;
 }
 
 export interface DiscrepancyRecord {

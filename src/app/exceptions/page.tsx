@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -48,7 +48,15 @@ export default function ExceptionsPage() {
     getFilteredExceptions,
     updateExceptionStatus,
     exportExceptions,
+    fetchExceptions,
+    useSupabase,
   } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchExceptions();
+    }
+  }, [useSupabase, fetchExceptions]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedException, setExpandedException] = useState<string | null>(null);
@@ -657,7 +665,7 @@ export default function ExceptionsPage() {
                             <div>
                               <p className="text-slate-500 text-xs">收件人</p>
                               <p>
-                                {order.recipient?.name} ({order.recipient?.phone})
+                                {order.recipient} ({order.recipientPhone})
                               </p>
                             </div>
                           </div>

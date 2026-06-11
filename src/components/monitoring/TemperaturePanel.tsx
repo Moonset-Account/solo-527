@@ -6,45 +6,62 @@ import { Thermometer, Droplets, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { DotIndicator } from "@/components/ui/StatusBadge";
 import { formatDate } from "@/utils/format";
-import type { TemperatureRecord } from "@/types";
+import type { TemperatureRecord, Order } from "@/types";
 import { cn } from "@/utils/cn";
 
 interface TemperaturePanelProps {
-  records: TemperatureRecord[];
+  records?: TemperatureRecord[];
   minTemp?: number;
   maxTemp?: number;
   orderNo?: string;
+  order?: Order;
+  logs?: TemperatureRecord[];
+  alertEnabled?: boolean;
 }
 
-export function TemperaturePanel({ records, minTemp = 2, maxTemp = 8, orderNo }: TemperaturePanelProps) {
+export function TemperaturePanel(props: TemperaturePanelProps) {
+  const {
+    records,
+    minTemp = 2,
+    maxTemp = 8,
+    orderNo,
+    order,
+    logs,
+    alertEnabled,
+  } = props;
+
+  const actualRecords = records || logs || [];
+  const actualMinTemp = minTemp ?? order?.temperatureRequired?.min ?? 2;
+  const actualMaxTemp = maxTemp ?? order?.temperatureRequired?.max ?? 8;
+  const actualOrderNo = orderNo || order?.orderNo;
   const [currentTemp, setCurrentTemp] = useState<number | null>(null);
   const [currentHumidity, setCurrentHumidity] = useState<number | null>(null);
   const [hasAnomaly, setHasAnomaly] = useState(false);
 
   useEffect(() => {
-    if (records.length > 0) {
-      const latest = records[records.length - 1];
+    if (actualRecords.length > 0) {
+      const latest = actualRecords[actualRecords.length - 1];
       setCurrentTemp(latest.temperature);
       setCurrentHumidity(latest.humidity);
-      setHasAnomaly(records.some((r) => !r.isNormal));
+      setHasAnomaly(actualRecords.some((r) => !r.isNormal));
     }
-  }, [records]);
+  }, [actualRecords]);
 
-  const chartData = records.map((r) => ({
+  const chartData = actualRecords.map((r) => ({
     time: formatDate(r.timestamp, "HH:mm"),
     temperature: r.temperature,
     humidity: r.humidity,
     isNormal: r.isNormal,
   }));
 
-  const isTempNormal = currentTemp !== null && currentTemp >= minTemp && currentTemp <= maxTemp;
+  const isTempNormal = currentTemp !== null && currentTemp >= actualMinTemp && currentTemp <= actualMaxTemp;
 
   return (
     <Card className={cn(hasAnomaly && "border-danger-500/50 glow-red")}>
       <CardHeader>
         <div className="flex items-center gap-3">
           <Thermometer className="h-5 w-5 text-warning-500" />
-          <CardTitle>温控监控{orderNo && ` - ${orderNo}`}</CardTitle>
+          <CardTitle>温控监控{actualOrderNo && ` - ${actualOrderNo}`}</CardTitle>
           {hasAnomaly && (
             <div className="flex items-center gap-1 text-danger-500 text-xs">
               <AlertTriangle className="h-4 w-4 animate-pulse-alert" />
@@ -53,7 +70,7 @@ export function TemperaturePanel({ records, minTemp = 2, maxTemp = 8, orderNo }:
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>阈值范围: {minTemp}°C ~ {maxTemp}°C</span>
+          <span>阈值范围: {actualMinTemp}°C ~ {actualMaxTemp}°C</span>
         </div>
       </CardHeader>
       <CardContent>
@@ -128,8 +145,8 @@ export function TemperaturePanel({ records, minTemp = 2, maxTemp = 8, orderNo }:
                 labelStyle={{ color: "#94a3b8" }}
                 itemStyle={{ color: "#f1f5f9" }}
               />
-              <ReferenceLine y={minTemp} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1} />
-              <ReferenceLine y={maxTemp} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1} />
+              <ReferenceLine y={actualMinTemp} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1} />
+              <ReferenceLine y={actualMaxTemp} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1} />
               <Line
                 type="monotone"
                 dataKey="temperature"
@@ -148,7 +165,7 @@ export function TemperaturePanel({ records, minTemp = 2, maxTemp = 8, orderNo }:
                       />
                     );
                   }
-                  return null;
+                  return <circle cx={0} cy={0} r={0} />;
                 }}
                 activeDot={{ r: 4, fill: "#f97316" }}
               />
@@ -181,7 +198,7 @@ export function TemperaturePanel({ records, minTemp = 2, maxTemp = 8, orderNo }:
             </div>
           </div>
           <span className="text-xs text-slate-500">
-            共 {records.length} 条记录
+            共 {actualRecords.length} 条记录
           </span>
         </div>
       </CardContent>

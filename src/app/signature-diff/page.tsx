@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   FileCheck,
   AlertTriangle,
@@ -31,7 +31,15 @@ import { formatDate, formatRelativeTime, formatCurrency } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
 export default function SignatureDiffPage() {
-  const { orders, exceptions } = useDashboardStore();
+  const { orders, exceptions, fetchOrders, fetchExceptions, useSupabase } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchOrders();
+      fetchExceptions();
+    }
+  }, [useSupabase, fetchOrders, fetchExceptions]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
@@ -45,18 +53,18 @@ export default function SignatureDiffPage() {
       .filter((order) => {
         if (!order.signature || !order.recipient) return false;
         return (
-          order.signature.signerName !== order.recipient.name ||
+          order.signature.signerName !== order.recipient ||
           order.signature.deliveryMethod !== "in_person"
         );
       })
       .map((order) => {
         const diffType =
-          order.signature?.signerName !== order.recipient?.name
+          order.signature?.signerName !== order.recipient
             ? "signer_mismatch"
             : "not_in_person";
 
         const relatedException = exceptions.find(
-          (e) => e.orderId === order.id && e.type === "signature_issue"
+          (e) => e.orderId === order.id && e.type === "signature"
         );
 
         return {
@@ -73,8 +81,8 @@ export default function SignatureDiffPage() {
     return signatureDiscrepancies.filter(
       ({ order }) =>
         order.orderNo.toLowerCase().includes(query) ||
-        order.recipient?.name.toLowerCase().includes(query) ||
-        order.signature?.signerName.toLowerCase().includes(query) ||
+        order.recipient?.toLowerCase().includes(query) ||
+        order.signature?.signerName?.toLowerCase().includes(query) ||
         order.deliveryAddress.toLowerCase().includes(query)
     );
   }, [signatureDiscrepancies, searchQuery]);
@@ -260,9 +268,9 @@ export default function SignatureDiffPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="text-slate-500 text-xs mb-1">收件人</p>
-                            <p className="font-medium">{order.recipient?.name}</p>
+                            <p className="font-medium">{order.recipient}</p>
                             <p className="text-xs text-slate-500">
-                              {order.recipient?.phone}
+                              {order.recipientPhone}
                             </p>
                           </div>
                           <div>
@@ -387,7 +395,7 @@ export default function SignatureDiffPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="text-slate-500 text-xs mb-1">收件人</p>
-                            <p className="font-medium">{order.recipient?.name}</p>
+                            <p className="font-medium">{order.recipient}</p>
                           </div>
                           <div>
                             <p className="text-slate-500 text-xs mb-1">签收人</p>
@@ -465,8 +473,8 @@ export default function SignatureDiffPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{order.recipient?.name}</p>
-                        <p className="text-xs text-slate-500">{order.recipient?.phone}</p>
+                        <p className="font-medium">{order.recipient}</p>
+                        <p className="text-xs text-slate-500">{order.recipientPhone}</p>
                       </div>
                     </TableCell>
                     <TableCell>

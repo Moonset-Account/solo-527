@@ -26,7 +26,14 @@ import { cn } from "@/utils/cn";
 import { TemperaturePanel } from "@/components/monitoring/TemperaturePanel";
 
 export default function TemperaturePage() {
-  const { orders, temperatureLogs, updateTemperatureLog } = useDashboardStore();
+  const { orders, temperatureLogs, updateTemperatureLog, fetchOrders, useSupabase } = useDashboardStore();
+
+  useEffect(() => {
+    if (useSupabase) {
+      fetchOrders();
+    }
+  }, [useSupabase, fetchOrders]);
+
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [alertEnabled, setAlertEnabled] = useState(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Warehouse,
   Package,
@@ -26,7 +26,12 @@ import { formatDate, formatCurrency, formatRelativeTime } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
 export default function InventoryPage() {
-  const { inventory, exportInventory } = useDashboardStore();
+  const { inventory, exportInventory, useSupabase } = useDashboardStore();
+
+  useEffect(() => {
+    // TODO: 待实现库存 API 后添加 fetchInventory 调用
+  }, [useSupabase]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"availableQuantity" | "inTransitQuantity" | "lastUpdated">(
     "availableQuantity"
@@ -51,7 +56,7 @@ export default function InventoryPage() {
       if (sortField === "availableQuantity") {
         comparison = a.availableQuantity - b.availableQuantity;
       } else if (sortField === "inTransitQuantity") {
-        comparison = a.inTransitQuantity - b.inTransitQuantity;
+        comparison = (a.inTransitQuantity || 0) - (b.inTransitQuantity || 0);
       } else if (sortField === "lastUpdated") {
         comparison =
           new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime();
@@ -309,9 +314,9 @@ export default function InventoryPage() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <span className="font-mono text-sm text-blue-400">
-                            {item.inTransitQuantity}
+                            {item.inTransitQuantity ?? 0}
                           </span>
-                          {item.inTransitQuantity > 0 && (
+                          {(item.inTransitQuantity || 0) > 0 && (
                             <span className="text-xs text-slate-500">
                               ({item.inTransitFrom})
                             </span>
@@ -428,7 +433,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {inventory
-              .filter((i) => i.inTransitQuantity > 0)
+              .filter((i) => (i.inTransitQuantity || 0) > 0)
               .slice(0, 6)
               .map((item) => (
                 <div
