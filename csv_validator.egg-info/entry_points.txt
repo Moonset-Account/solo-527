@@ -1,0 +1,2 @@
+[console_scripts]
+csv-validator = csv_validator.cli:main

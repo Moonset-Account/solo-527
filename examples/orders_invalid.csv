@@ -1,0 +1,11 @@
+order_id,user_id,product_id,quantity,price,status,order_date,paid,remark,extra_col
+ORD20250001,1001,SKU001,2,39.90,paid,2025-06-01,true,加急配送,ignore_me
+ORD20250001,1002,SKU002,1,99.00,shipped,2025-06-02,true,,dup_order
+INVALID_ID,1003,SKU001,5,39.90,delivered,2025-06-03,true,礼品包装,bad_orderid
+ORD20250004,not_a_number,SKU003,3,19.50,pending,2025-06-04,false,,bad_userid
+ORD20250005,1005,SKU004,0,299.00,unknown_status,2025-06-05,false,用户取消,bad_qty_and_status
+,1006,SKU001,10,39.90,refunded,2025-06-11,true,退货退款,missing_orderid
+ORD20250007,1007,SKU002,1,,paid,2025-06-12,yes,,missing_price
+ORD20250008,1008,SKU006,4,15.80,shipped,not-a-date,1,,bad_date
+ORD20250009,1008,SKU007,1,1580.00,delivered,2025-06-13,true,大件商品,dup_user_date
+ORD20250010,1009,SKU008,9999,9.99,paid,2025-06-14,true,,qty_out_of_range

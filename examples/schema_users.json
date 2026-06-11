@@ -1,0 +1,9 @@
+{
+  "description": "用户数据Schema - 简单版",
+  "fields": [
+    {"name": "id", "type": "integer", "required": true, "unique": true},
+    {"name": "name", "type": "string", "required": true},
+    {"name": "email", "type": "string", "required": true, "pattern": "^[^@]+@[^@]+\\.[^@]+$"},
+    {"name": "role", "type": "string", "enum": ["admin", "editor", "viewer"]}
+  ]
+}

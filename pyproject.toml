@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=64.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csv-validator"
+version = "1.0.0"
+description = "CSV数据导入校验器 - 支持Schema校验、错误定位、修复建议和CI集成"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Data Ops Team" }]
+keywords = ["csv", "validator", "schema", "validation", "cli", "data-quality"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Utilities",
+]
+
+[project.scripts]
+csv-validator = "csv_validator.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-benchmark>=4.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-benchmark>=4.0", "black>=23.0", "isort>=5.12"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["csv_validator*"]
+exclude = ["tests*", "examples*", "benchmarks*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+
+[tool.coverage.run]
+source = ["csv_validator"]
+omit = [
+    "csv_validator/__init__.py",
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
