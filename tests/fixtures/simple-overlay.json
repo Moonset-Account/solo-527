@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "database": {
+    "host": "prod.example.com",
+    "port": 5432,
+    "credentials": {
+      "username": "prod_user",
+      "password": "prod_secret_password",
+      "apiToken": "sk_live_abc123def456"
+    },
+    "ssl": {
+      "enabled": true
+    }
+  },
+  "features": ["auth", "metrics", "logging", "tracing"],
+  "tags": {
+    "env": "production",
+    "priority": "high"
+  },
+  "monitoring": {
+    "enabled": true,
+    "endpoint": "https://monitoring.example.com"
+  }
+}

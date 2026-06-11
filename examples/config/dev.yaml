@@ -1,0 +1,57 @@
+app:
+  environment: "development"
+  debug: true
+  logLevel: "debug"
+
+server:
+  port: 3000
+  cors:
+    origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+      - "http://127.0.0.1:3000"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "app_db_dev"
+  username: "dev_user"
+  password: "dev_password_123"
+  pool:
+    min: 1
+    max: 5
+
+features:
+  - name: "auth"
+    enabled: true
+  - name: "metrics"
+    enabled: true
+  - name: "cache"
+    enabled: true
+  - name: "swagger"
+    enabled: true
+  - name: "hotReload"
+    enabled: true
+
+cache:
+  type: "redis"
+  host: "localhost"
+  port: 6379
+  ttl: 600
+
+logging:
+  format: "pretty"
+  outputs:
+    - type: "console"
+      level: "debug"
+    - type: "file"
+      path: "./logs/dev.log"
+      level: "silly"
+
+security:
+  sessionTimeout: 86400
+  rateLimit:
+    enabled: false
+
+monitoring:
+  enabled: false

@@ -1,0 +1,27 @@
+{
+  "$comment": "配置合并器自身的配置文件，演示配置文件与命令行覆盖关系",
+  "$note": "命令行参数优先级高于此配置文件中的对应值",
+
+  "base": "examples/config/base.yaml",
+  "overlays": [
+    "examples/config/dev.yaml"
+  ],
+  "strategy": "deep",
+  "arrayStrategy": "replace",
+  "schema": "examples/schemas/app-schema.json",
+  "output": "examples/output/dev-merged.yaml",
+  "print": "yaml",
+  "dryRun": false,
+  "preview": true,
+  "verbose": true,
+  "quiet": false,
+  "machineReadable": false,
+  "noColor": false,
+  "maskSensitive": true,
+  "sensitiveKeys": [
+    "db_password",
+    "custom_api_key"
+  ],
+  "maskType": "default",
+  "detectConflicts": true
+}

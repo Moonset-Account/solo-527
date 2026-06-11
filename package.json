@@ -1,0 +1,54 @@
+{
+  "name": "config-merger",
+  "version": "1.0.0",
+  "description": "JSON/YAML 配置合并器 - 处理多环境配置、覆盖顺序、数组合并规则和敏感键",
+  "main": "src/index.js",
+  "bin": {
+    "config-merger": "src/cli.js"
+  },
+  "scripts": {
+    "test": "jest --verbose",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.js",
+    "start": "node src/cli.js",
+    "completion:bash": "node src/cli.js --completion bash > scripts/completion.bash",
+    "completion:zsh": "node src/cli.js --completion zsh > scripts/completion.zsh"
+  },
+  "keywords": [
+    "config",
+    "merge",
+    "yaml",
+    "json",
+    "configuration",
+    "devops",
+    "platform-engineering"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "js-yaml": "^4.1.0",
+    "ajv": "^8.12.0",
+    "chalk": "^4.1.2",
+    "deepmerge": "^4.3.1",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.54.0",
+    "tmp": "^0.2.1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/cli.js"
+    ]
+  }
+}

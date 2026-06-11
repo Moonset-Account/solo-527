@@ -1,0 +1,71 @@
+app:
+  environment: "production"
+  debug: false
+  logLevel: "warn"
+
+server:
+  host: "0.0.0.0"
+  port: 443
+  protocol: "https"
+  ssl:
+    certFile: "/etc/ssl/certs/app.crt"
+    keyFile: "/etc/ssl/private/app.key"
+  cors:
+    origins:
+      - "https://app.example.com"
+      - "https://admin.example.com"
+
+database:
+  host: "prod-db.example.com"
+  port: 5432
+  name: "app_db_prod"
+  username: "prod_user"
+  password: "${DB_PASSWORD}"
+  ssl:
+    enabled: true
+    rejectUnauthorized: true
+  pool:
+    min: 10
+    max: 100
+    idleTimeout: 600000
+
+cache:
+  type: "redis"
+  host: "prod-redis.example.com"
+  port: 6379
+  password: "${REDIS_PASSWORD}"
+  cluster: true
+  ttl: 3600
+
+logging:
+  format: "json"
+  outputs:
+    - type: "console"
+      level: "warn"
+    - type: "file"
+      path: "/var/log/app/app.log"
+      level: "info"
+      maxSize: "100m"
+      maxFiles: 30
+    - type: "elasticsearch"
+      endpoint: "https://logs.example.com"
+      level: "info"
+
+security:
+  sessionTimeout: 900
+  rateLimit:
+    enabled: true
+    windowMs: 60000
+    maxRequests: 1000
+  headers:
+    hsts: true
+    csp: true
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+  tracing:
+    enabled: true
+    sampler: 0.1

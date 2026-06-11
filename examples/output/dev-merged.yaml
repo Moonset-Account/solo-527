@@ -1,0 +1,57 @@
+app:
+  name: platform-service
+  version: 1.0.0
+  environment: development
+  debug: true
+  logLevel: debug
+server:
+  host: 0.0.0.0
+  port: 3000
+  protocol: http
+  cors:
+    enabled: true
+    origins:
+      - http://localhost:3000
+      - http://localhost:8080
+      - http://127.0.0.1:3000
+database:
+  type: postgresql
+  host: localhost
+  port: 5432
+  name: app_db_dev
+  username: dev_user
+  password: '***SENSITIVE***'
+  pool:
+    min: 1
+    max: 5
+    idleTimeout: 30000
+features:
+  - name: auth
+    enabled: true
+  - name: metrics
+    enabled: true
+  - name: cache
+    enabled: true
+  - name: swagger
+    enabled: true
+  - name: hotReload
+    enabled: true
+cache:
+  type: redis
+  ttl: 600
+  host: localhost
+  port: 6379
+logging:
+  format: pretty
+  outputs:
+    - type: console
+      level: debug
+    - type: file
+      path: ./logs/dev.log
+      level: silly
+security:
+  sessionTimeout: 86400
+  rateLimit:
+    enabled: false
+monitoring:
+  enabled: false

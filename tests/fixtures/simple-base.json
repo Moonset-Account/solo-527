@@ -1,0 +1,17 @@
+{
+  "name": "test-service",
+  "version": "1.0.0",
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "credentials": {
+      "username": "base_user",
+      "password": "base_pass"
+    }
+  },
+  "features": ["auth", "metrics", "cache"],
+  "tags": {
+    "env": "base",
+    "team": "platform"
+  }
+}

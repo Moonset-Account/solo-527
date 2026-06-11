@@ -1,0 +1,28 @@
+$comment: |
+  生产环境的合并器配置 (YAML 格式)
+  注意: 如果命令行指定了 --output prod.yaml，则 output 字段将被命令行覆盖
+  覆盖优先级: 命令行参数 > 本配置文件 > 默认值
+
+base: examples/config/base.yaml
+overlays:
+  - examples/config/prod.yaml
+
+strategy: deep
+arrayStrategy: merge
+
+schema: examples/schemas/app-schema.json
+output: examples/output/prod-merged.yaml
+
+print: yaml
+dryRun: false
+preview: true
+verbose: true
+
+maskSensitive: true
+sensitiveKeys:
+  - db_password
+  - api_token
+  - ssl_private_key
+maskType: partial
+
+detectConflicts: true

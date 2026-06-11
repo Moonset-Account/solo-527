@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/app-config-schema.json",
+  "title": "Application Configuration Schema",
+  "description": "平台服务配置文件 Schema 定义",
+  "type": "object",
+  "required": ["app", "server", "database"],
+  "additionalProperties": true,
+  "properties": {
+    "app": {
+      "type": "object",
+      "description": "应用基础配置",
+      "required": ["name", "version", "environment"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+.*$" },
+        "environment": {
+          "type": "string",
+          "enum": ["development", "testing", "staging", "production", "base"]
+        },
+        "debug": { "type": "boolean", "default": false },
+        "logLevel": {
+          "type": "string",
+          "enum": ["silly", "debug", "info", "warn", "error", "fatal"]
+        }
+      }
+    },
+    "server": {
+      "type": "object",
+      "description": "服务端配置",
+      "required": ["host", "port"],
+      "properties": {
+        "host": { "type": "string", "format": "hostname" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "protocol": { "type": "string", "enum": ["http", "https", "http2"] },
+        "ssl": {
+          "type": "object",
+          "properties": {
+            "certFile": { "type": "string" },
+            "keyFile": { "type": "string" }
+          }
+        },
+        "cors": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "origins": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "description": "数据库配置",
+      "required": ["type", "host", "port", "name"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["postgresql", "mysql", "sqlite", "mongodb"]
+        },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "name": { "type": "string", "minLength": 1 },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "pool": {
+          "type": "object",
+          "properties": {
+            "min": { "type": "integer", "minimum": 0 },
+            "max": { "type": "integer", "minimum": 1 },
+            "idleTimeout": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "ssl": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "rejectUnauthorized": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["memory", "redis", "memcached"] },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "password": { "type": "string" },
+        "ttl": { "type": "integer", "minimum": 0 },
+        "cluster": { "type": "boolean" }
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "enabled"],
+        "properties": {
+          "name": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "format": { "type": "string", "enum": ["text", "json", "pretty"] },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "level"],
+            "properties": {
+              "type": { "type": "string" },
+              "level": {
+                "type": "string",
+                "enum": ["silly", "debug", "info", "warn", "error", "fatal"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "sessionTimeout": { "type": "integer", "minimum": 60 },
+        "rateLimit": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "windowMs": { "type": "integer", "minimum": 1000 },
+            "maxRequests": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "test",
+    "version": "invalid-version",
+    "environment": "invalid-env",
+    "logLevel": "super-verbose"
+  },
+  "server": {
+    "host": "localhost",
+    "port": 99999
+  },
+  "database": {
+    "type": "unknown-db",
+    "host": "",
+    "port": -1,
+    "name": ""
+  }
+}
