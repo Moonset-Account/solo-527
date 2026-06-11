@@ -30,8 +30,7 @@ impl LicenseEvaluator {
             || license_lower == "other"
             || license_lower == "unlicensed";
 
-        if is_unknown {
-            dep.risk_level = RiskLevel::Unknown;
+        let mut final_risk = if is_unknown {
             dep.needs_review = true;
             dep.review_reason = Some("Unknown license".to_string());
             review_items.push(ReviewItem {
@@ -39,37 +38,26 @@ impl LicenseEvaluator {
                 reason: "License type cannot be determined automatically.".to_string(),
                 category: ReviewCategory::UnknownLicense,
             });
+            RiskLevel::Unknown
+        } else {
+            let base_risk = self
+                .license_risk_map
+                .get(&license_lower)
+                .copied()
+                .unwrap_or(RiskLevel::Unknown);
 
-            if dep.source_url.is_none() && dep.source.is_none() {
-                dep.review_reason = Some("Unknown license; Unknown source".to_string());
+            if base_risk == RiskLevel::Unknown {
+                dep.needs_review = true;
+                dep.review_reason = Some("Unrecognized license".to_string());
                 review_items.push(ReviewItem {
                     dependency: dep.clone(),
-                    reason: "Source repository URL is not available; requires manual confirmation."
-                        .to_string(),
-                    category: ReviewCategory::UnknownSource,
+                    reason: "License is not in the known license database.".to_string(),
+                    category: ReviewCategory::UnknownLicense,
                 });
             }
 
-            return review_items;
-        }
-
-        let base_risk = self
-            .license_risk_map
-            .get(&license_lower)
-            .copied()
-            .unwrap_or(RiskLevel::Unknown);
-
-        if base_risk == RiskLevel::Unknown {
-            dep.needs_review = true;
-            dep.review_reason = Some("Unrecognized license".to_string());
-            review_items.push(ReviewItem {
-                dependency: dep.clone(),
-                reason: "License is not in the known license database.".to_string(),
-                category: ReviewCategory::UnknownLicense,
-            });
-        }
-
-        let mut final_risk = base_risk;
+            base_risk
+        };
 
         if self.config.is_denied(&dep.license) {
             final_risk = RiskLevel::Critical;
@@ -817,5 +805,95 @@ mod tests {
         assert_eq!(deduped[0].risk_level, RiskLevel::Critical, "Dedup shows Critical (AGPL-3.0 denied)");
 
         assert!(!reviews1.is_empty(), "Review items from dep1 preserved even though dedup keeps dep1");
+    }
+
+    #[test]
+    fn test_unknown_license_with_unknown_source_review_items_have_final_state() {
+        let mut dep = Dependency {
+            name: "foo".to_string(),
+            version: "1.0.0".to_string(),
+            license: "UNKNOWN".to_string(),
+            license_spdx: None,
+            source: None,
+            source_url: None,
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+
+        let config = AuditConfig::default();
+        let evaluator = LicenseEvaluator::new(config);
+
+        let reviews = evaluator.evaluate(&mut dep);
+
+        assert_eq!(dep.risk_level, RiskLevel::Unknown);
+        assert_eq!(
+            dep.review_reason.as_deref(),
+            Some("Unknown license; Unknown source"),
+            "dep.review_reason should be the merged final value"
+        );
+
+        assert_eq!(reviews.len(), 2, "Should have 2 review items: UnknownLicense + UnknownSource");
+
+        for item in &reviews {
+            assert_eq!(
+                item.dependency.risk_level,
+                dep.risk_level,
+                "ReviewItem for {} should have final risk_level",
+                item.category
+            );
+            assert_eq!(
+                item.dependency.review_reason,
+                dep.review_reason,
+                "ReviewItem for {} should have final merged review_reason",
+                item.category
+            );
+        }
+
+        let lic_review = reviews.iter().find(|r| r.category == ReviewCategory::UnknownLicense).unwrap();
+        assert_eq!(lic_review.dependency.review_reason.as_deref(), Some("Unknown license; Unknown source"));
+
+        let src_review = reviews.iter().find(|r| r.category == ReviewCategory::UnknownSource).unwrap();
+        assert_eq!(src_review.dependency.review_reason.as_deref(), Some("Unknown license; Unknown source"));
+    }
+
+    #[test]
+    fn test_unknown_license_with_known_source_review_items_have_final_state() {
+        let mut dep = Dependency {
+            name: "bar".to_string(),
+            version: "1.0.0".to_string(),
+            license: "UNKNOWN".to_string(),
+            license_spdx: None,
+            source: None,
+            source_url: Some("https://crates.io/".to_string()),
+            package_manager: PackageManager::Cargo,
+            manifest_path: PathBuf::from("/test/Cargo.toml"),
+            risk_level: RiskLevel::Unknown,
+            needs_review: false,
+            review_reason: None,
+            is_direct: true,
+        };
+
+        let config = AuditConfig::default();
+        let evaluator = LicenseEvaluator::new(config);
+
+        let reviews = evaluator.evaluate(&mut dep);
+
+        assert_eq!(dep.risk_level, RiskLevel::Unknown);
+        assert_eq!(
+            dep.review_reason.as_deref(),
+            Some("Unknown license"),
+            "No unknown source, review_reason should stay as Unknown license only"
+        );
+
+        assert_eq!(reviews.len(), 1, "Should have 1 review item: UnknownLicense only");
+
+        for item in &reviews {
+            assert_eq!(item.dependency.risk_level, dep.risk_level);
+            assert_eq!(item.dependency.review_reason, dep.review_reason);
+        }
     }
 }
