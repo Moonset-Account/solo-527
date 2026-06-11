@@ -46,8 +46,7 @@ sitemap-checker check \
 # 深度 0：只检查输入链接，不爬取页面内的链接
 sitemap-checker check \
   --pages urls.txt \
-  --max-depth 0 \
-  --follow-external
+  --max-depth 0
 ```
 
 ## 参数
@@ -67,7 +66,6 @@ sitemap-checker check \
 | `--no-title-check` | 跳过标题检查 | false |
 | `--no-canonical-check` | 跳过 canonical 检查 | false |
 | `--no-image-check` | 跳过图片资源检查 | false |
-| `--follow-external` | 检查外部链接（仅 HEAD 请求） | false |
 | `--json` | 输出 JSON 报告路径 | — |
 | `--markdown / -o` | 输出 Markdown 报告路径 | — |
 | `--replace-script` | 生成 sed 批量替换脚本 | — |
