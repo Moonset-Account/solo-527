@@ -117,6 +117,7 @@ def _run_analysis(
         root_dir=config.root_dir,
         asset_dirs=config.asset_dirs,
         ignore_matcher=ignore_matcher,
+        max_depth=config.max_depth,
     )
 
     scan_progress = ScanProgress()

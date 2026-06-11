@@ -89,10 +89,12 @@ class ReferenceAnalyzer:
         root_dir: str | os.PathLike,
         asset_dirs: Optional[List[str]] = None,
         ignore_matcher: Optional[IgnoreMatcher] = None,
+        max_depth: int = 100,
     ):
         self.root_dir = normalize_path(root_dir)
         self.asset_dirs = [normalize_path(d) for d in (asset_dirs or [self.root_dir])]
         self.ignore_matcher = ignore_matcher or IgnoreMatcher(self.root_dir)
+        self.max_depth = max_depth
         self.scanner = ContentScanner(self.root_dir, self.asset_dirs)
 
     def analyze(
@@ -146,10 +148,10 @@ class ReferenceAnalyzer:
         all_files: Set[str] = set()
 
         for asset_dir in self.asset_dirs:
-            files = collect_files(asset_dir, progress)
+            files = collect_files(asset_dir, progress, max_depth=self.max_depth)
             all_files.update(files)
 
-        scannable_files = collect_files(self.root_dir, progress)
+        scannable_files = collect_files(self.root_dir, progress, max_depth=self.max_depth)
         all_files.update(scannable_files)
 
         filtered = self.ignore_matcher.filter_files(all_files)

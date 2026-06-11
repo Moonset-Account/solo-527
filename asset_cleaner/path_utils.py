@@ -217,10 +217,11 @@ def safe_walk(
 def collect_files(
     root: str | os.PathLike,
     progress: Optional[ScanProgress] = None,
+    max_depth: int = 100,
 ) -> List[str]:
     """收集目录下所有文件的归一化路径"""
     files: List[str] = []
-    for dirpath, _, filenames in safe_walk(root, progress):
+    for dirpath, _, filenames in safe_walk(root, progress, max_depth=max_depth):
         for fname in filenames:
             fpath = os.path.join(dirpath, fname)
             files.append(normalize_path(fpath))
