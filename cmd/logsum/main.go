@@ -16,7 +16,7 @@ import (
 
 func main() {
 	noColor := hasArg("--no-color") || hasArg("LOGSUM_NO_COLOR")
-	jsonOut := hasArg("--json")
+	jsonOut := hasArg("--json") || hasArg("LOGSUM_JSON") || hasArg("LOGSUM_OUTPUT_JSON")
 	ciMode := hasArg("--ci") || hasArg("LOGSUM_CI")
 
 	exitCode, err := run()
