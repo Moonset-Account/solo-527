@@ -1,0 +1,31 @@
+[package]
+name = "imgproc"
+version = "0.1.0"
+edition = "2021"
+description = "Batch image compression and renaming CLI tool"
+
+[[bin]]
+name = "imgproc"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+image = "0.25"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+walkdir = "2"
+env_logger = "0.11"
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+indicatif = "0.17"
+
+[dev-dependencies]
+tempfile = "3"
+assert_cmd = "2"
+predicates = "3"
+criterion = "0.5"
+
+[[bench]]
+name = "compression_bench"
+harness = false
