@@ -23,7 +23,12 @@ pub fn default_templates() -> HashMap<String, ProductLineTemplate> {
             known_issue_title: "已知问题".to_string(),
             upgrade_notice_title: "升级提醒".to_string(),
             pending_title: "待补充内容".to_string(),
-            category_keywords: HashMap::new(),
+            category_keywords: HashMap::from([
+                ("feature".to_string(), vec!["feature".to_string(), "feat".to_string(), "新功能".to_string(), "功能".to_string(), "enhancement".to_string()]),
+                ("fix".to_string(), vec!["bug".to_string(), "fix".to_string(), "bugfix".to_string(), "修复".to_string(), "defect".to_string()]),
+                ("known_issue".to_string(), vec!["known-issue".to_string(), "known_issue".to_string(), "known issue".to_string(), "已知问题".to_string(), "issue".to_string()]),
+                ("upgrade_notice".to_string(), vec!["deprecation".to_string(), "upgrade".to_string(), "breaking".to_string(), "升级".to_string(), "deprecated".to_string(), "migration".to_string()]),
+            ]),
         },
     );
 
@@ -37,7 +42,12 @@ pub fn default_templates() -> HashMap<String, ProductLineTemplate> {
             known_issue_title: "⚠️ 已知问题".to_string(),
             upgrade_notice_title: "🚀 升级提醒".to_string(),
             pending_title: "📝 待补充".to_string(),
-            category_keywords: HashMap::new(),
+            category_keywords: HashMap::from([
+                ("feature".to_string(), vec!["feature".to_string(), "feat".to_string(), "新功能".to_string(), "功能".to_string(), "enhancement".to_string(), "ui".to_string()]),
+                ("fix".to_string(), vec!["bug".to_string(), "fix".to_string(), "bugfix".to_string(), "修复".to_string(), "defect".to_string(), "ios".to_string(), "android".to_string(), "crash".to_string()]),
+                ("known_issue".to_string(), vec!["known-issue".to_string(), "known_issue".to_string(), "known issue".to_string(), "已知问题".to_string(), "issue".to_string(), "limitation".to_string()]),
+                ("upgrade_notice".to_string(), vec!["deprecation".to_string(), "upgrade".to_string(), "breaking".to_string(), "升级".to_string(), "deprecated".to_string(), "migration".to_string(), "sdk".to_string()]),
+            ]),
         },
     );
 
@@ -51,7 +61,12 @@ pub fn default_templates() -> HashMap<String, ProductLineTemplate> {
             known_issue_title: "遗留问题".to_string(),
             upgrade_notice_title: "迁移与升级".to_string(),
             pending_title: "信息待完善".to_string(),
-            category_keywords: HashMap::new(),
+            category_keywords: HashMap::from([
+                ("feature".to_string(), vec!["feature".to_string(), "feat".to_string(), "新功能".to_string(), "功能".to_string(), "enhancement".to_string(), "模块".to_string()]),
+                ("fix".to_string(), vec!["bug".to_string(), "fix".to_string(), "bugfix".to_string(), "修复".to_string(), "defect".to_string(), "缺陷".to_string()]),
+                ("known_issue".to_string(), vec!["known-issue".to_string(), "known_issue".to_string(), "known issue".to_string(), "已知问题".to_string(), "issue".to_string(), "遗留".to_string(), "限制".to_string()]),
+                ("upgrade_notice".to_string(), vec!["deprecation".to_string(), "upgrade".to_string(), "breaking".to_string(), "升级".to_string(), "deprecated".to_string(), "migration".to_string(), "迁移".to_string(), "废弃".to_string()]),
+            ]),
         },
     );
 
@@ -75,6 +90,121 @@ pub fn get_template(product_line: &str, template_file: Option<&Path>) -> Result<
         .get(product_line)
         .cloned()
         .unwrap_or_else(|| templates.get("default").cloned().unwrap()))
+}
+
+fn category_from_keyword(key: &str) -> Option<ChangeCategory> {
+    match key.to_lowercase().as_str() {
+        "feature" | "features" | "feat" => Some(ChangeCategory::Feature),
+        "fix" | "fixes" | "bugfix" => Some(ChangeCategory::Fix),
+        "known_issue" | "known-issue" | "knownissue" | "known_issues" => Some(ChangeCategory::KnownIssue),
+        "upgrade_notice" | "upgrade-notice" | "upgradenotice" | "upgrade" | "deprecation" => Some(ChangeCategory::UpgradeNotice),
+        _ => None,
+    }
+}
+
+pub fn derive_category_from_issues(
+    issues: &[IssueInfo],
+    template: &ProductLineTemplate,
+) -> Option<ChangeCategory> {
+    if issues.is_empty() {
+        return None;
+    }
+
+    let all_labels: Vec<String> = issues
+        .iter()
+        .flat_map(|i| i.labels.iter().map(|l| l.to_lowercase()))
+        .collect();
+
+    let mut best: Option<(ChangeCategory, usize)> = None;
+    for (cat_key, keywords) in &template.category_keywords {
+        if let Some(cat) = category_from_keyword(cat_key) {
+            let matches = keywords
+                .iter()
+                .filter(|kw| all_labels.iter().any(|l| l == &kw.to_lowercase()))
+                .count();
+            if matches > 0 && (best.is_none() || matches > best.as_ref().unwrap().1) {
+                best = Some((cat, matches));
+            }
+        }
+    }
+
+    if best.is_none() {
+        for label in &all_labels {
+            if let Some(cat) = category_from_keyword(label) {
+                return Some(cat);
+            }
+        }
+    }
+
+    best.map(|(c, _)| c)
+}
+
+pub fn derive_title_from_issues(issues: &[IssueInfo]) -> Option<String> {
+    issues
+        .first()
+        .map(|i| i.title.trim().to_string())
+        .filter(|t| !t.is_empty())
+}
+
+pub fn merge_issue_links(issues: &[IssueInfo]) -> Vec<SourceLink> {
+    issues
+        .iter()
+        .filter_map(|i| {
+            i.url.as_ref().map(|u| SourceLink {
+                url: u.clone(),
+                label: Some(i.id.clone()),
+                source_type: "issue".to_string(),
+            })
+        })
+        .collect()
+}
+
+pub fn enrich_entry_with_issues(
+    mut entry: ChangeEntry,
+    template: &ProductLineTemplate,
+) -> ChangeEntry {
+    let title_empty = entry
+        .title
+        .as_ref()
+        .map(|t| t.trim().is_empty())
+        .unwrap_or(true);
+    let title_equals_description = entry
+        .title
+        .as_ref()
+        .zip(Some(&entry.description))
+        .map(|(t, d)| t.trim() == d.trim())
+        .unwrap_or(false);
+    let needs_title = title_empty || (title_equals_description && !entry.issues.is_empty());
+    if needs_title {
+        if let Some(derived_title) = derive_title_from_issues(&entry.issues) {
+            entry.title = Some(derived_title);
+        }
+    }
+
+    if matches!(entry.category, ChangeCategory::Unknown) {
+        if let Some(derived_cat) = derive_category_from_issues(&entry.issues, template) {
+            entry.category = derived_cat;
+        }
+    }
+
+    let issue_links = merge_issue_links(&entry.issues);
+    for link in issue_links {
+        if !entry.source_links.iter().any(|l| l.url == link.url) {
+            entry.source_links.push(link);
+        }
+    }
+
+    entry
+}
+
+pub fn enrich_entries_with_issues(
+    entries: Vec<ChangeEntry>,
+    template: &ProductLineTemplate,
+) -> Vec<ChangeEntry> {
+    entries
+        .into_iter()
+        .map(|e| enrich_entry_with_issues(e, template))
+        .collect()
 }
 
 pub fn group_entries(entries: Vec<ChangeEntry>) -> GroupedChanges {
@@ -113,7 +243,8 @@ pub fn render(
     opts: &RenderOptions,
 ) -> Result<RenderedReleaseNote> {
     let template = get_template(&opts.product_line, opts.template_file.as_deref())?;
-    let entries = build_entries_from_collected(data);
+    let raw_entries = build_entries_from_collected(data);
+    let entries = enrich_entries_with_issues(raw_entries, &template);
     let grouped = group_entries(entries.clone());
     let validation = validate_entries(&entries);
 
@@ -265,11 +396,29 @@ fn render_section_markdown(
         }
         md.push_str("\n");
 
-        if !entry.ticket_ids.is_empty() {
-            md.push_str(&format!(
-                "  - 工单: {}\n",
-                entry.ticket_ids.join(", ")
-            ));
+        if !entry.ticket_ids.is_empty() || !entry.issues.is_empty() {
+            let mut parts: Vec<String> = Vec::new();
+            for tid in &entry.ticket_ids {
+                if let Some(issue) = entry.issues.iter().find(|i| &i.id == tid) {
+                    if let Some(url) = &issue.url {
+                        parts.push(format!("[{}: {}]({})", issue.id, issue.title, url));
+                    } else {
+                        parts.push(format!("{}: {}", issue.id, issue.title));
+                    }
+                } else {
+                    parts.push(tid.clone());
+                }
+            }
+            for issue in entry.issues.iter() {
+                if !entry.ticket_ids.iter().any(|t| t == &issue.id) {
+                    if let Some(url) = &issue.url {
+                        parts.push(format!("[{}: {}]({})", issue.id, issue.title, url));
+                    } else {
+                        parts.push(format!("{}: {}", issue.id, issue.title));
+                    }
+                }
+            }
+            md.push_str(&format!("  - 工单: {}\n", parts.join(", ")));
         }
         if !entry.description.is_empty() {
             md.push_str(&format!("  - 描述: {}\n", entry.description));

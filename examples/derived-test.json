@@ -1,0 +1,74 @@
+{
+  "git_tag": "v2.0.0",
+  "from_tag": null,
+  "to_tag": "v2.0.0",
+  "commits": [
+    {
+      "hash": "abc0000000000000000000000000000000000001",
+      "short_hash": "abc0001",
+      "message": "PROJ-1002 scope: ios",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T10:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": [
+        {
+          "url": "https://jira.example.com/browse/PROJ-1002",
+          "label": "PROJ-1002",
+          "source_type": "ticket"
+        }
+      ]
+    },
+    {
+      "hash": "abc0000000000000000000000000000000000002",
+      "short_hash": "abc0002",
+      "message": "refactor: cleanup PROJ-1003 scope: backend",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T11:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": [
+        {
+          "url": "https://jira.example.com/browse/PROJ-1003",
+          "label": "PROJ-1003",
+          "source_type": "ticket"
+        }
+      ]
+    },
+    {
+      "hash": "abc0000000000000000000000000000000000003",
+      "short_hash": "abc0003",
+      "message": "no issue linked, no scope",
+      "author": "Tester",
+      "author_email": "t@example.com",
+      "timestamp": "2026-06-10T12:00:00Z",
+      "is_merge": false,
+      "branch_name": null,
+      "merge_from": null,
+      "source_links": []
+    }
+  ],
+  "issues": [
+    {
+      "id": "PROJ-1002",
+      "title": "修复在 iOS 15 上闪退的问题",
+      "url": "https://jira.example.com/browse/PROJ-1002",
+      "status": "Done",
+      "labels": ["bug", "ios"]
+    },
+    {
+      "id": "PROJ-1003",
+      "title": "数据库连接池在高并发下耗尽",
+      "url": "https://jira.example.com/browse/PROJ-1003",
+      "status": "In Progress",
+      "labels": ["known-issue", "performance"]
+    }
+  ],
+  "manual_notes": [],
+  "input_files": [],
+  "collected_at": "2026-06-11T00:00:00Z"
+}
