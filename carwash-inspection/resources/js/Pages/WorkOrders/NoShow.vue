@@ -1,7 +1,6 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '../../Layouts/AppLayout.vue'
-import { ref } from 'vue'
 
 const props = defineProps({
     work_order: Object,
@@ -11,7 +10,6 @@ const form = useForm({
     reason: '',
     contact_attempts: 0,
     rescheduled: false,
-    rescheduled_time: '',
 })
 
 const submit = () => {
@@ -29,8 +27,18 @@ const submit = () => {
             </div>
 
             <div class="bg-white rounded-xl border border-gray-200 p-6">
-                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                    工单号: {{ work_order.order_no }} - 确认将此工单标记为爽约？
+                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="text-sm text-yellow-800 font-medium">确认将此工单标记为爽约？</div>
+                    <div class="mt-2 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="text-yellow-600">工单号:</span>
+                            <span class="text-yellow-900 font-medium ml-1">{{ work_order.order_no }}</span>
+                        </div>
+                        <div>
+                            <span class="text-yellow-600">车牌号:</span>
+                            <span class="text-yellow-900 font-medium ml-1">{{ work_order.vehicle?.plate_number || '-' }}</span>
+                        </div>
+                    </div>
                 </div>
 
                 <form @submit.prevent="submit" class="space-y-4">
@@ -48,11 +56,6 @@ const submit = () => {
                     <div class="flex items-center gap-2">
                         <input v-model="form.rescheduled" type="checkbox" id="rescheduled" class="rounded border-gray-300 text-blue-600 shadow-sm" />
                         <label for="rescheduled" class="text-sm font-medium text-gray-700">是否改约</label>
-                    </div>
-
-                    <div v-if="form.rescheduled">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">改约时间</label>
-                        <input v-model="form.rescheduled_time" type="datetime-local" class="w-full rounded-lg border-gray-300 text-sm shadow-sm" />
                     </div>
 
                     <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">

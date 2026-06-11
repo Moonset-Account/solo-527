@@ -1,5 +1,5 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3'
+import { Link, usePage, router } from '@inertiajs/vue3'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const sidebarOpen = ref(false)
@@ -8,6 +8,10 @@ const configOpen = ref(false)
 const page = usePage()
 const flash = computed(() => page.props.flash || {})
 const auth = computed(() => page.props.auth || {})
+
+const logout = () => {
+  router.post('/logout')
+}
 
 const currentPath = computed(() => page.url)
 
@@ -82,12 +86,12 @@ onUnmounted(() => document.removeEventListener('keydown', handleEscape))
 
         <div class="flex items-center gap-4">
           <span class="text-sm text-gray-600 hidden sm:block">{{ auth.user?.name || '管理员' }}</span>
-          <Link href="/logout" method="post" as="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
+          <button @click="logout" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
             退出
-          </Link>
+          </button>
         </div>
       </div>
     </nav>

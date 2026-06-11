@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiFailureLogController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CashierOrderController;
 use App\Http\Controllers\ConfigAuditLogController;
@@ -22,11 +23,19 @@ Route::get('/', function () {
 Route::prefix('booking')->name('booking.')->group(function () {
     Route::get('/create', [BookingController::class, 'create'])->name('create');
     Route::post('/', [BookingController::class, 'store'])->name('store');
+    Route::get('/pay/{order}', [BookingController::class, 'pay'])->name('pay');
+    Route::post('/pay/{order}/confirm', [BookingController::class, 'confirmPayment'])->name('pay.confirm');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    Route::get('work-orders/{work_order}/no-show', [WorkOrderController::class, 'noShowForm'])->name('work-orders.no-show.form');
+    Route::get('work-orders/{work_order}/update-status', [WorkOrderController::class, 'updateStatusForm'])->name('work-orders.update-status.form');
     Route::resource('work-orders', WorkOrderController::class);
     Route::post('work-orders/{work_order}/no-show', [WorkOrderController::class, 'markNoShow'])->name('work-orders.no-show');
     Route::post('work-orders/{work_order}/status', [WorkOrderController::class, 'updateStatus'])->name('work-orders.status');

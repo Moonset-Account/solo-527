@@ -1,14 +1,11 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps({
     services: Array,
     available_slots: Array,
 })
-
-const submitted = ref(false)
-const orderNumber = ref('')
 
 const form = useForm({
     plate_number: '',
@@ -20,18 +17,21 @@ const form = useForm({
     owner_phone: '',
     service_item_id: '',
     scheduled_time: '',
+    payment_method: 'wechat',
 })
 
 const selectedService = computed(() => {
     return props.services.find(s => s.id == form.service_item_id)
 })
 
+const paymentMethods = [
+    { id: 'wechat', name: '微信支付', icon: '💚' },
+    { id: 'alipay', name: '支付宝', icon: '💙' },
+    { id: 'cash', name: '到店支付', icon: '💴' },
+]
+
 const submit = () => {
-    form.post('/booking', {
-        onSuccess: (page) => {
-            submitted.value = true
-        },
-    })
+    form.post('/booking')
 }
 </script>
 
@@ -43,18 +43,7 @@ const submit = () => {
                 <p class="mt-2 text-gray-600">填写以下信息完成预约</p>
             </div>
 
-            <div v-if="submitted" class="bg-white rounded-2xl shadow-lg p-8 text-center">
-                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">预约提交成功！</h2>
-                <p class="text-gray-600 mb-6">我们会尽快与您联系确认预约信息。</p>
-                <button @click="submitted = false; form.reset()" class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
-                    继续预约
-                </button>
-            </div>
-
-            <form v-else @submit.prevent="submit" class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <form @submit.prevent="submit" class="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <div class="p-6 space-y-6">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-100">车辆信息</h3>
@@ -148,6 +137,23 @@ const submit = () => {
                             </div>
                         </div>
                     </div>
+
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-100">支付方式</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label
+                                v-for="method in paymentMethods"
+                                :key="method.id"
+                                class="flex flex-col items-center p-4 border-2 rounded-xl cursor-pointer transition-all"
+                                :class="form.payment_method === method.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'"
+                            >
+                                <input type="radio" :value="method.id" v-model="form.payment_method" class="sr-only" />
+                                <span class="text-2xl mb-2">{{ method.icon }}</span>
+                                <span class="text-sm font-medium text-gray-900">{{ method.name }}</span>
+                            </label>
+                        </div>
+                        <p v-if="form.errors.payment_method" class="mt-1 text-sm text-red-600">{{ form.errors.payment_method }}</p>
+                    </div>
                 </div>
 
                 <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
@@ -157,7 +163,8 @@ const submit = () => {
                         </div>
                         <div v-else></div>
                         <button type="submit" :disabled="form.processing" class="px-8 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                            提交预约
+                            <span v-if="form.processing">提交中...</span>
+                            <span v-else>提交预约</span>
                         </button>
                     </div>
                 </div>

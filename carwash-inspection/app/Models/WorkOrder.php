@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class WorkOrder extends Model
 {
+    protected $attributes = [
+        'payment_status' => 'unpaid',
+    ];
+
     protected $fillable = [
         'order_no',
         'vehicle_id',

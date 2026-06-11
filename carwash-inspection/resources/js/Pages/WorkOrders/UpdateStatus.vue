@@ -36,9 +36,21 @@ const submit = () => {
             </div>
 
             <div class="bg-white rounded-xl border border-gray-200 p-6">
-                <div class="mb-4 flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <span class="text-sm text-gray-600">当前状态:</span>
-                    <StatusLabel :status="work_order.status" />
+                <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div>
+                            <span class="text-gray-500">工单号:</span>
+                            <span class="text-gray-900 font-medium ml-1">{{ work_order.order_no }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">车牌号:</span>
+                            <span class="text-gray-900 font-medium ml-1">{{ work_order.vehicle?.plate_number || '-' }}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 pt-2 border-t border-gray-200">
+                        <span class="text-sm text-gray-600">当前状态:</span>
+                        <StatusLabel :status="work_order.status" />
+                    </div>
                 </div>
 
                 <form @submit.prevent="submit" class="space-y-4">

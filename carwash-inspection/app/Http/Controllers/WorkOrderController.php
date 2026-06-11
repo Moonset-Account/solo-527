@@ -104,6 +104,24 @@ class WorkOrderController extends Controller
         ]);
     }
 
+    public function noShowForm(WorkOrder $workOrder)
+    {
+        $workOrder->load('vehicle');
+
+        return Inertia::render('WorkOrders/NoShow', [
+            'work_order' => $workOrder,
+        ]);
+    }
+
+    public function updateStatusForm(WorkOrder $workOrder)
+    {
+        $workOrder->load('vehicle');
+
+        return Inertia::render('WorkOrders/UpdateStatus', [
+            'work_order' => $workOrder,
+        ]);
+    }
+
     public function update(UpdateWorkOrderRequest $request, WorkOrder $workOrder)
     {
         $data = $request->validated();

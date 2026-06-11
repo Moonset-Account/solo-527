@@ -23,6 +23,7 @@ class StoreBookingRequest extends FormRequest
             'color' => ['nullable', 'string', 'max:50'],
             'service_item_id' => ['required', 'exists:service_items,id'],
             'scheduled_time' => ['required', 'date', 'after:now'],
+            'payment_method' => ['required', 'in:wechat,alipay,cash'],
         ];
     }
 }
