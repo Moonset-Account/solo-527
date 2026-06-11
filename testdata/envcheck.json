@@ -1,0 +1,11 @@
+{
+  "env_files": [".env"],
+  "example_files": [".env.example"],
+  "required": ["DATABASE_URL", "REDIS_URL"],
+  "mask_patterns": ["PASSWORD", "SECRET", "TOKEN", "KEY", "PRIVATE"],
+  "format": "text",
+  "ci": false,
+  "strict": false,
+  "quiet": false,
+  "verbose": false
+}
