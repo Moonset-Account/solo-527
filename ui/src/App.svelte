@@ -12,9 +12,11 @@
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const result = await invoke("generate_report", {
-        junitDir,
-        screenshotDir,
-        historyFile: historyFile || null,
+        request: {
+          junitDir,
+          screenshotDir,
+          historyFile: historyFile || null,
+        },
       });
       report = result;
     } catch (e) {

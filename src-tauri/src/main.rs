@@ -1,9 +1,10 @@
+use chrono::Utc;
 use nightly_failure_summary::aggregate::aggregate_failures;
 use nightly_failure_summary::history::load_history;
 use nightly_failure_summary::junit::collect_failed_test_cases;
 use nightly_failure_summary::screenshot::scan_screenshot_dir;
 use nightly_failure_summary::types::{HistoryFile, Report};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::path::Path;
 
 #[derive(Debug, Deserialize)]
@@ -41,7 +42,7 @@ fn generate_report(request: GenerateReportRequest) -> Result<serde_json::Value, 
         .collect();
 
     let report = Report {
-        generated_at: chrono::Utc::now(),
+        generated_at: Utc::now(),
         total_failures,
         unique_tests,
         failures: aggregated,

@@ -33,10 +33,25 @@ pub fn aggregate_failures(
         failure_reasons.sort();
         failure_reasons.dedup();
 
+        let history_record = history
+            .records
+            .iter()
+            .find(|r| r.test_name == first.name && r.classname == first.classname);
+
         let mut all_timestamps: Vec<_> = cases
             .iter()
             .filter_map(|c| c.timestamp)
             .collect();
+
+        if let Some(rec) = history_record {
+            if let Some(first_fail) = rec.first_failure {
+                all_timestamps.push(first_fail);
+            }
+            if let Some(last_fail) = rec.last_failure {
+                all_timestamps.push(last_fail);
+            }
+        }
+
         all_timestamps.sort();
 
         let first_seen = all_timestamps.first().copied();

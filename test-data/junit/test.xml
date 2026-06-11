@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="auth-suite" tests="1" failures="1" timestamp="2026-06-11T02:30:00Z">
+  <testcase name="loginWithEmail" classname="com.app.auth.LoginTests" time="1.23">
+    <failure message="Timeout waiting for element #email-input" type="TimeoutError">
+      TimeoutError: waiting for selector '#email-input' failed: timeout 30000ms exceeded
+    </failure>
+  </testcase>
+</testsuite>
