@@ -14,7 +14,12 @@ module Admin
     def preview
       record_type = params[:record_type]
       ids = params[:ids]&.split(",") || []
-      attributes = sanitize_attributes(params[:attributes])
+      attributes = sanitize_attributes(params[:attributes], params[:update_fields])
+
+      if attributes.empty?
+        redirect_to new_admin_batch_operation_path(record_type: record_type, ids: params[:ids]),
+                    alert: "请至少勾选并填写一个要更新的字段" and return
+      end
 
       model_class = safe_constantize(record_type)
       unless model_class
@@ -31,14 +36,19 @@ module Admin
         record_type: record_type,
         total_count: records.count,
         attributes: attributes,
-        ids: ids
+        ids: ids,
+        update_fields: params[:update_fields] || {}
       }
     end
 
     def execute
       record_type = params[:record_type]
       ids = params[:ids]&.split(",") || []
-      attributes = sanitize_attributes(params[:attributes])
+      attributes = sanitize_attributes(params[:attributes], params[:update_fields])
+
+      if attributes.empty?
+        redirect_to admin_batch_operations_path, alert: "没有要更新的字段" and return
+      end
 
       model_class = safe_constantize(record_type)
       unless model_class
@@ -73,9 +83,14 @@ module Admin
       %w[Appointment WaitingList Doctor TimeSlot Customer ServiceItem].include?(name) ? name.constantize : nil
     end
 
-    def sanitize_attributes(raw_attrs)
+    def sanitize_attributes(raw_attrs, update_fields = nil)
       return {} unless raw_attrs.is_a?(Hash)
-      raw_attrs.to_unsafe_h.select { |_, v| v.present? }
+      attrs = raw_attrs.to_unsafe_h.select { |_, v| v.present? }
+      if update_fields.is_a?(Hash)
+        allowed_keys = update_fields.keys.map(&:to_s)
+        attrs = attrs.select { |k, _| allowed_keys.include?(k.to_s) }
+      end
+      attrs
     end
   end
 end

@@ -6,13 +6,21 @@ class AppointmentNoShowCheckJob < ApplicationJob
                               .joins(:time_slot)
                               .where("time_slots.end_time < ?", 30.minutes.ago)
 
+    marked_count = 0
     appointments.each do |appt|
-      if appt.may_mark_no_show?
-        appt.mark_no_show!
-        Rails.logger.info "Appointment #{appt.appointment_no} marked as no-show"
+      begin
+        if appt.may_mark_no_show?
+          ActiveRecord::Base.transaction do
+            appt.mark_no_show!
+            marked_count += 1
+            Rails.logger.info "Appointment #{appt.appointment_no} marked as no-show"
+          end
+        end
+      rescue => e
+        Rails.logger.error "Failed to mark no-show for #{appt.appointment_no}: #{e.message}\n#{e.backtrace.first(3).join("\n")}"
       end
     end
 
-    Rails.logger.info "NoShowCheckJob: Processed #{appointments.count} appointments"
+    Rails.logger.info "NoShowCheckJob: Marked #{marked_count}/#{appointments.count} appointments as no-show"
   end
 end

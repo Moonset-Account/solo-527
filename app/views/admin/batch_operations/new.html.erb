@@ -21,12 +21,189 @@
       </div>
     </div>
 
-    <div class="section-title">要更新的字段</div>
+    <div class="section-title">要更新的字段（勾选并填写要修改的字段）</div>
     <div class="form-row">
-      <div class="form-group">
-        <label>记录类型</label>
-        <div class="form-control-static"><%= @record_type %></div>
-      </div>
+
+      <% if @record_type == "Appointment" %>
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[status]", "1", false, onchange: "toggleField('appointment_status', this)" %>
+            状态
+          </label>
+          <%= select_tag "attributes[status]",
+              options_for_select([%w[待确认 pending], %w[已确认 confirmed], %w[已完成 completed], %w[已取消 cancelled], %w[爽约 no_show], %w[已退款 refunded]),
+              class: "form-control",
+              disabled: true,
+              id: "appointment_status",
+              include_blank: "请选择状态" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[notes]", "1", false, onchange: "toggleField('appointment_notes', this)" %>
+            备注
+          </label>
+          <%= text_area_tag "attributes[notes]", "",
+              class: "form-control",
+              disabled: true,
+              id: "appointment_notes",
+              rows: 2,
+              placeholder: "输入批量备注内容" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[operator]", "1", false, onchange: "toggleField('appointment_operator', this)" %>
+            操作人
+          </label>
+          <%= text_field_tag "attributes[operator]", "",
+              class: "form-control",
+              disabled: true,
+              id: "appointment_operator",
+              placeholder: "输入操作人姓名" %>
+        </div>
+      <% end %>
+
+      <% if @record_type == "WaitingList" %>
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[status]", "1", false, onchange: "toggleField('wl_status', this)" %>
+            状态
+          </label>
+          <%= select_tag "attributes[status]",
+              options_for_select([%w[等候补中 waiting], %w[已通知 notified], %w[已确认 confirmed], %w[已转化 converted], %w[已过期 expired], %w[已取消 cancelled]]),
+              class: "form-control",
+              disabled: true,
+              id: "wl_status",
+              include_blank: "请选择状态" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[notes]", "1", false, onchange: "toggleField('wl_notes', this)" %>
+            备注
+          </label>
+          <%= text_area_tag "attributes[notes]", "",
+              class: "form-control",
+              disabled: true,
+              id: "wl_notes",
+              rows: 2,
+              placeholder: "输入批量备注内容" %>
+        </div>
+      <% end %>
+
+      <% if @record_type == "Doctor" %>
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[active]", "1", false, onchange: "toggleField('doctor_active', this)" %>
+            启用状态
+          </label>
+          <%= select_tag "attributes[active]",
+              options_for_select([["启用", true], ["停用", false]]),
+              class: "form-control",
+              disabled: true,
+              id: "doctor_active",
+              include_blank: "请选择" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[department]", "1", false, onchange: "toggleField('doctor_dept', this)" %>
+            科室
+          </label>
+          <%= text_field_tag "attributes[department]", "",
+              class: "form-control",
+              disabled: true,
+              id: "doctor_dept",
+              placeholder: "例如: 牙周科" %>
+        </div>
+      <% end %>
+
+      <% if @record_type == "TimeSlot" %>
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[status]", "1", false, onchange: "toggleField('ts_status', this)" %>
+            状态
+          </label>
+          <%= select_tag "attributes[status]",
+              options_for_select([%w[可预约 available], %w[已满 full], %w[已关闭 closed], %w[已取消 cancelled]]),
+              class: "form-control",
+              disabled: true,
+              id: "ts_status",
+              include_blank: "请选择状态" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[capacity]", "1", false, onchange: "toggleField('ts_capacity', this)" %>
+            容量
+          </label>
+          <%= number_field_tag "attributes[capacity]", "",
+              class: "form-control",
+              disabled: true,
+              id: "ts_capacity",
+              min: 1,
+              placeholder: "容量数" %>
+        </div>
+      <% end %>
+
+      <% if @record_type == "Customer" %>
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[vip]", "1", false, onchange: "toggleField('customer_vip', this)" %>
+            VIP标记
+          </label>
+          <%= select_tag "attributes[vip]",
+              options_for_select([["是", true], ["否", false]]),
+              class: "form-control",
+              disabled: true,
+              id: "customer_vip",
+              include_blank: "请选择" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[notes]", "1", false, onchange: "toggleField('customer_notes', this)" %>
+            备注
+          </label>
+          <%= text_area_tag "attributes[notes]", "",
+              class: "form-control",
+              disabled: true,
+              id: "customer_notes",
+              rows: 2,
+              placeholder: "输入客户备注" %>
+        </div>
+      <% end %>
+
+      <% if @record_type == "ServiceItem" %>
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[active]", "1", false, onchange: "toggleField('si_active', this)" %>
+            启用状态
+          </label>
+          <%= select_tag "attributes[active]",
+              options_for_select([["启用", true], ["停用", false]]),
+              class: "form-control",
+              disabled: true,
+              id: "si_active",
+              include_blank: "请选择" %>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-inline">
+            <%= check_box_tag "update_fields[price]", "1", false, onchange: "toggleField('si_price', this)" %>
+            价格
+          </label>
+          <%= number_field_tag "attributes[price]", "",
+              class: "form-control",
+              disabled: true,
+              id: "si_price",
+              min: 0,
+              step: "0.01",
+              placeholder: "服务价格" %>
+        </div>
+      <% end %>
+
     </div>
 
     <div class="actions" style="margin-top:16px;">
@@ -35,3 +212,15 @@
     </div>
   <% end %>
 </div>
+
+<script>
+function toggleField(fieldId, checkbox) {
+  var field = document.getElementById(fieldId);
+  if (field) {
+    field.disabled = !checkbox.checked;
+    if (!checkbox.checked) {
+      field.value = '';
+    }
+  }
+}
+</script>

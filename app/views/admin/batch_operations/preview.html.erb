@@ -86,6 +86,9 @@
   <% @scope_summary[:attributes].each do |k, v| %>
     <%= hidden_field_tag "attributes[#{k}]", v %>
   <% end %>
+  <% (@scope_summary[:update_fields] || {}).each do |k, v| %>
+    <%= hidden_field_tag "update_fields[#{k}]", v %>
+  <% end %>
   <div class="actions">
     <%= submit_tag "确认执行（#{valid_count}条通过 / #{invalid_count}条将跳过）",
         class: "btn btn-danger",

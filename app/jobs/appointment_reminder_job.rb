@@ -6,11 +6,17 @@ class AppointmentReminderJob < ApplicationJob
                               .where("appointment_date > ? AND appointment_date < ?",
                                      24.hours.from_now, 25.hours.from_now)
 
+    success_count = 0
     appointments.each do |appt|
-      send_reminder(appt)
+      begin
+        send_reminder(appt)
+        success_count += 1
+      rescue => e
+        Rails.logger.error "Failed to send reminder for #{appt.appointment_no}: #{e.message}"
+      end
     end
 
-    Rails.logger.info "AppointmentReminderJob: Processed #{appointments.count} appointments"
+    Rails.logger.info "AppointmentReminderJob: Processed #{success_count}/#{appointments.count} appointments"
   end
 
   private
