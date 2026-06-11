@@ -490,3 +490,256 @@ fn test_rollback_inplace_creates_backup_and_restores() {
         "backup file should be consumed (renamed into place)"
     );
 }
+
+#[test]
+fn test_rollback_hard_link_same_inode_protects_original() {
+    use std::os::unix::fs::MetadataExt;
+
+    let work_dir = TempDir::new().unwrap();
+    let original_path = create_test_image(work_dir.path(), "real.png", 80, 80);
+    let original_bytes = fs::read(&original_path).unwrap();
+    let original_ino = fs::metadata(&original_path).unwrap().ino();
+
+    let link_path = work_dir.path().join("hardlink.png");
+    fs::hard_link(&original_path, &link_path).unwrap();
+
+    let link_ino = fs::metadata(&link_path).unwrap().ino();
+    assert_eq!(original_ino, link_ino, "hard link must share inode");
+
+    imgproc_bin()
+        .arg(&original_path)
+        .arg("--out")
+        .arg(work_dir.path())
+        .arg("--rename")
+        .arg("hardlink.{ext}")
+        .arg("--rollback")
+        .arg("--png")
+        .assert()
+        .success();
+
+    let original_after = fs::read(&original_path).unwrap();
+    assert_eq!(
+        original_bytes, original_after,
+        "original file bytes must be untouched even when hard link is overwritten"
+    );
+
+    let backup = work_dir.path().join("hardlink.png.imgproc-orig");
+    assert!(backup.exists(), "backup must exist because link and original share inode");
+
+    let manifest_path = work_dir.path().join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    assert_eq!(
+        manifest["operations"][0]["action"].as_str(),
+        Some("RestoreFromBackup")
+    );
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    assert!(!backup.exists(), "backup should be consumed after rollback");
+
+    let restored = fs::read(&link_path).unwrap();
+    assert_eq!(
+        original_bytes, restored,
+        "rollback must restore link_path content from backup"
+    );
+}
+
+#[test]
+fn test_rollback_symlink_to_original_protects_original() {
+    use std::os::unix::fs as unix_fs;
+
+    let work_dir = TempDir::new().unwrap();
+    let original_path = create_test_image(work_dir.path(), "real.png", 80, 80);
+    let original_bytes = fs::read(&original_path).unwrap();
+
+    let symlink_path = work_dir.path().join("symlink.png");
+    unix_fs::symlink(&original_path, &symlink_path).unwrap();
+
+    imgproc_bin()
+        .arg(&original_path)
+        .arg("--out")
+        .arg(work_dir.path())
+        .arg("--rename")
+        .arg("symlink.{ext}")
+        .arg("--rollback")
+        .arg("--png")
+        .assert()
+        .success();
+
+    let original_after = fs::read(&original_path).unwrap();
+    assert_eq!(
+        original_bytes, original_after,
+        "original file bytes must be untouched even when symlink target is same file"
+    );
+
+    let sym_meta = fs::symlink_metadata(&symlink_path).unwrap();
+    assert!(!sym_meta.file_type().is_symlink(), "symlink should be replaced with regular file");
+
+    let backup = work_dir.path().join("symlink.png.imgproc-orig");
+    assert!(backup.exists(), "backup must exist because symlink pointed to original");
+
+    let manifest_path = work_dir.path().join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    assert_eq!(
+        manifest["operations"][0]["action"].as_str(),
+        Some("RestoreFromBackup")
+    );
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    let restored = fs::read(&symlink_path).unwrap();
+    assert_eq!(
+        original_bytes, restored,
+        "rollback must restore symlink_path from backup"
+    );
+}
+
+#[test]
+fn test_rollback_different_output_only_deletes_no_copy() {
+    let input_dir = TempDir::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+
+    let input_path = create_test_image(input_dir.path(), "src.png", 50, 50);
+    let input_bytes = fs::read(&input_path).unwrap();
+    let input_size = input_bytes.len();
+
+    imgproc_bin()
+        .arg(input_dir.path())
+        .arg("--out")
+        .arg(output_dir.path())
+        .arg("--rollback")
+        .arg("--jpeg")
+        .arg("--quality")
+        .arg("50")
+        .assert()
+        .success();
+
+    let output_path = output_dir.path().join("src.jpg");
+    assert!(output_path.exists());
+
+    let manifest_path = output_dir.path().join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+    assert_eq!(
+        manifest["operations"][0]["action"].as_str(),
+        Some("DeleteOutput"),
+        "different output path must use DeleteOutput action"
+    );
+    assert!(manifest["operations"][0]["backup_path"].is_null());
+
+    let input_bytes_after = fs::read(&input_path).unwrap();
+    assert_eq!(
+        input_bytes, input_bytes_after,
+        "input file must be completely untouched"
+    );
+    assert_eq!(
+        input_bytes_after.len(),
+        input_size,
+        "input file size unchanged"
+    );
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    assert!(!output_path.exists(), "output must be deleted after rollback");
+
+    let output_dir_files: Vec<_> = fs::read_dir(output_dir.path())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            let name = p.file_name().unwrap().to_str().unwrap();
+            name.ends_with(".jpg") || name.ends_with(".png")
+        })
+        .collect();
+    assert!(
+        output_dir_files.is_empty(),
+        "rollback must not copy any images into output directory. Found: {:?}",
+        output_dir_files
+    );
+
+    let input_bytes_final = fs::read(&input_path).unwrap();
+    assert_eq!(
+        input_bytes, input_bytes_final,
+        "input file must remain untouched after rollback"
+    );
+}
+
+#[test]
+fn test_rollback_different_paths_same_file_not_delete_output() {
+    use std::path::PathBuf;
+
+    let work_dir = TempDir::new().unwrap();
+    let abs_path = create_test_image(work_dir.path(), "photo.png", 60, 60);
+    let abs_bytes = fs::read(&abs_path).unwrap();
+
+    let dot_slash_path: PathBuf = work_dir.path().join("./photo.png");
+    let canonical_dot = fs::canonicalize(&dot_slash_path).unwrap();
+    let canonical_abs = fs::canonicalize(&abs_path).unwrap();
+    assert_eq!(canonical_dot, canonical_abs);
+
+    imgproc_bin()
+        .arg(&dot_slash_path)
+        .arg("--out")
+        .arg(work_dir.path())
+        .arg("--rename")
+        .arg("photo.{ext}")
+        .arg("--rollback")
+        .arg("--jpeg")
+        .arg("--quality")
+        .arg("40")
+        .assert()
+        .success();
+
+    let output_jpg = work_dir.path().join("photo.jpg");
+    assert!(output_jpg.exists(), "output jpg should exist");
+    assert!(abs_path.exists(), "original png must still exist");
+
+    let manifest_path = work_dir.path().join("imgproc_rollback.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+
+    let action = manifest["operations"][0]["action"].as_str();
+    let original_path = manifest["operations"][0]["original_path"].as_str().unwrap();
+    let output_path = manifest["operations"][0]["output_path"].as_str().unwrap();
+
+    assert_ne!(original_path, output_path, "path strings differ (png vs jpg)");
+    assert_eq!(
+        action,
+        Some("DeleteOutput"),
+        "different actual files must use DeleteOutput, not RestoreFromBackup"
+    );
+
+    let original_bytes_after = fs::read(&abs_path).unwrap();
+    assert_eq!(
+        abs_bytes, original_bytes_after,
+        "original png file must be untouched"
+    );
+
+    imgproc_bin()
+        .arg("--undo")
+        .arg(&manifest_path)
+        .assert()
+        .success();
+
+    assert!(!output_jpg.exists(), "output jpg must be deleted after rollback");
+
+    let original_bytes_final = fs::read(&abs_path).unwrap();
+    assert_eq!(
+        abs_bytes, original_bytes_final,
+        "original png must remain untouched after rollback"
+    );
+}

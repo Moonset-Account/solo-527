@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RollbackManifest {
     pub tool: String,
@@ -26,6 +29,34 @@ pub struct RollbackEntry {
     pub backup_path: Option<String>,
 }
 
+pub fn same_file(a: &Path, b: &Path) -> Result<bool> {
+    if !a.exists() || !b.exists() {
+        return Ok(false);
+    }
+    let meta_a = fs::metadata(a)
+        .with_context(|| format!("Cannot stat {}", a.display()))?;
+    let meta_b = fs::metadata(b)
+        .with_context(|| format!("Cannot stat {}", b.display()))?;
+
+    #[cfg(unix)]
+    {
+        Ok(meta_a.dev() == meta_b.dev() && meta_a.ino() == meta_b.ino())
+    }
+
+    #[cfg(not(unix))]
+    {
+        Ok(a == b)
+    }
+}
+
+fn generate_backup_path(output_path: &Path) -> PathBuf {
+    let ext = output_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("bak");
+    output_path.with_extension(format!("{}.imgproc-orig", ext))
+}
+
 impl RollbackManifest {
     pub fn new() -> Self {
         RollbackManifest {
@@ -36,21 +67,32 @@ impl RollbackManifest {
         }
     }
 
-    pub fn add(
+    pub fn prepare(
         &mut self,
         original_path: &Path,
         original_size: u64,
         output_path: &Path,
     ) -> Result<()> {
-        let same_path = original_path == output_path;
-        let (action, backup_path) = if same_path {
-            let backup = output_path.with_extension(format!(
-                "{}.imgproc-orig",
-                output_path.extension().and_then(|e| e.to_str()).unwrap_or("bak")
-            ));
-            fs::copy(output_path, &backup)
+        let (is_same_file, same_path_string) = if output_path.exists() {
+            let same_inode = same_file(original_path, output_path)?;
+            let same_str = original_path == output_path;
+            (same_inode, same_str)
+        } else {
+            (false, false)
+        };
+
+        let (action, backup_path) = if is_same_file {
+            let backup = generate_backup_path(output_path);
+            fs::copy(original_path, &backup)
                 .with_context(|| format!("Cannot create backup of {} to {}", output_path.display(), backup.display()))?;
             log::info!("Backed up {} -> {}", output_path.display(), backup.display());
+
+            if !same_path_string {
+                fs::remove_file(output_path)
+                    .with_context(|| format!("Cannot unlink output {} to break hard/sym link association with original", output_path.display()))?;
+                log::info!("Unlinked {} to break association with original (different path, same inode)", output_path.display());
+            }
+
             (RollbackAction::RestoreFromBackup, Some(backup.display().to_string()))
         } else {
             (RollbackAction::DeleteOutput, None)
@@ -134,4 +176,60 @@ pub fn execute_rollback(manifest_path: &Path) -> Result<u32> {
     log::info!("Manifest backed up to {}", backup.display());
 
     Ok(reverted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_same_file_different_paths() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("a.png");
+        fs::write(&file, b"dummy").unwrap();
+
+        let alias1 = dir.path().join("a.png");
+        let alias2 = dir.path().join("./a.png");
+        let alias3 = dir.path().join("b.png");
+
+        assert!(same_file(&alias1, &alias2).unwrap());
+        assert!(!same_file(&alias1, &alias3).unwrap());
+        assert!(!same_file(&alias1, Path::new("/nonexistent")).unwrap());
+    }
+
+    #[test]
+    fn test_same_file_hard_link() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("orig.png");
+        fs::write(&file, b"dummy content").unwrap();
+
+        let link = dir.path().join("link.png");
+        fs::hard_link(&file, &link).unwrap();
+
+        assert!(same_file(&file, &link).unwrap());
+    }
+
+    #[test]
+    fn test_same_file_symlink() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("orig.png");
+        fs::write(&file, b"dummy content").unwrap();
+
+        let sym = dir.path().join("sym.png");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&file, &sym).unwrap();
+
+        #[cfg(unix)]
+        assert!(same_file(&file, &sym).unwrap());
+    }
+
+    #[test]
+    fn test_generate_backup_path() {
+        let p = Path::new("/tmp/photo.jpg");
+        assert_eq!(generate_backup_path(p), PathBuf::from("/tmp/photo.jpg.imgproc-orig"));
+
+        let p = Path::new("/tmp/photo");
+        assert_eq!(generate_backup_path(p), PathBuf::from("/tmp/photo.bak.imgproc-orig"));
+    }
 }

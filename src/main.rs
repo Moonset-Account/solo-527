@@ -155,17 +155,18 @@ fn run_process(cli: &Cli, input: &str) -> Result<ExitCode> {
             continue;
         }
 
+        if let Some(ref mut m) = manifest {
+            m.prepare(&entry.path, entry.size_bytes, &output_path)
+                .with_context(|| {
+                    format!(
+                        "Cannot prepare rollback entry for {}",
+                        entry.path.display()
+                    )
+                })?;
+        }
+
         match compressor::compress_image(&entry.path, &output_path, &opts) {
             Ok(result) => {
-                if let Some(ref mut m) = manifest {
-                    m.add(&entry.path, entry.size_bytes, &output_path)
-                        .with_context(|| {
-                            format!(
-                                "Cannot create rollback entry for {}",
-                                entry.path.display()
-                            )
-                        })?;
-                }
                 report.add_success(entry, &result, &output_format.to_string());
             }
             Err(e) => {
