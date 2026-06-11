@@ -25,7 +25,7 @@ const RefundManagement: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const result = await refundApi.search({ ...filters, pageNum, pageSize });
+      const result = await refundApi.list({ ...filters, pageNum, pageSize });
       setData(result.records || []);
       setTotal(result.total || 0);
     } finally {
