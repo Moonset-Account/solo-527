@@ -8,7 +8,7 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
 
   $: pathname = $page.url.pathname;
-  $: showSidebar = pathname !== '/login' && pathname !== '/';
+  $: showSidebar = pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
 </script>
 
 <svelte:head>

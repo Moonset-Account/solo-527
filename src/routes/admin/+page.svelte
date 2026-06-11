@@ -140,7 +140,7 @@
               </button>
             </div>
             <div class="mt-2.5 pt-2.5 border-t border-navy-100 flex items-center gap-1.5 text-xs text-navy-500">
-              <Avatar name={alert.ownerName} size="sm" class="w-5 h-5 text-[10px]" />
+              <Avatar name={alert.ownerName} size="sm" className="w-5 h-5 text-[10px]" />
               负责人：{alert.ownerName}
             </div>
           </div>

@@ -32,6 +32,13 @@
   let statusFilter = '';
   let priorityFilter = '';
 
+  const typeOptions = [
+    { v: '', l: '全部' },
+    { v: 'material_auth', l: '素材授权' },
+    { v: 'invoice_cycle', l: '发票周期' },
+    { v: 'subscription', l: '会员订阅' }
+  ];
+
   $: hostId = $currentUser.id;
   $: todos = mockTodos.filter((t) => t.assigneeId === hostId || $currentUser.role === 'operator');
   $: filtered = todos.filter((t) => {
@@ -41,13 +48,42 @@
     return true;
   });
 
-  const markProcessing = (todo: TodoItem) => {
+  const markProcessing = async (todo: TodoItem) => {
     const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) mockTodos[idx] = { ...mockTodos[idx], status: 'processing' };
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/todos/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: todo.id, status: 'processing' })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockTodos[idx] = json.data;
+          return;
+        }
+      } catch {}
+      mockTodos[idx] = { ...mockTodos[idx], status: 'processing' };
+    }
   };
-  const markDone = (todo: TodoItem) => {
+
+  const markDone = async (todo: TodoItem) => {
     const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) mockTodos[idx] = { ...mockTodos[idx], status: 'done' };
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/todos/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: todo.id, status: 'done' })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockTodos[idx] = json.data;
+          return;
+        }
+      } catch {}
+      mockTodos[idx] = { ...mockTodos[idx], status: 'done' };
+    }
   };
 </script>
 
@@ -57,19 +93,14 @@
   <div class="card p-5 flex flex-wrap items-center gap-3">
     <div class="flex items-center gap-2 flex-1 flex-wrap">
       <span class="text-sm text-navy-500 mr-1">类型：</span>
-      {#each [
-        { v: '', l: '全部' },
-        { v: 'material_auth', l: '素材授权' },
-        { v: 'invoice_cycle', l: '发票周期' },
-        { v: 'subscription', l: '会员订阅' }
-      ] as const}
+      {#each typeOptions as opt (opt.v)}
         <button
-          on:click={() => (typeFilter = typeFilter === .v ? '' : .v)}
-          class="px-3 py-1.5 rounded-lg text-xs font-medium transition {typeFilter === .v
+          on:click={() => (typeFilter = typeFilter === opt.v ? '' : opt.v)}
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition {typeFilter === opt.v
             ? 'bg-navy-700 text-white'
             : 'bg-navy-50 text-navy-600 hover:bg-navy-100'}"
         >
-          {.l}
+          {opt.l}
         </button>
       {/each}
     </div>
@@ -104,7 +135,7 @@
             <StatusBadge label={priorityLabel[todo.priority]} value={todo.priority} variant="priority" />
             <StatusBadge label={todoStatusLabel[todo.status]} value={todo.status} variant="todo" />
           </div>
-          {#todo.status !== 'done'}
+          {#if todo.status !== 'done'}
             <button
               on:click={() => markDone(todo)}
               class="w-7 h-7 rounded-lg border border-navy-200 flex items-center justify-center text-navy-400 hover:text-success-green-600 hover:border-success-green-200 hover:bg-success-green-50 transition"

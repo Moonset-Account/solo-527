@@ -1,16 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { currentUser } from '$lib/stores';
-  import { mockUsers } from '$lib/mock-data';
-
-  $: {
-    const role = ($page.url.searchParams.get('role') as 'host' | 'operator') || 'host';
-    const user = mockUsers.find((u) => u.role === role) || mockUsers[0];
-    currentUser.set(user);
-  }
-</script>
-
-<script lang="ts">
+  import { currentUser as userStore } from '$lib/stores';
+  import { mockUsers, mockSubscriptions, mockTodos, mockExceptions } from '$lib/mock-data';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
@@ -33,12 +24,6 @@
     FileCheck2
   } from 'lucide-svelte';
   import {
-    mockSubscriptions,
-    mockTodos,
-    mockExceptions,
-    mockUsers
-  } from '$lib/mock-data';
-  import {
     materialAuthLabel,
     subscriptionStatusLabel,
     invoiceCycleLabel,
@@ -52,19 +37,23 @@
     daysFromNow
   } from '$lib/utils';
   import type { ExceptionRecord, TodoItem } from '$lib/types';
-  import { currentUser as userStore } from '$lib/stores';
+
+  $: {
+    const role = ($page.url.searchParams.get('role') as 'host' | 'operator') || 'host';
+    const user = mockUsers.find((u) => u.role === role) || mockUsers[0];
+    userStore.set(user);
+  }
 
   let selectedException: ExceptionRecord | null = null;
   let resolveResult = '';
   let resolveRemark = '';
-  let selectedTodo: TodoItem | null = null;
 
   $: host = $userStore;
 
   $: hostSubscriptions = mockSubscriptions.filter((s) => {
     if (host.role === 'operator') return true;
     const brand = mockSubscriptions.find((x) => x.brandId === s.brandId);
-    return s.brandId !== ''; // 全部展示给主理人demo
+    return s.brandId !== '';
   });
 
   $: hostTodos = mockTodos.filter((t) => t.assigneeId === host.id || host.role === 'operator');
@@ -88,31 +77,87 @@
     selectedException = null;
   };
 
-  const handleResolve = () => {
+  const handleResolve = async () => {
     if (!selectedException) return;
-    const idx = mockExceptions.findIndex((e) => e.id === selectedException.id);
+    const idx = mockExceptions.findIndex((e) => e.id === selectedException!.id);
     if (idx >= 0) {
-      mockExceptions[idx] = {
-        ...mockExceptions[idx],
-        status: 'resolved',
-        result: resolveResult,
-        remark: resolveRemark,
-        hostId: host.id,
-        hostName: host.name,
-        resolvedAt: new Date().toISOString()
-      };
+      try {
+        const res = await fetch('/api/exceptions/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: selectedException.id,
+            result: resolveResult,
+            remark: resolveRemark,
+            hostId: host.id,
+            hostName: host.name
+          })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockExceptions[idx] = json.data;
+        } else {
+          mockExceptions[idx] = {
+            ...mockExceptions[idx],
+            status: 'resolved',
+            result: resolveResult,
+            remark: resolveRemark,
+            hostId: host.id,
+            hostName: host.name,
+            resolvedAt: new Date().toISOString()
+          };
+        }
+      } catch {
+        mockExceptions[idx] = {
+          ...mockExceptions[idx],
+          status: 'resolved',
+          result: resolveResult,
+          remark: resolveRemark,
+          hostId: host.id,
+          hostName: host.name,
+          resolvedAt: new Date().toISOString()
+        };
+      }
     }
     closeResolve();
   };
 
-  const markTodoProcessing = (todo: TodoItem) => {
+  const markTodoProcessing = async (todo: TodoItem) => {
     const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) mockTodos[idx] = { ...mockTodos[idx], status: 'processing' };
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/todos/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: todo.id, status: 'processing' })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockTodos[idx] = json.data;
+          return;
+        }
+      } catch {}
+      mockTodos[idx] = { ...mockTodos[idx], status: 'processing' };
+    }
   };
 
-  const markTodoDone = (todo: TodoItem) => {
+  const markTodoDone = async (todo: TodoItem) => {
     const idx = mockTodos.findIndex((t) => t.id === todo.id);
-    if (idx >= 0) mockTodos[idx] = { ...mockTodos[idx], status: 'done' };
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/todos/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: todo.id, status: 'done' })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockTodos[idx] = json.data;
+          return;
+        }
+      } catch {}
+      mockTodos[idx] = { ...mockTodos[idx], status: 'done' };
+    }
   };
 </script>
 
@@ -221,7 +266,7 @@
                     {/if}
                     <span class="flex items-center gap-1">
                       <Calendar class="w-3.5 h-3.5" stroke-width={1.8} />
-                      截止 {formatDate(todo.dueDate)} 
+                      截止 {formatDate(todo.dueDate)}
                       {#if daysFromNow(todo.dueDate) <= 2}
                         <span class="text-warn-orange-600 font-medium ml-1">（{daysFromNow(todo.dueDate) > 0 ? `还剩${daysFromNow(todo.dueDate)}天` : '已逾期'}）</span>
                       {/if}
@@ -376,7 +421,7 @@
                     </div>
                     {#if ex.hostName}
                       <div class="mt-2 flex items-center gap-1.5 text-[11px] text-navy-500">
-                        <Avatar name={ex.hostName} size="sm" class="w-5 h-5 text-[10px]" />
+                        <Avatar name={ex.hostName} size="sm" className="w-5 h-5 text-[10px]" />
                         <span>跟进人：{ex.hostName}</span>
                       </div>
                     {/if}
@@ -395,7 +440,8 @@
   open={!!selectedException}
   title="办结异常"
   description={selectedException?.title || ''}
-  on:close={closeResolve}
+  onClose={closeResolve}
+  footer={true}
 >
   <div class="space-y-4">
     <div>

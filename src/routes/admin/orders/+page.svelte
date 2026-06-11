@@ -35,9 +35,29 @@
     return true;
   });
 
-  const updateOrderStatus = (order: Order, status: Order['status']) => {
+  const updateOrderStatus = async (order: Order, status: Order['status']) => {
     const idx = mockOrders.findIndex((o) => o.id === order.id);
-    if (idx >= 0) mockOrders[idx] = { ...mockOrders[idx], status };
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/orders/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: order.id, status })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockOrders[idx] = json.data;
+          if (viewOrder && viewOrder.id === order.id) {
+            viewOrder = json.data;
+          }
+          return;
+        }
+      } catch {}
+      mockOrders[idx] = { ...mockOrders[idx], status };
+      if (viewOrder && viewOrder.id === order.id) {
+        viewOrder = { ...viewOrder, status };
+      }
+    }
   };
 </script>
 
@@ -150,7 +170,7 @@
   </div>
 </div>
 
-<Modal open={!!viewOrder} title="订单详情" size="lg" on:close={() => (viewOrder = null)}>
+<Modal open={!!viewOrder} title="订单详情" size="lg" onClose={() => (viewOrder = null)} footer={true}>
   {#if viewOrder}
     <div class="space-y-5">
       <div class="grid grid-cols-2 gap-4 text-sm">
@@ -219,10 +239,7 @@
   <div slot="footer">
     {#if viewOrder && viewOrder.status === 'paid'}
       <button
-        on:click={() => {
-          updateOrderStatus(viewOrder, 'delivering');
-          viewOrder = { ...viewOrder, status: 'delivering' };
-        }}
+        on:click={() => updateOrderStatus(viewOrder!, 'delivering')}
         class="btn-primary"
       >
         启动交付流程

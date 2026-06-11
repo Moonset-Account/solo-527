@@ -34,9 +34,21 @@
     expandedId = expandedId === id ? null : id;
   };
 
-  const retry = (id: string) => {
+  const retry = async (id: string) => {
     const idx = mockApiLogs.findIndex((l) => l.id === id);
     if (idx >= 0) {
+      try {
+        const res = await fetch('/api/api-logs/retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockApiLogs[idx] = json.data;
+          return;
+        }
+      } catch {}
       mockApiLogs[idx] = {
         ...mockApiLogs[idx],
         lastRetryAt: new Date().toISOString(),
@@ -79,9 +91,9 @@
           class="animate-fade-in-up"
           style="animation-delay: {i * 0.02}s"
         >
-          <button
+          <div
             on:click={() => toggle(log.id)}
-            class="w-full flex items-center gap-4 px-6 py-4 hover:bg-navy-50/60 transition text-left"
+            class="w-full flex items-center gap-4 px-6 py-4 hover:bg-navy-50/60 transition text-left cursor-pointer"
           >
             <div
               class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 {log.success
@@ -141,7 +153,7 @@
                 <ChevronRight class="w-4 h-4 text-navy-400" stroke-width={1.8} />
               {/if}
             </div>
-          </button>
+          </div>
           {#if expanded && !log.success}
             <div class="px-6 pb-5 pt-1 ml-13">
               <div class="rounded-xl bg-warn-orange-50 border border-warn-orange-200 p-4">

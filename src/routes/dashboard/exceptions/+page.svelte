@@ -63,19 +63,47 @@
     selectedException = null;
   };
 
-  const handleResolve = () => {
+  const handleResolve = async () => {
     if (!selectedException) return;
-    const idx = mockExceptions.findIndex((e) => e.id === selectedException.id);
+    const idx = mockExceptions.findIndex((e) => e.id === selectedException!.id);
     if (idx >= 0) {
-      mockExceptions[idx] = {
-        ...mockExceptions[idx],
-        status: 'resolved',
-        result: resolveResult,
-        remark: resolveRemark,
-        hostId: $currentUser.id,
-        hostName: $currentUser.name,
-        resolvedAt: new Date().toISOString()
-      };
+      try {
+        const res = await fetch('/api/exceptions/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: selectedException.id,
+            result: resolveResult,
+            remark: resolveRemark,
+            hostId: $currentUser.id,
+            hostName: $currentUser.name
+          })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockExceptions[idx] = json.data;
+        } else {
+          mockExceptions[idx] = {
+            ...mockExceptions[idx],
+            status: 'resolved',
+            result: resolveResult,
+            remark: resolveRemark,
+            hostId: $currentUser.id,
+            hostName: $currentUser.name,
+            resolvedAt: new Date().toISOString()
+          };
+        }
+      } catch {
+        mockExceptions[idx] = {
+          ...mockExceptions[idx],
+          status: 'resolved',
+          result: resolveResult,
+          remark: resolveRemark,
+          hostId: $currentUser.id,
+          hostName: $currentUser.name,
+          resolvedAt: new Date().toISOString()
+        };
+      }
     }
     closeResolve();
   };
@@ -238,7 +266,8 @@
   open={!!selectedException}
   title="办结异常"
   description={selectedException?.title || ''}
-  on:close={closeResolve}
+  onClose={closeResolve}
+  footer={true}
 >
   <div class="space-y-4">
     <div>
@@ -273,7 +302,7 @@
   </div>
 </Modal>
 
-<Modal open={!!viewDetail} title="异常详情" on:close={() => (viewDetail = null)}>
+<Modal open={!!viewDetail} title="异常详情" onClose={() => (viewDetail = null)} footer={true}>
   {#if viewDetail}
     <div class="space-y-4">
       <div class="flex items-center gap-2">
@@ -326,7 +355,7 @@
   {/if}
   <div slot="footer">
     {#if viewDetail && viewDetail.status !== 'resolved'}
-      <button on:click={() => { openResolve(viewDetail); viewDetail = null; }} class="btn-primary">
+      <button on:click={() => { openResolve(viewDetail!); viewDetail = null; }} class="btn-primary">
         立即办结
       </button>
     {/if}

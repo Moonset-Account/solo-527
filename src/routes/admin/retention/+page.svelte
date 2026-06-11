@@ -18,21 +18,55 @@
 
   let statusFilter = '';
 
+  const statusOptions = [
+    { v: '', l: '全部' },
+    { v: 'active', l: '预警中' },
+    { v: 'acknowledged', l: '已认领' },
+    { v: 'resolved', l: '已解决' }
+  ];
+
   $: filtered = mockRetentionAlerts.filter((a) => !statusFilter || a.status === statusFilter);
 
   $: activeCount = mockRetentionAlerts.filter((a) => a.status === 'active').length;
   $: ackCount = mockRetentionAlerts.filter((a) => a.status === 'acknowledged').length;
   $: resolvedCount = mockRetentionAlerts.filter((a) => a.status === 'resolved').length;
 
-  const acknowledge = (alert: RetentionAlert) => {
+  const acknowledge = async (alert: RetentionAlert) => {
     const idx = mockRetentionAlerts.findIndex((a) => a.id === alert.id);
-    if (idx >= 0)
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/alerts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: alert.id, action: 'acknowledge' })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockRetentionAlerts[idx] = json.data;
+          return;
+        }
+      } catch {}
       mockRetentionAlerts[idx] = { ...mockRetentionAlerts[idx], status: 'acknowledged', notifiedAt: new Date().toISOString() };
+    }
   };
 
-  const resolve = (alert: RetentionAlert) => {
+  const resolve = async (alert: RetentionAlert) => {
     const idx = mockRetentionAlerts.findIndex((a) => a.id === alert.id);
-    if (idx >= 0) mockRetentionAlerts[idx] = { ...mockRetentionAlerts[idx], status: 'resolved' };
+    if (idx >= 0) {
+      try {
+        const res = await fetch('/api/alerts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: alert.id, action: 'resolve' })
+        });
+        const json = await res.json();
+        if (json.ok && json.data) {
+          mockRetentionAlerts[idx] = json.data;
+          return;
+        }
+      } catch {}
+      mockRetentionAlerts[idx] = { ...mockRetentionAlerts[idx], status: 'resolved' };
+    }
   };
 </script>
 
@@ -47,19 +81,14 @@
 
   <div class="card p-5 flex flex-wrap items-center gap-3">
     <div class="flex items-center gap-2 flex-1">
-      {#each [
-        { v: '', l: '全部' },
-        { v: 'active', l: '预警中' },
-        { v: 'acknowledged', l: '已认领' },
-        { v: 'resolved', l: '已解决' }
-      ] as const}
+      {#each statusOptions as opt (opt.v)}
         <button
-          on:click={() => (statusFilter = statusFilter === .v ? '' : .v)}
-          class="px-3 py-1.5 rounded-lg text-xs font-medium transition {statusFilter === .v
+          on:click={() => (statusFilter = statusFilter === opt.v ? '' : opt.v)}
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition {statusFilter === opt.v
             ? 'bg-navy-700 text-white'
             : 'bg-navy-50 text-navy-600 hover:bg-navy-100'}"
         >
-          {.l}
+          {opt.l}
         </button>
       {/each}
     </div>
@@ -123,7 +152,7 @@
 
             <div class="flex items-center gap-4 text-xs text-navy-500">
               <div class="flex items-center gap-1.5">
-                <Avatar name={alert.ownerName} size="sm" class="w-5 h-5 text-[10px]" />
+                <Avatar name={alert.ownerName} size="sm" className="w-5 h-5 text-[10px]" />
                 <span>负责人：{alert.ownerName}</span>
               </div>
               {#if alert.notifiedAt}

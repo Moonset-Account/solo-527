@@ -96,7 +96,7 @@
                     </p>
                     {#if node.assigneeName}
                       <div class="mt-2 flex items-center justify-center gap-1.5">
-                        <Avatar name={node.assigneeName} size="sm" class="w-5 h-5 text-[10px]" />
+                        <Avatar name={node.assigneeName} size="sm" className="w-5 h-5 text-[10px]" />
                         <span class="text-xs text-navy-600">{node.assigneeName}</span>
                       </div>
                     {/if}

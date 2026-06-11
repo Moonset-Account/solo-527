@@ -3,6 +3,8 @@
   export let title: string;
   export let description = '';
   export let size: 'sm' | 'md' | 'lg' = 'md';
+  export let onClose: () => void = () => {};
+  export let footer = false;
 
   import { X } from 'lucide-svelte';
 
@@ -21,7 +23,7 @@
   >
     <div
       class="absolute inset-0 bg-navy-900/50 backdrop-blur-sm"
-      on:click={() => ($$rest.onclose ? null : null)}
+      on:click={onClose}
     />
     <div
       class="relative bg-white rounded-2xl shadow-2xl w-full {sizeClasses[size]} animate-fade-in-up"
@@ -34,7 +36,7 @@
           {/if}
         </div>
         <button
-          on:click
+          on:click={onClose}
           class="w-8 h-8 rounded-lg flex items-center justify-center text-navy-400 hover:bg-navy-50 hover:text-navy-700 transition"
           aria-label="关闭"
         >
@@ -44,7 +46,7 @@
       <div class="p-6">
         <slot />
       </div>
-      {#if $$slots.footer}
+      {#if footer}
         <div class="flex items-center justify-end gap-2 p-6 pt-0">
           <slot name="footer" />
         </div>
