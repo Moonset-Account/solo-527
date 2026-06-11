@@ -172,6 +172,74 @@ def test_scan_code_for_keys():
     assert "common.goodbye" in keys
 
 
+def test_scan_code_for_keys_with_spaces(tmp_path):
+    test_file = tmp_path / "test.ts"
+    test_file.write_text(
+        """
+        // 字符串后直接跟逗号
+        const a = t('key.a', { name: 'x' });
+        // 字符串后有空格再接逗号
+        const b = t('key.b' , { name: 'y' });
+        // 字符串后有多个空格再接逗号
+        const c = t('key.c'   , {});
+        // 字符串后直接跟右括号
+        const d = t('key.d');
+        // 字符串后有空格再接右括号
+        const e = t('key.e' );
+        // 字符串后有多个空格再接右括号
+        const f = t('key.f'   );
+
+        // $t 格式带空格
+        const g = $t('key.g' , {});
+        const h = $t('key.h' );
+
+        // i18n.t 格式带空格
+        const i = i18n.t('key.i' , options);
+        const j = i18n.t('key.j' );
+
+        // translate 格式带空格
+        const k = translate('key.k' , {});
+        const l = translate('key.l' );
+
+        // trans 格式带空格
+        const m = trans('key.m' , {});
+        const n = trans('key.n' );
+
+        // 双引号带空格
+        const o = t("key.o" , {});
+        const p = t("key.p" );
+        """,
+        encoding="utf-8",
+    )
+
+    keys = scan_code_for_keys([str(tmp_path)])
+
+    # 带空格跟逗号
+    assert "key.b" in keys
+    assert "key.c" in keys
+    # 带空格跟右括号
+    assert "key.e" in keys
+    assert "key.f" in keys
+    # 正常写法也应该匹配
+    assert "key.a" in keys
+    assert "key.d" in keys
+    # $t 带空格
+    assert "key.g" in keys
+    assert "key.h" in keys
+    # i18n.t 带空格
+    assert "key.i" in keys
+    assert "key.j" in keys
+    # translate 带空格
+    assert "key.k" in keys
+    assert "key.l" in keys
+    # trans 带空格
+    assert "key.m" in keys
+    assert "key.n" in keys
+    # 双引号带空格
+    assert "key.o" in keys
+    assert "key.p" in keys
+
+
 def test_check_i18n_basic():
     source_file = str(LOCALES_DIR / "en.json")
     target_files = {

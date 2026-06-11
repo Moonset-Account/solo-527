@@ -24,11 +24,11 @@ PLACEHOLDER_NAME_PATTERNS = [
 
 
 TRANSLATION_CALL_PATTERNS = [
-    re.compile(r'''(?<![.\w])t\(\s*['"]([^'"]+)['"](?:[,)])'''),
-    re.compile(r'''i18n\.t\(\s*['"]([^'"]+)['"](?:[,)])'''),
-    re.compile(r'''translate\(\s*['"]([^'"]+)['"](?:[,)])'''),
-    re.compile(r'''\$t\(\s*['"]([^'"]+)['"](?:[,)])'''),
-    re.compile(r'''trans\(\s*['"]([^'"]+)['"](?:[,)])'''),
+    re.compile(r'''(?<![.\w])t\(\s*['"]([^'"]+)['"]\s*(?:[,)])'''),
+    re.compile(r'''i18n\.t\(\s*['"]([^'"]+)['"]\s*(?:[,)])'''),
+    re.compile(r'''translate\(\s*['"]([^'"]+)['"]\s*(?:[,)])'''),
+    re.compile(r'''\$t\(\s*['"]([^'"]+)['"]\s*(?:[,)])'''),
+    re.compile(r'''trans\(\s*['"]([^'"]+)['"]\s*(?:[,)])'''),
 ]
 
 
