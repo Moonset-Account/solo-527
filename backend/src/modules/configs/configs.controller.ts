@@ -1,7 +1,25 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, Patch, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Query,
+  Patch,
+  HttpCode,
+  HttpStatus,
+  HttpException,
+} from '@nestjs/common';
 import { ConfigsService } from './configs.service';
-import { CreateConfigDto, UpdateConfigDto, QueryConfigDto, ConfigQueryDto } from '../../dto/config.dto';
-import { Config, ChangeLog, ChangeLogItem } from '../../schemas/config.schema';
+import {
+  CreateConfigDto,
+  UpdateConfigDto,
+  QueryConfigDto,
+  ConfigQueryDto,
+} from '../../dto/config.dto';
+import { Config, ChangeLog } from '../../schemas/config.schema';
 
 export type ConfigQueryDtoAlias = ConfigQueryDto;
 
@@ -11,64 +29,198 @@ export class ConfigsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createConfigDto: CreateConfigDto): Promise<Config> {
-    return this.configsService.create(createConfigDto);
+  async create(@Body() createConfigDto: CreateConfigDto) {
+    try {
+      const result = await this.configsService.create(createConfigDto);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get()
-  findAll(@Query() query: QueryConfigDto): Promise<{ data: Config[]; total: number; page: number; pageSize: number }> {
-    return this.configsService.findAll(query);
+  async findAll(@Query() query: QueryConfigDto) {
+    try {
+      const result = await this.configsService.findAll(query);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get('key/:key')
-  findByKey(@Param('key') key: string): Promise<Config> {
-    return this.configsService.findByKey(key);
+  async findByKey(@Param('key') key: string) {
+    try {
+      const result = await this.configsService.findByKey(key);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get('type/:type')
-  getByType(@Param('type') type: string): Promise<Config[]> {
-    return this.configsService.getByType(type);
+  async getByType(@Param('type') type: string) {
+    try {
+      const result = await this.configsService.getByType(type);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get('group/by-type')
-  groupByType(): Promise<Record<string, Config[]>> {
-    return this.configsService.groupByType();
+  async groupByType() {
+    try {
+      const result = await this.configsService.groupByType();
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Config> {
-    return this.configsService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    try {
+      const result = await this.configsService.findOne(id);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get(':id/changelog')
-  getChangeLog(@Param('id') id: string): Promise<ChangeLogItem[]> {
-    return this.configsService.getChangeLog(id);
+  async getChangeLog(@Param('id') id: string) {
+    try {
+      const result = await this.configsService.getChangeLog(id);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateConfigDto: UpdateConfigDto): Promise<Config> {
-    return this.configsService.update(id, updateConfigDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateConfigDto: UpdateConfigDto,
+  ) {
+    try {
+      const result = await this.configsService.update(id, updateConfigDto);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string): Promise<Config> {
-    return this.configsService.remove(id);
+  async remove(@Param('id') id: string) {
+    try {
+      const result = await this.configsService.remove(id);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Patch(':id/enable')
-  enable(
+  async enable(
     @Param('id') id: string,
     @Body('modifiedBy') modifiedBy?: string,
-  ): Promise<Config> {
-    return this.configsService.enable(id, modifiedBy);
+  ) {
+    try {
+      const result = await this.configsService.enable(id, modifiedBy);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Patch(':id/disable')
-  disable(
+  async disable(
     @Param('id') id: string,
     @Body('modifiedBy') modifiedBy?: string,
-  ): Promise<Config> {
-    return this.configsService.disable(id, modifiedBy);
+  ) {
+    try {
+      const result = await this.configsService.disable(id, modifiedBy);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

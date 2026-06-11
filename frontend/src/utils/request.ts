@@ -75,4 +75,8 @@ export function del<T = any>(url: string, params?: any, config?: AxiosRequestCon
   return request<T>({ method: 'DELETE', url, params, ...config })
 }
 
+export function patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  return request<T>({ method: 'PATCH', url, data, ...config })
+}
+
 export default service

@@ -289,17 +289,21 @@ import {
   CaretBottom
 } from '@element-plus/icons-vue'
 import {
-  getOverallStats,
-  getFulfillmentBreakdown,
-  getHeatmapData,
-  getTrendAnalysis,
+  getOverview,
+  getOnTimeBreakdown,
+  getRegionDemand,
+  getTrend,
   getWorkerRanking,
   type OverallStats,
   type FulfillmentBreakdownItem,
   type HeatmapItem,
   type TrendPoint,
   type WorkerRankItem,
-  type QueryAnalyticsParams
+  type OverviewParams,
+  type OnTimeParams,
+  type RegionDemandParams,
+  type TrendParams,
+  type WorkersParams,
 } from '@/api/analytics'
 
 use([
@@ -535,14 +539,61 @@ function getGapCellStyle(community: string) {
   return { background: '#f5f7fa' }
 }
 
-function buildQueryParams(): QueryAnalyticsParams {
-  const params: QueryAnalyticsParams = {}
+function buildOverviewParams(): OverviewParams {
+  const params: OverviewParams = {}
   if (filterForm.dateRange?.length === 2) {
-    params.startTime = filterForm.dateRange[0]
-    params.endTime = filterForm.dateRange[1]
+    params.startDate = filterForm.dateRange[0]
+    params.endDate = filterForm.dateRange[1]
+  }
+  return params
+}
+
+function buildOnTimeParams(): OnTimeParams {
+  const params: OnTimeParams = {
+    groupBy: dimension.value,
+  }
+  if (filterForm.dateRange?.length === 2) {
+    params.startDate = filterForm.dateRange[0]
+    params.endDate = filterForm.dateRange[1]
   }
   if (filterForm.communities?.length) {
-    params.communities = filterForm.communities
+    params.communities = filterForm.communities.join(',')
+  }
+  return params
+}
+
+function buildRegionDemandParams(): RegionDemandParams {
+  const params: RegionDemandParams = {}
+  if (filterForm.dateRange?.length === 2) {
+    params.startDate = filterForm.dateRange[0]
+    params.endDate = filterForm.dateRange[1]
+  }
+  if (filterForm.communities?.length) {
+    params.communities = filterForm.communities.join(',')
+  }
+  return params
+}
+
+function buildTrendParams(): TrendParams {
+  const params: TrendParams = {
+    granularity: 'day',
+  }
+  if (filterForm.dateRange?.length === 2) {
+    params.startDate = filterForm.dateRange[0]
+    params.endDate = filterForm.dateRange[1]
+  }
+  return params
+}
+
+function buildWorkersParams(): WorkersParams {
+  const params: WorkersParams = {
+    page: 1,
+    pageSize: 50,
+    sortBy: 'completed',
+  }
+  if (filterForm.dateRange?.length === 2) {
+    params.startDate = filterForm.dateRange[0]
+    params.endDate = filterForm.dateRange[1]
   }
   return params
 }
@@ -643,10 +694,31 @@ function generateMockWorkerRanking(): WorkerRankItem[] {
 
 async function loadOverallStats() {
   try {
-    const res = await getOverallStats(buildQueryParams())
-    const data = (res.data as any)?.data || res.data
+    const res = await getOverview(buildOverviewParams())
+    const data = (res.data as any)?.data ?? res.data
     if (data && typeof data.totalOrders === 'number') {
-      overallStats.value = data
+      Object.assign(overallStats.value, {
+        totalOrders: data.totalOrders ?? 0,
+        completedOrders: data.completedOrders,
+        cancelledOrders: data.cancelledOrders,
+        rescheduledCount: data.rescheduledCount,
+        onTimeRate: data.onTimeRate ?? 0,
+        averageRating: data.averageRating ?? data.avgRating,
+        reviewCount: data.reviewCount,
+        todayOrders: data.todayOrders,
+        inProgressOrders: data.inProgressOrders,
+        totalOrdersMom: data.totalOrdersMom ?? 0,
+        onTimeRateMom: data.onTimeRateMom ?? 0,
+        cancelRate: data.cancelRate ?? (data.cancelledOrders / (data.totalOrders || 1)),
+        cancelRateMom: data.cancelRateMom ?? 0,
+        avgRating: data.averageRating ?? data.avgRating ?? 0,
+        avgRatingMom: data.avgRatingMom ?? 0,
+        totalAmount: data.totalAmount ?? 0,
+        avgOrderAmount: data.avgOrderAmount ?? 0,
+        activeWorkers: data.activeWorkers ?? 0,
+        newUsers: data.newUsers ?? 0,
+        completedOrdersMom: data.completedOrdersMom ?? 0,
+      } as any)
     } else {
       overallStats.value = generateMockOverallStats()
     }
@@ -657,9 +729,8 @@ async function loadOverallStats() {
 
 async function loadFulfillmentData() {
   try {
-    const params = { ...buildQueryParams(), dimension: dimension.value }
-    const res = await getFulfillmentBreakdown(params)
-    const data = (res.data as any)?.data || res.data
+    const res = await getOnTimeBreakdown(buildOnTimeParams())
+    const data = (res.data as any)?.data ?? res.data
     if (Array.isArray(data) && data.length) {
       fulfillmentData.value = data
     } else {
@@ -672,8 +743,8 @@ async function loadFulfillmentData() {
 
 async function loadHeatmapData() {
   try {
-    const res = await getHeatmapData(buildQueryParams())
-    const data = (res.data as any)?.data || res.data
+    const res = await getRegionDemand(buildRegionDemandParams())
+    const data = (res.data as any)?.data ?? res.data
     if (Array.isArray(data) && data.length) {
       heatmapData.value = data
     } else {
@@ -686,8 +757,8 @@ async function loadHeatmapData() {
 
 async function loadTrendData() {
   try {
-    const res = await getTrendAnalysis(buildQueryParams())
-    const data = (res.data as any)?.data || res.data
+    const res = await getTrend(buildTrendParams())
+    const data = (res.data as any)?.data ?? res.data
     if (Array.isArray(data) && data.length) {
       trendData.value = data
     } else {
@@ -700,10 +771,11 @@ async function loadTrendData() {
 
 async function loadWorkerRanking() {
   try {
-    const res = await getWorkerRanking(buildQueryParams())
-    const data = (res.data as any)?.data || res.data
-    if (Array.isArray(data) && data.length) {
-      workerRankingData.value = data
+    const res = await getWorkerRanking(buildWorkersParams())
+    const payload = res.data as any
+    const list = payload?.data ?? payload?.list ?? payload
+    if (Array.isArray(list) && list.length) {
+      workerRankingData.value = list
     } else {
       workerRankingData.value = generateMockWorkerRanking()
     }

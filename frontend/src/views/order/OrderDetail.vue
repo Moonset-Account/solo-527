@@ -803,46 +803,13 @@ async function refreshData() {
   try {
     const id = route.params.id as string
     const res = await getOrderById(id)
-    orderData.value = (res.data as any) || null
-    if (!orderData.value) {
-      orderData.value = {
-        _id: id,
-        orderNo: `SO${String(id.charCodeAt(0) || 2024000001).padStart(10, '0')}`,
-        userId: 'user1',
-        serviceId: 'svc1',
-        serviceName: '日常保洁',
-        serviceCategory: '保洁服务',
-        addressId: 'addr1',
-        addressSnapshot: {
-          contactName: '张三',
-          phone: '13800138000',
-          province: '北京市',
-          city: '北京市',
-          district: '朝阳区',
-          community: '阳光花园',
-          detail: '1号楼2单元301室',
-        },
-        workerId: 'w1',
-        workerName: '李师傅',
-        workerPhone: '13800138001',
-        scheduledAt: new Date(Date.now() + 86400000).toISOString(),
-        scheduledEndAt: new Date(Date.now() + 86400000 + 7200000).toISOString(),
-        duration: 120,
-        price: 199,
-        status: 'dispatched',
-        rescheduleCount: 0,
-        cancelReason: '',
-        rescheduleReason: '',
-        supplyDemandReason: 'none',
-        community: '阳光花园',
-        operator: '调度系统',
-        remark: '客户希望尽量准时',
-        onTimeRecord: { scheduled: true, arrived: false, completed: false },
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        updatedAt: new Date(Date.now() - 1800000).toISOString(),
-      }
+    const order = res.data as any
+    if (order && order._id) {
+      orderData.value = order
+    } else {
+      throw new Error('empty data')
     }
-    if (orderData.value.status === 'completed') {
+    if (orderData.value?.status === 'completed') {
       reviewData.value = loadMockReview()
       displayRating.value = reviewData.value.rating
     }

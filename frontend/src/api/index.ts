@@ -1,4 +1,5 @@
 export * from './user'
+export * from './address'
 export * from './dashboard'
 export * from './order'
 export * from './service'

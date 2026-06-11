@@ -259,24 +259,14 @@ import { Search, Goods, Plus, Location, Clock } from '@element-plus/icons-vue'
 import {
   createOrder,
   getServiceList,
+  getUserByPhone,
+  createUser,
+  createAddress,
+  getAddressList,
   type ServiceItem,
   type AddressSnapshot,
+  type AddressItem,
 } from '@/api'
-
-interface SavedAddress {
-  _id: string
-  userId: string
-  contactName: string
-  phone: string
-  province: string
-  city: string
-  district: string
-  community: string
-  detail: string
-  lng: number
-  lat: number
-  isDefault: boolean
-}
 
 const activeStep = ref(0)
 const submitting = ref(false)
@@ -287,8 +277,8 @@ const serviceKeyword = ref('')
 const serviceList = ref<ServiceItem[]>([])
 const selectedService = ref<ServiceItem | null>(null)
 
-const savedAddresses = ref<SavedAddress[]>([])
-const selectedAddress = ref<SavedAddress | null>(null)
+const savedAddresses = ref<AddressItem[]>([])
+const selectedAddress = ref<AddressItem | null>(null)
 
 const addressFormRef = ref<FormInstance>()
 const addressForm = reactive({
@@ -442,8 +432,9 @@ function disabledDate(date: Date) {
 
 async function loadServices() {
   try {
-    const res = await getServiceList({ pageSize: 100 })
-    serviceList.value = res.data?.data || res.data || []
+    const res = await getServiceList({ pageSize: 100, enabled: true })
+    const result = (res.data as any)?.data ?? res.data
+    serviceList.value = Array.isArray(result) ? result : []
   } catch (e) {
     serviceList.value = [
       { _id: '1', name: '日常保洁', category: '保洁服务', duration: 120, price: 199, unit: '次', description: '包含客厅、卧室、厨房、卫生间等区域的清洁', enabled: true, createdAt: '', updatedAt: '' },
@@ -458,43 +449,28 @@ async function loadServices() {
   }
 }
 
-function loadSavedAddresses() {
+async function loadSavedAddresses() {
   try {
-    const stored = localStorage.getItem('savedAddresses')
-    if (stored) {
-      savedAddresses.value = JSON.parse(stored)
+    const phone = localStorage.getItem('currentUserPhone')
+    if (phone) {
+      const userRes = await getUserByPhone(phone)
+      const userId = (userRes.data as any)?._id
+      if (userId) {
+        const addrRes = await getAddressList({ userId })
+        savedAddresses.value = (addrRes.data as any)?.data ?? []
+        const defaultAddr = savedAddresses.value.find((a) => a.isDefault) || savedAddresses.value[0]
+        if (defaultAddr) {
+          selectAddress(defaultAddr)
+        }
+      } else {
+        savedAddresses.value = []
+      }
+    } else {
+      savedAddresses.value = []
     }
   } catch (e) {
-    savedAddresses.value = [
-      {
-        _id: 'addr1',
-        userId: 'user1',
-        contactName: '张三',
-        phone: '13800138000',
-        province: '北京市',
-        city: '北京市',
-        district: '朝阳区',
-        community: '阳光花园',
-        detail: '1号楼2单元301室',
-        lng: 116.4,
-        lat: 39.9,
-        isDefault: true,
-      },
-      {
-        _id: 'addr2',
-        userId: 'user1',
-        contactName: '张三',
-        phone: '13800138000',
-        province: '北京市',
-        city: '北京市',
-        district: '海淀区',
-        community: '中关村公寓',
-        detail: 'A座1508室',
-        lng: 116.3,
-        lat: 39.98,
-        isDefault: false,
-      },
-    ]
+    console.warn('加载地址失败', e)
+    savedAddresses.value = []
   }
 }
 
@@ -502,7 +478,7 @@ function selectService(service: ServiceItem) {
   selectedService.value = service
 }
 
-function selectAddress(addr: SavedAddress) {
+function selectAddress(addr: AddressItem) {
   selectedAddress.value = addr
   addressForm.contactName = addr.contactName
   addressForm.phone = addr.phone
@@ -526,36 +502,46 @@ function handleRegionChange(value: string[]) {
 async function confirmAddress() {
   try {
     await addressFormRef.value?.validate()
-    const addr: SavedAddress = {
-      _id: editingAddressId.value || `addr_${Date.now()}`,
-      userId: 'current_user',
-      contactName: addressForm.contactName,
-      phone: addressForm.phone,
-      province: addressForm.province,
-      city: addressForm.city,
-      district: addressForm.district,
-      community: addressForm.community,
-      detail: addressForm.detail,
-      lng: 0,
-      lat: 0,
+
+    const phone = addressForm.phone
+    const { contactName, province, city, district, community, detail } = addressForm
+
+    let userRes: any
+    try {
+      userRes = await getUserByPhone(phone)
+    } catch (e) {
+      userRes = null
+    }
+
+    let userId = (userRes?.data as any)?._id
+    if (!userId) {
+      const createRes = await createUser({ name: contactName, phone })
+      userId = (createRes.data as any)?._id
+    }
+    if (!userId) throw new Error('用户创建失败')
+
+    const addrRes = await createAddress({
+      userId,
+      contactName,
+      phone,
+      province,
+      city,
+      district,
+      community,
+      detail,
       isDefault: addressForm.saveAsDefault,
-    }
-    if (addressForm.saveAddress) {
-      const idx = savedAddresses.value.findIndex((a) => a._id === addr._id)
-      if (idx >= 0) {
-        savedAddresses.value[idx] = addr
-      } else {
-        if (addressForm.saveAsDefault) {
-          savedAddresses.value.forEach((a) => (a.isDefault = false))
-        }
-        savedAddresses.value.unshift(addr)
-      }
-      localStorage.setItem('savedAddresses', JSON.stringify(savedAddresses.value))
-    }
-    selectedAddress.value = addr
-    ElMessage.success('地址确认成功')
-  } catch (e) {
-    ElMessage.warning('请完整填写地址信息')
+    })
+    const newAddr = addrRes.data as any
+    if (!newAddr?._id) throw new Error('地址创建失败')
+
+    savedAddresses.value.unshift(newAddr)
+    selectedAddress.value = newAddr
+
+    localStorage.setItem('currentUserPhone', phone)
+
+    ElMessage.success('地址已保存')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '地址保存失败，请稍后重试')
   }
 }
 
@@ -574,7 +560,7 @@ function resetAddressForm() {
   addressFormRef.value?.resetFields()
 }
 
-function formatAddress(addr: SavedAddress | AddressSnapshot) {
+function formatAddress(addr: AddressItem | AddressSnapshot) {
   return `${addr.province}${addr.city}${addr.district}${(addr as any).community ? ' ' + (addr as any).community : ''} ${addr.detail}`
 }
 
@@ -593,22 +579,50 @@ async function submitOrder() {
   }
   submitting.value = true
   try {
-    const scheduledAt = new Date(`${scheduleDate.value}T${scheduleTime.value}:00`)
+    const phone = selectedAddress.value.phone
+    let userRes = await getUserByPhone(phone)
+    let userId = (userRes.data as any)?._id
+    if (!userId) {
+      const createRes = await createUser({ name: selectedAddress.value.contactName, phone })
+      userId = (createRes.data as any)?._id
+    }
+    if (!userId) throw new Error('用户创建失败')
+
+    let addressId = selectedAddress.value._id
+    if (addressId.startsWith('addr_') || addressId.length < 10) {
+      const addrRes = await createAddress({
+        userId,
+        contactName: selectedAddress.value.contactName,
+        phone: selectedAddress.value.phone,
+        province: selectedAddress.value.province,
+        city: selectedAddress.value.city,
+        district: selectedAddress.value.district,
+        community: selectedAddress.value.community,
+        detail: selectedAddress.value.detail,
+        isDefault: selectedAddress.value.isDefault,
+      })
+      addressId = (addrRes.data as any)?._id
+      if (!addressId) throw new Error('地址创建失败')
+    }
+
+    const scheduledAt = new Date(`${scheduleDate.value}T${scheduleTime.value}:00`).toISOString()
     const result = await createOrder({
-      userId: 'current_user',
+      userId,
       serviceId: selectedService.value._id,
-      addressId: selectedAddress.value._id,
-      scheduledAt: scheduledAt.toISOString(),
+      addressId,
+      scheduledAt,
       remark: remark.value,
     })
     ElMessage.success('下单成功')
-    const orderId = (result.data as any)._id || (result.data as any).orderNo
-    window.location.hash = `#/orders/${orderId}`
-  } catch (e: any) {
-    ElMessage.success('订单创建成功（演示模式）')
-    setTimeout(() => {
+    const orderData = (result.data as any) ?? {}
+    const orderId = orderData._id || orderData.orderNo
+    if (orderId) {
+      window.location.hash = `#/orders/${orderId}`
+    } else {
       window.location.hash = '#/orders'
-    }, 1000)
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '下单失败，请稍后重试')
   } finally {
     submitting.value = false
   }
@@ -617,10 +631,6 @@ async function submitOrder() {
 onMounted(() => {
   loadServices()
   loadSavedAddresses()
-  const defaultAddr = savedAddresses.value.find((a) => a.isDefault) || savedAddresses.value[0]
-  if (defaultAddr) {
-    selectAddress(defaultAddr)
-  }
 })
 </script>
 

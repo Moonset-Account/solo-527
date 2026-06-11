@@ -1,5 +1,48 @@
 import { get, post, put, del } from '@/utils/request'
 
+export interface UserItem {
+  _id: string
+  name: string
+  phone: string
+  avatar?: string
+  level: 'normal' | 'vip'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserListResult {
+  data: UserItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface CreateUserParams {
+  name: string
+  phone: string
+  avatar?: string
+  level?: 'normal' | 'vip'
+}
+
+export function createUser(params: CreateUserParams) {
+  return post<UserItem>('/users', params)
+}
+export function getUserList(params?: any) {
+  return get<UserListResult>('/users', params)
+}
+export function getUserById(id: string) {
+  return get<UserItem>(`/users/${id}`)
+}
+export function getUserByPhone(phone: string) {
+  return get<UserItem>(`/users/phone/${phone}`)
+}
+export function updateUser(id: string, params: any) {
+  return put<UserItem>(`/users/${id}`, params)
+}
+export function deleteUser(id: string) {
+  return del<void>(`/users/${id}`)
+}
+
 export interface LoginParams {
   username: string
   password: string
@@ -7,61 +50,15 @@ export interface LoginParams {
 
 export interface LoginResult {
   token: string
-}
-
-export interface UserItem {
-  id: number
-  username: string
-  nickname: string
-  email: string
-  phone: string
-  status: 0 | 1
-  createTime: string
-  updateTime: string
-}
-
-export interface UserListParams {
-  page?: number
-  pageSize?: number
-  keyword?: string
-  status?: 0 | 1
-}
-
-export interface UserListResult {
-  list: UserItem[]
-  total: number
-  page: number
-  pageSize: number
+  user: {
+    id: number | string
+    username: string
+    nickname: string
+    avatar: string
+    roles: string[]
+  }
 }
 
 export function login(params: LoginParams) {
   return post<LoginResult>('/auth/login', params)
-}
-
-export function logout() {
-  return post<void>('/auth/logout')
-}
-
-export function getUserInfo() {
-  return get<UserItem>('/auth/userinfo')
-}
-
-export function getUserList(params?: UserListParams) {
-  return get<UserListResult>('/users', params)
-}
-
-export function getUserDetail(id: number) {
-  return get<UserItem>(`/users/${id}`)
-}
-
-export function createUser(data: Partial<UserItem>) {
-  return post<UserItem>('/users', data)
-}
-
-export function updateUser(id: number, data: Partial<UserItem>) {
-  return put<UserItem>(`/users/${id}`, data)
-}
-
-export function deleteUser(id: number) {
-  return del<void>(`/users/${id}`)
 }

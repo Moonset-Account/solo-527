@@ -1,4 +1,4 @@
-import { get, post, put } from '@/utils/request'
+import { get, post, put, patch } from '@/utils/request'
 
 export type FollowUpStatus = 'pending' | 'done'
 
@@ -122,12 +122,12 @@ export function getReviewList(params?: QueryReviewParams) {
   return get<ReviewListResult>('/reviews', params)
 }
 
-export function getReviewById(id: string) {
-  return get<ReviewItem>(`/reviews/${id}`)
+export function getPendingFollowUpList() {
+  return get<ReviewItem[]>('/reviews/pending')
 }
 
-export function getReviewByOrderId(orderId: string) {
-  return get<ReviewItem>(`/reviews/order/${orderId}`)
+export function getReviewById(id: string) {
+  return get<ReviewItem>(`/reviews/${id}`)
 }
 
 export function getReviewStats() {
@@ -138,18 +138,14 @@ export function updateReview(id: string, params: UpdateReviewParams) {
   return put<ReviewItem>(`/reviews/${id}`, params)
 }
 
+export function replyReview(id: string, params: ReplyReviewParams) {
+  return put<ReviewItem>(`/reviews/${id}/reply`, params)
+}
+
 export function followUpReview(id: string, params: FollowUpParams) {
   return post<ReviewItem>(`/reviews/${id}/follow-up`, params)
 }
 
 export function batchFollowUp(params: BatchFollowUpParams) {
-  return post<BatchFollowUpResult>('/reviews/batch/follow-up', params)
-}
-
-export function markFollowUpDone(id: string, params?: { followUpBy?: string }) {
-  return post<ReviewItem>(`/reviews/${id}/mark-done`, params)
-}
-
-export function replyReview(id: string, params: ReplyReviewParams) {
-  return post<ReviewItem>(`/reviews/${id}/reply`, params)
+  return patch<BatchFollowUpResult>('/reviews/batch-followup', params)
 }

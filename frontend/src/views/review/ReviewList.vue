@@ -522,7 +522,7 @@ import {
   replyReview,
   followUpReview,
   batchFollowUp,
-  markFollowUpDone,
+  getPendingFollowUpList,
   type ReviewItem,
   type ReviewStats,
   type FollowUpRecord,
@@ -704,8 +704,8 @@ async function loadWorkers() {
 async function loadStats() {
   try {
     const res = await getReviewStats()
-    const data = (res as any).data || res.data
-    if (data) {
+    const data = (res.data as any)?.data ?? res.data
+    if (data && typeof data.averageRating === 'number') {
       Object.assign(stats, data)
     } else {
       throw new Error('no data')
@@ -727,33 +727,44 @@ async function loadStats() {
 async function loadData() {
   loading.value = true
   try {
-    const params: any = {
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-    }
-    if (searchForm.ratings?.length) {
-      params.ratings = searchForm.ratings
-    }
-    if (searchForm.followUpStatus && searchForm.followUpStatus !== 'all') {
-      params.followUpStatus = searchForm.followUpStatus
-    }
-    if (searchForm.dateRange?.length === 2) {
-      params.startTime = searchForm.dateRange[0]
-      params.endTime = searchForm.dateRange[1]
-    }
-    if (searchForm.workerId) params.workerId = searchForm.workerId
-    if (searchForm.community) params.community = searchForm.community
-
-    const res = await getReviewList(params)
-    const data = (res as any).data || res.data
-    if (data && Array.isArray(data)) {
-      tableData.value = data
-      pagination.total = data.length
-    } else if (data && data.list) {
-      tableData.value = data.list
-      pagination.total = data.total || 0
+    if (activeTab.value === 'pending') {
+      const res = await getPendingFollowUpList()
+      const payload = res.data as any
+      const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.list)
+      if (Array.isArray(list)) {
+        tableData.value = list
+        pagination.total = list.length
+        pagination.pageSize = Math.max(list.length, 20)
+      } else {
+        throw new Error('no pending data')
+      }
     } else {
-      throw new Error('no data')
+      const params: any = {
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+      }
+      if (searchForm.ratings?.length) {
+        params.ratings = searchForm.ratings
+      }
+      if (searchForm.followUpStatus && searchForm.followUpStatus !== 'all') {
+        params.followUpStatus = searchForm.followUpStatus
+      }
+      if (searchForm.dateRange?.length === 2) {
+        params.startTime = searchForm.dateRange[0]
+        params.endTime = searchForm.dateRange[1]
+      }
+      if (searchForm.workerId) params.workerId = searchForm.workerId
+      if (searchForm.community) params.community = searchForm.community
+
+      const res = await getReviewList(params)
+      const payload = res.data as any
+      const list = payload?.data ?? payload?.list
+      if (Array.isArray(list)) {
+        tableData.value = list
+        pagination.total = payload?.total ?? list.length
+      } else {
+        throw new Error('no data')
+      }
     }
   } catch {
     let all = generateMockReviews()
@@ -918,7 +929,11 @@ async function handleMarkDone(row: ReviewItem) {
     return
   }
   try {
-    await markFollowUpDone(row._id, { followUpBy: '管理员' })
+    await followUpReview(row._id, {
+      followUpContent: '标记已完成回访',
+      followUpBy: '管理员',
+      followUpStatus: 'done',
+    })
     ElMessage.success('标记成功')
     loadStats()
     loadData()
@@ -945,10 +960,10 @@ async function confirmBatchFollowUp() {
       followUpContent: batchFollowUpForm.followUpContent,
       followUpBy: batchFollowUpForm.followUpBy,
     })
-    const data = (res as any).data || res.data
-    batchResult.successCount = data?.success?.length || 0
-    batchResult.failedCount = data?.failed?.length || 0
-    batchResult.failedIds = data?.failed?.map((f: any) => f.id) || []
+    const payload = res.data as any
+    batchResult.successCount = payload?.success?.length ?? 0
+    batchResult.failedCount = payload?.failed?.length ?? 0
+    batchResult.failedIds = payload?.failed?.map((f: any) => f.id ?? f) || []
     showBatchFollowUp.value = false
     showBatchResult.value = true
     tableRef.value?.clearSelection()

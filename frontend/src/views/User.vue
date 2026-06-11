@@ -113,7 +113,17 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
-import type { UserItem } from '@/api'
+
+interface AdminUserItem {
+  id: number
+  username: string
+  nickname: string
+  email: string
+  phone: string
+  status: 0 | 1
+  createTime: string
+  updateTime: string
+}
 
 interface QueryForm {
   page: number
@@ -139,7 +149,7 @@ const dialogFormRef = ref<FormInstance>()
 const isEdit = ref(false)
 const total = ref(0)
 
-const mockUsers: UserItem[] = Array.from({ length: 25 }, (_, i) => ({
+const mockUsers: AdminUserItem[] = Array.from({ length: 25 }, (_, i) => ({
   id: i + 1,
   username: `user${i + 1}`,
   nickname: `用户${i + 1}`,
@@ -150,7 +160,7 @@ const mockUsers: UserItem[] = Array.from({ length: 25 }, (_, i) => ({
   updateTime: `2024-0${(i % 9) + 1}-${String((i % 28) + 1).padStart(2, '0')} 15:00:00`
 }))
 
-const tableData = ref<UserItem[]>([])
+const tableData = ref<AdminUserItem[]>([])
 
 const queryForm = reactive<QueryForm>({
   page: 1,
@@ -235,13 +245,13 @@ function handleAdd() {
   dialogVisible.value = true
 }
 
-function handleEdit(row: UserItem) {
+function handleEdit(row: AdminUserItem) {
   isEdit.value = true
   Object.assign(dialogForm, row, { password: '' })
   dialogVisible.value = true
 }
 
-function handleDelete(row: UserItem) {
+function handleDelete(row: AdminUserItem) {
   ElMessageBox.confirm(`确定删除用户「${row.username}」吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',

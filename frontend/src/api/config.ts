@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/utils/request'
+import { get, post, put, del, patch } from '@/utils/request'
 
 export interface ChangeLogItem {
   oldValue: any
@@ -102,9 +102,9 @@ export function deleteConfig(id: string) {
 }
 
 export function enableConfig(id: string, modifiedBy?: string) {
-  return post<ConfigItem>(`/configs/${id}/enable`, { modifiedBy })
+  return patch<ConfigItem>(`/configs/${id}/enable`, { modifiedBy })
 }
 
 export function disableConfig(id: string, modifiedBy?: string) {
-  return post<ConfigItem>(`/configs/${id}/disable`, { modifiedBy })
+  return patch<ConfigItem>(`/configs/${id}/disable`, { modifiedBy })
 }

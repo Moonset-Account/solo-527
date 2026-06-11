@@ -33,3 +33,7 @@ export class QueryAddressDto {
   limit?: number;
   pageSize?: number;
 }
+
+export class SetDefaultDto {
+  userId: string;
+}

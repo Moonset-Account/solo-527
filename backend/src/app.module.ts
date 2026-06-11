@@ -11,6 +11,8 @@ import { ConfigsModule } from './modules/configs/configs.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { UsersModule } from './modules/users/users.module';
+import { AddressesModule } from './modules/addresses/addresses.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     OrdersModule,
     AnalyticsModule,
     ReviewsModule,
+    UsersModule,
+    AddressesModule,
   ],
   controllers: [],
   providers: [],

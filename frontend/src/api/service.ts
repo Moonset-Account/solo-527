@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/utils/request'
+import { get, post, put, del, patch } from '@/utils/request'
 
 export interface ServiceItem {
   _id: string
@@ -73,9 +73,9 @@ export function deleteService(id: string) {
 }
 
 export function enableService(id: string) {
-  return post<ServiceItem>(`/services/${id}/enable`)
+  return patch<ServiceItem>(`/services/${id}/enable`)
 }
 
 export function disableService(id: string) {
-  return post<ServiceItem>(`/services/${id}/disable`)
+  return patch<ServiceItem>(`/services/${id}/disable`)
 }

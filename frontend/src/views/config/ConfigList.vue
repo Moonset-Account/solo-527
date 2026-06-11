@@ -424,10 +424,11 @@ async function loadData() {
     if (searchForm.enabledStatus === 'false') params.enabled = false
 
     const res = await getConfigList(params)
-    const data = (res as any).data || res.data
-    if (data && Array.isArray(data)) {
-      tableData.value = data
-      pagination.total = data.length
+    const payload = res.data as any
+    const list = payload?.data ?? payload?.list
+    if (Array.isArray(list)) {
+      tableData.value = list
+      pagination.total = payload?.total ?? list.length
     } else {
       throw new Error('no data')
     }
@@ -555,7 +556,8 @@ async function openChangeLogDrawer(row: ConfigItem) {
   changeLogDrawerVisible.value = true
   try {
     const res = await getConfigChangeLog(row._id)
-    changeLogs.value = (res as any).data || res.data || []
+    const payload = res.data as any
+    changeLogs.value = Array.isArray(payload) ? payload : (payload?.data ?? payload ?? [])
   } catch {
     changeLogs.value = row.changeLog || []
   }

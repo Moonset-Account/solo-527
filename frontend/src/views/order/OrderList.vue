@@ -490,8 +490,9 @@ function handleSelectionChange(rows: OrderItem[]) {
 
 async function loadWorkers() {
   try {
-    const res = await getWorkerList({ pageSize: 1000 })
-    workerOptions.value = (res.data?.data || res.data || []) as WorkerItem[]
+    const res = await getWorkerList({ pageSize: 1000, status: 'on' })
+    const result = (res.data as any)?.data ?? res.data
+    workerOptions.value = Array.isArray(result) ? result : []
     if (workerOptions.value.length === 0) {
       workerOptions.value = [
         { _id: 'w1', name: '李师傅', phone: '13800138001', idCard: '110101199001011234', skills: [], rating: 4.8, status: 'on', community: '阳光花园', hireDate: '2023-01-15', createdAt: '', updatedAt: '' },
@@ -597,10 +598,11 @@ async function loadData() {
     if (searchForm.keyword) params.keyword = searchForm.keyword
 
     const res = await getOrderList(params)
-    const data = res.data as any
-    if (data?.list) {
-      tableData.value = data.list
-      pagination.total = data.total || 0
+    const payload = res.data as any
+    const list = payload?.data ?? payload?.list
+    if (Array.isArray(list)) {
+      tableData.value = list
+      pagination.total = payload?.total ?? list.length
     } else {
       const all = generateMockOrders()
       let filtered = [...all]

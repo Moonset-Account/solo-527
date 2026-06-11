@@ -1,6 +1,22 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Query,
+  HttpCode,
+  HttpStatus,
+  HttpException,
+} from '@nestjs/common';
 import { WorkersService } from './workers.service';
-import { CreateWorkerDto, UpdateWorkerDto, QueryWorkerDto } from '../../dto/worker.dto';
+import {
+  CreateWorkerDto,
+  UpdateWorkerDto,
+  QueryWorkerDto,
+} from '../../dto/worker.dto';
 import { Worker } from '../../schemas/worker.schema';
 
 @Controller('workers')
@@ -9,46 +25,144 @@ export class WorkersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createWorkerDto: CreateWorkerDto): Promise<Worker> {
-    return this.workersService.create(createWorkerDto);
+  async create(@Body() createWorkerDto: CreateWorkerDto) {
+    try {
+      const result = await this.workersService.create(createWorkerDto);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get()
-  findAll(@Query() query: QueryWorkerDto): Promise<{ data: Worker[]; total: number; page: number; pageSize: number }> {
-    return this.workersService.findAll(query);
+  async findAll(@Query() query: QueryWorkerDto) {
+    try {
+      const result = await this.workersService.findAll(query);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get('skill/:skillId')
-  findBySkill(@Param('skillId') skillId: string): Promise<Worker[]> {
-    return this.workersService.findBySkill(skillId);
+  async findBySkill(@Param('skillId') skillId: string) {
+    try {
+      const result = await this.workersService.findBySkill(skillId);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get('community/:community')
-  findByCommunity(@Param('community') community: string): Promise<Worker[]> {
-    return this.workersService.findByCommunity(community);
+  async findByCommunity(@Param('community') community: string) {
+    try {
+      const result = await this.workersService.findByCommunity(community);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get('available')
-  findAvailable(
+  async findAvailable(
     @Query('skillId') skillId?: string,
     @Query('community') community?: string,
-  ): Promise<Worker[]> {
-    return this.workersService.findAvailable(skillId, community);
+  ) {
+    try {
+      const result = await this.workersService.findAvailable(skillId, community);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Worker> {
-    return this.workersService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    try {
+      const result = await this.workersService.findOne(id);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateWorkerDto: UpdateWorkerDto): Promise<Worker> {
-    return this.workersService.update(id, updateWorkerDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateWorkerDto: UpdateWorkerDto,
+  ) {
+    try {
+      const result = await this.workersService.update(id, updateWorkerDto);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string): Promise<Worker> {
-    return this.workersService.remove(id);
+  async remove(@Param('id') id: string) {
+    try {
+      const result = await this.workersService.remove(id);
+      return {
+        code: 0,
+        message: '操作成功',
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || '错误',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

@@ -380,9 +380,10 @@ async function handleQuery() {
     }
 
     const res = await batchQueryOrders(params)
-    const data = (res.data as any)?.data || res.data
-    if (Array.isArray(data)) {
-      queryResult.value = data
+    const payload = res.data as any
+    const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.list)
+    if (Array.isArray(list)) {
+      queryResult.value = list
     } else {
       queryResult.value = generateMockOrders(addressIds, communities, timeRange)
     }

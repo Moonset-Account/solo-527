@@ -12,23 +12,23 @@ import {
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
-import { ServicesService } from './services.service';
+import { AddressesService } from './addresses.service';
 import {
-  CreateServiceDto,
-  UpdateServiceDto,
-  ServiceQueryDto,
-} from '../../dto/service.dto';
-import { Service } from '../../schemas/service.schema';
+  CreateAddressDto,
+  UpdateAddressDto,
+  QueryAddressDto,
+  SetDefaultDto,
+} from '../../dto/address.dto';
 
-@Controller('services')
-export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {}
+@Controller('addresses')
+export class AddressesController {
+  constructor(private readonly addressesService: AddressesService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createServiceDto: CreateServiceDto) {
+  async create(@Body() createAddressDto: CreateAddressDto) {
     try {
-      const result = await this.servicesService.create(createServiceDto);
+      const result = await this.addressesService.create(createAddressDto);
       return {
         code: 0,
         message: '操作成功',
@@ -43,26 +43,9 @@ export class ServicesController {
   }
 
   @Get()
-  async findAll(@Query() query: ServiceQueryDto) {
+  async findAll(@Query() query: QueryAddressDto) {
     try {
-      const result = await this.servicesService.findAll(query);
-      return {
-        code: 0,
-        message: '操作成功',
-        data: result,
-      };
-    } catch (error) {
-      throw new HttpException(
-        error.message || '错误',
-        error.status || HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
-  @Get('category/:category')
-  async findByCategory(@Param('category') category: string) {
-    try {
-      const result = await this.servicesService.findByCategory(category);
+      const result = await this.addressesService.findAll(query);
       return {
         code: 0,
         message: '操作成功',
@@ -79,7 +62,7 @@ export class ServicesController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {
-      const result = await this.servicesService.findOne(id);
+      const result = await this.addressesService.findOne(id);
       return {
         code: 0,
         message: '操作成功',
@@ -96,10 +79,10 @@ export class ServicesController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateServiceDto: UpdateServiceDto,
+    @Body() updateAddressDto: UpdateAddressDto,
   ) {
     try {
-      const result = await this.servicesService.update(id, updateServiceDto);
+      const result = await this.addressesService.update(id, updateAddressDto);
       return {
         code: 0,
         message: '操作成功',
@@ -116,7 +99,7 @@ export class ServicesController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {
-      const result = await this.servicesService.remove(id);
+      const result = await this.addressesService.remove(id);
       return {
         code: 0,
         message: '操作成功',
@@ -130,27 +113,13 @@ export class ServicesController {
     }
   }
 
-  @Patch(':id/enable')
-  async enable(@Param('id') id: string) {
+  @Patch(':id/default')
+  async setDefault(
+    @Param('id') id: string,
+    @Body() setDefaultDto: SetDefaultDto,
+  ) {
     try {
-      const result = await this.servicesService.enable(id);
-      return {
-        code: 0,
-        message: '操作成功',
-        data: result,
-      };
-    } catch (error) {
-      throw new HttpException(
-        error.message || '错误',
-        error.status || HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
-  @Patch(':id/disable')
-  async disable(@Param('id') id: string) {
-    try {
-      const result = await this.servicesService.disable(id);
+      const result = await this.addressesService.setDefault(id, setDefaultDto);
       return {
         code: 0,
         message: '操作成功',
