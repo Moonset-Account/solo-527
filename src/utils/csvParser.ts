@@ -42,8 +42,11 @@ export function parseScheduleCsv(filePath: string): ParseResult<ScheduleEntry[]>
       }
     }
 
-    if (entries.length === 0 && lines.length > 1) {
-      return { data: [], errors, fatalError: '排班表无有效排班记录（所有行解析失败）' };
+    if (entries.length === 0) {
+      if (lines.length === 1) {
+        return { data: [], errors, fatalError: '排班表只有表头，无有效排班行' };
+      }
+      return { data: [], errors, fatalError: '排班表无有效排班记录（所有数据行解析失败）' };
     }
   } catch (err) {
     if (err instanceof Error) {
