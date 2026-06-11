@@ -6,8 +6,8 @@ import type {
   ParseOptions,
   ParseResult,
   ParseError,
-} from './types';
-import { Note2TaskError } from './errors';
+} from './types.js';
+import { Note2TaskError } from './errors.js';
 
 const DEFAULT_TODO_SYMBOLS = ['- [ ]', '- [x]', '- [X]', '- [-]', '* [ ]', '* [x]', '* [X]', '* [-]'];
 
@@ -59,13 +59,27 @@ function extractProject(content: string): string | undefined {
   const patterns = [
     /@project\(?(.*?)\)?(?=\s|$)/i,
     /项目[:：]\s*(\S+)/i,
-    /#(\S+)(?=\s|$)/,
   ];
 
   for (const pattern of patterns) {
     const match = content.match(pattern);
     if (match && match[1]) {
       return match[1].trim();
+    }
+  }
+  return undefined;
+}
+
+function extractHeadingProject(line: string): string | undefined {
+  const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+  if (headingMatch) {
+    const heading = headingMatch[1].trim();
+    const cleaned = heading
+      .replace(/#[a-zA-Z0-9_\u4e00-\u9fa5][a-zA-Z0-9_\u4e00-\u9fa5/-]*/g, '')
+      .replace(/@\w+\(.*?\)/g, '')
+      .trim();
+    if (cleaned) {
+      return cleaned;
     }
   }
   return undefined;
@@ -100,7 +114,8 @@ export function parseTodoLine(
   line: string,
   lineNumber: number,
   filePath: string,
-  options: ParseOptions = {}
+  options: ParseOptions = {},
+  inheritedProject?: string
 ): TodoItem | null {
   const todoSymbols = options.todoSymbols ?? DEFAULT_TODO_SYMBOLS;
   const defaultPriority = options.defaultPriority ?? 'medium';
@@ -121,7 +136,8 @@ export function parseTodoLine(
   const tags = extractTags(line);
   const dueDate = extractDueDate(line);
   const priorityFromContent = extractPriority(line);
-  const project = extractProject(line);
+  const explicitProject = extractProject(line);
+  const project = explicitProject || inheritedProject;
   const title = cleanTitle(line);
 
   if (!title) {
@@ -153,13 +169,20 @@ export function parseMarkdownContent(
   const lines = content.split('\n');
   const todos: TodoItem[] = [];
   const errors: ParseError[] = [];
+  let currentProject: string | undefined;
 
   for (let i = 0; i < lines.length; i++) {
     const lineNumber = i + 1;
     const line = lines[i];
 
+    const headingProject = extractHeadingProject(line);
+    if (headingProject !== undefined) {
+      currentProject = headingProject;
+      continue;
+    }
+
     try {
-      const todo = parseTodoLine(line, lineNumber, filePath, options);
+      const todo = parseTodoLine(line, lineNumber, filePath, options, currentProject);
       if (todo) {
         todos.push(todo);
       }

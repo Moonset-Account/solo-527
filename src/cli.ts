@@ -2,8 +2,8 @@ import { writeFile, readFile, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { glob } from 'glob';
 import pLimit from 'p-limit';
-import { parseFiles } from './parser';
-import { deduplicateTodos, filterTodos, sortTodos, generateSyncPreview } from './task';
+import { parseFiles } from './parser.js';
+import { deduplicateTodos, filterTodos, sortTodos, generateSyncPreview } from './task.js';
 import {
   renderTodoTable,
   renderSyncPreview,
@@ -11,11 +11,11 @@ import {
   formatJson,
   formatCsv,
   renderMachineReport,
-} from './output';
-import { createMachineReport, Note2TaskError, formatErrorForUser, VERSION } from './errors';
-import { ExitCodes, type CLIArguments, type MachineReport, type ReportError, type TodoItem } from './types';
-import { withRetry, isRetriableError } from './retry';
-import { parseArgs } from './cli-args';
+} from './output.js';
+import { createMachineReport, Note2TaskError, formatErrorForUser, VERSION } from './errors.js';
+import { ExitCodes, type CLIArguments, type MachineReport, type ReportError, type TodoItem } from './types.js';
+import { withRetry, isRetriableError } from './retry.js';
+import { parseArgs } from './cli-args.js';
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_RETRIES = 3;

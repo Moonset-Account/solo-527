@@ -2,9 +2,9 @@ import type {
   TodoItem,
   FilterOptions,
   SyncPreview,
-} from './types';
+} from './types.js';
 import { parseISO, isSameDay, isBefore, isAfter, startOfDay, endOfDay } from 'date-fns';
-import { Note2TaskError } from './errors';
+import { Note2TaskError } from './errors.js';
 
 function normalizeTitle(title: string): string {
   return title

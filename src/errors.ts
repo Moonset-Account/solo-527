@@ -1,4 +1,4 @@
-import { ExitCodes, type ExitCode, type ReportError, type MachineReport } from './types';
+import { ExitCodes, type ExitCode, type ReportError, type MachineReport } from './types.js';
 
 const VERSION = '0.1.0';
 

@@ -1,6 +1,6 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { VERSION } from './errors';
+import { VERSION } from './errors.js';
 
 export function parseArgs(argv: string[]) {
   return yargs(hideBin(['node', 'note2task', ...argv]))

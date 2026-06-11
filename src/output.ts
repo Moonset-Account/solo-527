@@ -1,6 +1,6 @@
 import Table from 'cli-table3';
 import chalk from 'chalk';
-import type { TodoItem, SyncPreview, MachineReport } from './types';
+import type { TodoItem, SyncPreview, MachineReport } from './types.js';
 
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;

@@ -6,8 +6,8 @@
     "declaration": true,
     "sourceMap": true,
     "noEmit": false,
-    "module": "ES2022",
-    "moduleResolution": "node16"
+    "module": "ESNext",
+    "moduleResolution": "bundler"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "tests/**/*"]

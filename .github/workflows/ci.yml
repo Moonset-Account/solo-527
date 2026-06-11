@@ -42,10 +42,10 @@ jobs:
       - name: Test exit codes
         run: |
           echo "Testing exit code 4 (no input files)..."
-          npx tsx src/index.ts parse --format json 2>&1 || true
-          EXIT_CODE=$?
+          EXIT_CODE=0
+          npx tsx src/index.ts parse --format json > /dev/null 2>&1 || EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
-          if [ $EXIT_CODE -ne 4 ]; then
+          if [ "$EXIT_CODE" -ne 4 ]; then
             echo "❌ Expected exit code 4, got $EXIT_CODE"
             exit 1
           fi

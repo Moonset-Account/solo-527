@@ -123,8 +123,8 @@ echo ""
 
 echo "📝 测试 6: 无输入文件 (退出码 4)"
 echo "----------------------------------------"
-OUTPUT=$(npx tsx src/index.ts parse --format json 2>&1) || true
-EXIT_CODE=$?
+EXIT_CODE=0
+OUTPUT=$(npx tsx src/index.ts parse --format json 2>&1) || EXIT_CODE=$?
 assert_exit_code 4 $EXIT_CODE "无输入文件返回退出码 4"
 assert_contains "$OUTPUT" '"exitCode":4' "报告中包含退出码 4"
 assert_contains "$OUTPUT" '"success":false' "报告中 success 为 false"
@@ -188,10 +188,10 @@ echo ""
 
 echo "📝 测试 10: 无效日期参数错误处理"
 echo "----------------------------------------"
-OUTPUT=$(npx tsx src/index.ts parse examples/*.md --due invalid-date --format json 2>&1) || true
-EXIT_CODE=$?
+EXIT_CODE=0
+OUTPUT=$(npx tsx src/index.ts parse examples/*.md --due invalid-date --format json 2>&1) || EXIT_CODE=$?
 echo "   退出码: $EXIT_CODE"
-if [ $EXIT_CODE -ne 0 ]; then
+if [ "$EXIT_CODE" -ne 0 ]; then
   echo "✅ 无效参数返回非零退出码"
   PASS=$((PASS + 1))
 else
