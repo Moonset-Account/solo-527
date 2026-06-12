@@ -64,6 +64,34 @@ export function useApi() {
     })
   }
 
+  async function getMyNotifications(params?: Record<string, any>) {
+    return await $fetch(`${baseURL}/api/repairs/notifications`, {
+      headers: getHeaders(),
+      params
+    })
+  }
+
+  async function getActivities(params?: Record<string, any>) {
+    return await $fetch(`${baseURL}/api/repairs/activities`, {
+      headers: getHeaders(),
+      params
+    })
+  }
+
+  async function getTrades(params?: Record<string, any>) {
+    return await $fetch(`${baseURL}/api/repairs/trades`, {
+      headers: getHeaders(),
+      params
+    })
+  }
+
+  async function getMySeatViolations(params?: Record<string, any>) {
+    return await $fetch(`${baseURL}/api/repairs/seat-violations`, {
+      headers: getHeaders(),
+      params
+    })
+  }
+
   async function getAdminRepairs(params?: Record<string, any>) {
     return await $fetch(`${baseURL}/api/admin/repairs`, {
       headers: getHeaders(),
@@ -120,7 +148,7 @@ export function useApi() {
   }
 
   async function triggerExport(filterParams?: Record<string, any>) {
-    return await $fetch(`${baseURL}/api/export/`, {
+    return await $fetch(`${baseURL}/api/export/sync`, {
       method: 'POST',
       headers: { ...getHeaders(), 'Content-Type': 'application/json' },
       body: filterParams
@@ -140,7 +168,12 @@ export function useApi() {
     })
   }
 
+  function getExportDownloadUrl(id: string | number): string {
+    return `${baseURL}/api/export/${id}/download`
+  }
+
   return {
+    baseURL,
     login,
     register,
     getMe,
@@ -148,6 +181,10 @@ export function useApi() {
     getRepairs,
     getRepairDetail,
     uploadAttachment,
+    getMyNotifications,
+    getActivities,
+    getTrades,
+    getMySeatViolations,
     getAdminRepairs,
     auditRepair,
     getRepairHistory,
@@ -158,6 +195,7 @@ export function useApi() {
     getStatistics,
     triggerExport,
     getExportStatus,
-    getExportHistory
+    getExportHistory,
+    getExportDownloadUrl
   }
 }

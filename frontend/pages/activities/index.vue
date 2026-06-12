@@ -11,10 +11,18 @@
       <NGridItem v-for="activity in activities" :key="activity.id">
         <NCard :title="activity.title" size="small" hoverable>
           <NText depth="2">{{ activity.description || '暂无描述' }}</NText>
+          <NSpace vertical style="margin-top: 8px">
+            <NText v-if="activity.organizer" depth="3" style="font-size: 12px">
+              主办方：{{ activity.organizer }}
+            </NText>
+            <NText v-if="activity.location" depth="3" style="font-size: 12px">
+              地点：{{ activity.location }}
+            </NText>
+          </NSpace>
           <template #footer>
             <NSpace justify="space-between" align="center">
-              <NText depth="3" style="font-size: 12px">{{ activity.date || activity.created_at }}</NText>
-              <NTag size="small">{{ activity.category || '活动' }}</NTag>
+              <NText depth="3" style="font-size: 12px">{{ activity.created_at }}</NText>
+              <NTag size="small">{{ activity.status || '活动' }}</NTag>
             </NSpace>
           </template>
         </NCard>
@@ -22,10 +30,6 @@
     </NGrid>
 
     <NEmpty v-else description="暂无社团活动" />
-
-    <NSpace justify="center" style="margin-top: 16px" v-if="hasMore">
-      <NButton @click="loadMore">加载更多</NButton>
-    </NSpace>
   </NCard>
 </template>
 
@@ -35,39 +39,26 @@ import { NCard, NGrid, NGridItem, NInput, NButton, NSpace, NText, NTag, NEmpty }
 const api = useApi()
 const activities = ref<any[]>([])
 const searchKeyword = ref('')
-const currentPage = ref(1)
-const hasMore = ref(false)
 
 async function fetchActivities() {
   try {
     const params: Record<string, any> = {
-      skip: 0,
-      limit: 12
+      limit: 50
     }
+    const res = await api.getActivities(params) as any
+    let list = Array.isArray(res) ? res : (res.items || [])
     if (searchKeyword.value) {
-      params.keyword = searchKeyword.value
+      const kw = searchKeyword.value.toLowerCase()
+      list = list.filter((a: any) =>
+        (a.title || '').toLowerCase().includes(kw) ||
+        (a.description || '').toLowerCase().includes(kw) ||
+        (a.organizer || '').toLowerCase().includes(kw)
+      )
     }
-    const res = await api.getClubActivities(params) as any
-    activities.value = res.items || []
-    hasMore.value = (res.total || 0) > 12
-    currentPage.value = 1
-  } catch {}
-}
-
-async function loadMore() {
-  currentPage.value++
-  try {
-    const params: Record<string, any> = {
-      skip: (currentPage.value - 1) * 12,
-      limit: 12
-    }
-    if (searchKeyword.value) {
-      params.keyword = searchKeyword.value
-    }
-    const res = await api.getClubActivities(params) as any
-    activities.value.push(...(res.items || []))
-    hasMore.value = activities.value.length < (res.total || 0)
-  } catch {}
+    activities.value = list
+  } catch (e) {
+    activities.value = []
+  }
 }
 
 onMounted(() => {

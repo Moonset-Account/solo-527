@@ -14,13 +14,14 @@
         <NFormItem label="结束日期">
           <NInput v-model:value="filterForm.end_date" placeholder="YYYY-MM-DD" style="width: 140px" />
         </NFormItem>
-        <NFormItem label="学生">
-          <NInput v-model:value="filterForm.student" placeholder="学号或姓名" style="width: 140px" />
-        </NFormItem>
         <NFormItem>
-          <NButton type="primary" :loading="exportLoading" @click="handleExport">导出</NButton>
+          <NButton type="primary" :loading="exportLoading" @click="handleExport">导出 Excel</NButton>
         </NFormItem>
       </NForm>
+      <NAlert v-if="exportSuccess" type="success" style="margin-top: 16px">
+        导出成功！
+        <a :href="lastExportUrl" target="_blank" style="margin-left: 8px">点击下载文件</a>
+      </NAlert>
     </NCard>
 
     <NCard title="导出历史">
@@ -36,20 +37,21 @@
 </template>
 
 <script setup lang="ts">
-import { NCard, NForm, NFormItem, NSelect, NInput, NButton, NDataTable, NSpace, NTag, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NSelect, NInput, NButton, NDataTable, NSpace, NTag, useMessage, NAlert } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 
 const api = useApi()
 const message = useMessage()
 const exportLoading = ref(false)
 const historyLoading = ref(false)
+const exportSuccess = ref(false)
+const lastExportUrl = ref('')
 
 const filterForm = reactive({
   status: null as string | null,
   category: null as string | null,
   start_date: '',
-  end_date: '',
-  student: ''
+  end_date: ''
 })
 
 const statusOptions = [
@@ -71,9 +73,6 @@ const categoryOptions = [
 ]
 
 const exportHistory = ref<any[]>([])
-
-const config = useRuntimeConfig()
-const apiBase = config.public.API_BASE as string
 
 const exportColumns: DataTableColumns = [
   { title: '导出ID', key: 'id', width: 80 },
@@ -104,7 +103,13 @@ const exportColumns: DataTableColumns = [
     title: '操作', key: 'actions', width: 100,
     render(row: any) {
       if (row.file_path) {
-        return h(NButton, { size: 'small', type: 'primary', tag: 'a', href: `${apiBase}/api/export/${row.id}/download`, target: '_blank' }, { default: () => '下载' })
+        return h(NButton, {
+          size: 'small',
+          type: 'primary',
+          tag: 'a',
+          href: api.getExportDownloadUrl(row.id),
+          target: '_blank'
+        }, { default: () => '下载' })
       }
       return h(NButton, { size: 'small', disabled: true }, { default: () => '等待' })
     }
@@ -113,17 +118,21 @@ const exportColumns: DataTableColumns = [
 
 async function handleExport() {
   exportLoading.value = true
+  exportSuccess.value = false
   try {
     const params: Record<string, any> = {}
     if (filterForm.status) params.status = filterForm.status
     if (filterForm.category) params.category = filterForm.category
     if (filterForm.start_date) params.start_date = filterForm.start_date
     if (filterForm.end_date) params.end_date = filterForm.end_date
-    if (filterForm.student) params.student = filterForm.student
     const res = await api.triggerExport({ export_type: 'repairs', filter_params: params }) as any
-    message.success('导出任务已创建')
-    if (res.id) {
-      pollExportStatus(res.id)
+    message.success('导出成功')
+    if (res && res.id) {
+      lastExportUrl.value = api.getExportDownloadUrl(res.id)
+      exportSuccess.value = true
+      setTimeout(() => {
+        exportSuccess.value = false
+      }, 10000)
     }
     fetchHistory()
   } catch (e: any) {
@@ -131,21 +140,6 @@ async function handleExport() {
   } finally {
     exportLoading.value = false
   }
-}
-
-async function pollExportStatus(exportId: number | string) {
-  const interval = setInterval(async () => {
-    try {
-      const res = await api.getExportStatus(exportId) as any
-      if (res.file_path) {
-        clearInterval(interval)
-        fetchHistory()
-        message.success('导出完成，可下载')
-      }
-    } catch {
-      clearInterval(interval)
-    }
-  }, 3000)
 }
 
 async function fetchHistory() {

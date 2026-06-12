@@ -80,15 +80,31 @@ async def audit_repair(
     db.commit()
     db.refresh(audit_record)
 
+    from datetime import datetime as dt
+    from app.models import NotificationReceipt as NR
+
+    notification_content = f"您的报修工单 #{order.id} 已被{audit.action}。"
+    if audit.comment:
+        notification_content += f" 备注：{audit.comment}"
+
     try:
         send_notification.delay(
             user_id=order.student_id,
             order_id=order.id,
             channel="in_app",
-            content=f"Your repair order #{order.id} has been {audit.action}.",
+            content=notification_content,
         )
     except Exception:
-        pass
+        receipt = NR(
+            user_id=order.student_id,
+            order_id=order.id,
+            channel="in_app",
+            content=notification_content,
+            is_read=False,
+            sent_at=dt.utcnow(),
+        )
+        db.add(receipt)
+        db.commit()
 
     return audit_record
 

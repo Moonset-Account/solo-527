@@ -107,7 +107,7 @@ onMounted(async () => {
   } catch {}
 
   try {
-    const notifs = await api.getNotifications({ limit: 5 }) as any[]
+    const notifs = await api.getMyNotifications({ limit: 5 }) as any[]
     notifications.value = Array.isArray(notifs) ? notifs : []
   } catch {}
 })

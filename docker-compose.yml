@@ -46,6 +46,9 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/exports:/app/exports
 
   frontend:
     build:

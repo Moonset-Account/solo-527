@@ -5,11 +5,60 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from app.config import settings
 from app.database import get_db
-from app.models import User, RepairOrder, Attachment, OperationHistory
-from app.schemas import RepairOrderCreate, RepairOrderUpdate, RepairOrderResponse
+from app.models import (
+    User, RepairOrder, Attachment, OperationHistory,
+    NotificationReceipt, ClubActivity, SecondHandTrade, SeatViolation,
+)
+from app.schemas import (
+    RepairOrderCreate, RepairOrderUpdate, RepairOrderResponse,
+    NotificationReceiptResponse, ClubActivityResponse, SecondHandTradeResponse,
+    SeatViolationResponse,
+)
 from app.utils.permissions import get_current_user
 
 router = APIRouter(prefix="/api/repairs", tags=["repairs"])
+
+
+@router.get("/notifications", response_model=list[NotificationReceiptResponse])
+def list_my_notifications(
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(NotificationReceipt).filter(
+        NotificationReceipt.user_id == current_user.id
+    ).order_by(NotificationReceipt.sent_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/activities", response_model=list[ClubActivityResponse])
+def list_activities(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(ClubActivity).order_by(ClubActivity.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/trades", response_model=list[SecondHandTradeResponse])
+def list_trades(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(SecondHandTrade).order_by(SecondHandTrade.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/seat-violations", response_model=list[SeatViolationResponse])
+def list_my_seat_violations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(SeatViolation).filter(
+        SeatViolation.student_id == current_user.id
+    ).order_by(SeatViolation.created_at.desc()).all()
 
 
 @router.post("/", response_model=RepairOrderResponse, status_code=status.HTTP_201_CREATED)
