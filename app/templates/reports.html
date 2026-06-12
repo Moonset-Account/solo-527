@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">📋 报表导出</h1>
+            <p class="text-gray-500 mt-1">导出各类业务数据报表</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center text-2xl mr-3">
+                    🌱
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">采收记录报表</h3>
+                    <p class="text-sm text-gray-500">导出所有采收记录</p>
+                </div>
+            </div>
+            <form class="space-y-4" id="form-harvest">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                    <input type="date" name="start_date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                    <input type="date" name="end_date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="include_demo" id="demo-harvest" value="true"
+                        class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    <label for="demo-harvest" class="text-sm text-gray-700">包含演示数据</label>
+                </div>
+                <button type="button" onclick="exportReport('harvest')"
+                    class="w-full bg-primary-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 transition-colors">
+                    📥 导出采收记录
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mr-3">
+                    📦
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">批次报表</h3>
+                    <p class="text-sm text-gray-500">导出所有批次记录</p>
+                </div>
+            </div>
+            <form class="space-y-4" id="form-batches">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                    <input type="date" name="start_date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                    <input type="date" name="end_date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="include_demo" id="demo-batches" value="true"
+                        class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    <label for="demo-batches" class="text-sm text-gray-700">包含演示数据</label>
+                </div>
+                <button type="button" onclick="exportReport('batches')"
+                    class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-colors">
+                    📥 导出批次记录
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-2xl mr-3">
+                    ⚖️
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">分选差异报表</h3>
+                    <p class="text-sm text-gray-500">导出分选差异记录</p>
+                </div>
+            </div>
+            <form class="space-y-4" id="form-sorting">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                    <input type="date" name="start_date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                    <input type="date" name="end_date"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="include_demo" id="demo-sorting" value="true"
+                        class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    <label for="demo-sorting" class="text-sm text-gray-700">包含演示数据</label>
+                </div>
+                <button type="button" onclick="exportReport('sorting')"
+                    class="w-full bg-orange-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-orange-700 focus:ring-4 focus:ring-orange-300 transition-colors">
+                    📥 导出分选差异
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-800">下载记录</h2>
+            <button onclick="loadDownloads()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                刷新
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">报表类型</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文件名</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">文件大小</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">使用筛选</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">包含演示</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">下载时间</th>
+                    </tr>
+                </thead>
+                <tbody id="download-list" class="divide-y divide-gray-100">
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                            <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                            加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500" id="pagination-info">
+            <span>共 0 条记录</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const authHeaders = { 'Authorization': 'Bearer ' + token };
+
+    function getRecordTypeText(type) {
+        const typeMap = {
+            'harvest_report': '采收记录',
+            'batch_report': '批次记录',
+            'sorting_report': '分选差异',
+            'subsidy_report': '补贴凭证',
+            'alert_report': '告警记录',
+            'full_report': '综合报表'
+        };
+        return typeMap[type] || type;
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes) return '-';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function exportReport(type) {
+        const form = document.getElementById('form-' + type);
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        
+        formData.forEach((value, key) => {
+            if (value) params.append(key, value);
+        });
+
+        const url = `/api/reports/export/${type}?${params.toString()}`;
+        
+        showToast('正在生成报表...', 'info');
+        
+        fetch(url, { headers: authHeaders })
+            .then(r => {
+                if (r.ok) {
+                    const filename = r.headers.get('Content-Disposition')?.match(/filename="?([^"]+)"?/)?.[1] || `${type}_report.xlsx`;
+                    return r.blob().then(blob => {
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(downloadUrl);
+                        showToast('报表导出成功', 'success');
+                        loadDownloads();
+                    });
+                } else {
+                    return r.json().then(err => {
+                        showToast('导出失败: ' + (err.detail || '未知错误'), 'error');
+                    });
+                }
+            })
+            .catch(() => {
+                showToast('网络错误', 'error');
+            });
+    }
+
+    function loadDownloads() {
+        const tbody = document.getElementById('download-list');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    加载中...
+                </td>
+            </tr>
+        `;
+
+        fetch('/api/reports/downloads?page_size=50', { headers: authHeaders })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-4 py-12 text-center text-gray-400">暂无下载记录</td>
+                        </tr>
+                    `;
+                    document.getElementById('pagination-info').innerHTML = '<span>共 0 条记录</span>';
+                    return;
+                }
+
+                tbody.innerHTML = data.data.map(d => `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 text-sm text-gray-600">${d.id}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-800">${getRecordTypeText(d.record_type)}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${d.file_name || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-800">${formatFileSize(d.file_size_bytes)}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${d.filters_used ? '是' : '否'}</td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-600">${d.include_demo ? '是' : '否'}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">${formatDate(d.downloaded_at)}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('pagination-info').innerHTML = `<span>共 ${data.pagination?.total || data.data.length} 条记录</span>`;
+            })
+            .catch(() => {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center text-gray-400">加载失败</td>
+                    </tr>
+                `;
+            });
+    }
+
+    loadDownloads();
+</script>
+{% endblock %}

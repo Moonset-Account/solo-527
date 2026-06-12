@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">📊 仪表盘</h1>
+            <p class="text-gray-500 mt-1">智慧农业采收管理系统概览</p>
+        </div>
+        <div class="text-sm text-gray-500">
+            今天是 {{ now }}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">采收总数</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-harvests">-</p>
+                    <p class="text-xs text-primary-600 mt-1">次采收</p>
+                </div>
+                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center text-2xl">
+                    🌱
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">批次总数</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-batches">-</p>
+                    <p class="text-xs text-blue-600 mt-1">个批次</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl">
+                    📦
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">未解决告警</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-alerts">-</p>
+                    <p class="text-xs text-red-600 mt-1">条待处理</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center text-2xl">
+                    ⚠️
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">本月预测产量</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-prediction">-</p>
+                    <p class="text-xs text-purple-600 mt-1">公斤</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl">
+                    📈
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">补贴总额</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-subsidy">-</p>
+                    <p class="text-xs text-yellow-600 mt-1">元</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-2xl">
+                    💰
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">分拣差异数</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-sorting">-</p>
+                    <p class="text-xs text-orange-600 mt-1">条差异</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-2xl">
+                    ⚖️
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-800">⚠️ 最近告警</h2>
+                <a href="/alerts" class="text-sm text-primary-600 hover:text-primary-700 font-medium">查看全部 →</a>
+            </div>
+            <div class="divide-y divide-gray-100" id="recent-alerts">
+                <div class="p-8 text-center text-gray-400">
+                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    加载中...
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-800">🌱 最近采收记录</h2>
+                <a href="/harvest" class="text-sm text-primary-600 hover:text-primary-700 font-medium">查看全部 →</a>
+            </div>
+            <div class="overflow-x-auto" id="recent-harvests">
+                <div class="p-8 text-center text-gray-400">
+                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    加载中...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': 'Bearer ' + token };
+
+    function getLevelClass(level) {
+        switch(level) {
+            case 'critical': return 'bg-red-100 text-red-700 border-red-200';
+            case 'warning': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            case 'info': return 'bg-blue-100 text-blue-700 border-blue-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
+    }
+
+    function getLevelText(level) {
+        switch(level) {
+            case 'critical': return '严重';
+            case 'warning': return '警告';
+            case 'info': return '提示';
+            default: return level;
+        }
+    }
+
+    function getStatusClass(status) {
+        switch(status) {
+            case 'open': return 'bg-red-100 text-red-700';
+            case 'acknowledged': return 'bg-yellow-100 text-yellow-700';
+            case 'resolved': return 'bg-green-100 text-green-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function getStatusText(status) {
+        switch(status) {
+            case 'open': return '未处理';
+            case 'acknowledged': return '已确认';
+            case 'resolved': return '已解决';
+            default: return status;
+        }
+    }
+
+    function getHarvestStatusClass(status) {
+        switch(status) {
+            case 'planned': return 'bg-gray-100 text-gray-700';
+            case 'in_progress': return 'bg-blue-100 text-blue-700';
+            case 'completed': return 'bg-green-100 text-green-700';
+            case 'cancelled': return 'bg-red-100 text-red-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function getHarvestStatusText(status) {
+        switch(status) {
+            case 'planned': return '计划中';
+            case 'in_progress': return '进行中';
+            case 'completed': return '已完成';
+            case 'cancelled': return '已取消';
+            default: return status;
+        }
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    fetch('/api/reports/summary', { headers })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('stat-harvests').textContent = data.harvests || 0;
+            document.getElementById('stat-batches').textContent = data.batches || 0;
+            document.getElementById('stat-alerts').textContent = data.open_alerts || 0;
+            document.getElementById('stat-prediction').textContent = (data.predicted_yield || 0).toLocaleString();
+            document.getElementById('stat-subsidy').textContent = (data.subsidy_amount || 0).toLocaleString();
+            document.getElementById('stat-sorting').textContent = data.sorting_diffs || 0;
+        })
+        .catch(() => {
+            document.getElementById('stat-harvests').textContent = '0';
+            document.getElementById('stat-batches').textContent = '0';
+            document.getElementById('stat-alerts').textContent = '0';
+            document.getElementById('stat-prediction').textContent = '0';
+            document.getElementById('stat-subsidy').textContent = '0';
+            document.getElementById('stat-sorting').textContent = '0';
+        });
+
+    fetch('/api/monitor/alerts?page_size=5', { headers })
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('recent-alerts');
+            if (!data.data || data.data.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400">暂无告警数据</div>';
+                return;
+            }
+            container.innerHTML = data.data.map(alert => `
+                <div class="p-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2 py-0.5 text-xs font-medium rounded border ${getLevelClass(alert.level)}">${getLevelText(alert.level)}</span>
+                                <span class="px-2 py-0.5 text-xs font-medium rounded ${getStatusClass(alert.status)}">${getStatusText(alert.status)}</span>
+                            </div>
+                            <p class="text-sm font-medium text-gray-800">${alert.message || '告警消息'}</p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                ${alert.metric}: ${alert.actual_value} 
+                                ${alert.threshold_min || alert.threshold_max ? `(阈值: ${alert.threshold_min || '-'} ~ ${alert.threshold_max || '-'})` : ''}
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1">${formatDate(alert.triggered_at)}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(() => {
+            document.getElementById('recent-alerts').innerHTML = '<div class="p-8 text-center text-gray-400">加载失败</div>';
+        });
+
+    fetch('/api/harvest/harvests?page_size=5', { headers })
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('recent-harvests');
+            if (!data.data || data.data.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400">暂无采收数据</div>';
+                return;
+            }
+            container.innerHTML = `
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">编码</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">实际产量</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        ${data.data.map(h => `
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 text-sm font-medium text-gray-800">${h.code}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">${h.harvest_date || '-'}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 text-xs font-medium rounded ${getHarvestStatusClass(h.status)}">${getHarvestStatusText(h.status)}</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-right font-medium text-gray-800">${h.actual_yield_kg ? h.actual_yield_kg.toLocaleString() + ' kg' : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        })
+        .catch(() => {
+            document.getElementById('recent-harvests').innerHTML = '<div class="p-8 text-center text-gray-400">加载失败</div>';
+        });
+</script>
+{% endblock %}

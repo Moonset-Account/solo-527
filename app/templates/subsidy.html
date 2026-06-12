@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">💰 补贴凭证</h1>
+            <p class="text-gray-500 mt-1">管理农业补贴申请和凭证审核</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">凭证总数</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="stat-total">-</p>
+                </div>
+                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
+                    📋
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">待审核</p>
+                    <p class="text-2xl font-bold text-yellow-600 mt-1" id="stat-pending">-</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-2xl">
+                    ⏳
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">已通过</p>
+                    <p class="text-2xl font-bold text-green-600 mt-1" id="stat-approved">-</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-2xl">
+                    ✅
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">补贴总额</p>
+                    <p class="text-2xl font-bold text-primary-600 mt-1" id="stat-amount">-</p>
+                </div>
+                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center text-2xl">
+                    💰
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">新建补贴凭证</h2>
+                <form id="subsidy-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">凭证编码</label>
+                        <input type="text" name="code" required placeholder="如：SB20240601001"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">关联采收记录</label>
+                        <select name="harvest_id" required id="harvest-select"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="">请选择采收记录</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">关联批次 (可选)</label>
+                        <select name="batch_id" id="batch-select"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="">请选择批次</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">品种</label>
+                        <select name="variety_id" required id="variety-select"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="">请选择品种</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">补贴类型</label>
+                        <select name="subsidy_type" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="">请选择类型</option>
+                            <option value="planting">种植补贴</option>
+                            <option value="harvest">采收补贴</option>
+                            <option value="quality">品质补贴</option>
+                            <option value="eco">生态补贴</option>
+                            <option value="disaster">灾害补贴</option>
+                            <option value="other">其他补贴</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">补贴金额 (元)</label>
+                        <input type="number" name="amount" step="0.01" required placeholder="5000.00"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">申请人ID</label>
+                        <input type="number" name="applicant_id" required placeholder="1"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">证明材料</label>
+                        <input type="text" name="documents_ref" placeholder="材料编号或链接"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">审核备注</label>
+                        <textarea name="review_notes" rows="2" placeholder="审核意见..."
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"></textarea>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="run_auto_chain" id="run_auto_chain" checked value="true"
+                            class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                        <label for="run_auto_chain" class="text-sm text-gray-700">启用自动处理链</label>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-primary-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 transition-colors">
+                        创建补贴凭证
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-800">凭证列表</h2>
+                    <div class="flex items-center gap-2">
+                        <select id="filter-status" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">全部状态</option>
+                            <option value="pending">待审核</option>
+                            <option value="approved">已通过</option>
+                            <option value="rejected">已拒绝</option>
+                            <option value="paid">已支付</option>
+                        </select>
+                        <button onclick="loadSubsidies()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                            刷新
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">编码</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请时间</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subsidy-list" class="divide-y divide-gray-100">
+                            <tr>
+                                <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+                                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                                    加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500" id="pagination-info">
+                    <span>共 0 条记录</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const authHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    function getSubsidyStatusClass(status) {
+        switch(status) {
+            case 'pending': return 'bg-yellow-100 text-yellow-700';
+            case 'approved': return 'bg-green-100 text-green-700';
+            case 'rejected': return 'bg-red-100 text-red-700';
+            case 'paid': return 'bg-blue-100 text-blue-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function getSubsidyStatusText(status) {
+        switch(status) {
+            case 'pending': return '待审核';
+            case 'approved': return '已通过';
+            case 'rejected': return '已拒绝';
+            case 'paid': return '已支付';
+            default: return status;
+        }
+    }
+
+    function getSubsidyTypeText(type) {
+        const typeMap = {
+            'planting': '种植补贴',
+            'harvest': '采收补贴',
+            'quality': '品质补贴',
+            'eco': '生态补贴',
+            'disaster': '灾害补贴',
+            'other': '其他补贴'
+        };
+        return typeMap[type] || type;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function loadOptions() {
+        Promise.all([
+            fetch('/api/harvest/harvests?page_size=100', { headers: authHeaders }).then(r => r.json()),
+            fetch('/api/harvest/batches?page_size=100', { headers: authHeaders }).then(r => r.json()),
+            fetch('/api/harvest/varieties?page_size=100', { headers: authHeaders }).then(r => r.json())
+        ]).then(([harvestsData, batchesData, varietiesData]) => {
+            const harvestSelect = document.getElementById('harvest-select');
+            if (harvestsData.data) {
+                harvestsData.data.forEach(h => {
+                    const option = document.createElement('option');
+                    option.value = h.id;
+                    option.textContent = `${h.code} - ${h.harvest_date || ''}`;
+                    harvestSelect.appendChild(option);
+                });
+            }
+
+            const batchSelect = document.getElementById('batch-select');
+            if (batchesData.data) {
+                batchesData.data.forEach(b => {
+                    const option = document.createElement('option');
+                    option.value = b.id;
+                    option.textContent = `${b.code} - ${b.weight_kg || 0}kg`;
+                    batchSelect.appendChild(option);
+                });
+            }
+
+            const varietySelect = document.getElementById('variety-select');
+            if (varietiesData.data) {
+                varietiesData.data.forEach(v => {
+                    const option = document.createElement('option');
+                    option.value = v.id;
+                    option.textContent = `${v.code} - ${v.name}`;
+                    varietySelect.appendChild(option);
+                });
+            }
+        }).catch(() => {});
+    }
+
+    function loadStats() {
+        Promise.all([
+            fetch('/api/subsidy/vouchers?page_size=1', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('stat-total').textContent = d.pagination?.total || 0).catch(() => {}),
+            fetch('/api/subsidy/vouchers?page_size=1&status=pending', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('stat-pending').textContent = d.pagination?.total || 0).catch(() => {}),
+            fetch('/api/subsidy/vouchers?page_size=1&status=approved', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('stat-approved').textContent = d.pagination?.total || 0).catch(() => {}),
+            fetch('/api/subsidy/vouchers?page_size=100', { headers: authHeaders }).then(r => r.json()).then(d => {
+                const total = d.data?.reduce((sum, v) => sum + (v.amount || 0), 0) || 0;
+                document.getElementById('stat-amount').textContent = total.toLocaleString();
+            }).catch(() => {})
+        ]);
+    }
+
+    function reviewVoucher(id, status) {
+        const reviewNotes = prompt(status === 'approved' ? '请输入审核通过备注（可选）：' : '请输入拒绝原因：');
+        if (reviewNotes === null) return;
+
+        let currentUserId = 1;
+        try {
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            currentUserId = storedUser.id || 1;
+        } catch(e) {}
+
+        fetch(`/api/subsidy/vouchers/${id}/review`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ status: status, reviewer_id: currentUserId, review_notes: reviewNotes || '' })
+        })
+        .then(r => {
+            if (r.ok) {
+                showToast('审核成功', 'success');
+                loadSubsidies();
+                loadStats();
+            } else {
+                return r.json().then(err => {
+                    showToast('审核失败: ' + (err.detail || '未知错误'), 'error');
+                });
+            }
+        })
+        .catch(() => {
+            showToast('网络错误', 'error');
+        });
+    }
+
+    function loadSubsidies() {
+        const filterStatus = document.getElementById('filter-status').value;
+        const tbody = document.getElementById('subsidy-list');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    加载中...
+                </td>
+            </tr>
+        `;
+
+        let url = '/api/subsidy/vouchers?page_size=50';
+        if (filterStatus) url += `&status=${filterStatus}`;
+
+        fetch(url, { headers: authHeaders })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-4 py-12 text-center text-gray-400">暂无补贴凭证数据</td>
+                        </tr>
+                    `;
+                    document.getElementById('pagination-info').innerHTML = '<span>共 0 条记录</span>';
+                    return;
+                }
+
+                tbody.innerHTML = data.data.map(v => `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 text-sm font-medium text-gray-800">${v.code}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${getSubsidyTypeText(v.subsidy_type)}</td>
+                        <td class="px-4 py-3 text-sm text-right font-medium text-gray-800">¥${v.amount ? v.amount.toLocaleString() : '0'}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 text-xs font-medium rounded ${getSubsidyStatusClass(v.status)}">${getSubsidyStatusText(v.status)}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">${formatDate(v.created_at)}</td>
+                        <td class="px-4 py-3 text-center text-sm whitespace-nowrap">
+                            ${v.status === 'pending' ? `
+                                <button onclick="reviewVoucher(${v.id}, 'approved')" class="text-green-600 hover:text-green-700 font-medium mr-2">通过</button>
+                                <button onclick="reviewVoucher(${v.id}, 'rejected')" class="text-red-600 hover:text-red-700 font-medium">拒绝</button>
+                            ` : `
+                                <span class="text-gray-400">-</span>
+                            `}
+                        </td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('pagination-info').innerHTML = `<span>共 ${data.pagination?.total || data.data.length} 条记录</span>`;
+            })
+            .catch(() => {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-12 text-center text-gray-400">加载失败</td>
+                    </tr>
+                `;
+            });
+    }
+
+    document.getElementById('subsidy-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((value, key) => {
+            if (value !== '') data[key] = value;
+        });
+
+        fetch('/api/subsidy/vouchers', {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify(data)
+        })
+        .then(r => {
+            if (r.ok) {
+                showToast('创建成功', 'success');
+                this.reset();
+                loadSubsidies();
+                loadStats();
+            } else {
+                return r.json().then(err => {
+                    showToast('创建失败: ' + (err.detail || '未知错误'), 'error');
+                });
+            }
+        })
+        .catch(() => {
+            showToast('网络错误', 'error');
+        });
+    });
+
+    document.getElementById('filter-status').addEventListener('change', loadSubsidies);
+
+    loadOptions();
+    loadStats();
+    loadSubsidies();
+</script>
+{% endblock %}

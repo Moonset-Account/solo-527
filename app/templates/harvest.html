@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">🌱 采收管理</h1>
+            <p class="text-gray-500 mt-1">管理采收记录，追踪采收进度</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">新建采收记录</h2>
+                <form id="harvest-form" hx-post="/api/harvest/harvests" hx-target="#harvest-form" hx-swap="outerHTML" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">采收编码</label>
+                        <input type="text" name="code" required placeholder="如：HS20240601001"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">地块</label>
+                        <select name="plot_id" required id="plot-select"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="">请选择地块</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">品种</label>
+                        <select name="variety_id" required id="variety-select"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="">请先选择地块</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">采收日期</label>
+                        <input type="date" name="harvest_date" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+                        <select name="status"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                            <option value="planned">计划中</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="cancelled">已取消</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">温度 (°C)</label>
+                            <input type="number" name="temperature_c" step="0.1" placeholder="25.5"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">湿度 (%)</label>
+                            <input type="number" name="humidity_pct" step="0.1" placeholder="75.0"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">天气</label>
+                        <input type="text" name="weather" placeholder="如：晴、多云、阴"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">工人数量</label>
+                        <input type="number" name="workers_count" placeholder="10"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">实际产量 (kg)</label>
+                        <input type="number" name="actual_yield_kg" step="0.01" placeholder="5000.00"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">预测产量 (kg)</label>
+                        <input type="number" name="predicted_yield_kg" step="0.01" placeholder="4800.00"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">质量评分 (0-100)</label>
+                        <input type="number" name="quality_score" step="0.1" min="0" max="100" placeholder="85.0"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                        <textarea name="notes" rows="3" placeholder="填写备注信息..."
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"></textarea>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="run_auto_chain" id="run_auto_chain" checked value="true"
+                            class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                        <label for="run_auto_chain" class="text-sm text-gray-700">启用自动处理链</label>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-primary-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 transition-colors">
+                        创建采收记录
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-800">采收记录列表</h2>
+                    <div class="flex items-center gap-2">
+                        <input type="text" placeholder="搜索编码..." class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <select class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">全部状态</option>
+                            <option value="planned">计划中</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="cancelled">已取消</option>
+                        </select>
+                        <button onclick="loadHarvests()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                            刷新
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">编码</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">地块</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品种</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">实际产量</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">预测产量</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="harvest-list" class="divide-y divide-gray-100">
+                            <tr>
+                                <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                                    加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500" id="pagination-info">
+                    <span>共 0 条记录</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    function getHarvestStatusClass(status) {
+        switch(status) {
+            case 'planned': return 'bg-gray-100 text-gray-700';
+            case 'in_progress': return 'bg-blue-100 text-blue-700';
+            case 'completed': return 'bg-green-100 text-green-700';
+            case 'cancelled': return 'bg-red-100 text-red-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function getHarvestStatusText(status) {
+        switch(status) {
+            case 'planned': return '计划中';
+            case 'in_progress': return '进行中';
+            case 'completed': return '已完成';
+            case 'cancelled': return '已取消';
+            default: return status;
+        }
+    }
+
+    function loadPlots() {
+        fetch('/api/harvest/plots?page_size=100', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(data => {
+                const select = document.getElementById('plot-select');
+                if (data.data) {
+                    data.data.forEach(plot => {
+                        const option = document.createElement('option');
+                        option.value = plot.id;
+                        option.textContent = `${plot.code} - ${plot.name}`;
+                        select.appendChild(option);
+                    });
+                }
+            })
+            .catch(() => {});
+    }
+
+    function loadVarieties(plotId) {
+        const varietySelect = document.getElementById('variety-select');
+        varietySelect.innerHTML = '<option value="">加载中...</option>';
+        
+        let url = '/api/harvest/varieties?page_size=100';
+        if (plotId) {
+            url += `&plot_id=${plotId}`;
+        }
+        
+        fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(data => {
+                varietySelect.innerHTML = '<option value="">请选择品种</option>';
+                if (data.data) {
+                    data.data.forEach(v => {
+                        const option = document.createElement('option');
+                        option.value = v.id;
+                        option.textContent = `${v.code} - ${v.name}`;
+                        varietySelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(() => {
+                varietySelect.innerHTML = '<option value="">加载失败</option>';
+            });
+    }
+
+    document.getElementById('plot-select').addEventListener('change', (e) => {
+        loadVarieties(e.target.value);
+    });
+
+    function loadHarvests() {
+        const tbody = document.getElementById('harvest-list');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="px-4 py-12 text-center text-gray-400">
+                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    加载中...
+                </td>
+            </tr>
+        `;
+
+        fetch('/api/harvest/harvests?page_size=50', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="px-4 py-12 text-center text-gray-400">暂无采收记录</td>
+                        </tr>
+                    `;
+                    document.getElementById('pagination-info').innerHTML = '<span>共 0 条记录</span>';
+                    return;
+                }
+
+                const plots = {};
+                const varieties = {};
+
+                Promise.all([
+                    fetch('/api/harvest/plots?page_size=100', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json()),
+                    fetch('/api/harvest/varieties?page_size=100', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json())
+                ]).then(([plotsData, varietiesData]) => {
+                    if (plotsData.data) {
+                        plotsData.data.forEach(p => plots[p.id] = p);
+                    }
+                    if (varietiesData.data) {
+                        varietiesData.data.forEach(v => varieties[v.id] = v);
+                    }
+
+                    tbody.innerHTML = data.data.map(h => `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-600">${h.id}</td>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800">${h.code}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">${plots[h.plot_id] ? plots[h.plot_id].name : '地块#' + h.plot_id}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">${varieties[h.variety_id] ? varieties[h.variety_id].name : '品种#' + h.variety_id}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">${h.harvest_date || '-'}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-0.5 text-xs font-medium rounded ${getHarvestStatusClass(h.status)}">${getHarvestStatusText(h.status)}</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-right font-medium text-gray-800">${h.actual_yield_kg ? h.actual_yield_kg.toLocaleString() + ' kg' : '-'}</td>
+                            <td class="px-4 py-3 text-sm text-right text-gray-600">${h.predicted_yield_kg ? h.predicted_yield_kg.toLocaleString() + ' kg' : '-'}</td>
+                            <td class="px-4 py-3 text-center text-sm">
+                                <button class="text-primary-600 hover:text-primary-700 font-medium mr-2">查看</button>
+                                <button class="text-blue-600 hover:text-blue-700 font-medium mr-2">编辑</button>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    document.getElementById('pagination-info').innerHTML = `<span>共 ${data.pagination?.total || data.data.length} 条记录</span>`;
+                });
+            })
+            .catch(() => {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-4 py-12 text-center text-gray-400">加载失败</td>
+                    </tr>
+                `;
+            });
+    }
+
+    document.addEventListener('htmx:afterRequest', (e) => {
+        if (e.detail.elt.id === 'harvest-form' && e.detail.successful) {
+            e.detail.elt.reset();
+            loadHarvests();
+            document.getElementById('variety-select').innerHTML = '<option value="">请先选择地块</option>';
+        }
+    });
+
+    loadPlots();
+    loadHarvests();
+</script>
+{% endblock %}

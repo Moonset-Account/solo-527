@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">⚠️ 告警中心</h1>
+            <p class="text-gray-500 mt-1">监控环境指标告警，及时处理异常情况</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">待处理告警</p>
+                    <p class="text-2xl font-bold text-red-600 mt-1" id="count-triggered">-</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center text-2xl">
+                    🔴
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">已确认告警</p>
+                    <p class="text-2xl font-bold text-yellow-600 mt-1" id="count-acknowledged">-</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-2xl">
+                    🟡
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">已解决告警</p>
+                    <p class="text-2xl font-bold text-green-600 mt-1" id="count-resolved">-</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-2xl">
+                    🟢
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">告警总数</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="count-total">-</p>
+                </div>
+                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
+                    📊
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-5 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold text-gray-800">告警列表</h2>
+            <div class="flex flex-wrap items-center gap-2">
+                <select id="filter-level" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">全部级别</option>
+                    <option value="critical">严重</option>
+                    <option value="warning">警告</option>
+                    <option value="info">提示</option>
+                </select>
+                <select id="filter-status" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">全部状态</option>
+                    <option value="open">未处理</option>
+                    <option value="acknowledged">已确认</option>
+                    <option value="resolved">已解决</option>
+                </select>
+                <button onclick="loadAlerts()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                    刷新
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">级别</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">指标</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">实际值</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">阈值范围</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">触发时间</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">消息</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="alert-list" class="divide-y divide-gray-100">
+                    <tr>
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                            <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                            加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500" id="pagination-info">
+            <span>共 0 条记录</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('token');
+    const authHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    function getLevelClass(level) {
+        switch(level) {
+            case 'critical': return 'bg-red-100 text-red-700 border-red-200';
+            case 'warning': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            case 'info': return 'bg-blue-100 text-blue-700 border-blue-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
+    }
+
+    function getLevelText(level) {
+        switch(level) {
+            case 'critical': return '严重';
+            case 'warning': return '警告';
+            case 'info': return '提示';
+            default: return level;
+        }
+    }
+
+    function getLevelBgClass(level) {
+        switch(level) {
+            case 'critical': return 'border-l-red-500';
+            case 'warning': return 'border-l-yellow-500';
+            case 'info': return 'border-l-blue-500';
+            default: return 'border-l-gray-500';
+        }
+    }
+
+    function getStatusClass(status) {
+        switch(status) {
+            case 'open': return 'bg-red-100 text-red-700';
+            case 'acknowledged': return 'bg-yellow-100 text-yellow-700';
+            case 'resolved': return 'bg-green-100 text-green-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    function getStatusText(status) {
+        switch(status) {
+            case 'open': return '未处理';
+            case 'acknowledged': return '已确认';
+            case 'resolved': return '已解决';
+            default: return status;
+        }
+    }
+
+    function getMetricText(metric) {
+        const metricMap = {
+            'temperature_c': '温度 (°C)',
+            'humidity_pct': '湿度 (%)',
+            'soil_moisture_pct': '土壤湿度 (%)',
+            'ph_value': 'PH值',
+            'light_lux': '光照 (lux)',
+            'wind_speed_ms': '风速 (m/s)',
+            'rainfall_mm': '降雨量 (mm)'
+        };
+        return metricMap[metric] || metric;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function loadStats() {
+        Promise.all([
+            fetch('/api/monitor/alerts?page_size=1&status=open', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('count-triggered').textContent = d.pagination?.total || 0).catch(() => {}),
+            fetch('/api/monitor/alerts?page_size=1&status=acknowledged', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('count-acknowledged').textContent = d.pagination?.total || 0).catch(() => {}),
+            fetch('/api/monitor/alerts?page_size=1&status=resolved', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('count-resolved').textContent = d.pagination?.total || 0).catch(() => {}),
+            fetch('/api/monitor/alerts?page_size=1', { headers: authHeaders }).then(r => r.json()).then(d => document.getElementById('count-total').textContent = d.pagination?.total || 0).catch(() => {})
+        ]);
+    }
+
+    function acknowledgeAlert(id) {
+        fetch(`/api/monitor/alerts/${id}/ack`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ notes: '' })
+        })
+        .then(r => {
+            if (r.ok) {
+                showToast('已确认告警', 'success');
+                loadAlerts();
+                loadStats();
+            } else {
+                showToast('操作失败', 'error');
+            }
+        })
+        .catch(() => showToast('网络错误', 'error'));
+    }
+
+    function resolveAlert(id) {
+        fetch(`/api/monitor/alerts/${id}/resolve`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ resolution_notes: '' })
+        })
+        .then(r => {
+            if (r.ok) {
+                showToast('已解决告警', 'success');
+                loadAlerts();
+                loadStats();
+            } else {
+                showToast('操作失败', 'error');
+            }
+        })
+        .catch(() => showToast('网络错误', 'error'));
+    }
+
+    function loadAlerts() {
+        const level = document.getElementById('filter-level').value;
+        const status = document.getElementById('filter-status').value;
+        
+        const tbody = document.getElementById('alert-list');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="px-4 py-12 text-center text-gray-400">
+                    <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                    加载中...
+                </td>
+            </tr>
+        `;
+
+        let url = '/api/monitor/alerts?page_size=50';
+        if (level) url += `&level=${level}`;
+        if (status) url += `&status=${status}`;
+
+        fetch(url, { headers: authHeaders })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-4 py-12 text-center text-gray-400">暂无告警数据</td>
+                        </tr>
+                    `;
+                    document.getElementById('pagination-info').innerHTML = '<span>共 0 条记录</span>';
+                    return;
+                }
+
+                tbody.innerHTML = data.data.map(alert => `
+                    <tr class="hover:bg-gray-50 transition-colors border-l-4 ${getLevelBgClass(alert.level)}">
+                        <td class="px-4 py-3">
+                            <span class="px-2.5 py-1 text-xs font-medium rounded border ${getLevelClass(alert.level)}">${getLevelText(alert.level)}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-800">${getMetricText(alert.metric)}</td>
+                        <td class="px-4 py-3 text-sm text-right font-semibold text-gray-800">${alert.actual_value}</td>
+                        <td class="px-4 py-3 text-sm text-center text-gray-600">
+                            ${alert.threshold_min !== null || alert.threshold_max !== null 
+                                ? `${alert.threshold_min !== null ? alert.threshold_min : '-'} ~ ${alert.threshold_max !== null ? alert.threshold_max : '-'}`
+                                : '-'}
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 text-xs font-medium rounded ${getStatusClass(alert.status)}">${getStatusText(alert.status)}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">${formatDate(alert.triggered_at)}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title="${alert.message || ''}">${alert.message || '-'}</td>
+                        <td class="px-4 py-3 text-center text-sm whitespace-nowrap">
+                            ${alert.status === 'open' ? `
+                                <button onclick="acknowledgeAlert(${alert.id})" 
+                                    class="text-yellow-600 hover:text-yellow-700 font-medium mr-2">
+                                    确认
+                                </button>
+                            ` : ''}
+                            ${alert.status !== 'resolved' ? `
+                                <button onclick="resolveAlert(${alert.id})" 
+                                    class="text-green-600 hover:text-green-700 font-medium">
+                                    解决
+                                </button>
+                            ` : `
+                                <span class="text-gray-400">-</span>
+                            `}
+                        </td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('pagination-info').innerHTML = `<span>共 ${data.pagination?.total || data.data.length} 条记录</span>`;
+            })
+            .catch(() => {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-4 py-12 text-center text-gray-400">加载失败</td>
+                    </tr>
+                `;
+            });
+    }
+
+    document.getElementById('filter-level').addEventListener('change', loadAlerts);
+    document.getElementById('filter-status').addEventListener('change', loadAlerts);
+
+    loadStats();
+    loadAlerts();
+</script>
+{% endblock %}

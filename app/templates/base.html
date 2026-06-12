@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧农业采收管理系统</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#16a34a',
+                            600: '#15803d',
+                            700: '#166534',
+                            800: '#14532d',
+                            900: '#052e16',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans SC"', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen flex flex-col">
+    <nav class="bg-primary-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="text-xl font-bold">🌾 智慧农业采收管理系统</span>
+                    </div>
+                    <div class="hidden md:block ml-10">
+                        <div class="flex items-center space-x-1">
+                            <a href="/" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">仪表盘</a>
+                            <a href="/harvest" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">采收管理</a>
+                            <a href="/batches" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">批次管理</a>
+                            <a href="/alerts" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">告警中心</a>
+                            <a href="/sorting" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">分选差异</a>
+                            <a href="/subsidy" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">补贴凭证</a>
+                            <a href="/reports" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">报表导出</a>
+                            <a href="/notifications" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">通知</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="logout()" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors">
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex flex-1">
+        <aside class="w-64 bg-white shadow-md hidden lg:block">
+            <div class="p-4">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">快捷导航</h3>
+                <nav class="mt-4 space-y-1">
+                    <a href="/" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">📊</span>仪表盘
+                    </a>
+                    <a href="/harvest" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">🌱</span>采收管理
+                    </a>
+                    <a href="/batches" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">📦</span>批次管理
+                    </a>
+                    <a href="/alerts" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">⚠️</span>告警中心
+                    </a>
+                    <a href="/sorting" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">⚖️</span>分选差异
+                    </a>
+                    <a href="/subsidy" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">💰</span>补贴凭证
+                    </a>
+                    <a href="/reports" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">📋</span>报表导出
+                    </a>
+                    <a href="/notifications" class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        <span class="mr-3">🔔</span>通知中心
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <footer class="bg-gray-800 text-gray-300 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="text-sm">
+                    © 2024 智慧农业采收管理系统 - 让农业更智能
+                </div>
+                <div class="text-sm mt-2 md:mt-0">
+                    Powered by HTMX + FastAPI + Tailwind CSS
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div id="toast" class="fixed top-4 right-4 z-50 hidden">
+        <div id="toast-content" class="px-4 py-3 rounded-lg shadow-lg text-white font-medium"></div>
+    </div>
+
+    <script>
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+                return {};
+            }
+            return { 'Authorization': 'Bearer ' + token };
+        }
+
+        document.addEventListener('htmx:configRequest', (e) => {
+            const headers = getAuthHeaders();
+            Object.keys(headers).forEach(key => {
+                e.detail.headers[key] = headers[key];
+            });
+        });
+
+        document.addEventListener('htmx:responseError', (e) => {
+            if (e.detail.xhr.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            } else {
+                showToast('操作失败: ' + (e.detail.xhr.responseText || '未知错误'), 'error');
+            }
+        });
+
+        document.addEventListener('htmx:afterRequest', (e) => {
+            if (e.detail.successful && e.detail.xhr.status >= 200 && e.detail.xhr.status < 300) {
+                if (e.detail.verb !== 'get') {
+                    showToast('操作成功', 'success');
+                }
+            }
+        });
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const content = document.getElementById('toast-content');
+            content.textContent = message;
+            
+            if (type === 'success') {
+                content.className = 'px-4 py-3 rounded-lg shadow-lg text-white font-medium bg-green-600';
+            } else if (type === 'error') {
+                content.className = 'px-4 py-3 rounded-lg shadow-lg text-white font-medium bg-red-600';
+            } else if (type === 'warning') {
+                content.className = 'px-4 py-3 rounded-lg shadow-lg text-white font-medium bg-yellow-600';
+            } else {
+                content.className = 'px-4 py-3 rounded-lg shadow-lg text-white font-medium bg-blue-600';
+            }
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token && window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>
