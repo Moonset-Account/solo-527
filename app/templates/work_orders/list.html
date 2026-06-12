@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}工单列表 - 青禾运维工单台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 工单管理</h1>
+    <a href="/work-orders/create" class="btn btn-primary">+ 新建工单</a>
+</div>
+
+{% if error %}
+<div style="background:var(--danger-light);color:var(--danger);padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:14px;">{{ error }}</div>
+{% endif %}
+
+<div class="filter-bar"
+     hx-get="/work-orders"
+     hx-trigger="change"
+     hx-target="#order-list"
+     hx-include=".filter-input">
+    <div>
+        <label>状态</label>
+        <select name="status" class="filter-input">
+            <option value="">全部</option>
+            <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>待处理</option>
+            <option value="assigned" {% if filters.status == 'assigned' %}selected{% endif %}>已分派</option>
+            <option value="in_progress" {% if filters.status == 'in_progress' %}selected{% endif %}>处理中</option>
+            <option value="resolved" {% if filters.status == 'resolved' %}selected{% endif %}>已解决</option>
+            <option value="closed" {% if filters.status == 'closed' %}selected{% endif %}>已关闭</option>
+            <option value="rejected" {% if filters.status == 'rejected' %}selected{% endif %}>已驳回</option>
+        </select>
+    </div>
+    <div>
+        <label>类型</label>
+        <select name="order_type" class="filter-input">
+            <option value="">全部</option>
+            <option value="fault" {% if filters.order_type == 'fault' %}selected{% endif %}>故障</option>
+            <option value="account_request" {% if filters.order_type == 'account_request' %}selected{% endif %}>账号申请</option>
+        </select>
+    </div>
+    <div>
+        <label>优先级</label>
+        <select name="priority" class="filter-input">
+            <option value="">全部</option>
+            <option value="critical" {% if filters.priority == 'critical' %}selected{% endif %}>紧急</option>
+            <option value="high" {% if filters.priority == 'high' %}selected{% endif %}>高</option>
+            <option value="medium" {% if filters.priority == 'medium' %}selected{% endif %}>中</option>
+            <option value="low" {% if filters.priority == 'low' %}selected{% endif %}>低</option>
+        </select>
+    </div>
+    <div>
+        <label>处理人</label>
+        <select name="assignee_id" class="filter-input">
+            <option value="">全部</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" {% if filters.assignee_id == u.id|string %}selected{% endif %}>{{ u.display_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>开始日期</label>
+        <input type="date" name="date_from" class="filter-input" value="{{ filters.date_from or '' }}">
+    </div>
+    <div>
+        <label>结束日期</label>
+        <input type="date" name="date_to" class="filter-input" value="{{ filters.date_to or '' }}">
+    </div>
+    <div>
+        <button type="button" class="btn btn-outline btn-sm"
+                onclick="document.querySelectorAll('.filter-input').forEach(el=>el.value='');htmx.trigger('.filter-bar','change')">重置</button>
+    </div>
+</div>
+
+<div id="order-list">
+{% include "work_orders/_order_table.html" %}
+</div>
+{% endblock %}

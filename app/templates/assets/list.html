@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}资产配置 - 青禾运维工单台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💻 资产配置</h1>
+    {% if current_user.role.value in ('admin', 'security_officer') %}
+    <button class="btn btn-primary" onclick="document.getElementById('asset-form').style.display='block'">+ 新增资产</button>
+    {% endif %}
+</div>
+
+{% if current_user.role.value in ('admin', 'security_officer') %}
+<div id="asset-form" class="card" style="display:none;">
+    <div class="card-header"><h2>新增资产</h2></div>
+    <form hx-post="/assets/create" hx-target="body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label>名称 *</label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>类型 *</label>
+                <input type="text" name="asset_type" required placeholder="如：服务器、交换机、笔记本">
+            </div>
+            <div class="form-group">
+                <label>型号</label>
+                <input type="text" name="model">
+            </div>
+            <div class="form-group">
+                <label>序列号</label>
+                <input type="text" name="serial_number">
+            </div>
+            <div class="form-group">
+                <label>位置</label>
+                <input type="text" name="location">
+            </div>
+            <div class="form-group">
+                <label>状态</label>
+                <select name="status">
+                    <option value="in_use">在用</option>
+                    <option value="idle">闲置</option>
+                    <option value="maintenance">维修中</option>
+                    <option value="retired">已报废</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>负责人</label>
+                <input type="text" name="owner">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>配置详情</label>
+            <textarea name="config_detail" rows="3" placeholder="CPU/内存/磁盘等配置信息"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button type="submit" class="btn btn-primary btn-sm">保存</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('asset-form').style.display='none'">取消</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="filter-bar">
+    <div>
+        <label>状态</label>
+        <select name="status" hx-get="/assets" hx-trigger="change" hx-target="body">
+            <option value="">全部</option>
+            <option value="in_use">在用</option>
+            <option value="idle">闲置</option>
+            <option value="maintenance">维修中</option>
+            <option value="retired">已报废</option>
+        </select>
+    </div>
+    <div>
+        <label>类型</label>
+        <select name="asset_type" hx-get="/assets" hx-trigger="change" hx-target="body">
+            <option value="">全部</option>
+            {% for t in asset_types %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>类型</th>
+                <th>型号</th>
+                <th>序列号</th>
+                <th>位置</th>
+                <th>状态</th>
+                <th>负责人</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in assets %}
+            <tr>
+                <td>#{{ a.id }}</td>
+                <td><a href="/assets/{{ a.id }}">{{ a.name }}</a></td>
+                <td>{{ a.asset_type }}</td>
+                <td>{{ a.model or '-' }}</td>
+                <td>{{ a.serial_number or '-' }}</td>
+                <td>{{ a.location or '-' }}</td>
+                <td><span class="asset-status-{{ a.status.value }}">{{ a.status.value }}</span></td>
+                <td>{{ a.owner or '-' }}</td>
+                <td><a href="/assets/{{ a.id }}" class="btn btn-outline btn-sm">查看</a></td>
+            </tr>
+            {% endfor %}
+            {% if not assets %}
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">暂无资产记录</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

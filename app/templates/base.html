@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}青禾运维工单台{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/light.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    {% if current_user %}
+    <nav class="main-nav">
+        <div class="nav-brand">
+            <a href="/">🌾 青禾运维工单台</a>
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}active{% endif %}">📊 看板</a>
+            <a href="/work-orders" class="{% if '/work-orders' in request.url.path %}active{% endif %}">📋 工单</a>
+            <a href="/assets" class="{% if '/assets' in request.url.path %}active{% endif %}">💻 资产</a>
+            <a href="/change-windows" class="{% if '/change-windows' in request.url.path %}active{% endif %}">🔄 变更窗口</a>
+            {% if current_user.role.value in ('admin', 'security_officer') %}
+            <a href="/reports" class="{% if '/reports' in request.url.path %}active{% endif %}">📄 报表</a>
+            {% endif %}
+            {% if current_user.role.value == 'security_officer' %}
+            <a href="/audit" class="{% if '/audit' in request.url.path %}active{% endif %}">🔍 审计日志</a>
+            {% endif %}
+        </div>
+        <div class="nav-user">
+            <span class="user-badge">{{ current_user.display_name }}</span>
+            <span class="role-badge role-{{ current_user.role.value }}">{{ current_user.role.value }}</span>
+            <a href="/auth/logout" class="logout-btn">退出</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

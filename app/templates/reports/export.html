@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}报表导出 - 青禾运维工单台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📄 报表导出</h1>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>导出工单报表</h2></div>
+    <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;">导出数据仅包含真实工单记录，不包含测试或模拟数据。</p>
+    <form action="/reports/export" method="get">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label>状态筛选</label>
+                <select name="status">
+                    <option value="">全部</option>
+                    <option value="pending">待处理</option>
+                    <option value="assigned">已分派</option>
+                    <option value="in_progress">处理中</option>
+                    <option value="resolved">已解决</option>
+                    <option value="closed">已关闭</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>开始日期</label>
+                <input type="date" name="date_from">
+            </div>
+            <div class="form-group">
+                <label>结束日期</label>
+                <input type="date" name="date_to">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">📥 导出Excel报表</button>
+    </form>
+</div>
+{% endblock %}

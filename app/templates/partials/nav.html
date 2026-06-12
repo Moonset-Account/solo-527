@@ -1,0 +1,20 @@
+<nav class="main-nav">
+    <div class="nav-brand"><a href="/">🌾 青禾运维工单台</a></div>
+    <div class="nav-links">
+        <a href="/dashboard">📊 看板</a>
+        <a href="/work-orders">📋 工单</a>
+        <a href="/assets">💻 资产</a>
+        <a href="/change-windows">🔄 变更窗口</a>
+        {% if current_user.role.value in ('admin', 'security_officer') %}
+        <a href="/reports">📄 报表</a>
+        {% endif %}
+        {% if current_user.role.value == 'security_officer' %}
+        <a href="/audit">🔍 审计日志</a>
+        {% endif %}
+    </div>
+    <div class="nav-user">
+        <span class="user-badge">{{ current_user.display_name }}</span>
+        <span class="role-badge role-{{ current_user.role.value }}">{{ current_user.role.value }}</span>
+        <a href="/auth/logout" class="logout-btn">退出</a>
+    </div>
+</nav>

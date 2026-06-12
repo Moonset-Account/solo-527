@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}工单 #{{ order.id }} - 青禾运维工单台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>工单 #{{ order.id }}：{{ order.title }}</h1>
+    <a href="/work-orders" class="btn btn-outline">← 返回列表</a>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2>工单信息</h2>
+                <div style="display:flex;gap:8px;">
+                    <span class="badge badge-{{ order.order_type.value }}">{{ '故障' if order.order_type.value == 'fault' else '账号申请' }}</span>
+                    <span class="badge badge-{{ order.status.value }}">{{ order.status.value }}</span>
+                    <span class="badge badge-{{ order.priority.value }}">{{ order.priority.value }}</span>
+                </div>
+            </div>
+            <table>
+                <tr><td style="width:120px;color:var(--text-muted);">标题</td><td>{{ order.title }}</td></tr>
+                <tr><td style="color:var(--text-muted);">描述</td><td style="white-space:pre-wrap;">{{ order.description }}</td></tr>
+                <tr><td style="color:var(--text-muted);">创建人</td><td>{{ order.creator.display_name if order.creator else '#' ~ order.creator_id }}</td></tr>
+                <tr><td style="color:var(--text-muted);">处理人</td><td>{{ order.assignee.display_name if order.assignee else ('未分派' if not order.assignee_id else '#' ~ order.assignee_id) }}</td></tr>
+                <tr><td style="color:var(--text-muted);">SLA时效</td><td>{{ order.sla_hours }}小时</td></tr>
+                <tr>
+                    <td style="color:var(--text-muted);">SLA状态</td>
+                    <td>
+                        {% if order.is_overdue %}
+                            <span class="overdue-indicator">⚠ 已超时</span>
+                        {% elif order.status.value in ('resolved', 'closed', 'rejected') %}
+                            <span style="color:var(--success);">✔ 已结束</span>
+                        {% else %}
+                            剩余 {{ "%.1f"|format(order.remaining_hours) }} 小时
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr><td style="color:var(--text-muted);">创建时间</td><td>{{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>
+                {% if order.assigned_at %}<tr><td style="color:var(--text-muted);">分派时间</td><td>{{ order.assigned_at.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>{% endif %}
+                {% if order.resolved_at %}<tr><td style="color:var(--text-muted);">解决时间</td><td>{{ order.resolved_at.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>{% endif %}
+                {% if order.closed_at %}<tr><td style="color:var(--text-muted);">关闭时间</td><td>{{ order.closed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>{% endif %}
+            </table>
+        </div>
+
+        {% if current_user.role.value in ('admin', 'security_officer') %}
+        <div class="card">
+            <div class="card-header"><h2>分派工单</h2></div>
+            <form hx-post="/work-orders/{{ order.id }}/assign" hx-target="body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group">
+                        <label>处理人</label>
+                        <select name="assignee_id" required>
+                            <option value="">请选择</option>
+                            {% for u in users %}
+                            {% if u.role.value in ('admin', 'operator', 'security_officer') %}
+                            <option value="{{ u.id }}" {% if order.assignee_id == u.id %}selected{% endif %}>{{ u.display_name }} ({{ u.role.value }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>优先级</label>
+                        <select name="priority">
+                            <option value="low" {% if order.priority.value == 'low' %}selected{% endif %}>低</option>
+                            <option value="medium" {% if order.priority.value == 'medium' %}selected{% endif %}>中</option>
+                            <option value="high" {% if order.priority.value == 'high' %}selected{% endif %}>高</option>
+                            <option value="critical" {% if order.priority.value == 'critical' %}selected{% endif %}>紧急</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">确认分派</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header"><h2>状态变更</h2></div>
+            <form hx-post="/work-orders/{{ order.id }}/status" hx-target="body">
+                <div style="display:grid;grid-template-columns:1fr 2fr auto;gap:12px;align-items:end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>新状态</label>
+                        <select name="status">
+                            {% if order.status.value == 'pending' or order.status.value == 'assigned' %}
+                            <option value="in_progress">处理中</option>
+                            <option value="rejected">驳回</option>
+                            {% elif order.status.value == 'in_progress' %}
+                            <option value="resolved">已解决</option>
+                            {% elif order.status.value == 'resolved' %}
+                            <option value="closed">已关闭</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>备注</label>
+                        <input type="text" name="comment" placeholder="可选备注">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">更新状态</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h2>添加备注</h2></div>
+            <form hx-post="/work-orders/{{ order.id }}/comment" hx-target="body">
+                <div class="form-group">
+                    <textarea name="comment" rows="2" placeholder="添加处理备注..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-outline btn-sm">提交备注</button>
+            </form>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-header"><h2>处理记录</h2></div>
+            {% if records %}
+            <div class="timeline">
+                {% for r in records %}
+                <div class="timeline-item">
+                    <div class="time">{{ r.created_at.strftime('%m-%d %H:%M') }}</div>
+                    <div class="action">{{ r.action }}</div>
+                    {% if r.comment %}<div class="comment">{{ r.comment }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align:center;color:var(--text-muted);padding:16px;font-size:14px;">暂无处理记录</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

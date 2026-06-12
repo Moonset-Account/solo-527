@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}资产 #{{ asset.id }} - 青禾运维工单台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💻 {{ asset.name }}</h1>
+    <a href="/assets" class="btn btn-outline">← 返回列表</a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>资产详情</h2>
+        <span class="asset-status-{{ asset.status.value }}" style="font-size:16px;">{{ asset.status.value }}</span>
+    </div>
+    <table>
+        <tr><td style="width:120px;color:var(--text-muted);">名称</td><td>{{ asset.name }}</td></tr>
+        <tr><td style="color:var(--text-muted);">类型</td><td>{{ asset.asset_type }}</td></tr>
+        <tr><td style="color:var(--text-muted);">型号</td><td>{{ asset.model or '-' }}</td></tr>
+        <tr><td style="color:var(--text-muted);">序列号</td><td>{{ asset.serial_number or '-' }}</td></tr>
+        <tr><td style="color:var(--text-muted);">位置</td><td>{{ asset.location or '-' }}</td></tr>
+        <tr><td style="color:var(--text-muted);">负责人</td><td>{{ asset.owner or '-' }}</td></tr>
+        <tr><td style="color:var(--text-muted);">配置详情</td><td style="white-space:pre-wrap;">{{ asset.config_detail or '-' }}</td></tr>
+        <tr><td style="color:var(--text-muted);">创建时间</td><td>{{ asset.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>
+        <tr><td style="color:var(--text-muted);">更新时间</td><td>{{ asset.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td></tr>
+    </table>
+</div>
+
+{% if current_user.role.value in ('admin', 'security_officer') %}
+<div class="card">
+    <div class="card-header"><h2>修改资产信息</h2></div>
+    <form hx-post="/assets/{{ asset.id }}/update" hx-target="body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" name="name" value="{{ asset.name }}">
+            </div>
+            <div class="form-group">
+                <label>状态</label>
+                <select name="status">
+                    <option value="in_use" {% if asset.status.value == 'in_use' %}selected{% endif %}>在用</option>
+                    <option value="idle" {% if asset.status.value == 'idle' %}selected{% endif %}>闲置</option>
+                    <option value="maintenance" {% if asset.status.value == 'maintenance' %}selected{% endif %}>维修中</option>
+                    <option value="retired" {% if asset.status.value == 'retired' %}selected{% endif %}>已报废</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>负责人</label>
+                <input type="text" name="owner" value="{{ asset.owner or '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>配置详情</label>
+            <textarea name="config_detail" rows="3">{{ asset.config_detail or '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">保存修改</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

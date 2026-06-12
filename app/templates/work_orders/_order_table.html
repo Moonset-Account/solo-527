@@ -1,0 +1,49 @@
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>标题</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>优先级</th>
+            <th>处理人</th>
+            <th>SLA剩余</th>
+            <th>创建时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>#{{ order.id }}</td>
+            <td><a href="/work-orders/{{ order.id }}">{{ order.title }}</a></td>
+            <td><span class="badge badge-{{ order.order_type.value }}">{{ '故障' if order.order_type.value == 'fault' else '账号申请' }}</span></td>
+            <td><span class="badge badge-{{ order.status.value }}">{{ order.status.value }}</span></td>
+            <td><span class="badge badge-{{ order.priority.value }}">{{ order.priority.value }}</span></td>
+            <td>
+                {% if order.assignee %}
+                    {{ order.assignee.display_name }}
+                {% elif order.assignee_id %}
+                    #{{ order.assignee_id }}
+                {% else %}
+                    <span style="color:var(--text-muted);">未分派</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if order.is_overdue %}
+                    <span class="overdue-indicator">⚠ 已超时</span>
+                {% elif order.status.value in ('resolved', 'closed', 'rejected') %}
+                    <span style="color:var(--text-muted);">-</span>
+                {% else %}
+                    {{ "%.1f"|format(order.remaining_hours) }}h
+                {% endif %}
+            </td>
+            <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><a href="/work-orders/{{ order.id }}" class="btn btn-outline btn-sm">查看</a></td>
+        </tr>
+        {% endfor %}
+        {% if not orders %}
+        <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">暂无工单</td></tr>
+        {% endif %}
+    </tbody>
+</table>

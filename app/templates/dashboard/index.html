@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}看板 - 青禾运维工单台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 处理时效看板</h1>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card stat-total">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">工单总数</div>
+    </div>
+    <div class="stat-card stat-pending">
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-label">待处理</div>
+    </div>
+    <div class="stat-card stat-in-progress">
+        <div class="stat-value">{{ stats.in_progress }}</div>
+        <div class="stat-label">处理中</div>
+    </div>
+    <div class="stat-card stat-overdue">
+        <div class="stat-value">{{ stats.overdue }}</div>
+        <div class="stat-label">已超时</div>
+    </div>
+    <div class="stat-card stat-resolved">
+        <div class="stat-value">{{ stats.resolved }}</div>
+        <div class="stat-label">已解决</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+    <div class="card">
+        <div class="card-header">
+            <h2>工单类型分布</h2>
+        </div>
+        <div style="display:flex;gap:24px;justify-content:center;padding:12px 0;">
+            <div style="text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#e76f51;">{{ stats.fault_count }}</div>
+                <div style="font-size:13px;color:var(--text-muted);">故障工单</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#0077b6;">{{ stats.account_count }}</div>
+                <div style="font-size:13px;color:var(--text-muted);">账号申请</div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <h2>即将到来的变更窗口</h2>
+        </div>
+        {% if upcoming_windows %}
+        {% for w in upcoming_windows %}
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:14px;">
+            <span class="window-status-{{ w.status.value }}">{{ w.start_time.strftime('%m/%d') }}</span>
+            {{ w.title }}
+            {% if w.is_risky %}<span class="risky-badge">高风险</span>{% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center;color:var(--text-muted);padding:20px;font-size:14px;">暂无计划中的变更窗口</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>最近工单</h2>
+        <a href="/work-orders" class="btn btn-outline btn-sm">查看全部</a>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>标题</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>优先级</th>
+                <th>创建时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in recent_orders %}
+            <tr>
+                <td>#{{ order.id }}</td>
+                <td><a href="/work-orders/{{ order.id }}">{{ order.title }}</a></td>
+                <td><span class="badge badge-{{ order.order_type.value }}">{{ '故障' if order.order_type.value == 'fault' else '账号申请' }}</span></td>
+                <td><span class="badge badge-{{ order.status.value }}">{{ order.status.value }}</span></td>
+                <td><span class="badge badge-{{ order.priority.value }}">{{ order.priority.value }}</span></td>
+                <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
