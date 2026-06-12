@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, DatePicker, Select, Table, Tag, Statistic, Tabs, Descriptions, message } from 'antd';
-import { Column, Bar } from '@ant-design/charts';
+import { Row, Col, Card, DatePicker, Select, Table, Tag, Tabs, Descriptions, Input, Space, Button, message } from 'antd';
+import { Bar } from '@ant-design/charts';
+import { SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { referenceApi, energyApi } from '../api';
+import { referenceApi, energyApi, exportApi } from '../api';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+
+const alertLevelMap = {
+  LOW: { color: 'green', text: '低' },
+  MEDIUM: { color: 'orange', text: '中' },
+  HIGH: { color: 'red', text: '高' },
+  CRITICAL: { color: 'magenta', text: '严重' }
+};
+
+const handleResultMap = {
+  RESOLVED: { color: 'green', text: '已解决' },
+  PROCESSING: { color: 'blue', text: '处理中' },
+  CLOSED: { color: 'gray', text: '关闭' },
+  ESCALATED: { color: 'orange', text: '升级' }
+};
 
 function StatisticsPage() {
   const [timeRange, setTimeRange] = useState([dayjs().subtract(30, 'day'), dayjs()]);
@@ -17,9 +32,17 @@ function StatisticsPage() {
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState();
 
+  const [responseData, setResponseData] = useState([]);
+  const [responseTotal, setResponseTotal] = useState(0);
+  const [responsePage, setResponsePage] = useState(1);
+  const [responsePageSize, setResponsePageSize] = useState(10);
+  const [handlerFilter, setHandlerFilter] = useState('');
+  const [responseLoading, setResponseLoading] = useState(false);
+
   useEffect(() => {
     loadAreas();
     loadData();
+    loadResponseData();
   }, []);
 
   const loadAreas = async () => {
@@ -58,6 +81,35 @@ function StatisticsPage() {
       setFailedStrategies(generateMockFailedStrategies());
     }
     setLoading(false);
+  };
+
+  const loadResponseData = async (page = 1, pageSize = 10) => {
+    setResponseLoading(true);
+    try {
+      const res = await referenceApi.getResponseDurations({
+        start: timeRange[0].toISOString(),
+        end: timeRange[1].toISOString(),
+        handler: handlerFilter || undefined,
+        page: page - 1,
+        size: pageSize
+      });
+      const pageData = res.data.data;
+      if (pageData && pageData.content) {
+        setResponseData(pageData.content.map(item => ({
+          ...item,
+          duration: item.responseDuration,
+          result: item.handleResult
+        })));
+        setResponseTotal(pageData.totalElements || pageData.total || 0);
+      } else {
+        setResponseData(generateMockResponseData());
+        setResponseTotal(50);
+      }
+    } catch (e) {
+      setResponseData(generateMockResponseData());
+      setResponseTotal(50);
+    }
+    setResponseLoading(false);
   };
 
   const generateMockPeaks = () => {
@@ -99,6 +151,29 @@ function StatisticsPage() {
     }));
   };
 
+  const generateMockResponseData = () => {
+    const handlers = ['张三', '李四', '王五', '赵六', '孙七', '周八', '吴九', '郑十'];
+    return Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      alertId: 100 + i,
+      alertNo: `ALT${10000 + i}`,
+      alertType: ['OVER_VOLTAGE', 'OVER_CURRENT', 'POWER_ABNORMAL', 'COMMUNICATION_FAIL'][i % 4],
+      alertLevel: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][i % 4],
+      meterName: `电表-${String.fromCharCode(65 + (i % 4))}${100 + i}`,
+      area: `${String.fromCharCode(65 + (i % 4))}区`,
+      handler: handlers[i % 8],
+      assignee: handlers[(i + 1) % 8],
+      alertTime: dayjs().subtract(i + 1, 'day').format('YYYY-MM-DD HH:mm:ss'),
+      assignTime: dayjs().subtract(i + 1, 'day').add(10, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+      handleTime: dayjs().subtract(i, 'day').subtract(3, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+      responseDuration: Math.round(15 + Math.random() * 120),
+      duration: Math.round(15 + Math.random() * 120),
+      handleResult: 'RESOLVED',
+      result: '已解决',
+      handleRemark: `处理说明-${i + 1}`
+    }));
+  };
+
   const peakChartData = peakData.map(p => ({ area: p.area, value: Number(p.peakValue) || p.value }));
 
   const peakColumns = [
@@ -129,6 +204,31 @@ function StatisticsPage() {
     { title: '更新时间', dataIndex: 'updateTime', width: 180 }
   ];
 
+  const responseColumns = [
+    { title: '告警编号', dataIndex: 'alertNo', width: 120 },
+    { title: '区域', dataIndex: 'area', width: 80 },
+    { title: '电表', dataIndex: 'meterName', width: 120 },
+    {
+      title: '告警级别', dataIndex: 'alertLevel', width: 100,
+      render: v => alertLevelMap[v] ? <Tag color={alertLevelMap[v].color}>{alertLevelMap[v].text}</Tag> : v
+    },
+    { title: '责任人', dataIndex: 'handler', width: 100 },
+    { title: '分派时间', dataIndex: 'assignTime', width: 180 },
+    { title: '处理时间', dataIndex: 'handleTime', width: 180 },
+    {
+      title: '响应时长(分)', dataIndex: 'responseDuration', width: 130,
+      sorter: (a, b) => (a.responseDuration || 0) - (b.responseDuration || 0),
+      render: v => {
+        if (v == null) return '-';
+        return <Tag color={v > 60 ? 'red' : v > 30 ? 'orange' : 'green'}>{v}</Tag>;
+      }
+    },
+    {
+      title: '处理结果', dataIndex: 'handleResult', width: 100,
+      render: v => handleResultMap[v] ? <Tag color={handleResultMap[v].color}>{handleResultMap[v].text}</Tag> : v
+    }
+  ];
+
   const barConfig = {
     data: peakChartData,
     xField: 'area',
@@ -137,6 +237,22 @@ function StatisticsPage() {
     label: { position: 'top' },
     yAxis: { title: { text: '峰值功率(kW)' } }
   };
+
+  const handleResponsePageChange = (page, pageSize) => {
+    setResponsePage(page);
+    setResponsePageSize(pageSize);
+    loadResponseData(page, pageSize);
+  };
+
+  const handleResponseSearch = () => {
+    setResponsePage(1);
+    loadResponseData(1, responsePageSize);
+  };
+
+  // 计算统计数据
+  const durations = responseData.map(d => d.responseDuration || d.duration).filter(v => v != null);
+  const maxDuration = durations.length ? Math.max(...durations) : 0;
+  const minDuration = durations.length ? Math.min(...durations) : 0;
 
   return (
     <div>
@@ -170,19 +286,13 @@ function StatisticsPage() {
       </Row>
 
       <Card className="filter-bar">
-        <Row gutter={16}>
-          <Col>
-            <RangePicker showTime value={timeRange} onChange={setTimeRange} />
-          </Col>
-          <Col>
-            <Select placeholder="选择区域" style={{ width: 160 }} allowClear value={selectedArea} onChange={setSelectedArea}>
-              {areas.map(a => <Option key={a} value={a}>{a}</Option>)}
-            </Select>
-          </Col>
-          <Col>
-            <a onClick={loadData} style={{ cursor: 'pointer' }}>查询</a>
-          </Col>
-        </Row>
+        <Space wrap>
+          <RangePicker showTime value={timeRange} onChange={setTimeRange} />
+          <Select placeholder="选择区域" style={{ width: 160 }} allowClear value={selectedArea} onChange={setSelectedArea}>
+            {areas.map(a => <Option key={a} value={a}>{a}</Option>)}
+          </Select>
+          <Button type="primary" onClick={loadData}>查询</Button>
+        </Space>
       </Card>
 
       <Tabs
@@ -220,36 +330,45 @@ function StatisticsPage() {
             label: '响应时长与责任人',
             children: (
               <Card className="table-card">
-                <Descriptions title="响应时长统计" bordered column={2}>
+                <Descriptions title="响应时长统计" bordered column={4} style={{ marginBottom: 16 }}>
                   <Descriptions.Item label="平均响应时长">{avgDuration} 分钟</Descriptions.Item>
+                  <Descriptions.Item label="最长响应时长">{maxDuration} 分钟</Descriptions.Item>
+                  <Descriptions.Item label="最短响应时长">{minDuration} 分钟</Descriptions.Item>
                   <Descriptions.Item label="统计周期">{timeRange[0].format('YYYY-MM-DD')} 至 {timeRange[1].format('YYYY-MM-DD')}</Descriptions.Item>
-                  <Descriptions.Item label="最长响应时长">{Math.round(avgDuration * 2.5)} 分钟</Descriptions.Item>
-                  <Descriptions.Item label="最短响应时长">{Math.round(avgDuration * 0.3)} 分钟</Descriptions.Item>
                 </Descriptions>
+
+                <Space style={{ marginBottom: 16 }} wrap>
+                  <Input
+                    placeholder="搜索责任人"
+                    prefix={<SearchOutlined />}
+                    style={{ width: 200 }}
+                    value={handlerFilter}
+                    onChange={e => setHandlerFilter(e.target.value)}
+                    allowClear
+                  />
+                  <RangePicker
+                    showTime
+                    value={timeRange}
+                    onChange={setTimeRange}
+                  />
+                  <Button type="primary" onClick={handleResponseSearch}>查询</Button>
+                </Space>
+
                 <Table
                   rowKey="id"
-                  style={{ marginTop: 16 }}
-                  pagination={{ pageSize: 10 }}
-                  columns={[
-                    { title: '告警编号', dataIndex: 'alertNo', width: 120 },
-                    { title: '责任人', dataIndex: 'handler', width: 100 },
-                    { title: '分派时间', dataIndex: 'assignTime', width: 180 },
-                    { title: '处理时间', dataIndex: 'handleTime', width: 180 },
-                    {
-                      title: '响应时长(分)', dataIndex: 'duration', width: 130,
-                      render: v => <Tag color={v > 60 ? 'red' : v > 30 ? 'orange' : 'green'}>{v}</Tag>
-                    },
-                    { title: '处理结果', dataIndex: 'result', width: 100, render: v => <Tag color="green">{v}</Tag> }
-                  ]}
-                  dataSource={Array.from({ length: 6 }, (_, i) => ({
-                    id: i + 1,
-                    alertNo: `ALT${10000 + i}`,
-                    handler: ['张三', '李四', '王五', '赵六', '孙七', '周八'][i],
-                    assignTime: dayjs().subtract(i + 1, 'day').format('YYYY-MM-DD HH:mm:ss'),
-                    handleTime: dayjs().subtract(i, 'day').subtract(3, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-                    duration: Math.round(15 + Math.random() * 90),
-                    result: '已解决'
-                  }))}
+                  columns={responseColumns}
+                  dataSource={responseData}
+                  loading={responseLoading}
+                  pagination={{
+                    current: responsePage,
+                    pageSize: responsePageSize,
+                    total: responseTotal,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: total => `共 ${total} 条记录`,
+                    onChange: handleResponsePageChange
+                  }}
+                  scroll={{ x: 1200 }}
                 />
               </Card>
             )

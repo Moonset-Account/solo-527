@@ -12,6 +12,7 @@ public interface EnergyService {
     List<EnergyDataPoint> getPeakAnalysis(EnergyQueryDTO dto);
     List<MeterReading> validateReadings(EnergyQueryDTO dto);
     byte[] exportPeakByArea(EnergyQueryDTO dto);
+    String generatePeakCsv(EnergyQueryDTO dto);
     Map<String, Object> getDashboardStats();
     List<String> getAllAreas();
 }

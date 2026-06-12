@@ -1,11 +1,13 @@
 package com.energy.controller;
 
 import com.energy.common.Result;
+import com.energy.dto.ResponseDurationDTO;
 import com.energy.entity.PeakLoad;
 import com.energy.entity.PriceRule;
 import com.energy.entity.Strategy;
 import com.energy.service.ReferenceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -66,5 +68,15 @@ public class ReferenceController {
     @GetMapping("/failed-strategies")
     public Result<List<Strategy>> getFailedStrategies() {
         return Result.success(referenceService.getFailedStrategies());
+    }
+
+    @GetMapping("/response-durations")
+    public Result<Page<ResponseDurationDTO>> getResponseDurations(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            @RequestParam(required = false) String handler,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return Result.success(referenceService.getResponseDurationList(start, end, handler, page, size));
     }
 }

@@ -16,4 +16,12 @@ public interface AlertHandlingRepository extends JpaRepository<AlertHandling, Lo
     Double findAvgResponseDuration(
             @Param("start") java.time.LocalDateTime start,
             @Param("end") java.time.LocalDateTime end);
+
+    @Query("SELECT ah FROM AlertHandling ah WHERE ah.handleTime BETWEEN :start AND :end " +
+           "AND (:handler IS NULL OR ah.handler = :handler) " +
+           "ORDER BY ah.handleTime DESC")
+    List<AlertHandling> findByFilters(
+            @Param("start") java.time.LocalDateTime start,
+            @Param("end") java.time.LocalDateTime end,
+            @Param("handler") String handler);
 }

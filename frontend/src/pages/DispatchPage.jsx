@@ -128,15 +128,32 @@ function DispatchPage() {
 
   const handleExport = async () => {
     try {
-      message.info('正在导出...');
-      await energyApi.exportPeaks({
+      message.loading({ content: '正在导出...', key: 'export', duration: 0 });
+      const res = await energyApi.exportPeaks({
         startTime: timeRange[0].toISOString(),
         endTime: timeRange[1].toISOString(),
         area: selectedArea
       });
-      message.success('导出成功');
+      const disposition = res.headers['content-disposition'];
+      let fileName = 'peak_export.csv';
+      if (disposition) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match) {
+          fileName = decodeURIComponent(match[1]);
+        }
+      }
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success({ content: '导出成功', key: 'export' });
     } catch (e) {
-      message.success('导出任务已提交');
+      console.error('导出失败:', e);
+      message.error({ content: '导出失败，请稍后重试', key: 'export' });
     }
   };
 

@@ -3,6 +3,7 @@ package com.energy.controller;
 import com.energy.common.Result;
 import com.energy.dto.EnergyDataPoint;
 import com.energy.dto.EnergyQueryDTO;
+import com.energy.entity.ExportHistory;
 import com.energy.entity.MeterReading;
 import com.energy.service.EnergyService;
 import com.energy.service.ExportHistoryService;
@@ -44,12 +45,18 @@ public class EnergyController {
 
     @PostMapping("/export")
     public ResponseEntity<byte[]> exportPeaks(@RequestBody EnergyQueryDTO dto) {
-        byte[] data = energyService.exportPeakByArea(dto);
+        String csvContent = energyService.generatePeakCsv(dto);
         String fileName = "peak_export_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
-        exportHistoryService.recordExport("PEAK", fileName, "admin", dto.getArea(), dto, data.length);
+        List<EnergyDataPoint> peaks = energyService.getPeakAnalysis(dto);
+        ExportHistory history = exportHistoryService.recordExport(
+                "PEAK", fileName, csvContent, "admin", dto.getArea(), dto, peaks.size());
+        byte[] data = csvContent.getBytes(StandardCharsets.UTF_8);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv;charset=UTF-8"));
-        headers.setContentDispositionFormData("attachment", URLEncoder.encode(fileName, StandardCharsets.UTF_8));
+        headers.set("X-Export-Id", String.valueOf(history.getId()));
+        headers.set("X-Export-No", history.getExportNo());
+        String encodedName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+        headers.setContentDispositionFormData("attachment", encodedName);
         return ResponseEntity.ok().headers(headers).body(data);
     }
 

@@ -33,3 +33,7 @@ logging:
   level:
     com.energy: DEBUG
     org.hibernate.SQL: DEBUG
+
+app:
+  export:
+    base-dir: ./exports

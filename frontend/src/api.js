@@ -26,7 +26,8 @@ export const energyApi = {
 
 export const exportApi = {
   search: (params) => api.post('/exports/search', params),
-  getById: (id) => api.get(`/exports/${id}`)
+  getById: (id) => api.get(`/exports/${id}`),
+  download: (id) => api.get(`/exports/${id}/download`, { responseType: 'blob' })
 };
 
 export const referenceApi = {
@@ -37,7 +38,8 @@ export const referenceApi = {
   getPeakLoads: (params) => api.get('/reference/peak-loads', { params }),
   getStatistics: (params) => api.get('/reference/statistics', { params }),
   getFailedPeaks: () => api.get('/reference/failed-peaks'),
-  getFailedStrategies: () => api.get('/reference/failed-strategies')
+  getFailedStrategies: () => api.get('/reference/failed-strategies'),
+  getResponseDurations: (params) => api.get('/reference/response-durations', { params })
 };
 
 export default api;

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -113,22 +114,26 @@ public class EnergyServiceImpl implements EnergyService {
     }
 
     @Override
-    public byte[] exportPeakByArea(EnergyQueryDTO dto) {
+    public String generatePeakCsv(EnergyQueryDTO dto) {
         LocalDateTime start = dto.getStartTime() != null ? dto.getStartTime() : LocalDateTime.now().minusDays(7);
         LocalDateTime end = dto.getEndTime() != null ? dto.getEndTime() : LocalDateTime.now();
         List<EnergyDataPoint> peaks = getPeakAnalysis(dto);
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             OutputStreamWriter writer = new OutputStreamWriter(baos, StandardCharsets.UTF_8);
-             CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.builder()
+        try (StringWriter sw = new StringWriter();
+             CSVPrinter csvPrinter = new CSVPrinter(sw, CSVFormat.DEFAULT.builder()
                      .setHeader("区域", "峰值功率(kW)", "统计开始时间", "统计结束时间").build())) {
             for (EnergyDataPoint p : peaks) {
                 csvPrinter.printRecord(p.getArea(), p.getValue().setScale(2, RoundingMode.HALF_UP), start, end);
             }
             csvPrinter.flush();
-            return baos.toByteArray();
+            return sw.toString();
         } catch (Exception e) {
-            throw new RuntimeException("导出失败", e);
+            throw new RuntimeException("生成CSV失败", e);
         }
+    }
+
+    @Override
+    public byte[] exportPeakByArea(EnergyQueryDTO dto) {
+        return generatePeakCsv(dto).getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
