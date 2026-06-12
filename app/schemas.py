@@ -75,11 +75,26 @@ class VarietyBase(BaseModel):
     name: str
     fruit_type: str
     plot_id: int
-    plant_date: Optional[str] = None
+    plant_date: Optional[date] = None
     expected_yield_kg: Optional[float] = None
     maturity_days: Optional[int] = None
     is_active: bool = True
     description: Optional[str] = None
+
+    @field_validator("plant_date", mode="before")
+    @classmethod
+    def parse_plant_date(cls, v):
+        if isinstance(v, date):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
+                try:
+                    return datetime.strptime(v, fmt).date()
+                except (ValueError, TypeError):
+                    continue
+        return v
 
 
 class VarietyCreate(VarietyBase):

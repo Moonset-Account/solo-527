@@ -99,18 +99,8 @@ def create_variety(
     if not db.query(models.Plot).filter(models.Plot.id == payload.plot_id).first():
         raise HTTPException(status_code=404, detail=f"地块 {payload.plot_id} 不存在")
 
-    data = payload.model_dump()
-    plant_date_str = data.pop("plant_date", None)
-    plant_date = None
-    if plant_date_str:
-        try:
-            plant_date = datetime.strptime(plant_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(status_code=400, detail="plant_date 格式应为 YYYY-MM-DD")
-
     variety = models.Variety(
-        **data,
-        plant_date=plant_date,
+        **payload.model_dump(),
         created_by=current_user.id,
         updated_by=current_user.id,
     )
