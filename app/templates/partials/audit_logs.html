@@ -22,6 +22,14 @@
         </select>
     </div>
     <div>
+        <label>目标类型</label>
+        <select name="target_type" class="audit-filter">
+            {% for value, label in target_types %}
+            <option value="{{ value }}" {% if filters.target_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
         <label>操作类型</label>
         <input type="text" name="action" class="audit-filter" placeholder="搜索操作..." value="{{ filters.action or '' }}">
     </div>
@@ -33,6 +41,11 @@
         <label>结束日期</label>
         <input type="date" name="date_to" class="audit-filter" value="{{ filters.date_to or '' }}">
     </div>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:12px;">
+    <a href="/audit?target_type=inspection_miss" class="btn btn-outline btn-sm" style="{% if filters.target_type == 'inspection_miss' %}background:var(--primary);color:white;{% endif %}">🔎 仅看巡检遗漏</a>
+    <a href="/audit" class="btn btn-outline btn-sm">显示全部</a>
 </div>
 
 <div id="audit-list" class="card">
@@ -50,11 +63,19 @@
         </thead>
         <tbody>
             {% for log in logs %}
-            <tr>
+            <tr {% if log.target_type == 'inspection_miss' %}style="background:#fff3cd;"{% endif %}>
                 <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                 <td>{{ log.user.display_name if log.user else '-' }}</td>
                 <td>{{ log.action }}</td>
-                <td>{{ log.target_type or '-' }}</td>
+                <td>
+                    {% if log.target_type == 'inspection_miss' %}
+                    <span class="badge" style="background:#e76f51;color:white;">巡检遗漏</span>
+                    {% elif log.target_type %}
+                    {{ log.target_type }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
                 <td>{{ log.target_id or '-' }}</td>
                 <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ log.detail or '' }}">{{ log.detail or '-' }}</td>
                 <td>{{ log.ip_address or '-' }}</td>

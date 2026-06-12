@@ -19,6 +19,7 @@
             <a href="/work-orders" class="{% if '/work-orders' in request.url.path %}active{% endif %}">📋 工单</a>
             <a href="/assets" class="{% if '/assets' in request.url.path %}active{% endif %}">💻 资产</a>
             <a href="/change-windows" class="{% if '/change-windows' in request.url.path %}active{% endif %}">🔄 变更窗口</a>
+            <a href="/inspections" class="{% if '/inspections' in request.url.path %}active{% endif %}">🔎 巡检遗漏</a>
             {% if current_user.role.value in ('admin', 'security_officer') %}
             <a href="/reports" class="{% if '/reports' in request.url.path %}active{% endif %}">📄 报表</a>
             {% endif %}

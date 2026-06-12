@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -18,12 +19,9 @@ async def login(request: Request, db: AsyncSession = Depends(get_db)):
     password = form.get("password", "")
     user = await authenticate_user(db, username, password)
     if not user:
-        return Response(
-            headers={"HX-Redirect": "/auth/login?error=1"},
-            status_code=302,
-        )
+        return RedirectResponse(url="/auth/login?error=1", status_code=303)
     token = create_access_token({"user_id": user.id, "role": user.role.value})
-    response = Response(headers={"HX-Redirect": "/"}, status_code=302)
+    response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(
         key="access_token",
         value=token,
@@ -43,7 +41,7 @@ async def login_page(request: Request):
 
 @router.get("/logout")
 async def logout():
-    response = Response(headers={"HX-Redirect": "/auth/login"}, status_code=302)
+    response = RedirectResponse(url="/auth/login", status_code=303)
     response.delete_cookie("access_token")
     return response
 
