@@ -15,12 +15,14 @@
           <NInput v-model:value="filterForm.end_date" placeholder="YYYY-MM-DD" style="width: 140px" />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" :loading="exportLoading" @click="handleExport">导出 Excel</NButton>
+          <NButton type="primary" :loading="exportLoading" @click="handleExport">导出并下载 Excel</NButton>
         </NFormItem>
       </NForm>
       <NAlert v-if="exportSuccess" type="success" style="margin-top: 16px">
-        导出成功！
-        <a :href="lastExportUrl" target="_blank" style="margin-left: 8px">点击下载文件</a>
+        导出成功！文件已开始下载。
+        <a style="margin-left: 8px; cursor: pointer; text-decoration: underline" @click="handleDownloadLast">
+          如未自动下载请点击这里
+        </a>
       </NAlert>
     </NCard>
 
@@ -43,9 +45,10 @@ import type { DataTableColumns } from 'naive-ui'
 const api = useApi()
 const message = useMessage()
 const exportLoading = ref(false)
+const downloadingId = ref<number | null>(null)
 const historyLoading = ref(false)
 const exportSuccess = ref(false)
-const lastExportUrl = ref('')
+const lastExportId = ref<number | null>(null)
 
 const filterForm = reactive({
   status: null as string | null,
@@ -74,6 +77,33 @@ const categoryOptions = [
 
 const exportHistory = ref<any[]>([])
 
+async function handleDownload(row: any) {
+  if (downloadingId.value) return
+  downloadingId.value = row.id
+  try {
+    await api.downloadExport(row.id)
+    message.success('下载成功')
+  } catch (e: any) {
+    message.error(e?.message || '下载失败')
+  } finally {
+    downloadingId.value = null
+  }
+}
+
+async function handleDownloadLast() {
+  if (lastExportId.value !== null) {
+    try {
+      await api.downloadExport(lastExportId.value)
+    } catch {
+      // 备用方案：用带 token 的 URL 打开
+      const token = useCookie('token').value
+      if (token) {
+        window.open(`${api.baseURL}/api/export/${lastExportId.value}/download?token=${token}`, '_blank')
+      }
+    }
+  }
+}
+
 const exportColumns: DataTableColumns = [
   { title: '导出ID', key: 'id', width: 80 },
   {
@@ -100,16 +130,16 @@ const exportColumns: DataTableColumns = [
     }
   },
   {
-    title: '操作', key: 'actions', width: 100,
+    title: '操作', key: 'actions', width: 120,
     render(row: any) {
       if (row.file_path) {
+        const isDownloading = downloadingId.value === row.id
         return h(NButton, {
           size: 'small',
           type: 'primary',
-          tag: 'a',
-          href: api.getExportDownloadUrl(row.id),
-          target: '_blank'
-        }, { default: () => '下载' })
+          loading: isDownloading,
+          onClick: () => handleDownload(row)
+        }, { default: () => (isDownloading ? '下载中' : '下载') })
       }
       return h(NButton, { size: 'small', disabled: true }, { default: () => '等待' })
     }
@@ -128,11 +158,22 @@ async function handleExport() {
     const res = await api.triggerExport({ export_type: 'repairs', filter_params: params }) as any
     message.success('导出成功')
     if (res && res.id) {
-      lastExportUrl.value = api.getExportDownloadUrl(res.id)
+      lastExportId.value = res.id
       exportSuccess.value = true
       setTimeout(() => {
         exportSuccess.value = false
-      }, 10000)
+      }, 15000)
+      setTimeout(async () => {
+        try {
+          await api.downloadExport(res.id)
+        } catch {
+          // 备用方案：用带 token 的 URL 打开
+          const token = useCookie('token').value
+          if (token) {
+            window.open(`${api.baseURL}/api/export/${res.id}/download?token=${token}`, '_blank')
+          }
+        }
+      }, 300)
     }
     fetchHistory()
   } catch (e: any) {

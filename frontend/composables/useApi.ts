@@ -172,6 +172,32 @@ export function useApi() {
     return `${baseURL}/api/export/${id}/download`
   }
 
+  async function downloadExport(id: string | number): Promise<void> {
+    const token = useCookie('token').value
+    const url = getExportDownloadUrl(id)
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status}`)
+    }
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = `export_${id}.xlsx`
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^"]+)"?/)
+      if (match) filename = match[1]
+    }
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(blobUrl)
+  }
+
   return {
     baseURL,
     login,
@@ -196,6 +222,7 @@ export function useApi() {
     triggerExport,
     getExportStatus,
     getExportHistory,
-    getExportDownloadUrl
+    getExportDownloadUrl,
+    downloadExport,
   }
 }

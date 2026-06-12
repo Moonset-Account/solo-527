@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
 from datetime import datetime
+from jose import JWTError, jwt
 from app.database import get_db
 from app.models import User, ExportRecord, RepairOrder
 from app.schemas import ExportRequest, ExportRecordResponse
@@ -11,6 +12,42 @@ from app.tasks import generate_export
 from app.config import settings
 
 router = APIRouter(prefix="/api/export", tags=["export"])
+
+
+def _get_user_from_token(token: str, db: Session) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: int = payload.get("user_id")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+def _get_user_by_request(request: Request, token: str | None, db: Session) -> User:
+    if token:
+        return _get_user_from_token(token, db)
+
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token_str = auth_header[7:]
+        return _get_user_from_token(token_str, db)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def _do_generate_export(db: Session, record: ExportRecord, filter_params: dict):
@@ -119,9 +156,12 @@ async def get_export_status(
 @router.get("/{export_id}/download")
 async def download_export(
     export_id: int,
+    request: Request,
+    token: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
+    current_user = _get_user_by_request(request, token, db)
+
     if current_user.role not in ("staff", "admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Staff or admin role required")
 

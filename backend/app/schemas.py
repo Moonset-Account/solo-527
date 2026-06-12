@@ -95,6 +95,18 @@ class OperationHistoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class NotificationReceiptResponse(BaseModel):
+    id: int
+    user_id: int
+    order_id: int
+    channel: str
+    content: Optional[str]
+    is_read: bool
+    sent_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class RepairOrderResponse(BaseModel):
     id: int
     title: str
@@ -110,6 +122,7 @@ class RepairOrderResponse(BaseModel):
     attachments: List[AttachmentResponse] = []
     audit_records: List[AuditRecordResponse] = []
     operation_histories: List[OperationHistoryResponse] = []
+    notification_receipts: List[NotificationReceiptResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -117,18 +130,6 @@ class RepairOrderResponse(BaseModel):
 class AuditAction(BaseModel):
     action: str
     comment: Optional[str] = None
-
-
-class NotificationReceiptResponse(BaseModel):
-    id: int
-    user_id: int
-    order_id: int
-    channel: str
-    content: Optional[str]
-    is_read: bool
-    sent_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class ClubActivityResponse(BaseModel):

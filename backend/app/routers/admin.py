@@ -87,6 +87,18 @@ async def audit_repair(
     if audit.comment:
         notification_content += f" 备注：{audit.comment}"
 
+    receipt = NR(
+        user_id=order.student_id,
+        order_id=order.id,
+        channel="in_app",
+        content=notification_content,
+        is_read=False,
+        sent_at=dt.utcnow(),
+    )
+    db.add(receipt)
+    db.commit()
+    db.refresh(receipt)
+
     try:
         send_notification.delay(
             user_id=order.student_id,
@@ -95,16 +107,7 @@ async def audit_repair(
             content=notification_content,
         )
     except Exception:
-        receipt = NR(
-            user_id=order.student_id,
-            order_id=order.id,
-            channel="in_app",
-            content=notification_content,
-            is_read=False,
-            sent_at=dt.utcnow(),
-        )
-        db.add(receipt)
-        db.commit()
+        pass
 
     return audit_record
 
