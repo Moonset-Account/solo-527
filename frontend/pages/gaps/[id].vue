@@ -283,8 +283,7 @@ async function sendMissReminder() {
   if (!detail.value?.submission?.id) return
   try {
     const api = useApi()
-    await api.post('/reminders/0/material-missing', {})
-    // 模拟发送，实际后端有接口
+    await api.post(`/reminders/submission/${detail.value.submission.id}/material-missing`, {})
     (window as any).__n_msg?.success('已发送材料缺失提醒给提交人')
   } catch (e: any) {
     (window as any).__n_msg?.error(e.message || '发送失败')

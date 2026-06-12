@@ -1,16 +1,37 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date
+from datetime import date, timedelta
 from ..core.database import get_db
 from ..core.security import get_current_user, require_roles
-from ..schemas.gap import GapCreate, GapUpdate, GapResponse, GapList
+from ..schemas.gap import (
+    GapCreate, GapUpdate, GapResponse, GapList, GapHistoryResponse,
+)
 from ..models import (
     ComplianceGap, GapStatus, GapSeverity, GapHistory, User, UserRole,
-    ChecklistSubmission, ChecklistItem,
+    ChecklistSubmission, ChecklistItem, SystemConfig, ConfigType,
 )
 
 router = APIRouter()
+
+
+def _get_rectification_days(db: Session, severity: GapSeverity) -> int:
+    mapping = {
+        GapSeverity.CRITICAL: "P7",
+        GapSeverity.HIGH: "P15",
+        GapSeverity.MEDIUM: "P30",
+        GapSeverity.LOW: "P60",
+    }
+    key = mapping.get(severity, "P30")
+    cfg = db.query(SystemConfig).filter(
+        SystemConfig.config_type == ConfigType.RECTIFICATION_PERIOD,
+        SystemConfig.config_key == key,
+        SystemConfig.is_active == True,
+    ).first()
+    try:
+        return int(cfg.config_value) if cfg and cfg.config_value else 30
+    except (ValueError, TypeError):
+        return 30
 
 
 def _auto_create_gaps_from_answers(db: Session, submission_id: int, creator_id: int):
@@ -22,6 +43,7 @@ def _auto_create_gaps_from_answers(db: Session, submission_id: int, creator_id: 
     existing = {(g.submission_id, g.item_id) for g in
                 db.query(ComplianceGap).filter(ComplianceGap.submission_id == submission_id).all()}
     created = 0
+    today = date.today()
     for a in answers:
         key = (submission_id, a.item_id)
         if key in existing:
@@ -30,15 +52,27 @@ def _auto_create_gaps_from_answers(db: Session, submission_id: int, creator_id: 
         sev_map = {"critical": GapSeverity.CRITICAL, "high": GapSeverity.HIGH,
                    "medium": GapSeverity.MEDIUM, "low": GapSeverity.LOW}
         sev = sev_map.get((item.default_risk_level or "medium").lower(), GapSeverity.MEDIUM)
+        days = _get_rectification_days(db, sev)
         gap = ComplianceGap(
             submission_id=submission_id,
             item_id=a.item_id,
             description=f"[自动识别] {item.question} - 当前状态：{a.status.value}，答复：{a.answer_text or '（未填写）'}",
             severity=sev,
             status=GapStatus.OPEN,
+            remediation_deadline=today + timedelta(days=days),
             created_by=creator_id,
         )
         db.add(gap)
+        db.flush()
+        db.add(GapHistory(
+            gap_id=gap.id,
+            action="创建",
+            field_changed="初始化",
+            old_value="",
+            new_value=sev.value,
+            comment=f"系统自动识别合规缺口，整改期限 {days} 天（{gap.remediation_deadline.isoformat()}）",
+            user_id=creator_id,
+        ))
         created += 1
     if created:
         db.commit()
@@ -57,6 +91,19 @@ def _add_history(db: Session, gap: ComplianceGap, action: str, user_id: int,
         comment=comment,
         user_id=user_id,
     ))
+
+
+def _enrich_gap_response(db: Session, g: ComplianceGap) -> dict:
+    data = GapResponse.model_validate(g).model_dump()
+    today = date.today()
+    if g.remediation_deadline:
+        data["days_left"] = (g.remediation_deadline - today).days
+    if g.remediation_owner_id:
+        owner = db.query(User).filter(User.id == g.remediation_owner_id).first()
+        if owner:
+            data["remediation_owner_name"] = owner.full_name
+    data["histories"] = [GapHistoryResponse.model_validate(h).model_dump() for h in sorted(g.histories, key=lambda x: x.created_at or "", reverse=True)]
+    return data
 
 
 @router.get("", response_model=GapList)
@@ -94,7 +141,7 @@ def list_gaps(
         )
     total = q.count()
     items = q.order_by(ComplianceGap.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return GapList(total=total, items=[GapResponse.model_validate(g) for g in items])
+    return GapList(total=total, items=[_enrich_gap_response(db, g) for g in items])
 
 
 @router.get("/{gid}", response_model=GapResponse)
@@ -102,7 +149,7 @@ def get_gap(gid: int, db: Session = Depends(get_db), _: User = Depends(get_curre
     g = db.query(ComplianceGap).filter(ComplianceGap.id == gid).first()
     if not g:
         raise HTTPException(status_code=404, detail="合规缺口不存在")
-    return GapResponse.model_validate(g)
+    return _enrich_gap_response(db, g)
 
 
 @router.post("", response_model=GapResponse)
@@ -124,7 +171,7 @@ def create_gap(
     _add_history(db, gap, "创建", current.id)
     db.commit()
     db.refresh(gap)
-    return GapResponse.model_validate(gap)
+    return _enrich_gap_response(db, gap)
 
 
 @router.post("/auto-generate/{submission_id}")
@@ -169,7 +216,7 @@ def update_gap(
         _add_history(db, g, "备注", current.id, comment=comment)
     db.commit()
     db.refresh(g)
-    return GapResponse.model_validate(g)
+    return _enrich_gap_response(db, g)
 
 
 @router.get("/{gid}/detail")
@@ -181,7 +228,13 @@ def gap_detail(gid: int, db: Session = Depends(get_db), _: User = Depends(get_cu
     item = db.query(ChecklistItem).filter(ChecklistItem.id == g.item_id).first()
     submitter = db.query(User).filter(User.id == sub.submitter_id).first() if sub else None
     owner = db.query(User).filter(User.id == g.remediation_owner_id).first() if g.remediation_owner_id else None
+    user_ids = {h.user_id for h in g.histories if h.user_id}
+    users_by_id = {u.id: u for u in db.query(User).filter(User.id.in_(list(user_ids))).all()} if user_ids else {}
     histories = sorted(g.histories, key=lambda h: h.created_at or "", reverse=True)
+    today = date.today()
+    days_left = None
+    if g.remediation_deadline:
+        days_left = (g.remediation_deadline - today).days
     return {
         "gap": {
             "id": g.id,
@@ -194,6 +247,8 @@ def gap_detail(gid: int, db: Session = Depends(get_db), _: User = Depends(get_cu
             "actual_resolve_date": g.actual_resolve_date.isoformat() if g.actual_resolve_date else None,
             "evidence_details": g.evidence_details,
             "created_at": g.created_at.isoformat() if g.created_at else None,
+            "days_left": days_left,
+            "remediation_owner_id": g.remediation_owner_id,
         },
         "submission": {
             "id": sub.id,
@@ -202,15 +257,27 @@ def gap_detail(gid: int, db: Session = Depends(get_db), _: User = Depends(get_cu
             "contract_version": sub.contract_version,
             "risk_level": sub.risk_level,
             "status": sub.status.value,
+            "deadline": sub.deadline.isoformat() if sub.deadline else None,
+            "contract_amount": sub.contract_amount,
+            "department": "",
+            "contract_owner": "",
             "submitter": submitter.full_name if submitter else None,
+            "submitter_id": sub.submitter_id,
         } if sub else None,
         "item": {
             "id": item.id,
             "section": item.section,
             "question": item.question,
             "required_evidence": item.required_evidence,
+            "description": item.description,
+            "default_risk_level": item.default_risk_level,
         } if item else None,
-        "owner": owner.full_name if owner else None,
+        "owner": {
+            "id": owner.id,
+            "full_name": owner.full_name,
+            "role": owner.role.value,
+            "department": owner.department,
+        } if owner else None,
         "histories": [
             {
                 "id": h.id,
@@ -220,6 +287,7 @@ def gap_detail(gid: int, db: Session = Depends(get_db), _: User = Depends(get_cu
                 "new": h.new_value,
                 "comment": h.comment,
                 "user_id": h.user_id,
+                "changed_by_name": users_by_id[h.user_id].full_name if h.user_id and h.user_id in users_by_id else None,
                 "time": h.created_at.isoformat() if h.created_at else None,
             }
             for h in histories

@@ -228,6 +228,11 @@ def risk_board(
         ]),
     ).order_by(ChecklistSubmission.deadline.asc().nullslast()).all()
     items = []
+    overdue: List[RiskBoardItem] = []
+    within_3_days: List[RiskBoardItem] = []
+    within_7_days: List[RiskBoardItem] = []
+    after_7_days: List[RiskBoardItem] = []
+    no_deadline: List[RiskBoardItem] = []
     summary = {"total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0,
                "overdue": 0, "within_3d": 0, "within_7d": 0, "more_than_7d": 0, "no_deadline": 0}
     for s in subs:
@@ -240,17 +245,7 @@ def risk_board(
         dl = _days_left(s.deadline)
         rl = s.risk_level or "low"
         summary[rl] = summary.get(rl, 0) + 1
-        if dl is None:
-            summary["no_deadline"] += 1
-        elif dl < 0:
-            summary["overdue"] += 1
-        elif dl <= 3:
-            summary["within_3d"] += 1
-        elif dl <= 7:
-            summary["within_7d"] += 1
-        else:
-            summary["more_than_7d"] += 1
-        items.append(RiskBoardItem(
+        it = RiskBoardItem(
             id=s.id,
             contract_name=s.contract_name,
             counterparty=s.counterparty or "",
@@ -261,6 +256,31 @@ def risk_board(
             gap_count=len(gaps),
             critical_gap_count=critical_cnt,
             high_gap_count=high_cnt,
-        ))
+        )
+        items.append(it)
+        if dl is None:
+            summary["no_deadline"] += 1
+            no_deadline.append(it)
+        elif dl < 0:
+            summary["overdue"] += 1
+            overdue.append(it)
+        elif dl <= 3:
+            summary["within_3d"] += 1
+            within_3_days.append(it)
+        elif dl <= 7:
+            summary["within_7d"] += 1
+            within_7_days.append(it)
+        else:
+            summary["more_than_7d"] += 1
+            after_7_days.append(it)
     summary["total"] = len(items)
-    return RiskBoard(total=len(items), items=items, summary=summary)
+    return RiskBoard(
+        total=len(items),
+        items=items,
+        summary=summary,
+        overdue=overdue,
+        within_3_days=within_3_days,
+        within_7_days=within_7_days,
+        after_7_days=after_7_days,
+        no_deadline=no_deadline,
+    )

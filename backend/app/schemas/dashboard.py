@@ -63,6 +63,11 @@ class RiskBoard(BaseModel):
     total: int
     items: List[RiskBoardItem]
     summary: Dict[str, int]
+    overdue: List[RiskBoardItem] = []
+    within_3_days: List[RiskBoardItem] = []
+    within_7_days: List[RiskBoardItem] = []
+    after_7_days: List[RiskBoardItem] = []
+    no_deadline: List[RiskBoardItem] = []
 
 
 class DashboardResponse(BaseModel):

@@ -108,3 +108,27 @@ def send_material_missing(
     db.add(new_rem)
     db.commit()
     return {"ok": True, "reminder_id": new_rem.id}
+
+
+@router.post("/submission/{sid}/material-missing")
+def send_material_missing_by_submission(
+    sid: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    from ..models import ChecklistSubmission
+    sub = db.query(ChecklistSubmission).filter(ChecklistSubmission.id == sid).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="提交记录不存在")
+    new_rem = Reminder(
+        type=ReminderType.MATERIAL_MISSING,
+        recipient_id=sub.submitter_id,
+        sender_id=current.id,
+        submission_id=sub.id,
+        title=f"材料缺失提醒：{sub.contract_name}",
+        content=f"您提交的《{sub.contract_name}》合规检查中存在材料缺失，请尽快补充相关证明材料。",
+        status=ReminderStatus.UNREAD,
+    )
+    db.add(new_rem)
+    db.commit()
+    return {"ok": True, "reminder_id": new_rem.id}

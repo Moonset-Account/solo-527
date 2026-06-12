@@ -1,8 +1,10 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
 export default defineNuxtConfig({
+  compatibilityDate: '2025-01-01',
   devtools: { enabled: true },
   ssr: false,
+  spaLoadingTemplate: false,
   modules: ['@pinia/nuxt', '@vueuse/nuxt'],
   typescript: { strict: false, shim: false },
   css: ['~/assets/css/main.css'],
@@ -25,18 +27,18 @@ export default defineNuxtConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['naive-ui', 'vueuc', 'date-fns-tz/formatInTimeZone', 'echarts', 'vue-echarts'],
+      include: ['naive-ui', 'vueuc', 'echarts', 'vue-echarts'],
     },
   },
   imports: {
     dirs: ['composables', 'stores'],
   },
   nitro: {
+    preset: 'static',
     devProxy: {
       '/api': {
         target: 'http://localhost:8000/api',
         changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api/, '/api'),
       },
     },
   },

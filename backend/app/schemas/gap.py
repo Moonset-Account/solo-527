@@ -55,6 +55,8 @@ class GapResponse(GapBase):
     created_by: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    days_left: Optional[int] = None
+    remediation_owner_name: Optional[str] = None
     histories: List[GapHistoryResponse] = []
 
     class Config:
