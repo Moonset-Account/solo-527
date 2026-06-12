@@ -17,7 +17,7 @@ interface User {
   lastLogin: string;
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/users')({
   component: UsersPage,
 });
 

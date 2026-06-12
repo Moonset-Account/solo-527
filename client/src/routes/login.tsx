@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from '@tanstack/react-router';
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/login')({
   component: LoginPage,
 });
 
@@ -21,7 +21,6 @@ function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      // @ts-expect-error TanStack Router 类型推断问题
       navigate({ to: '/' });
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: string } } };

@@ -26,7 +26,7 @@ interface Apartment {
   updatedAt: string;
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/apartments')({
   component: ApartmentsPage,
 });
 

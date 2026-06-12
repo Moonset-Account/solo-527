@@ -21,7 +21,7 @@ interface Viewing {
   consultant: { name: string };
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/viewings')({
   component: ViewingsPage,
 });
 

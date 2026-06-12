@@ -4,7 +4,7 @@ import { apiClient } from '@/api/client';
 import { useAuthStore } from '@/store/authStore';
 import dayjs from 'dayjs';
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/')({
   component: Dashboard,
 });
 

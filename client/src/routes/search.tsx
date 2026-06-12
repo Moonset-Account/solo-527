@@ -60,7 +60,7 @@ interface QueryResult {
   }>;
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/search')({
   component: SearchPage,
 });
 

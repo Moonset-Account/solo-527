@@ -46,7 +46,7 @@ interface MonthlySummary {
   signings: number;
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/reports')({
   component: ReportsPage,
 });
 

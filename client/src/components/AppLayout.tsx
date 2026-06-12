@@ -13,7 +13,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const handleLogout = () => {
     logout();
-    // @ts-expect-error TanStack Router 类型推断问题
     navigate({ to: '/login' });
   };
 
@@ -49,7 +48,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.path}>
-                {/* @ts-expect-error TanStack Router 类型推断问题 */}
                 <Link
                   to={item.path}
                   className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
@@ -71,7 +69,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </li>
                 {adminMenuItems.map((item) => (
                   <li key={item.path}>
-                    {/* @ts-expect-error TanStack Router 类型推断问题 */}
                     <Link
                       to={item.path}
                       className={`flex items-center px-4 py-2 rounded-lg transition-colors ${

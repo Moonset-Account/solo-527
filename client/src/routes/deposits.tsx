@@ -37,7 +37,7 @@ interface Dispute {
   customer: { name: string; phone: string };
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/deposits')({
   component: DepositsPage,
 });
 

@@ -26,12 +26,10 @@ function RootComponent() {
   }
 
   if (!isAuthenticated && location.pathname !== '/login') {
-    // @ts-expect-error TanStack Router 类型推断问题
     return <Navigate to="/login" replace />;
   }
 
   if (isAuthenticated && location.pathname === '/login') {
-    // @ts-expect-error TanStack Router 类型推断问题
     return <Navigate to="/" replace />;
   }
 

@@ -42,7 +42,7 @@ interface LeaseDraft {
   customer: { name: string };
 }
 
-export const Route = createFileRoute()({
+export const Route = createFileRoute('/leases')({
   component: LeasesPage,
 });
 
