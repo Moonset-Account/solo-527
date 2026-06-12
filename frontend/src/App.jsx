@@ -7,13 +7,15 @@ import {
   FileSearchOutlined,
   ThunderboltOutlined,
   SafetyOutlined,
-  MoneyCollectOutlined
+  MoneyCollectOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import DispatchPage from './pages/DispatchPage.jsx';
 import StatisticsPage from './pages/StatisticsPage.jsx';
 import ExportHistoryPage from './pages/ExportHistoryPage.jsx';
 import StrategyPage from './pages/StrategyPage.jsx';
 import PricePage from './pages/PricePage.jsx';
+import ValidatePage from './pages/ValidatePage.jsx';
 
 const { Header, Sider, Content } = Layout;
 
@@ -23,6 +25,7 @@ function App() {
 
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: '调度台' },
+    { key: '/validate', icon: <CheckCircleOutlined />, label: '采集校验' },
     { key: '/statistics', icon: <BarChartOutlined />, label: '统计分析' },
     { key: '/strategy', icon: <SafetyOutlined />, label: '策略版本' },
     { key: '/price', icon: <MoneyCollectOutlined />, label: '电价规则' },
@@ -51,6 +54,7 @@ function App() {
           <Content className="app-content">
             <Routes>
               <Route path="/" element={<DispatchPage />} />
+              <Route path="/validate" element={<ValidatePage />} />
               <Route path="/statistics" element={<StatisticsPage />} />
               <Route path="/strategy" element={<StrategyPage />} />
               <Route path="/price" element={<PricePage />} />

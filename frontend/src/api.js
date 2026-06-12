@@ -19,6 +19,7 @@ export const energyApi = {
   getCurve: (params) => api.post('/energy/curve', params),
   getPeaks: (params) => api.post('/energy/peaks', params),
   validate: (params) => api.post('/energy/validate', params),
+  validateDetail: (params) => api.post('/energy/validate/detail', params),
   exportPeaks: (params) => api.post('/energy/export', params, { responseType: 'blob' }),
   getDashboard: () => api.get('/energy/dashboard'),
   getAreas: () => api.get('/energy/areas')

@@ -3,6 +3,7 @@ package com.energy.controller;
 import com.energy.common.Result;
 import com.energy.dto.EnergyDataPoint;
 import com.energy.dto.EnergyQueryDTO;
+import com.energy.dto.ValidateResultDTO;
 import com.energy.entity.ExportHistory;
 import com.energy.entity.MeterReading;
 import com.energy.service.EnergyService;
@@ -41,6 +42,11 @@ public class EnergyController {
     @PostMapping("/validate")
     public Result<List<MeterReading>> validate(@RequestBody EnergyQueryDTO dto) {
         return Result.success(energyService.validateReadings(dto));
+    }
+
+    @PostMapping("/validate/detail")
+    public Result<List<ValidateResultDTO>> validateDetail(@RequestBody EnergyQueryDTO dto) {
+        return Result.success(energyService.validateReadingsDetail(dto));
     }
 
     @PostMapping("/export")

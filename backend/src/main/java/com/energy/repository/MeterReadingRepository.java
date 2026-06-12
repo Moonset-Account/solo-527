@@ -25,14 +25,24 @@ public interface MeterReadingRepository extends JpaRepository<MeterReading, Long
     @Query("SELECT m.area, MAX(mr.activePower) FROM MeterReading mr " +
            "JOIN Meter m ON mr.meterId = m.id " +
            "WHERE mr.readingTime BETWEEN :start AND :end " +
+           "AND (:area IS NULL OR m.area = :area) " +
            "GROUP BY m.area")
     List<Object[]> findPeakPowerByAreaAndTimeBetween(
             @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end);
+            @Param("end") LocalDateTime end,
+            @Param("area") String area);
 
     @Query("SELECT mr FROM MeterReading mr WHERE mr.isValid = false " +
            "AND mr.readingTime BETWEEN :start AND :end ORDER BY mr.readingTime DESC")
     List<MeterReading> findInvalidReadings(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
+    @Query("SELECT mr FROM MeterReading mr JOIN Meter m ON mr.meterId = m.id " +
+           "WHERE mr.isValid = false AND m.area = :area " +
+           "AND mr.readingTime BETWEEN :start AND :end ORDER BY mr.readingTime DESC")
+    List<MeterReading> findInvalidReadingsByArea(
+            @Param("area") String area,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 }

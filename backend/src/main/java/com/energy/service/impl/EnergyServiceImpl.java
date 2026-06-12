@@ -2,6 +2,7 @@ package com.energy.service.impl;
 
 import com.energy.dto.EnergyDataPoint;
 import com.energy.dto.EnergyQueryDTO;
+import com.energy.dto.ValidateResultDTO;
 import com.energy.entity.Meter;
 import com.energy.entity.MeterReading;
 import com.energy.repository.MeterReadingRepository;
@@ -69,7 +70,8 @@ public class EnergyServiceImpl implements EnergyService {
     public List<EnergyDataPoint> getPeakAnalysis(EnergyQueryDTO dto) {
         LocalDateTime start = dto.getStartTime() != null ? dto.getStartTime() : LocalDateTime.now().minusDays(7);
         LocalDateTime end = dto.getEndTime() != null ? dto.getEndTime() : LocalDateTime.now();
-        List<Object[]> peaks = readingRepository.findPeakPowerByAreaAndTimeBetween(start, end);
+        String area = (dto.getArea() != null && !dto.getArea().isEmpty()) ? dto.getArea() : null;
+        List<Object[]> peaks = readingRepository.findPeakPowerByAreaAndTimeBetween(start, end, area);
         return peaks.stream()
                 .map(p -> new EnergyDataPoint(end, (BigDecimal) p[1], (String) p[0]))
                 .sorted(Comparator.comparing(EnergyDataPoint::getValue).reversed())
@@ -80,19 +82,28 @@ public class EnergyServiceImpl implements EnergyService {
     public List<MeterReading> validateReadings(EnergyQueryDTO dto) {
         LocalDateTime start = dto.getStartTime() != null ? dto.getStartTime() : LocalDateTime.now().minusHours(24);
         LocalDateTime end = dto.getEndTime() != null ? dto.getEndTime() : LocalDateTime.now();
-        List<MeterReading> readings = new ArrayList<>(readingRepository.findInvalidReadings(start, end));
+        String area = (dto.getArea() != null && !dto.getArea().isEmpty()) ? dto.getArea() : null;
+
+        List<MeterReading> readings = new ArrayList<>(
+                area != null
+                        ? readingRepository.findInvalidReadingsByArea(area, start, end)
+                        : readingRepository.findInvalidReadings(start, end)
+        );
+
         List<MeterReading> allReadings;
         Map<Long, BigDecimal> meterRatedCurrentMap = new HashMap<>();
-        for (Meter m : meterRepository.findAll()) {
+        List<Meter> meters = (area != null) ? meterRepository.findByArea(area) : meterRepository.findAll();
+        for (Meter m : meters) {
             if (m.getRatedCurrent() != null) {
                 meterRatedCurrentMap.put(m.getId(), m.getRatedCurrent());
             }
         }
-        if (dto.getArea() != null && !dto.getArea().isEmpty()) {
-            allReadings = readingRepository.findByAreaAndTimeBetween(dto.getArea(), start, end);
+
+        if (area != null) {
+            allReadings = readingRepository.findByAreaAndTimeBetween(area, start, end);
         } else {
             allReadings = new ArrayList<>();
-            for (Meter m : meterRepository.findAll()) {
+            for (Meter m : meters) {
                 allReadings.addAll(readingRepository.findByMeterIdAndReadingTimeBetweenOrderByReadingTime(m.getId(), start, end));
             }
         }
@@ -111,6 +122,42 @@ public class EnergyServiceImpl implements EnergyService {
             }
         }
         return readings;
+    }
+
+    @Override
+    public List<ValidateResultDTO> validateReadingsDetail(EnergyQueryDTO dto) {
+        List<MeterReading> readings = validateReadings(dto);
+        List<Long> meterIds = readings.stream()
+                .map(MeterReading::getMeterId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, Meter> meterMap = new HashMap<>();
+        if (!meterIds.isEmpty()) {
+            for (Meter m : meterRepository.findAllById(meterIds)) {
+                meterMap.put(m.getId(), m);
+            }
+        }
+        return readings.stream().map(r -> {
+            ValidateResultDTO dto2 = new ValidateResultDTO();
+            dto2.setId(r.getId());
+            dto2.setMeterId(r.getMeterId());
+            dto2.setReadingTime(r.getReadingTime());
+            dto2.setActivePower(r.getActivePower());
+            dto2.setReactivePower(r.getReactivePower());
+            dto2.setVoltage(r.getVoltage());
+            dto2.setCurrentValue(r.getCurrentValue());
+            dto2.setPowerFactor(r.getPowerFactor());
+            dto2.setCumulativeEnergy(r.getCumulativeEnergy());
+            dto2.setIsValid(r.getIsValid());
+            dto2.setValidateRemark(r.getValidateRemark());
+            Meter m = meterMap.get(r.getMeterId());
+            if (m != null) {
+                dto2.setMeterCode(m.getMeterCode());
+                dto2.setMeterName(m.getMeterName());
+                dto2.setArea(m.getArea());
+            }
+            return dto2;
+        }).collect(Collectors.toList());
     }
 
     @Override

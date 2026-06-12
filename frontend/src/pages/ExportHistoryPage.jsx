@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, DatePicker, Input, Select, Table, Button, Tag, Space, message, Modal, Descriptions } from 'antd';
+import { Card, DatePicker, Input, Select, Table, Button, Tag, Space, message, Modal, Descriptions, Empty, Alert as AntAlert } from 'antd';
 import { SearchOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { exportApi } from '../api';
@@ -24,6 +24,7 @@ function ExportHistoryPage() {
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [operator, setOperator] = useState('');
   const [timeRange, setTimeRange] = useState();
   const [exportType, setExportType] = useState();
@@ -40,6 +41,7 @@ function ExportHistoryPage() {
 
   const loadData = async (p = 1, ps = 10) => {
     setLoading(true);
+    setErrorMsg('');
     try {
       const res = await exportApi.search({
         operator: operator || undefined,
@@ -49,39 +51,24 @@ function ExportHistoryPage() {
         page: p - 1,
         size: ps
       });
-      const pageData = res.data.data;
+      const pageData = res.data?.data;
       if (pageData && pageData.content) {
         setData(pageData.content);
-        setTotal(pageData.totalElements || pageData.total || 0);
+        setTotal(pageData.totalElements ?? pageData.total ?? pageData.content?.length ?? 0);
+      } else if (Array.isArray(pageData)) {
+        setData(pageData);
+        setTotal(pageData.length);
       } else {
-        setData(generateMockData());
-        setTotal(50);
+        setData([]);
+        setTotal(0);
       }
     } catch (e) {
-      setData(generateMockData());
-      setTotal(50);
+      console.error('加载导出历史失败:', e);
+      setErrorMsg(e.response?.data?.message || e.message || '加载失败，请检查后端服务');
+      setData([]);
+      setTotal(0);
     }
     setLoading(false);
-  };
-
-  const generateMockData = () => {
-    const types = ['PEAK', 'ALERT', 'READING', 'STATISTICS'];
-    const operators = ['admin', '张三', '李四', '王五', '赵六'];
-    const statuses = ['SUCCESS', 'SUCCESS', 'SUCCESS', 'FAILED', 'PROCESSING'];
-    return Array.from({ length: 10 }, (_, i) => ({
-      id: i + 1,
-      exportNo: `EXP${20240000 + i}`,
-      exportType: types[i % 4],
-      fileName: `export_${types[i % 4].toLowerCase()}_${dayjs().subtract(i, 'day').format('YYYYMMDD')}.csv`,
-      operator: operators[i % 5],
-      area: `${String.fromCharCode(65 + (i % 4))}区`,
-      exportTime: dayjs().subtract(i, 'day').subtract(i, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-      startTime: dayjs().subtract(i + 7, 'day').format('YYYY-MM-DD HH:mm:ss'),
-      endTime: dayjs().subtract(i, 'day').format('YYYY-MM-DD HH:mm:ss'),
-      recordCount: 50 + Math.floor(Math.random() * 500),
-      status: statuses[i % 5],
-      filePath: `/exports/${dayjs().format('YYYYMMDD')}/file_${i}.csv`
-    }));
   };
 
   const handleSearch = () => {
@@ -99,24 +86,27 @@ function ExportHistoryPage() {
     setDetailLoading(true);
     try {
       const res = await exportApi.getById(record.id);
-      setCurrentRecord(res.data.data || record);
+      setCurrentRecord(res.data?.data || record);
+      setDetailVisible(true);
     } catch (e) {
+      console.error('加载详情失败:', e);
+      message.error(e.response?.data?.message || '加载详情失败');
       setCurrentRecord(record);
+      setDetailVisible(true);
     }
     setDetailLoading(false);
-    setDetailVisible(true);
   };
 
   const handleDownload = async (record) => {
     try {
       message.loading({ content: '正在下载...', key: 'download_' + record.id, duration: 0 });
       const res = await exportApi.download(record.id);
-      const disposition = res.headers['content-disposition'];
+      const disposition = res.headers?.['content-disposition'];
       let fileName = record.fileName || 'export.csv';
       if (disposition) {
         const match = disposition.match(/filename="?([^"]+)"?/);
         if (match) {
-          fileName = decodeURIComponent(match[1]);
+          try { fileName = decodeURIComponent(match[1]); } catch (_) { fileName = match[1]; }
         }
       }
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -130,7 +120,7 @@ function ExportHistoryPage() {
       message.success({ content: '下载成功', key: 'download_' + record.id });
     } catch (e) {
       console.error('下载失败:', e);
-      message.error({ content: '下载失败，请稍后重试', key: 'download_' + record.id });
+      message.error({ content: e.response?.data?.message || '下载失败，请稍后重试', key: 'download_' + record.id });
     }
   };
 
@@ -181,9 +171,19 @@ function ExportHistoryPage() {
             <Option value="READING">采集数据</Option>
             <Option value="STATISTICS">统计报表</Option>
           </Select>
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>搜索</Button>
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>搜索</Button>
         </Space>
       </Card>
+
+      {errorMsg && (
+        <AntAlert
+          style={{ marginBottom: 16 }}
+          type="error"
+          showIcon
+          message="数据加载异常"
+          description={errorMsg}
+        />
+      )}
 
       <Card className="table-card">
         <Table
@@ -192,6 +192,11 @@ function ExportHistoryPage() {
           dataSource={data}
           loading={loading}
           scroll={{ x: 1300 }}
+          locale={{
+            emptyText: errorMsg
+              ? <Empty description="暂无数据（接口异常）" />
+              : <Empty description="暂无导出记录" />
+          }}
           pagination={{
             current: page,
             pageSize,
@@ -210,21 +215,22 @@ function ExportHistoryPage() {
         onCancel={() => setDetailVisible(false)}
         footer={<Button onClick={() => setDetailVisible(false)}>关闭</Button>}
         width={640}
+        destroyOnClose
       >
         {currentRecord && (
           <Descriptions bordered column={2} size="small" loading={detailLoading}>
-            <Descriptions.Item label="导出编号" span={2}>{currentRecord.exportNo}</Descriptions.Item>
+            <Descriptions.Item label="导出编号" span={2}>{currentRecord.exportNo || '-'}</Descriptions.Item>
             <Descriptions.Item label="导出类型">
-              {typeMap[currentRecord.exportType]?.text || currentRecord.exportType}
+              {typeMap[currentRecord.exportType]?.text || currentRecord.exportType || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="状态">
-              {statusMap[currentRecord.status]?.text || currentRecord.status}
+              {statusMap[currentRecord.status]?.text || currentRecord.status || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="文件名" span={2}>{currentRecord.fileName}</Descriptions.Item>
-            <Descriptions.Item label="操作者">{currentRecord.operator}</Descriptions.Item>
+            <Descriptions.Item label="文件名" span={2}>{currentRecord.fileName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="操作者">{currentRecord.operator || '-'}</Descriptions.Item>
             <Descriptions.Item label="区域">{currentRecord.area || '-'}</Descriptions.Item>
-            <Descriptions.Item label="记录数">{currentRecord.recordCount || '-'}</Descriptions.Item>
-            <Descriptions.Item label="生成时间">{currentRecord.exportTime}</Descriptions.Item>
+            <Descriptions.Item label="记录数">{currentRecord.recordCount ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="生成时间">{currentRecord.exportTime || '-'}</Descriptions.Item>
             <Descriptions.Item label="统计开始时间" span={2}>
               {currentRecord.startTime ? dayjs(currentRecord.startTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
             </Descriptions.Item>
