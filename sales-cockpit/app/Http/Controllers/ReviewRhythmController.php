@@ -133,4 +133,50 @@ class ReviewRhythmController extends Controller
             'month' => $validated['month'],
         ]);
     }
+
+    public function deactivate(ReviewRhythm $reviewRhythm)
+    {
+        if (!request()->user()->hasPermission('review_rhythm.deactivate')) {
+            abort(403);
+        }
+
+        $oldValues = $reviewRhythm->toArray();
+
+        DB::transaction(function () use ($reviewRhythm, $oldValues) {
+            $reviewRhythm->update(['is_active' => false]);
+
+            app(AuditService::class)->log(
+                'deactivate',
+                'review_rhythm',
+                $reviewRhythm->id,
+                $oldValues,
+                $reviewRhythm->fresh()->toArray(),
+            );
+        });
+
+        return redirect()->back()->with('message', '复盘节奏已停用');
+    }
+
+    public function activate(ReviewRhythm $reviewRhythm)
+    {
+        if (!request()->user()->hasPermission('review_rhythm.deactivate')) {
+            abort(403);
+        }
+
+        $oldValues = $reviewRhythm->toArray();
+
+        DB::transaction(function () use ($reviewRhythm, $oldValues) {
+            $reviewRhythm->update(['is_active' => true]);
+
+            app(AuditService::class)->log(
+                'activate',
+                'review_rhythm',
+                $reviewRhythm->id,
+                $oldValues,
+                $reviewRhythm->fresh()->toArray(),
+            );
+        });
+
+        return redirect()->back()->with('message', '复盘节奏已启用');
+    }
 }

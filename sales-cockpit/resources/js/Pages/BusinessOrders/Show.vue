@@ -94,8 +94,12 @@ function submitAlertRule() {
 }
 
 function deleteAlertRule(rule) {
-    if (confirm('确认删除此告警规则？')) {
-        router.delete(`/alert-rules/${rule.id}`);
+    if (confirm(rule.is_active ? '确认停用此告警规则？' : '确认启用此告警规则？')) {
+        if (rule.is_active) {
+            router.post(`/alert-rules/${rule.id}/deactivate`);
+        } else {
+            router.post(`/alert-rules/${rule.id}/activate`);
+        }
     }
 }
 
@@ -141,8 +145,12 @@ function submitDimension() {
 }
 
 function deleteDimension(dim) {
-    if (confirm('确认删除此维度？')) {
-        router.delete(`/dimensions/${dim.id}`);
+    if (confirm(dim.is_active ? '确认停用此维度？' : '确认启用此维度？')) {
+        if (dim.is_active) {
+            router.post(`/dimensions/${dim.id}/deactivate`);
+        } else {
+            router.post(`/dimensions/${dim.id}/activate`);
+        }
     }
 }
 
@@ -262,7 +270,9 @@ const conditionTypeMap = {
                                 </td>
                                 <td class="actions">
                                     <button class="btn-link" @click="openEditAlertRule(rule)">编辑</button>
-                                    <button class="btn-link btn-link-red" @click="deleteAlertRule(rule)">删除</button>
+                                    <button :class="['btn-link', rule.is_active ? 'btn-link-red' : 'btn-link-green']" @click="deleteAlertRule(rule)">
+                                        {{ rule.is_active ? '停用' : '启用' }}
+                                    </button>
                                 </td>
                             </tr>
                             <tr v-if="!order.alert_rules?.length">
@@ -282,6 +292,7 @@ const conditionTypeMap = {
                                 <th>名称</th>
                                 <th>编码</th>
                                 <th>值</th>
+                                <th>状态</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -290,13 +301,20 @@ const conditionTypeMap = {
                                 <td>{{ dim.name }}</td>
                                 <td>{{ dim.code }}</td>
                                 <td>{{ (dim.values_json || []).join(', ') }}</td>
+                                <td>
+                                    <span :class="['badge', dim.is_active ? 'badge-green' : 'badge-gray']">
+                                        {{ dim.is_active ? '启用' : '停用' }}
+                                    </span>
+                                </td>
                                 <td class="actions">
                                     <button class="btn-link" @click="openEditDimension(dim)">编辑</button>
-                                    <button class="btn-link btn-link-red" @click="deleteDimension(dim)">删除</button>
+                                    <button :class="['btn-link', dim.is_active ? 'btn-link-red' : 'btn-link-green']" @click="deleteDimension(dim)">
+                                        {{ dim.is_active ? '停用' : '启用' }}
+                                    </button>
                                 </td>
                             </tr>
                             <tr v-if="!order.dimensions?.length">
-                                <td colspan="4" class="empty-state">暂无维度</td>
+                                <td colspan="5" class="empty-state">暂无维度</td>
                             </tr>
                         </tbody>
                     </table>

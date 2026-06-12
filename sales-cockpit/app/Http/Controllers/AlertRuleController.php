@@ -101,4 +101,50 @@ class AlertRuleController extends Controller
 
         return redirect()->back()->with('message', '告警规则已删除');
     }
+
+    public function deactivate(AlertRule $alertRule)
+    {
+        if (!request()->user()->hasPermission('alert_rule.deactivate')) {
+            abort(403);
+        }
+
+        $oldValues = $alertRule->toArray();
+
+        DB::transaction(function () use ($alertRule, $oldValues) {
+            $alertRule->update(['is_active' => false]);
+
+            app(AuditService::class)->log(
+                'deactivate',
+                'alert_rule',
+                $alertRule->id,
+                $oldValues,
+                $alertRule->fresh()->toArray(),
+            );
+        });
+
+        return redirect()->back()->with('message', '告警规则已停用');
+    }
+
+    public function activate(AlertRule $alertRule)
+    {
+        if (!request()->user()->hasPermission('alert_rule.deactivate')) {
+            abort(403);
+        }
+
+        $oldValues = $alertRule->toArray();
+
+        DB::transaction(function () use ($alertRule, $oldValues) {
+            $alertRule->update(['is_active' => true]);
+
+            app(AuditService::class)->log(
+                'activate',
+                'alert_rule',
+                $alertRule->id,
+                $oldValues,
+                $alertRule->fresh()->toArray(),
+            );
+        });
+
+        return redirect()->back()->with('message', '告警规则已启用');
+    }
 }

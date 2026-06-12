@@ -58,6 +58,16 @@ function generateReport() {
     if (!reportMonth.value) return;
     router.visit(`/review-rhythms/report?month=${reportMonth.value}`);
 }
+
+function toggleActive(rhythm) {
+    if (confirm(rhythm.is_active ? '确认停用此复盘节奏？' : '确认启用此复盘节奏？')) {
+        if (rhythm.is_active) {
+            router.post(`/review-rhythms/${rhythm.id}/deactivate`);
+        } else {
+            router.post(`/review-rhythms/${rhythm.id}/activate`);
+        }
+    }
+}
 </script>
 
 <template>
@@ -97,8 +107,11 @@ function generateReport() {
                             <td>{{ rhythm.next_review_date }}</td>
                             <td>{{ rhythm.responsible_user?.name || rhythm.responsible_user_id || '-' }}</td>
                             <td>{{ rhythm.notes || '-' }}</td>
-                            <td>
+                            <td class="actions">
                                 <button class="btn-link" @click="openEdit(rhythm)">编辑</button>
+                                <button :class="['btn-link', rhythm.is_active ? 'btn-link-red' : 'btn-link-green']" @click="toggleActive(rhythm)">
+                                    {{ rhythm.is_active ? '停用' : '启用' }}
+                                </button>
                             </td>
                         </tr>
                         <tr v-if="rhythms.data.length === 0">
@@ -208,9 +221,23 @@ function generateReport() {
     font-size: 13px;
 }
 
+.btn-link-red {
+    color: #ef4444;
+}
+
+.btn-link-green {
+    color: #10b981;
+}
+
 .btn-sm {
     padding: 5px 14px;
     font-size: 13px;
+}
+
+.data-table td.actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
 .modal-overlay {

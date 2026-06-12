@@ -32,9 +32,11 @@ class DatabaseSeeder extends Seeder
             ['name' => 'alert_rule.create', 'description' => '创建告警规则'],
             ['name' => 'alert_rule.update', 'description' => '更新告警规则'],
             ['name' => 'alert_rule.delete', 'description' => '删除告警规则'],
+            ['name' => 'alert_rule.deactivate', 'description' => '停用/启用告警规则'],
             ['name' => 'dimension.create', 'description' => '创建维度配置'],
             ['name' => 'dimension.update', 'description' => '更新维度配置'],
             ['name' => 'dimension.delete', 'description' => '删除维度配置'],
+            ['name' => 'dimension.deactivate', 'description' => '停用/启用维度配置'],
             ['name' => 'dataset_permission.create', 'description' => '创建数据集权限'],
             ['name' => 'dataset_permission.update', 'description' => '更新数据集权限'],
             ['name' => 'dataset_permission.deactivate', 'description' => '停用数据集权限'],
@@ -42,6 +44,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'review_rhythm.create', 'description' => '创建复盘节奏'],
             ['name' => 'review_rhythm.update', 'description' => '更新复盘节奏'],
             ['name' => 'review_rhythm.report', 'description' => '生成月度复盘报表'],
+            ['name' => 'review_rhythm.deactivate', 'description' => '停用/启用复盘节奏'],
             ['name' => 'audit_log.view', 'description' => '查看操作留痕'],
         ];
 
@@ -59,10 +62,17 @@ class DatabaseSeeder extends Seeder
                 'consistency_check.create',
                 'business_order.view',
                 'alert_rule.create',
+                'alert_rule.update',
+                'alert_rule.deactivate',
                 'dimension.create',
+                'dimension.update',
+                'dimension.deactivate',
                 'dataset_permission.create',
+                'dataset_permission.update',
+                'dataset_permission.deactivate',
                 'review_rhythm.view',
                 'review_rhythm.report',
+                'review_rhythm.deactivate',
                 'audit_log.view',
             ])->pluck('id')
         );

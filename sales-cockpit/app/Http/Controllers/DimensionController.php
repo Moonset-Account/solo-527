@@ -93,4 +93,50 @@ class DimensionController extends Controller
 
         return redirect()->back()->with('message', '维度已删除');
     }
+
+    public function deactivate(Dimension $dimension)
+    {
+        if (!request()->user()->hasPermission('dimension.deactivate')) {
+            abort(403);
+        }
+
+        $oldValues = $dimension->toArray();
+
+        DB::transaction(function () use ($dimension, $oldValues) {
+            $dimension->update(['is_active' => false]);
+
+            app(AuditService::class)->log(
+                'deactivate',
+                'dimension',
+                $dimension->id,
+                $oldValues,
+                $dimension->fresh()->toArray(),
+            );
+        });
+
+        return redirect()->back()->with('message', '维度已停用');
+    }
+
+    public function activate(Dimension $dimension)
+    {
+        if (!request()->user()->hasPermission('dimension.deactivate')) {
+            abort(403);
+        }
+
+        $oldValues = $dimension->toArray();
+
+        DB::transaction(function () use ($dimension, $oldValues) {
+            $dimension->update(['is_active' => true]);
+
+            app(AuditService::class)->log(
+                'activate',
+                'dimension',
+                $dimension->id,
+                $oldValues,
+                $dimension->fresh()->toArray(),
+            );
+        });
+
+        return redirect()->back()->with('message', '维度已启用');
+    }
 }
