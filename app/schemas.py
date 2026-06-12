@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, date
 from typing import Optional, List, Any, Generic, TypeVar
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 
 T = TypeVar("T")
 
@@ -10,6 +10,12 @@ class Pagination(BaseModel):
     page_size: int = 20
     total: int = 0
     total_pages: int = 0
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    model_config = ConfigDict(from_attributes=True)
+    data: List[T]
+    pagination: Pagination
 
 
 class UserOut(BaseModel):
@@ -91,7 +97,7 @@ class HarvestRecordBase(BaseModel):
     code: str
     plot_id: int
     variety_id: int
-    harvest_date: str
+    harvest_date: date
     status: str = "planned"
     weather: Optional[str] = None
     temperature_c: Optional[float] = None
@@ -101,6 +107,21 @@ class HarvestRecordBase(BaseModel):
     predicted_yield_kg: Optional[float] = None
     quality_score: Optional[float] = None
     notes: Optional[str] = None
+
+    @field_validator("harvest_date", mode="before")
+    @classmethod
+    def parse_harvest_date(cls, v):
+        if isinstance(v, date):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
+                try:
+                    return datetime.strptime(v, fmt).date()
+                except (ValueError, TypeError):
+                    continue
+        return v
 
 
 class HarvestRecordCreate(HarvestRecordBase):
@@ -120,13 +141,28 @@ class HarvestBatchBase(BaseModel):
     code: str
     harvest_id: int
     variety_id: int
-    batch_date: str
+    batch_date: date
     status: str = "harvested"
     weight_kg: float
     container_count: Optional[int] = None
     storage_location: Optional[str] = None
     quality_grade: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("batch_date", mode="before")
+    @classmethod
+    def parse_batch_date(cls, v):
+        if isinstance(v, date):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
+                try:
+                    return datetime.strptime(v, fmt).date()
+                except (ValueError, TypeError):
+                    continue
+        return v
 
 
 class HarvestBatchCreate(HarvestBatchBase):
@@ -224,13 +260,28 @@ class YieldPredictionOut(BaseModel):
     harvest_id: int
     plot_id: int
     variety_id: int
-    prediction_date: str
+    prediction_date: date
     predicted_yield_kg: float
     confidence_pct: Optional[float] = None
     model_version: str
     is_reminder_sent: bool
     reminder_sent_at: Optional[datetime] = None
     notes: Optional[str] = None
+
+    @field_validator("prediction_date", mode="before")
+    @classmethod
+    def parse_prediction_date(cls, v):
+        if isinstance(v, date):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
+                try:
+                    return datetime.strptime(v, fmt).date()
+                except (ValueError, TypeError):
+                    continue
+        return v
 
 
 class SubsidyVoucherBase(BaseModel):
@@ -322,11 +373,6 @@ class DownloadRecordOut(BaseModel):
     filters_used: Optional[str] = None
     downloaded_at: datetime
     include_demo: bool
-
-
-class PaginatedResponse(BaseModel, Generic[T]):
-    data: List[T]
-    pagination: Pagination
 
 
 class ThresholdUpdate(BaseModel):

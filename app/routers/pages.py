@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.security import get_current_user_optional
+from app.security import get_current_user_optional, create_access_token
 from app import models
 from app.config import settings
 
@@ -15,9 +15,11 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 def _render_with_context(request: Request, user: models.User, template_name: str, extra_context: dict | None = None):
+    token = create_access_token(user.id)
     context = {
         "request": request,
         "current_user": user,
+        "access_token": token,
         "run_mode": settings.run_mode,
         "now": datetime.now().strftime("%Y年%m月%d日"),
     }

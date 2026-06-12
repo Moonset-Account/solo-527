@@ -35,6 +35,23 @@
             }
         }
     </script>
+    {% if current_user %}
+    <script>
+        window.__INITIAL_STATE__ = {
+            token: "{{ access_token }}",
+            user: {
+                id: {{ current_user.id }},
+                username: "{{ current_user.username }}",
+                full_name: "{{ current_user.full_name }}",
+                role: "{{ current_user.role }}"
+            }
+        };
+        try {
+            localStorage.setItem('token', window.__INITIAL_STATE__.token);
+            localStorage.setItem('user', JSON.stringify(window.__INITIAL_STATE__.user));
+        } catch(e) {}
+    </script>
+    {% endif %}
 </head>
 <body class="bg-gray-50 font-sans min-h-screen flex flex-col">
     <nav class="bg-primary-600 text-white shadow-lg">
@@ -123,7 +140,7 @@
 
     <script>
         function getAuthHeaders() {
-            const token = localStorage.getItem('token');
+            const token = getToken();
             if (!token) {
                 if (window.location.pathname !== '/login') {
                     window.location.href = '/login';
@@ -131,6 +148,28 @@
                 return {};
             }
             return { 'Authorization': 'Bearer ' + token };
+        }
+
+        function getToken() {
+            let token = localStorage.getItem('token');
+            if (!token && window.__INITIAL_STATE__ && window.__INITIAL_STATE__.token) {
+                token = window.__INITIAL_STATE__.token;
+                localStorage.setItem('token', token);
+            }
+            return token;
+        }
+
+        function getCurrentUser() {
+            let userStr = localStorage.getItem('user');
+            if (userStr) {
+                try { return JSON.parse(userStr); } catch(e) {}
+            }
+            if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.user) {
+                const user = window.__INITIAL_STATE__.user;
+                localStorage.setItem('user', JSON.stringify(user));
+                return user;
+            }
+            return null;
         }
 
         document.addEventListener('htmx:configRequest', (e) => {
@@ -186,13 +225,18 @@
         }
 
         function checkAuth() {
-            const token = localStorage.getItem('token');
+            const token = getToken();
             if (!token && window.location.pathname !== '/login') {
                 window.location.href = '/login';
             }
         }
 
-        checkAuth();
+        if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.token) {
+            getToken();
+            getCurrentUser();
+        } else {
+            checkAuth();
+        }
     </script>
 </body>
 </html>

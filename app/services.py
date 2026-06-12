@@ -18,24 +18,46 @@ class DataScopeService:
         return getattr(record, "run_mode", None) == DataScopeService.PROD_MODE
 
     @staticmethod
+    def _resolve_column(entity, column_name: str):
+        if entity is None:
+            return None
+        if hasattr(entity, column_name):
+            attr = getattr(entity, column_name)
+            if hasattr(attr, "__clause_element__") or hasattr(attr, "name"):
+                return attr
+        if hasattr(entity, "columns"):
+            cols = getattr(entity, "columns")
+            if hasattr(cols, "get") and cols.get(column_name) is not None:
+                return cols.get(column_name)
+            if isinstance(cols, (list, tuple)) and column_name in cols:
+                return cols[column_name]
+        if hasattr(entity, "c"):
+            cols = getattr(entity, "c")
+            if hasattr(cols, "get") and cols.get(column_name) is not None:
+                return cols.get(column_name)
+        if hasattr(entity, "mapper"):
+            return DataScopeService._resolve_column(entity.mapper, column_name)
+        if hasattr(entity, "entity"):
+            return DataScopeService._resolve_column(entity.entity, column_name)
+        if hasattr(entity, "class_"):
+            cls = getattr(entity, "class_")
+            if hasattr(cls, column_name):
+                return getattr(cls, column_name)
+        return None
+
+    @staticmethod
     def filter_real_reports(query: Query) -> Query:
         try:
-            desc = query.column_descriptions
-            if desc and len(desc) > 0:
-                entity = desc[0].get("entity")
-                if entity and hasattr(entity, "run_mode"):
-                    return query.filter(entity.run_mode == DataScopeService.PROD_MODE)
+            descs = query.column_descriptions
+            if descs and len(descs) > 0:
+                for desc in descs:
+                    entity = desc.get("entity")
+                    col = DataScopeService._resolve_column(entity, "run_mode")
+                    if col is not None:
+                        return query.filter(col == DataScopeService.PROD_MODE)
         except Exception:
             pass
-        try:
-            return query.filter(
-                getattr(query._entity_from_pre_ent_zero().class_, "run_mode", None)
-                == DataScopeService.PROD_MODE
-            )
-        except Exception:
-            return query.filter(
-                models.BaseMixin.run_mode.property.columns[0] == DataScopeService.PROD_MODE
-            )
+        return query
 
 
 class NotificationService:
