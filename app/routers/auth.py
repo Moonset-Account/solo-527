@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -7,16 +7,21 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.config import settings
 from app.security import (
     hash_password, verify_password, create_access_token,
-    get_current_user, require_roles,
+    get_current_user, require_roles, AUTH_COOKIE_NAME,
 )
+from app.deps import make_payload_dep
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=schemas.Token)
-def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+def register(
+    payload: schemas.UserCreate = make_payload_dep(schemas.UserCreate),
+    db: Session = Depends(get_db),
+):
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="用户名已存在")
     if db.query(models.User).filter(models.User.email == payload.email).first():
@@ -36,15 +41,34 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     return schemas.Token(access_token=token, user=schemas.UserOut.model_validate(user))
 
 
-@router.post("/login", response_model=schemas.Token)
-def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+@router.post("/login")
+def login(
+    payload: schemas.LoginRequest = make_payload_dep(schemas.LoginRequest),
+    response: Response = None,
+    db: Session = Depends(get_db),
+):
     user = db.query(models.User).filter(models.User.username == payload.username).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账户已禁用")
     token = create_access_token(user.id)
+    max_age = settings.access_token_expire_minutes * 60
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=token,
+        max_age=max_age,
+        expires=max_age,
+        httponly=True,
+        samesite="lax",
+    )
     return schemas.Token(access_token=token, user=schemas.UserOut.model_validate(user))
+
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(key=AUTH_COOKIE_NAME)
+    return {"message": "已登出"}
 
 
 @router.get("/me", response_model=schemas.UserOut)

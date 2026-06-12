@@ -7,6 +7,7 @@ from app.database import get_db
 from app import models, schemas
 from app.security import get_current_user
 from app.services import SubsidyBatchChainService, DataScopeService
+from app.deps import make_payload_dep
 
 router = APIRouter()
 
@@ -52,7 +53,7 @@ def list_vouchers(
 
 @router.post("/vouchers", response_model=schemas.SubsidyVoucherOut, status_code=status.HTTP_201_CREATED)
 def create_voucher(
-    payload: schemas.SubsidyVoucherCreate,
+    payload: schemas.SubsidyVoucherCreate = make_payload_dep(schemas.SubsidyVoucherCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -85,7 +86,7 @@ def get_voucher(
 @router.post("/vouchers/{voucher_id}/review", response_model=schemas.SubsidyVoucherOut)
 def review_voucher(
     voucher_id: int,
-    payload: schemas.SubsidyReview,
+    payload: schemas.SubsidyReview = make_payload_dep(schemas.SubsidyReview),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

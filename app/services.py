@@ -19,7 +19,23 @@ class DataScopeService:
 
     @staticmethod
     def filter_real_reports(query: Query) -> Query:
-        return query.filter(models.BaseMixin.run_mode == DataScopeService.PROD_MODE)
+        try:
+            desc = query.column_descriptions
+            if desc and len(desc) > 0:
+                entity = desc[0].get("entity")
+                if entity and hasattr(entity, "run_mode"):
+                    return query.filter(entity.run_mode == DataScopeService.PROD_MODE)
+        except Exception:
+            pass
+        try:
+            return query.filter(
+                getattr(query._entity_from_pre_ent_zero().class_, "run_mode", None)
+                == DataScopeService.PROD_MODE
+            )
+        except Exception:
+            return query.filter(
+                models.BaseMixin.run_mode.property.columns[0] == DataScopeService.PROD_MODE
+            )
 
 
 class NotificationService:

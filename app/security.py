@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from passlib.context import CryptContext
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,8 @@ from app import models
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+AUTH_COOKIE_NAME = "access_token"
 
 
 def hash_password(password: str) -> str:
@@ -38,7 +40,18 @@ def decode_token(token: str) -> Optional[int]:
         return None
 
 
+def get_token_from_request(request: Request, token: Optional[str]) -> Optional[str]:
+    if token:
+        return token
+    if request and hasattr(request, "cookies"):
+        cookie_token = request.cookies.get(AUTH_COOKIE_NAME)
+        if cookie_token:
+            return cookie_token
+    return None
+
+
 def get_current_user(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> models.User:
@@ -47,14 +60,32 @@ def get_current_user(
         detail="认证失败，请登录",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not token:
+    actual_token = get_token_from_request(request, token)
+    if not actual_token:
         raise credentials_exc
-    user_id = decode_token(token)
+    user_id = decode_token(actual_token)
     if not user_id:
         raise credentials_exc
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user or not user.is_active:
         raise credentials_exc
+    return user
+
+
+def get_current_user_optional(
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[models.User]:
+    actual_token = get_token_from_request(request, token)
+    if not actual_token:
+        return None
+    user_id = decode_token(actual_token)
+    if not user_id:
+        return None
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not user.is_active:
+        return None
     return user
 
 

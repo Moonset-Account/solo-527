@@ -8,6 +8,7 @@ from app.database import get_db
 from app import models, schemas
 from app.security import get_current_user
 from app.services import HarvestChainService, DataScopeService
+from app.deps import make_payload_dep
 
 router = APIRouter()
 
@@ -41,7 +42,7 @@ def list_plots(
 
 @router.post("/plots", response_model=schemas.PlotOut, status_code=status.HTTP_201_CREATED)
 def create_plot(
-    payload: schemas.PlotCreate,
+    payload: schemas.PlotCreate = make_payload_dep(schemas.PlotCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -89,7 +90,7 @@ def list_varieties(
 
 @router.post("/varieties", response_model=schemas.VarietyOut, status_code=status.HTTP_201_CREATED)
 def create_variety(
-    payload: schemas.VarietyCreate,
+    payload: schemas.VarietyCreate = make_payload_dep(schemas.VarietyCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -156,7 +157,7 @@ def list_harvests(
 
 @router.post("/harvests", response_model=schemas.HarvestRecordOut, status_code=status.HTTP_201_CREATED)
 def create_harvest(
-    payload: schemas.HarvestRecordCreate,
+    payload: schemas.HarvestRecordCreate = make_payload_dep(schemas.HarvestRecordCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -189,7 +190,7 @@ def get_harvest(
 @router.patch("/harvests/{harvest_id}/status", response_model=schemas.HarvestRecordOut)
 def update_harvest_status(
     harvest_id: int,
-    payload: schemas.HarvestStatusUpdate,
+    payload: schemas.HarvestStatusUpdate = make_payload_dep(schemas.HarvestStatusUpdate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -232,7 +233,7 @@ def list_batches(
 
 @router.post("/batches", response_model=schemas.HarvestBatchOut, status_code=status.HTTP_201_CREATED)
 def create_batch(
-    payload: schemas.HarvestBatchCreate,
+    payload: schemas.HarvestBatchCreate = make_payload_dep(schemas.HarvestBatchCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

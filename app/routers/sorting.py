@@ -8,6 +8,7 @@ from app.database import get_db
 from app import models, schemas
 from app.security import get_current_user
 from app.services import SortingService, DataScopeService
+from app.deps import make_payload_dep
 
 router = APIRouter()
 
@@ -56,7 +57,7 @@ def list_differences(
 
 @router.post("/differences", response_model=schemas.SortingDiffOut, status_code=status.HTTP_201_CREATED)
 def create_difference(
-    payload: schemas.SortingDiffCreate,
+    payload: schemas.SortingDiffCreate = make_payload_dep(schemas.SortingDiffCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

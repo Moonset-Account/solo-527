@@ -171,6 +171,29 @@
     const token = localStorage.getItem('token');
     const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
 
+    function smartConvert(obj) {
+        const result = {};
+        const intFields = ['plot_id', 'variety_id', 'harvest_id', 'batch_id', 'workers_count', 'container_count', 'handled_by'];
+        const floatFields = ['temperature_c', 'humidity_pct', 'actual_yield_kg', 'predicted_yield_kg', 'quality_score', 'weight_kg', 'reported_weight_kg', 'actual_weight_kg', 'amount'];
+        const boolFields = ['run_auto_chain'];
+        
+        for (const [key, value] of Object.entries(obj)) {
+            if (value === '' || value === null || value === undefined) {
+                continue;
+            }
+            if (intFields.includes(key)) {
+                result[key] = parseInt(value, 10);
+            } else if (floatFields.includes(key)) {
+                result[key] = parseFloat(value);
+            } else if (boolFields.includes(key)) {
+                result[key] = value === true || value === 'true' || value === '1' || value === 'on';
+            } else {
+                result[key] = value;
+            }
+        }
+        return result;
+    }
+
     function getHarvestStatusClass(status) {
         switch(status) {
             case 'planned': return 'bg-gray-100 text-gray-700';

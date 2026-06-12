@@ -8,6 +8,7 @@ from app.database import get_db
 from app import models, schemas
 from app.security import get_current_user
 from app.services import MonitorAlertService, YieldPredictionService, DataScopeService
+from app.deps import make_payload_dep
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ def _paginate(query, page: int, page_size: int):
 
 @router.post("/readings", response_model=schemas.EnvReadingOut, status_code=status.HTTP_201_CREATED)
 def create_reading(
-    payload: schemas.EnvReadingCreate,
+    payload: schemas.EnvReadingCreate = make_payload_dep(schemas.EnvReadingCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -97,7 +98,7 @@ def list_thresholds(
 
 @router.post("/thresholds", response_model=schemas.ThresholdOut, status_code=status.HTTP_201_CREATED)
 def create_threshold(
-    payload: schemas.ThresholdCreate,
+    payload: schemas.ThresholdCreate = make_payload_dep(schemas.ThresholdCreate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -136,7 +137,7 @@ def create_threshold(
 @router.put("/thresholds/{threshold_id}", response_model=schemas.ThresholdOut)
 def update_threshold(
     threshold_id: int,
-    payload: schemas.ThresholdUpdate,
+    payload: schemas.ThresholdUpdate = make_payload_dep(schemas.ThresholdUpdate),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -202,7 +203,7 @@ def get_alert(
 @router.post("/alerts/{alert_id}/ack", response_model=schemas.AlertOut)
 def ack_alert(
     alert_id: int,
-    payload: schemas.AlertAck,
+    payload: schemas.AlertAck = make_payload_dep(schemas.AlertAck),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -217,7 +218,7 @@ def ack_alert(
 @router.post("/alerts/{alert_id}/resolve", response_model=schemas.AlertOut)
 def resolve_alert(
     alert_id: int,
-    payload: schemas.AlertResolve,
+    payload: schemas.AlertResolve = make_payload_dep(schemas.AlertResolve),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
