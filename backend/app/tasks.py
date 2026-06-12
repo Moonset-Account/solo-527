@@ -8,8 +8,20 @@ from sqlalchemy import func
 @celery_app.task
 def send_notification(user_id: int, order_id: int, channel: str, content: str):
     from app.models import NotificationReceipt
+    from sqlalchemy import and_
     db = SessionLocal()
     try:
+        existing = db.query(NotificationReceipt).filter(
+            and_(
+                NotificationReceipt.user_id == user_id,
+                NotificationReceipt.order_id == order_id,
+                NotificationReceipt.channel == channel,
+                NotificationReceipt.content == content,
+            )
+        ).first()
+        if existing:
+            return {"user_id": user_id, "order_id": order_id, "channel": channel, "status": "skipped", "reason": "duplicate"}
+
         receipt = NotificationReceipt(
             user_id=user_id,
             order_id=order_id,
@@ -20,9 +32,9 @@ def send_notification(user_id: int, order_id: int, channel: str, content: str):
         )
         db.add(receipt)
         db.commit()
+        return {"user_id": user_id, "order_id": order_id, "channel": channel, "status": "sent"}
     finally:
         db.close()
-    return {"user_id": user_id, "order_id": order_id, "channel": channel, "status": "sent"}
 
 
 @celery_app.task
