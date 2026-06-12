@@ -14,7 +14,8 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     init_db()
     yield
-    redis_client.close()
+    from app.redis_client import close as redis_close
+    redis_close()
 
 
 app = FastAPI(

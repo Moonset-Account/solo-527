@@ -10,7 +10,7 @@ try:
     from app.main import app
     from app.models import (
         Base, User, UserRole, Plot, Variety, Threshold,
-        HarvestRecord, HarvestBatch, MonitorAlert,
+        HarvestRecord, HarvestBatch, Alert,
         YieldPrediction, SubsidyVoucher, SortingDifference,
         Notification, DownloadRecord,
         RunMode, SortingResult, SocialImpact, AlertLevel,
@@ -90,9 +90,9 @@ try:
     print("   ✅ 密码哈希和验证功能正常")
     
     # 测试 JWT token
-    token = create_access_token(data={"sub": "1"})
+    token = create_access_token("1")
     decoded = decode_token(token)
-    assert decoded.get("sub") == "1", "Token 解码失败"
+    assert decoded == 1, "Token 解码失败"
     print("   ✅ JWT token 创建和解码正常")
     
     # 测试 NotificationService.mark_all_read 存在
@@ -127,15 +127,16 @@ except Exception as e:
 
 try:
     print("\n5/5 测试数据播种验证...")
-    from app.seed_data import seed_all_data
+    from app.seed_data import seed_all
+    seed_all()
+    from app.database import SessionLocal
     db = SessionLocal()
-    seed_all_data(db)
     print(f"   ✅ 用户数: {db.query(User).count()}")
     print(f"   ✅ 地块数: {db.query(Plot).count()}")
     print(f"   ✅ 品种数: {db.query(Variety).count()}")
     print(f"   ✅ 采收记录: {db.query(HarvestRecord).count()}")
     print(f"   ✅ 采收批次: {db.query(HarvestBatch).count()}")
-    print(f"   ✅ 环境告警: {db.query(MonitorAlert).count()}")
+    print(f"   ✅ 环境告警: {db.query(Alert).count()}")
     print(f"   ✅ 产量预测: {db.query(YieldPrediction).count()}")
     print(f"   ✅ 补贴凭证: {db.query(SubsidyVoucher).count()}")
     print(f"   ✅ 分拣差异: {db.query(SortingDifference).count()}")

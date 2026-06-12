@@ -270,7 +270,7 @@ class AlertAck(BaseModel):
 
 
 class YieldPredictionOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
     id: int
     harvest_id: int
     plot_id: int

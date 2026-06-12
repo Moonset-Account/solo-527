@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "orchard-monitor-secret-key-change-in-production"
 
-    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/orchard_monitor"
-    database_url_test: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/orchard_monitor_test"
+    database_url: str = "sqlite:///./orchard_monitor.db"
+    database_url_test: str = "sqlite:///./orchard_monitor_test.db"
 
     redis_url: str = "redis://localhost:6379/0"
     redis_url_test: str = "redis://localhost:6379/1"
