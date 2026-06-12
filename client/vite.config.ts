@@ -13,6 +13,7 @@ export default defineConfig({
     react(),
   ],
   resolve: {
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
