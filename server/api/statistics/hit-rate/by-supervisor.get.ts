@@ -3,6 +3,12 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const db = useDB()
 
+  const dateFilter: any = {}
+  if (query.startDate || query.endDate) {
+    if (query.startDate) dateFilter.gte = new Date(query.startDate as string)
+    if (query.endDate) dateFilter.lte = new Date(query.endDate as string)
+  }
+
   const supervisors = await db.user.findMany({
     where: { role: 'supervisor' },
     select: { id: true, displayName: true },
@@ -10,23 +16,10 @@ export default defineEventHandler(async (event) => {
 
   const result = []
   for (const sup of supervisors) {
-    const taskWhere: any = { createdBy: sup.id }
-    if (query.startDate || query.endDate) {
-      taskWhere.createdAt = {}
-      if (query.startDate) (taskWhere.createdAt as any).gte = new Date(query.startDate as string)
-      if (query.endDate) (taskWhere.createdAt as any).lte = new Date(query.endDate as string)
-    }
-
-    const tasks = await db.batchTask.findMany({
-      where: taskWhere,
-      select: { id: true },
-    })
-
-    const taskIds = tasks.map(t => t.id)
-
     const suggestions = await db.replySuggestion.findMany({
       where: {
-        question: { batchTaskId: { in: taskIds } },
+        createdAt: dateFilter,
+        question: { batchTask: { createdBy: sup.id } },
       },
       select: { isHit: true },
     })

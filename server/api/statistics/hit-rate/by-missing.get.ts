@@ -3,8 +3,19 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const db = useDB()
 
+  const dateFilter: any = {}
+  if (query.startDate || query.endDate) {
+    if (query.startDate) dateFilter.gte = new Date(query.startDate as string)
+    if (query.endDate) dateFilter.lte = new Date(query.endDate as string)
+  }
+
   const refs = await db.referenceSource.findMany({
-    where: { isMissing: true },
+    where: {
+      isMissing: true,
+      replySuggestion: {
+        createdAt: dateFilter,
+      },
+    },
     select: { missingReason: true, replySuggestionId: true },
   })
 
@@ -16,7 +27,9 @@ export default defineEventHandler(async (event) => {
     byReason[reason].suggestionIds.add(r.replySuggestionId)
   }
 
-  const totalSuggestions = await db.replySuggestion.count()
+  const totalSuggestions = Object.keys(dateFilter).length > 0
+    ? await db.replySuggestion.count({ where: { createdAt: dateFilter } })
+    : await db.replySuggestion.count()
 
   return Object.entries(byReason).map(([missingReason, data]) => ({
     missingReason,

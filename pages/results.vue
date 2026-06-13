@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, Save, Trash2, Loader2, BookOpen, FileText, AlertCircle, Filter, ChevronDown } from 'lucide-vue-next'
+import { Search, Save, Trash2, Loader2, BookOpen, FileText, AlertCircle, Filter } from 'lucide-vue-next'
 
 const api = useApi()
 
@@ -7,6 +7,8 @@ const activeTab = ref<'logs' | 'results' | 'references'>('results')
 const loading = ref(false)
 const items = ref<any[]>([])
 const total = ref(0)
+
+const tasks = ref<any[]>([])
 
 const filters = reactive({
   startDate: '',
@@ -20,6 +22,14 @@ const filters = reactive({
 const filterPresets = ref<any[]>([])
 const showSavePreset = ref(false)
 const presetName = ref('')
+
+const loadTasks = async () => {
+  try {
+    tasks.value = await api.get('/api/tasks')
+  } catch (e) {
+    console.error(e)
+  }
+}
 
 const loadPresets = async () => {
   try {
@@ -51,8 +61,11 @@ const loadResults = async () => {
   loading.value = true
   try {
     const params: any = {}
+    if (filters.startDate) params.startDate = filters.startDate
+    if (filters.endDate) params.endDate = filters.endDate
     if (filters.isHit !== '') params.isHit = filters.isHit
-    if (filters.batchTaskId) params.questionId = filters.batchTaskId
+    if (filters.batchTaskId) params.batchTaskId = filters.batchTaskId
+    if (filters.isMissing !== '') params.hasMissingReference = filters.isMissing
     const res: any = await api.get('/api/suggestions', params)
     items.value = res.items || []
     total.value = res.total || 0
@@ -66,11 +79,28 @@ const loadResults = async () => {
 const loadReferences = async () => {
   loading.value = true
   try {
-    const res: any = await api.get('/api/suggestions', { limit: 100 })
+    const params: any = { limit: 500 }
+    if (filters.startDate) params.startDate = filters.startDate
+    if (filters.endDate) params.endDate = filters.endDate
+    if (filters.batchTaskId) params.batchTaskId = filters.batchTaskId
+    if (filters.isHit !== '') params.isHit = filters.isHit
+
+    const res: any = await api.get('/api/suggestions', params)
     const allSuggestions = res.items || []
-    items.value = allSuggestions.flatMap((s: any) =>
-      (s.references || []).map((r: any) => ({ ...r, suggestionContent: s.content, questionContent: s.question?.content }))
-    ).filter((r: any) => filters.isMissing === '' || String(r.isMissing) === filters.isMissing)
+    const allRefs = allSuggestions.flatMap((s: any) =>
+      (s.references || []).map((r: any) => ({
+        ...r,
+        suggestionContent: s.content,
+        questionContent: s.question?.content,
+        batchTaskId: s.question?.batchTaskId,
+      }))
+    )
+
+    const missingFilter = filters.isMissing
+    items.value = missingFilter === ''
+      ? allRefs
+      : allRefs.filter((r: any) => String(r.isMissing) === missingFilter)
+
     total.value = items.value.length
   } catch (e) {
     console.error(e)
@@ -126,17 +156,18 @@ const handleDeletePreset = async (id: string) => {
 
 const applyPreset = (preset: any) => {
   const f = preset.filters
-  if (f.startDate) filters.startDate = f.startDate
-  if (f.endDate) filters.endDate = f.endDate
-  if (f.batchTaskId) filters.batchTaskId = f.batchTaskId
-  if (f.isHit !== undefined) filters.isHit = f.isHit
-  if (f.isMissing !== undefined) filters.isMissing = f.isMissing
-  if (f.responseStatus) filters.responseStatus = f.responseStatus
+  filters.startDate = f.startDate || ''
+  filters.endDate = f.endDate || ''
+  filters.batchTaskId = f.batchTaskId || ''
+  filters.isHit = f.isHit ?? ''
+  filters.isMissing = f.isMissing ?? ''
+  filters.responseStatus = f.responseStatus || ''
   if (f.activeTab) activeTab.value = f.activeTab
   loadData()
 }
 
 onMounted(() => {
+  loadTasks()
   loadPresets()
   loadData()
 })
@@ -186,6 +217,10 @@ onMounted(() => {
           <Filter class="w-4 h-4" />
           筛选条件
         </div>
+        <select v-model="filters.batchTaskId" class="select-field w-64">
+          <option value="">全部批处理任务</option>
+          <option v-for="t in tasks" :key="t.id" :value="t.id">{{ t.name }} ({{ t.totalItems }}条)</option>
+        </select>
         <input v-model="filters.startDate" type="date" class="input-field w-40" />
         <span class="text-sm text-slate-400">至</span>
         <input v-model="filters.endDate" type="date" class="input-field w-40" />
@@ -198,6 +233,11 @@ onMounted(() => {
           <option value="">引用状态</option>
           <option value="true">有缺失</option>
           <option value="false">无缺失</option>
+        </select>
+        <select v-if="activeTab === 'logs'" v-model="filters.responseStatus" class="select-field w-24">
+          <option value="">状态码</option>
+          <option value="200">2xx</option>
+          <option value="500">错误</option>
         </select>
         <button @click="applyFilters" class="btn-primary text-sm">应用</button>
         <button @click="resetFilters" class="btn-secondary text-sm">重置</button>
@@ -248,8 +288,9 @@ onMounted(() => {
           <div v-if="activeTab === 'results'" class="space-y-2">
             <div class="grid grid-cols-12 gap-3 text-xs font-medium text-slate-500 px-3 py-2 bg-slate-50 rounded">
               <div class="col-span-1">命中</div>
-              <div class="col-span-4">问题</div>
-              <div class="col-span-5">回复建议</div>
+              <div class="col-span-2">所属任务</div>
+              <div class="col-span-3">问题</div>
+              <div class="col-span-4">回复建议</div>
               <div class="col-span-1">置信度</div>
               <div class="col-span-1">引用</div>
             </div>
@@ -257,28 +298,37 @@ onMounted(() => {
               <div class="col-span-1">
                 <span :class="item.isHit ? 'text-emerald-600' : 'text-amber-600'">{{ item.isHit ? '✓' : '✗' }}</span>
               </div>
-              <div class="col-span-4 truncate text-slate-700">{{ item.question?.content || '-' }}</div>
-              <div class="col-span-5 truncate text-slate-600">{{ item.content }}</div>
+              <div class="col-span-2 truncate text-xs text-slate-400">
+                {{ (tasks.find(t => t.id === item.question?.batchTaskId)?.name) || '-' }}
+              </div>
+              <div class="col-span-3 truncate text-slate-700">{{ item.question?.content || '-' }}</div>
+              <div class="col-span-4 truncate text-slate-600">{{ item.content }}</div>
               <div class="col-span-1 text-slate-500">{{ (item.confidence * 100).toFixed(0) }}%</div>
-              <div class="col-span-1 text-slate-400 text-xs">{{ item.references?.length || 0 }}</div>
+              <div class="col-span-1 text-slate-400 text-xs">
+                {{ (item.references?.length || 0) - (item.references?.filter((r: any) => r.isMissing).length || 0) }}/{{ item.references?.length || 0 }}
+              </div>
             </div>
           </div>
 
           <div v-if="activeTab === 'references'" class="space-y-2">
             <div class="grid grid-cols-12 gap-3 text-xs font-medium text-slate-500 px-3 py-2 bg-slate-50 rounded">
               <div class="col-span-1">缺失</div>
-              <div class="col-span-4">文档标题</div>
+              <div class="col-span-2">所属任务</div>
+              <div class="col-span-3">文档标题</div>
               <div class="col-span-3">关联问题</div>
-              <div class="col-span-2">相关度</div>
+              <div class="col-span-1">相关度</div>
               <div class="col-span-2">缺失原因</div>
             </div>
-            <div v-for="item in items" :key="item.id" class="grid grid-cols-12 gap-3 text-sm px-3 py-2 border-b border-slate-100 hover:bg-slate-50">
+            <div v-for="(item, idx) in items" :key="`${item.id}-${idx}`" class="grid grid-cols-12 gap-3 text-sm px-3 py-2 border-b border-slate-100 hover:bg-slate-50">
               <div class="col-span-1">
                 <span :class="item.isMissing ? 'text-red-600' : 'text-emerald-600'">{{ item.isMissing ? '!' : '✓' }}</span>
               </div>
-              <div class="col-span-4 truncate text-slate-700">{{ item.docTitle }}</div>
+              <div class="col-span-2 truncate text-xs text-slate-400">
+                {{ (tasks.find(t => t.id === item.batchTaskId)?.name) || '-' }}
+              </div>
+              <div class="col-span-3 truncate text-slate-700">{{ item.docTitle }}</div>
               <div class="col-span-3 truncate text-slate-500">{{ item.questionContent || '-' }}</div>
-              <div class="col-span-2 text-slate-500">{{ (item.relevanceScore * 100).toFixed(0) }}%</div>
+              <div class="col-span-1 text-slate-500">{{ (item.relevanceScore * 100).toFixed(0) }}%</div>
               <div class="col-span-2 truncate" :class="item.missingReason ? 'text-red-500' : 'text-slate-400'">{{ item.missingReason || '-' }}</div>
             </div>
           </div>

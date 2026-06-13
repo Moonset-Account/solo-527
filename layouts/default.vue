@@ -4,20 +4,9 @@ import { LayoutDashboard, MessageSquareText, ListTodo, Filter, BarChart3, Settin
 const { user, isLoggedIn, clearAuth, initAuth } = useAuthState()
 const route = useRoute()
 const router = useRouter()
-const ready = ref(false)
 
 onMounted(() => {
   initAuth()
-  ready.value = true
-  if (!isLoggedIn.value) {
-    router.replace('/login')
-  }
-})
-
-watch(isLoggedIn, (val) => {
-  if (!val && route.path !== '/login') {
-    router.replace('/login')
-  }
 })
 
 const navItems = computed(() => [

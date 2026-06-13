@@ -34,7 +34,7 @@ const loadData = async () => {
       api.get('/api/statistics/hit-rate', params),
       api.get('/api/statistics/hit-rate/by-supervisor', params),
       api.get('/api/statistics/hit-rate/by-date', params),
-      api.get('/api/statistics/hit-rate/by-missing'),
+      api.get('/api/statistics/hit-rate/by-missing', params),
     ])
     overallHitRate.value = overall
     bySupervisor.value = supervisor
