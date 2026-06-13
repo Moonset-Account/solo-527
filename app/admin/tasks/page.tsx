@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useStore } from '@/store/useStore';
+import type { TaskPriority } from '@/types';
 import { formatDate, cn } from '@/lib/utils';
 import StatusBadge from '@/components/StatusBadge';
 import PriorityBadge from '@/components/PriorityBadge';
@@ -34,10 +35,15 @@ export default function AdminTasksPage() {
   const [filterDept, setFilterDept] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<{
+    assignee_id: string;
+    deadline: string;
+    priority: TaskPriority;
+    department_id: string;
+  }>({
     assignee_id: '',
     deadline: '',
-    priority: 'medium' as const,
+    priority: 'medium',
     department_id: '',
   });
 

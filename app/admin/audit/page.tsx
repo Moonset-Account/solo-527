@@ -270,7 +270,7 @@ export default function AuditLogPage() {
                         </p>
                         {log.metadata && log.action === 'upload_attachment' && (
                           <p className="text-xs text-gray-400 mt-1">
-                            版本: v{log.metadata.version} · 大小: {Math.round(Number(log.metadata.size) / 1024)} KB
+                            版本: v{String(log.metadata.version)} · 大小: {Math.round(Number(log.metadata.size) / 1024)} KB
                           </p>
                         )}
                       </div>

@@ -128,7 +128,7 @@ export default function AuditLogTimeline({ task }: AuditLogTimelineProps) {
                       <span>{formatDate(log.created_at)}</span>
                       {log.metadata && log.action === 'upload_attachment' && (
                         <span className="ml-2">
-                          (版本: v{log.metadata.version}, 大小: {Math.round(Number(log.metadata.size) / 1024)} KB)
+                          (版本: v{String(log.metadata.version)}, 大小: {Math.round(Number(log.metadata.size) / 1024)} KB)
                         </span>
                       )}
                     </div>

@@ -28,12 +28,14 @@ export default function CommentSection({ task, onUpdate }: CommentSectionProps) 
     try {
       const mentionRegex = /@(\S+)/g;
       const mentions: string[] = [];
-      let match;
-      while ((match = mentionRegex.exec(newComment)) !== null) {
-        const mentionedUser = users.find(u => u.name === match[1]);
+      let matchResult = mentionRegex.exec(newComment);
+      while (matchResult) {
+        const name = matchResult[1];
+        const mentionedUser = users.find(u => u.name === name);
         if (mentionedUser) {
           mentions.push(mentionedUser.id);
         }
+        matchResult = mentionRegex.exec(newComment);
       }
 
       await addComment({
