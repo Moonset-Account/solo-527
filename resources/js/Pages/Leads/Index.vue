@@ -254,29 +254,66 @@
             <el-button size="small" @click="clearSelection">清空</el-button>
           </div>
         </div>
-        <el-alert
-          v-if="batchValidationResult"
-          class="validate-alert"
-          :title="`校验结果：通过 ${batchValidationResult.summary.passed} 条，失败 ${batchValidationResult.summary.failed} 条`"
-          :type="batchValidationResult.summary.failed ? 'error' : 'success'"
-          show-icon
-          :closable="false"
-        >
-          <div v-if="batchValidationResult.failures.length" class="failures-list">
-            <div
-              v-for="(f, i) in batchValidationResult.failures.slice(0, 10)"
-              :key="i"
-              class="failure-item"
-            >
-              <span class="badge">#{{ f.index + 1 }}</span>
-              <span class="who">{{ f.lead_name || `ID:${f.lead_id}` }} {{ f.lead_phone || '' }}</span>
-              <span class="reasons">{{ f.reasons?.join('；') || f.reason }}</span>
+        <div v-if="batchValidationResult" class="validate-result">
+          <div class="result-summary">
+            <el-statistic title="总数" :value="batchValidationResult.summary.total" />
+            <el-statistic title="通过" :value="batchValidationResult.summary.passed" value-color="#16a34a" />
+            <el-statistic title="失败" :value="batchValidationResult.summary.failed" value-color="#dc2626" />
+          </div>
+          <div class="result-columns">
+            <div class="result-col passed-col">
+              <div class="col-header">
+                <el-icon color="#16a34a"><CircleCheckFilled /></el-icon>
+                <span>通过明细 ({{ batchValidationResult.summary.passed }})</span>
+              </div>
+              <div class="passed-list">
+                <div
+                  v-for="(p, i) in batchValidationResult.passed?.slice(0, 30)"
+                  :key="i"
+                  class="passed-item"
+                >
+                  <span class="badge ok">#{{ p.index + 1 }}</span>
+                  <span class="who">{{ p.lead_name || `ID:${p.lead_id}` }} {{ p.lead_phone || '' }}</span>
+                  <span class="muted">当前：{{ p.current_status || '-' }}</span>
+                </div>
+                <div v-if="batchValidationResult.passed?.length > 30" class="more">
+                  ...还有 {{ batchValidationResult.passed.length - 30 }} 条未显示
+                </div>
+                <el-empty v-if="!batchValidationResult.passed?.length" description="无通过项" :image-size="60" />
+              </div>
             </div>
-            <div v-if="batchValidationResult.failures.length > 10" class="more">
-              ...还有 {{ batchValidationResult.failures.length - 10 }} 条未显示
+            <div class="result-col failures-col">
+              <div class="col-header">
+                <el-icon color="#dc2626"><WarningFilled /></el-icon>
+                <span>失败原因 ({{ batchValidationResult.summary.failed }})</span>
+              </div>
+              <div class="failures-list">
+                <div
+                  v-for="(f, i) in batchValidationResult.failures?.slice(0, 30)"
+                  :key="i"
+                  class="failure-item"
+                >
+                  <span class="badge err">#{{ f.index + 1 }}</span>
+                  <span class="who">{{ f.lead_name || `ID:${f.lead_id}` }} {{ f.lead_phone || '' }}</span>
+                  <div class="reasons">
+                    <el-tag
+                      v-for="(r, ri) in (f.reasons || [f.reason]).filter(Boolean)"
+                      :key="ri"
+                      size="small"
+                      type="danger"
+                      effect="light"
+                      class="reason-tag"
+                    >{{ r }}</el-tag>
+                  </div>
+                </div>
+                <div v-if="batchValidationResult.failures?.length > 30" class="more">
+                  ...还有 {{ batchValidationResult.failures.length - 30 }} 条未显示
+                </div>
+                <el-empty v-if="!batchValidationResult.failures?.length" description="全部通过，无失败项" :image-size="60" />
+              </div>
             </div>
           </div>
-        </el-alert>
+        </div>
       </el-card>
 
       <el-card shadow="never" class="list-card">
@@ -567,13 +604,24 @@ const exportLeads = () => {
 .batch-card { background: #fffbeb; }
 .batch-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .batch-bar .left, .batch-bar .right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.validate-alert { margin-top: 12px; }
-.failures-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.failure-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.failure-item .badge { background: #fef2f2; color: #b91c1c; padding: 1px 6px; border-radius: 3px; }
-.failure-item .who { color: #374151; min-width: 120px; }
-.failure-item .reasons { color: #b91c1c; flex: 1; }
-.more { color: #6b7280; font-size: 12px; padding-left: 40px; }
+.validate-result { margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 16px; background: #fafafa; }
+.result-summary { display: flex; gap: 40px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+.result-columns { display: flex; gap: 16px; }
+.result-col { flex: 1; min-width: 0; }
+.result-col .col-header { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed #d1d5db; }
+.passed-col { border-right: 1px solid #e5e7eb; padding-right: 16px; }
+.failures-col { padding-left: 4px; }
+.passed-list, .failures-list { display: flex; flex-direction: column; gap: 5px; max-height: 340px; overflow-y: auto; }
+.passed-item, .failure-item { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 5px 8px; border-radius: 4px; }
+.passed-item { background: #f0fdf4; }
+.failure-item { background: #fef2f2; }
+.passed-item .badge.ok { background: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+.failure-item .badge.err { background: #fecaca; color: #991b1b; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+.passed-item .who, .failure-item .who { color: #1f2937; min-width: 140px; font-weight: 500; }
+.passed-item .muted { color: #6b7280; }
+.failure-item .reasons { flex: 1; display: flex; gap: 4px; flex-wrap: wrap; }
+.failure-item .reason-tag { max-width: 100%; }
+.more { color: #6b7280; font-size: 12px; padding: 4px 0 0 40px; }
 .client-cell { display: flex; flex-direction: column; gap: 4px; }
 .name-row { display: flex; align-items: center; gap: 6px; }
 .name { font-weight: 600; color: #111827; }

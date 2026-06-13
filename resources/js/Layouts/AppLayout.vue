@@ -6,7 +6,7 @@
           <el-icon :size="28" color="#2563eb"><Tooth /></el-icon>
           <span class="logo-title">{{ appName }}</span>
         </div>
-        <el-menu mode="horizontal" :default-active="activeMenu" class="header-menu" router>
+        <el-menu mode="horizontal" :default-active="activeMenu" class="header-menu" @select="onMenuSelect">
           <el-menu-item index="/dashboard">
             <el-icon><DataAnalysis /></el-icon>
             <span>看板</span>
@@ -61,22 +61,28 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
-import { useRoute } from 'vue-router';
 
 defineProps<{ title?: string }>();
 
-const page = usePage<PageProps>();
-const route = useRoute();
+const page = usePage<any>();
 const appName = import.meta.env.VITE_APP_NAME || '牙科诊所管理台';
 const year = new Date().getFullYear();
 
-const user = computed(() => page.props.auth.user);
+const user = computed(() => page.props.auth?.user);
+const currentPath = computed(() => page.url.split('?')[0]);
+
 const activeMenu = computed(() => {
-  const p = route.path;
+  const p = currentPath.value;
   if (p.startsWith('/leads')) return '/leads';
   if (p.startsWith('/quote-versions') || p.startsWith('/ocean-rules') || p.startsWith('/churn-reasons')) return 'ref';
   return '/dashboard';
 });
+
+const onMenuSelect = (index: string) => {
+  if (index && index !== 'ref') {
+    router.get(index);
+  }
+};
 
 const logout = () => {
   router.post('/logout', {}, { onSuccess: () => window.location.href = '/login' });

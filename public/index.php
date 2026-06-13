@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+
 define('LARAVEL_START', microtime(true));
 
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
@@ -8,14 +11,7 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
 
 require __DIR__.'/../vendor/autoload.php';
 
+/** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
-$app->usePublicPath(__DIR__);
-
-$request = Illuminate\Http\Request::capture();
-
-$response = $app->handleRequest($request);
-
-$response->send();
-
-$app->terminate($request, $response);
+$app->handleRequest(Request::capture());

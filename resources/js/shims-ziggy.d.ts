@@ -1,7 +1,9 @@
-import { route } from 'ziggy-js';
+declare function route(name: string, params?: Record<string, string | number>): string;
 
-declare global {
-    function route(): typeof route;
-}
+declare function routeWithQuery(
+    name: string,
+    params?: Record<string, string | number>,
+    query?: Record<string, any>,
+): string;
 
 export {};

@@ -66,11 +66,10 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { Lock, Message } from '@element-plus/icons-vue';
 
-const page = usePage<any>();
 const formRef = ref<FormInstance>();
 const processing = ref(false);
 

@@ -3,8 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["resources/js/*"],
-      "ziggy-js": ["vendor/tightenco/ziggy/dist/vue"]
+      "@/*": ["resources/js/*"]
     },
     "strict": true,
     "types": ["vite/client", "node"]
