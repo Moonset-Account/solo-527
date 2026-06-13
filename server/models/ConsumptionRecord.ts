@@ -26,4 +26,4 @@ const ConsumptionRecordSchema = new Schema<IConsumptionRecord>(
 ConsumptionRecordSchema.index({ studentId: 1, createdAt: -1 });
 
 export const ConsumptionRecordModel =
-  models.ConsumptionRecord || model<IConsumptionRecord>("ConsumptionRecord", ConsumptionRecordSchema);
+  (mongoose.models as any).ConsumptionRecord || model<IConsumptionRecord>("ConsumptionRecord", ConsumptionRecordSchema);

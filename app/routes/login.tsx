@@ -1,7 +1,7 @@
 import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import { Form, useActionData, useNavigate, useSearchParams } from "@remix-run/react";
 import { Loader2, BookOpenCheck, Lock, User2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { login } from "@/server/services/authService";
 import { writeAudit } from "@/server/services/auditService";
 
@@ -12,9 +12,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
-  const form = await request.formData();
-  const username = String(form.get("username") || "");
-  const password = String(form.get("password") || "");
+  let username = "", password = "";
+  const ct = request.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    const body = await request.json().catch(() => ({}));
+    username = String(body.username || "");
+    password = String(body.password || "");
+  } else {
+    const form = await request.formData();
+    username = String(form.get("username") || "");
+    password = String(form.get("password") || "");
+  }
   if (!username || !password) {
     return json({ error: "请输入账号和密码" }, { status: 400 });
   }
@@ -29,11 +37,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
   const redirectTo = new URL(request.url).searchParams.get("redirect") || "/dashboard";
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return redirect(redirectTo, {
-    headers: {
-      "Set-Cookie": `sid=${result.sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 3600}${secure}`,
-    },
-  });
+  return json(
+    { success: true, redirectTo, user: result.user },
+    {
+      headers: {
+        "Set-Cookie": `sid=${result.sid}; Path=/; Max-Age=${7 * 24 * 3600}${secure}`,
+      },
+    }
+  );
 }
 
 export default function LoginPage() {
@@ -41,6 +52,14 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (actionData?.success && actionData.redirectTo) {
+      setTimeout(() => {
+        window.location.href = actionData.redirectTo;
+      }, 300);
+    }
+  }, [actionData]);
 
   const demoAccounts = [
     { role: "管理员", u: "admin", p: "admin123", tip: "全部权限" },

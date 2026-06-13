@@ -27,4 +27,5 @@ export const redisKeys = {
   hoursAlertList: "hours:alert:list",
   auditBuffer: "audit:buffer",
   noticeUnreceipt: (date: string) => `notice:unreceipt:${date}`,
+  noticeReminder: (noticeId: string) => `notice:reminder:${noticeId}`,
 };

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import compression from "compression";
 import morgan from "morgan";
+import cookieParser from "cookie-parser";
 import cron from "node-cron";
 import { createRequestHandler } from "@remix-run/express";
 import { installGlobals, type ServerBuild } from "@remix-run/node";
@@ -41,6 +42,7 @@ async function main() {
   getRedis();
 
   app.use(compression());
+  app.use(cookieParser());
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
   app.use(express.json({ limit: "10mb" }));
 
@@ -50,9 +52,21 @@ async function main() {
     })
   );
 
+  function parseCookieHeader(cookieHeader: string | undefined): Record<string, string> {
+    const cookies: Record<string, string> = {};
+    if (!cookieHeader) return cookies;
+    cookieHeader.split(";").forEach((pair) => {
+      const [key, ...rest] = pair.trim().split("=");
+      if (key) cookies[key.trim()] = rest.join("=");
+    });
+    return cookies;
+  }
+
   app.use(async (req, _res, next) => {
+    const manualCookies = parseCookieHeader(req.headers.cookie);
     const sid =
       req.cookies?.sid ||
+      manualCookies.sid ||
       req.headers["x-session-id"] ||
       (req.headers.authorization?.startsWith("Bearer ")
         ? req.headers.authorization.slice(7)

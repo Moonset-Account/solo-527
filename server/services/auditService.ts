@@ -1,5 +1,6 @@
 import { AuditLogModel as ALM } from "@/server/models/AuditLog";
 import { getRedis, redisKeys } from "@/server/db/redis";
+import { demoStore } from "@/server/db/demoData";
 import type { AuditAction, AuditLog as AuditLogType, AuditTargetType, User } from "@/shared/types";
 import { formatDateTime } from "@/shared/utils";
 
@@ -15,7 +16,8 @@ export async function writeAudit(
   detail: Record<string, any> = {},
   ip?: string
 ) {
-  const log: Omit<AuditLogType, "id"> = {
+  const log: any = {
+    id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     userId: user.id,
     userName: user.name,
     action,
@@ -25,17 +27,18 @@ export async function writeAudit(
     ip,
     createdAt: formatDateTime(new Date()),
   };
-  const redis = getRedis();
+  demoStore.create("auditLogs", log);
   try {
+    const redis = getRedis();
     if (redis.status === "ready") {
       await redis.rpush(redisKeys.auditBuffer, JSON.stringify(log));
       scheduleFlush();
-    } else {
-      await AuditLogModel.create(log);
+      return;
     }
-  } catch {
+  } catch {}
+  try {
     await AuditLogModel.create(log);
-  }
+  } catch {}
 }
 
 function scheduleFlush() {
@@ -64,17 +67,17 @@ export async function flushAuditBuffer() {
 }
 
 export async function queryAuditLogsByTarget(targetType: AuditTargetType, targetId: string, limit = 10) {
-  const logs = await AuditLogModel.find({ targetType, targetId })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
-  return logs.map((l) => ({ ...l, id: l._id.toString() })) as AuditLogType[];
+  try {
+    const logs = await AuditLogModel.find({ targetType, targetId }).sort({ createdAt: -1 }).limit(limit).lean();
+    if (logs && logs.length > 0) return logs.map((l: any) => ({ ...l, id: l._id.toString() })) as AuditLogType[];
+  } catch {}
+  return demoStore.find("auditLogs", { targetType, targetId }).slice(0, limit) as AuditLogType[];
 }
 
 export async function queryAuditLogsByUser(userId: string, limit = 20) {
-  const logs = await AuditLogModel.find({ userId })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
-  return logs.map((l) => ({ ...l, id: l._id.toString() })) as AuditLogType[];
+  try {
+    const logs = await AuditLogModel.find({ userId }).sort({ createdAt: -1 }).limit(limit).lean();
+    if (logs && logs.length > 0) return logs.map((l: any) => ({ ...l, id: l._id.toString() })) as AuditLogType[];
+  } catch {}
+  return demoStore.find("auditLogs", { userId }).slice(0, limit) as AuditLogType[];
 }

@@ -22,8 +22,10 @@ import {
   Phone,
   MessageSquare,
   Download,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
-import { listNotices, getReceiptsByNotice, getReceiptStats, confirmReceipt } from "@/server/services/noticeService";
+import { listNotices, getReceiptsByNotice, getReceiptStats, confirmReceipt, batchRemindUnreceipted } from "@/server/services/noticeService";
 import type { Notice, NoticeReceipt, User } from "@/shared/types";
 import { cn } from "@/shared/utils";
 import { writeAudit } from "@/server/services/auditService";
@@ -54,8 +56,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ success: true });
   }
   if (body.type === "batch_remind") {
-    await writeAudit(user, "publish_notice", "notice", `remind-${Date.now()}`, { noticeIds: body.noticeIds || [] }, ip);
-    return json({ success: true, count: body.count || 0 });
+    const result = await batchRemindUnreceipted(user, ip);
+    return json({ success: true, count: result.count });
   }
   return json({ success: false });
 }
@@ -77,6 +79,19 @@ export default function NoticesIndex() {
     0
   );
 
+  const [remindFlash, setRemindFlash] = useState(false);
+  const remindFetcher = useFetcher();
+  const remindSubmitting = remindFetcher.state === "submitting";
+  const remindResult = remindFetcher.data as { success?: boolean; count?: number } | null;
+
+  useEffect(() => {
+    if (remindResult?.success) {
+      setRemindFlash(true);
+      const t = setTimeout(() => setRemindFlash(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [remindResult]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -85,8 +100,24 @@ export default function NoticesIndex() {
           <p className="text-xs text-slate-500 mt-0.5">发布通知、收集回执、数据直接关联月度复盘报表</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn-outline btn-sm">
-            <RefreshCw className="w-3.5 h-3.5" />
+          {remindFlash && remindResult?.success && (
+            <span className="chip-green flex items-center gap-1 text-xs animate-slide-up">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              已催发 {remindResult.count} 条未回执
+            </span>
+          )}
+          <button
+            onClick={() => {
+              remindFetcher.submit({ type: "batch_remind" }, { method: "POST", encType: "application/json" as any });
+            }}
+            disabled={remindSubmitting || totalUnreceipt === 0}
+            className="btn-outline btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {remindSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
             一键催发未回执（{totalUnreceipt}）
           </button>
           <button onClick={() => navigate("/notices/new")} className="btn-primary btn-sm">

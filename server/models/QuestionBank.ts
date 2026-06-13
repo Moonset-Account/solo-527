@@ -23,4 +23,4 @@ const QuestionBankVersionSchema = new Schema<IQuestionBankVersion>(
 
 export const QuestionBankModel = (mongoose.models as any).QuestionBank || model<IQuestionBank>("QuestionBank", QuestionBankSchema);
 export const QuestionBankVersionModel =
-  models.QuestionBankVersion || model<IQuestionBankVersion>("QuestionBankVersion", QuestionBankVersionSchema);
+  (mongoose.models as any).QuestionBankVersion || model<IQuestionBankVersion>("QuestionBankVersion", QuestionBankVersionSchema);

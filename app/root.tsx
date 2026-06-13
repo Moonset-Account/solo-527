@@ -1,5 +1,6 @@
 import {
   json,
+  redirect,
   type LinksFunction,
   type LoaderFunctionArgs,
   type MetaFunction,
@@ -31,10 +32,9 @@ import {
 } from "lucide-react";
 import { cn, formatDate } from "@/shared/utils";
 import type { User } from "@/shared/types";
-import tailwind from "./styles/tailwind.css?url";
+import "./styles/tailwind.css";
 
 export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: tailwind },
   {
     rel: "preconnect",
     href: "https://fonts.googleapis.com",
@@ -58,9 +58,19 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export async function loader({ context }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const user = (context as any).user as User | null;
+  const url = new URL(request.url);
+  const isLoginPage = url.pathname === "/login";
+
+  if (!user && !isLoginPage) {
+    const params = new URLSearchParams();
+    params.set("redirect", url.pathname + url.search);
+    return redirect(`/login?${params.toString()}`);
+  }
+
   return json({
-    user: (context as any).user as User | null,
+    user,
     today: formatDate(new Date()),
     buildInfo: {
       version: "1.0.0",
@@ -72,18 +82,12 @@ export async function loader({ context }: LoaderFunctionArgs) {
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useLoaderData<typeof loader>();
   const location = useLocation();
-  const navigate = useNavigate();
   const logoutFetcher = useFetcher();
 
-  useEffect(() => {
-    if (!data?.user && location.pathname !== "/login") {
-      navigate("/login", { replace: true });
-    }
-  }, [data?.user, location.pathname, navigate]);
-
   const isLoginPage = location.pathname === "/login";
+  const user = data?.user;
 
-  if (isLoginPage || !data?.user) {
+  if (isLoginPage || !user) {
     return (
       <html lang="zh-CN">
         <head>

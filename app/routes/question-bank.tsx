@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { listBanks, listVersions } from "@/server/services/questionBankService";
 import { ClassInfoModel } from "@/server/models/ClassInfo";
+import { demoStore } from "@/server/db/demoData";
+import { isMongoReady } from "@/server/db/mongo";
 import type { ClassInfo, QuestionBank, QuestionBankVersion, User } from "@/shared/types";
 import { cn } from "@/shared/utils";
 
@@ -23,15 +25,23 @@ export async function loader({ context }: LoaderFunctionArgs) {
   const user = (context as any).user as User | null;
   if (!user) return redirect("/login");
   if (user.role === "operator") return redirect("/reports");
-  const [banks, versions, classes] = await Promise.all([
+  const [banks, versions] = await Promise.all([
     listBanks().catch(() => [] as QuestionBank[]),
     listVersions().catch(() => [] as QuestionBankVersion[]),
-    (ClassInfoModel as any).find().lean().catch(() => [] as any),
   ]);
+  let classes: any[] = [];
+  if (isMongoReady()) {
+    try {
+      classes = await (ClassInfoModel as any).find().lean();
+    } catch {}
+  }
+  if (!classes || classes.length === 0) {
+    classes = demoStore.all("classes");
+  }
   return json({
     banks,
     versions,
-    classes: (classes as any[]).map((c) => ({ ...c, id: c._id.toString() })) as ClassInfo[],
+    classes: classes.map((c: any) => ({ ...c, id: c._id?.toString() || c.id })) as ClassInfo[],
   });
 }
 

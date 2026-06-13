@@ -143,7 +143,14 @@ export default function ReportsIndex() {
             <Filter className="w-3.5 h-3.5" />
             高级筛选
           </button>
-          <button className="btn-primary btn-sm">
+          <button className="btn-primary btn-sm" onClick={() => {
+            const q = new URLSearchParams();
+            if (startDate) q.set("startDate", startDate);
+            if (endDate) q.set("endDate", endDate);
+            if (classId) q.set("classId", classId);
+            if (studentId) q.set("studentId", studentId);
+            window.open(`/api/export?${q.toString()}`, "_blank");
+          }}>
             <Download className="w-3.5 h-3.5" />
             导出 Excel
           </button>

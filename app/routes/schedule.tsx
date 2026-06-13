@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs, ActionFunctionArgs, json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useLoaderData, useNavigate, useFetcher } from "@remix-run/react";
 import { useMemo, useState } from "react";
 import {
   ChevronLeft,
@@ -12,12 +12,16 @@ import {
   Clock,
   UserCheck,
   AlertTriangle,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { getSchedulesByRange } from "@/server/services/consumptionService";
 import { ClassInfoModel as CIM } from "@/server/models/ClassInfo";
 import { StudentModel as SM } from "@/server/models/Student";
 import { QuestionBankVersionModel as QBVM } from "@/server/models/QuestionBank";
 import { ClassScheduleModel as CSM } from "@/server/models/ClassSchedule";
+import { demoStore } from "@/server/db/demoData";
+import { isMongoReady } from "@/server/db/mongo";
 import { formatDate, getWeekDates, cn, hoursShortageColor } from "@/shared/utils";
 import type { ClassInfo, ClassSchedule, QuestionBankVersion, ScheduleStatus, Student, User } from "@/shared/types";
 import { writeAudit } from "@/server/services/auditService";
@@ -40,16 +44,38 @@ export async function loader({ context }: LoaderFunctionArgs) {
   if (!user) return redirect("/login");
   if (user.role === "operator") return redirect("/reports");
 
-  const now = new Date();
-  const weekStart = new URLSearchParams();
-  const url = new URL(now.toISOString());
   const base = new Date();
   const dates = getWeekDates(base);
 
   const schedules = await getSchedulesByRange(dates[0], dates[6]).catch(() => [] as ClassSchedule[]);
-  const classes: ClassInfo[] = ((await ClassInfoModel.find().lean().catch(() => [])) as any[]).map((c: any) => ({ ...c, id: c._id.toString() }));
-  const versions: QuestionBankVersion[] = ((await QuestionBankVersionModel.find({ isActive: true }).lean().catch(() => [])) as any[]).map((v: any) => ({ ...v, id: v._id.toString() }));
-  const students: Student[] = ((await StudentModel.find().lean().catch(() => [])) as any[]).map((s: any) => ({ ...s, id: s._id.toString(), className: classes.find((c) => c.id === s.classId)?.name || "" }));
+  let classes: ClassInfo[] = [];
+  if (isMongoReady()) {
+    try {
+      const raw = await ClassInfoModel.find().lean();
+      if (raw && raw.length > 0) classes = raw.map((c: any) => ({ ...c, id: c._id.toString() }));
+    } catch {}
+  }
+  if (classes.length === 0) classes = demoStore.all("classes") as ClassInfo[];
+
+  let versions: QuestionBankVersion[] = [];
+  if (isMongoReady()) {
+    try {
+      const raw = await QuestionBankVersionModel.find({ isActive: true }).lean();
+      if (raw && raw.length > 0) versions = raw.map((v: any) => ({ ...v, id: v._id.toString() }));
+    } catch {}
+  }
+  if (versions.length === 0) versions = demoStore.find("questionBankVersions", { isActive: true }) as QuestionBankVersion[];
+
+  let students: Student[] = [];
+  if (isMongoReady()) {
+    try {
+      const raw = await StudentModel.find().lean();
+      if (raw && raw.length > 0) students = raw.map((s: any) => ({ ...s, id: s._id.toString(), className: classes.find((c) => c.id === s.classId)?.name || "" }));
+    } catch {}
+  }
+  if (students.length === 0) {
+    students = demoStore.all("students").map((s: any) => ({ ...s, className: classes.find((c) => c.id === s.classId)?.name || "" })) as Student[];
+  }
 
   return json({ schedules, classes, versions, students, weekStart: formatDate(dates[0]) });
 }
@@ -64,7 +90,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   });
   if (body.type === "create") {
     const cls = body;
-    const doc = await ScheduleModel.create({
+    const payload = {
       classId: cls.classId,
       className: cls.className,
       teacherId: user.id,
@@ -76,9 +102,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
       questionBankVersionName: cls.questionBankVersionName,
       status: "pending" as ScheduleStatus,
       studentIds: JSON.parse(String(cls.studentIds || "[]")),
-    });
-    await writeAudit(user, "update_schedule", "schedule", doc._id.toString(), { date: cls.date, className: cls.className }, ip);
-    return json({ success: true, id: doc._id.toString() });
+    };
+    let doc: any;
+    if (isMongoReady()) {
+      try {
+        doc = await ScheduleModel.create(payload);
+      } catch {}
+    }
+    if (!doc) doc = demoStore.create("classSchedules", payload);
+    await writeAudit(user, "update_schedule", "schedule", doc._id?.toString() || doc.id, { date: cls.date, className: cls.className }, ip);
+    return json({ success: true, id: doc._id?.toString() || doc.id });
   }
   return json({ success: false });
 }
@@ -270,17 +303,45 @@ function QuickAddPanel({
 }: {
   classes: ClassInfo[]; versions: QuestionBankVersion[]; students: Student[]; defaultDate: string;
 }) {
+  const fetcher = useFetcher();
+  const submitting = fetcher.state === "submitting";
+  const success = (fetcher.data as any)?.success === true;
   const [classId, setClassId] = useState(classes[0]?.id || "");
   const [date, setDate] = useState(defaultDate);
   const [timeRange, setTimeRange] = useState(TIME_SLOTS[0]);
   const [versionId, setVersionId] = useState(versions[0]?.id || "");
   const selectedClass = classes.find((c) => c.id === classId);
   const inClassStudents = students.filter((s) => s.classId === classId);
+  const selectedVersion = versions.find((v) => v.id === versionId);
+
+  const handleSave = () => {
+    if (!classId || !date || !versionId) return;
+    fetcher.submit(
+      {
+        type: "create",
+        classId,
+        className: selectedClass?.name || "",
+        date,
+        timeRange,
+        questionBankVersionId: versionId,
+        questionBankVersionName: selectedVersion
+          ? `${selectedVersion.version} - ${selectedVersion.bankName}`
+          : "",
+        studentIds: JSON.stringify(inClassStudents.map((s) => s.id)),
+      },
+      { method: "POST", encType: "application/json" }
+    );
+  };
 
   return (
     <div className="card p-5">
       <div className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
         <Plus className="w-4 h-4 text-slate-800" />快速新增课次
+        {success && (
+          <span className="chip-green text-[10px] ml-2 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" />已保存
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div>
@@ -308,8 +369,17 @@ function QuickAddPanel({
           </select>
         </div>
         <div className="flex items-end">
-          <button className="btn-primary flex-1">
-            <Plus className="w-4 h-4" />保存课次
+          <button
+            onClick={handleSave}
+            disabled={submitting || !classId || !date || !versionId}
+            className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+            保存课次
           </button>
         </div>
       </div>

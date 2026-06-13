@@ -1,5 +1,6 @@
 import { NoticeModel as NM, NoticeReceiptModel as NRM } from "@/server/models/Notice";
 import { StudentModel as SM } from "@/server/models/Student";
+import { demoStore } from "@/server/db/demoData";
 import type {
   CreateNoticeRequest,
   Notice,
@@ -14,8 +15,11 @@ const NoticeReceiptModel: any = NRM;
 const StudentModel: any = SM;
 
 export async function listNotices(limit = 50) {
-  const docs = await NoticeModel.find().sort({ publishedAt: -1 }).limit(limit).lean();
-  return docs.map((d) => ({ ...d, id: d._id.toString() })) as Notice[];
+  try {
+    const docs = await NoticeModel.find().sort({ publishedAt: -1 }).limit(limit).lean();
+    if (docs && docs.length > 0) return docs.map((d: any) => ({ ...d, id: d._id.toString() })) as Notice[];
+  } catch {}
+  return demoStore.all("notices").slice(0, limit) as Notice[];
 }
 
 export async function createNotice(
@@ -24,65 +28,101 @@ export async function createNotice(
   ip?: string
 ): Promise<Notice> {
   const now = formatDateTime(new Date());
-  const doc = await NoticeModel.create({
-    title: req.title,
-    content: req.content,
-    senderId: user.id,
-    senderName: user.name,
-    targetType: req.targetType,
-    targetIds: req.targetIds,
-    publishedAt: now,
-    receiptDeadline: req.receiptDeadline,
-  });
-
-  let receiptStudentIds: string[] = [];
-  if (req.targetType === "all") {
-    receiptStudentIds = (await StudentModel.find({}, "_id").lean()).map((s) => s._id.toString());
-  } else if (req.targetType === "class") {
-    receiptStudentIds = (await StudentModel.find({ classId: { $in: req.targetIds } }, "_id").lean()).map((s) => s._id.toString());
-  } else {
-    receiptStudentIds = req.targetIds;
+  let doc: any;
+  try {
+    doc = await NoticeModel.create({
+      title: req.title,
+      content: req.content,
+      senderId: user.id,
+      senderName: user.name,
+      targetType: req.targetType,
+      targetIds: req.targetIds,
+      publishedAt: now,
+      receiptDeadline: req.receiptDeadline,
+    });
+  } catch {
+    doc = demoStore.create("notices", {
+      title: req.title,
+      content: req.content,
+      senderId: user.id,
+      senderName: user.name,
+      targetType: req.targetType,
+      targetIds: req.targetIds,
+      publishedAt: now,
+      receiptDeadline: req.receiptDeadline,
+    });
   }
 
-  const studentDetails = await StudentModel.find({ _id: { $in: receiptStudentIds } }).lean();
+  let receiptStudentIds: string[] = [];
+  try {
+    if (req.targetType === "all") {
+      receiptStudentIds = (await StudentModel.find({}, "_id").lean()).map((s: any) => s._id.toString());
+    } else if (req.targetType === "class") {
+      receiptStudentIds = (await StudentModel.find({ classId: { $in: req.targetIds } }, "_id").lean()).map((s: any) => s._id.toString());
+    } else {
+      receiptStudentIds = req.targetIds;
+    }
+  } catch {
+    receiptStudentIds = demoStore.all("students").map((s) => s._id);
+  }
+
+  let studentDetails: any[] = [];
+  try {
+    studentDetails = await StudentModel.find({ _id: { $in: receiptStudentIds } }).lean();
+  } catch {
+    studentDetails = demoStore.find("students", { _id: { $in: receiptStudentIds } as any });
+  }
+  if (studentDetails.length === 0) studentDetails = demoStore.all("students");
+
   const receipts = studentDetails.map((s) => ({
-    noticeId: doc._id.toString(),
-    studentId: s._id.toString(),
+    noticeId: doc._id?.toString() || doc.id,
+    studentId: s._id?.toString() || s.id,
     studentName: s.name,
     parentPhone: s.parentPhone,
     isRead: false,
     isConfirmed: false,
   }));
   if (receipts.length > 0) {
-    await NoticeReceiptModel.insertMany(receipts, { ordered: false }).catch(() => {});
+    try {
+      await NoticeReceiptModel.insertMany(receipts, { ordered: false }).catch(() => {});
+    } catch {
+      receipts.forEach((r) => demoStore.create("noticeReceipts", r));
+    }
   }
 
   await writeAudit(
     user,
     "publish_notice",
     "notice",
-    doc._id.toString(),
+    doc._id?.toString() || doc.id,
     { title: req.title, targetType: req.targetType, recipients: receipts.length },
     ip
   );
 
-  return { ...doc.toObject(), id: doc._id.toString() } as Notice;
+  return { ...doc, id: doc._id?.toString() || doc.id } as Notice;
 }
 
 export async function getReceiptsByNotice(noticeId: string) {
-  const docs = await NoticeReceiptModel.find({ noticeId }).lean();
-  return docs.map((d) => ({ ...d, id: d._id.toString() })) as NoticeReceipt[];
+  try {
+    const docs = await NoticeReceiptModel.find({ noticeId }).lean();
+    if (docs && docs.length > 0) return docs.map((d: any) => ({ ...d, id: d._id.toString() })) as NoticeReceipt[];
+  } catch {}
+  return demoStore.find("noticeReceipts", { noticeId }) as NoticeReceipt[];
 }
 
 export async function getReceiptStats(noticeId: string) {
-  const docs = await NoticeReceiptModel.find({ noticeId }).lean();
+  let docs: any[] = [];
+  try {
+    docs = await NoticeReceiptModel.find({ noticeId }).lean();
+  } catch {}
+  if (docs.length === 0) docs = demoStore.find("noticeReceipts", { noticeId });
   const total = docs.length;
   const confirmed = docs.filter((d) => d.isConfirmed).length;
   const read = docs.filter((d) => d.isRead).length;
   const unread = total - read;
   const unconfirmed = total - confirmed;
   const overdue = docs.filter(
-    (d) => !d.isConfirmed && new Date(d.confirmedAt || d.updatedAt) < new Date()
+    (d) => !d.isConfirmed && new Date(d.confirmedAt || d.updatedAt || d.createdAt || 0) < new Date()
   ).length;
   return { total, confirmed, read, unread, unconfirmed, overdue };
 }
@@ -96,7 +136,10 @@ export async function confirmReceipt(
   const now = formatDateTime(new Date());
   const update: any = { isConfirmed: true, confirmedAt: now };
   if (feedback) update.feedback = feedback;
-  await NoticeReceiptModel.updateOne({ _id: receiptId }, update);
+  try {
+    await NoticeReceiptModel.updateOne({ _id: receiptId }, update);
+  } catch {}
+  demoStore.updateMany("noticeReceipts", { _id: receiptId }, update);
   await writeAudit(user, "confirm_receipt", "receipt", receiptId, { feedback }, ip);
 }
 
@@ -112,31 +155,90 @@ export async function submitFeedback(
   const { FeedbackModel: FM2 } = await import("@/server/models/Feedback");
   const FeedbackModel2: any = FM2;
   const now = formatDateTime(new Date());
-  const doc = await FeedbackModel2.create({
-    studentId,
-    studentName,
-    consumptionId,
-    content,
-    rating,
-    createdAt: now,
-    writerRole: user?.role === "teacher" || user?.role === "admin" ? "teacher" : "parent",
-  });
+  let doc: any;
+  try {
+    doc = await FeedbackModel2.create({
+      studentId,
+      studentName,
+      consumptionId,
+      content,
+      rating,
+      createdAt: now,
+      writerRole: user?.role === "teacher" || user?.role === "admin" ? "teacher" : "parent",
+    });
+  } catch {
+    doc = demoStore.create("feedbacks", {
+      studentId,
+      studentName,
+      consumptionId,
+      content,
+      rating,
+      createdAt: now,
+      writerRole: user?.role === "teacher" || user?.role === "admin" ? "teacher" : "parent",
+    });
+  }
   if (user) {
-    await writeAudit(user, "create_feedback", "feedback", doc._id.toString(), { studentId, content }, ip);
+    await writeAudit(user, "create_feedback", "feedback", doc._id?.toString() || doc.id, { studentId, content }, ip);
   }
   return doc;
 }
 
 export async function runReminderCron() {
-  const deadline = formatDateTime(new Date(Date.now() - 24 * 3600 * 1000));
-  const overdue = await NoticeReceiptModel.find({
-    isConfirmed: false,
-  }).lean();
-  const toRemind = overdue.filter(
-    (r) => new Date((r as any).createdAt).getTime() < Date.now() - 24 * 3600 * 1000
+  let unreceipted: any[] = [];
+  try {
+    unreceipted = await NoticeReceiptModel.find({ isConfirmed: false }).lean();
+  } catch {}
+  if (unreceipted.length === 0) unreceipted = demoStore.find("noticeReceipts", { isConfirmed: false });
+  const toRemind = unreceipted.filter(
+    (r) => new Date(r.createdAt || 0).getTime() < Date.now() - 24 * 3600 * 1000
   );
   if (toRemind.length > 0) {
     console.log(`[Cron] Found ${toRemind.length} unreceipted notices to remind`);
   }
   return toRemind;
+}
+
+export async function batchRemindUnreceipted(user: User, ip?: string) {
+  const now = formatDateTime(new Date());
+  let unreceipted: any[] = [];
+  try {
+    unreceipted = await NoticeReceiptModel.find({ isConfirmed: false }).lean();
+  } catch {}
+  if (unreceipted.length === 0) unreceipted = demoStore.find("noticeReceipts", { isConfirmed: false });
+  if (unreceipted.length === 0) return { count: 0 };
+
+  const noticeIds: string[] = [...new Set(unreceipted.map((r: any) => (r.noticeId?.toString || (() => r.noticeId))()))];
+  const ids: string[] = unreceipted.map((r: any) => (r._id?.toString || (() => r._id || r.id))());
+
+  try {
+    await NoticeReceiptModel.updateMany({ _id: { $in: ids } }, { $set: { remindedAt: now } }).catch(() => {});
+  } catch {}
+  demoStore.updateMany("noticeReceipts", { _id: { $in: ids } as any }, { remindedAt: now });
+
+  try {
+    const redis = (await import("@/server/db/redis")).getRedis();
+    if (redis.status === "ready") {
+      const rk = (await import("@/server/db/redis")).redisKeys;
+      for (const nid of noticeIds) {
+        const receiptIdsForNotice = ids.filter((_id) =>
+          unreceipted.some((r: any) => (r.noticeId?.toString() === nid || r.noticeId === nid) && ((r._id?.toString() || r._id || r.id) === _id))
+        );
+        if (receiptIdsForNotice.length > 0) {
+          const args: string[] = receiptIdsForNotice.flatMap((rid) => [String(Date.now()), rid]);
+          await (redis as any).zadd(rk.noticeReminder(nid), ...args).catch(() => {});
+        }
+      }
+    }
+  } catch {}
+
+  await writeAudit(
+    user,
+    "publish_notice",
+    "notice",
+    `batch-remind-${Date.now()}`,
+    { action: "batch_remind", noticeCount: noticeIds.length, receiptCount: unreceipted.length },
+    ip
+  );
+
+  return { count: unreceipted.length, noticeIds };
 }
