@@ -9,12 +9,24 @@ export default defineEventHandler(async (event) => {
     if (query.endDate) dateFilter.lte = new Date(query.endDate as string)
   }
 
+  const suggestionWhere: any = { createdAt: dateFilter }
+  if (query.supervisorId) {
+    suggestionWhere.question = { batchTask: { createdBy: query.supervisorId as string } }
+  }
+
+  const allSuggestions = await db.replySuggestion.findMany({
+    where: suggestionWhere,
+    select: { id: true, isHit: true },
+  })
+
+  const suggestionIds = new Set(allSuggestions.map(s => s.id))
+  const total = allSuggestions.length
+  const hitCount = allSuggestions.filter(s => s.isHit).length
+
   const refs = await db.referenceSource.findMany({
     where: {
       isMissing: true,
-      replySuggestion: {
-        createdAt: dateFilter,
-      },
+      replySuggestionId: { in: Array.from(suggestionIds) },
     },
     select: { missingReason: true, replySuggestionId: true },
   })
@@ -27,13 +39,30 @@ export default defineEventHandler(async (event) => {
     byReason[reason].suggestionIds.add(r.replySuggestionId)
   }
 
-  const totalSuggestions = Object.keys(dateFilter).length > 0
-    ? await db.replySuggestion.count({ where: { createdAt: dateFilter } })
-    : await db.replySuggestion.count()
+  const suggestionMap = new Map(allSuggestions.map(s => [s.id, s.isHit]))
 
-  return Object.entries(byReason).map(([missingReason, data]) => ({
-    missingReason,
-    count: data.count,
-    affectedHitRate: totalSuggestions > 0 ? data.suggestionIds.size / totalSuggestions : 0,
-  }))
+  const result = Object.entries(byReason).map(([missingReason, data]) => {
+    let affectedHitCount = 0
+    for (const sid of data.suggestionIds) {
+      if (suggestionMap.get(sid)) affectedHitCount++
+    }
+    const affectedTotal = data.suggestionIds.size
+    return {
+      missingReason,
+      count: data.count,
+      affectedSuggestionCount: affectedTotal,
+      affectedHitCount,
+      total,
+      hitCount,
+      hitRate: total > 0 ? hitCount / total : 0,
+      affectedHitRate: affectedTotal > 0 ? affectedHitCount / affectedTotal : 0,
+    }
+  })
+
+  return {
+    total,
+    hitCount,
+    hitRate: total > 0 ? hitCount / total : 0,
+    byReason: result,
+  }
 })

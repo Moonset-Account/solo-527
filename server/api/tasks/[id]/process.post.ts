@@ -1,7 +1,7 @@
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const db = useDB()
-  const { enqueueBatchTask } = await import('~/server/utils/queue')
+  const { enqueueBatchTask, processTaskFallback } = await import('~/server/utils/queue')
 
   const task = await db.batchTask.findUnique({ where: { id } })
   if (!task) {
@@ -23,11 +23,10 @@ export default defineEventHandler(async (event) => {
     },
   })
 
-  try {
-    await enqueueBatchTask(id!)
-  } catch (e) {
-    console.error('[tasks/process] enqueue failed:', e)
-    throw createError({ statusCode: 500, message: '任务入队失败' })
+  const result = await enqueueBatchTask(id!)
+  if (!result.queued) {
+    console.warn('[tasks/process] enqueue failed, fallback to local:', result.reason)
+    setTimeout(() => processTaskFallback(id!), 500)
   }
 
   return await db.batchTask.findUnique({ where: { id } })

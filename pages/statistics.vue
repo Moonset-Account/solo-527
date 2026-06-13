@@ -7,7 +7,8 @@ const loading = ref(true)
 const overallHitRate = ref<any>({ total: 0, hitCount: 0, hitRate: 0 })
 const bySupervisor = ref<any[]>([])
 const byDate = ref<any[]>([])
-const byMissing = ref<any[]>([])
+const missingRoot = ref<any>({ total: 0, hitCount: 0, hitRate: 0, byReason: [] })
+const byMissing = computed(() => missingRoot.value.byReason || [])
 
 const dateRange = reactive({
   startDate: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
@@ -39,7 +40,7 @@ const loadData = async () => {
     overallHitRate.value = overall
     bySupervisor.value = supervisor
     byDate.value = date
-    byMissing.value = missing
+    missingRoot.value = missing
   } catch (e) {
     console.error(e)
   } finally {
@@ -179,17 +180,30 @@ const dateMaxHitRate = computed(() => Math.max(...byDate.value.map(d => d.hitRat
         </div>
 
         <div class="card p-5">
-          <div class="flex items-center gap-2 mb-3">
-            <AlertCircle class="w-5 h-5 text-red-500" />
-            <h3 class="font-bold text-slate-800">引用缺失原因</h3>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <AlertCircle class="w-5 h-5 text-red-500" />
+              <h3 class="font-bold text-slate-800">引用缺失原因</h3>
+            </div>
+            <span class="text-xs text-slate-500">同口径 {{ missingRoot.hitCount }}/{{ missingRoot.total }} · {{ formatRate(missingRoot.hitRate || 0) }}</span>
           </div>
-          <div class="space-y-2">
-            <div v-for="item in byMissing" :key="item.missingReason" class="flex items-center gap-2">
-              <span class="text-xs text-slate-600 w-20 truncate">{{ item.missingReason }}</span>
-              <div class="flex-1 bg-slate-200 rounded-full h-2">
-                <div class="h-2 rounded-full bg-red-400" :style="{ width: (item.affectedHitRate * 100) + '%' }" />
+          <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div v-for="item in byMissing" :key="item.missingReason" class="space-y-1">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-medium text-slate-700 truncate" :title="item.missingReason">{{ item.missingReason }}</span>
+                <span class="text-xs text-slate-500 whitespace-nowrap">
+                  {{ item.affectedHitCount }}/{{ item.affectedSuggestionCount }} · {{ formatRate(item.affectedHitRate) }} · 缺失{{ item.count }}次
+                </span>
               </div>
-              <span class="text-xs text-slate-500 w-12 text-right">{{ item.count }}次</span>
+              <div class="flex items-center gap-2">
+                <div class="flex-1 bg-slate-200 rounded-full h-2">
+                  <div
+                    class="h-2 rounded-full transition-all duration-500"
+                    :class="item.affectedHitRate >= 0.7 ? 'bg-emerald-500' : item.affectedHitRate >= 0.5 ? 'bg-brand-500' : 'bg-red-400'"
+                    :style="{ width: Math.min(item.affectedHitRate * 100, 100) + '%' }"
+                  />
+                </div>
+              </div>
             </div>
             <div v-if="byMissing.length === 0" class="text-sm text-slate-400 py-4 text-center">暂无缺失数据</div>
           </div>
