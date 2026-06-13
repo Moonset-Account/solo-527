@@ -32,7 +32,7 @@ function StatisticsPage() {
   const [peakData, setPeakData] = useState([]);
   const [failedPeaks, setFailedPeaks] = useState([]);
   const [failedStrategies, setFailedStrategies] = useState([]);
-  const [avgDuration, setAvgDuration] = useState(0);
+  const [avgDuration, setAvgDuration] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [areas, setAreas] = useState([]);
@@ -84,9 +84,10 @@ function StatisticsPage() {
           start: timeRange[0].toISOString(),
           end: timeRange[1].toISOString()
         });
-        setAvgDuration(statsRes.data?.data?.avgResponseDuration || 0);
+        const rawAvg = statsRes.data?.data?.avgResponseDuration;
+        setAvgDuration(rawAvg != null ? rawAvg : null);
       } catch (_) {
-        setAvgDuration(0);
+        setAvgDuration(null);
       }
     } catch (e) {
       console.error('加载统计数据失败:', e);
@@ -94,7 +95,7 @@ function StatisticsPage() {
       setPeakData([]);
       setFailedPeaks([]);
       setFailedStrategies([]);
-      setAvgDuration(0);
+      setAvgDuration(null);
     }
     setLoading(false);
   };
@@ -258,7 +259,12 @@ function StatisticsPage() {
         </Col>
         <Col span={6}>
           <Card className="stat-card">
-            <Statistic title="平均响应时长" value={avgDuration} suffix="分钟" valueStyle={{ color: '#52c41a' }} />
+            <Statistic
+              title="平均响应时长"
+              value={avgDuration != null ? avgDuration : '-'}
+              suffix={avgDuration != null ? '分钟' : ''}
+              valueStyle={{ color: avgDuration != null ? '#52c41a' : 'rgba(0,0,0,0.45)' }}
+            />
           </Card>
         </Col>
       </Row>
@@ -361,7 +367,7 @@ function StatisticsPage() {
               <Card className="table-card">
                 <Descriptions title="响应时长统计" bordered column={4} style={{ marginBottom: 16 }}>
                   <Descriptions.Item label="平均响应时长">
-                    {avgDuration > 0 ? `${avgDuration} 分钟` : '-'}
+                    {avgDuration != null ? `${avgDuration} 分钟` : '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="最长响应时长">
                     {maxDuration > 0 ? `${maxDuration} 分钟` : '-'}

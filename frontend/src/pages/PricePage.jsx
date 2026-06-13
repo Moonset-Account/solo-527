@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Select, DatePicker, Button, Space } from 'antd';
+import { Card, Table, Tag, Select, DatePicker, Button, Space, Empty, Alert as AntAlert } from 'antd';
 import dayjs from 'dayjs';
-import { referenceApi } from '../api';
+import { referenceApi, energyApi } from '../api';
 
 const { Option } = Select;
 
@@ -15,62 +15,59 @@ const peakTypeMap = {
 function PricePage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [area, setArea] = useState();
   const [date, setDate] = useState(dayjs());
-  const [areas] = useState(['A区', 'B区', 'C区', 'D区']);
+  const [areas, setAreas] = useState([]);
 
   useEffect(() => {
+    loadAreas();
     loadData();
   }, [area, date]);
 
+  const loadAreas = async () => {
+    try {
+      const res = await energyApi.getAreas();
+      setAreas(res.data?.data || []);
+    } catch (e) {
+      console.warn('加载区域失败:', e);
+      setAreas([]);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
+    setErrorMsg('');
     try {
-      const res = await referenceApi.getPrices({ area, date: date?.format('YYYY-MM-DD') });
-      setData(res.data.data || generateMockData());
+      const res = await referenceApi.getPrices({
+        area: area || undefined,
+        date: date?.format('YYYY-MM-DD')
+      });
+      const list = res.data?.data;
+      setData(Array.isArray(list) ? list : []);
     } catch (e) {
-      setData(generateMockData());
+      console.error('加载电价规则失败:', e);
+      setErrorMsg(e.response?.data?.message || e.message || '加载电价规则失败');
+      setData([]);
     }
     setLoading(false);
   };
 
-  const generateMockData = () => {
-    const rules = [
-      { peakType: 'VALLEY', startTime: '00:00', endTime: '06:00', price: 0.35 },
-      { peakType: 'FLAT', startTime: '06:00', endTime: '08:00', price: 0.68 },
-      { peakType: 'HIGH', startTime: '08:00', endTime: '11:00', price: 1.05 },
-      { peakType: 'PEAK', startTime: '11:00', endTime: '13:00', price: 1.35 },
-      { peakType: 'HIGH', startTime: '13:00', endTime: '18:00', price: 1.05 },
-      { peakType: 'PEAK', startTime: '18:00', endTime: '21:00', price: 1.35 },
-      { peakType: 'FLAT', startTime: '21:00', endTime: '23:00', price: 0.68 },
-      { peakType: 'VALLEY', startTime: '23:00', endTime: '24:00', price: 0.35 }
-    ];
-    return rules.map((r, i) => ({
-      id: i + 1,
-      ruleName: `${peakTypeMap[r.peakType]?.text}电价规则`,
-      periodType: 'DAY',
-      peakType: r.peakType,
-      startTime: r.startTime,
-      endTime: r.endTime,
-      price: r.price.toFixed(4),
-      effectiveDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-      area: area || '全区',
-      description: `${peakTypeMap[r.peakType]?.text}时段电价规则`
-    }));
-  };
-
   const columns = [
-    { title: '规则名称', dataIndex: 'ruleName', width: 160 },
+    { title: '规则名称', dataIndex: 'ruleName', width: 160, render: v => v || '-' },
     {
       title: '峰谷类型', dataIndex: 'peakType', width: 100,
-      render: v => <Tag color={peakTypeMap[v]?.color}>{peakTypeMap[v]?.text}</Tag>
+      render: v => peakTypeMap[v] ? <Tag color={peakTypeMap[v].color}>{peakTypeMap[v].text}</Tag> : (v || '-')
     },
-    { title: '起始时间', dataIndex: 'startTime', width: 100 },
-    { title: '结束时间', dataIndex: 'endTime', width: 100 },
-    { title: '电价(元/kWh)', dataIndex: 'price', width: 130, render: v => <b style={{ color: '#eb2f96' }}>{v}</b> },
-    { title: '适用区域', dataIndex: 'area', width: 100 },
-    { title: '生效日期', dataIndex: 'effectiveDate', width: 120 },
-    { title: '说明', dataIndex: 'description' }
+    { title: '起始时间', dataIndex: 'startTime', width: 100, render: v => v || '-' },
+    { title: '结束时间', dataIndex: 'endTime', width: 100, render: v => v || '-' },
+    {
+      title: '电价(元/kWh)', dataIndex: 'price', width: 130,
+      render: v => v != null ? <b style={{ color: '#eb2f96' }}>{v}</b> : '-'
+    },
+    { title: '适用区域', dataIndex: 'area', width: 100, render: v => v || '-' },
+    { title: '生效日期', dataIndex: 'effectiveDate', width: 120, render: v => v || '-' },
+    { title: '说明', dataIndex: 'description', render: v => v || '-' }
   ];
 
   return (
@@ -83,12 +80,33 @@ function PricePage() {
             {areas.map(a => <Option key={a} value={a}>{a}</Option>)}
           </Select>
           <DatePicker value={date} onChange={setDate} style={{ width: 160 }} />
-          <Button type="primary" onClick={loadData}>查询</Button>
+          <Button type="primary" onClick={loadData} loading={loading}>查询</Button>
         </Space>
       </Card>
 
+      {errorMsg && (
+        <AntAlert
+          style={{ marginBottom: 16 }}
+          type="error"
+          showIcon
+          message="电价规则加载异常"
+          description={errorMsg}
+        />
+      )}
+
       <Card className="table-card">
-        <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={false} />
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={false}
+          locale={{
+            emptyText: errorMsg
+              ? <Empty description="暂无数据（接口异常）" />
+              : <Empty description="当前条件下无电价规则" />
+          }}
+        />
       </Card>
     </div>
   );
