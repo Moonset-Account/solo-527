@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down scheduler...")
-    shutdown_scheduler()
+    stop_scheduler()
     logger.info("Scheduler shut down successfully")
 
 

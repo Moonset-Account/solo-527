@@ -94,15 +94,34 @@
                         </div>
                     </div>
 
-                    {% if attachments and attachments | length > 0 %}
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <i class="fas fa-paperclip text-primary mr-2"></i>
-                            附件列表
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center justify-between">
+                            <span class="flex items-center">
+                                <i class="fas fa-paperclip text-primary mr-2"></i>
+                                附件列表
+                            </span>
+                            {% if purchase.status != 'closed' %}
+                            <button onclick="openUploadModal()" class="px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition">
+                                <i class="fas fa-upload mr-1"></i>
+                                上传附件
+                            </button>
+                            {% endif %}
                         </h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {% if purchase.status != 'closed' %}
+                        <div class="mb-4 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center hover:border-primary hover:bg-blue-50/30 transition cursor-pointer" 
+                             onclick="document.getElementById('quickFileInput').click()"
+                             ondragover="handleDragOver(event)"
+                             ondragleave="handleDragLeave(event)"
+                             ondrop="handleDrop(event)">
+                            <input type="file" id="quickFileInput" class="hidden" multiple onchange="handleQuickUpload(event)">
+                            <i class="fas fa-cloud-upload-alt text-2xl text-gray-300 mb-2"></i>
+                            <p class="text-sm text-gray-500">点击或拖拽文件到此处上传</p>
+                        </div>
+                        {% endif %}
+                        <div id="attachmentList" class="space-y-2">
+                            {% if attachments and attachments | length > 0 %}
                             {% for att in attachments %}
-                            <div class="flex items-center space-x-3 bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition">
+                            <div class="flex items-center space-x-3 bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition group" data-id="{{ att.id }}">
                                 <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
                                     {% if att.file_type and 'pdf' in att.file_type %}
                                     <i class="fas fa-file-pdf text-red-500 text-lg"></i>
@@ -121,19 +140,32 @@
                                         {{ att.original_name }}
                                     </p>
                                     <p class="text-xs text-gray-500">
-                                        {{ att.file_size | filesizeformat }} · {{ att.uploaded_at.strftime('%Y-%m-%d') }}
+                                        {{ format_file_size(att.file_size) }} · {{ att.uploaded_at.strftime('%Y-%m-%d') }}
+                                        {% if att.uploader %} · {{ att.uploader.real_name }}{% endif %}
                                     </p>
                                 </div>
-                                <a href="/attachments/{{ att.id }}/download" 
+                                <a href="/purchase/attachment/{{ att.id }}/download" 
                                    class="text-primary hover:text-primary/80 transition p-2"
                                    title="下载">
                                     <i class="fas fa-download"></i>
                                 </a>
+                                {% if purchase.status != 'closed' %}
+                                <button onclick="deleteAttachment({{ att.id }})" 
+                                        class="p-2 text-gray-400 hover:text-danger transition opacity-0 group-hover:opacity-100"
+                                        title="删除">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                                {% endif %}
                             </div>
                             {% endfor %}
+                            {% else %}
+                            <div class="text-center py-8">
+                                <i class="fas fa-folder-open text-3xl text-gray-300 mb-2"></i>
+                                <p class="text-gray-500 text-sm">暂无附件</p>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
-                    {% endif %}
 
                     {% if approval_records and approval_records | length > 0 %}
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -441,6 +473,117 @@
 
 {% block scripts %}
 <script>
+function openUploadModal() {
+    document.getElementById('quickFileInput').click();
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.add('border-primary', 'bg-blue-50/30');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('border-primary', 'bg-blue-50/30');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('border-primary', 'bg-blue-50/30');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        uploadFiles(files);
+    }
+}
+
+function handleQuickUpload(e) {
+    const files = e.target.files;
+    if (files.length > 0) {
+        uploadFiles(files);
+    }
+    e.target.value = '';
+}
+
+function uploadFiles(files) {
+    const purchaseId = {{ purchase.id }};
+    for (let i = 0; i < files.length; i++) {
+        uploadSingleFile(purchaseId, files[i]);
+    }
+}
+
+function uploadSingleFile(purchaseId, file) {
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+        alert(`文件 "${file.name}" 超过 50MB 限制`);
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/purchase/${purchaseId}/attachment`);
+    
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            const result = JSON.parse(xhr.responseText);
+            if (result.success) {
+                location.reload();
+            } else {
+                alert(result.message || '上传失败');
+            }
+        } else {
+            alert('上传失败，请重试');
+        }
+    });
+    
+    xhr.addEventListener('error', () => {
+        alert('上传失败，请重试');
+    });
+    
+    xhr.send(formData);
+}
+
+function deleteAttachment(attachmentId) {
+    if (!confirm('确定要删除这个附件吗？')) return;
+    
+    fetch(`/purchase/attachment/${attachmentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const item = document.querySelector(`div[data-id="${attachmentId}"]`);
+            if (item) item.remove();
+            checkEmptyAttachments();
+        } else {
+            alert(result.message || '删除失败');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to delete attachment:', err);
+        alert('删除失败，请重试');
+    });
+}
+
+function checkEmptyAttachments() {
+    const container = document.getElementById('attachmentList');
+    const items = container.querySelectorAll('div[data-id]');
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-folder-open text-3xl text-gray-300 mb-2"></i>
+                <p class="text-gray-500 text-sm">暂无附件</p>
+            </div>
+        `;
+    }
+}
+
 function openApprovalModal(action) {
     const modal = document.getElementById('approvalModal');
     const title = document.getElementById('approvalModalTitle');

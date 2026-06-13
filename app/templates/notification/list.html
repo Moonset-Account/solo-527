@@ -54,7 +54,7 @@
                 </div>
                 <div id="notificationList" class="divide-y divide-gray-100 max-h-[calc(100vh-340px)] overflow-y-auto">
                     {% for notification in notifications %}
-                    <div class="notification-item p-4 hover:bg-gray-50 transition cursor-pointer {% if not notification.is_read %}bg-blue-50/30{% endif %}" data-id="{{ notification.id }}" data-type="{{ notification.type.value }}" data-read="{{ notification.is_read }}">
+                    <div class="notification-item p-4 hover:bg-gray-50 transition cursor-pointer {% if not notification.is_read %}bg-blue-50/30{% endif %}" data-id="{{ notification.id }}" data-type="{{ notification.type.value }}" data-read="{{ notification.is_read }}" data-related-url="{{ notification.related_url or '' }}">
                         <div class="flex items-start space-x-4">
                             <div class="flex-shrink-0 pt-1">
                                 <input type="checkbox" class="notification-checkbox w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" data-id="{{ notification.id }}" onchange="updateBatchButtons()">
@@ -72,7 +72,7 @@
                                     {% elif notification.type.value == 'risk' %}fa-shield-alt text-warning
                                     {% else %}fa-bell text-gray-500{% endif %}"></i>
                             </div>
-                            <div class="flex-1 min-w-0" onclick="viewNotification({{ notification.id }})">
+                            <div class="flex-1 min-w-0 cursor-pointer" onclick="viewNotification({{ notification.id }})">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2">
                                         <p class="text-sm font-medium text-gray-900 {% if not notification.is_read %}font-semibold{% endif %}">
@@ -107,9 +107,22 @@
                                         <i class="fas fa-check mr-1"></i>已读
                                     </span>
                                     {% endif %}
+                                    {% if notification.related_title %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                                        <i class="fas fa-link mr-1"></i>{{ notification.related_title }}
+                                    </span>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="flex-shrink-0 flex items-center space-x-1">
+                                {% if notification.related_type == 'purchase' and notification.related_id %}
+                                <a href="/api/notification/{{ notification.id }}/download" 
+                                   class="p-2 text-gray-400 hover:text-primary transition" 
+                                   onclick="event.stopPropagation()"
+                                   title="下载附件">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                {% endif %}
                                 {% if not notification.is_read %}
                                 <button class="p-2 text-gray-400 hover:text-primary transition" onclick="event.stopPropagation(); markAsRead({{ notification.id }})" title="标记已读">
                                     <i class="fas fa-check"></i>
@@ -191,6 +204,10 @@ function filterNotifications() {
 
 function viewNotification(id) {
     markAsRead(id);
+    const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+    if (item && item.dataset.relatedUrl) {
+        window.location.href = item.dataset.relatedUrl;
+    }
 }
 
 function markAsRead(id) {

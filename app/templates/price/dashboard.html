@@ -65,7 +65,12 @@
                                hx-trigger="change"
                                hx-include="#materialFilter, #specFilter, #dateRangeStart">
                     </div>
-                    <div class="flex items-end">
+                    <div class="flex items-end space-x-3">
+                        <button onclick="exportPriceData()"
+                                class="px-6 py-2 bg-success hover:bg-green-600 text-white rounded-lg transition flex items-center">
+                            <i class="fas fa-download mr-2"></i>
+                            导出数据
+                        </button>
                         <button onclick="refreshPriceData()"
                                 class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition flex items-center">
                             <i class="fas fa-sync-alt mr-2"></i>
@@ -332,6 +337,23 @@ function refreshPriceData() {
         htmx.trigger('#expiringPricesList', 'load');
         htmx.trigger('#priceRecordsTable', 'load');
     }
+}
+
+function exportPriceData() {
+    const materialName = document.getElementById('materialFilter').value;
+    const spec = document.getElementById('specFilter').value;
+    const startDate = document.getElementById('dateRangeStart').value;
+    const endDate = document.getElementById('dateRangeEnd').value;
+    
+    let url = '/api/prices/export?';
+    const params = [];
+    if (materialName) params.push(`material_name=${encodeURIComponent(materialName)}`);
+    if (spec) params.push(`specification=${encodeURIComponent(spec)}`);
+    if (startDate) params.push(`start_date=${startDate}`);
+    if (endDate) params.push(`end_date=${endDate}`);
+    
+    url += params.join('&');
+    window.location.href = url;
 }
 
 function changeChartType(type) {

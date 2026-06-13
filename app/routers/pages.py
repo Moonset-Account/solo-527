@@ -98,11 +98,40 @@ async def purchase_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    from app.models import Attachment, Note, ApprovalRecord
+    from app.services import ApprovalService
+    from app.utils.file_handler import format_file_size
+    
     purchase = PurchaseService.get_purchase_detail(db, purchase_id, current_user)
+    
+    attachments = db.query(Attachment).filter(
+        Attachment.related_id == purchase_id,
+        Attachment.related_type == "purchase"
+    ).order_by(Attachment.uploaded_at.desc()).all()
+    
+    notes = db.query(Note).filter(
+        Note.related_id == purchase_id,
+        Note.related_type == "purchase"
+    ).order_by(Note.created_at.desc()).all()
+    
+    for note in notes:
+        note.creator_name = note.creator.real_name if note.creator else None
+    
+    approval_records = ApprovalService.get_approval_history(db, purchase_id)
+    for record in approval_records:
+        record.approver_name = record.approver.real_name if record.approver else None
+        record.level_name = record.level.name if record.level else None
+    
     return templates.TemplateResponse("purchase/detail.html", {
         "request": request,
         "current_user": current_user,
-        "purchase": purchase
+        "purchase": purchase,
+        "attachments": attachments,
+        "notes": notes,
+        "approval_records": approval_records,
+        "supplier_name": purchase.supplier.name if purchase.supplier else None,
+        "creator_name": purchase.creator.real_name if purchase.creator else None,
+        "format_file_size": format_file_size
     })
 
 

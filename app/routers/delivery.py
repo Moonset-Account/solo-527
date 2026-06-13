@@ -162,3 +162,72 @@ def sync_delivery_status(
             "status": purchase.status.value if hasattr(purchase.status, 'value') else purchase.status
         }
     }
+
+
+@router.get("/stats/diff-types")
+def get_diff_type_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return DeliveryService.get_diff_type_stats(db)
+
+
+@router.get("/stats/monthly")
+def get_monthly_delivery_data(
+    months: int = Query(6, ge=1, le=24),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return DeliveryService.get_monthly_delivery_data(db, months)
+
+
+@router.get("/export")
+def export_delivery_records(
+    purchase_id: Optional[int] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from io import StringIO
+    import csv
+    from fastapi.responses import StreamingResponse
+    
+    items, _ = DeliveryService.get_delivery_list(
+        db, purchase_id, start_date, end_date, page=1, page_size=1000
+    )
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "采购单号", "材料名称", "预期数量", "已交付数量", "数量差异",
+        "交付日期", "发票状态", "备注"
+    ])
+    
+    for item in items:
+        purchase = item.purchase
+        purchase_no = purchase.request_no if purchase else "-"
+        material_name = purchase.material_name if purchase else "-"
+        expected_qty = float(purchase.quantity) if purchase else 0
+        diff_qty = float(item.delivered_quantity) - expected_qty
+        
+        writer.writerow([
+            purchase_no,
+            material_name,
+            expected_qty,
+            float(item.delivered_quantity),
+            diff_qty,
+            item.delivery_date.isoformat(),
+            item.invoice_status_code or "-",
+            item.remark or "-"
+        ])
+    
+    output.seek(0)
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename=delivery_records_{date.today().isoformat()}.csv"
+        }
+    )

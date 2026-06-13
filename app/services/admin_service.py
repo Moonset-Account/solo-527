@@ -26,6 +26,13 @@ class AdminService:
         return db_status
 
     @staticmethod
+    def get_invoice_status(db: Session, status_id: int) -> InvoiceStatus:
+        status = db.query(InvoiceStatus).filter(InvoiceStatus.id == status_id).first()
+        if not status:
+            raise HTTPException(status_code=404, detail="发票状态不存在")
+        return status
+
+    @staticmethod
     def update_invoice_status(
         db: Session, status_id: int, status_in: InvoiceStatusUpdate
     ) -> InvoiceStatus:
@@ -78,6 +85,26 @@ class AdminService:
         db.commit()
         db.refresh(db_attachment)
         return db_attachment
+
+    @staticmethod
+    def get_spec_attachment(db: Session, attachment_id: int) -> Optional[SpecAttachment]:
+        return db.query(SpecAttachment).filter(SpecAttachment.id == attachment_id).first()
+
+    @staticmethod
+    def update_spec_attachment(
+        db: Session, attachment_id: int, name: str, description: Optional[str]
+    ) -> SpecAttachment:
+        attachment = db.query(SpecAttachment).filter(
+            SpecAttachment.id == attachment_id
+        ).first()
+        if not attachment:
+            raise HTTPException(status_code=404, detail="规格附件不存在")
+        
+        attachment.name = name
+        attachment.description = description
+        db.commit()
+        db.refresh(attachment)
+        return attachment
 
     @staticmethod
     def delete_spec_attachment(db: Session, attachment_id: int, user: User) -> bool:

@@ -104,7 +104,9 @@ class DeliveryService:
         from datetime import date
         today = date.today()
         
-        on_time_count = db.query(func.count(DeliveryRecord.id)).filter(
+        on_time_count = db.query(func.count(DeliveryRecord.id)).join(
+            PurchaseRequest, DeliveryRecord.purchase_id == PurchaseRequest.id
+        ).filter(
             DeliveryRecord.delivery_date <= PurchaseRequest.expected_delivery
         ).scalar() or 0
         
@@ -126,6 +128,50 @@ class DeliveryService:
             total_expected=total_expected,
             diff_percent=diff_percent
         )
+    
+    @staticmethod
+    def get_diff_type_stats(db: Session) -> dict:
+        diffs = db.query(
+            DeliveryDiff.diff_type,
+            func.count(DeliveryDiff.id).label('count'),
+            func.sum(func.abs(DeliveryDiff.diff_value)).label('total_value')
+        ).group_by(DeliveryDiff.diff_type).all()
+        
+        result = {}
+        for diff_type, count, total_value in diffs:
+            result[diff_type] = {
+                'count': count,
+                'total_value': float(total_value) if total_value else 0
+            }
+        
+        return result
+    
+    @staticmethod
+    def get_monthly_delivery_data(db: Session, months: int = 6) -> list:
+        from datetime import date, timedelta
+        from sqlalchemy import extract
+        
+        today = date.today()
+        start_date = date(today.year, today.month, 1) - timedelta(days=months * 30)
+        
+        records = db.query(
+            extract('year', DeliveryRecord.delivery_date).label('year'),
+            extract('month', DeliveryRecord.delivery_date).label('month'),
+            func.count(DeliveryRecord.id).label('count'),
+            func.sum(DeliveryRecord.delivered_quantity).label('quantity')
+        ).filter(
+            DeliveryRecord.delivery_date >= start_date
+        ).group_by('year', 'month').order_by('year', 'month').all()
+        
+        result = []
+        for year, month, count, quantity in records:
+            result.append({
+                'month': f"{int(year)}-{int(month):02d}",
+                'count': count,
+                'quantity': float(quantity) if quantity else 0
+            })
+        
+        return result
 
     @staticmethod
     def get_purchase_deliveries(db: Session, purchase_id: int) -> List[DeliveryRecord]:

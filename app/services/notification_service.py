@@ -52,12 +52,21 @@ class NotificationService:
     @staticmethod
     def get_user_notifications(
         db: Session, user_id: int, is_read: Optional[bool] = None,
+        notification_type: Optional[str] = None,
         page: int = 1, page_size: int = 20
     ) -> tuple[List[Notification], int]:
         query = db.query(Notification).filter(Notification.user_id == user_id)
         
         if is_read is not None:
             query = query.filter(Notification.is_read == is_read)
+        
+        if notification_type:
+            from app.models.notification import NotificationType
+            try:
+                type_enum = NotificationType(notification_type)
+                query = query.filter(Notification.type == type_enum)
+            except ValueError:
+                pass
         
         total = query.count()
         items = query.order_by(desc(Notification.created_at)).offset(

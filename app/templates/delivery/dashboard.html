@@ -11,6 +11,11 @@
                     <p class="text-sm text-gray-500 mt-1">监控交付进度、分析差异数据、同步交付状态</p>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <button onclick="exportDeliveryData()" 
+                            class="inline-flex items-center px-4 py-2 bg-success hover:bg-green-600 text-white rounded-lg transition">
+                        <i class="fas fa-download mr-2"></i>
+                        导出数据
+                    </button>
                     <button onclick="syncAllDeliveryStatus()" 
                             class="inline-flex items-center px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition">
                         <i class="fas fa-sync-alt mr-2"></i>
@@ -730,6 +735,21 @@ function confirmSync() {
             btn.disabled = false;
         });
     }
+}
+
+function exportDeliveryData() {
+    const search = document.getElementById('deliverySearch').value;
+    const statusFilter = document.getElementById('deliveryStatusFilter').value;
+    const dateRange = document.getElementById('deliveryDateRange').value;
+    
+    let url = '/api/deliveries/export?';
+    const params = [];
+    if (search) params.push(`purchase_id=${encodeURIComponent(search)}`);
+    if (statusFilter) params.push(`status=${encodeURIComponent(statusFilter)}`);
+    if (dateRange) params.push(`date_range=${dateRange}`);
+    
+    url += params.join('&');
+    window.location.href = url;
 }
 
 function updateBadges() {

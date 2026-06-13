@@ -150,7 +150,7 @@ class PriceService:
     def get_price_trend_data(
         db: Session, material_name: str, specification: Optional[str] = None,
         start_date: Optional[date] = None, end_date: Optional[date] = None
-    ) -> List[dict]:
+    ) -> dict:
         q = db.query(PriceRecord).filter(
             PriceRecord.material_name == material_name
         )
@@ -164,11 +164,33 @@ class PriceService:
         
         records = q.order_by(PriceRecord.record_date).all()
         
-        return [
-            {
-                "date": r.record_date.isoformat(),
-                "price": float(r.price),
-                "supplier": r.supplier.name if r.supplier else "未知"
+        if not records:
+            return {
+                "labels": [],
+                "data": [],
+                "material_name": material_name,
+                "specification": specification or "",
+                "max_price": 0,
+                "min_price": 0,
+                "max_price_date": "",
+                "min_price_date": ""
             }
-            for r in records
-        ]
+        
+        labels = [r.record_date.isoformat() for r in records]
+        data = [float(r.price) for r in records]
+        
+        max_price = max(data)
+        min_price = min(data)
+        max_idx = data.index(max_price)
+        min_idx = data.index(min_price)
+        
+        return {
+            "labels": labels,
+            "data": data,
+            "material_name": material_name,
+            "specification": specification or "",
+            "max_price": max_price,
+            "min_price": min_price,
+            "max_price_date": labels[max_idx],
+            "min_price_date": labels[min_idx]
+        }

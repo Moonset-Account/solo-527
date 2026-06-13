@@ -20,6 +20,8 @@ class NotificationResponse(NotificationBase):
     id: int
     is_read: bool
     created_at: datetime
+    related_url: Optional[str] = None
+    related_title: Optional[str] = None
 
     class Config:
         from_attributes = True

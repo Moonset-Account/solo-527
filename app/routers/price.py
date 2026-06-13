@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
+from io import StringIO
+import csv
 from app.database import get_db
 from app.schemas import (
     PriceRecordCreate, PriceRecordUpdate, PriceRecordResponse,
@@ -9,7 +12,7 @@ from app.schemas import (
 )
 from app.services import PriceService
 from app.utils.security import get_current_user, require_role
-from app.models import User
+from app.models import User, PriceRecord
 
 router = APIRouter()
 
@@ -122,7 +125,7 @@ def get_materials(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return PriceService.get_materials(db)
+    return PriceService.get_material_list(db)
 
 
 @router.get("/supplier/{supplier_id}")
@@ -151,3 +154,56 @@ def get_supplier_prices(
         "page": page,
         "page_size": page_size
     }
+
+
+@router.get("/export")
+def export_price_records(
+    material_name: Optional[str] = Query(None),
+    specification: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = db.query(PriceRecord)
+    
+    if material_name:
+        query = query.filter(PriceRecord.material_name.ilike(f"%{material_name}%"))
+    if specification:
+        query = query.filter(PriceRecord.specification.ilike(f"%{specification}%"))
+    if start_date:
+        query = query.filter(PriceRecord.record_date >= start_date)
+    if end_date:
+        query = query.filter(PriceRecord.record_date <= end_date)
+    
+    records = query.order_by(PriceRecord.record_date.desc()).all()
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "材料名称", "规格型号", "供应商", "价格",
+        "记录日期", "有效期至", "状态"
+    ])
+    
+    for record in records:
+        status = "已过期" if record.is_expired else "有效"
+        supplier_name = record.supplier.name if record.supplier else "-"
+        writer.writerow([
+            record.material_name,
+            record.specification or "-",
+            supplier_name,
+            float(record.price),
+            record.record_date.isoformat(),
+            record.expires_at.isoformat() if record.expires_at else "-",
+            status
+        ])
+    
+    output.seek(0)
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename=price_records_{date.today().isoformat()}.csv"
+        }
+    )

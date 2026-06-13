@@ -41,6 +41,15 @@ def create_invoice_status(
     return AdminService.create_invoice_status(db, status_in)
 
 
+@router.get("/invoice-status/{status_id}", response_model=InvoiceStatusResponse)
+def get_invoice_status(
+    status_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "auditor", "manager"]))
+):
+    return AdminService.get_invoice_status(db, status_id)
+
+
 @router.put("/invoice-status/{status_id}", response_model=InvoiceStatusResponse)
 def update_invoice_status(
     status_id: int,
@@ -99,6 +108,51 @@ async def upload_spec_attachment(
             "description": attachment.description,
             "original_name": attachment.filename,
             "created_at": attachment.created_at.isoformat()
+        }
+    }
+
+
+@router.get("/spec-attachment/{attachment_id}")
+def get_spec_attachment(
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    attachment = AdminService.get_spec_attachment(db, attachment_id)
+    if not attachment:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="规格附件不存在")
+    return {
+        "id": attachment.id,
+        "name": attachment.name,
+        "description": attachment.description,
+        "original_name": attachment.filename,
+        "file_type": attachment.file_type,
+        "file_size": format_file_size(attachment.file_size) if attachment.file_size else None,
+        "uploaded_by": attachment.uploader.real_name if attachment.uploader else None,
+        "created_at": attachment.created_at.isoformat()
+    }
+
+
+@router.put("/spec-attachment/{attachment_id}")
+def update_spec_attachment(
+    attachment_id: int,
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin"]))
+):
+    name = data.get("name")
+    description = data.get("description")
+    if not name:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="附件名称不能为空")
+    attachment = AdminService.update_spec_attachment(db, attachment_id, name, description)
+    return {
+        "success": True,
+        "data": {
+            "id": attachment.id,
+            "name": attachment.name,
+            "description": attachment.description
         }
     }
 

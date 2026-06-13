@@ -94,21 +94,36 @@ def update_purchase(
 @router.post("/{purchase_id}/close", response_model=PurchaseRequestResponse)
 def close_purchase(
     purchase_id: int,
-    close_data: ClosePurchaseRequest,
+    closing_note: str = Form(..., min_length=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    from app.schemas import ClosePurchaseRequest
+    close_data = ClosePurchaseRequest(closing_note=closing_note)
     return PurchaseService.close_purchase(db, purchase_id, close_data, current_user)
 
 
 @router.post("/{purchase_id}/note", response_model=NoteResponse)
 def add_note(
     purchase_id: int,
-    note_in: NoteCreate,
+    content: str = Form(..., min_length=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    note = PurchaseService.add_note(db, purchase_id, note_in.content, current_user)
+    note = PurchaseService.add_note(db, purchase_id, content, current_user)
+    resp = NoteResponse.model_validate(note)
+    resp.created_by_name = note.creator.real_name if note.creator else None
+    return resp
+
+
+@router.post("/{purchase_id}/notes", response_model=NoteResponse)
+def add_note_alt(
+    purchase_id: int,
+    content: str = Form(..., min_length=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    note = PurchaseService.add_note(db, purchase_id, content, current_user)
     resp = NoteResponse.model_validate(note)
     resp.created_by_name = note.creator.real_name if note.creator else None
     return resp
