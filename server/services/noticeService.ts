@@ -136,10 +136,49 @@ export async function confirmReceipt(
   const now = formatDateTime(new Date());
   const update: any = { isConfirmed: true, confirmedAt: now };
   if (feedback) update.feedback = feedback;
+
+  let receipt: any = null;
   try {
     await NoticeReceiptModel.updateOne({ _id: receiptId }, update);
+    receipt = await NoticeReceiptModel.findById(receiptId).lean();
   } catch {}
-  demoStore.updateMany("noticeReceipts", { _id: receiptId }, update);
+  if (!receipt) {
+    demoStore.updateMany("noticeReceipts", { _id: receiptId }, update);
+    receipt = demoStore.findById("noticeReceipts", receiptId);
+  }
+
+  if (feedback && receipt) {
+    const { FeedbackModel: FM } = await import("@/server/models/Feedback");
+    const FeedbackModel: any = FM;
+    const stuName = receipt.studentName || "";
+    let studentId = receipt.studentId;
+    if (!studentId) {
+      try {
+        const stu = await StudentModel.findOne({ name: stuName }).lean();
+        if (stu) studentId = stu._id?.toString() || stu.id;
+      } catch {}
+      if (!studentId) {
+        const stu = demoStore.findOne("students", { name: stuName });
+        if (stu) studentId = stu._id?.toString() || stu.id;
+      }
+    }
+    const feedbackDoc: any = {
+      studentId: studentId || receipt._id?.toString() || receiptId,
+      studentName: stuName,
+      content: feedback,
+      rating: 5,
+      createdAt: now,
+      writerRole: "parent",
+      source: "notice_receipt",
+      noticeReceiptId: receipt._id?.toString() || receiptId,
+    };
+    try {
+      await FeedbackModel.create(feedbackDoc);
+    } catch {
+      demoStore.create("feedbacks", feedbackDoc);
+    }
+  }
+
   await writeAudit(user, "confirm_receipt", "receipt", receiptId, { feedback }, ip);
 }
 

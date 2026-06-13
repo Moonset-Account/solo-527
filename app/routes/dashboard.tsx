@@ -4,7 +4,6 @@ import type {
 } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import {
-  useActionData,
   useLoaderData,
   useFetcher,
 } from "@remix-run/react";
@@ -97,7 +96,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
-  const actionResult = useActionData<typeof action>() as CreateConsumptionResponse | undefined;
   const {
     todaySchedules,
     setSchedules,
@@ -120,7 +118,8 @@ export default function Dashboard() {
   const [versionId, setVersionId] = useState("");
   const [hoursPerStudent, setHoursPerStudent] = useState(2);
   const [toast, setToast] = useState<{ text: string; sub?: string; type: "success" | "warn" } | null>(null);
-  const consumeFetcher = useFetcher<CreateConsumptionResponse>();
+  const consumeFetcher = useFetcher<CreateConsumptionResponse & { error?: string }>();
+  const fetcherResult = consumeFetcher.data;
 
   useEffect(() => {
     setSchedules(data.schedules);
@@ -129,19 +128,19 @@ export default function Dashboard() {
   }, [data, setSchedules, setAlerts, setQBVersions]);
 
   useEffect(() => {
-    if (actionResult?.success) {
-      const totalHours = actionResult.records.reduce((s, r) => s + r.hours, 0);
+    if (fetcherResult?.success) {
+      const totalHours = fetcherResult.records.reduce((s, r) => s + r.hours, 0);
       setToast({
-        text: `已成功消课 ${actionResult.records.length} 人 · 共 ${totalHours}h`,
+        text: `已成功消课 ${fetcherResult.records.length} 人 · 共 ${totalHours}h`,
         sub: "操作留痕已记录 · 数据已同步课时统计报表",
         type: "success",
       });
-      markConsumed(actionResult.records.map((r) => r.id));
-      if (actionResult.insufficientAlerts.length) {
+      markConsumed(fetcherResult.records.map((r) => r.id));
+      if (fetcherResult.insufficientAlerts.length) {
         setTimeout(
           () =>
             setToast({
-              text: `${actionResult.insufficientAlerts.length} 位学员课时不足`,
+              text: `${fetcherResult.insufficientAlerts.length} 位学员课时不足`,
               sub: "请联系家长续报，已加入预警列表",
               type: "warn",
             }),
@@ -150,11 +149,11 @@ export default function Dashboard() {
       }
       setTimeout(() => setToast(null), 5000);
       closeConsumptionPanel();
-    } else if ((actionResult as any)?.error) {
-      setToast({ text: (actionResult as any).error, type: "warn" });
+    } else if (fetcherResult?.error) {
+      setToast({ text: fetcherResult.error, type: "warn" });
       setTimeout(() => setToast(null), 3000);
     }
-  }, [actionResult, markConsumed, closeConsumptionPanel]);
+  }, [fetcherResult, markConsumed, closeConsumptionPanel]);
 
   const activeSchedule = todaySchedules.find((s) => s.id === activeScheduleId);
   const versionOptions = data.versions;
