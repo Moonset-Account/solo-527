@@ -29,9 +29,10 @@ router.group(() => {
 }).prefix('api/operations').middleware('auth:api')
 
 router.group(() => {
-  router.post('exceptions', '#controllers/exceptions_controller.store')
   router.get('exceptions', '#controllers/exceptions_controller.index')
   router.get('exceptions/:id', '#controllers/exceptions_controller.show')
+  router.post('exceptions', '#controllers/exceptions_controller.store')
+  router.put('exceptions/:id', '#controllers/exceptions_controller.update')
 }).prefix('api/operations').middleware('auth:api')
 
 router.group(() => {

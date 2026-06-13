@@ -17,7 +17,11 @@ export default class AuthController {
       })
     )
 
-    const user = await User.create(data)
+    const hashedPassword = await hash.make(data.password)
+    const user = await User.create({
+      ...data,
+      password: hashedPassword,
+    })
     const token = await User.accessTokens.create(user)
 
     return response.created({

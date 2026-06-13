@@ -13,7 +13,17 @@
     "declaration": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["@types/node"]
+    "types": ["@types/node"],
+    "baseUrl": ".",
+    "paths": {
+      "#controllers/*": ["./app/controllers/*.js", "./app/controllers/*.ts"],
+      "#models/*": ["./app/models/*.js", "./app/models/*.ts"],
+      "#middleware/*": ["./app/middleware/*.js", "./app/middleware/*.ts"],
+      "#exceptions/*": ["./app/exceptions/*.js", "./app/exceptions/*.ts"],
+      "#start/*": ["./start/*.js", "./start/*.ts"],
+      "#config/*": ["./config/*.js", "./config/*.ts"],
+      "#database/*": ["./database/*.js", "./database/*.ts"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "build"]

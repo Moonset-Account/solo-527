@@ -11,6 +11,7 @@ import ExceptionRecord from '#models/exception_record'
 import ProcessRecord from '#models/process_record'
 import Rectification from '#models/rectification'
 import { DateTime } from 'luxon'
+import hash from '@adonisjs/core/services/hash'
 
 export default class extends BaseSeeder {
   async run() {
@@ -37,7 +38,7 @@ export default class extends BaseSeeder {
     const admin = await User.create({
       username: 'admin',
       email: 'admin@tea.com',
-      password: 'admin123',
+      password: await hash.make('admin123'),
       fullName: '系统管理员',
       phone: '13800000001',
       role: 'admin',
@@ -47,7 +48,7 @@ export default class extends BaseSeeder {
     const manager1 = await User.create({
       username: 'manager1',
       email: 'manager1@tea.com',
-      password: '123456',
+      password: await hash.make('123456'),
       fullName: '张店长',
       phone: '13800000002',
       role: 'store_manager',
@@ -58,7 +59,7 @@ export default class extends BaseSeeder {
     const manager2 = await User.create({
       username: 'manager2',
       email: 'manager2@tea.com',
-      password: '123456',
+      password: await hash.make('123456'),
       fullName: '李店长',
       phone: '13800000003',
       role: 'store_manager',

@@ -21,7 +21,7 @@
         <el-table-column prop="title" label="标题" min-width="200" />
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
-            <el-tag size="small" :type="logTypeTagMap[getLogType(row)]">{{ logTypeMap[getLogType(row)] || 'info' }">
+            <el-tag size="small" :type="logTypeTagMap[getLogType(row)] || 'info'">
               {{ logTypeMap[getLogType(row)] }}
             </el-tag>
           </template>

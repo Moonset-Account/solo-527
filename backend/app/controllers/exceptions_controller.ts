@@ -76,4 +76,45 @@ export default class ExceptionsController {
 
     return response.created(exception)
   }
+
+  async update({ auth, params, request, response }: HttpContext) {
+    const user = auth.getUserOrFail()
+    const exception = await ExceptionRecord.findOrFail(params.id)
+
+    const data = await request.validateUsing(
+      schema.create({
+        title: schema.string.optional([rules.maxLength(200)]),
+        description: schema.string.optional(),
+        status: schema.enum.optional(['pending', 'processing', 'resolved', 'closed']),
+        handlingResult: schema.string.optional(),
+        lossAmount: schema.number.optional(),
+        ingredientId: schema.number.optional(),
+        ingredientQuantity: schema.number.optional(),
+        lossReasonId: schema.number.optional(),
+        note: schema.string.optional(),
+      })
+    )
+
+    const updateData: any = { ...data }
+    delete updateData.note
+
+    if ((data.status === 'resolved' || data.status === 'closed') && !exception.handledAt) {
+      updateData.handledAt = new Date()
+      updateData.handledBy = user.id
+    }
+
+    if (data.status && exception.status !== data.status) {
+      updateData.status = data.status
+    }
+
+    exception.merge(updateData)
+    await exception.save()
+
+    await exception.load('creator')
+    await exception.load('handler')
+    await exception.load('lossReason')
+    await exception.load('ingredient')
+
+    return response.ok(exception)
+  }
 }
