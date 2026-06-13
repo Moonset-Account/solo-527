@@ -119,6 +119,7 @@ export interface BatchFailureItem {
   requestId: string;
   reason: string;
   retryable: boolean;
+  operation?: 'approve' | 'reject';
 }
 
 export interface SeatUtilizationDetail {

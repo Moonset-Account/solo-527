@@ -27,9 +27,9 @@ export default function BatchProcess() {
     setShowConfirm(false);
   };
 
-  const handleRetry = async (requestId: string) => {
+  const handleRetry = async (requestId: string, operation?: 'approve' | 'reject') => {
     setRetryingIds((prev) => new Set(prev).add(requestId));
-    await retryFailed(requestId);
+    await retryFailed(requestId, operation);
     setRetryingIds((prev) => {
       const next = new Set(prev);
       next.delete(requestId);
@@ -151,12 +151,12 @@ export default function BatchProcess() {
                     </div>
                     {f.retryable && (
                       <button
-                        onClick={() => handleRetry(f.requestId)}
+                        onClick={() => handleRetry(f.requestId, f.operation)}
                         disabled={retryingIds.has(f.requestId)}
                         className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
                       >
                         <RefreshCw size={12} className={retryingIds.has(f.requestId) ? 'animate-spin' : ''} />
-                        重试
+                        重试{f.operation === 'reject' ? '驳回' : '通过'}
                       </button>
                     )}
                   </div>

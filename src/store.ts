@@ -100,7 +100,7 @@ interface AppStore {
   batchResult: BatchResult | null;
   batchLoading: boolean;
   processBatch: (operation: string, requestIds: string[], remark?: string) => Promise<void>;
-  retryFailed: (requestId: string) => Promise<void>;
+  retryFailed: (requestId: string, operation?: 'approve' | 'reject') => Promise<void>;
 
   seatUtilization: SeatUtilizationDetail[];
   seatUtilizationLoading: boolean;
@@ -271,12 +271,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ batchLoading: false });
     }
   },
-  retryFailed: async (requestId) => {
+  retryFailed: async (requestId, operation = 'approve') => {
     set({ batchLoading: true });
     try {
       const retryResult = await apiFetch<BatchResult>('/api/batch/retry', {
         method: 'POST',
-        body: JSON.stringify({ requestId, operation: 'approve' }),
+        body: JSON.stringify({ requestId, operation }),
       });
 
       set((state) => {
@@ -293,7 +293,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
         if (retryFailedItem) {
           newFailures = newFailures.map((f) =>
             f.requestId === requestId
-              ? { ...f, reason: retryFailedItem.reason, retryable: retryFailedItem.retryable }
+              ? {
+                  ...f,
+                  reason: retryFailedItem.reason,
+                  retryable: retryFailedItem.retryable,
+                  operation: retryFailedItem.operation || f.operation,
+                }
               : f,
           );
         } else if (retryResult.successCount > 0 && retryResult.successIds.includes(requestId)) {

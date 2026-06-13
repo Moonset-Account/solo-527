@@ -37,23 +37,25 @@ router.post('/process', (req: Request, res: Response): void => {
     const validStatusesForReject: RequestStatus[] = ['identity_verifying', 'quota_checking', 'assigned', 'pending']
 
     if (batch.operation === 'approve' && !validStatusesForApprove.includes(request.status)) {
-      const canRetry = request.status === 'pending' || request.status === 'rejected' || request.status === 'waitlisted'
+      const canRetry = request.status !== 'completed'
       result.failCount++
       result.failures.push({
         requestId,
-        reason: `当前状态 ${request.status} 不可审批通过，建议先进行身份审核或重试`,
+        reason: `当前状态 ${request.status} 不可审批通过，可先进行身份审核后重试`,
         retryable: canRetry,
+        operation: batch.operation,
       })
       continue
     }
 
     if (batch.operation === 'reject' && !validStatusesForReject.includes(request.status)) {
-      const canRetry = request.status === 'rejected' || request.status === 'waitlisted'
+      const canRetry = request.status !== 'completed'
       result.failCount++
       result.failures.push({
         requestId,
-        reason: `当前状态 ${request.status} 不可拒绝`,
+        reason: `当前状态 ${request.status} 不可拒绝，可先调整申请状态后重试`,
         retryable: canRetry,
+        operation: batch.operation,
       })
       continue
     }
@@ -150,9 +152,16 @@ router.post('/retry', (req: Request, res: Response): void => {
     failures: [],
   }
 
+  const op = operation as 'approve' | 'reject'
+
   if (!requestId || !operation) {
     result.failCount = 1
-    result.failures.push({ requestId: String(requestId || 'unknown'), reason: '缺少必填字段', retryable: true })
+    result.failures.push({
+      requestId: String(requestId || 'unknown'),
+      reason: '缺少必填字段',
+      retryable: true,
+      operation: op,
+    })
     res.json({ success: true, data: result })
     return
   }
@@ -160,7 +169,7 @@ router.post('/retry', (req: Request, res: Response): void => {
   const request = store.repairRequests.getById(requestId)
   if (!request) {
     result.failCount = 1
-    result.failures.push({ requestId, reason: '报修申请不存在', retryable: false })
+    result.failures.push({ requestId, reason: '报修申请不存在', retryable: false, operation: op })
     res.json({ success: true, data: result })
     return
   }
@@ -172,6 +181,7 @@ router.post('/retry', (req: Request, res: Response): void => {
       requestId,
       reason: `当前状态 ${request.status} 不可直接重试，${canRetry ? '可先调整申请状态后再重试' : '已完成的申请无法重试'}`,
       retryable: canRetry,
+      operation: op,
     })
     res.json({ success: true, data: result })
     return
