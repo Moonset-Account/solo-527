@@ -13,8 +13,10 @@ import {
   ChevronDown,
   Menu,
   X,
+  User,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import dynamic from "next/dynamic";
 
 const navItems = [
   {
@@ -44,6 +46,76 @@ const navItems = [
     icon: Settings,
   },
 ];
+
+function isClerkConfigured(): boolean {
+  if (typeof process === "undefined") return false;
+  const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  return !!key && !key.startsWith("pk_test_xxx");
+}
+
+const SignedIn = dynamic(
+  () => import("@clerk/nextjs").then((mod) => mod.SignedIn),
+  { ssr: false, loading: () => null }
+);
+const SignedOut = dynamic(
+  () => import("@clerk/nextjs").then((mod) => mod.SignedOut),
+  { ssr: false, loading: () => null }
+);
+const UserButton = dynamic(
+  () => import("@clerk/nextjs").then((mod) => mod.UserButton),
+  { ssr: false, loading: () => null }
+);
+const RedirectToSignIn = dynamic(
+  () => import("@clerk/nextjs").then((mod) => mod.RedirectToSignIn),
+  { ssr: false, loading: () => null }
+);
+
+function FallbackUserAvatar() {
+  return (
+    <div className="flex items-center gap-2 pl-2">
+      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-medium text-sm">
+        <User className="w-5 h-5" />
+      </div>
+      <div className="hidden sm:block">
+        <p className="text-sm font-medium text-neutral-800">销售总监</p>
+      </div>
+    </div>
+  );
+}
+
+function ClerkUserSection() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <FallbackUserAvatar />;
+
+  try {
+    return (
+      <>
+        <Suspense fallback={<FallbackUserAvatar />}>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+        </Suspense>
+        <Suspense fallback={null}>
+          <SignedOut>
+            <RedirectToSignIn />
+          </SignedOut>
+        </Suspense>
+      </>
+    );
+  } catch {
+    return <FallbackUserAvatar />;
+  }
+}
+
+function UserSection() {
+  const clerkEnabled = isClerkConfigured();
+  if (clerkEnabled) {
+    return <ClerkUserSection />;
+  }
+  return <FallbackUserAvatar />;
+}
 
 export function SidebarNav({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
@@ -150,6 +222,7 @@ export function TopNav({ onMenuClick }: { onMenuClick: () => void }) {
             <Bell className="w-5 h-5 text-neutral-600" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-rose rounded-full"></span>
           </button>
+          <UserSection />
         </div>
       </div>
     </header>

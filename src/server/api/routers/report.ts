@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { router, protectedProcedure, publicProcedure } from "../trpc";
+import { createHash } from "crypto";
+import { router, protectedProcedure, publicProcedure, directorProcedure } from "../trpc";
 import { db } from "@/server/db";
 
 export const reportRouter = router({
@@ -146,5 +147,22 @@ export const reportRouter = router({
       }
 
       return weeklyData;
+    }),
+
+  exportMonthly: directorProcedure
+    .input(z.object({ month: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const filename = `sales-report-${input.month}.xlsx`;
+      const exportedAt = new Date().toISOString();
+      const hashInput = `${filename}-${exportedAt}-${ctx.userId}`;
+      const securityHash = "sha256:" + createHash("sha256").update(hashInput).digest("hex");
+
+      return {
+        success: true,
+        filename,
+        securityHash,
+        exportedAt,
+        userRole: ctx.role,
+      };
     }),
 });

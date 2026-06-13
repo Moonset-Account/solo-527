@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
   AlertTriangle,
-  Clock,
   Info,
   TrendingDown,
   TrendingUp,
@@ -15,6 +14,7 @@ import {
   CheckCircle,
   Eye,
   Search,
+  Loader2,
 } from "lucide-react";
 import {
   AreaChart,
@@ -26,6 +26,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { api } from "@/trpc/react";
 import { mockData } from "@/utils/mockData";
 import {
   severityConfig,
@@ -71,32 +72,29 @@ export default function AnomalyDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const anomaly = mockData.anomalies.find((a) => a.id === id);
+  const ctx = api.useUtils();
+
+  const anomalyQuery = api.anomaly.getById.useQuery(id, { enabled: !!id });
+  const statusMutation = api.anomaly.updateStatus.useMutation();
+  const rootCauseMutation = api.anomaly.updateRootCause.useMutation();
+  const addCommentMutation = api.anomaly.addComment.useMutation();
+
+  const fallbackAnomaly = mockData.anomalies.find((a) => a.id === id);
+  const anomaly = anomalyQuery.data ?? fallbackAnomaly ?? null;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [rootCauseCategory, setRootCauseCategory] = useState(
-    anomaly?.rootCauseCategory || ""
-  );
-  const [rootCauseDesc, setRootCauseDesc] = useState(anomaly?.rootCause || "");
-  const [comments, setComments] = useState<Comment[]>(
-    anomaly?.comments?.map((c: any, i: number) => ({
-      id: `comment-${i}`,
-      author: c.author || "系统",
-      content: c.content,
-      createdAt: anomaly.detectedAt,
-    })) || [
-      {
-        id: "comment-init",
-        author: "系统",
-        content: `检测到${anomaly?.metric.name || "指标"}异常，偏差率 ${
-          anomaly?.deviationPercentage
-        }%`,
-        createdAt: anomaly?.detectedAt || new Date(),
-      },
-    ]
-  );
+  const [rootCauseCategory, setRootCauseCategory] = useState("");
+  const [rootCauseDesc, setRootCauseDesc] = useState("");
   const [newComment, setNewComment] = useState("");
-  const [currentStatus, setCurrentStatus] = useState(anomaly?.status || "OPEN");
+  const [rootCauseSaved, setRootCauseSaved] = useState(false);
+
+  useEffect(() => {
+    if (anomaly) {
+      setRootCauseCategory(anomaly.rootCauseCategory || "");
+      setRootCauseDesc(anomaly.rootCause || "");
+      setRootCauseSaved(false);
+    }
+  }, [anomaly?.id]);
 
   if (!anomaly) {
     return (
@@ -113,6 +111,30 @@ export default function AnomalyDetailPage() {
     );
   }
 
+  const apiComments = anomalyQuery.data?.comments;
+  const comments: Comment[] = apiComments
+    ? apiComments.map((c) => ({
+        id: c.id,
+        author: c.user?.name || "系统",
+        content: c.content,
+        createdAt: c.createdAt,
+      }))
+    : (fallbackAnomaly?.comments?.map((c: any, i: number) => ({
+        id: `comment-${i}`,
+        author: c.author || "系统",
+        content: c.content,
+        createdAt: fallbackAnomaly.detectedAt,
+      })) || [
+        {
+          id: "comment-init",
+          author: "系统",
+          content: `检测到${anomaly.metric.name}异常，偏差率 ${anomaly.deviationPercentage}%`,
+          createdAt: anomaly.detectedAt,
+        },
+      ]);
+
+  const currentStatus = anomalyQuery.data?.status ?? anomaly.status;
+
   const severity = severityConfig[anomaly.severity as keyof typeof severityConfig];
   const status = statusConfig[currentStatus as keyof typeof statusConfig];
   const isNegative = anomaly.deviationPercentage < 0;
@@ -124,33 +146,52 @@ export default function AnomalyDetailPage() {
       expected: anomaly.expectedValue,
     }));
 
+  const handleRootCauseSave = () => {
+    rootCauseMutation.mutate(
+      {
+        id,
+        rootCause: rootCauseDesc,
+        rootCauseCategory,
+        summary: "",
+      },
+      {
+        onSuccess: () => {
+          setRootCauseSaved(true);
+          ctx.anomaly.getById.invalidate(id);
+          setTimeout(() => setRootCauseSaved(false), 2000);
+        },
+      }
+    );
+  };
+
   const handleAddComment = () => {
     if (!newComment.trim()) return;
-    setComments((prev) => [
-      ...prev,
+    addCommentMutation.mutate(
       {
-        id: `comment-${Date.now()}`,
-        author: "当前用户",
+        anomalyId: id,
         content: newComment.trim(),
-        createdAt: new Date(),
       },
-    ]);
-    setNewComment("");
+      {
+        onSuccess: () => {
+          ctx.anomaly.getById.invalidate(id);
+          setNewComment("");
+        },
+      }
+    );
   };
 
   const handleStatusUpdate = (newStatus: string) => {
-    setCurrentStatus(newStatus);
-    const statusLabel =
-      statusConfig[newStatus as keyof typeof statusConfig]?.label || newStatus;
-    setComments((prev) => [
-      ...prev,
+    statusMutation.mutate(
       {
-        id: `comment-${Date.now()}`,
-        author: "当前用户",
-        content: `状态更新为「${statusLabel}」`,
-        createdAt: new Date(),
+        id,
+        status: newStatus as "OPEN" | "INVESTIGATING" | "RESOLVED" | "IGNORED",
       },
-    ]);
+      {
+        onSuccess: () => {
+          ctx.anomaly.getById.invalidate(id);
+        },
+      }
+    );
   };
 
   return (
@@ -383,11 +424,19 @@ export default function AnomalyDetailPage() {
 
         <div className="lg:w-[40%] space-y-6">
           <div className="card p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Search className="w-4 h-4 text-primary-600" />
-              <h3 className="text-sm font-semibold text-neutral-800">
-                根因分析
-              </h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-primary-600" />
+                <h3 className="text-sm font-semibold text-neutral-800">
+                  根因分析
+                </h3>
+              </div>
+              {rootCauseSaved && (
+                <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  已保存
+                </span>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -397,7 +446,10 @@ export default function AnomalyDetailPage() {
                 </label>
                 <select
                   value={rootCauseCategory}
-                  onChange={(e) => setRootCauseCategory(e.target.value)}
+                  onChange={(e) => {
+                    setRootCauseCategory(e.target.value);
+                    setRootCauseSaved(false);
+                  }}
                   className="select"
                 >
                   <option value="">请选择根因类别</option>
@@ -415,12 +467,36 @@ export default function AnomalyDetailPage() {
                 </label>
                 <textarea
                   value={rootCauseDesc}
-                  onChange={(e) => setRootCauseDesc(e.target.value)}
+                  onChange={(e) => {
+                    setRootCauseDesc(e.target.value);
+                    setRootCauseSaved(false);
+                  }}
                   rows={3}
                   className="input resize-none"
                   placeholder="描述异常的根因..."
                 />
               </div>
+
+              <button
+                onClick={handleRootCauseSave}
+                disabled={
+                  rootCauseMutation.isPending ||
+                  (!rootCauseCategory && !rootCauseDesc)
+                }
+                className="btn btn-primary text-sm w-full disabled:opacity-40"
+              >
+                {rootCauseMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    保存中...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    保存根因
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
@@ -472,13 +548,18 @@ export default function AnomalyDetailPage() {
                 }}
                 className="input flex-1"
                 placeholder="添加评论..."
+                disabled={addCommentMutation.isPending}
               />
               <button
                 onClick={handleAddComment}
-                disabled={!newComment.trim()}
+                disabled={!newComment.trim() || addCommentMutation.isPending}
                 className="btn btn-primary px-3 disabled:opacity-40"
               >
-                <Send className="w-4 h-4" />
+                {addCommentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
@@ -491,27 +572,42 @@ export default function AnomalyDetailPage() {
               {currentStatus !== "INVESTIGATING" && (
                 <button
                   onClick={() => handleStatusUpdate("INVESTIGATING")}
-                  className="btn btn-secondary text-sm"
+                  disabled={statusMutation.isPending}
+                  className="btn btn-secondary text-sm disabled:opacity-40"
                 >
-                  <Search className="w-4 h-4" />
+                  {statusMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
                   标记处理中
                 </button>
               )}
               {currentStatus !== "RESOLVED" && (
                 <button
                   onClick={() => handleStatusUpdate("RESOLVED")}
-                  className="btn text-sm bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500"
+                  disabled={statusMutation.isPending}
+                  className="btn text-sm bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 disabled:opacity-40"
                 >
-                  <CheckCircle className="w-4 h-4" />
+                  {statusMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4" />
+                  )}
                   标记已解决
                 </button>
               )}
               {currentStatus !== "IGNORED" && (
                 <button
                   onClick={() => handleStatusUpdate("IGNORED")}
-                  className="btn text-sm bg-neutral-200 text-neutral-600 hover:bg-neutral-300 focus:ring-neutral-400"
+                  disabled={statusMutation.isPending}
+                  className="btn text-sm bg-neutral-200 text-neutral-600 hover:bg-neutral-300 focus:ring-neutral-400 disabled:opacity-40"
                 >
-                  <Eye className="w-4 h-4" />
+                  {statusMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                   忽略
                 </button>
               )}

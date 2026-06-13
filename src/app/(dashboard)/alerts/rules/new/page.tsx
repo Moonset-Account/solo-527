@@ -18,6 +18,7 @@ import {
   thresholdTypeConfig,
   directionConfig,
 } from "@/utils/format";
+import { api } from "@/trpc/react";
 
 const STEPS = [
   { title: "选择指标", icon: BarChart3 },
@@ -35,6 +36,7 @@ const channelOptions = [
 export default function NewAlertRulePage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [ruleName, setRuleName] = useState("");
   const [selectedMetricId, setSelectedMetricId] = useState("");
   const [period, setPeriod] = useState<"DAY" | "WEEK" | "MONTH">("DAY");
   const [thresholdType, setThresholdType] = useState<"ABSOLUTE" | "PERCENTAGE">("PERCENTAGE");
@@ -44,10 +46,18 @@ export default function NewAlertRulePage() {
   const [selectedChannels, setSelectedChannels] = useState<string[]>(["in_app"]);
   const [recipients, setRecipients] = useState("");
 
+  const createMutation = api.alertRule.create.useMutation();
+  const ctx = api.useUtils();
+  const metricsQuery = api.metric.list.useQuery();
+
+  const metrics = metricsQuery.data && metricsQuery.data.length > 0
+    ? metricsQuery.data
+    : mockData.metrics;
+
   const canGoNext = () => {
     switch (currentStep) {
       case 0:
-        return !!selectedMetricId;
+        return !!selectedMetricId && !!ruleName.trim();
       case 1:
         return !!period;
       case 2:
@@ -72,7 +82,33 @@ export default function NewAlertRulePage() {
   };
 
   const handleSave = () => {
-    router.push("/alerts/rules");
+    const recipientList = recipients
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const channels = selectedChannels.map((type) => ({
+      type: type as "in_app" | "email" | "wework",
+      recipients: recipientList.length > 0 ? recipientList : ["all"],
+    }));
+
+    const data = {
+      name: ruleName,
+      metricId: selectedMetricId,
+      period,
+      thresholdType,
+      thresholdValue: Number(thresholdValue),
+      direction,
+      severity,
+      channels,
+    };
+
+    createMutation.mutate(data, {
+      onSuccess: () => {
+        ctx.alertRule.list.invalidate();
+        router.push("/alerts/rules");
+      },
+    });
   };
 
   const toggleChannel = (type: string) => {
@@ -81,7 +117,21 @@ export default function NewAlertRulePage() {
     );
   };
 
-  const selectedMetric = mockData.metrics.find((m) => m.id === selectedMetricId);
+  const selectedMetric = metrics.find((m) => m.id === selectedMetricId);
+
+  if (metricsQuery.isLoading) {
+    return (
+      <div className="animate-fade-in max-w-3xl mx-auto">
+        <div className="mb-8">
+          <div className="h-7 w-32 bg-neutral-200 rounded animate-pulse mb-2" />
+          <div className="h-4 w-48 bg-neutral-200 rounded animate-pulse" />
+        </div>
+        <div className="card p-12">
+          <div className="h-6 w-40 bg-neutral-200 rounded animate-pulse mx-auto" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in max-w-3xl mx-auto">
@@ -136,14 +186,35 @@ export default function NewAlertRulePage() {
         </div>
       </div>
 
+      {createMutation.isError && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">
+            创建失败：{createMutation.error.message || "请稍后重试"}
+          </p>
+        </div>
+      )}
+
       <div className="card p-6 mb-6">
         {currentStep === 0 && (
           <div>
             <h2 className="text-base font-semibold text-neutral-800 mb-1">选择监控指标</h2>
-            <p className="text-sm text-neutral-500 mb-4">选择需要监控异常的销售指标</p>
+            <p className="text-sm text-neutral-500 mb-4">设置规则名称并选择需要监控异常的销售指标</p>
+
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                规则名称
+              </label>
+              <input
+                type="text"
+                value={ruleName}
+                onChange={(e) => setRuleName(e.target.value)}
+                placeholder="例如：日销售额下降告警"
+                className="input"
+              />
+            </div>
 
             <div className="space-y-2">
-              {mockData.metrics.map((metric) => (
+              {metrics.map((metric) => (
                 <button
                   key={metric.id}
                   onClick={() => setSelectedMetricId(metric.id)}
@@ -434,11 +505,11 @@ export default function NewAlertRulePage() {
           ) : (
             <button
               onClick={handleSave}
-              disabled={!canGoNext()}
+              disabled={!canGoNext() || createMutation.isPending}
               className="btn btn-primary"
             >
               <Check className="w-4 h-4" />
-              保存规则
+              {createMutation.isPending ? "保存中..." : "保存规则"}
             </button>
           )}
         </div>

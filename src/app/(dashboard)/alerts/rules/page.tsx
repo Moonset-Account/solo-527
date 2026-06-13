@@ -5,13 +5,29 @@ import Link from "next/link";
 import { Plus, Filter, Search } from "lucide-react";
 import { mockData } from "@/utils/mockData";
 import { AlertRuleCard } from "@/components/alerts/AlertRuleCard";
+import { api } from "@/trpc/react";
 
 type FilterStatus = "all" | "enabled" | "disabled";
 
 export default function AlertRulesPage() {
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [rules, setRules] = useState(mockData.alertRules);
+
+  const listQuery = api.alertRule.list.useQuery();
+  const toggleMutation = api.alertRule.toggle.useMutation();
+  const deleteMutation = api.alertRule.delete.useMutation();
+  const ctx = api.useUtils();
+
+  const rawRules = listQuery.data && listQuery.data.length > 0
+    ? listQuery.data.map((rule) => ({
+        ...rule,
+        createdAt: rule.createdAt.toISOString(),
+        updatedAt: rule.updatedAt.toISOString(),
+        _count: (rule as any)._count || { anomalies: 0 },
+      }))
+    : mockData.alertRules;
+
+  const rules = rawRules as any[];
 
   const filteredRules = rules.filter((rule) => {
     const matchesFilter =
@@ -28,8 +44,11 @@ export default function AlertRulesPage() {
   });
 
   const handleToggle = (id: string) => {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, isEnabled: !r.isEnabled } : r))
+    const rule = rules.find((r) => r.id === id);
+    if (!rule) return;
+    toggleMutation.mutate(
+      { id, isEnabled: !rule.isEnabled },
+      { onSuccess: () => ctx.alertRule.list.invalidate() }
     );
   };
 
@@ -39,12 +58,50 @@ export default function AlertRulesPage() {
 
   const handleDelete = (id: string) => {
     if (confirm("确认删除此告警规则？")) {
-      setRules((prev) => prev.filter((r) => r.id !== id));
+      deleteMutation.mutate(id, { onSuccess: () => ctx.alertRule.list.invalidate() });
     }
   };
 
   const enabledCount = rules.filter((r) => r.isEnabled).length;
   const disabledCount = rules.filter((r) => !r.isEnabled).length;
+
+  if (listQuery.isLoading) {
+    return (
+      <div className="animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="h-7 w-32 bg-neutral-200 rounded animate-pulse mb-2" />
+            <div className="h-4 w-48 bg-neutral-200 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-28 bg-neutral-200 rounded-lg animate-pulse" />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          <div className="h-11 max-w-md flex-1 bg-neutral-200 rounded-lg animate-pulse" />
+          <div className="flex items-center gap-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-8 w-16 bg-neutral-200 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="card p-5">
+              <div className="h-5 w-48 bg-neutral-200 rounded animate-pulse mb-4" />
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j}>
+                    <div className="h-3 w-16 bg-neutral-200 rounded animate-pulse mb-1" />
+                    <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="h-3 w-64 bg-neutral-200 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">

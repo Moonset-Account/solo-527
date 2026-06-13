@@ -1,6 +1,11 @@
-import type { AppRouter } from "@/server/api/root";
-import { createCallerFactory } from "@/server/api/trpc";
+import { appRouter } from "@/server/api/root";
+import { createCallerFactory, createTRPCContext } from "@/server/api/trpc";
 
-export const createCaller = createCallerFactory<AppRouter>();
+export const createCaller = createCallerFactory(appRouter);
 
-export const api = createCaller;
+export const createCallerAsync = async () => {
+  const ctx = await createTRPCContext({ headers: new Headers() });
+  return createCaller(ctx);
+};
+
+export const api = createCallerAsync;

@@ -21,6 +21,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { mockData } from "@/utils/mockData";
 import {
@@ -31,6 +32,7 @@ import {
   formatDateTime,
 } from "@/utils/format";
 import { useNotificationStore } from "@/store/notificationStore";
+import { api } from "@/trpc/react";
 
 const caliberChangeLog = [
   {
@@ -115,11 +117,22 @@ const months = [
   "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12",
 ];
 
+const userRole: "DIRECTOR" | "MANAGER" | "OPERATIONS" = "DIRECTOR";
+
+const roleLabelMap: Record<string, string> = {
+  DIRECTOR: "销售总监",
+  MANAGER: "销售经理",
+  OPERATIONS: "数据运营",
+};
+
 export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState("2024-03");
   const [securityExpanded, setSecurityExpanded] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<{ filename: string } | null>(null);
   const { caliberChangeAlerts, approveCaliberChange, rejectCaliberChange } =
     useNotificationStore();
+
+  const exportMutation = api.report.exportMonthly.useMutation();
 
   const pendingCount = caliberChangeAlerts.filter(
     (a) => a.status === "pending"
@@ -205,6 +218,21 @@ export default function ReportsPage() {
       .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
   }, [caliberChangeAlerts]);
 
+  const handleExport = () => {
+    exportMutation.mutate(
+      { month: selectedMonth },
+      {
+        onSuccess: (data) => {
+          setExportSuccess({ filename: data.filename });
+          setTimeout(() => setExportSuccess(null), 5000);
+        },
+      }
+    );
+  };
+
+  const isExportDisabled = userRole !== "DIRECTOR" || exportMutation.isPending;
+  const exportTooltip = userRole !== "DIRECTOR" ? "仅销售总监可导出报表" : "";
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -214,14 +242,50 @@ export default function ReportsPage() {
             月度异常报告与口径变更审核
           </p>
         </div>
-        <button
-          onClick={() => alert("报表导出功能开发中")}
-          className="btn btn-primary self-start"
-        >
-          <Download className="w-4 h-4" />
-          导出报表
-        </button>
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <span className={`badge ${
+            userRole === "DIRECTOR"
+              ? "bg-primary-50 text-primary-700 border-primary-200"
+              : userRole === "MANAGER"
+              ? "bg-sky-50 text-sky-700 border-sky-200"
+              : "bg-neutral-100 text-neutral-700 border-neutral-200"
+          } border`}>
+            <User className="w-3 h-3" />
+            当前角色：{roleLabelMap[userRole]}
+          </span>
+          <button
+            onClick={handleExport}
+            disabled={isExportDisabled}
+            title={exportTooltip}
+            className="btn btn-primary self-start disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {exportMutation.isPending ? "导出中..." : "导出报表"}
+          </button>
+        </div>
       </div>
+
+      {exportSuccess && (
+        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-emerald-800">
+            报表已导出，文件名 {exportSuccess.filename}，已记入审计日志
+          </p>
+        </div>
+      )}
+
+      {exportMutation.isError && (
+        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+          <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-red-800">
+            导出失败：{exportMutation.error?.message ?? "权限不足或系统错误"}
+          </p>
+        </div>
+      )}
 
       {pendingCount > 0 && (
         <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
