@@ -325,8 +325,6 @@
         </n-space>
       </template>
     </n-modal>
-    </n-space>
-    </n-spin>
   </div>
 </template>
 

@@ -163,7 +163,7 @@ async def seed_data():
         tickets_data = [
             {
                 "title": "无法登录系统，提示密码错误",
-                ""description": "今天早上开始无法登录，密码是正确的，但一直提示错误，已经尝试了3次了，担心账号被锁。",
+                "description": "今天早上开始无法登录，密码是正确的，但一直提示错误，已经尝试了3次了，担心账号被锁。",
                 "status": TicketStatus.RESOLVED,
                 "priority": TicketPriority.HIGH,
                 "category": "账号管理",
