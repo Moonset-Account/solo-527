@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: qinghe-postgres
+    environment:
+      POSTGRES_USER: qinghe
+      POSTGRES_PASSWORD: qinghe123
+      POSTGRES_DB: qinghe_qa
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - qinghe-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: qinghe-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - qinghe-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: qinghe-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://qinghe:qinghe123@postgres:5432/qinghe_qa
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=qinghe-secret-key-change-in-production
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    networks:
+      - qinghe-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: qinghe-celery
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://qinghe:qinghe123@postgres:5432/qinghe_qa
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    volumes:
+      - ./backend:/app
+    networks:
+      - qinghe-network
+    command: celery -A app.celery_worker worker --loglevel=info
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  qinghe-network:
+    driver: bridge

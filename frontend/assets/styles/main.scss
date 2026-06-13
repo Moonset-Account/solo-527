@@ -1,0 +1,75 @@
+$primary-color: #18a058;
+$success-color: #18a058;
+$warning-color: #f0a020;
+$error-color: #d03050;
+$info-color: #2080f0;
+
+$bg-color: #f2f3f5;
+$card-bg: #ffffff;
+$text-color: #1d2129;
+$text-secondary: #4e5969;
+
+$sidebar-width: 240px;
+$header-height: 64px;
+
+$border-radius: 8px;
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: $bg-color;
+  color: $text-color;
+}
+
+.page-container {
+  padding: 24px;
+}
+
+.page-header {
+  margin-bottom: 20px;
+}
+
+.card-wrapper {
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  padding: 20px;
+}
+
+.status-tag-pending {
+  --n-color: #fff7e6;
+  --n-text-color: #d46b08;
+  --n-border: 1px solid #ffd591;
+}
+
+.status-tag-processing {
+  --n-color: #e6f4ff;
+  --n-text-color: #0958d9;
+  --n-border: 1px solid #91caff;
+}
+
+.status-tag-resolved {
+  --n-color: #f0fff4;
+  --n-text-color: #0a6e3e;
+  --n-border: 1px solid #95deaf;
+}
+
+.status-tag-closed {
+  --n-color: #f0f0f0;
+  --n-text-color: #4e5969;
+  --n-border: 1px solid #d0d7de;
+}
+
+.risk-high {
+  --n-color: #fff1f0;
+  --n-text-color: #cf1322;
+  --n-border: 1px solid #ffa39e;
+}
+
+.risk-critical {
+  --n-color: #fff1f0;
+  --n-text-color: #a8071a;
+  --n-border: 1px solid #ff7875;
+}

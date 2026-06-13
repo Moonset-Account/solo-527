@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "types": ["@types/node", "@pinia/nuxt"]
+  },
+  "extends": "./.nuxt/tsconfig.json"
+}

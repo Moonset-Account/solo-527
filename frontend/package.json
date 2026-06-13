@@ -1,0 +1,29 @@
+{
+  "name": "qinghe-qa-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "nuxt": "^3.9.0",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5",
+    "naive-ui": "^2.37.3",
+    "@css-render/vue3-ssr": "^0.15.12",
+    "dayjs": "^1.11.10",
+    "pinia": "^2.1.7",
+    "@pinia/nuxt": "^0.5.1",
+    "echarts": "^5.4.3",
+    "vue-echarts": "^6.6.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "sass": "^1.69.5",
+    "typescript": "^5.3.3"
+  }
+}
