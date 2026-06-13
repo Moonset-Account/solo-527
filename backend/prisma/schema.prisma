@@ -1,0 +1,356 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  FINANCE_STAFF
+  FINANCE_MANAGER
+  ADMIN
+}
+
+enum BillStatus {
+  DRAFT
+  UNPAID
+  PARTIAL_PAID
+  PAID
+  OVERDUE
+  WRITTEN_OFF
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  VOIDED
+  RED_FLUSHED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIAL_REFUNDED
+}
+
+enum TransactionStatus {
+  UNMATCHED
+  MATCHED
+  PARTIAL_MATCHED
+  EXCESS
+}
+
+enum CollectionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ESCALATED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+  CANCELLED
+}
+
+enum WriteOffStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CUSTOMER)
+  phone     String?
+  company   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBills       Bill[]              @relation("BillCreator")
+  createdInvoices    Invoice[]           @relation("InvoiceCreator")
+  createdPayments    Payment[]           @relation("PaymentCreator")
+  assignedCollections Collection[]       @relation("CollectionAssignee")
+  collectionRecords  CollectionRecord[]  @relation("CollectionOperator")
+  appliedRefunds     Refund[]            @relation("RefundApplicant")
+  approvedRefunds    Refund[]            @relation("RefundApprover")
+  appliedWriteOffs   WriteOff[]          @relation("WriteOffApplicant")
+  approvedWriteOffs  WriteOff[]          @relation("WriteOffApprover")
+  matchedTransactions TransactionMatch[] @relation("TransactionMatcher")
+  auditLogs          AuditLog[]
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  customerNo  String   @unique
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  creditLimit Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bills         Bill[]
+  invoices      Invoice[]
+  payments      Payment[]
+  transactions  BankTransaction[]
+  collections   Collection[]
+  refunds       Refund[]
+  writeOffs     WriteOff[]
+}
+
+model Bill {
+  id            Int         @id @default(autoincrement())
+  billNo        String      @unique
+  customerId    Int
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  billPeriod    String
+  billDate      DateTime
+  dueDate       DateTime
+  totalAmount   Decimal     @db.Decimal(12, 2)
+  paidAmount    Decimal     @default(0) @db.Decimal(12, 2)
+  balanceAmount Decimal     @db.Decimal(12, 2)
+  status        BillStatus  @default(UNPAID)
+  remark        String?
+  createdById   Int
+  createdBy     User        @relation("BillCreator", fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  lastHandler   String?
+  lastHandleTime DateTime?
+
+  billItems    BillItem[]
+  invoices     Invoice[]
+  payments     Payment[]
+  collections  Collection[]
+  refunds      Refund[]
+  writeOffs    WriteOff[]
+  timeline     Timeline[]
+  transactionMatches TransactionMatch[]
+}
+
+model BillItem {
+  id          Int     @id @default(autoincrement())
+  billId      Int
+  bill        Bill    @relation(fields: [billId], references: [id])
+  productName String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(10, 2)
+  amount      Decimal @db.Decimal(12, 2)
+  remark      String?
+  createdAt   DateTime @default(now())
+}
+
+model Invoice {
+  id            Int           @id @default(autoincrement())
+  invoiceNo     String        @unique
+  billId        Int?
+  bill          Bill?         @relation(fields: [billId], references: [id])
+  customerId    Int
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  invoiceType   String
+  invoiceAmount Decimal       @db.Decimal(12, 2)
+  taxAmount     Decimal       @default(0) @db.Decimal(10, 2)
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime?
+  remark        String?
+  createdById   Int
+  createdBy     User          @relation("InvoiceCreator", fields: [createdById], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  paymentNo     String        @unique
+  billId        Int?
+  bill          Bill?         @relation(fields: [billId], references: [id])
+  customerId    Int
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  amount        Decimal       @db.Decimal(12, 2)
+  paymentMethod String
+  paymentDate   DateTime
+  status        PaymentStatus @default(SUCCESS)
+  remark        String?
+  createdById   Int
+  createdBy     User          @relation("PaymentCreator", fields: [createdById], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transactionMatch TransactionMatch[]
+  timeline         Timeline[]
+}
+
+model BankTransaction {
+  id            Int               @id @default(autoincrement())
+  transNo       String            @unique
+  customerId    Int?
+  customer      Customer?         @relation(fields: [customerId], references: [id])
+  amount        Decimal           @db.Decimal(12, 2)
+  transDate     DateTime
+  transType     String
+  counterparty  String?
+  bankAccount   String?
+  summary       String?
+  status        TransactionStatus @default(UNMATCHED)
+  matchedAmount Decimal           @default(0) @db.Decimal(12, 2)
+  remark        String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  matches   TransactionMatch[]
+  timeline  Timeline[]
+}
+
+model TransactionMatch {
+  id            Int             @id @default(autoincrement())
+  transactionId Int
+  transaction   BankTransaction @relation(fields: [transactionId], references: [id])
+  paymentId     Int?
+  payment       Payment?        @relation(fields: [paymentId], references: [id])
+  billId        Int?
+  bill          Bill?           @relation(fields: [billId], references: [id])
+  matchAmount   Decimal         @db.Decimal(12, 2)
+  matchType     String
+  remark        String?
+  matchedById   Int?
+  matchedBy     User?           @relation("TransactionMatcher", fields: [matchedById], references: [id])
+  createdAt     DateTime        @default(now())
+}
+
+model Collection {
+  id            Int              @id @default(autoincrement())
+  collectionNo  String           @unique
+  billId        Int
+  bill          Bill             @relation(fields: [billId], references: [id])
+  customerId    Int
+  customer      Customer         @relation(fields: [customerId], references: [id])
+  status        CollectionStatus @default(PENDING)
+  priority      String           @default("NORMAL")
+  dueDate       DateTime
+  amount        Decimal          @db.Decimal(12, 2)
+  currentStage  Int              @default(1)
+  totalStages   Int              @default(3)
+  assignedToId  Int?
+  assignedTo    User?            @relation("CollectionAssignee", fields: [assignedToId], references: [id])
+  remark        String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  records  CollectionRecord[]
+  timeline Timeline[]
+}
+
+model CollectionRecord {
+  id           Int        @id @default(autoincrement())
+  collectionId Int
+  collection   Collection @relation(fields: [collectionId], references: [id])
+  stage        Int
+  action       String
+  result       String?
+  contactTime  DateTime?
+  operatorId   Int
+  operator     User       @relation("CollectionOperator", fields: [operatorId], references: [id])
+  remark       String?
+  createdAt    DateTime   @default(now())
+}
+
+model Refund {
+  id            Int          @id @default(autoincrement())
+  refundNo      String       @unique
+  billId        Int?
+  bill          Bill?        @relation(fields: [billId], references: [id])
+  customerId    Int
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  refundAmount  Decimal      @db.Decimal(12, 2)
+  refundReason  String
+  refundType    String
+  status        RefundStatus @default(PENDING)
+  applyById     Int
+  applyBy       User         @relation("RefundApplicant", fields: [applyById], references: [id])
+  applyTime     DateTime     @default(now())
+  approveById   Int?
+  approveBy     User?        @relation("RefundApprover", fields: [approveById], references: [id])
+  approveTime   DateTime?
+  approveRemark String?
+  processTime   DateTime?
+  remark        String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  timeline Timeline[]
+}
+
+model WriteOff {
+  id            Int            @id @default(autoincrement())
+  writeOffNo    String         @unique
+  billId        Int
+  bill          Bill           @relation(fields: [billId], references: [id])
+  customerId    Int
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  writeOffAmount Decimal       @db.Decimal(12, 2)
+  reason        String
+  status        WriteOffStatus @default(PENDING)
+  applyById     Int
+  applyBy       User           @relation("WriteOffApplicant", fields: [applyById], references: [id])
+  applyTime     DateTime       @default(now())
+  approveById   Int?
+  approveBy     User?          @relation("WriteOffApprover", fields: [approveById], references: [id])
+  approveTime   DateTime?
+  approveRemark String?
+  remark        String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  timeline Timeline[]
+}
+
+model Timeline {
+  id            Int      @id @default(autoincrement())
+  billId        Int?
+  bill          Bill?    @relation(fields: [billId], references: [id])
+  paymentId     Int?
+  payment       Payment? @relation(fields: [paymentId], references: [id])
+  transactionId Int?
+  transaction   BankTransaction? @relation(fields: [transactionId], references: [id])
+  collectionId  Int?
+  collection    Collection? @relation(fields: [collectionId], references: [id])
+  refundId      Int?
+  refund        Refund?   @relation(fields: [refundId], references: [id])
+  writeOffId    Int?
+  writeOff      WriteOff? @relation(fields: [writeOffId], references: [id])
+  eventType     String
+  eventName     String
+  description   String?
+  operatorId    Int?
+  operatorName  String?
+  eventTime     DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  module    String
+  targetId  Int?
+  detail    String?
+  ip        String?
+  createdAt DateTime @default(now())
+}
