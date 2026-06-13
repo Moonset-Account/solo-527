@@ -376,7 +376,12 @@ export async function createBooking(formData: FormData) {
 
   if (!user) return { error: "未登录" };
 
-  const scheduleId = formData.get("schedule_id") as string;
+  const rawScheduleId = (formData.get("schedule_id") as string) || "";
+  const NULL_UUID = "00000000-0000-0000-0000-000000000000";
+  const scheduleId =
+    rawScheduleId && rawScheduleId.length === 36 && rawScheduleId !== NULL_UUID
+      ? rawScheduleId
+      : null;
   const courtId = formData.get("court_id") as string;
   const bookingDate = formData.get("booking_date") as string;
   const startTime = formData.get("start_time") as string;
@@ -420,15 +425,37 @@ export async function createBooking(formData: FormData) {
   if (error) return { error: error.message };
 
   if (hasConflict) {
-    await supabase.from("court_conflicts").insert({
-      court_id: courtId,
-      conflict_date: bookingDate,
-      start_time: startTime,
-      end_time: endTime,
-      booking_ids: [data.id],
-      description: "预约时间冲突，需要负责人处理",
-      status: "open",
-    });
+    const { data: existingConflict } = await supabase
+      .from("court_conflicts")
+      .select("*")
+      .eq("court_id", courtId)
+      .eq("conflict_date", bookingDate)
+      .eq("start_time", startTime)
+      .eq("end_time", endTime)
+      .in("status", ["open", "in_progress"])
+      .maybeSingle();
+
+    if (existingConflict) {
+      const mergedBookingIds = Array.from(
+        new Set([...(existingConflict.booking_ids ?? []), data.id])
+      );
+      await supabase
+        .from("court_conflicts")
+        .update({
+          booking_ids: mergedBookingIds,
+        })
+        .eq("id", existingConflict.id);
+    } else {
+      await supabase.from("court_conflicts").insert({
+        court_id: courtId,
+        conflict_date: bookingDate,
+        start_time: startTime,
+        end_time: endTime,
+        booking_ids: [data.id],
+        description: "预约时间冲突，需要负责人处理",
+        status: "open",
+      });
+    }
   }
 
   revalidatePath("/bookings");

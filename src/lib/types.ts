@@ -89,7 +89,7 @@ export interface Schedule {
 
 export interface Booking {
   id: string;
-  schedule_id: string;
+  schedule_id: string | null;
   user_id: string;
   court_id: string;
   booking_date: string;

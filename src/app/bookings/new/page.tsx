@@ -95,7 +95,9 @@ export default function NewBookingPage() {
 
     try {
       const formData = new FormData();
-      formData.append("schedule_id", selectedSchedule || "00000000-0000-0000-0000-000000000000");
+      if (selectedSchedule) {
+        formData.append("schedule_id", selectedSchedule);
+      }
       formData.append("court_id", selectedCourt);
       formData.append("booking_date", date);
       formData.append("start_time", `${startTime}:00`);

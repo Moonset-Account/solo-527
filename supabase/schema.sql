@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS schedules (
 -- 预约表
 CREATE TABLE IF NOT EXISTS bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  schedule_id UUID REFERENCES schedules(id) ON DELETE CASCADE NOT NULL,
+  schedule_id UUID REFERENCES schedules(id) ON DELETE SET NULL,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   court_id UUID REFERENCES courts(id) ON DELETE CASCADE NOT NULL,
   booking_date DATE NOT NULL,
@@ -325,8 +325,14 @@ CREATE POLICY "Admins/Managers can view conflicts" ON court_conflicts
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
   );
+CREATE POLICY "Authenticated users can create conflicts when booking triggers them" ON court_conflicts
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Managers can manage conflicts" ON court_conflicts
-  FOR ALL USING (
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
+  );
+CREATE POLICY "Managers can delete conflicts" ON court_conflicts
+  FOR DELETE USING (
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
   );
 
@@ -344,7 +350,15 @@ CREATE POLICY "Admins/Managers can view safety reports" ON safety_reports
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
   );
 CREATE POLICY "Managers can create safety reports" ON safety_reports
-  FOR ALL USING (
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
+  );
+CREATE POLICY "Managers can update safety reports" ON safety_reports
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
+  );
+CREATE POLICY "Managers can delete safety reports" ON safety_reports
+  FOR DELETE USING (
     EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role IN ('admin', 'manager'))
   );
 
