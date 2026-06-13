@@ -1,0 +1,337 @@
+// Prisma schema for Dental Clinic Follow-up System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  RECEPTIONIST
+  DOCTOR
+  MANAGER
+  ADMIN
+}
+
+enum LeadQuality {
+  HIGH
+  MEDIUM
+  LOW
+  POTENTIAL
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTING
+  APPOINTED
+  VISITED
+  TREATING
+  CLOSED_WON
+  CLOSED_LOST
+  SUSPENDED
+}
+
+enum FollowUpMethod {
+  PHONE
+  WECHAT
+  SMS
+  EMAIL
+  VISIT
+  OTHER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum AbnormalType {
+  DUPLICATE_LEAD
+  NO_RESPONSE
+  OVERDUE
+  COMPLAINT
+  OTHER
+}
+
+enum ResponseNode {
+  INITIAL_CONTACT
+  FIRST_FOLLOWUP
+  SECOND_FOLLOWUP
+  APPOINTMENT_CONFIRM
+  PRE_VISIT_REMINDER
+  POST_VISIT_FOLLOWUP
+  TREATMENT_FOLLOWUP
+  PAYMENT_REMINDER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String
+  name      String?
+  avatarUrl String?
+  role      UserRole @default(RECEPTIONIST)
+  phone     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  consultationRecords ConsultationRecord[] @relation("CreatorRecords")
+  assignedLeads       Lead[]               @relation("AssignedLeads")
+  createdLeads        Lead[]               @relation("CreatorLeads")
+  followUpPlans       FollowUpPlan[]
+  payments            Payment[]
+  operationLogs       OperationLog[]
+  abnormalRecords     AbnormalRecord[]     @relation("AbnormalReporter")
+  handledAbnormals    AbnormalRecord[]     @relation("AbnormalHandler")
+  leadDuplicates      LeadDuplicate[]
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String
+  gender       String?
+  age          Int?
+  email        String?
+  address      String?
+  source       String?
+  remark       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags CustomerTagRelation[]
+  consultations ConsultationRecord[]
+  leads         Lead[]
+  payments      Payment[]
+  abnormalRecords AbnormalRecord[]
+}
+
+model CustomerTag {
+  id    String @id @default(cuid())
+  name  String @unique
+  color String @default("#3b82f6")
+  sort  Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  customers CustomerTagRelation[]
+}
+
+model CustomerTagRelation {
+  customerId String
+  tagId      String
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag      CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, tagId])
+}
+
+model ConsultationRecord {
+  id              String   @id @default(cuid())
+  customerId      String
+  consultationDate DateTime @default(now())
+  chiefComplaint  String
+  dentalHistory   String?
+  diagnosis       String?
+  treatmentPlan   String?
+  estimatedFee    Decimal? @db.Decimal(12, 2)
+  intentionLevel  String?
+  intentionItems  Json?
+  remark          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   User   @relation("CreatorRecords", fields: [createdById], references: [id])
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  leads Lead[]
+  logs  OperationLog[]
+}
+
+model Lead {
+  id          String      @id @default(cuid())
+  customerId  String
+  recordId    String?
+  title       String
+  description String?
+  quality     LeadQuality @default(POTENTIAL)
+  status      LeadStatus  @default(NEW)
+  estimatedAmount Decimal? @db.Decimal(12, 2)
+
+  assignedToId String?
+  assignedTo   User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
+
+  createdById String
+  createdBy   User      @relation("CreatorLeads", fields: [createdById], references: [id])
+
+  stageId String?
+  stage   FollowUpStage? @relation(fields: [stageId], references: [id])
+
+  lastFollowAt   DateTime?
+  nextFollowAt   DateTime?
+  followUpCount  Int      @default(0)
+  isAnomaly      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer      Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  record        ConsultationRecord? @relation(fields: [recordId], references: [id])
+  followUpPlans FollowUpPlan[]
+  payments      Payment[]
+  logs          OperationLog[]
+  abnormalRecords AbnormalRecord[]
+  duplicates    LeadDuplicate[]
+}
+
+model FollowUpStage {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  color       String @default("#3b82f6")
+  sort        Int    @default(0)
+  isActive    Boolean @default(true)
+
+  leads Lead[]
+  rules FollowUpRule[]
+}
+
+model FollowUpRule {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  triggerStageId    String?
+  triggerCondition  Json?
+  method            FollowUpMethod @default(PHONE)
+  intervalHours     Int      @default(24)
+  templateContent   String?
+  isActive          Boolean  @default(true)
+  priority          Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  triggerStage FollowUpStage? @relation(fields: [triggerStageId], references: [id])
+}
+
+model FollowUpPlan {
+  id          String   @id @default(cuid())
+  leadId      String
+  planDate    DateTime
+  method      FollowUpMethod @default(PHONE)
+  content     String
+  result      String?
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  customerId    String
+  leadId        String?
+  itemName      String
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(12, 2)
+  status        PaymentStatus @default(UNPAID)
+  dueDate       DateTime?
+  paidDate      DateTime?
+  paymentMethod String?
+  remark        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?    @relation(fields: [leadId], references: [id])
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  logs        OperationLog[]
+}
+
+model AbnormalRecord {
+  id            String       @id @default(cuid())
+  type          AbnormalType @default(OTHER)
+  leadId        String?
+  customerId    String?
+  title         String
+  description   String?
+  duplicateReason String?
+  responseNode  ResponseNode?
+  status        String       @default("PENDING")
+  severity      String       @default("NORMAL")
+
+  reporterId String
+  reporter   User   @relation("AbnormalReporter", fields: [reporterId], references: [id])
+  handlerId  String?
+  handler    User?  @relation("AbnormalHandler", fields: [handlerId], references: [id])
+
+  handledAt   DateTime?
+  handleNote  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead      Lead?     @relation(fields: [leadId], references: [id])
+  customer  Customer? @relation(fields: [customerId], references: [id])
+  logs      OperationLog[]
+}
+
+model LeadDuplicate {
+  id             String @id @default(cuid())
+  leadId         String
+  duplicateLeadId String
+  reason         String?
+  detectedById   String
+  mergedAt       DateTime?
+  isResolved     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  detectedBy User @relation(fields: [detectedById], references: [id])
+  lead       Lead @relation("DuplicateLead", fields: [leadId], references: [id], onDelete: Cascade)
+  duplicateLead Lead @relation("OriginalLead", fields: [duplicateLeadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, duplicateLeadId])
+}
+
+model OperationLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  fieldName  String?
+  oldValue   Json?
+  newValue   Json?
+  action     String
+  detail     String?
+
+  operatorId String
+  operator   User   @relation(fields: [operatorId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  consultationRecord ConsultationRecord? @relation(fields: [entityId], references: [id], map: "log_consultation_fk")
+  lead               Lead?               @relation(fields: [entityId], references: [id], map: "log_lead_fk")
+  payment            Payment?            @relation(fields: [entityId], references: [id], map: "log_payment_fk")
+  abnormal           AbnormalRecord?     @relation(fields: [entityId], references: [id], map: "log_abnormal_fk")
+
+  @@index([entityType, entityId])
+  @@index([operatorId, createdAt])
+}
