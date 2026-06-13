@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, managerProcedure } from "../trpc";
 import { createLog } from "../lib/logs";
+import { Prisma } from "@prisma/client";
 
 export const followUpRouter = createTRPCRouter({
   rules: {
@@ -31,7 +32,11 @@ export const followUpRouter = createTRPCRouter({
         priority: z.number().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
-        return ctx.db.followUpRule.create({ data: input });
+        const data: any = { ...input };
+        if (input.triggerCondition) {
+          data.triggerCondition = input.triggerCondition as unknown as Prisma.InputJsonValue;
+        }
+        return ctx.db.followUpRule.create({ data });
       }),
 
     update: managerProcedure
@@ -49,7 +54,16 @@ export const followUpRouter = createTRPCRouter({
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...rest } = input;
-        return ctx.db.followUpRule.update({ where: { id }, data: rest });
+        const data: any = {};
+        for (const [key, value] of Object.entries(rest)) {
+          if (value === undefined) continue;
+          if (key === "triggerCondition") {
+            data[key] = value as unknown as Prisma.InputJsonValue;
+          } else {
+            data[key] = value;
+          }
+        }
+        return ctx.db.followUpRule.update({ where: { id }, data });
       }),
 
     delete: managerProcedure
@@ -73,13 +87,13 @@ export const followUpRouter = createTRPCRouter({
         pageSize: z.number().default(50),
       }))
       .query(async ({ ctx, input }) => {
-        const where: Record<string, unknown> = {};
+        const where: any = {};
         if (input.leadId) where.leadId = input.leadId;
         if (input.isCompleted !== undefined) where.isCompleted = input.isCompleted;
         if (input.dateFrom || input.dateTo) {
           where.planDate = {};
-          if (input.dateFrom) (where.planDate as never).gte = input.dateFrom;
-          if (input.dateTo) (where.planDate as never).lte = input.dateTo;
+          if (input.dateFrom) where.planDate.gte = input.dateFrom;
+          if (input.dateTo) where.planDate.lte = input.dateTo;
         }
 
         const [total, list] = await Promise.all([

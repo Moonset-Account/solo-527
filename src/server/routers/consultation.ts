@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
+import { Prisma } from "@prisma/client";
 
 const trackedFields = [
   "chiefComplaint", "diagnosis", "treatmentPlan",
@@ -18,12 +19,12 @@ export const consultationRouter = createTRPCRouter({
       intentionLevel: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.customerId) where.customerId = input.customerId;
       if (input.dateFrom || input.dateTo) {
         where.consultationDate = {};
-        if (input.dateFrom) (where.consultationDate as never).gte = input.dateFrom;
-        if (input.dateTo) (where.consultationDate as never).lte = input.dateTo;
+        if (input.dateFrom) where.consultationDate.gte = input.dateFrom;
+        if (input.dateTo) where.consultationDate.lte = input.dateTo;
       }
       if (input.intentionLevel) where.intentionLevel = input.intentionLevel;
 
@@ -70,9 +71,9 @@ export const consultationRouter = createTRPCRouter({
             dentalHistory: input.dentalHistory,
             diagnosis: input.diagnosis,
             treatmentPlan: input.treatmentPlan,
-            estimatedFee: input.estimatedFee,
+            estimatedFee: input.estimatedFee ? new Prisma.Decimal(input.estimatedFee) : null,
             intentionLevel: input.intentionLevel,
-            intentionItems: input.intentionItems,
+            intentionItems: input.intentionItems as unknown as Prisma.InputJsonValue,
             remark: input.remark,
             createdById: ctx.dbUser.id,
           },
@@ -87,7 +88,7 @@ export const consultationRouter = createTRPCRouter({
               title: input.leadTitle || input.chiefComplaint.slice(0, 50),
               description: input.treatmentPlan,
               quality: input.leadQuality,
-              estimatedAmount: input.estimatedFee,
+              estimatedAmount: input.estimatedFee ? new Prisma.Decimal(input.estimatedFee) : null,
               createdById: ctx.dbUser.id,
             },
           });
@@ -124,13 +125,24 @@ export const consultationRouter = createTRPCRouter({
       if (!old) throw new Error("记录不存在");
 
       const { id, ...rest } = input;
+      const updateData: any = {};
+      for (const [key, value] of Object.entries(rest)) {
+        if (value === undefined) continue;
+        if (key === "estimatedFee" && typeof value === "number") {
+          updateData[key] = new Prisma.Decimal(value);
+        } else if (key === "intentionItems") {
+          updateData[key] = value as unknown as Prisma.InputJsonValue;
+        } else {
+          updateData[key] = value;
+        }
+      }
       const updated = await ctx.db.consultationRecord.update({
         where: { id },
-        data: rest,
+        data: updateData,
       });
 
       const logs = diffAndCreateLogs(
-        "ConsultationRecord", id, old, rest, ctx.dbUser.id, trackedFields
+        "ConsultationRecord", id, old, updateData as any, ctx.dbUser.id, trackedFields
       );
       for (const log of logs) await createLog(ctx.db, log);
 

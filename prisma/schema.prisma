@@ -155,7 +155,6 @@ model ConsultationRecord {
   customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   leads Lead[]
-  logs  OperationLog[]
 }
 
 model Lead {
@@ -189,9 +188,9 @@ model Lead {
   record        ConsultationRecord? @relation(fields: [recordId], references: [id])
   followUpPlans FollowUpPlan[]
   payments      Payment[]
-  logs          OperationLog[]
   abnormalRecords AbnormalRecord[]
-  duplicates    LeadDuplicate[]
+  duplicates    LeadDuplicate[]  @relation("DuplicateLead")
+  duplicateOf   LeadDuplicate[]  @relation("OriginalLead")
 }
 
 model FollowUpStage {
@@ -263,7 +262,6 @@ model Payment {
   lead     Lead?    @relation(fields: [leadId], references: [id])
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
-  logs        OperationLog[]
 }
 
 model AbnormalRecord {
@@ -291,7 +289,6 @@ model AbnormalRecord {
 
   lead      Lead?     @relation(fields: [leadId], references: [id])
   customer  Customer? @relation(fields: [customerId], references: [id])
-  logs      OperationLog[]
 }
 
 model LeadDuplicate {
@@ -326,11 +323,6 @@ model OperationLog {
   operator   User   @relation(fields: [operatorId], references: [id])
 
   createdAt  DateTime @default(now())
-
-  consultationRecord ConsultationRecord? @relation(fields: [entityId], references: [id], map: "log_consultation_fk")
-  lead               Lead?               @relation(fields: [entityId], references: [id], map: "log_lead_fk")
-  payment            Payment?            @relation(fields: [entityId], references: [id], map: "log_payment_fk")
-  abnormal           AbnormalRecord?     @relation(fields: [entityId], references: [id], map: "log_abnormal_fk")
 
   @@index([entityType, entityId])
   @@index([operatorId, createdAt])

@@ -12,8 +12,6 @@ import {
 } from "@/components/ui/Badges";
 import type {
   AbnormalType,
-  AbnormalSeverity,
-  AbnormalStatus,
   ResponseNode,
 } from "@prisma/client";
 
@@ -306,7 +304,7 @@ export default function AbnormalsPage() {
         open={showAssign}
         onClose={() => setShowAssign(false)}
         abnormalId={selectedId}
-        users={users ?? []}
+        users={(users ?? []).map((u) => ({ id: u.id, name: u.name ?? u.email }))}
         onDone={() => {
           setShowAssign(false);
           refetch();

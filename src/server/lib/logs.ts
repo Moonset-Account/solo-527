@@ -55,7 +55,7 @@ export function diffAndCreateLogs<T extends Record<string, unknown>>(
   oldEntity: T,
   newEntity: Partial<T>,
   operatorId: string,
-  trackedFields: (keyof T & string)[]
+  trackedFields: readonly (keyof T & string)[]
 ): LogInput[] {
   const logs: LogInput[] = [];
   for (const field of trackedFields) {

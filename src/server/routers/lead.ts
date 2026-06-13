@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, managerProcedure } from "../trpc";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
+import { Prisma } from "@prisma/client";
 
 const trackedFields = [
   "title", "description", "quality", "status",
@@ -23,7 +24,7 @@ export const leadRouter = createTRPCRouter({
       isAnomaly: z.boolean().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.keyword) {
         where.OR = [
           { title: { contains: input.keyword, mode: "insensitive" } },
@@ -38,8 +39,8 @@ export const leadRouter = createTRPCRouter({
       if (input.customerId) where.customerId = input.customerId;
       if (input.dateFrom || input.dateTo) {
         where.createdAt = {};
-        if (input.dateFrom) (where.createdAt as never).gte = input.dateFrom;
-        if (input.dateTo) (where.createdAt as never).lte = input.dateTo;
+        if (input.dateFrom) where.createdAt.gte = input.dateFrom;
+        if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
       if (input.isAnomaly !== undefined) where.isAnomaly = input.isAnomaly;
 
@@ -67,7 +68,7 @@ export const leadRouter = createTRPCRouter({
   detail: protectedProcedure
     .input(z.string())
     .query(async ({ ctx, input }) => {
-      return ctx.db.lead.findUnique({
+      const lead = await ctx.db.lead.findUnique({
         where: { id: input },
         include: {
           customer: { include: { tags: { include: { tag: true } } } },
@@ -77,9 +78,25 @@ export const leadRouter = createTRPCRouter({
           record: true,
           followUpPlans: { orderBy: { planDate: "desc" } },
           payments: { orderBy: { createdAt: "desc" } },
-          logs: { orderBy: { createdAt: "desc" }, take: 50, include: { operator: true } },
         },
       });
+      if (!lead) return null;
+      const logs = await ctx.db.operationLog.findMany({
+        where: { entityType: "Lead", entityId: input },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: { operator: true },
+      });
+      const plans = await ctx.db.followUpPlan.findMany({
+        where: { leadId: input },
+        orderBy: { planDate: "desc" },
+        include: { createdBy: true },
+      });
+      const payments = await ctx.db.payment.findMany({
+        where: { leadId: input },
+        orderBy: { createdAt: "desc" },
+      });
+      return { ...lead, followUpPlans: plans, payments, logs };
     }),
 
   create: protectedProcedure
@@ -93,12 +110,11 @@ export const leadRouter = createTRPCRouter({
       assignedToId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const lead = await ctx.db.lead.create({
-        data: {
-          ...input,
-          createdById: ctx.dbUser.id,
-        },
-      });
+      const data: any = { ...input, createdById: ctx.dbUser.id };
+      if (input.estimatedAmount !== undefined && input.estimatedAmount !== null) {
+        data.estimatedAmount = new Prisma.Decimal(input.estimatedAmount);
+      }
+      const lead = await ctx.db.lead.create({ data });
 
       await createLog(ctx.db, {
         entityType: "Lead",
@@ -128,7 +144,15 @@ export const leadRouter = createTRPCRouter({
       if (!old) throw new Error("线索不存在");
 
       const { id, ...rest } = input;
-      const updateData: typeof rest & { lastFollowAt?: Date; followUpCount?: number } = { ...rest };
+      const updateData: any = {};
+      for (const [key, value] of Object.entries(rest)) {
+        if (value === undefined) continue;
+        if (key === "estimatedAmount" && typeof value === "number") {
+          updateData[key] = new Prisma.Decimal(value);
+        } else {
+          updateData[key] = value;
+        }
+      }
       if (rest.status && old.status !== rest.status) {
         updateData.lastFollowAt = new Date();
         updateData.followUpCount = { increment: 1 };
@@ -140,7 +164,7 @@ export const leadRouter = createTRPCRouter({
       });
 
       const logs = diffAndCreateLogs(
-        "Lead", id, old, rest, ctx.dbUser.id, trackedFields
+        "Lead", id, old, updateData as any, ctx.dbUser.id, trackedFields
       );
       for (const log of logs) await createLog(ctx.db, log);
 
@@ -181,13 +205,13 @@ export const leadRouter = createTRPCRouter({
       dateTo: z.date().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.quality) where.quality = input.quality;
       if (input.status) where.status = input.status;
       if (input.dateFrom || input.dateTo) {
         where.createdAt = {};
-        if (input.dateFrom) (where.createdAt as never).gte = input.dateFrom;
-        if (input.dateTo) (where.createdAt as never).lte = input.dateTo;
+        if (input.dateFrom) where.createdAt.gte = input.dateFrom;
+        if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
       const leads = await ctx.db.lead.findMany({

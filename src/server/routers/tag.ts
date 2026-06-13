@@ -3,10 +3,14 @@ import { createTRPCRouter, protectedProcedure, managerProcedure } from "../trpc"
 
 export const tagRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.customerTag.findMany({
+    const tags = await ctx.db.customerTag.findMany({
       orderBy: [{ sort: "asc" }, { name: "asc" }],
       include: { _count: { select: { customers: true } } },
-    }),
+    });
+    return tags.map((t) => ({
+      ...t,
+      _count: { customers: t._count.customers },
+    }));
   }),
 
   create: managerProcedure

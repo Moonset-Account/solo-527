@@ -20,15 +20,15 @@ export const abnormalRouter = createTRPCRouter({
       dateTo: z.date().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.type) where.type = input.type;
       if (input.status) where.status = input.status;
       if (input.severity) where.severity = input.severity;
       if (input.handlerId) where.handlerId = input.handlerId;
       if (input.dateFrom || input.dateTo) {
         where.createdAt = {};
-        if (input.dateFrom) (where.createdAt as never).gte = input.dateFrom;
-        if (input.dateTo) (where.createdAt as never).lte = input.dateTo;
+        if (input.dateFrom) where.createdAt.gte = input.dateFrom;
+        if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
       const [total, list] = await Promise.all([
@@ -52,16 +52,22 @@ export const abnormalRouter = createTRPCRouter({
   detail: protectedProcedure
     .input(z.string())
     .query(async ({ ctx, input }) => {
-      return ctx.db.abnormalRecord.findUnique({
+      const rec = await ctx.db.abnormalRecord.findUnique({
         where: { id: input },
         include: {
           lead: { include: { customer: true, stage: true } },
           customer: true,
           reporter: true,
           handler: true,
-          logs: { orderBy: { createdAt: "desc" }, include: { operator: true } },
         },
       });
+      if (!rec) return null;
+      const logs = await ctx.db.operationLog.findMany({
+        where: { entityType: "AbnormalRecord", entityId: input },
+        orderBy: { createdAt: "desc" },
+        include: { operator: true },
+      });
+      return { ...rec, logs };
     }),
 
   create: protectedProcedure

@@ -154,7 +154,7 @@ export const customerRouter = createTRPCRouter({
           entityId: id,
           action: "UPDATE",
           fieldName: "tagIds",
-          oldValue: (old as never).tagIds,
+          oldValue: (old as any).tagIds,
           newValue: tagIds,
           operatorId: ctx.dbUser.id,
           detail: "修改客户标签",

@@ -25,6 +25,7 @@ export default function LeadsPage() {
     isAnomaly?: boolean;
   }>({});
 
+  const trpc = api.useContext();
   const { data: stages } = api.stage.list.useQuery();
   const { data: users } = api.user.list.useQuery();
 
@@ -52,7 +53,7 @@ export default function LeadsPage() {
   );
 
   const handleExport = async () => {
-    const result = await api.lead.export.fetch({
+    const result = await trpc.lead.export.fetch({
       quality: filters.quality,
       status: filters.status,
       dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
@@ -61,8 +62,8 @@ export default function LeadsPage() {
 
     const csvContent = [
       result.headers.join(","),
-      ...result.rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      ...result.rows.map((row: (string | number | null | undefined)[]) =>
+        row.map((cell: string | number | null | undefined) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")
       ),
     ].join("\n");
 

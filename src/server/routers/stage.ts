@@ -5,13 +5,13 @@ export const stageRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.followUpStage.findMany({
       where: { isActive: true },
-      orderBy: [{ sort: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ sort: "asc" }, { createdAt: "asc" }] as any,
     });
   }),
 
   listAll: managerProcedure.query(async ({ ctx }) => {
     return ctx.db.followUpStage.findMany({
-      orderBy: [{ sort: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ sort: "asc" }, { createdAt: "asc" }] as any,
       include: { _count: { select: { leads: true, rules: true } } },
     });
   }),

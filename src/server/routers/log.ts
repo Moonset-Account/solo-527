@@ -14,15 +14,15 @@ export const logRouter = createTRPCRouter({
       dateTo: z.date().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.entityType) where.entityType = input.entityType;
       if (input.entityId) where.entityId = input.entityId;
       if (input.operatorId) where.operatorId = input.operatorId;
       if (input.action) where.action = input.action;
       if (input.dateFrom || input.dateTo) {
         where.createdAt = {};
-        if (input.dateFrom) (where.createdAt as never).gte = input.dateFrom;
-        if (input.dateTo) (where.createdAt as never).lte = input.dateTo;
+        if (input.dateFrom) where.createdAt.gte = input.dateFrom;
+        if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
       const [total, list] = await Promise.all([

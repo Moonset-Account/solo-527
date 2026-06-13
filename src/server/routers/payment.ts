@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
+import { Prisma } from "@prisma/client";
 
 const trackedFields = [
   "itemName", "totalAmount", "paidAmount",
@@ -19,14 +20,14 @@ export const paymentRouter = createTRPCRouter({
       dateTo: z.date().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.customerId) where.customerId = input.customerId;
       if (input.leadId) where.leadId = input.leadId;
       if (input.status) where.status = input.status;
       if (input.dateFrom || input.dateTo) {
         where.createdAt = {};
-        if (input.dateFrom) (where.createdAt as never).gte = input.dateFrom;
-        if (input.dateTo) (where.createdAt as never).lte = input.dateTo;
+        if (input.dateFrom) where.createdAt.gte = input.dateFrom;
+        if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
       const [total, list] = await Promise.all([
@@ -68,14 +69,15 @@ export const paymentRouter = createTRPCRouter({
       remark: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const payment = await ctx.db.payment.create({
-        data: {
-          ...input,
-          status: deriveStatus(input.totalAmount, input.paidAmount, input.status),
-          paidDate: input.paidAmount > 0 && input.paidAmount >= input.totalAmount ? new Date() : undefined,
-          createdById: ctx.dbUser.id,
-        },
-      });
+      const data: any = {
+        ...input,
+        status: deriveStatus(input.totalAmount, input.paidAmount, input.status),
+        paidDate: input.paidAmount > 0 && input.paidAmount >= input.totalAmount ? new Date() : undefined,
+        createdById: ctx.dbUser.id,
+      };
+      data.totalAmount = new Prisma.Decimal(input.totalAmount);
+      data.paidAmount = new Prisma.Decimal(input.paidAmount);
+      const payment = await ctx.db.payment.create({ data });
 
       await createLog(ctx.db, {
         entityType: "Payment",
@@ -104,7 +106,15 @@ export const paymentRouter = createTRPCRouter({
       if (!old) throw new Error("回款记录不存在");
 
       const { id, ...rest } = input;
-      const updateData: typeof rest & { paidDate?: Date } = { ...rest };
+      const updateData: any = {};
+      for (const [key, value] of Object.entries(rest)) {
+        if (value === undefined) continue;
+        if ((key === "totalAmount" || key === "paidAmount") && typeof value === "number") {
+          updateData[key] = new Prisma.Decimal(value);
+        } else {
+          updateData[key] = value;
+        }
+      }
       if (rest.paidAmount !== undefined && rest.totalAmount !== undefined) {
         updateData.status = deriveStatus(rest.totalAmount, rest.paidAmount, rest.status);
         if (rest.paidAmount > 0 && rest.paidAmount >= rest.totalAmount && !old.paidDate) {
@@ -120,7 +130,7 @@ export const paymentRouter = createTRPCRouter({
       });
 
       const logs = diffAndCreateLogs(
-        "Payment", id, old, rest, ctx.dbUser.id, trackedFields
+        "Payment", id, old, updateData as any, ctx.dbUser.id, trackedFields
       );
       for (const log of logs) await createLog(ctx.db, log);
 
@@ -144,7 +154,7 @@ export const paymentRouter = createTRPCRouter({
       const updated = await ctx.db.payment.update({
         where: { id: input.id },
         data: {
-          paidAmount: newPaid,
+          paidAmount: new Prisma.Decimal(newPaid),
           status: newStatus,
           paidDate: newStatus === "PAID" ? new Date() : old.paidDate,
           paymentMethod: input.paymentMethod ?? old.paymentMethod,
@@ -211,12 +221,12 @@ export const paymentRouter = createTRPCRouter({
       dateTo: z.date().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const where: Record<string, unknown> = {};
+      const where: any = {};
       if (input.status) where.status = input.status;
       if (input.dateFrom || input.dateTo) {
         where.createdAt = {};
-        if (input.dateFrom) (where.createdAt as never).gte = input.dateFrom;
-        if (input.dateTo) (where.createdAt as never).lte = input.dateTo;
+        if (input.dateFrom) where.createdAt.gte = input.dateFrom;
+        if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
       const data = await ctx.db.payment.findMany({
