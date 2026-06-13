@@ -1,5 +1,6 @@
 <template>
-  <div class="ticket-detail-wrapper" v-loading="loading">
+  <div class="ticket-detail-wrapper">
+    <n-spin :show="loading">
     <n-space vertical :size="16" style="padding: 20px;">
       <n-card v-if="ticket">
         <template #header>
@@ -278,7 +279,8 @@
 
         <n-tab-pane name="similar" tab="相似工单">
           <n-space vertical :size="16">
-            <n-card title="相似工单推荐" :bordered="true" v-loading="similarLoading">
+            <n-spin :show="similarLoading">
+            <n-card title="相似工单推荐" :bordered="true">
               <n-space vertical :size="12" v-if="similarTickets.length > 0">
                 <n-card
                   v-for="sim in similarTickets"
@@ -322,10 +324,12 @@
               </n-space>
               <n-empty v-else description="暂无相似工单" />
             </n-card>
+            </n-spin>
           </n-space>
         </n-tab-pane>
       </n-tabs>
     </n-space>
+    </n-spin>
   </div>
 </template>
 
@@ -527,7 +531,7 @@ async function fetchTicket() {
     ticket.value = await get<any>(`/tickets/${ticketId.value}`)
     if (ticket.value.kb_article_id) {
       try {
-        kbArticle.value = await get<any>(`/kb/articles/${ticket.value.kb_article_id}`)
+        kbArticle.value = await get<any>(`/knowledge-base/articles/${ticket.value.kb_article_id}`)
       } catch {
         kbArticle.value = { id: ticket.value.kb_article_id, title: `文章 #${ticket.value.kb_article_id}` }
       }
@@ -601,15 +605,29 @@ async function handleUpload(options: UploadCustomRequestOptions) {
   }
 }
 
-function downloadAttachment(att: any) {
-  const token = auth.token
-  const url = `${baseURL}/tickets/${ticketId.value}/attachments/${att.id}/download`
-  const a = document.createElement('a')
-  a.href = `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`
-  a.download = att.original_filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+async function downloadAttachment(att: any) {
+  try {
+    const token = auth.token
+    const url = `${baseURL}/tickets/${ticketId.value}/attachments/${att.id}/download`
+    const resp = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (!resp.ok) {
+      message.error('下载失败：权限不足或文件不存在')
+      return
+    }
+    const blob = await resp.blob()
+    const objUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = att.original_filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(objUrl)
+  } catch (e: any) {
+    message.error(e.message || '下载失败')
+  }
 }
 
 async function markDuplicate(duplicateOfId: number) {

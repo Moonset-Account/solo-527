@@ -14,8 +14,21 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    '@pinia/nuxt',
+    ['@pinia/nuxt', { autoImports: ['defineStore', 'storeToRefs'] }],
   ],
+
+  imports: {
+    dirs: [
+      'composables/**',
+      'stores/**'
+    ],
+    imports: [
+      { from: 'naive-ui', name: 'useMessage' },
+      { from: 'naive-ui', name: 'useDialog' },
+      { from: 'naive-ui', name: 'useNotification' },
+      { from: 'dayjs', name: 'default', as: 'dayjs' },
+    ]
+  },
 
   build: {
     transpile: ['naive-ui', 'vueuc', '@css-render/vue3-ssr', '@juggle/resize-observer']
@@ -31,7 +44,10 @@ export default defineNuxtConfig({
         'naive-ui',
         'vueuc',
         'date-fns-tz/esm/formatInTimeZone',
-        '@css-render/vue3-ssr'
+        '@css-render/vue3-ssr',
+        'dayjs',
+        'dayjs/plugin/relativeTime',
+        'dayjs/plugin/duration',
       ]
     }
   },

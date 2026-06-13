@@ -91,6 +91,7 @@ async def list_tickets(
     category: Optional[str] = None,
     has_overdue_risk: Optional[bool] = None,
     is_duplicate: Optional[bool] = None,
+    kb_article_id: Optional[int] = None,
     keyword: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -114,6 +115,8 @@ async def list_tickets(
         conditions.append(Ticket.has_overdue_risk == has_overdue_risk)
     if is_duplicate is not None:
         conditions.append(Ticket.is_duplicate == is_duplicate)
+    if kb_article_id:
+        conditions.append(Ticket.kb_article_id == kb_article_id)
     if keyword:
         conditions.append(or_(
             Ticket.title.ilike(f"%{keyword}%"),
@@ -318,6 +321,11 @@ async def download_attachment(
     attachment = result.scalar_one_or_none()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
+
+    ticket_result = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+    ticket = ticket_result.scalar_one_or_none()
+    if ticket and current_user.role == RoleEnum.CUSTOMER and ticket.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     if not os.path.exists(attachment.file_path):
         raise HTTPException(status_code=404, detail="File not found")

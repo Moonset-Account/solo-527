@@ -1,5 +1,6 @@
 <template>
-  <div class="kb-detail-wrapper" v-loading="loading">
+  <div class="kb-detail-wrapper">
+    <n-spin :show="loading">
     <n-space vertical :size="16" style="padding: 20px;">
       <n-card v-if="article">
         <template #header>
@@ -324,6 +325,8 @@
         </n-space>
       </template>
     </n-modal>
+    </n-space>
+    </n-spin>
   </div>
 </template>
 
