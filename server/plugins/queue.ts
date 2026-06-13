@@ -1,5 +1,18 @@
-import { startSuggestionWorker, enqueueBatchTask, processTaskFallback } from '~/server/utils/queue'
+import { startSuggestionWorker, enqueueBatchTask, processTaskFallback, isWorkerReady } from '~/server/utils/queue'
 import { useDB } from '~/server/utils/db'
+
+const WORKER_CONNECT_TIMEOUT = 5_000
+
+function waitForWorker(timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (isWorkerReady()) { resolve(true); return }
+    const start = Date.now()
+    const check = setInterval(() => {
+      if (isWorkerReady()) { clearInterval(check); resolve(true); return }
+      if (Date.now() - start > timeoutMs) { clearInterval(check); resolve(false) }
+    }, 200)
+  })
+}
 
 export default defineNitroPlugin(async () => {
   console.log('[NitroPlugin] Initializing BullMQ queue system...')
@@ -21,11 +34,17 @@ export default defineNitroPlugin(async () => {
     })
 
     if (orphanedTasks.length > 0) {
-      console.log(`[NitroPlugin] Found ${orphanedTasks.length} in-progress tasks, re-enqueueing...`)
+      console.log(`[NitroPlugin] Found ${orphanedTasks.length} in-progress tasks, waiting for worker...`)
+      const workerUp = await waitForWorker(WORKER_CONNECT_TIMEOUT)
       for (const t of orphanedTasks) {
-        const result = await enqueueBatchTask(t.id)
-        if (!result.queued) {
-          console.warn(`[NitroPlugin] Re-enqueue task ${t.id} failed, running local fallback`)
+        if (workerUp) {
+          const result = await enqueueBatchTask(t.id)
+          if (!result.queued) {
+            console.warn(`[NitroPlugin] Re-enqueue task ${t.id} failed (${result.reason}), running local fallback`)
+            processTaskFallback(t.id)
+          }
+        } else {
+          console.warn(`[NitroPlugin] Worker not ready, running local fallback for task ${t.id}`)
           processTaskFallback(t.id)
         }
       }

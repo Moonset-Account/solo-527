@@ -10,28 +10,15 @@ let suggestionWorker: Worker | null = null
 let suggestionQueueEvents: QueueEvents | null = null
 let timeoutTimer: any = null
 let workerStarted = false
-let queueAvailable: boolean | null = null
+let workerReady = false
 
 function getRedisConfig() {
   const config = useRuntimeConfig()
   return config.redisUrl || 'redis://localhost:6379'
 }
 
-export async function isQueueReady(): Promise<boolean> {
-  if (queueAvailable !== null) return queueAvailable
-  try {
-    const q = useSuggestionQueue()
-    if (!q) {
-      queueAvailable = false
-      return false
-    }
-    await q.ping()
-    queueAvailable = true
-    return true
-  } catch {
-    queueAvailable = false
-    return false
-  }
+export function isWorkerReady(): boolean {
+  return workerReady
 }
 
 export function useSuggestionQueue(): Queue | null {
@@ -49,30 +36,26 @@ export function useSuggestionQueue(): Queue | null {
     })
     suggestionQueue.on('error', (err) => {
       console.warn('[Queue] error:', err.message)
-      queueAvailable = false
-    })
-    suggestionQueue.on('connected', () => {
-      console.log('[Queue] connected')
-      queueAvailable = true
     })
     return suggestionQueue
   } catch (e) {
     console.warn('[Queue] failed to instantiate:', e)
-    queueAvailable = false
     return null
   }
 }
 
 export async function enqueueBatchTask(taskId: string): Promise<{ queued: boolean; reason?: string }> {
+  if (!workerReady) {
+    return { queued: false, reason: 'worker not connected' }
+  }
   const queue = useSuggestionQueue()
   if (!queue) return { queued: false, reason: 'queue not available' }
   try {
     await queue.add('process-batch', { taskId }, { jobId: taskId, removeOnComplete: false, removeOnFail: false })
-    queueAvailable = true
     return { queued: true }
   } catch (e: any) {
     console.warn('[Queue] enqueue failed:', e?.message)
-    queueAvailable = false
+    workerReady = false
     return { queued: false, reason: e?.message }
   }
 }
@@ -185,10 +168,19 @@ export function startSuggestionWorker() {
     })
     suggestionWorker.on('error', (err) => {
       console.error('[BullMQ] Worker error:', err.message)
+      workerReady = false
     })
     suggestionWorker.on('connected', () => {
-      console.log('[BullMQ] Worker connected')
-      queueAvailable = true
+      console.log('[BullMQ] Worker connected — consumer ready')
+      workerReady = true
+    })
+    suggestionWorker.on('disconnected', () => {
+      console.warn('[BullMQ] Worker disconnected')
+      workerReady = false
+    })
+    suggestionWorker.on('closing', () => {
+      console.warn('[BullMQ] Worker closing')
+      workerReady = false
     })
 
     suggestionQueueEvents = new QueueEvents(QUEUE_NAME, {
@@ -199,6 +191,7 @@ export function startSuggestionWorker() {
     })
   } catch (e) {
     console.warn('[BullMQ] Worker start failed, will rely on local fallback + timeout detector:', e)
+    workerReady = false
   }
 
   startTimeoutDetector()
