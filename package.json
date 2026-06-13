@@ -1,0 +1,19 @@
+{
+  "name": "work-order-system",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
+    "build:css": "esbuild app/assets/stylesheets/application.css --bundle --sourcemap --outfile=app/assets/builds/app.css --public-path=/assets",
+    "build:all": "npm run build && npm run build:css",
+    "watch": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets --watch",
+    "watch:css": "esbuild app/assets/stylesheets/application.css --bundle --sourcemap --outfile=app/assets/builds/app.css --public-path=/assets --watch"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo-rails": "^8.0.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.0"
+  }
+}

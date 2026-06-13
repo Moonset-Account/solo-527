@@ -1,0 +1,243 @@
+<% content_for(:title, "登录 - 工单工序流转系统") %>
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_include_tag :application, "data-turbo-track": "reload", defer: true %>
+  </head>
+  <body class="auth-body">
+    <div class="auth-wrapper">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="auth-logo">🏭</div>
+          <h1 class="auth-title">工单工序流转系统</h1>
+          <p class="auth-subtitle">欢迎回来，请登录您的账号</p>
+        </div>
+
+        <%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+          <div class="auth-form">
+            <%= render "devise/shared/error_messages", resource: resource %>
+
+            <div class="form-group">
+              <%= f.label :email, class: "form-label" %>
+              <div class="input-wrapper">
+                <span class="input-icon">📧</span>
+                <%= f.email_field :email, autofocus: true, autocomplete: "email", class: "form-input", placeholder: "请输入邮箱地址" %>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <%= f.label :password, class: "form-label" %>
+              <div class="input-wrapper">
+                <span class="input-icon">🔒</span>
+                <%= f.password_field :password, autocomplete: "current-password", class: "form-input", placeholder: "请输入密码" %>
+              </div>
+            </div>
+
+            <% if devise_mapping.rememberable? %>
+              <div class="form-checkbox-group">
+                <%= f.check_box :remember_me, class: "form-checkbox" %>
+                <%= f.label :remember_me, class: "form-checkbox-label" %>
+              </div>
+            <% end %>
+
+            <div class="form-actions">
+              <%= f.submit "登录", class: "btn-auth btn-auth-primary" %>
+            </div>
+          </div>
+        <% end %>
+
+        <%= render "devise/shared/links" %>
+      </div>
+    </div>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      .auth-body {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        padding: 1rem;
+      }
+      .auth-wrapper {
+        width: 100%;
+        max-width: 440px;
+      }
+      .auth-container {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      }
+      .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .auth-logo {
+        font-size: 3.5rem;
+        margin-bottom: 0.75rem;
+      }
+      .auth-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+      }
+      .auth-subtitle {
+        font-size: 0.9rem;
+        color: #718096;
+      }
+      .auth-form {
+        margin-bottom: 1.5rem;
+      }
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+      }
+      .input-wrapper {
+        position: relative;
+      }
+      .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1rem;
+        opacity: 0.5;
+      }
+      .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem 0.75rem 2.75rem;
+        font-size: 0.95rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        outline: none;
+        background: #f7fafc;
+      }
+      .form-input:focus {
+        border-color: #667eea;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      .form-input::placeholder {
+        color: #a0aec0;
+      }
+      .form-checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .form-checkbox {
+        width: 1rem;
+        height: 1rem;
+        cursor: pointer;
+        accent-color: #667eea;
+      }
+      .form-checkbox-label {
+        font-size: 0.875rem;
+        color: #4a5568;
+        cursor: pointer;
+      }
+      .form-actions {
+        margin-top: 0.5rem;
+      }
+      .btn-auth {
+        width: 100%;
+        padding: 0.85rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .btn-auth-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+      }
+      .btn-auth-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      }
+      .btn-auth-primary:active {
+        transform: translateY(0);
+      }
+      .auth-links {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+        padding-top: 1.25rem;
+        border-top: 1px solid #edf2f7;
+      }
+      .auth-link {
+        color: #667eea;
+        font-size: 0.875rem;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+      }
+      .auth-link:hover {
+        color: #5a67d8;
+        text-decoration: underline;
+      }
+      .auth-alert {
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .auth-alert-danger {
+        background: #fff5f5;
+        border: 1px solid #fed7d7;
+      }
+      .auth-alert-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #c53030;
+        margin-bottom: 0.5rem;
+      }
+      .auth-alert-icon {
+        font-size: 1rem;
+      }
+      .auth-error-list {
+        list-style: none;
+        padding-left: 1.5rem;
+      }
+      .auth-error-list li {
+        font-size: 0.85rem;
+        color: #9b2c2c;
+        line-height: 1.6;
+        position: relative;
+      }
+      .auth-error-list li::before {
+        content: "•";
+        position: absolute;
+        left: -1rem;
+        color: #fc8181;
+      }
+    </style>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+<%= form_with model: [:admin, @equipment], local: true do |f| %>
+  <% if @equipment.errors.any? %>
+    <div class="error-explanation">
+      <h3><%= pluralize(@equipment.errors.count, "个错误") %> 阻止了此设备的保存：</h3>
+      <ul>
+        <% @equipment.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-grid">
+    <div class="form-field">
+      <%= f.label :name, "设备名称" %>
+      <%= f.text_field :name, class: "form-input", placeholder: "请输入设备名称" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :code, "设备编号 *" %>
+      <%= f.text_field :code, class: "form-input", placeholder: "请输入设备编号", required: true %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :equipment_type, "设备类型" %>
+      <%= f.text_field :equipment_type, class: "form-input", placeholder: "如：注塑机、冲压机等" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :status, "状态" %>
+      <%= f.select :status, Equipment.statuses.map { |k, v| [Equipment.human_attribute_name("status.#{k}"), k] }, {}, class: "form-select" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :location, "所在位置" %>
+      <%= f.text_field :location, class: "form-input", placeholder: "请输入设备位置" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :standard_output_per_hour, "标准产能(件/小时)" %>
+      <%= f.number_field :standard_output_per_hour, class: "form-input", step: "0.01" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :purchase_date, "购置日期" %>
+      <%= f.date_field :purchase_date, class: "form-input" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :last_maintenance_date, "上次维护日期" %>
+      <%= f.date_field :last_maintenance_date, class: "form-input" %>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= link_to "取消", admin_equipment_index_path, class: "btn btn-outline" %>
+    <%= f.submit class: "btn btn-primary" %>
+  </div>
+<% end %>

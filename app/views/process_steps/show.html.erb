@@ -1,0 +1,361 @@
+<% content_for :title, "#{@process_step.name} - 工序详情" %>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><%= @process_step.name %></h1>
+    <p class="page-subtitle">
+      所属工单：<%= link_to @work_order.order_no, work_order_path(@work_order) %>
+      <% if @work_order.product_name.present? %>
+        · <%= @work_order.product_name %>
+      <% end %>
+    </p>
+  </div>
+  <%= link_to "返回工单", work_order_path(@work_order), class: "btn btn-outline btn-sm" %>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-card-label">工序状态</span>
+      <div class="stat-card-icon">📊</div>
+    </div>
+    <% status_class = case @process_step.status
+      when "not_started" then "badge badge-secondary"
+      when "in_progress" then "badge badge-primary"
+      when "paused" then "badge badge-warning"
+      when "completed" then "badge badge-success"
+      when "quality_check" then "badge badge-info"
+      else "badge badge-secondary"
+    end %>
+    <% status_text = case @process_step.status
+      when "not_started" then "未开始"
+      when "in_progress" then "进行中"
+      when "paused" then "已暂停"
+      when "completed" then "已完成"
+      when "quality_check" then "质检中"
+      else @process_step.status
+    end %>
+    <div class="stat-card-value"><span class="<%= status_class %>"><%= status_text %></span></div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-card-label">顺序号</span>
+      <div class="stat-card-icon">🔢</div>
+    </div>
+    <div class="stat-card-value">第 <%= @process_step.sequence %> 步</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-card-label">实际数量</span>
+      <div class="stat-card-icon">📦</div>
+    </div>
+    <div class="stat-card-value"><%= @process_step.actual_quantity %></div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-header">
+      <span class="stat-card-label">缺陷数量</span>
+      <div class="stat-card-icon">⚠️</div>
+    </div>
+    <div class="stat-card-value"><%= @process_step.defect_quantity %></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">资源分配</h2>
+    <%= button_tag "编辑资源", class: "btn btn-outline btn-sm", id: "toggle-resource-form" %>
+  </div>
+
+  <div id="resource-display">
+    <div class="form-row">
+      <div class="form-group">
+        <label>分配班组</label>
+        <div><%= @process_step.assigned_team&.name || "-" %></div>
+      </div>
+      <div class="form-group">
+        <label>分配设备</label>
+        <div><%= @process_step.assigned_equipment&.name || "-" %></div>
+      </div>
+      <div class="form-group">
+        <label>使用模具</label>
+        <div><%= @process_step.mold&.name || "-" %></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="resource-form" style="display: none;">
+    <%= form_with model: [@work_order, @process_step], local: true do |f| %>
+      <div class="form-row">
+        <div class="form-group">
+          <%= f.label :assigned_team_id, "分配班组" %>
+          <%= f.select :assigned_team_id,
+            options_from_collection_for_select(Team.all, :id, :name, @process_step.assigned_team_id),
+            { include_blank: "请选择班组" }, class: "form-select" %>
+        </div>
+        <div class="form-group">
+          <%= f.label :assigned_equipment_id, "分配设备" %>
+          <%= f.select :assigned_equipment_id,
+            options_from_collection_for_select(Equipment.all, :id, :name, @process_step.assigned_equipment_id),
+            { include_blank: "请选择设备" }, class: "form-select" %>
+        </div>
+        <div class="form-group">
+          <%= f.label :mold_id, "使用模具" %>
+          <%= f.select :mold_id,
+            options_from_collection_for_select(Mold.all, :id, :name, @process_step.mold_id),
+            { include_blank: "请选择模具" }, class: "form-select" %>
+        </div>
+      </div>
+      <div class="form-actions">
+        <%= button_tag "取消", type: "button", class: "btn btn-outline", id: "cancel-resource-form" %>
+        <%= f.submit "保存", class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">生产数据</h2>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>开始时间</label>
+      <div><%= @process_step.started_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></div>
+    </div>
+    <div class="form-group">
+      <label>暂停时间</label>
+      <div><%= @process_step.paused_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></div>
+    </div>
+    <div class="form-group">
+      <label>完成时间</label>
+      <div><%= @process_step.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></div>
+    </div>
+    <div class="form-group">
+      <label>实际数量</label>
+      <div><%= @process_step.actual_quantity %></div>
+    </div>
+    <div class="form-group">
+      <label>缺陷数量</label>
+      <div><%= @process_step.defect_quantity %></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">工序操作</h2>
+  </div>
+
+  <div class="form-actions">
+    <% if @process_step.not_started? %>
+      <%= button_to "开始工序", start_work_order_process_step_path(@work_order, @process_step),
+        method: :post, class: "btn btn-success",
+        form: { id: "start-form" } %>
+    <% end %>
+
+    <% if @process_step.in_progress? %>
+      <%= button_to "暂停工序", pause_work_order_process_step_path(@work_order, @process_step),
+        method: :post, class: "btn btn-warning" %>
+      <%= button_tag "完成工序", class: "btn btn-success", id: "show-complete-form" %>
+    <% end %>
+
+    <% if @process_step.paused? %>
+      <%= button_to "恢复工序", resume_work_order_process_step_path(@work_order, @process_step),
+        method: :post, class: "btn btn-primary" %>
+    <% end %>
+
+    <% if @process_step.quality_check? %>
+      <%= button_to "继续处理", continue_processing_work_order_process_step_path(@work_order, @process_step),
+        method: :post, class: "btn btn-primary" %>
+      <%= link_to "新建质检记录", new_work_order_process_step_quality_inspection_path(@work_order, @process_step),
+        class: "btn btn-info" %>
+    <% end %>
+
+    <% if @process_step.completed? %>
+      <%= link_to "新建质检记录", new_work_order_process_step_quality_inspection_path(@work_order, @process_step),
+        class: "btn btn-info" %>
+    <% end %>
+  </div>
+
+  <% if @process_step.in_progress? %>
+    <div id="complete-form" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+      <%= form_tag complete_work_order_process_step_path(@work_order, @process_step), method: :post do %>
+        <div class="form-row">
+          <div class="form-group">
+            <%= label_tag :actual_quantity, "实际完成数量 *" %>
+            <%= number_field_tag :actual_quantity, nil, class: "form-input", required: true, min: 0 %>
+          </div>
+          <div class="form-group">
+            <%= label_tag :defect_quantity, "缺陷数量" %>
+            <%= number_field_tag :defect_quantity, 0, class: "form-input", min: 0 %>
+          </div>
+        </div>
+        <div class="form-actions">
+          <%= button_tag "取消", type: "button", class: "btn btn-outline", id: "cancel-complete-form" %>
+          <%= submit_tag "确认完成", class: "btn btn-success" %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">质检记录</h2>
+    <%= link_to "新建质检记录", new_work_order_process_step_quality_inspection_path(@work_order, @process_step),
+      class: "btn btn-primary btn-sm" %>
+  </div>
+
+  <% if @quality_inspections.any? %>
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>质检时间</th>
+            <th>质检员</th>
+            <th>质检结果</th>
+            <th>缺陷类型</th>
+            <th>缺陷数量</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @quality_inspections.each do |inspection| %>
+            <tr>
+              <td><%= inspection.inspection_time&.strftime("%Y-%m-%d %H:%M:%S") || inspection.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+              <td><%= inspection.inspector&.name || inspection.inspector&.email %></td>
+              <td>
+                <% result_class = case inspection.result
+                  when "pass" then "badge badge-success"
+                  when "fail" then "badge badge-danger"
+                  when "rework" then "badge badge-warning"
+                  else "badge badge-secondary"
+                end %>
+                <% result_text = case inspection.result
+                  when "pass" then "合格"
+                  when "fail" then "不合格"
+                  when "rework" then "返工"
+                  else inspection.result
+                end %>
+                <span class="<%= result_class %>"><%= result_text %></span>
+              </td>
+              <td><%= inspection.defect_type || "-" %></td>
+              <td><%= inspection.defect_quantity %></td>
+              <td><%= inspection.notes.present? ? truncate(inspection.notes, length: 50) : "-" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="empty-state">
+      <div class="empty-state-icon">🔍</div>
+      <p>暂无质检记录</p>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">工序效率记录</h2>
+  </div>
+
+  <% if @efficiencies.any? %>
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>记录时间</th>
+            <th>设备</th>
+            <th>班组</th>
+            <th>模具</th>
+            <th>标准产能(件/小时)</th>
+            <th>实际产能(件/小时)</th>
+            <th>持续时间(小时)</th>
+            <th>效率</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @efficiencies.each do |efficiency| %>
+            <tr>
+              <td><%= efficiency.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+              <td><%= efficiency.equipment&.name || "-" %></td>
+              <td><%= efficiency.team&.name || "-" %></td>
+              <td><%= efficiency.mold&.name || "-" %></td>
+              <td><%= efficiency.standard_output_per_hour %></td>
+              <td><%= efficiency.actual_output_per_hour %></td>
+              <td><%= efficiency.duration_hours %></td>
+              <td>
+                <% if efficiency.efficiency_rate.present? %>
+                  <% eff_class = if efficiency.efficiency_rate >= 100
+                    "badge badge-success"
+                  elsif efficiency.efficiency_rate >= 80
+                    "badge badge-info"
+                  elsif efficiency.efficiency_rate >= 60
+                    "badge badge-warning"
+                  else
+                    "badge badge-danger"
+                  end %>
+                  <span class="<%= eff_class %>"><%= efficiency.efficiency_rate %>%</span>
+                <% else %>
+                  -
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="empty-state">
+      <div class="empty-state-icon">📈</div>
+      <p>暂无效率记录</p>
+    </div>
+  <% end %>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var toggleBtn = document.getElementById("toggle-resource-form");
+    var resourceDisplay = document.getElementById("resource-display");
+    var resourceForm = document.getElementById("resource-form");
+    var cancelBtn = document.getElementById("cancel-resource-form");
+
+    if (toggleBtn && resourceDisplay && resourceForm) {
+      toggleBtn.addEventListener("click", function() {
+        resourceDisplay.style.display = "none";
+        resourceForm.style.display = "block";
+        toggleBtn.style.display = "none";
+      });
+
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", function() {
+          resourceDisplay.style.display = "block";
+          resourceForm.style.display = "none";
+          toggleBtn.style.display = "inline-flex";
+        });
+      }
+    }
+
+    var showCompleteBtn = document.getElementById("show-complete-form");
+    var completeForm = document.getElementById("complete-form");
+    var cancelCompleteBtn = document.getElementById("cancel-complete-form");
+
+    if (showCompleteBtn && completeForm) {
+      showCompleteBtn.addEventListener("click", function() {
+        completeForm.style.display = "block";
+        showCompleteBtn.style.display = "none";
+      });
+
+      if (cancelCompleteBtn) {
+        cancelCompleteBtn.addEventListener("click", function() {
+          completeForm.style.display = "none";
+          showCompleteBtn.style.display = "inline-flex";
+        });
+      }
+    }
+  });
+</script>

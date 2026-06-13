@@ -1,0 +1,62 @@
+<div class="page-header">
+  <h1>模具详情</h1>
+  <div class="page-actions">
+    <%= link_to "编辑", edit_admin_mold_path(@mold), class: "btn btn-primary btn-sm" %>
+    <%= link_to "删除", admin_mold_path(@mold), class: "btn btn-danger btn-sm", data: { turbo_method: :delete, turbo_confirm: "确定要删除此模具吗？" } %>
+    <%= link_to "返回列表", admin_molds_path, class: "btn btn-outline btn-sm" %>
+  </div>
+</div>
+
+<div class="card">
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">模具编号</span>
+      <span class="detail-value"><%= @mold.code %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">模具名称</span>
+      <span class="detail-value"><%= @mold.name %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">模具材质</span>
+      <span class="detail-value"><%= @mold.material %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">状态</span>
+      <span class="detail-value">
+        <% status_class = case @mold.status
+                          when "available" then "badge-success"
+                          when "in_use" then "badge-primary"
+                          when "maintenance" then "badge-warning"
+                          when "retired" then "badge-secondary"
+                          else "badge-secondary"
+                          end %>
+        <span class="badge <%= status_class %>"><%= Mold.human_attribute_name("status.#{@mold.status}") %></span>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">累计总模次</span>
+      <span class="detail-value"><%= number_with_delimiter(@mold.total_shots) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">当前模次</span>
+      <span class="detail-value"><%= number_with_delimiter(@mold.current_shots) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">最大寿命模次</span>
+      <span class="detail-value"><%= number_with_delimiter(@mold.max_shots) %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">维护日期</span>
+      <span class="detail-value"><%= @mold.maintenance_date&.strftime("%Y-%m-%d") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间</span>
+      <span class="detail-value"><%= @mold.created_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">更新时间</span>
+      <span class="detail-value"><%= @mold.updated_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+</div>

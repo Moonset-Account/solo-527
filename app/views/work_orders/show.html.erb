@@ -1,0 +1,67 @@
+<% content_for :title, "工单详情 - #{@work_order.order_no}" %>
+
+<div class="container mx-auto px-4 py-6">
+  <%= turbo_frame_tag dom_id(@work_order) do %>
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">
+          <%= @work_order.order_no %> - <%= @work_order.product_name %>
+        </h1>
+        <p class="text-gray-600">
+          <span class="px-2 py-0.5 text-xs rounded-full mr-2
+            <%= @work_order.priority == 'urgent' ? 'bg-red-100 text-red-800' : @work_order.priority == 'high' ? 'bg-orange-100 text-orange-800' : @work_order.priority == 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' %>">
+            <%= @work_order.priority_name %>
+          </span>
+          <span class="px-2 py-0.5 text-xs rounded-full mr-2
+            <%= @work_order.status == 'completed' ? 'bg-green-100 text-green-800' : @work_order.status == 'in_progress' ? 'bg-blue-100 text-blue-800' : @work_order.status == 'on_hold' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' %>">
+            <%= @work_order.status_name %>
+          </span>
+          进度: <span class="font-semibold"><%= @work_order.progress_percentage %>%</span>
+          (<%= @work_order.completed_steps_count %>/<%= @work_order.total_steps_count %> 工序)
+        </p>
+      </div>
+      <div class="flex space-x-2">
+        <%= link_to "返回列表", work_orders_path, class: "px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300" %>
+        <% if policy(@work_order).edit? %>
+          <%= link_to "编辑工单", edit_work_order_path(@work_order), class: "px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" %>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-gray-500 text-sm">计划周期</div>
+        <div class="font-medium">
+          <%= @work_order.planned_start_date.strftime('%Y-%m-%d') %> ~ <%= @work_order.planned_end_date.strftime('%Y-%m-%d') %>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-gray-500 text-sm">数量 / 客户</div>
+        <div class="font-medium"><%= @work_order.quantity %>件 / <%= @work_order.customer %></div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-gray-500 text-sm">累计良品</div>
+        <div class="font-medium text-green-600"><%= @work_order.total_actual_quantity - @work_order.total_defect_quantity %>件</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-gray-500 text-sm">不良率</div>
+        <div class="font-medium <%= @work_order.defect_rate > 5 ? 'text-red-600' : 'text-green-600' %>">
+          <%= @work_order.defect_rate %>%
+        </div>
+      </div>
+    </div>
+
+    <% if @work_order.notes.present? %>
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div class="text-sm text-yellow-800">
+          <span class="font-medium">备注:</span> <%= @work_order.notes %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+
+  <div class="bg-gray-50 rounded-lg p-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">工序流转</h2>
+    <%= render 'work_orders/process_step_timeline', process_steps: @process_steps, work_order: @work_order %>
+  </div>
+</div>

@@ -1,0 +1,240 @@
+<% content_for(:title, "数据导出") %>
+
+<div class="page-header">
+  <h1 class="page-title">数据导出</h1>
+  <p class="page-subtitle">导出系统数据，支持 Excel 和 CSV 格式</p>
+</div>
+
+<div class="export-cards">
+  <div class="export-card">
+    <div class="export-card-header">
+      <span class="export-icon">📋</span>
+      <h3>工单数据导出</h3>
+    </div>
+    <p class="export-card-desc">导出所有工单信息，包括工单编号、产品名称、数量、状态、优先级等字段。</p>
+    <div class="export-actions">
+      <%= link_to work_orders_exports_path(format: :xlsx), class: "btn btn-primary" do %>
+        <span class="btn-icon">📊</span> 导出 Excel
+      <% end %>
+      <%= link_to work_orders_exports_path(format: :csv), class: "btn btn-outline" do %>
+        <span class="btn-icon">📄</span> 导出 CSV
+      <% end %>
+    </div>
+  </div>
+
+  <div class="export-card">
+    <div class="export-card-header">
+      <span class="export-icon">🔍</span>
+      <h3>质检数据导出</h3>
+    </div>
+    <p class="export-card-desc">导出所有质量检验记录，包括检验结果、缺陷类型、缺陷数量、检验人员等信息。</p>
+    <div class="export-actions">
+      <%= link_to quality_inspections_exports_path(format: :xlsx), class: "btn btn-primary" do %>
+        <span class="btn-icon">📊</span> 导出 Excel
+      <% end %>
+      <%= link_to quality_inspections_exports_path(format: :csv), class: "btn btn-outline" do %>
+        <span class="btn-icon">📄</span> 导出 CSV
+      <% end %>
+    </div>
+  </div>
+
+  <div class="export-card">
+    <div class="export-card-header">
+      <span class="export-icon">⚡</span>
+      <h3>工序效率导出</h3>
+    </div>
+    <p class="export-card-desc">导出工序效率数据，包括标准产量、实际产量、工时、效率率等关键指标。</p>
+    <div class="export-actions">
+      <%= link_to process_efficiencies_exports_path(format: :xlsx), class: "btn btn-primary" do %>
+        <span class="btn-icon">📊</span> 导出 Excel
+      <% end %>
+      <%= link_to process_efficiencies_exports_path(format: :csv), class: "btn btn-outline" do %>
+        <span class="btn-icon">📄</span> 导出 CSV
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<% recent_exports = AuditLog.where(action_type: ["导出工单数据", "导出质检数据", "导出工序效率数据"]).order(created_at: :desc).limit(5) %>
+
+<% if recent_exports.any? %>
+  <div class="recent-exports">
+    <h2 class="section-title">最近导出记录</h2>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>导出时间</th>
+            <th>操作人</th>
+            <th>导出类型</th>
+            <th>数据条数</th>
+            <th>格式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recent_exports.each do |log| %>
+            <% details = log.details ? JSON.parse(log.details) : {} %>
+            <tr>
+              <td><%= log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+              <td><%= log.user&.name || log.user&.email || "系统" %></td>
+              <td><%= log.action_type %></td>
+              <td><%= details["count"] || "-" %></td>
+              <td><span class="badge badge-<%= details['format'] == 'xlsx' ? 'primary' : 'secondary' %>"><%= details["format"]&.upcase %></span></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% end %>
+
+<style>
+  .page-header {
+    margin-bottom: 2rem;
+  }
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 0.5rem 0;
+  }
+  .page-subtitle {
+    color: #718096;
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .export-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .export-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+  }
+  .export-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+  .export-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .export-icon {
+    font-size: 1.75rem;
+  }
+  .export-card-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #1a202c;
+  }
+  .export-card-desc {
+    color: #718096;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0 0 1.25rem 0;
+    min-height: 3rem;
+  }
+  .export-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-primary {
+    background: #3b82f6;
+    color: #ffffff;
+    border-color: #3b82f6;
+  }
+  .btn-primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+  }
+  .btn-outline {
+    background: #ffffff;
+    color: #4a5568;
+    border-color: #cbd5e0;
+  }
+  .btn-outline:hover {
+    background: #f7fafc;
+    border-color: #a0aec0;
+  }
+  .btn-icon {
+    font-size: 0.95rem;
+  }
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 1rem 0;
+  }
+  .table-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .data-table thead {
+    background: #f7fafc;
+  }
+  .data-table th {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .data-table td {
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+    color: #2d3748;
+    border-bottom: 1px solid #edf2f7;
+  }
+  .data-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .badge-primary {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+  .badge-secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+  }
+  .recent-exports {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+</style>

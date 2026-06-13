@@ -1,0 +1,92 @@
+<div class="page-header">
+  <h1>失败批次详情</h1>
+  <div class="page-actions">
+    <% if @failed_batch.pending? || @failed_batch.processing? %>
+      <%= button_to "重试", retry_admin_failed_batch_path(@failed_batch), method: :post, class: "btn btn-primary btn-sm", data: { turbo_confirm: "确定要重试此失败批次吗？" } %>
+      <%= button_to "标记解决", resolve_admin_failed_batch_path(@failed_batch), method: :post, class: "btn btn-success btn-sm", data: { turbo_confirm: "确定要标记此批次为已解决吗？" } %>
+    <% end %>
+    <%= link_to "返回列表", admin_failed_batches_path, class: "btn btn-outline btn-sm" %>
+  </div>
+</div>
+
+<div class="card">
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">批次号</span>
+      <span class="detail-value"><%= @failed_batch.batch_no %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">状态</span>
+      <span class="detail-value">
+        <% status_class = case @failed_batch.status
+                         when "pending" then "badge-warning"
+                         when "processing" then "badge-primary"
+                         when "retried" then "badge-info"
+                         when "resolved" then "badge-success"
+                         else "badge-secondary"
+                         end %>
+        <span class="badge <%= status_class %>"><%= FailedBatch.human_attribute_name("status.#{@failed_batch.status}") %></span>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">关联工单</span>
+      <span class="detail-value">
+        <% if @failed_batch.work_order %>
+          <%= link_to @failed_batch.work_order.order_no, work_order_path(@failed_batch.work_order) %>
+        <% else %>
+          -
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">关联工序</span>
+      <span class="detail-value">
+        <% if @failed_batch.process_step %>
+          <%= link_to @failed_batch.process_step.name, work_order_process_step_path(@failed_batch.work_order, @failed_batch.process_step) %>
+        <% else %>
+          -
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">重试次数</span>
+      <span class="detail-value"><%= @failed_batch.retry_count %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">解决人</span>
+      <span class="detail-value">
+        <% if @failed_batch.resolved_by %>
+          <%= @failed_batch.resolved_by.name || @failed_batch.resolved_by.email %>
+        <% else %>
+          -
+        <% end %>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">解决时间</span>
+      <span class="detail-value"><%= @failed_batch.resolved_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间</span>
+      <span class="detail-value"><%= @failed_batch.created_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+
+  <div class="detail-section">
+    <h3>错误信息</h3>
+    <% if @failed_batch.error_message.present? %>
+      <pre class="error-pre"><%= @failed_batch.error_message %></pre>
+    <% else %>
+      <p class="text-muted">-</p>
+    <% end %>
+  </div>
+
+  <div class="detail-section">
+    <h3>请求负载 (Payload)</h3>
+    <% if @failed_batch.payload.present? %>
+      <pre class="payload-pre"><%= @failed_batch.payload %></pre>
+    <% else %>
+      <p class="text-muted">-</p>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,174 @@
+# Files in the config/locales directory are used for internationalization and
+# are automatically loaded by Rails. If you want to use locales other than
+# English, add the necessary files in this directory.
+#
+# To use the locales, use `I18n.t`:
+#
+#     I18n.t "hello"
+#
+# In views, this is aliased to just `t`:
+#
+#     <%= t("hello") %>
+#
+# To use a different locale, set it with `I18n.locale`:
+#
+#     I18n.locale = :es
+#
+# This would use the information in config/locales/es.yml.
+#
+# To learn more about the API, please read the Rails Internationalization guide
+# at https://guides.rubyonrails.org/i18n.html.
+#
+# Be aware that YAML interprets the following case-insensitive strings as
+# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
+# must be quoted to be interpreted as strings. For example:
+#
+#     en:
+#       "yes": yup
+#       enabled: "ON"
+
+en:
+  hello: "Hello world"
+
+  enums:
+    user:
+      role:
+        admin: "管理员"
+        shop_director: "车间主任"
+
+    work_order:
+      status:
+        pending: "待处理"
+        in_progress: "进行中"
+        completed: "已完成"
+        on_hold: "已挂起"
+      priority:
+        low: "低"
+        medium: "中"
+        high: "高"
+        urgent: "紧急"
+
+    process_step:
+      status:
+        not_started: "未开始"
+        in_progress: "进行中"
+        paused: "已暂停"
+        completed: "已完成"
+        quality_check: "质检中"
+
+    quality_inspection:
+      result:
+        pass: "合格"
+        fail: "不合格"
+        rework: "返工"
+      defect_type:
+        dimension_error: "尺寸超差"
+        surface_defect: "表面缺陷"
+        material_defect: "材质问题"
+        assembly_error: "装配错误"
+        other: "其他"
+
+    process_efficiency:
+      level:
+        excellent: "优秀"
+        good: "良好"
+        normal: "正常"
+        low: "偏低"
+        poor: "较差"
+
+    equipment:
+      status:
+        available: "可用"
+        running: "运行中"
+        maintenance: "维护中"
+        down: "故障"
+
+    team:
+      shift:
+        morning: "早班"
+        afternoon: "中班"
+        night: "夜班"
+
+    mold:
+      status:
+        available: "可用"
+        in_use: "使用中"
+        maintenance: "维护中"
+        retired: "已报废"
+
+    failed_batch:
+      status:
+        pending: "待处理"
+        processing: "处理中"
+        retried: "已重试"
+        resolved: "已解决"
+
+  audit_log:
+    action_types:
+      "工序开始": "工序开始"
+      "工序暂停": "工序暂停"
+      "工序恢复": "工序恢复"
+      "工序完成": "工序完成"
+      "工序继续处理": "工序继续处理"
+      "质检不合格": "质检不合格"
+      "质检返工": "质检返工"
+      "数据导出": "数据导出"
+      "导出工单数据": "导出工单数据"
+      "导出质检数据": "导出质检数据"
+      "导出工序效率数据": "导出工序效率数据"
+      "失败批次重试": "失败批次重试"
+      "失败批次标记已解决": "失败批次标记已解决"
+
+  activerecord:
+    attributes:
+      work_order:
+        order_no: "工单号"
+        product_name: "产品名称"
+        quantity: "数量"
+        customer: "客户"
+        priority: "优先级"
+        status: "状态"
+        planned_start_date: "计划开始日期"
+        planned_end_date: "计划结束日期"
+        notes: "备注"
+      process_step:
+        name: "工序名称"
+        sequence: "工序顺序"
+        status: "状态"
+        actual_quantity: "实际数量"
+        defect_quantity: "不良数量"
+        started_at: "开始时间"
+        completed_at: "完成时间"
+      quality_inspection:
+        result: "检验结果"
+        defect_type: "缺陷类型"
+        defect_quantity: "缺陷数量"
+        inspection_time: "检验时间"
+        notes: "备注"
+      user:
+        name: "姓名"
+        email: "邮箱"
+        role: "角色"
+        phone: "电话"
+      equipment:
+        code: "设备编号"
+        name: "设备名称"
+        equipment_type: "设备类型"
+        status: "状态"
+        location: "位置"
+        standard_output_per_hour: "标准产能/小时"
+      team:
+        code: "班组编号"
+        name: "班组名称"
+        leader_name: "班组长"
+        member_count: "成员人数"
+        shift: "班次"
+      mold:
+        code: "模具编号"
+        name: "模具名称"
+        material: "材质"
+        max_shots: "最大模次"
+        current_shots: "当前模次"
+        total_shots: "累计模次"
+        status: "状态"
+

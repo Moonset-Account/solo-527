@@ -1,0 +1,13 @@
+<% if resource.errors.any? %>
+  <div class="auth-alert auth-alert-danger">
+    <div class="auth-alert-title">
+      <span class="auth-alert-icon">⚠️</span>
+      发现 <%= pluralize(resource.errors.count, "个错误") %>，请修正后重试：
+    </div>
+    <ul class="auth-error-list">
+      <% resource.errors.full_messages.each do |msg| %>
+        <li><%= msg %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

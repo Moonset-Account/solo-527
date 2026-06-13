@@ -1,0 +1,111 @@
+<div class="page-header">
+  <h1>失败批次管理</h1>
+</div>
+
+<div class="card">
+  <%= search_form_for [:admin, @q], url: admin_failed_batches_path, method: :get, html: { class: "search-form" } do |f| %>
+    <div class="search-grid">
+      <div class="search-field">
+        <%= f.label :batch_no_cont, "批次号" %>
+        <%= f.search_field :batch_no_cont, class: "form-input", placeholder: "输入批次号搜索" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :status_eq, "状态" %>
+        <%= f.select :status_eq, FailedBatch.statuses.map { |k, v| [FailedBatch.human_attribute_name("status.#{k}"), k] }, { include_blank: "全部" }, class: "form-select" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :error_message_cont, "错误信息" %>
+        <%= f.search_field :error_message_cont, class: "form-input", placeholder: "输入错误关键词" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :created_at_gteq, "起始时间" %>
+        <%= f.datetime_field :created_at_gteq, class: "form-input" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :created_at_lteq, "结束时间" %>
+        <%= f.datetime_field :created_at_lteq, class: "form-input" %>
+      </div>
+    </div>
+    <div class="search-actions">
+      <%= f.submit "搜索", class: "btn btn-primary btn-sm" %>
+      <%= link_to "重置", admin_failed_batches_path, class: "btn btn-outline btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th><%= sort_link @q, :batch_no, "批次号" %></th>
+          <th>工单</th>
+          <th>工序</th>
+          <th>错误信息</th>
+          <th><%= sort_link @q, :status, "状态" %></th>
+          <th><%= sort_link @q, :retry_count, "重试次数" %></th>
+          <th><%= sort_link @q, :created_at, "创建时间" %></th>
+          <th class="actions-column">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @failed_batches.each do |fb| %>
+          <tr>
+            <td><%= link_to fb.batch_no, admin_failed_batch_path(fb) %></td>
+            <td>
+              <% if fb.work_order %>
+                <%= link_to fb.work_order.order_no, work_order_path(fb.work_order) %>
+              <% else %>
+                -
+              <% end %>
+            </td>
+            <td><%= fb.process_step&.name || "-" %></td>
+            <td class="error-message-cell">
+              <% if fb.error_message.present? %>
+                <details>
+                  <summary><%= truncate(fb.error_message, length: 50) %></summary>
+                  <pre><%= fb.error_message %></pre>
+                </details>
+              <% else %>
+                -
+              <% end %>
+            </td>
+            <td>
+              <% status_class = case fb.status
+                               when "pending" then "badge-warning"
+                               when "processing" then "badge-primary"
+                               when "retried" then "badge-info"
+                               when "resolved" then "badge-success"
+                               else "badge-secondary"
+                               end %>
+              <span class="badge <%= status_class %>"><%= FailedBatch.human_attribute_name("status.#{fb.status}") %></span>
+            </td>
+            <td>
+              <span class="<%= fb.retry_count > 2 ? 'text-danger' : '' %>">
+                <%= fb.retry_count %>
+              </span>
+            </td>
+            <td><%= fb.created_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="actions-column">
+              <%= link_to "查看", admin_failed_batch_path(fb), class: "btn btn-link btn-sm" %>
+              <% if fb.pending? || fb.processing? %>
+                <%= button_to "重试", retry_admin_failed_batch_path(fb), method: :post, class: "btn btn-link btn-sm", data: { turbo_confirm: "确定要重试此失败批次吗？" } %>
+                <%= button_to "标记解决", resolve_admin_failed_batch_path(fb), method: :post, class: "btn btn-link btn-sm", data: { turbo_confirm: "确定要标记此批次为已解决吗？" } %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @failed_batches.empty? %>
+    <div class="empty-state">
+      <p>暂无失败批次数据</p>
+    </div>
+  <% end %>
+
+  <div class="pagination-container">
+    <%= paginate @failed_batches %>
+  </div>
+</div>

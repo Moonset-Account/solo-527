@@ -1,0 +1,34 @@
+wb = xlsx_package.workbook
+
+wb.add_worksheet(name: "工序效率") do |sheet|
+  header_style = wb.styles.add_style(bg_color: "4472C4", fg_color: "FFFFFF", bold: true, alignment: { horizontal: :center })
+  normal_style = wb.styles.add_style(alignment: { vertical: :center })
+  high_style = wb.styles.add_style(bg_color: "C6EFCE", fg_color: "006100", alignment: { vertical: :center })
+  low_style = wb.styles.add_style(bg_color: "FFC7CE", fg_color: "9C0006", alignment: { vertical: :center })
+
+  sheet.add_row ["工单号", "工序", "设备", "班组", "模具", "标准产量/小时", "实际产量/小时", "耗时(小时)", "效率(%)", "效率等级", "产量缺口"], style: header_style
+
+  @process_efficiencies.each do |pe|
+    row_style = case pe.efficiency_rate
+                when ->(v) { v >= 100 } then high_style
+                when ->(v) { v < 80 } then low_style
+                else normal_style
+                end
+
+    sheet.add_row [
+      pe.process_step.work_order.order_no,
+      pe.process_step.name,
+      pe.equipment&.name,
+      pe.team&.name,
+      pe.mold&.code,
+      pe.standard_output_per_hour,
+      pe.actual_output_per_hour,
+      pe.duration_hours,
+      pe.efficiency_rate,
+      pe.efficiency_level_name,
+      pe.output_deficit
+    ], style: row_style
+  end
+
+  sheet.column_widths 15, 15, 12, 12, 12, 15, 15, 12, 10, 10, 12
+end

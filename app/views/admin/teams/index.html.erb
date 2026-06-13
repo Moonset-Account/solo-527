@@ -1,0 +1,80 @@
+<div class="page-header">
+  <h1>班组管理</h1>
+  <%= link_to "新建班组", new_admin_team_path, class: "btn btn-primary btn-sm" %>
+</div>
+
+<div class="card">
+  <%= search_form_for [:admin, @q], url: admin_teams_path, method: :get, html: { class: "search-form" } do |f| %>
+    <div class="search-grid">
+      <div class="search-field">
+        <%= f.label :name_or_code_cont, "班组名称/编号" %>
+        <%= f.search_field :name_or_code_cont, class: "form-input", placeholder: "输入关键字搜索" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :leader_name_cont, "班组长姓名" %>
+        <%= f.search_field :leader_name_cont, class: "form-input", placeholder: "输入班组长姓名" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :shift_eq, "班次" %>
+        <%= f.select :shift_eq, Team.shifts.map { |k, v| [Team.human_attribute_name("shift.#{k}"), k] }, { include_blank: "全部" }, class: "form-select" %>
+      </div>
+    </div>
+    <div class="search-actions">
+      <%= f.submit "搜索", class: "btn btn-primary btn-sm" %>
+      <%= link_to "重置", admin_teams_path, class: "btn btn-outline btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th><%= sort_link @q, :code, "班组编号" %></th>
+          <th><%= sort_link @q, :name, "班组名称" %></th>
+          <th><%= sort_link @q, :leader_name, "班组长" %></th>
+          <th><%= sort_link @q, :member_count, "成员人数" %></th>
+          <th><%= sort_link @q, :shift, "班次" %></th>
+          <th><%= sort_link @q, :created_at, "创建时间" %></th>
+          <th class="actions-column">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @teams.each do |team| %>
+          <tr>
+            <td><%= link_to team.code, admin_team_path(team) %></td>
+            <td><%= team.name %></td>
+            <td><%= team.leader_name %></td>
+            <td><%= team.member_count %> 人</td>
+            <td>
+              <% shift_class = case team.shift
+                              when "morning" then "badge-success"
+                              when "afternoon" then "badge-warning"
+                              when "night" then "badge-primary"
+                              else "badge-secondary"
+                              end %>
+              <span class="badge <%= shift_class %>"><%= Team.human_attribute_name("shift.#{team.shift}") %></span>
+            </td>
+            <td><%= team.created_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="actions-column">
+              <%= link_to "查看", admin_team_path(team), class: "btn btn-link btn-sm" %>
+              <%= link_to "编辑", edit_admin_team_path(team), class: "btn btn-link btn-sm" %>
+              <%= link_to "删除", admin_team_path(team), class: "btn btn-link btn-sm btn-danger-link", data: { turbo_method: :delete, turbo_confirm: "确定要删除此班组吗？" } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @teams.empty? %>
+    <div class="empty-state">
+      <p>暂无班组数据</p>
+    </div>
+  <% end %>
+
+  <div class="pagination-container">
+    <%= paginate @teams %>
+  </div>
+</div>

@@ -1,0 +1,59 @@
+<%= form_with model: [:admin, @mold], local: true do |f| %>
+  <% if @mold.errors.any? %>
+    <div class="error-explanation">
+      <h3><%= pluralize(@mold.errors.count, "个错误") %> 阻止了此模具的保存：</h3>
+      <ul>
+        <% @mold.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-grid">
+    <div class="form-field">
+      <%= f.label :code, "模具编号 *" %>
+      <%= f.text_field :code, class: "form-input", placeholder: "请输入模具编号", required: true %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :name, "模具名称" %>
+      <%= f.text_field :name, class: "form-input", placeholder: "请输入模具名称" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :material, "模具材质" %>
+      <%= f.text_field :material, class: "form-input", placeholder: "如：P20、S136等" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :status, "状态" %>
+      <%= f.select :status, Mold.statuses.map { |k, v| [Mold.human_attribute_name("status.#{k}"), k] }, {}, class: "form-select" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :total_shots, "累计总模次" %>
+      <%= f.number_field :total_shots, class: "form-input", min: 0 %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :current_shots, "当前模次" %>
+      <%= f.number_field :current_shots, class: "form-input", min: 0 %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :max_shots, "最大寿命模次" %>
+      <%= f.number_field :max_shots, class: "form-input", min: 0 %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :maintenance_date, "维护日期" %>
+      <%= f.date_field :maintenance_date, class: "form-input" %>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= link_to "取消", admin_molds_path, class: "btn btn-outline" %>
+    <%= f.submit class: "btn btn-primary" %>
+  </div>
+<% end %>

@@ -1,0 +1,209 @@
+<% content_for :title, "工作台" %>
+
+<div class="dashboard-page">
+  <div class="page-header">
+    <h1 class="page-title">工作台</h1>
+    <p class="page-subtitle">欢迎回来，<%= current_user.name || current_user.email %></p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card stat-card-warning">
+      <div class="stat-card-icon">📋</div>
+      <div class="stat-card-content">
+        <div class="stat-card-label">待处理工单</div>
+        <div class="stat-card-value"><%= @pending_count %></div>
+      </div>
+      <%= link_to "查看详情", work_orders_path(q: { status_eq: "pending" }), class: "stat-card-link" %>
+    </div>
+
+    <div class="stat-card stat-card-primary">
+      <div class="stat-card-icon">🔄</div>
+      <div class="stat-card-content">
+        <div class="stat-card-label">进行中工单</div>
+        <div class="stat-card-value"><%= @in_progress_count %></div>
+      </div>
+      <%= link_to "查看详情", work_orders_path(q: { status_eq: "in_progress" }), class: "stat-card-link" %>
+    </div>
+
+    <div class="stat-card stat-card-success">
+      <div class="stat-card-icon">✅</div>
+      <div class="stat-card-content">
+        <div class="stat-card-label">今日完成</div>
+        <div class="stat-card-value"><%= @completed_today %></div>
+      </div>
+      <%= link_to "查看详情", work_orders_path(q: { status_eq: "completed" }), class: "stat-card-link" %>
+    </div>
+
+    <div class="stat-card stat-card-danger">
+      <div class="stat-card-icon">⚠️</div>
+      <div class="stat-card-content">
+        <div class="stat-card-label">失败批次</div>
+        <div class="stat-card-value"><%= @failed_batches_count %></div>
+      </div>
+      <% if current_user.admin? || current_user.shop_director? %>
+        <%= link_to "查看详情", admin_failed_batches_path, class: "stat-card-link" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="dashboard-section">
+    <div class="section-header">
+      <h2 class="section-title">今日工序流转</h2>
+    </div>
+
+    <% if @today_process_steps.any? %>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>工序名称</th>
+              <th>所属工单</th>
+              <th>班组</th>
+              <th>设备</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @today_process_steps.each do |step| %>
+              <tr>
+                <td><%= link_to step.name, work_order_process_step_path(step.work_order, step) %></td>
+                <td>
+                  <%= link_to step.work_order.order_no, work_order_path(step.work_order) %>
+                  <div class="text-muted text-sm"><%= step.work_order.product_name %></div>
+                </td>
+                <td><%= step.assigned_team&.name || "-" %></td>
+                <td><%= step.assigned_equipment&.name || "-" %></td>
+                <td>
+                  <% status_class = case step.status
+                    when "not_started" then "badge badge-secondary"
+                    when "in_progress" then "badge badge-primary"
+                    when "paused" then "badge badge-warning"
+                    when "completed" then "badge badge-success"
+                    when "quality_check" then "badge badge-info"
+                    else "badge badge-secondary"
+                  end %>
+                  <% status_text = case step.status
+                    when "not_started" then "未开始"
+                    when "in_progress" then "进行中"
+                    when "paused" then "已暂停"
+                    when "completed" then "已完成"
+                    when "quality_check" then "质检中"
+                    else step.status
+                  end %>
+                  <span class="<%= status_class %>"><%= status_text %></span>
+                </td>
+                <td>
+                  <% if policy(step).start? && step.not_started? %>
+                    <%= button_to "开始", start_work_order_process_step_path(step.work_order, step),
+                      method: :post, class: "btn btn-primary btn-sm" %>
+                  <% end %>
+                  <% if policy(step).pause? && step.in_progress? %>
+                    <%= button_to "暂停", pause_work_order_process_step_path(step.work_order, step),
+                      method: :post, class: "btn btn-warning btn-sm" %>
+                  <% end %>
+                  <% if policy(step).resume? && step.paused? %>
+                    <%= button_to "恢复", resume_work_order_process_step_path(step.work_order, step),
+                      method: :post, class: "btn btn-primary btn-sm" %>
+                  <% end %>
+                  <%= link_to "详情", work_order_process_step_path(step.work_order, step),
+                    class: "btn btn-outline btn-sm" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="empty-state">
+        <div class="empty-state-icon">📊</div>
+        <p>今日暂无工序流转记录</p>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="dashboard-section">
+    <div class="section-header">
+      <h2 class="section-title">最新工单</h2>
+      <%= link_to "查看全部", work_orders_path, class: "btn btn-outline btn-sm" %>
+    </div>
+
+    <% if @work_orders.any? %>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>工单号</th>
+              <th>产品</th>
+              <th>数量</th>
+              <th>客户</th>
+              <th>优先级</th>
+              <th>状态</th>
+              <th>计划日期</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @work_orders.each do |work_order| %>
+              <tr>
+                <td><%= link_to work_order.order_no, work_order_path(work_order) %></td>
+                <td><%= work_order.product_name %></td>
+                <td><%= work_order.quantity %></td>
+                <td><%= work_order.customer %></td>
+                <td>
+                  <% priority_class = case work_order.priority
+                    when "low" then "badge badge-secondary"
+                    when "medium" then "badge badge-info"
+                    when "high" then "badge badge-warning"
+                    when "urgent" then "badge badge-danger"
+                    else "badge badge-secondary"
+                  end %>
+                  <% priority_text = case work_order.priority
+                    when "low" then "低"
+                    when "medium" then "中"
+                    when "high" then "高"
+                    when "urgent" then "紧急"
+                    else work_order.priority
+                  end %>
+                  <span class="<%= priority_class %>"><%= priority_text %></span>
+                </td>
+                <td>
+                  <% status_class = case work_order.status
+                    when "pending" then "badge badge-secondary"
+                    when "in_progress" then "badge badge-primary"
+                    when "completed" then "badge badge-success"
+                    when "on_hold" then "badge badge-warning"
+                    else "badge badge-secondary"
+                  end %>
+                  <% status_text = case work_order.status
+                    when "pending" then "待处理"
+                    when "in_progress" then "进行中"
+                    when "completed" then "已完成"
+                    when "on_hold" then "已挂起"
+                    else work_order.status
+                  end %>
+                  <span class="<%= status_class %>"><%= status_text %></span>
+                </td>
+                <td>
+                  <% if work_order.planned_start_date.present? %>
+                    <%= work_order.planned_start_date.strftime("%Y-%m-%d") %>
+                  <% else %>
+                    -
+                  <% end %>
+                </td>
+                <td>
+                  <%= link_to "查看", work_order_path(work_order), class: "btn btn-outline btn-sm" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <p>暂无工单</p>
+      </div>
+    <% end %>
+  </div>
+</div>

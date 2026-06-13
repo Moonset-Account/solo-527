@@ -1,0 +1,86 @@
+<div class="container mx-auto px-4 py-6">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">班组详情 - <%= @team.name %></h1>
+      <p class="text-gray-600"><%= @team.shift_name %> <%= @team.shift_hours %> | 班组长: <%= @team.leader_name %></p>
+    </div>
+    <%= link_to "返回排期", schedules_path(date: @date), class: "px-4 py-2 bg-gray-600 text-white rounded" %>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="text-gray-500 text-sm">平均效率</div>
+      <div class="text-2xl font-bold <%= @team.average_efficiency >= 90 ? 'text-green-600' : @team.average_efficiency >= 80 ? 'text-blue-600' : 'text-red-600' %>">
+        <%= @team.average_efficiency %>%
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="text-gray-500 text-sm">今日进行中</div>
+      <div class="text-2xl font-bold text-blue-600">
+        <%= @process_steps.in_progress_or_paused.count %>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="text-gray-500 text-sm">今日已完成</div>
+      <div class="text-2xl font-bold text-green-600">
+        <%= @process_steps.completed.count %>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <div class="text-gray-500 text-sm">成员数</div>
+      <div class="text-2xl font-bold text-gray-700">
+        <%= @team.member_count %>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-gray-50 px-6 py-3 border-b">
+      <h2 class="font-semibold text-gray-700"><%= @date.strftime('%Y年%m月%d日') %> 工序记录</h2>
+    </div>
+    <div class="divide-y">
+      <% @process_steps.each do |step| %>
+        <div class="p-4 hover:bg-gray-50">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="font-medium">
+                <%= link_to "#{step.work_order.order_no} - #{step.work_order.product_name}", work_order_path(step.work_order) %>
+              </div>
+              <div class="text-sm text-gray-600">工序: <%= step.name %> (第<%= step.sequence %>序)</div>
+              <div class="text-sm text-gray-500">
+                设备: <%= step.assigned_equipment&.code %>
+                <% if step.mold %> | 模具: <%= step.mold.code %><% end %>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="px-2 py-1 text-xs rounded-full <%= step.status_color %>">
+                <%= step.status_name %>
+              </span>
+              <% if step.started_at %>
+                <div class="text-xs text-gray-500 mt-1">开始: <%= step.started_at.strftime('%H:%M') %></div>
+              <% end %>
+              <% if step.completed_at %>
+                <div class="text-xs text-gray-500">完成: <%= step.completed_at.strftime('%H:%M') %></div>
+              <% end %>
+              <% if step.actual_quantity %>
+                <div class="text-xs text-gray-500">数量: <%= step.actual_quantity %></div>
+              <% end %>
+            </div>
+          </div>
+          <% if step.latest_efficiency %>
+            <div class="mt-2 flex items-center space-x-4 text-sm">
+              <span>效率: <span class="<%= step.latest_efficiency.efficiency_color %>"><%= step.latest_efficiency.efficiency_rate %>%</span></span>
+              <span>耗时: <%= step.latest_efficiency.duration_hours %>h</span>
+              <span>产能: <%= step.latest_efficiency.actual_output_per_hour %>/h</span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+      <% if @process_steps.empty? %>
+        <div class="p-8 text-center text-gray-500">
+          今日暂无工序记录
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

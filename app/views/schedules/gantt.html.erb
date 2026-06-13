@@ -1,0 +1,87 @@
+<div class="container mx-auto px-4 py-6">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">甘特图视图</h1>
+    <div class="flex items-center space-x-4">
+      <%= link_to "←", gantt_schedules_path(start_date: @start_date - 7.days, end_date: @end_date - 7.days), class: "p-2 bg-gray-200 rounded" %>
+      <span class="font-semibold">
+        <%= @start_date.strftime('%Y年%m月%d日') %> - <%= @end_date.strftime('%m月%d日') %>
+      </span>
+      <%= link_to "→", gantt_schedules_path(start_date: @start_date + 7.days, end_date: @end_date + 7.days), class: "p-2 bg-gray-200 rounded" %>
+      <%= link_to "返回列表", schedules_path, class: "px-4 py-2 bg-gray-600 text-white rounded" %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead>
+          <tr class="bg-gray-50">
+            <th class="px-4 py-3 text-left font-semibold text-gray-700 w-64 sticky left-0 bg-gray-50 z-10">工单 / 工序</th>
+            <% (@start_date..@end_date).each do |date| %>
+              <th class="px-2 py-3 text-center font-semibold text-gray-700 w-20 <%= 'bg-blue-50' if date == Date.today %>">
+                <%= date.strftime('%m/%d') %><br>
+                <span class="text-xs text-gray-500"><%= date.strftime('%a') %></span>
+              </th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <% @work_orders.each do |work_order| %>
+            <tr class="bg-gray-100 font-medium">
+              <td class="px-4 py-3 sticky left-0 bg-gray-100 z-10">
+                <%= link_to work_order_path(work_order), class: 'text-blue-600 hover:underline' do %>
+                  <%= work_order.order_no %> - <%= work_order.product_name %>
+                <% end %>
+                <div class="text-xs text-gray-500">优先级: <%= work_order.priority_name %></div>
+              </td>
+              <% (@start_date..@end_date).each do |date| %>
+                <td class="p-0 <%= 'bg-blue-50' if date == Date.today %>">
+                  <% if date >= work_order.planned_start_date && date <= work_order.planned_end_date %>
+                    <div class="h-full bg-blue-200 opacity-30"></div>
+                  <% end %>
+                </td>
+              <% end %>
+            </tr>
+            <% work_order.process_steps.order(sequence: :asc).each do |step| %>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2 text-sm sticky left-0 bg-white z-10">
+                  <div class="ml-4">
+                    <span class="px-2 py-0.5 text-xs rounded-full <%= step.status_color %>">
+                      <%= step.status_name %>
+                    </span>
+                    <%= step.name %>
+                    <div class="text-xs text-gray-500">
+                      <%= step.assigned_team&.name %> / <%= step.assigned_equipment&.code %>
+                    </div>
+                  </div>
+                </td>
+                <% (@start_date..@end_date).each do |date| %>
+                  <td class="p-0 <%= 'bg-blue-50' if date == Date.today %>">
+                    <% if step.started_at && date >= step.started_at.to_date && (step.completed_at.nil? || date <= step.completed_at.to_date) %>
+                      <div class="h-full <%= step.completed? ? 'bg-green-400' : 'bg-yellow-400' %> opacity-60"></div>
+                    <% end %>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-6 flex items-center justify-center space-x-6">
+    <div class="flex items-center">
+      <div class="w-4 h-4 bg-blue-200 mr-2"></div>
+      <span class="text-sm text-gray-600">计划周期</span>
+    </div>
+    <div class="flex items-center">
+      <div class="w-4 h-4 bg-yellow-400 mr-2"></div>
+      <span class="text-sm text-gray-600">进行中</span>
+    </div>
+    <div class="flex items-center">
+      <div class="w-4 h-4 bg-green-400 mr-2"></div>
+      <span class="text-sm text-gray-600">已完成</span>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,39 @@
+<%= form_with model: [:admin, @user], local: true do |f| %>
+  <% if @user.errors.any? %>
+    <div class="error-explanation">
+      <h3><%= pluralize(@user.errors.count, "个错误") %> 阻止了此用户的保存：</h3>
+      <ul>
+        <% @user.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-grid">
+    <div class="form-field">
+      <%= f.label :name, "姓名" %>
+      <%= f.text_field :name, class: "form-input", placeholder: "请输入用户姓名" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :email, "邮箱 *" %>
+      <%= f.email_field :email, class: "form-input", placeholder: "请输入邮箱地址", required: true %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :phone, "联系电话" %>
+      <%= f.text_field :phone, class: "form-input", placeholder: "请输入联系电话" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :role, "角色" %>
+      <%= f.select :role, User.roles.map { |k, v| [User.human_attribute_name("role.#{k}"), k] }, {}, class: "form-select" %>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= link_to "取消", admin_users_path, class: "btn btn-outline" %>
+    <%= f.submit class: "btn btn-primary" %>
+  </div>
+<% end %>

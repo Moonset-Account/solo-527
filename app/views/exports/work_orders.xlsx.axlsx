@@ -1,0 +1,31 @@
+wb = xlsx_package.workbook
+
+wb.add_worksheet(name: "工单数") do |sheet|
+  header_style = wb.styles.add_style(bg_color: "4472C4", fg_color: "FFFFFF", bold: true, alignment: { horizontal: :center })
+  normal_style = wb.styles.add_style(alignment: { vertical: :center })
+
+  sheet.add_row ["工单号", "产品名称", "数量", "客户", "优先级", "状态", "计划开始", "计划结束", "实际开始", "实际完成", "完成工序/总工序", "进度%", "良品数", "不良数", "不良率%", "备注"], style: header_style
+
+  @work_orders.each do |wo|
+    sheet.add_row [
+      wo.order_no,
+      wo.product_name,
+      wo.quantity,
+      wo.customer,
+      wo.priority_name,
+      wo.status_name,
+      wo.planned_start_date,
+      wo.planned_end_date,
+      wo.process_steps.minimum(:started_at)&.strftime('%Y-%m-%d %H:%M'),
+      wo.process_steps.maximum(:completed_at)&.strftime('%Y-%m-%d %H:%M'),
+      "#{wo.completed_steps_count}/#{wo.total_steps_count}",
+      wo.progress_percentage,
+      wo.total_actual_quantity - wo.total_defect_quantity,
+      wo.total_defect_quantity,
+      wo.defect_rate,
+      wo.notes
+    ], style: normal_style
+  end
+
+  sheet.column_widths 15, 20, 10, 15, 10, 10, 12, 12, 18, 18, 15, 10, 12, 10, 10, 30
+end

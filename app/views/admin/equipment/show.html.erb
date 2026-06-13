@@ -1,0 +1,62 @@
+<div class="page-header">
+  <h1>设备详情</h1>
+  <div class="page-actions">
+    <%= link_to "编辑", edit_admin_equipment_path(@equipment), class: "btn btn-primary btn-sm" %>
+    <%= link_to "删除", admin_equipment_path(@equipment), class: "btn btn-danger btn-sm", data: { turbo_method: :delete, turbo_confirm: "确定要删除此设备吗？" } %>
+    <%= link_to "返回列表", admin_equipment_index_path, class: "btn btn-outline btn-sm" %>
+  </div>
+</div>
+
+<div class="card">
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">设备编号</span>
+      <span class="detail-value"><%= @equipment.code %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">设备名称</span>
+      <span class="detail-value"><%= @equipment.name %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">设备类型</span>
+      <span class="detail-value"><%= @equipment.equipment_type %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">状态</span>
+      <span class="detail-value">
+        <% status_class = case @equipment.status
+                          when "available" then "badge-success"
+                          when "running" then "badge-primary"
+                          when "maintenance" then "badge-warning"
+                          when "down" then "badge-danger"
+                          else "badge-secondary"
+                          end %>
+        <span class="badge <%= status_class %>"><%= Equipment.human_attribute_name("status.#{@equipment.status}") %></span>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">所在位置</span>
+      <span class="detail-value"><%= @equipment.location %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">标准产能</span>
+      <span class="detail-value"><%= @equipment.standard_output_per_hour %> 件/小时</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">购置日期</span>
+      <span class="detail-value"><%= @equipment.purchase_date&.strftime("%Y-%m-%d") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">上次维护日期</span>
+      <span class="detail-value"><%= @equipment.last_maintenance_date&.strftime("%Y-%m-%d") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">创建时间</span>
+      <span class="detail-value"><%= @equipment.created_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">更新时间</span>
+      <span class="detail-value"><%= @equipment.updated_at&.strftime("%Y-%m-%d %H:%M:%S") %></span>
+    </div>
+  </div>
+</div>

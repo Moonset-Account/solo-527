@@ -1,0 +1,44 @@
+<%= form_with model: [:admin, @team], local: true do |f| %>
+  <% if @team.errors.any? %>
+    <div class="error-explanation">
+      <h3><%= pluralize(@team.errors.count, "个错误") %> 阻止了此班组的保存：</h3>
+      <ul>
+        <% @team.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form-grid">
+    <div class="form-field">
+      <%= f.label :name, "班组名称" %>
+      <%= f.text_field :name, class: "form-input", placeholder: "请输入班组名称" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :code, "班组编号 *" %>
+      <%= f.text_field :code, class: "form-input", placeholder: "请输入班组编号", required: true %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :leader_name, "班组长姓名" %>
+      <%= f.text_field :leader_name, class: "form-input", placeholder: "请输入班组长姓名" %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :member_count, "成员人数" %>
+      <%= f.number_field :member_count, class: "form-input", min: 0 %>
+    </div>
+
+    <div class="form-field">
+      <%= f.label :shift, "班次" %>
+      <%= f.select :shift, Team.shifts.map { |k, v| [Team.human_attribute_name("shift.#{k}"), k] }, {}, class: "form-select" %>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= link_to "取消", admin_teams_path, class: "btn btn-outline" %>
+    <%= f.submit class: "btn btn-primary" %>
+  </div>
+<% end %>

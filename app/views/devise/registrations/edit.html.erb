@@ -1,0 +1,242 @@
+<% content_for(:title, "修改账号 - 工单工序流转系统") %>
+
+<div class="page-header">
+  <h1 class="page-title">修改账号</h1>
+  <p class="page-subtitle">更新您的个人信息和密码</p>
+</div>
+
+<div class="account-settings">
+  <div class="settings-card">
+    <h2 class="settings-title">
+      <span class="settings-icon">👤</span>
+      个人信息
+    </h2>
+
+    <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put }) do |f| %>
+      <%= render "devise/shared/error_messages", resource: resource %>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <%= f.label :name, "姓名", class: "form-label" %>
+          <%= f.text_field :name, autocomplete: "name", class: "form-input" %>
+        </div>
+
+        <div class="form-group">
+          <%= f.label :email, class: "form-label" %>
+          <%= f.email_field :email, autocomplete: "email", class: "form-input" %>
+        </div>
+
+        <div class="form-group">
+          <%= f.label :phone, "手机号", class: "form-label" %>
+          <%= f.text_field :phone, autocomplete: "tel", class: "form-input" %>
+        </div>
+
+        <div class="form-group">
+          <%= f.label :role, "角色", class: "form-label" %>
+          <%= f.select :role, options_for_select([["管理员", "admin"], ["车间主任", "shop_director"]], f.object.role), {}, class: "form-select" %>
+        </div>
+      </div>
+
+      <% if devise_mapping.confirmable? && resource.pending_reconfirmation? %>
+        <div class="form-notice">
+          正在等待确认新邮箱：<%= resource.unconfirmed_email %>
+        </div>
+      <% end %>
+
+      <div class="form-group">
+        <%= f.label :current_password, "当前密码", class: "form-label" %>
+        <span class="form-hint">我们需要您的当前密码以确认更改</span>
+        <%= f.password_field :current_password, autocomplete: "current-password", class: "form-input" %>
+      </div>
+
+      <div class="form-actions">
+        <%= f.submit "更新信息", class: "btn btn-primary" %>
+        <%= link_to "取消", :back, class: "btn btn-outline" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="settings-card">
+    <h2 class="settings-title">
+      <span class="settings-icon">🔐</span>
+      修改密码
+    </h2>
+
+    <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put }) do |f| %>
+      <div class="form-group">
+        <%= f.label :password, "新密码", class: "form-label" %>
+        <%= f.password_field :password, autocomplete: "new-password", class: "form-input", placeholder: "留空则不修改" %>
+      </div>
+
+      <div class="form-group">
+        <%= f.label :password_confirmation, "确认新密码", class: "form-label" %>
+        <%= f.password_field :password_confirmation, autocomplete: "new-password", class: "form-input" %>
+      </div>
+
+      <div class="form-group">
+        <%= f.label :current_password, "当前密码", class: "form-label" %>
+        <span class="form-hint">需要当前密码以确认修改</span>
+        <%= f.password_field :current_password, autocomplete: "current-password", class: "form-input" %>
+      </div>
+
+      <div class="form-actions">
+        <%= f.submit "更新密码", class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="settings-card settings-card-danger">
+    <h2 class="settings-title">
+      <span class="settings-icon">⚠️</span>
+      取消账号
+    </h2>
+    <p class="settings-desc">注销账号后，所有数据将被永久删除，此操作不可撤销。</p>
+
+    <%= button_to "取消我的账号", registration_path(resource_name),
+                  method: :delete,
+                  class: "btn btn-danger",
+                  form: { data: { turbo_confirm: "确定要取消账号吗？此操作不可撤销！" } } %>
+  </div>
+</div>
+
+<style>
+  .page-header {
+    margin-bottom: 2rem;
+  }
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 0.5rem 0;
+  }
+  .page-subtitle {
+    color: #718096;
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .account-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 720px;
+  }
+  .settings-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.75rem;
+  }
+  .settings-card-danger {
+    border-color: #fed7d7;
+    background: #fff5f5;
+  }
+  .settings-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 1.5rem 0;
+  }
+  .settings-icon {
+    font-size: 1.25rem;
+  }
+  .settings-desc {
+    color: #718096;
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+  .form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #2d3748;
+    margin-bottom: 0.4rem;
+  }
+  .form-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: #a0aec0;
+    margin-bottom: 0.4rem;
+  }
+  .form-input,
+  .form-select {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.95rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    outline: none;
+    background: #ffffff;
+    box-sizing: border-box;
+  }
+  .form-input:focus,
+  .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  .form-notice {
+    background: #ebf8ff;
+    border: 1px solid #bee3f8;
+    color: #2c5282;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+  }
+  .form-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-primary {
+    background: #3b82f6;
+    color: #ffffff;
+    border-color: #3b82f6;
+  }
+  .btn-primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+  }
+  .btn-outline {
+    background: #ffffff;
+    color: #4a5568;
+    border-color: #cbd5e0;
+  }
+  .btn-outline:hover {
+    background: #f7fafc;
+    border-color: #a0aec0;
+  }
+  .btn-danger {
+    background: #e53e3e;
+    color: #ffffff;
+    border-color: #e53e3e;
+  }
+  .btn-danger:hover {
+    background: #c53030;
+    border-color: #c53030;
+  }
+</style>

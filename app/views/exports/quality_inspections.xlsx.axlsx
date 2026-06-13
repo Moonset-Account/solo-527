@@ -1,0 +1,33 @@
+wb = xlsx_package.workbook
+
+wb.add_worksheet(name: "质检记录") do |sheet|
+  header_style = wb.styles.add_style(bg_color: "4472C4", fg_color: "FFFFFF", bold: true, alignment: { horizontal: :center })
+  normal_style = wb.styles.add_style(alignment: { vertical: :center })
+  pass_style = wb.styles.add_style(bg_color: "C6EFCE", fg_color: "006100", alignment: { vertical: :center })
+  fail_style = wb.styles.add_style(bg_color: "FFC7CE", fg_color: "9C0006", alignment: { vertical: :center })
+  rework_style = wb.styles.add_style(bg_color: "FFEB9C", fg_color: "9C5700", alignment: { vertical: :center })
+
+  sheet.add_row ["工单号", "工序", "检验员", "结果", "缺陷类型", "缺陷数量", "检验时间", "备注"], style: header_style
+
+  @quality_inspections.each do |qi|
+    row_style = case qi.result
+                when 'pass' then pass_style
+                when 'fail' then fail_style
+                when 'rework' then rework_style
+                else normal_style
+                end
+
+    sheet.add_row [
+      qi.process_step.work_order.order_no,
+      qi.process_step.name,
+      qi.inspector.name,
+      qi.result_name,
+      qi.defect_type_name,
+      qi.defect_quantity,
+      qi.inspection_time&.strftime('%Y-%m-%d %H:%M:%S'),
+      qi.notes
+    ], style: row_style
+  end
+
+  sheet.column_widths 15, 15, 12, 10, 15, 10, 20, 30
+end

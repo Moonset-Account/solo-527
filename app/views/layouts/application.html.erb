@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "工单工序流转系统" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="工单工序流转系统">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_include_tag :application, "data-turbo-track": "reload", defer: true %>
+  </head>
+
+  <body>
+    <% if user_signed_in? %>
+      <nav class="navbar">
+        <div class="navbar-container">
+          <%= link_to root_path, class: "navbar-brand" do %>
+            <span class="brand-icon">🏭</span>
+            <span>工单流转系统</span>
+          <% end %>
+
+          <div class="navbar-menu">
+            <%= link_to "工作台", root_path, class: "nav-link #{current_page?(root_path) ? 'active' : ''}" %>
+            <%= link_to "工单排期", schedules_path, class: "nav-link #{controller_name == 'schedules' ? 'active' : ''}" %>
+            <%= link_to "工单管理", work_orders_path, class: "nav-link #{controller_name == 'work_orders' ? 'active' : ''}" %>
+            <%= link_to "数据导出", exports_path, class: "nav-link #{controller_name == 'exports' ? 'active' : ''}" %>
+
+            <% if current_user.admin? %>
+              <div class="nav-dropdown">
+                <button class="nav-link dropdown-trigger">系统管理 ▾</button>
+                <div class="dropdown-menu">
+                  <%= link_to "设备管理", admin_equipment_index_path %>
+                  <%= link_to "班组管理", admin_teams_path %>
+                  <%= link_to "模具管理", admin_molds_path %>
+                  <%= link_to "用户管理", admin_users_path %>
+                  <%= link_to "审计日志", admin_audit_logs_path %>
+                </div>
+              </div>
+            <% end %>
+
+            <% if current_user.admin? || current_user.shop_director? %>
+              <% failed_count = FailedBatch.where(status: [:pending, :processing]).count %>
+              <%= link_to admin_failed_batches_path, class: "nav-link #{controller_name == 'failed_batches' ? 'active' : ''}" do %>
+                失败批次
+                <% if failed_count > 0 %>
+                  <span class="badge badge-danger"><%= failed_count %></span>
+                <% end %>
+              <% end %>
+            <% end %>
+          </div>
+
+          <div class="navbar-user">
+            <div class="user-info">
+              <span class="user-name"><%= current_user.name || current_user.email %></span>
+              <span class="user-role badge badge-<%= current_user.admin? ? 'primary' : 'secondary' %>">
+                <%= current_user.admin? ? '管理员' : '车间主任' %>
+              </span>
+            </div>
+            <%= button_to "退出登录", destroy_user_session_path, method: :delete, class: "btn btn-outline btn-sm" %>
+          </div>
+        </div>
+      </nav>
+    <% end %>
+
+    <main class="main-content">
+      <% if notice %>
+        <div class="flash flash-notice"><%= notice %></div>
+      <% end %>
+      <% if alert %>
+        <div class="flash flash-alert"><%= alert %></div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+  </body>
+</html>

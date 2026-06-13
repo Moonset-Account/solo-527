@@ -1,0 +1,85 @@
+<div class="page-header">
+  <h1>模具管理</h1>
+  <%= link_to "新建模具", new_admin_mold_path, class: "btn btn-primary btn-sm" %>
+</div>
+
+<div class="card">
+  <%= search_form_for [:admin, @q], url: admin_molds_path, method: :get, html: { class: "search-form" } do |f| %>
+    <div class="search-grid">
+      <div class="search-field">
+        <%= f.label :code_or_name_cont, "模具编号/名称" %>
+        <%= f.search_field :code_or_name_cont, class: "form-input", placeholder: "输入关键字搜索" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :material_cont, "材质" %>
+        <%= f.search_field :material_cont, class: "form-input", placeholder: "输入材质" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :status_eq, "状态" %>
+        <%= f.select :status_eq, Mold.statuses.map { |k, v| [Mold.human_attribute_name("status.#{k}"), k] }, { include_blank: "全部" }, class: "form-select" %>
+      </div>
+    </div>
+    <div class="search-actions">
+      <%= f.submit "搜索", class: "btn btn-primary btn-sm" %>
+      <%= link_to "重置", admin_molds_path, class: "btn btn-outline btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th><%= sort_link @q, :code, "模具编号" %></th>
+          <th><%= sort_link @q, :name, "模具名称" %></th>
+          <th><%= sort_link @q, :material, "材质" %></th>
+          <th><%= sort_link @q, :status, "状态" %></th>
+          <th><%= sort_link @q, :current_shots, "当前模次" %></th>
+          <th><%= sort_link @q, :max_shots, "最大寿命" %></th>
+          <th><%= sort_link @q, :maintenance_date, "维护日期" %></th>
+          <th><%= sort_link @q, :created_at, "创建时间" %></th>
+          <th class="actions-column">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @molds.each do |mold| %>
+          <tr>
+            <td><%= link_to mold.code, admin_mold_path(mold) %></td>
+            <td><%= mold.name %></td>
+            <td><%= mold.material %></td>
+            <td>
+              <% status_class = case mold.status
+                                when "available" then "badge-success"
+                                when "in_use" then "badge-primary"
+                                when "maintenance" then "badge-warning"
+                                when "retired" then "badge-secondary"
+                                else "badge-secondary"
+                                end %>
+              <span class="badge <%= status_class %>"><%= Mold.human_attribute_name("status.#{mold.status}") %></span>
+            </td>
+            <td><%= number_with_delimiter(mold.current_shots) %></td>
+            <td><%= number_with_delimiter(mold.max_shots) %></td>
+            <td><%= mold.maintenance_date&.strftime("%Y-%m-%d") %></td>
+            <td><%= mold.created_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="actions-column">
+              <%= link_to "查看", admin_mold_path(mold), class: "btn btn-link btn-sm" %>
+              <%= link_to "编辑", edit_admin_mold_path(mold), class: "btn btn-link btn-sm" %>
+              <%= link_to "删除", admin_mold_path(mold), class: "btn btn-link btn-sm btn-danger-link", data: { turbo_method: :delete, turbo_confirm: "确定要删除此模具吗？" } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @molds.empty? %>
+    <div class="empty-state">
+      <p>暂无模具数据</p>
+    </div>
+  <% end %>
+
+  <div class="pagination-container">
+    <%= paginate @molds %>
+  </div>
+</div>

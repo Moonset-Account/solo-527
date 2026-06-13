@@ -1,0 +1,98 @@
+<% content_for :title, "新建质检记录" %>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">新建质检记录</h1>
+    <p class="page-subtitle">
+      工序：<%= link_to @process_step.name, work_order_process_step_path(@work_order, @process_step) %>
+      · 工单：<%= link_to @work_order.order_no, work_order_path(@work_order) %>
+    </p>
+  </div>
+  <%= link_to "返回工序详情", work_order_process_step_path(@work_order, @process_step), class: "btn btn-outline btn-sm" %>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">工单与工序信息</h2>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>工单号</label>
+      <div><%= @work_order.order_no %></div>
+    </div>
+    <div class="form-group">
+      <label>产品名称</label>
+      <div><%= @work_order.product_name || "-" %></div>
+    </div>
+    <div class="form-group">
+      <label>计划数量</label>
+      <div><%= @work_order.quantity || "-" %></div>
+    </div>
+    <div class="form-group">
+      <label>客户</label>
+      <div><%= @work_order.customer || "-" %></div>
+    </div>
+    <div class="form-group">
+      <label>工序名称</label>
+      <div><%= @process_step.name %></div>
+    </div>
+    <div class="form-group">
+      <label>工序顺序</label>
+      <div>第 <%= @process_step.sequence %> 步</div>
+    </div>
+    <div class="form-group">
+      <label>实际完成数量</label>
+      <div><%= @process_step.actual_quantity %></div>
+    </div>
+    <div class="form-group">
+      <label>当前缺陷数量</label>
+      <div><%= @process_step.defect_quantity %></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">质检信息</h2>
+  </div>
+
+  <%= form_with model: [@work_order, @process_step, @quality_inspection], local: true do |f| %>
+    <% if @quality_inspection.errors.any? %>
+      <div class="error-explanation">
+        <h3><%= pluralize(@quality_inspection.errors.count, "个错误") %> 阻止了此质检记录的保存：</h3>
+        <ul>
+          <% @quality_inspection.errors.each do |error| %>
+            <li><%= error.full_message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="form-row">
+      <div class="form-group">
+        <%= f.label :result, "质检结果 *" %>
+        <%= f.select :result,
+          [["合格", "pass"], ["不合格", "fail"], ["返工", "rework"]],
+          {}, class: "form-select", required: true %>
+      </div>
+      <div class="form-group">
+        <%= f.label :defect_type, "缺陷类型" %>
+        <%= f.text_field :defect_type, class: "form-input", placeholder: "如：外观缺陷、尺寸偏差、功能不良等" %>
+      </div>
+      <div class="form-group">
+        <%= f.label :defect_quantity, "缺陷数量" %>
+        <%= f.number_field :defect_quantity, class: "form-input", min: 0, value: 0 %>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <%= f.label :notes, "备注" %>
+      <%= f.text_area :notes, class: "form-input", placeholder: "请输入质检备注信息..." %>
+    </div>
+
+    <div class="form-actions">
+      <%= link_to "取消", work_order_process_step_path(@work_order, @process_step), class: "btn btn-outline" %>
+      <%= f.submit "提交质检记录", class: "btn btn-primary" %>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,96 @@
+<div class="page-header">
+  <h1>审计日志</h1>
+</div>
+
+<div class="card">
+  <%= search_form_for [:admin, @q], url: admin_audit_logs_path, method: :get, html: { class: "search-form" } do |f| %>
+    <div class="search-grid">
+      <div class="search-field">
+        <%= f.label :action_type_cont, "操作类型" %>
+        <%= f.search_field :action_type_cont, class: "form-input", placeholder: "如：create, update, destroy" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :entity_type_cont, "对象类型" %>
+        <%= f.search_field :entity_type_cont, class: "form-input", placeholder: "如：WorkOrder, Equipment" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :details_cont, "详情关键词" %>
+        <%= f.search_field :details_cont, class: "form-input", placeholder: "输入关键词搜索" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :created_at_gteq, "起始时间" %>
+        <%= f.datetime_field :created_at_gteq, class: "form-input" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :created_at_lteq, "结束时间" %>
+        <%= f.datetime_field :created_at_lteq, class: "form-input" %>
+      </div>
+    </div>
+    <div class="search-actions">
+      <%= f.submit "搜索", class: "btn btn-primary btn-sm" %>
+      <%= link_to "重置", admin_audit_logs_path, class: "btn btn-outline btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th><%= sort_link @q, :created_at, "操作时间" %></th>
+          <th>用户</th>
+          <th><%= sort_link @q, :action_type, "操作类型" %></th>
+          <th><%= sort_link @q, :entity_type, "对象类型" %></th>
+          <th>对象ID</th>
+          <th>详情</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @audit_logs.each do |log| %>
+          <tr>
+            <td><%= log.created_at&.strftime("%Y-%m-%d %H:%M:%S") %></td>
+            <td>
+              <% if log.user %>
+                <span class="badge badge-info"><%= log.user.name || log.user.email %></span>
+              <% else %>
+                <span class="badge badge-secondary">系统</span>
+              <% end %>
+            </td>
+            <td>
+              <% action_class = case log.action_type.to_s.downcase
+                               when "create", "创建" then "badge-success"
+                               when "update", "更新" then "badge-primary"
+                               when "destroy", "删除" then "badge-danger"
+                               else "badge-secondary"
+                               end %>
+              <span class="badge <%= action_class %>"><%= log.action_type %></span>
+            </td>
+            <td><%= log.entity_type %></td>
+            <td><%= log.entity_id %></td>
+            <td class="audit-details">
+              <% if log.details.present? %>
+                <details>
+                  <summary>查看详情</summary>
+                  <pre><%= log.details %></pre>
+                </details>
+              <% else %>
+                -
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @audit_logs.empty? %>
+    <div class="empty-state">
+      <p>暂无审计日志</p>
+    </div>
+  <% end %>
+
+  <div class="pagination-container">
+    <%= paginate @audit_logs %>
+  </div>
+</div>

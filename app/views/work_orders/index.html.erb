@@ -1,0 +1,139 @@
+<% content_for :title, "工单管理" %>
+
+<div class="work-orders-page">
+  <div class="page-header">
+    <h1 class="page-title">工单管理</h1>
+    <% if policy(WorkOrder).create? %>
+      <%= link_to "新建工单", new_work_order_path, class: "btn btn-primary" %>
+    <% end %>
+  </div>
+
+  <div class="search-form card">
+    <%= search_form_for @q do |f| %>
+      <div class="form-grid">
+        <div class="form-group">
+          <%= f.label :order_no_cont, "工单号" %>
+          <%= f.search_field :order_no_cont, class: "form-control", placeholder: "输入工单号..." %>
+        </div>
+        <div class="form-group">
+          <%= f.label :product_name_cont, "产品名称" %>
+          <%= f.search_field :product_name_cont, class: "form-control", placeholder: "输入产品名称..." %>
+        </div>
+        <div class="form-group">
+          <%= f.label :customer_cont, "客户" %>
+          <%= f.search_field :customer_cont, class: "form-control", placeholder: "输入客户名称..." %>
+        </div>
+        <div class="form-group">
+          <%= f.label :status_eq, "状态" %>
+          <%= f.select :status_eq, WorkOrder.statuses.map { |k, v| [I18n.t("activerecord.attributes.work_order.statuses.#{k}", default: k.humanize), k] },
+            { include_blank: "全部状态" }, class: "form-control" %>
+        </div>
+        <div class="form-group">
+          <%= f.label :priority_eq, "优先级" %>
+          <%= f.select :priority_eq, WorkOrder.priorities.map { |k, v| [I18n.t("activerecord.attributes.work_order.priorities.#{k}", default: k.humanize), k] },
+            { include_blank: "全部优先级" }, class: "form-control" %>
+        </div>
+        <div class="form-group">
+          <%= f.label :planned_start_date_gteq, "计划开始日期（起）" %>
+          <%= f.date_field :planned_start_date_gteq, class: "form-control" %>
+        </div>
+        <div class="form-group">
+          <%= f.label :planned_start_date_lteq, "计划开始日期（止）" %>
+          <%= f.date_field :planned_start_date_lteq, class: "form-control" %>
+        </div>
+      </div>
+      <div class="form-actions">
+        <%= f.submit "搜索", class: "btn btn-primary" %>
+        <%= link_to "重置", work_orders_path, class: "btn btn-outline" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th><%= sort_link @q, :order_no, "工单号" %></th>
+          <th>产品</th>
+          <th><%= sort_link @q, :quantity, "数量" %></th>
+          <th>客户</th>
+          <th><%= sort_link @q, :priority, "优先级" %></th>
+          <th><%= sort_link @q, :status, "状态" %></th>
+          <th><%= sort_link @q, :planned_start_date, "计划日期" %></th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if @work_orders.any? %>
+          <% @work_orders.each do |work_order| %>
+            <tr>
+              <td><%= link_to work_order.order_no, work_order_path(work_order) %></td>
+              <td><%= work_order.product_name %></td>
+              <td><%= work_order.quantity %></td>
+              <td><%= work_order.customer %></td>
+              <td>
+                <% priority_class = case work_order.priority
+                  when "low" then "badge badge-secondary"
+                  when "medium" then "badge badge-info"
+                  when "high" then "badge badge-warning"
+                  when "urgent" then "badge badge-danger"
+                  else "badge badge-secondary"
+                end %>
+                <% priority_text = case work_order.priority
+                  when "low" then "低"
+                  when "medium" then "中"
+                  when "high" then "高"
+                  when "urgent" then "紧急"
+                  else work_order.priority
+                end %>
+                <span class="<%= priority_class %>"><%= priority_text %></span>
+              </td>
+              <td>
+                <% status_class = case work_order.status
+                  when "pending" then "badge badge-secondary"
+                  when "in_progress" then "badge badge-primary"
+                  when "completed" then "badge badge-success"
+                  when "on_hold" then "badge badge-warning"
+                  else "badge badge-secondary"
+                end %>
+                <% status_text = case work_order.status
+                  when "pending" then "待处理"
+                  when "in_progress" then "进行中"
+                  when "completed" then "已完成"
+                  when "on_hold" then "已挂起"
+                  else work_order.status
+                end %>
+                <span class="<%= status_class %>"><%= status_text %></span>
+              </td>
+              <td>
+                <% if work_order.planned_start_date.present? %>
+                  <%= work_order.planned_start_date.strftime("%Y-%m-%d") %>
+                <% else %>
+                  -
+                <% end %>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <%= link_to "查看", work_order_path(work_order), class: "btn btn-outline btn-sm" %>
+                  <% if policy(work_order).edit? %>
+                    <%= link_to "编辑", edit_work_order_path(work_order), class: "btn btn-outline btn-sm" %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">暂无工单数据</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @work_orders.total_pages > 1 %>
+    <div class="pagination-container">
+      <%= paginate @work_orders %>
+    </div>
+  <% end %>
+</div>

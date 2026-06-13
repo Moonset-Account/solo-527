@@ -1,0 +1,87 @@
+<div class="page-header">
+  <h1>设备管理</h1>
+  <%= link_to "新建设备", new_admin_equipment_path, class: "btn btn-primary btn-sm" %>
+</div>
+
+<div class="card">
+  <%= search_form_for [:admin, @q], url: admin_equipment_index_path, method: :get, html: { class: "search-form" } do |f| %>
+    <div class="search-grid">
+      <div class="search-field">
+        <%= f.label :name_or_code_cont, "设备名称/编号" %>
+        <%= f.search_field :name_or_code_cont, class: "form-input", placeholder: "输入关键字搜索" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :equipment_type_cont, "设备类型" %>
+        <%= f.search_field :equipment_type_cont, class: "form-input", placeholder: "输入设备类型" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :status_eq, "状态" %>
+        <%= f.select :status_eq, Equipment.statuses.map { |k, v| [Equipment.human_attribute_name("status.#{k}"), k] }, { include_blank: "全部" }, class: "form-select" %>
+      </div>
+      <div class="search-field">
+        <%= f.label :location_cont, "位置" %>
+        <%= f.search_field :location_cont, class: "form-input", placeholder: "输入位置" %>
+      </div>
+    </div>
+    <div class="search-actions">
+      <%= f.submit "搜索", class: "btn btn-primary btn-sm" %>
+      <%= link_to "重置", admin_equipment_index_path, class: "btn btn-outline btn-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th><%= sort_link @q, :code, "设备编号" %></th>
+          <th><%= sort_link @q, :name, "设备名称" %></th>
+          <th><%= sort_link @q, :equipment_type, "设备类型" %></th>
+          <th><%= sort_link @q, :status, "状态" %></th>
+          <th><%= sort_link @q, :location, "位置" %></th>
+          <th><%= sort_link @q, :standard_output_per_hour, "标准产能" %></th>
+          <th><%= sort_link @q, :created_at, "创建时间" %></th>
+          <th class="actions-column">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @equipment.each do |eq| %>
+          <tr>
+            <td><%= link_to eq.code, admin_equipment_path(eq) %></td>
+            <td><%= eq.name %></td>
+            <td><%= eq.equipment_type %></td>
+            <td>
+              <% status_class = case eq.status
+                                when "available" then "badge-success"
+                                when "running" then "badge-primary"
+                                when "maintenance" then "badge-warning"
+                                when "down" then "badge-danger"
+                                else "badge-secondary"
+                                end %>
+              <span class="badge <%= status_class %>"><%= Equipment.human_attribute_name("status.#{eq.status}") %></span>
+            </td>
+            <td><%= eq.location %></td>
+            <td><%= eq.standard_output_per_hour %> 件/小时</td>
+            <td><%= eq.created_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="actions-column">
+              <%= link_to "查看", admin_equipment_path(eq), class: "btn btn-link btn-sm" %>
+              <%= link_to "编辑", edit_admin_equipment_path(eq), class: "btn btn-link btn-sm" %>
+              <%= link_to "删除", admin_equipment_path(eq), class: "btn btn-link btn-sm btn-danger-link", data: { turbo_method: :delete, turbo_confirm: "确定要删除此设备吗？" } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if @equipment.empty? %>
+    <div class="empty-state">
+      <p>暂无设备数据</p>
+    </div>
+  <% end %>
+
+  <div class="pagination-container">
+    <%= paginate @equipment %>
+  </div>
+</div>

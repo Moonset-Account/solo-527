@@ -1,0 +1,171 @@
+<div class="space-y-4">
+  <% process_steps.each_with_index do |step, index| %>
+    <%= turbo_frame_tag dom_id(step) do %>
+      <div class="flex">
+        <div class="flex flex-col items-center mr-4">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium
+            <%= step.completed? ? 'bg-green-500 text-white' :
+              step.in_progress? || step.paused? || step.quality_check? ? 'bg-blue-500 text-white' :
+              'bg-gray-300 text-gray-600' %>">
+            <%= step.sequence %>
+          </div>
+          <% if index < process_steps.size - 1 %>
+            <div class="w-0.5 flex-1 min-h-12
+              <%= step.completed? ? 'bg-green-400' : 'bg-gray-200' %>"></div>
+          <% end %>
+        </div>
+        <div class="flex-1 pb-6">
+          <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h4 class="font-semibold text-lg"><%= step.name %></h4>
+                <div class="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                  <% if step.assigned_team %>
+                    <span><%= step.assigned_team.name %></span>
+                  <% end %>
+                  <% if step.assigned_equipment %>
+                    <span><%= step.assigned_equipment.code %> <%= step.assigned_equipment.name %></span>
+                  <% end %>
+                  <% if step.mold %>
+                    <span>模具: <%= step.mold.code %></span>
+                  <% end %>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="px-2 py-1 text-xs rounded-full <%= step.status_color %>">
+                  <%= step.status_name %>
+                </span>
+                <% if step.actual_quantity %>
+                  <div class="text-sm mt-1">
+                    <span class="text-gray-500">数量:</span>
+                    <span class="font-medium"><%= step.actual_quantity %></span>
+                    <% if step.defect_quantity.to_i > 0 %>
+                      <span class="text-red-500 text-xs"> (不良 <%= step.defect_quantity %>)</span>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <% if step.started_at %>
+              <div class="flex items-center space-x-6 text-sm text-gray-500 mb-3">
+                <span>开始: <%= step.started_at.strftime('%m/%d %H:%M') %></span>
+                <% if step.completed_at %>
+                  <span>完成: <%= step.completed_at.strftime('%m/%d %H:%M') %></span>
+                  <span>耗时: <%= step.duration_hours %>h</span>
+                <% elsif step.paused_at %>
+                  <span>暂停: <%= step.paused_at.strftime('%m/%d %H:%M') %></span>
+                <% end %>
+              </div>
+            <% end %>
+
+            <% if step.latest_efficiency %>
+              <div class="bg-gray-50 rounded p-3 mb-3">
+                <div class="flex items-center space-x-6 text-sm">
+                  <span>
+                    <span class="text-gray-500">效率:</span>
+                    <span class="font-medium <%= step.latest_efficiency.efficiency_color %>">
+                      <%= step.latest_efficiency.efficiency_rate %>%
+                    </span>
+                  </span>
+                  <span>
+                    <span class="text-gray-500">标准产能:</span>
+                    <span class="font-medium"><%= step.latest_efficiency.standard_output_per_hour %>/h</span>
+                  </span>
+                  <span>
+                    <span class="text-gray-500">实际产能:</span>
+                    <span class="font-medium"><%= step.latest_efficiency.actual_output_per_hour %>/h</span>
+                  </span>
+                  <span>
+                    <span class="text-gray-500">等级:</span>
+                    <span class="font-medium <%= step.latest_efficiency.efficiency_color %>">
+                      <%= step.latest_efficiency.efficiency_level_name %>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            <% end %>
+
+            <% if step.quality_inspections.any? %>
+              <div class="mb-3">
+                <h5 class="text-sm font-medium text-gray-700 mb-2">质检记录</h5>
+                <div class="space-y-2">
+                  <% step.quality_inspections.latest_first.each do |inspection| %>
+                    <div class="flex items-center justify-between text-sm bg-gray-50 rounded p-2">
+                      <div class="flex items-center space-x-4">
+                        <span class="<%= inspection.result_color %> font-medium">
+                          <%= inspection.result_name %>
+                        </span>
+                        <% if inspection.defect_type %>
+                          <span class="text-gray-500">
+                            <%= inspection.defect_type_name %>
+                            <% if inspection.defect_quantity.to_i > 0 %>
+                              (<%= inspection.defect_quantity %>件)
+                            <% end %>
+                          </span>
+                        <% end %>
+                        <% if inspection.notes %>
+                          <span class="text-gray-400"><%= inspection.notes %></span>
+                        <% end %>
+                      </div>
+                      <div class="text-gray-400 text-xs">
+                        <%= inspection.inspector.name %> @ <%= inspection.inspection_time.strftime('%m/%d %H:%M') %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <div class="flex items-center space-x-2">
+              <% if step.not_started? && step.can_start? && policy(step).start? %>
+                <%= button_to start_work_order_process_step_path(work_order, step),
+                    class: 'px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700',
+                    method: :post,
+                    params: { equipment_id: step.assigned_equipment_id, team_id: step.assigned_team_id, mold_id: step.mold_id } do %>
+                  开始工序
+                <% end %>
+              <% end %>
+
+              <% if step.in_progress? && policy(step).pause? %>
+                <%= button_to '暂停', pause_work_order_process_step_path(work_order, step),
+                    class: 'px-3 py-1.5 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700',
+                    method: :post %>
+              <% end %>
+
+              <% if step.paused? && policy(step).resume? %>
+                <%= button_to '恢复', resume_work_order_process_step_path(work_order, step),
+                    class: 'px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700',
+                    method: :post %>
+              <% end %>
+
+              <% if step.in_progress? && policy(step).complete? %>
+                <%= button_to complete_work_order_process_step_path(work_order, step),
+                    class: 'px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700',
+                    method: :post,
+                    form: { class: 'inline', data: { turbo_confirm: '确认完成此工序？' } },
+                    params: { actual_quantity: work_order.quantity, defect_quantity: 0 } do %>
+                  完成工序
+                <% end %>
+              <% end %>
+
+              <% if (step.quality_check? || step.paused?) && step.has_failed_quality? && policy(step).continue_processing? %>
+                <%= button_to '继续处理', continue_processing_work_order_process_step_path(work_order, step),
+                    class: 'px-3 py-1.5 bg-orange-600 text-white text-sm rounded hover:bg-orange-700',
+                    method: :post %>
+              <% end %>
+
+              <% if step.quality_check? && policy(step).update? %>
+                <%= link_to '录入质检', new_work_order_process_step_quality_inspection_path(work_order, step),
+                    class: 'px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700' %>
+              <% end %>
+
+              <%= link_to '详情', work_order_process_step_path(work_order, step),
+                  class: 'px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>

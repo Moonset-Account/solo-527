@@ -1,0 +1,199 @@
+<%= form_with(model: work_order, local: true) do |f| %>
+  <% if work_order.errors.any? %>
+    <div class="alert alert-danger">
+      <h4>表单包含以下错误：</h4>
+      <ul>
+        <% work_order.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="card">
+    <h2 class="card-title">基本信息</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <%= f.label :order_no, "工单号", class: "required" %>
+        <%= f.text_field :order_no, class: "form-control", required: true %>
+      </div>
+      <div class="form-group">
+        <%= f.label :product_name, "产品名称", class: "required" %>
+        <%= f.text_field :product_name, class: "form-control", required: true %>
+      </div>
+      <div class="form-group">
+        <%= f.label :quantity, "数量", class: "required" %>
+        <%= f.number_field :quantity, class: "form-control", required: true, min: 1 %>
+      </div>
+      <div class="form-group">
+        <%= f.label :customer, "客户" %>
+        <%= f.text_field :customer, class: "form-control" %>
+      </div>
+      <div class="form-group">
+        <%= f.label :priority, "优先级" %>
+        <%= f.select :priority, WorkOrder.priorities.map { |k, v|
+          [case k
+            when "low" then "低"
+            when "medium" then "中"
+            when "high" then "高"
+            when "urgent" then "紧急"
+            else k.humanize
+          end, k]
+        }, {}, class: "form-control" %>
+      </div>
+      <div class="form-group">
+        <%= f.label :status, "状态" %>
+        <%= f.select :status, WorkOrder.statuses.map { |k, v|
+          [case k
+            when "pending" then "待处理"
+            when "in_progress" then "进行中"
+            when "completed" then "已完成"
+            when "on_hold" then "已挂起"
+            else k.humanize
+          end, k]
+        }, {}, class: "form-control" %>
+      </div>
+      <div class="form-group">
+        <%= f.label :planned_start_date, "计划开始日期" %>
+        <%= f.date_field :planned_start_date, class: "form-control" %>
+      </div>
+      <div class="form-group">
+        <%= f.label :planned_end_date, "计划完成日期" %>
+        <%= f.date_field :planned_end_date, class: "form-control" %>
+      </div>
+      <div class="form-group form-group-full">
+        <%= f.label :notes, "备注" %>
+        <%= f.text_area :notes, class: "form-control", rows: 3 %>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">工序设置</h2>
+    </div>
+
+    <div id="process-steps">
+      <%= f.fields_for :process_steps do |step_f| %>
+        <div class="nested-fields process-step-item">
+          <div class="form-grid form-grid-compact">
+            <div class="form-group">
+              <%= step_f.label :sequence, "顺序" %>
+              <%= step_f.number_field :sequence, class: "form-control", min: 1 %>
+            </div>
+            <div class="form-group form-group-large">
+              <%= step_f.label :name, "工序名称" %>
+              <%= step_f.text_field :name, class: "form-control" %>
+            </div>
+            <div class="form-group">
+              <%= step_f.label :assigned_team_id, "指定班组" %>
+              <%= step_f.collection_select :assigned_team_id, Team.all, :id, :name,
+                { include_blank: "未指定" }, class: "form-control" %>
+            </div>
+            <div class="form-group">
+              <%= step_f.label :assigned_equipment_id, "指定设备" %>
+              <%= step_f.collection_select :assigned_equipment_id, Equipment.all, :id, :name,
+                { include_blank: "未指定" }, class: "form-control" %>
+            </div>
+            <div class="form-group">
+              <%= step_f.label :mold_id, "模具" %>
+              <%= step_f.collection_select :mold_id, Mold.all, :id, :name,
+                { include_blank: "未指定" }, class: "form-control" %>
+            </div>
+            <div class="form-group form-group-remove">
+              <label>&nbsp;</label>
+              <%= step_f.hidden_field :_destroy, class: "destroy-field" %>
+              <% unless step_f.object.new_record? %>
+                <button type="button" class="btn btn-danger btn-sm remove-nested-fields">删除</button>
+              <% else %>
+                <button type="button" class="btn btn-danger btn-sm remove-nested-fields" style="display:none;">删除</button>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="form-actions form-actions-secondary">
+      <button type="button" class="btn btn-outline" id="add-process-step">添加工序</button>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <%= link_to "取消", work_orders_path, class: "btn btn-outline" %>
+    <%= f.submit class: "btn btn-primary" %>
+  </div>
+<% end %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var addButton = document.getElementById('add-process-step');
+    var processStepsContainer = document.getElementById('process-steps');
+
+    if (addButton && processStepsContainer) {
+      addButton.addEventListener('click', function() {
+        var time = new Date().getTime();
+        var regexp = new RegExp('new_process_steps', 'g');
+        var template = `
+          <div class="nested-fields process-step-item">
+            <div class="form-grid form-grid-compact">
+              <div class="form-group">
+                <label for="work_order_process_steps_attributes_${time}_sequence">顺序</label>
+                <input type="number" name="work_order[process_steps_attributes][${time}][sequence]" id="work_order_process_steps_attributes_${time}_sequence" class="form-control" min="1">
+              </div>
+              <div class="form-group form-group-large">
+                <label for="work_order_process_steps_attributes_${time}_name">工序名称</label>
+                <input type="text" name="work_order[process_steps_attributes][${time}][name]" id="work_order_process_steps_attributes_${time}_name" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="work_order_process_steps_attributes_${time}_assigned_team_id">指定班组</label>
+                <select name="work_order[process_steps_attributes][${time}][assigned_team_id]" id="work_order_process_steps_attributes_${time}_assigned_team_id" class="form-control">
+                  <option value="">未指定</option>
+                  <% Team.all.each do |team| %>
+                    <option value="<%= team.id %>"><%= team.name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="work_order_process_steps_attributes_${time}_assigned_equipment_id">指定设备</label>
+                <select name="work_order[process_steps_attributes][${time}][assigned_equipment_id]" id="work_order_process_steps_attributes_${time}_assigned_equipment_id" class="form-control">
+                  <option value="">未指定</option>
+                  <% Equipment.all.each do |eq| %>
+                    <option value="<%= eq.id %>"><%= eq.name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="work_order_process_steps_attributes_${time}_mold_id">模具</label>
+                <select name="work_order[process_steps_attributes][${time}][mold_id]" id="work_order_process_steps_attributes_${time}_mold_id" class="form-control">
+                  <option value="">未指定</option>
+                  <% Mold.all.each do |mold| %>
+                    <option value="<%= mold.id %>"><%= mold.name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="form-group form-group-remove">
+                <label>&nbsp;</label>
+                <input type="hidden" name="work_order[process_steps_attributes][${time}][_destroy]" class="destroy-field" value="false">
+                <button type="button" class="btn btn-danger btn-sm remove-nested-fields">删除</button>
+              </div>
+            </div>
+          </div>
+        `;
+        processStepsContainer.insertAdjacentHTML('beforeend', template);
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('remove-nested-fields')) {
+        e.preventDefault();
+        var item = e.target.closest('.nested-fields');
+        var destroyField = item.querySelector('.destroy-field');
+        if (destroyField) {
+          destroyField.value = '1';
+        }
+        item.style.display = 'none';
+      }
+    });
+  });
+</script>
