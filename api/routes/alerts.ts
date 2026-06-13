@@ -123,6 +123,10 @@ router.post('/:id/confirm', requireAuth, async (req: Request, res: Response, nex
     if (existing.status === 'resolved') return next(createError('INVALID_STATE', '该告警已解决，无需重复确认'))
     if (existing.status === 'confirmed') return next(createError('ALREADY_CONFIRMED', '该告警已被确认，请刷新后查看'))
 
+    if (req.user!.role !== 'admin' && existing.dutyStaffId !== req.user!.id && existing.confirmedBy !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限确认此告警，只能确认分配给您的告警'))
+    }
+
     const now = new Date()
     const duration = existing.createdAt ? Math.round((now.getTime() - existing.createdAt.getTime()) / 60000) : null
 
@@ -178,8 +182,12 @@ router.post('/:id/escalate', requireAuth, async (req: Request, res: Response, ne
     if (!escalatedTo) return next(createError('VALIDATION_ERROR', '升级目标人员为必填项'))
 
     const existing = await prisma.alert.findUnique({ where: { id } })
-    if (!existing) return next(createError('NOT_FOUND'))
+    if (!existing) return next(createError('NOT_FOUND', '告警不存在或已被删除'))
     if (existing.status === 'resolved') return next(createError('INVALID_STATE', '已解决的告警不能再升级'))
+
+    if (req.user!.role !== 'admin' && existing.dutyStaffId !== req.user!.id && existing.confirmedBy !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限升级此告警，只能升级分配给您的告警'))
+    }
 
     const now = new Date()
     const duration = existing.createdAt ? Math.round((now.getTime() - existing.createdAt.getTime()) / 60000) : null
@@ -227,7 +235,7 @@ router.put('/:id/assign', requireAuth, requireAdmin, async (req: Request, res: R
     if (!dutyStaffId) return next(createError('VALIDATION_ERROR', '值班人员为必填项'))
 
     const existing = await prisma.alert.findUnique({ where: { id } })
-    if (!existing) return next(createError('NOT_FOUND'))
+    if (!existing) return next(createError('NOT_FOUND', '告警不存在或已被删除'))
     if (existing.status === 'resolved') return next(createError('INVALID_STATE', '已解决的告警不能再指派'))
 
     const alert = await prisma.alert.update({
@@ -269,8 +277,12 @@ router.post('/:id/resolve', requireAuth, async (req: Request, res: Response, nex
     const { note } = req.body
 
     const existing = await prisma.alert.findUnique({ where: { id } })
-    if (!existing) return next(createError('NOT_FOUND'))
-    if (existing.status === 'resolved') return next(createError('ALREADY_PROCESSED'))
+    if (!existing) return next(createError('NOT_FOUND', '告警不存在或已被删除'))
+    if (existing.status === 'resolved') return next(createError('ALREADY_PROCESSED', '该告警已解决，请勿重复操作'))
+
+    if (req.user!.role !== 'admin' && existing.dutyStaffId !== req.user!.id && existing.confirmedBy !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限解决此告警，只能解决分配给您的告警'))
+    }
 
     const now = new Date()
     const startAt = existing.confirmedAt || existing.createdAt

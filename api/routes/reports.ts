@@ -12,17 +12,20 @@ router.get('/overview', requireAuth, async (req: Request, res: Response, next: N
 
     const isAdmin = req.user!.role === 'admin'
     const userId = req.user!.id
+    const storeId = req.user!.storeId
 
     const alertWhere: Record<string, unknown> = {}
     const requestWhere: Record<string, unknown> = {}
     const taskWhere: Record<string, unknown> = {}
     const recordWhere: Record<string, unknown> = { createdAt: { gte: weekAgo }, duration: { not: null } }
+    const dutyWhere: Record<string, unknown> = { date: { gte: today, lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) } }
 
     if (!isAdmin) {
       alertWhere.OR = [{ dutyStaffId: userId }, { confirmedBy: userId }]
       requestWhere.OR = [{ applicantId: userId }, { dutyStaffId: userId }]
       taskWhere.assigneeId = userId
       recordWhere.operatorId = userId
+      dutyWhere.staff = { storeId }
     }
 
     const [
@@ -43,7 +46,7 @@ router.get('/overview', requireAuth, async (req: Request, res: Response, next: N
       prisma.inspectionTask.count({ where: { ...taskWhere, status: 'pending' } }),
       prisma.inspectionTask.count({ where: taskWhere }),
       prisma.dutySchedule.findMany({
-        where: { date: { gte: today, lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) } },
+        where: dutyWhere,
         include: { staff: { select: { id: true, displayName: true } } },
       }),
       prisma.inspectionTask.count({ where: { ...taskWhere, status: 'pending', scheduledDate: { gte: today, lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) } } }),

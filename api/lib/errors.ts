@@ -40,7 +40,8 @@ const errorMap: Record<string, { message: string; statusCode: number }> = {
   CONCURRENT_MODIFICATION: { message: '数据已被他人修改，请刷新后重试', statusCode: 409 },
 }
 
-export function createError(code: string, detail?: string): AppError {
+export function createError(code: string, overrideMessage?: string, detail?: string): AppError {
   const entry = errorMap[code] || errorMap.INTERNAL_ERROR
-  return new AppError(code, entry.message, entry.statusCode, detail)
+  const message = overrideMessage || entry.message
+  return new AppError(code, message, entry.statusCode, detail)
 }
