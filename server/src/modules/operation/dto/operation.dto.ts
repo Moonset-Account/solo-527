@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsEnum, IsArray, IsDateString, IsInt, Min, IsBoolean } from 'class-validator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { PlatformType } from '../../common/enums';
-import { ScheduleStatus } from './schemas/schedule.schema';
+import { PaginationDto } from '@/common/dto/pagination';
+import { PlatformType } from '@/common/enums';
+import { ScheduleStatus } from '../schemas/schedule.schema';
 
 export class QueryPlatformAccountDto extends PaginationDto {
   @IsOptional()

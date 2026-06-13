@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, SchemaTypes } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
+import { Document, SchemaTypes, Types } from 'mongoose';
 
 export type ScheduleDocument = Schedule & Document;
 
@@ -11,12 +10,14 @@ export enum ScheduleStatus {
 }
 
 @Schema({ collection: 'schedules', timestamps: true })
-export class Schedule extends BaseSchema {
+export class Schedule {
+  _id: Types.ObjectId;
+
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Content' })
-  contentId?: string;
+  contentId: string;
 
   @Prop()
-  contentTitle?: string;
+  contentTitle: string;
 
   @Prop({ type: [{ type: SchemaTypes.ObjectId, ref: 'PlatformAccount' }] })
   platformIds: string[];
@@ -28,10 +29,16 @@ export class Schedule extends BaseSchema {
   status: ScheduleStatus;
 
   @Prop()
-  publisher?: string;
+  publisher: string;
 
   @Prop()
-  remark?: string;
+  remark: string;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const ScheduleSchema = SchemaFactory.createForClass(Schedule);

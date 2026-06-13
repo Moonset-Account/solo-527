@@ -1,11 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
+import { Document, Types } from 'mongoose';
 
 export type DictItemDocument = DictItem & Document;
 
 @Schema({ collection: 'dict_items', timestamps: true })
-export class DictItem extends BaseSchema {
+export class DictItem {
+  _id: Types.ObjectId;
+
   @Prop({ required: true })
   dictCode: string;
 
@@ -25,7 +26,13 @@ export class DictItem extends BaseSchema {
   enabled: boolean;
 
   @Prop()
-  remark?: string;
+  remark: string;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const DictItemSchema = SchemaFactory.createForClass(DictItem);

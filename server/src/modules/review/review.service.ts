@@ -4,14 +4,14 @@ import { Model } from 'mongoose';
 import { ReviewFlow, ReviewFlowDocument } from './schemas/review-flow.schema';
 import { ReviewRecord, ReviewRecordDocument, ReviewAction } from './schemas/review-record.schema';
 import { Content, ContentDocument } from '../content/schemas/content.schema';
-import { ContentStatus } from '../../common/enums';
+import { ContentStatus } from '@/common/enums';
 import {
   CreateReviewFlowDto,
   UpdateReviewFlowDto,
   QueryReviewRecordDto,
   CreateReviewRecordDto,
 } from './dto/review.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { PaginatedResult } from '@/common/dto/pagination';
 
 @Injectable()
 export class ReviewService {
@@ -27,15 +27,15 @@ export class ReviewService {
   }
 
   async findAllFlows(): Promise<ReviewFlow[]> {
-    return this.reviewFlowModel.find({ deletedAt: null }).sort({ createdAt: -1 }).exec();
+    return this.reviewFlowModel.find({ deletedAt: null }).sort({ createdAt: -1 }).lean().exec() as any;
   }
 
   async findActiveFlows(): Promise<ReviewFlow[]> {
-    return this.reviewFlowModel.find({ deletedAt: null, isActive: true }).sort({ createdAt: -1 }).exec();
+    return this.reviewFlowModel.find({ deletedAt: null, isActive: true }).sort({ createdAt: -1 }).lean().exec() as any;
   }
 
   async findOneFlow(id: string): Promise<ReviewFlow> {
-    const flow = await this.reviewFlowModel.findById(id).exec();
+    const flow: any = await this.reviewFlowModel.findById(id).lean().exec();
     if (!flow || flow.deletedAt) {
       throw new NotFoundException('审稿流程不存在');
     }
@@ -44,21 +44,21 @@ export class ReviewService {
 
   async updateFlow(id: string, dto: UpdateReviewFlowDto): Promise<ReviewFlow> {
     await this.findOneFlow(id);
-    return this.reviewFlowModel.findByIdAndUpdate(id, { ...dto, updatedAt: new Date() }, { new: true });
+    return this.reviewFlowModel.findByIdAndUpdate(id, { ...dto, updatedAt: new Date() } as any, { new: true }).lean().exec() as any;
   }
 
   async removeFlow(id: string): Promise<void> {
     await this.findOneFlow(id);
-    await this.reviewFlowModel.findByIdAndUpdate(id, { deletedAt: new Date() });
+    await this.reviewFlowModel.findByIdAndUpdate(id, { deletedAt: new Date() } as any);
   }
 
   async createReviewRecord(dto: CreateReviewRecordDto): Promise<ReviewRecord> {
     const record = new this.reviewRecordModel(dto);
     await record.save();
 
-    const content = await this.contentModel.findById(dto.contentId);
+    const content: any = await this.contentModel.findById(dto.contentId).lean().exec();
     if (content) {
-      const history = [...content.history];
+      const history = [...(content.history || [])];
       history.push({
         field: 'review',
         oldValue: content.status,
@@ -74,8 +74,8 @@ export class ReviewService {
       if (dto.action === ReviewAction.REJECT) {
         newStatus = ContentStatus.REJECTED;
       } else if (dto.action === ReviewAction.APPROVE) {
-        const flow = await this.reviewFlowModel.findById(dto.flowId);
-        if (flow && dto.nodeIndex >= flow.nodes.length - 1) {
+        const flow: any = await this.reviewFlowModel.findById(dto.flowId).lean().exec();
+        if (flow && dto.nodeIndex >= (flow.nodes?.length || 0) - 1) {
           newStatus = ContentStatus.APPROVED;
         } else {
           nextNodeIndex = dto.nodeIndex + 1;
@@ -88,23 +88,25 @@ export class ReviewService {
         currentReviewNodeIndex: nextNodeIndex,
         history,
         updatedAt: new Date(),
-      });
+      } as any);
     }
 
     return record;
   }
 
   async findReviewRecords(query: QueryReviewRecordDto): Promise<PaginatedResult<ReviewRecord>> {
-    const { page = 1, pageSize = 20, contentId, reviewer } = query;
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const { contentId, reviewer } = query;
     const filter: any = { deletedAt: null };
     if (contentId) filter.contentId = contentId;
     if (reviewer) filter.reviewer = reviewer;
 
     const [list, total] = await Promise.all([
-      this.reviewRecordModel.find(filter).sort({ reviewedAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).exec(),
+      this.reviewRecordModel.find(filter).sort({ reviewedAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean().exec(),
       this.reviewRecordModel.countDocuments(filter),
     ]);
 
-    return { list, total, page, pageSize };
+    return { list: list as any, total, page, pageSize };
   }
 }

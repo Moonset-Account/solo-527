@@ -1,49 +1,51 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
+import { Document, Types } from 'mongoose';
 
 export type MaterialDocument = Material & Document;
 
-@Prop()
-class MaterialFile {
-  @Prop()
-  name: string;
-
-  @Prop()
-  url: string;
-
-  @Prop()
-  type: string;
-
-  @Prop()
-  duration?: number;
-}
-
 @Schema({ collection: 'materials', timestamps: true })
-export class Material extends BaseSchema {
+export class Material {
+  _id: Types.ObjectId;
+
   @Prop({ required: true })
   title: string;
 
   @Prop()
-  interviewee?: string;
+  interviewee: string;
 
   @Prop()
-  interviewDate?: Date;
+  interviewDate: Date;
 
   @Prop()
-  location?: string;
+  location: string;
 
-  @Prop()
-  keywords?: string[];
+  @Prop({ type: [String], default: [] })
+  keywords: string[];
 
-  @Prop({ type: [MaterialFile] })
-  files: MaterialFile[];
+  @Prop({
+    type: [
+      {
+        name: { type: String },
+        url: { type: String },
+        type: { type: String },
+        duration: { type: Number },
+      },
+    ],
+    default: [],
+  })
+  files: Array<{ name: string; url: string; type: string; duration?: number }>;
 
   @Prop()
   uploader: string;
 
   @Prop()
-  remark?: string;
+  remark: string;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const MaterialSchema = SchemaFactory.createForClass(Material);

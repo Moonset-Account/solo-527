@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum, IsArray, IsDateString } from 'class-validator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { ContentStatus } from '../../common/enums';
+import { PaginationDto } from '@/common/dto/pagination';
+import { ContentStatus } from '@/common/enums';
 
 export class QueryContentDto extends PaginationDto {
   @IsOptional()

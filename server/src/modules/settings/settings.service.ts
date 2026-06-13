@@ -11,7 +11,7 @@ import {
   CreateSystemConfigDto,
   UpdateSystemConfigDto,
 } from './dto/settings.dto';
-import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { PaginatedResult } from '@/common/dto/pagination';
 
 @Injectable()
 export class SettingsService {
@@ -26,7 +26,10 @@ export class SettingsService {
   }
 
   async findAllDictItems(query: QueryDictItemDto): Promise<PaginatedResult<DictItem>> {
-    const { page = 1, pageSize = 20, keyword, dictCode, enabled } = query;
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const keyword = query.keyword;
+    const { dictCode, enabled } = query;
     const filter: any = { deletedAt: null };
     if (keyword) {
       filter.$or = [
@@ -38,19 +41,19 @@ export class SettingsService {
     if (enabled !== undefined) filter.enabled = enabled;
 
     const [list, total] = await Promise.all([
-      this.dictItemModel.find(filter).sort({ dictCode: 1, sort: 1 }).skip((page - 1) * pageSize).limit(pageSize).exec(),
+      this.dictItemModel.find(filter).sort({ dictCode: 1, sort: 1 }).skip((page - 1) * pageSize).limit(pageSize).lean().exec(),
       this.dictItemModel.countDocuments(filter),
     ]);
 
-    return { list, total, page, pageSize };
+    return { list: list as any, total, page, pageSize };
   }
 
   async findDictItemsByCode(dictCode: string): Promise<DictItem[]> {
-    return this.dictItemModel.find({ deletedAt: null, dictCode, enabled: true }).sort({ sort: 1 }).exec();
+    return this.dictItemModel.find({ deletedAt: null, dictCode, enabled: true }).sort({ sort: 1 }).lean().exec() as any;
   }
 
   async findAllDictCodes(): Promise<Array<{ dictCode: string; dictName: string }>> {
-    const items = await this.dictItemModel.find({ deletedAt: null }).select('dictCode dictName').exec();
+    const items: any[] = await this.dictItemModel.find({ deletedAt: null }).select('dictCode dictName').lean().exec();
     const map = new Map<string, string>();
     items.forEach((item) => {
       if (!map.has(item.dictCode)) {
@@ -61,19 +64,19 @@ export class SettingsService {
   }
 
   async findOneDictItem(id: string): Promise<DictItem> {
-    const item = await this.dictItemModel.findById(id).exec();
+    const item: any = await this.dictItemModel.findById(id).lean().exec();
     if (!item || item.deletedAt) throw new NotFoundException('字典项不存在');
     return item;
   }
 
   async updateDictItem(id: string, dto: UpdateDictItemDto): Promise<DictItem> {
     await this.findOneDictItem(id);
-    return this.dictItemModel.findByIdAndUpdate(id, { ...dto, updatedAt: new Date() }, { new: true });
+    return this.dictItemModel.findByIdAndUpdate(id, { ...dto, updatedAt: new Date() } as any, { new: true }).lean().exec() as any;
   }
 
   async removeDictItem(id: string): Promise<void> {
     await this.findOneDictItem(id);
-    await this.dictItemModel.findByIdAndUpdate(id, { deletedAt: new Date() });
+    await this.dictItemModel.findByIdAndUpdate(id, { deletedAt: new Date() } as any);
   }
 
   async createSystemConfig(dto: CreateSystemConfigDto): Promise<SystemConfig> {
@@ -82,45 +85,48 @@ export class SettingsService {
   }
 
   async findAllSystemConfigs(query: QuerySystemConfigDto): Promise<PaginatedResult<SystemConfig>> {
-    const { page = 1, pageSize = 20, keyword, configGroup } = query;
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const keyword = query.keyword;
+    const { configGroup } = query;
     const filter: any = { deletedAt: null };
     if (keyword) filter.configKey = { $regex: keyword, $options: 'i' };
     if (configGroup) filter.configGroup = configGroup;
 
     const [list, total] = await Promise.all([
-      this.systemConfigModel.find(filter).sort({ configGroup: 1, configKey: 1 }).skip((page - 1) * pageSize).limit(pageSize).exec(),
+      this.systemConfigModel.find(filter).sort({ configGroup: 1, configKey: 1 }).skip((page - 1) * pageSize).limit(pageSize).lean().exec(),
       this.systemConfigModel.countDocuments(filter),
     ]);
 
-    return { list, total, page, pageSize };
+    return { list: list as any, total, page, pageSize };
   }
 
   async findOneSystemConfig(id: string): Promise<SystemConfig> {
-    const config = await this.systemConfigModel.findById(id).exec();
+    const config: any = await this.systemConfigModel.findById(id).lean().exec();
     if (!config || config.deletedAt) throw new NotFoundException('系统配置不存在');
     return config;
   }
 
   async findSystemConfigByKey(key: string): Promise<SystemConfig | null> {
-    return this.systemConfigModel.findOne({ configKey: key, deletedAt: null }).exec();
+    return this.systemConfigModel.findOne({ configKey: key, deletedAt: null }).lean().exec() as any;
   }
 
   async findSystemConfigsByGroup(group: string): Promise<SystemConfig[]> {
-    return this.systemConfigModel.find({ configGroup: group, deletedAt: null }).exec();
+    return this.systemConfigModel.find({ configGroup: group, deletedAt: null }).lean().exec() as any;
   }
 
   async findAllConfigGroups(): Promise<string[]> {
-    const configs = await this.systemConfigModel.find({ deletedAt: null }).select('configGroup').exec();
+    const configs: any[] = await this.systemConfigModel.find({ deletedAt: null }).select('configGroup').lean().exec();
     return Array.from(new Set(configs.map((c) => c.configGroup)));
   }
 
   async updateSystemConfig(id: string, dto: UpdateSystemConfigDto): Promise<SystemConfig> {
     await this.findOneSystemConfig(id);
-    return this.systemConfigModel.findByIdAndUpdate(id, { ...dto, updatedAt: new Date() }, { new: true });
+    return this.systemConfigModel.findByIdAndUpdate(id, { ...dto, updatedAt: new Date() } as any, { new: true }).lean().exec() as any;
   }
 
   async removeSystemConfig(id: string): Promise<void> {
     await this.findOneSystemConfig(id);
-    await this.systemConfigModel.findByIdAndUpdate(id, { deletedAt: new Date() });
+    await this.systemConfigModel.findByIdAndUpdate(id, { deletedAt: new Date() } as any);
   }
 }

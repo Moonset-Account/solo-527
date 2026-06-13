@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, SchemaTypes } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
+import { Document, SchemaTypes, Types } from 'mongoose';
 
 export type ReviewRecordDocument = ReviewRecord & Document;
 
@@ -11,7 +10,9 @@ export enum ReviewAction {
 }
 
 @Schema({ collection: 'review_records', timestamps: true })
-export class ReviewRecord extends BaseSchema {
+export class ReviewRecord {
+  _id: Types.ObjectId;
+
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Content', required: true })
   contentId: string;
 
@@ -31,10 +32,16 @@ export class ReviewRecord extends BaseSchema {
   action: ReviewAction;
 
   @Prop()
-  comment?: string;
+  comment: string;
 
   @Prop({ default: Date.now })
   reviewedAt: Date;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const ReviewRecordSchema = SchemaFactory.createForClass(ReviewRecord);

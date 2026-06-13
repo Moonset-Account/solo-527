@@ -1,41 +1,48 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
-import { ReviewNodeType } from '../../common/enums';
+import { Document, Types } from 'mongoose';
+import { ReviewNodeType } from '@/common/enums';
 
 export type ReviewFlowDocument = ReviewFlow & Document;
 
-@Prop()
-class ReviewNode {
-  @Prop()
-  name: string;
-
-  @Prop({ type: String, enum: ReviewNodeType, default: ReviewNodeType.SINGLE })
-  type: ReviewNodeType;
-
-  @Prop({ type: [String] })
-  reviewers: string[];
-
-  @Prop()
-  order: number;
-}
-
 @Schema({ collection: 'review_flows', timestamps: true })
-export class ReviewFlow extends BaseSchema {
+export class ReviewFlow {
+  _id: Types.ObjectId;
+
   @Prop({ required: true, unique: true })
   name: string;
 
-  @Prop({ type: [ReviewNode] })
-  nodes: ReviewNode[];
+  @Prop({
+    type: [
+      {
+        name: { type: String },
+        type: { type: String, enum: ReviewNodeType, default: ReviewNodeType.SINGLE },
+        reviewers: { type: [String] },
+        order: { type: Number },
+      },
+    ],
+    default: [],
+  })
+  nodes: Array<{
+    name: string;
+    type: ReviewNodeType;
+    reviewers: string[];
+    order: number;
+  }>;
 
   @Prop({ default: true })
   isActive: boolean;
 
   @Prop()
-  description?: string;
+  description: string;
 
   @Prop()
   creator: string;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const ReviewFlowSchema = SchemaFactory.createForClass(ReviewFlow);

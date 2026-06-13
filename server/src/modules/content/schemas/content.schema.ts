@@ -1,48 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, SchemaTypes } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
-import { ContentStatus } from '../../common/enums';
+import { Document, SchemaTypes, Types } from 'mongoose';
+import { ContentStatus } from '@/common/enums';
 
 export type ContentDocument = Content & Document;
 
-@Prop()
-class Attachment {
-  @Prop()
-  name: string;
-
-  @Prop()
-  url: string;
-
-  @Prop()
-  type: string;
-
-  @Prop()
-  size: number;
-}
-
-@Prop()
-class HistoryRecord {
-  @Prop()
-  field: string;
-
-  @Prop()
-  oldValue: any;
-
-  @Prop()
-  newValue: any;
-
-  @Prop()
-  operator: string;
-
-  @Prop({ default: Date.now })
-  operatedAt: Date;
-
-  @Prop()
-  remark?: string;
-}
-
 @Schema({ collection: 'contents', timestamps: true })
-export class Content extends BaseSchema {
+export class Content {
+  _id: Types.ObjectId;
+
   @Prop({ required: true })
   title: string;
 
@@ -56,58 +21,93 @@ export class Content extends BaseSchema {
   status: ContentStatus;
 
   @Prop({ type: SchemaTypes.ObjectId, ref: 'ReviewFlow' })
-  reviewFlowId?: string;
+  reviewFlowId: string;
 
   @Prop({ default: 0 })
   currentReviewNodeIndex: number;
 
-  @Prop()
-  currentReviewers?: string[];
+  @Prop({ type: [String] })
+  currentReviewers: string[];
 
   @Prop({ type: [{ type: SchemaTypes.ObjectId, ref: 'PlatformAccount' }] })
   targetPlatforms: string[];
 
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Material' })
-  materialId?: string;
+  materialId: string;
 
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Schedule' })
-  scheduleId?: string;
+  scheduleId: string;
 
   @Prop()
-  assignee?: string;
+  assignee: string;
 
   @Prop()
   creator: string;
 
   @Prop()
-  publisher?: string;
+  publisher: string;
 
   @Prop()
-  publishTime?: Date;
+  publishTime: Date;
 
   @Prop()
-  publishResult?: string;
+  publishResult: string;
 
-  @Prop({ type: [Attachment] })
-  attachments: Attachment[];
+  @Prop({
+    type: [
+      {
+        name: { type: String },
+        url: { type: String },
+        type: { type: String },
+        size: { type: Number },
+      },
+    ],
+    default: [],
+  })
+  attachments: Array<{ name: string; url: string; type: string; size: number }>;
 
   @Prop()
-  remark?: string;
+  remark: string;
 
-  @Prop({ type: [HistoryRecord] })
-  history: HistoryRecord[];
+  @Prop({
+    type: [
+      {
+        field: { type: String },
+        oldValue: { type: SchemaTypes.Mixed },
+        newValue: { type: SchemaTypes.Mixed },
+        operator: { type: String },
+        operatedAt: { type: Date, default: Date.now },
+        remark: { type: String },
+      },
+    ],
+    default: [],
+  })
+  history: Array<{
+    field: string;
+    oldValue: any;
+    newValue: any;
+    operator: string;
+    operatedAt: Date;
+    remark?: string;
+  }>;
 
   @Prop({ default: false })
   isException: boolean;
 
   @Prop()
-  exceptionReason?: string;
+  exceptionReason: string;
 
   @Prop()
-  exceptionConclusion?: string;
+  exceptionConclusion: string;
 
   @Prop()
-  exceptionHandler?: string;
+  exceptionHandler: string;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const ContentSchema = SchemaFactory.createForClass(Content);

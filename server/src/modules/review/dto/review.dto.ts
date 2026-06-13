@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsArray, IsEnum, IsInt, Min } from 'class-validator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { ReviewNodeType } from '../../common/enums';
-import { ReviewAction } from './schemas/review-record.schema';
+import { PaginationDto } from '@/common/dto/pagination';
+import { ReviewNodeType } from '@/common/enums';
+import { ReviewAction } from '../schemas/review-record.schema';
 
 export class CreateReviewFlowDto {
   @IsString()

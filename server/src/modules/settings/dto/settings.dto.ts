@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsInt, IsBoolean, Min } from 'class-validator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { PaginationDto } from '@/common/dto/pagination';
 
 export class QueryDictItemDto extends PaginationDto {
   @IsOptional()

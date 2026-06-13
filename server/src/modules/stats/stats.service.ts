@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Content, ContentDocument } from '../content/schemas/content.schema';
-import { ContentStatus } from '../../common/enums';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class StatsService {
@@ -18,15 +17,15 @@ export class StatsService {
     }
     if (assignee) filter.assignee = assignee;
 
-    const contents = await this.contentModel.find(filter).exec();
-    const stats: Record<string, number> = {};
-
-    Object.values(ContentStatus).forEach((status) => {
-      stats[status] = 0;
-    });
+    const contents: any[] = await this.contentModel.find(filter).lean().exec();
+    const stats: Record<string, number> = {
+      draft: 0, submitted: 0, reviewing: 0, approved: 0, rejected: 0,
+      filming: 0, editing: 0, pending_publish: 0, published: 0, publish_failed: 0, archived: 0
+    };
 
     contents.forEach((c) => {
-      stats[c.status] = (stats[c.status] || 0) + 1;
+      const s = c.status || 'draft';
+      stats[s] = (stats[s] || 0) + 1;
     });
 
     return stats;
@@ -55,7 +54,7 @@ export class StatsService {
       if (endDate) filter.createdAt.$lte = dayjs(endDate).endOf('day').toDate();
     }
 
-    const contents = await this.contentModel.find(filter).exec();
+    const contents: any[] = await this.contentModel.find(filter).lean().exec();
     const stats: Record<string, { total: number; byStatus: Record<string, number> }> = {};
 
     contents.forEach((c) => {
@@ -64,7 +63,8 @@ export class StatsService {
         stats[key] = { total: 0, byStatus: {} };
       }
       stats[key].total++;
-      stats[key].byStatus[c.status] = (stats[key].byStatus[c.status] || 0) + 1;
+      const s = c.status || 'draft';
+      stats[key].byStatus[s] = (stats[key].byStatus[s] || 0) + 1;
     });
 
     return stats;

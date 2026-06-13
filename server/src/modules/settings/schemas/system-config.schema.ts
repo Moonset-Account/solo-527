@@ -1,11 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { BaseSchema } from '../../common/schemas/base.schema';
+import { Document, Types } from 'mongoose';
 
 export type SystemConfigDocument = SystemConfig & Document;
 
 @Schema({ collection: 'system_configs', timestamps: true })
-export class SystemConfig extends BaseSchema {
+export class SystemConfig {
+  _id: Types.ObjectId;
+
   @Prop({ required: true, unique: true })
   configKey: string;
 
@@ -16,10 +17,16 @@ export class SystemConfig extends BaseSchema {
   valueType: string;
 
   @Prop()
-  description?: string;
+  description: string;
 
   @Prop()
   configGroup: string;
+
+  @Prop({ default: null })
+  deletedAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const SystemConfigSchema = SchemaFactory.createForClass(SystemConfig);
