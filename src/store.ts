@@ -274,11 +274,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
   retryFailed: async (requestId) => {
     set({ batchLoading: true });
     try {
-      const result = await apiFetch<BatchResult>('/api/batch/retry', {
+      const retryResult = await apiFetch<BatchResult>('/api/batch/retry', {
         method: 'POST',
         body: JSON.stringify({ requestId, operation: 'approve' }),
       });
-      set({ batchResult: result });
+
+      set((state) => {
+        const prev = state.batchResult;
+        if (!prev) {
+          return { batchResult: retryResult };
+        }
+
+        const remainingFailures = prev.failures.filter((f) => f.requestId !== requestId);
+        const newSuccessCount = prev.successCount + retryResult.successCount;
+        const newFailCount = remainingFailures.length;
+
+        return {
+          batchResult: {
+            totalCount: prev.totalCount,
+            successCount: newSuccessCount,
+            failCount: newFailCount,
+            successIds: [...prev.successIds, ...retryResult.successIds],
+            failures: remainingFailures,
+          },
+        };
+      });
     } finally {
       set({ batchLoading: false });
     }

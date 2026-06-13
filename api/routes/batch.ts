@@ -132,19 +132,33 @@ router.post('/process', (req: Request, res: Response): void => {
 router.post('/retry', (req: Request, res: Response): void => {
   const { requestId, operation, remark } = req.body
 
+  const result: BatchResult = {
+    totalCount: 1,
+    successCount: 0,
+    failCount: 0,
+    successIds: [],
+    failures: [],
+  }
+
   if (!requestId || !operation) {
-    res.status(400).json({ success: false, error: '缺少必填字段' })
+    result.failCount = 1
+    result.failures.push({ requestId: String(requestId || 'unknown'), reason: '缺少必填字段', retryable: true })
+    res.json({ success: true, data: result })
     return
   }
 
   const request = store.repairRequests.getById(requestId)
   if (!request) {
-    res.status(404).json({ success: false, error: '报修申请不存在' })
+    result.failCount = 1
+    result.failures.push({ requestId, reason: '报修申请不存在', retryable: false })
+    res.json({ success: true, data: result })
     return
   }
 
   if (request.status !== 'rejected' && request.status !== 'waitlisted') {
-    res.status(400).json({ success: false, error: '只有被拒绝或候补的申请可以重试' })
+    result.failCount = 1
+    result.failures.push({ requestId, reason: `当前状态 ${request.status} 不可重试，只有被拒绝或候补的申请可以重试`, retryable: false })
+    res.json({ success: true, data: result })
     return
   }
 
@@ -164,7 +178,10 @@ router.post('/retry', (req: Request, res: Response): void => {
 
   store.repairRequests.update(requestId, { status: newStatus })
 
-  res.json({ success: true, data: store.repairRequests.getById(requestId) })
+  result.successCount = 1
+  result.successIds.push(requestId)
+
+  res.json({ success: true, data: result })
 })
 
 export default router

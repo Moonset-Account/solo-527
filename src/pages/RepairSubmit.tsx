@@ -17,7 +17,8 @@ interface PhotoFile {
 }
 
 export default function RepairSubmit() {
-  const createRepair = useAppStore((s) => s.createRepair);
+  const [studentName, setStudentName] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [building, setBuilding] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
   const [repairType, setRepairType] = useState<RepairType | ''>('');
@@ -25,7 +26,8 @@ export default function RepairSubmit() {
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ id: string } | null>(null);
+  const [submitError, setSubmitError] = useState('');
+  const [result, setResult] = useState<{ id: string; photos: any[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isValid = building && roomNumber && repairType && urgency && description.length >= 10;
@@ -35,20 +37,7 @@ export default function RepairSubmit() {
       .filter((f) => f.type.startsWith('image/'))
       .map((f) => ({ file: f, preview: URL.createObjectURL(f), progress: 0 }));
     setPhotos((prev) => [...prev, ...newPhotos]);
-    newPhotos.forEach((p) => simulateUpload(p));
   }, []);
-
-  const simulateUpload = (photo: PhotoFile) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 30;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-      }
-      setPhotos((prev) => prev.map((p) => (p.preview === photo.preview ? { ...p, progress } : p)));
-    }, 200);
-  };
 
   const removePhoto = (preview: string) => {
     setPhotos((prev) => {
@@ -63,19 +52,53 @@ export default function RepairSubmit() {
     if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   };
 
+  const submitWithPhotos = async () => {
+    const formData = new FormData();
+    if (studentId) formData.append('studentId', studentId);
+    if (studentName) formData.append('studentName', studentName);
+    formData.append('building', building);
+    formData.append('roomNumber', roomNumber);
+    formData.append('repairType', repairType);
+    formData.append('description', description);
+    formData.append('urgency', urgency);
+    photos.forEach((p, i) => {
+      formData.append('photos', p.file, `photo_${i}_${p.file.name}`);
+    });
+
+    const res = await fetch('/api/repairs', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || '提交失败');
+    }
+    return data.data;
+  };
+
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
     setSubmitting(true);
+    setSubmitError('');
+    setPhotos((prev) => prev.map((p) => ({ ...p, progress: 0 })));
+
+    const progressInterval = setInterval(() => {
+      setPhotos((prev) => prev.map((p) => ({
+        ...p,
+        progress: Math.min(100, p.progress + Math.random() * 25),
+      })));
+    }, 200);
+
     try {
-      const res = await createRepair({
-        building,
-        roomNumber,
-        repairType: repairType as RepairType,
-        urgency: urgency as Urgency,
-        description,
-      });
-      setResult({ id: res.id });
+      const res = await submitWithPhotos();
+      setPhotos((prev) => prev.map((p) => ({ ...p, progress: 100 })));
+      clearInterval(progressInterval);
+      setResult({ id: res.id, photos: res.photos || [] });
+    } catch (err: any) {
+      clearInterval(progressInterval);
+      setSubmitError(err.message || '提交失败，请稍后重试');
     } finally {
+      clearInterval(progressInterval);
       setSubmitting(false);
     }
   };
@@ -87,6 +110,9 @@ export default function RepairSubmit() {
           <CheckCircle size={64} className="mx-auto mb-4 text-green-500" />
           <h2 className="mb-2 text-xl font-bold text-slate-800">提交成功</h2>
           <p className="mb-1 text-slate-600">申请单号: <span className="font-mono font-semibold">{result.id}</span></p>
+          {result.photos.length > 0 && (
+            <p className="mb-1 text-sm text-slate-500">已上传照片: <span className="font-medium">{result.photos.length} 张</span></p>
+          )}
           <p className="mb-6 text-sm text-slate-500">您的报修申请已成功提交，请耐心等待审核</p>
           <Link to={`/repair/track/${result.id}`} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700">
             查看进度
@@ -101,6 +127,35 @@ export default function RepairSubmit() {
       <h1 className="mb-6 text-2xl font-bold text-slate-800">报修申请</h1>
       <div className="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-sm">
         <div className="space-y-5">
+          {submitError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">您的姓名</label>
+              <input
+                type="text"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                placeholder="选填，便于联系"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">学号</label>
+              <input
+                type="text"
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                placeholder="选填，不填将使用匿名编号"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">宿舍楼 <span className="text-red-500">*</span></label>

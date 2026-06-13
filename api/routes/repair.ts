@@ -100,17 +100,20 @@ router.get('/:id', (req: Request, res: Response): void => {
   res.json({ success: true, data: request })
 })
 
-router.post('/', (req: Request, res: Response): void => {
-  const { studentId, studentName, building, roomNumber, repairType, description, urgency, quotaConfigId, photos: photoMetadata } = req.body
+router.post('/', upload.array('photos', 5), (req: Request, res: Response): void => {
+  const { studentId, studentName, building, roomNumber, repairType, description, urgency, quotaConfigId } = req.body
 
-  if (!studentId || !building || !roomNumber || !repairType || !description || !urgency) {
+  const sid = studentId || `guest-${Date.now()}`
+  const sname = studentName || '匿名学生'
+
+  if (!building || !roomNumber || !repairType || !description || !urgency) {
     res.status(400).json({ success: false, error: '缺少必填字段' })
     return
   }
 
   const request = store.repairRequests.create({
-    studentId,
-    studentName: studentName || '',
+    studentId: sid,
+    studentName: sname,
     building,
     roomNumber,
     repairType,
@@ -128,18 +131,19 @@ router.post('/', (req: Request, res: Response): void => {
     previousValue: {},
     newValue: { status: 'pending' },
     changedFields: ['status'],
-    operatorId: studentId,
-    operatorName: studentName || '学生',
+    operatorId: sid,
+    operatorName: sname,
     remark: '提交报修申请',
   })
 
-  if (photoMetadata && Array.isArray(photoMetadata)) {
-    for (const meta of photoMetadata) {
+  const files = req.files as Express.Multer.File[] | undefined
+  if (files && files.length > 0) {
+    for (const file of files) {
       const photo = store.photos.create({
         requestId: request.id,
-        fileName: meta.fileName || 'unknown.jpg',
-        filePath: meta.filePath || '',
-        fileSize: meta.fileSize || 0,
+        fileName: file.originalname,
+        filePath: file.path,
+        fileSize: file.size,
       })
       request.photos.push(photo)
     }
@@ -149,7 +153,7 @@ router.post('/', (req: Request, res: Response): void => {
     userId: 'user-002',
     type: 'status_change',
     title: '新报修申请待审核',
-    message: `${studentName || '学生'}提交了${building}${roomNumber}的报修申请，请尽快审核`,
+    message: `${sname}提交了${building}${roomNumber}的报修申请，请尽快审核`,
     relatedRequestId: request.id,
     isRead: false,
   })
