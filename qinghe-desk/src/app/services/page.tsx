@@ -81,7 +81,7 @@ export default function ServicesPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>取消</Button>
-                <Button onClick={() => createMut.mutate({ ...form, requesterId: "clerk_admin_001" })} disabled={!form.tenantId || !form.type || !form.description}>提交申请</Button>
+                <Button onClick={() => createMut.mutate(form)} disabled={!form.tenantId || !form.type || !form.description}>提交申请</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

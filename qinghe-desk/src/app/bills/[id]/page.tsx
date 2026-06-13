@@ -53,7 +53,7 @@ export default function BillDetailPage({ params }: { params: { id: string } }) {
         description={bill.tenant?.name ?? ""}
         actions={
           bill.status === "PENDING" ? (
-            <Button onClick={() => markPaidMut.mutate({ id: bill.id, operatorId: "clerk_admin_001" })} disabled={markPaidMut.isPending}>
+            <Button onClick={() => markPaidMut.mutate({ id: bill.id })} disabled={markPaidMut.isPending}>
               <CheckCircle2 className="h-4 w-4" />
               {markPaidMut.isPending ? "处理中..." : "标记已支付"}
             </Button>

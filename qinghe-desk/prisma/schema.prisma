@@ -17,7 +17,9 @@ model User {
 
   serviceRequests  ServiceRequest[] @relation("Requester")
   assignedServices ServiceRequest[] @relation("Assignee")
+  reportedRepairs  Repair[]         @relation("RepairReporter")
   assignedRepairs  Repair[]         @relation("RepairAssignee")
+  serviceStatusLogs ServiceStatusLog[]
   inspections      Inspection[]
   handledAnomalies Anomaly[]
   attachments      Attachment[]
@@ -117,6 +119,7 @@ model ServiceStatusLog {
   fromStatus       String?
   toStatus         String
   operatorId       String
+  operator         User          @relation(fields: [operatorId], references: [id])
   note             String?
 
   createdAt DateTime @default(now())
@@ -158,6 +161,7 @@ model Repair {
   roomId      String
   room        Room      @relation(fields: [roomId], references: [id])
   reporterId  String
+  reporter    User      @relation("RepairReporter", fields: [reporterId], references: [id])
   description String
   urgency     String    @default("MEDIUM")
   status      String    @default("PENDING")

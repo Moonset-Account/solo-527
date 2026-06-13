@@ -1,6 +1,7 @@
 import { createTRPCRouter, publicProcedure } from "@/trpc/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getCurrentOperator } from "@/lib/auth";
 
 export const billRouter = createTRPCRouter({
   list: publicProcedure
@@ -16,7 +17,7 @@ export const billRouter = createTRPCRouter({
       if (input?.month) where.period = { contains: input.month };
       return prisma.bill.findMany({
         where,
-        include: { tenant: true, room: { include: { building: true } }, items: true },
+        include: { tenant: true, room: { include: { building: true } }, items: true, creator: true },
         orderBy: { createdAt: "desc" },
       });
     }),
@@ -24,14 +25,21 @@ export const billRouter = createTRPCRouter({
   get: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
-      return prisma.bill.findUnique({
+      const bill = await prisma.bill.findUnique({
         where: { id: input.id },
         include: {
           tenant: true,
           room: { include: { building: true } },
           items: true,
+          creator: true,
         },
       });
+      if (!bill) return null;
+      const [attachments, notes] = await Promise.all([
+        prisma.attachment.findMany({ where: { entityType: "Bill", entityId: bill.id } }),
+        prisma.note.findMany({ where: { entityType: "Bill", entityId: bill.id }, include: { author: true }, orderBy: { createdAt: "desc" } }),
+      ]);
+      return { ...bill, attachments, notes };
     }),
 
   create: publicProcedure
@@ -40,10 +48,10 @@ export const billRouter = createTRPCRouter({
       roomId: z.string(),
       period: z.string(),
       dueDate: z.string(),
-      creatorId: z.string(),
       items: z.array(z.object({ name: z.string(), amount: z.number(), category: z.string() })),
     }))
     .mutation(async ({ input }) => {
+      const op = await getCurrentOperator();
       const totalAmount = input.items.reduce((sum, i) => sum + i.amount, 0);
       const bill = await prisma.bill.create({
         data: {
@@ -52,7 +60,7 @@ export const billRouter = createTRPCRouter({
           period: input.period,
           totalAmount,
           dueDate: new Date(input.dueDate),
-          creatorId: input.creatorId,
+          creatorId: op.id,
           items: { create: input.items },
         },
         include: { items: true },
@@ -61,8 +69,9 @@ export const billRouter = createTRPCRouter({
     }),
 
   markPaid: publicProcedure
-    .input(z.object({ id: z.string(), operatorId: z.string() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
+      const op = await getCurrentOperator();
       const updated = await prisma.bill.update({
         where: { id: input.id },
         data: { status: "PAID", paidAt: new Date() },
@@ -74,7 +83,7 @@ export const billRouter = createTRPCRouter({
           field: "status",
           oldValue: "PENDING",
           newValue: "PAID",
-          operatorId: input.operatorId,
+          operatorId: op.id,
         },
       });
       return updated;

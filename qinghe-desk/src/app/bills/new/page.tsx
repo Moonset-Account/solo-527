@@ -69,7 +69,6 @@ export default function NewBillPage() {
       roomId: form.roomId,
       period: form.period,
       dueDate: form.dueDate,
-      creatorId: "clerk_admin_001",
       items: form.items.map((i) => ({ name: i.name, amount: Number(i.amount), category: i.category })),
     });
   };

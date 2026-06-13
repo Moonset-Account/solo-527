@@ -29,7 +29,7 @@ export default function ServiceDetailPage({ params }: { params: { id: string } }
   const approveMut = trpc.service.approve.useMutation({ onSuccess: () => utils.service.get.invalidate() });
   const rejectMut = trpc.service.reject.useMutation({ onSuccess: () => utils.service.get.invalidate() });
   const completeMut = trpc.service.complete.useMutation({ onSuccess: () => utils.service.get.invalidate() });
-  const { data: users } = trpc.tenant.list.useQuery();
+  const { data: users = [] } = trpc.user.list.useQuery();
 
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -40,11 +40,6 @@ export default function ServiceDetailPage({ params }: { params: { id: string } }
   if (!sr) return <div className="p-8">加载中...</div>;
 
   const currentIdx = flowSteps.indexOf(sr.status);
-  const fakeUsers = [
-    { id: "clerk_admin_001", name: "张管理" },
-    { id: "clerk_op_001", name: "李运营" },
-    { id: "clerk_op_002", name: "王工程" },
-  ];
 
   return (
     <div className="animate-fade-in">
@@ -68,7 +63,7 @@ export default function ServiceDetailPage({ params }: { params: { id: string } }
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setRejectOpen(false)}>取消</Button>
-                    <Button variant="destructive" onClick={() => rejectMut.mutate({ id: sr.id, reason: note, operatorId: "clerk_admin_001" })} disabled={!note}>确认驳回</Button>
+                    <Button variant="destructive" onClick={() => rejectMut.mutate({ id: sr.id, reason: note })} disabled={!note}>确认驳回</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -83,14 +78,14 @@ export default function ServiceDetailPage({ params }: { params: { id: string } }
                       <Select value={assigneeId} onValueChange={setAssigneeId}>
                         <SelectTrigger className="mt-1"><SelectValue placeholder="选择处理人（可选）" /></SelectTrigger>
                         <SelectContent>
-                          {fakeUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                          {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setApproveOpen(false)}>取消</Button>
-                    <Button onClick={() => { approveMut.mutate({ id: sr.id, assigneeId: assigneeId || undefined, operatorId: "clerk_admin_001" }); }}>确认审批</Button>
+                    <Button onClick={() => { approveMut.mutate({ id: sr.id, assigneeId: assigneeId || undefined }); }}>确认审批</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -107,7 +102,7 @@ export default function ServiceDetailPage({ params }: { params: { id: string } }
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setCompleteOpen(false)}>取消</Button>
-                  <Button onClick={() => completeMut.mutate({ id: sr.id, result: note, operatorId: "clerk_admin_001" })} disabled={!note}>确认完成</Button>
+                  <Button onClick={() => completeMut.mutate({ id: sr.id, result: note })} disabled={!note}>确认完成</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

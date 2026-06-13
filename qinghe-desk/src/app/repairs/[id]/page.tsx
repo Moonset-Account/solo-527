@@ -47,7 +47,6 @@ export default function RepairDetailPage({ params }: { params: { id: string } })
     resolveMut.mutate({
       id: repair.id,
       result,
-      assigneeId: "clerk_op_002",
     });
     setResolveOpen(false);
     setResult("");
@@ -83,9 +82,9 @@ export default function RepairDetailPage({ params }: { params: { id: string } })
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setResolveOpen(false)}>取消</Button>
-                  <Button onClick={handleResolve} disabled={!result.trim() || resolveMut.isLoading}>
+                  <Button onClick={handleResolve} disabled={!result.trim() || resolveMut.isPending}>
                     <CheckCircle2 className="h-4 w-4 mr-2" />
-                    {resolveMut.isLoading ? "提交中..." : "确认解决"}
+                    {resolveMut.isPending ? "提交中..." : "确认解决"}
                   </Button>
                 </DialogFooter>
               </DialogContent>

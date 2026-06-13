@@ -14,13 +14,6 @@ import { Search, Filter, RotateCcw, History, ArrowRight, User, ScrollText, Datab
 
 const entityTypes = ["All", "Tenant", "Room", "Bill", "ServiceRequest", "Repair"];
 
-const operatorOptions = [
-  { id: "", name: "全部操作人" },
-  { id: "clerk_admin_001", name: "张管理" },
-  { id: "clerk_op_001", name: "李运营" },
-  { id: "clerk_op_002", name: "王工程" },
-];
-
 const entityBgColors: Record<string, string> = {
   Tenant: "bg-pine-50/40",
   Room: "bg-amber-50/40",
@@ -38,6 +31,8 @@ const entityLabels: Record<string, string> = {
 };
 
 export default function AuditLogsPage() {
+  const { data: dbOperators = [] } = trpc.user.list.useQuery();
+  const operatorOptions = [{ id: "", name: "全部操作人" }, ...dbOperators.map((u) => ({ id: u.id, name: u.name }))];
   const [entityType, setEntityType] = useState("");
   const [fieldSearch, setFieldSearch] = useState("");
   const [operatorId, setOperatorId] = useState("");

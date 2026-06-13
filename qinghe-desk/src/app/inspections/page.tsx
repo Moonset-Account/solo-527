@@ -153,7 +153,6 @@ export default function InspectionsPage() {
                   onClick={() =>
                     createMut.mutate({
                       area,
-                      inspectorId: "clerk_op_001",
                       checklist: checklist.map((c) => ({
                         item: c.item,
                         passed: c.passed,

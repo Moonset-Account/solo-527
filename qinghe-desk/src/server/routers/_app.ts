@@ -7,6 +7,7 @@ import { repairRouter } from "./repair";
 import { inspectionRouter } from "./inspection";
 import { auditLogRouter } from "./auditLog";
 import { dashboardRouter } from "./dashboard";
+import { userRouter } from "./user";
 
 export const appRouter = createTRPCRouter({
   tenant: tenantRouter,
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   inspection: inspectionRouter,
   auditLog: auditLogRouter,
   dashboard: dashboardRouter,
+  user: userRouter,
 });
 
 export type AppRouter = typeof appRouter;

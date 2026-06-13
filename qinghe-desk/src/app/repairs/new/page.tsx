@@ -13,7 +13,12 @@ import { useRouter } from "next/navigation";
 
 export default function NewRepairPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    tenantId: string;
+    roomId: string;
+    urgency: "HIGH" | "MEDIUM" | "LOW";
+    description: string;
+  }>({
     tenantId: "",
     roomId: "",
     urgency: "MEDIUM",
@@ -187,11 +192,11 @@ export default function NewRepairPage() {
           <div className="sticky top-6">
             <Button
               className="w-full h-12 text-base"
-              disabled={!canSubmit || createMut.isLoading}
-              onClick={() => createMut.mutate({ ...form, reporterId: "clerk_admin_001" })}
+              disabled={!canSubmit || createMut.isPending}
+              onClick={() => createMut.mutate(form)}
             >
               <Send className="h-4 w-4 mr-2" />
-              {createMut.isLoading ? "提交中..." : "提交报修"}
+              {createMut.isPending ? "提交中..." : "提交报修"}
             </Button>
             <p className="text-xs text-zinc-400 text-center mt-3">
               提交后将自动分派至工程组处理

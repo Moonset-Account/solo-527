@@ -1,6 +1,7 @@
 import { createTRPCRouter, publicProcedure } from "@/trpc/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getCurrentOperator } from "@/lib/auth";
 
 export const roomRouter = createTRPCRouter({
   list: publicProcedure
@@ -28,6 +29,7 @@ export const roomRouter = createTRPCRouter({
   updatePrice: publicProcedure
     .input(z.object({ id: z.string(), price: z.number() }))
     .mutation(async ({ input }) => {
+      const op = await getCurrentOperator();
       const old = await prisma.room.findUnique({ where: { id: input.id } });
       const updated = await prisma.room.update({
         where: { id: input.id },
@@ -41,7 +43,7 @@ export const roomRouter = createTRPCRouter({
             field: "price",
             oldValue: String(old.price),
             newValue: String(input.price),
-            operatorId: "system",
+            operatorId: op.id,
           },
         });
       }

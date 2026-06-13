@@ -1,6 +1,7 @@
 import { createTRPCRouter, publicProcedure } from "@/trpc/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getCurrentOperator } from "@/lib/auth";
 
 export const inspectionRouter = createTRPCRouter({
   list: publicProcedure
@@ -31,14 +32,14 @@ export const inspectionRouter = createTRPCRouter({
   create: publicProcedure
     .input(z.object({
       area: z.string(),
-      inspectorId: z.string(),
       checklist: z.array(z.object({ item: z.string(), passed: z.boolean(), note: z.string().optional() })),
     }))
     .mutation(async ({ input }) => {
+      const op = await getCurrentOperator();
       const inspection = await prisma.inspection.create({
         data: {
           area: input.area,
-          inspectorId: input.inspectorId,
+          inspectorId: op.id,
           items: { create: input.checklist },
         },
         include: { items: true },

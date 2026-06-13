@@ -152,7 +152,8 @@ async function main() {
         createdAt,
       },
     });
-    const flows = [
+    type Flow = { from: string | null; to: string; note: string; delay: number };
+    const flows: Flow[] = [
       { from: null, to: "PENDING", note: "提交服务申请", delay: 0 },
     ];
     if (status !== "PENDING") {

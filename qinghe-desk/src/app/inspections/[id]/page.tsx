@@ -14,12 +14,6 @@ import { formatDate } from "@/lib/utils";
 import { ArrowLeft, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle, UserCheck, MessageSquare, Plus, Wrench, Flag } from "lucide-react";
 import Link from "next/link";
 
-const handlerOptions = [
-  { id: "clerk_admin_001", name: "张管理" },
-  { id: "clerk_op_001", name: "李运营" },
-  { id: "clerk_op_002", name: "王工程" },
-];
-
 const anomalyStatusMeta: Record<string, { label: string; variant: any; color: string }> = {
   OPEN: { label: "待处理", variant: "warning" as const, color: "bg-amber-500" },
   RESOLVED: { label: "已解决", variant: "success" as const, color: "bg-emerald-500" },
@@ -27,6 +21,7 @@ const anomalyStatusMeta: Record<string, { label: string; variant: any; color: st
 
 export default function InspectionDetailPage({ params }: { params: { id: string } }) {
   const { data: inspection } = trpc.inspection.get.useQuery({ id: params.id });
+  const { data: handlerOptions = [] } = trpc.user.list.useQuery();
   const utils = trpc.useUtils();
   const reportMut = trpc.inspection.reportAnomaly.useMutation({
     onSuccess: () => {
