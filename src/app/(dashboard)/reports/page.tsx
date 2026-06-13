@@ -22,8 +22,8 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
+  Sparkles,
 } from "lucide-react";
-import { mockData } from "@/utils/mockData";
 import {
   severityConfig,
   statusConfig,
@@ -31,71 +31,7 @@ import {
   formatPercent,
   formatDateTime,
 } from "@/utils/format";
-import { useNotificationStore } from "@/store/notificationStore";
 import { api } from "@/trpc/react";
-
-const caliberChangeLog = [
-  {
-    id: "cl-1",
-    metricId: "1",
-    metricName: "销售额",
-    fieldChanged: "计算公式",
-    oldValue: "SUM(order_amount) WHERE order_status = 'completed'",
-    newValue: "SUM(order_amount) WHERE order_status = 'completed' AND refund_status = 'none'",
-    changedBy: "数据运营",
-    changedAt: "2024-03-15T14:30:00Z",
-    approvalStatus: "approved" as const,
-    approver: "销售总监",
-  },
-  {
-    id: "cl-2",
-    metricId: "4",
-    metricName: "转化率",
-    fieldChanged: "数据来源",
-    oldValue: "全量访客数据",
-    newValue: "排除爬虫流量的访客数据",
-    changedBy: "产品经理",
-    changedAt: "2024-03-18T10:00:00Z",
-    approvalStatus: "approved" as const,
-    approver: "销售总监",
-  },
-  {
-    id: "cl-3",
-    metricId: "5",
-    metricName: "新用户数",
-    fieldChanged: "计算公式",
-    oldValue: "COUNT(DISTINCT user_id) WHERE first_order_date IN period",
-    newValue: "COUNT(DISTINCT user_id) WHERE first_order_date IN period AND order_amount > 0",
-    changedBy: "数据运营",
-    changedAt: "2024-03-22T09:15:00Z",
-    approvalStatus: "pending" as const,
-    approver: null,
-  },
-  {
-    id: "cl-4",
-    metricId: "6",
-    metricName: "复购率",
-    fieldChanged: "统计周期",
-    oldValue: "30天",
-    newValue: "90天",
-    changedBy: "数据运营",
-    changedAt: "2024-03-25T16:00:00Z",
-    approvalStatus: "pending" as const,
-    approver: null,
-  },
-  {
-    id: "cl-5",
-    metricId: "2",
-    metricName: "订单量",
-    fieldChanged: "计算公式",
-    oldValue: "COUNT(order_id) WHERE order_status = 'completed'",
-    newValue: "COUNT(order_id) WHERE order_status IN ('completed', 'shipped')",
-    changedBy: "产品经理",
-    changedAt: "2024-02-28T11:20:00Z",
-    approvalStatus: "approved" as const,
-    approver: "销售总监",
-  },
-];
 
 const complianceItems = [
   { label: "数据访问权限审计", compliant: true },
@@ -117,8 +53,6 @@ const months = [
   "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12",
 ];
 
-const userRole: "DIRECTOR" | "MANAGER" | "OPERATIONS" = "DIRECTOR";
-
 const roleLabelMap: Record<string, string> = {
   DIRECTOR: "销售总监",
   MANAGER: "销售经理",
@@ -129,14 +63,22 @@ export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState("2024-03");
   const [securityExpanded, setSecurityExpanded] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<{ filename: string } | null>(null);
-  const { caliberChangeAlerts, approveCaliberChange, rejectCaliberChange } =
-    useNotificationStore();
+
+  const meQuery = api.report.me.useQuery(undefined);
+  const monthlyQuery = api.report.getMonthly.useQuery({ month: selectedMonth });
+  const changeLogsQuery = api.metric.getChangeLogs.useQuery({});
+  const metricsQuery = api.metric.list.useQuery(undefined);
 
   const exportMutation = api.report.exportMonthly.useMutation();
+  const approveMutation = api.metric.approveChangeLog.useMutation();
+  const rejectMutation = api.metric.rejectChangeLog.useMutation();
+  const seedMutation = api.seed.seedDemo.useMutation();
 
-  const pendingCount = caliberChangeAlerts.filter(
-    (a) => a.status === "pending"
-  ).length;
+  const userRole = meQuery.data?.role ?? "DIRECTOR";
+  const isDemo = !meQuery.data;
+
+  const isDbEmpty = metricsQuery.data?.length === 0;
+  const isDirector = userRole === "DIRECTOR";
 
   const monthLabel = (() => {
     const [y, m] = selectedMonth.split("-");
@@ -146,50 +88,42 @@ export default function ReportsPage() {
   const monthIndex = months.indexOf(selectedMonth);
 
   const stats = useMemo(() => {
-    const anomalies = mockData.anomalies;
-    const total = anomalies.length;
-    const resolved = anomalies.filter(
-      (a) => a.status === "RESOLVED"
-    ).length;
-    const resolutionRate = total > 0 ? resolved / total : 0;
+    const data = monthlyQuery.data;
+    if (!data) {
+      return {
+        total: 0,
+        resolved: 0,
+        resolutionRate: 0,
+        avgResolutionHours: 0,
+        bySeverity: { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 },
+        byMetric: [] as Array<{ id: string; name: string; count: number }>,
+        topAnomalies: [] as any[],
+        hasData: false,
+      };
+    }
 
-    const resolvedAnomalies = anomalies.filter(
-      (a) => a.status === "RESOLVED" && a.resolvedAt && a.detectedAt
-    );
-    const avgResolutionMs =
-      resolvedAnomalies.length > 0
-        ? resolvedAnomalies.reduce((sum, a) => {
-            return (
-              sum +
-              (new Date(a.resolvedAt!).getTime() -
-                new Date(a.detectedAt).getTime())
-            );
-          }, 0) / resolvedAnomalies.length
-        : 0;
-    const avgResolutionHours = avgResolutionMs / (1000 * 60 * 60);
-
-    const bySeverity = {
-      LOW: anomalies.filter((a) => a.severity === "LOW").length,
-      MEDIUM: anomalies.filter((a) => a.severity === "MEDIUM").length,
-      HIGH: anomalies.filter((a) => a.severity === "HIGH").length,
-      CRITICAL: anomalies.filter((a) => a.severity === "CRITICAL").length,
-    };
-
-    const byMetric = mockData.metrics.map((m) => ({
+    const byMetric = (metricsQuery.data ?? []).map((m) => ({
       id: m.id,
       name: m.name,
-      count: anomalies.filter((a) => a.metricId === m.id).length,
+      count: (data.anomaliesByMetric as Record<string, number>)[m.name] ?? 0,
     }));
 
-    const topAnomalies = [...anomalies]
-      .sort(
-        (a, b) =>
-          Math.abs(b.deviationPercentage) - Math.abs(a.deviationPercentage)
-      )
-      .slice(0, 5);
-
-    return { total, resolved, resolutionRate, avgResolutionHours, bySeverity, byMetric, topAnomalies };
-  }, []);
+    return {
+      total: data.totalAnomalies,
+      resolved: data.resolvedAnomalies,
+      resolutionRate: data.resolutionRate / 100,
+      avgResolutionHours: data.avgResolutionTime,
+      bySeverity: {
+        LOW: (data.anomaliesBySeverity as Record<string, number>).LOW ?? 0,
+        MEDIUM: (data.anomaliesBySeverity as Record<string, number>).MEDIUM ?? 0,
+        HIGH: (data.anomaliesBySeverity as Record<string, number>).HIGH ?? 0,
+        CRITICAL: (data.anomaliesBySeverity as Record<string, number>).CRITICAL ?? 0,
+      },
+      byMetric,
+      topAnomalies: data.topAnomalies.slice(0, 5),
+      hasData: data.totalAnomalies > 0,
+    };
+  }, [monthlyQuery.data, metricsQuery.data]);
 
   const maxSeverityCount = Math.max(
     stats.bySeverity.LOW,
@@ -199,24 +133,34 @@ export default function ReportsPage() {
     1
   );
 
-  const mergedCaliberLog = useMemo(() => {
-    const storePending = caliberChangeAlerts
-      .filter((a) => a.status === "pending")
-      .map((a) => ({
-        id: a.id,
-        metricId: a.metricId,
-        metricName: a.metricName,
-        fieldChanged: "口径变更",
-        oldValue: "-",
-        newValue: a.proposedChange,
-        changedBy: a.requestedBy,
-        changedAt: a.requestedAt,
-        approvalStatus: "pending" as const,
-        approver: null as string | null,
-      }));
-    return [...storePending, ...caliberChangeLog.filter((c) => c.approvalStatus !== "pending")]
-      .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
-  }, [caliberChangeAlerts]);
+  const caliberChangeLog = useMemo(() => {
+    const logs = changeLogsQuery.data ?? [];
+    return logs.map((log) => {
+      let approvalStatus: "pending" | "approved" | "rejected" = "pending";
+      if (log.approvedById) {
+        approvalStatus = "approved";
+      } else if (log.rejectedById) {
+        approvalStatus = "rejected";
+      }
+
+      return {
+        id: log.id,
+        metricId: log.metricId,
+        metricName: log.metric.name,
+        fieldChanged: log.fieldChanged,
+        oldValue: log.oldValue ?? "-",
+        newValue: log.newValue ?? "-",
+        changedBy: log.createdBy.name ?? "未知用户",
+        changedAt: log.createdAt,
+        approvalStatus,
+        approver: log.approvedBy?.name ?? null,
+      };
+    });
+  }, [changeLogsQuery.data]);
+
+  const pendingCount = caliberChangeLog.filter(
+    (c) => c.approvalStatus === "pending"
+  ).length;
 
   const handleExport = () => {
     exportMutation.mutate(
@@ -230,8 +174,75 @@ export default function ReportsPage() {
     );
   };
 
-  const isExportDisabled = userRole !== "DIRECTOR" || exportMutation.isPending;
-  const exportTooltip = userRole !== "DIRECTOR" ? "仅销售总监可导出报表" : "";
+  const handleApprove = (id: string) => {
+    approveMutation.mutate(id, {
+      onSuccess: () => {
+        changeLogsQuery.refetch();
+      },
+    });
+  };
+
+  const handleReject = (id: string) => {
+    rejectMutation.mutate(id, {
+      onSuccess: () => {
+        changeLogsQuery.refetch();
+      },
+    });
+  };
+
+  const handleSeed = () => {
+    seedMutation.mutate(undefined, {
+      onSuccess: () => {
+        metricsQuery.refetch();
+        monthlyQuery.refetch();
+        changeLogsQuery.refetch();
+        meQuery.refetch();
+      },
+    });
+  };
+
+  const isExportDisabled = !isDirector || exportMutation.isPending;
+  const exportTooltip = !isDirector ? "仅销售总监可导出报表" : "";
+
+  const isLoading = monthlyQuery.isLoading || changeLogsQuery.isLoading || metricsQuery.isLoading;
+
+  if (isDbEmpty && isDirector) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+        <div className="w-20 h-20 rounded-2xl bg-primary-50 flex items-center justify-center">
+          <Database className="w-10 h-10 text-primary-500" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-bold text-neutral-800">暂无数据</h2>
+          <p className="text-sm text-neutral-500 max-w-sm">
+            数据库中还没有任何数据，点击下方按钮初始化演示数据
+          </p>
+        </div>
+        <button
+          onClick={handleSeed}
+          disabled={seedMutation.isPending}
+          className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {seedMutation.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+          {seedMutation.isPending ? "初始化中..." : "初始化演示数据"}
+        </button>
+        {seedMutation.isError && (
+          <p className="text-sm text-red-600">
+            初始化失败：{seedMutation.error?.message}
+          </p>
+        )}
+        {seedMutation.isSuccess && (
+          <p className="text-sm text-emerald-600">
+            {seedMutation.data.message}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -244,14 +255,16 @@ export default function ReportsPage() {
         </div>
         <div className="flex items-center gap-3 self-start sm:self-auto">
           <span className={`badge ${
-            userRole === "DIRECTOR"
+            isDirector
               ? "bg-primary-50 text-primary-700 border-primary-200"
               : userRole === "MANAGER"
               ? "bg-sky-50 text-sky-700 border-sky-200"
               : "bg-neutral-100 text-neutral-700 border-neutral-200"
           } border`}>
             <User className="w-3 h-3" />
-            当前角色：{roleLabelMap[userRole]}
+            {isDemo ? "演示模式 (" : "当前角色："}
+            {roleLabelMap[userRole]}
+            {isDemo ? ")" : ""}
           </span>
           <button
             onClick={handleExport}
@@ -344,7 +357,9 @@ export default function ReportsPage() {
               <p className="text-2xl font-bold text-neutral-800">
                 {stats.total}
               </p>
-              <p className="text-xs text-neutral-500">异常总数</p>
+              <p className="text-xs text-neutral-500">
+                {stats.hasData ? "异常总数" : "暂无数据"}
+              </p>
             </div>
           </div>
         </div>
@@ -357,7 +372,9 @@ export default function ReportsPage() {
               <p className="text-2xl font-bold text-neutral-800">
                 {stats.resolved}
               </p>
-              <p className="text-xs text-neutral-500">已解决</p>
+              <p className="text-xs text-neutral-500">
+                {stats.hasData ? "已解决" : "暂无数据"}
+              </p>
             </div>
           </div>
         </div>
@@ -370,7 +387,9 @@ export default function ReportsPage() {
               <p className="text-2xl font-bold text-neutral-800">
                 {formatPercent(stats.resolutionRate)}
               </p>
-              <p className="text-xs text-neutral-500">解决率</p>
+              <p className="text-xs text-neutral-500">
+                {stats.hasData ? "解决率" : "暂无数据"}
+              </p>
             </div>
           </div>
         </div>
@@ -383,7 +402,9 @@ export default function ReportsPage() {
               <p className="text-2xl font-bold text-neutral-800">
                 {stats.avgResolutionHours.toFixed(1)}h
               </p>
-              <p className="text-xs text-neutral-500">平均解决时长</p>
+              <p className="text-xs text-neutral-500">
+                {stats.hasData ? "平均解决时长" : "暂无数据"}
+              </p>
             </div>
           </div>
         </div>
@@ -469,56 +490,62 @@ export default function ReportsPage() {
         <h3 className="text-sm font-semibold text-neutral-800 mb-4">
           Top 5 严重异常
         </h3>
-        <div className="space-y-3">
-          {stats.topAnomalies.map((anomaly, idx) => {
-            const severity =
-              severityConfig[anomaly.severity as keyof typeof severityConfig];
-            const status =
-              statusConfig[anomaly.status as keyof typeof statusConfig];
-            const isNegative = anomaly.deviationPercentage < 0;
-            return (
-              <div
-                key={anomaly.id}
-                className="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg"
-              >
-                <span className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-bold text-neutral-600">
-                  {idx + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-semibold text-neutral-800">
-                      {anomaly.metric.name}
-                    </span>
-                    <span className={`badge ${severity.bg} ${severity.color}`}>
-                      {severity.label}
-                    </span>
-                    <span className={`badge ${status.bg} ${status.color}`}>
-                      {status.label}
-                    </span>
+        {stats.topAnomalies.length === 0 ? (
+          <div className="py-8 text-center text-neutral-400 text-sm">
+            暂无数据
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {stats.topAnomalies.map((anomaly: any, idx: number) => {
+              const severity =
+                severityConfig[anomaly.severity as keyof typeof severityConfig];
+              const status =
+                statusConfig[anomaly.status as keyof typeof statusConfig];
+              const isNegative = anomaly.deviationPercentage < 0;
+              return (
+                <div
+                  key={anomaly.id}
+                  className="flex items-center gap-4 p-3 bg-neutral-50 rounded-lg"
+                >
+                  <span className="w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-bold text-neutral-600">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-neutral-800">
+                        {anomaly.metric.name}
+                      </span>
+                      <span className={`badge ${severity.bg} ${severity.color}`}>
+                        {severity.label}
+                      </span>
+                      <span className={`badge ${status.bg} ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500">
+                      实际值 {formatNumber(anomaly.actualValue)} / 偏离{" "}
+                      <span
+                        className={
+                          isNegative ? "text-red-600" : "text-emerald-600"
+                        }
+                      >
+                        {isNegative ? "" : "+"}
+                        {anomaly.deviationPercentage}%
+                      </span>
+                    </p>
                   </div>
-                  <p className="text-xs text-neutral-500">
-                    实际值 {formatNumber(anomaly.actualValue)} / 偏离{" "}
-                    <span
-                      className={
-                        isNegative ? "text-red-600" : "text-emerald-600"
-                      }
-                    >
-                      {isNegative ? "" : "+"}
-                      {anomaly.deviationPercentage}%
-                    </span>
-                  </p>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {isNegative ? (
+                      <TrendingDown className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {isNegative ? (
-                    <TrendingDown className="w-4 h-4 text-red-500" />
-                  ) : (
-                    <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="card overflow-hidden">
@@ -630,112 +657,129 @@ export default function ReportsPage() {
           <h2 className="text-lg font-bold text-neutral-800">口径变更日志</h2>
         </div>
 
-        <div className="space-y-4">
-          {mergedCaliberLog.map((entry) => {
-            const isPending = entry.approvalStatus === "pending";
-            const isApproved = entry.approvalStatus === "approved";
+        {caliberChangeLog.length === 0 ? (
+          <div className="card p-8 text-center">
+            <FileBarChart className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+            <p className="text-neutral-400 text-sm">暂无口径变更记录</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {caliberChangeLog.map((entry) => {
+              const isPending = entry.approvalStatus === "pending";
+              const isApproved = entry.approvalStatus === "approved";
 
-            return (
-              <div
-                key={entry.id}
-                className={`card p-5 ${
-                  isPending
-                    ? "border-amber-200 bg-amber-50/30"
-                    : ""
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        isPending
-                          ? "bg-amber-100"
-                          : isApproved
-                          ? "bg-emerald-100"
-                          : "bg-red-100"
-                      }`}
-                    >
-                      {isPending ? (
-                        <Clock className="w-5 h-5 text-amber-600" />
-                      ) : isApproved ? (
-                        <CheckCircle className="w-5 h-5 text-emerald-600" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-600" />
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="text-sm font-semibold text-neutral-800">
-                        {entry.metricName}
-                      </span>
-                      <span className="badge badge-info">{entry.fieldChanged}</span>
-                      {isPending ? (
-                        <span className="badge badge-warning">待审批</span>
-                      ) : isApproved ? (
-                        <span className="badge badge-success">已审批</span>
-                      ) : (
-                        <span className="badge badge-danger">已拒绝</span>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 mb-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-neutral-500 flex-shrink-0">旧值：</span>
-                        <span className="text-neutral-700 font-mono text-xs bg-neutral-100 px-2 py-0.5 rounded truncate">
-                          {entry.oldValue}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-neutral-500 flex-shrink-0">新值：</span>
-                        <span className="text-neutral-800 font-mono text-xs bg-primary-50 px-2 py-0.5 rounded truncate">
-                          {entry.newValue}
-                        </span>
+              return (
+                <div
+                  key={entry.id}
+                  className={`card p-5 ${
+                    isPending
+                      ? "border-amber-200 bg-amber-50/30"
+                      : ""
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <div
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          isPending
+                            ? "bg-amber-100"
+                            : isApproved
+                            ? "bg-emerald-100"
+                            : "bg-red-100"
+                        }`}
+                      >
+                        {isPending ? (
+                          <Clock className="w-5 h-5 text-amber-600" />
+                        ) : isApproved ? (
+                          <CheckCircle className="w-5 h-5 text-emerald-600" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-600" />
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-neutral-500 flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {entry.changedBy}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatDateTime(entry.changedAt)}
-                      </span>
-                      {isApproved && entry.approver && (
-                        <span className="flex items-center gap-1 text-emerald-600">
-                          <CheckCircle className="w-3 h-3" />
-                          审批人：{entry.approver}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-sm font-semibold text-neutral-800">
+                          {entry.metricName}
                         </span>
-                      )}
-                    </div>
-                  </div>
+                        <span className="badge badge-info">{entry.fieldChanged}</span>
+                        {isPending ? (
+                          <span className="badge badge-warning">待审批</span>
+                        ) : isApproved ? (
+                          <span className="badge badge-success">已审批</span>
+                        ) : (
+                          <span className="badge badge-danger">已拒绝</span>
+                        )}
+                      </div>
 
-                  {isPending && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => approveCaliberChange(entry.id)}
-                        className="btn btn-primary text-xs px-3 py-1.5"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        批准
-                      </button>
-                      <button
-                        onClick={() => rejectCaliberChange(entry.id)}
-                        className="btn btn-danger text-xs px-3 py-1.5"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        拒绝
-                      </button>
+                      <div className="space-y-1 mb-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-neutral-500 flex-shrink-0">旧值：</span>
+                          <span className="text-neutral-700 font-mono text-xs bg-neutral-100 px-2 py-0.5 rounded truncate">
+                            {entry.oldValue}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-neutral-500 flex-shrink-0">新值：</span>
+                          <span className="text-neutral-800 font-mono text-xs bg-primary-50 px-2 py-0.5 rounded truncate">
+                            {entry.newValue}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-xs text-neutral-500 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {entry.changedBy}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDateTime(entry.changedAt)}
+                        </span>
+                        {isApproved && entry.approver && (
+                          <span className="flex items-center gap-1 text-emerald-600">
+                            <CheckCircle className="w-3 h-3" />
+                            审批人：{entry.approver}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
+
+                    {isPending && isDirector && (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleApprove(entry.id)}
+                          disabled={approveMutation.isPending}
+                          className="btn btn-primary text-xs px-3 py-1.5 disabled:opacity-50"
+                        >
+                          {approveMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          )}
+                          批准
+                        </button>
+                        <button
+                          onClick={() => handleReject(entry.id)}
+                          disabled={rejectMutation.isPending}
+                          className="btn btn-danger text-xs px-3 py-1.5 disabled:opacity-50"
+                        >
+                          {rejectMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5" />
+                          )}
+                          拒绝
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

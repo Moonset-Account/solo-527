@@ -8,29 +8,19 @@ import {
   directionConfig,
   formatDate,
 } from "@/utils/format";
+import type { RouterOutputs } from "@/trpc/react";
+
+type AlertRule = RouterOutputs["alertRule"]["list"][number];
 
 type AlertPeriod = "DAY" | "WEEK" | "MONTH";
 type ThresholdType = "ABSOLUTE" | "PERCENTAGE";
 type AlertDirection = "ABOVE" | "BELOW" | "BOTH";
 type AlertSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-interface AlertRule {
-  id: string;
-  name: string;
-  metricId: string;
-  metric: { id: string; name: string; code: string; unit: string };
-  period: string;
-  thresholdType: string;
-  thresholdValue: number;
-  direction: string;
-  severity: string;
-  channels: { type: string; recipients: string[] }[];
-  isEnabled: boolean;
-  createdBy: { name: string; email: string };
-  createdAt: string;
-  updatedAt: string;
-  _count: { anomalies: number };
-}
+type AlertChannel = {
+  type: "in_app" | "email" | "wework";
+  recipients: string[];
+};
 
 interface AlertRuleCardProps {
   rule: AlertRule;
@@ -44,6 +34,8 @@ export function AlertRuleCard({ rule, onToggle, onEdit, onDelete }: AlertRuleCar
   const period = periodConfig[rule.period as AlertPeriod];
   const thresholdType = thresholdTypeConfig[rule.thresholdType as ThresholdType];
   const direction = directionConfig[rule.direction as AlertDirection];
+
+  const channels = (rule.channels as AlertChannel[]) || [];
 
   const channelLabels: Record<string, string> = {
     in_app: "站内信",
@@ -89,7 +81,7 @@ export function AlertRuleCard({ rule, onToggle, onEdit, onDelete }: AlertRuleCar
             <div>
               <p className="text-xs text-neutral-400 mb-0.5">告警渠道</p>
               <div className="flex flex-wrap gap-1">
-                {rule.channels.map((ch, i) => (
+                {channels.map((ch, i) => (
                   <span key={i} className="badge badge-neutral">
                     {channelLabels[ch.type] || ch.type}
                   </span>

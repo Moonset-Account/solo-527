@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure, protectedProcedure } from "../trpc";
+import { router, publicProcedure, protectedProcedure, directorProcedure } from "../trpc";
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 
@@ -113,10 +113,67 @@ export const metricRouter = router({
           metric: { select: { name: true, code: true } },
           createdBy: { select: { name: true, email: true } },
           approvedBy: { select: { name: true, email: true } },
+          rejectedBy: { select: { name: true, email: true } },
         },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
       return logs;
+    }),
+
+  approveChangeLog: directorProcedure
+    .input(z.string())
+    .mutation(async ({ ctx, input }) => {
+      const log = await db.metricChangeLog.findUnique({
+        where: { id: input },
+      });
+      if (!log) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "变更记录不存在" });
+      }
+      if (log.approvedById || log.rejectedById) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "该变更已被审批或拒绝" });
+      }
+      const updated = await db.metricChangeLog.update({
+        where: { id: input },
+        data: {
+          approvedById: ctx.userId,
+          approvedAt: new Date(),
+        },
+        include: {
+          metric: { select: { name: true, code: true } },
+          createdBy: { select: { name: true, email: true } },
+          approvedBy: { select: { name: true, email: true } },
+          rejectedBy: { select: { name: true, email: true } },
+        },
+      });
+      return updated;
+    }),
+
+  rejectChangeLog: directorProcedure
+    .input(z.string())
+    .mutation(async ({ ctx, input }) => {
+      const log = await db.metricChangeLog.findUnique({
+        where: { id: input },
+      });
+      if (!log) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "变更记录不存在" });
+      }
+      if (log.approvedById || log.rejectedById) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "该变更已被审批或拒绝" });
+      }
+      const updated = await db.metricChangeLog.update({
+        where: { id: input },
+        data: {
+          rejectedById: ctx.userId,
+          rejectedAt: new Date(),
+        },
+        include: {
+          metric: { select: { name: true, code: true } },
+          createdBy: { select: { name: true, email: true } },
+          approvedBy: { select: { name: true, email: true } },
+          rejectedBy: { select: { name: true, email: true } },
+        },
+      });
+      return updated;
     }),
 });

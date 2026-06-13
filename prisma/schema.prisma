@@ -60,6 +60,7 @@ model User {
   comments               AnomalyComment[]
   createdMetricChanges   MetricChangeLog[]  @relation("createdChanges")
   approvedMetricChanges  MetricChangeLog[]  @relation("approvedChanges")
+  rejectedMetricChanges  MetricChangeLog[]  @relation("rejectedChanges")
 }
 
 model Metric {
@@ -157,6 +158,9 @@ model MetricChangeLog {
   approvedById String?
   approvedBy   User?    @relation("approvedChanges", fields: [approvedById], references: [id])
   approvedAt   DateTime?
+  rejectedById String?
+  rejectedBy   User?    @relation("rejectedChanges", fields: [rejectedById], references: [id])
+  rejectedAt   DateTime?
   description  String?
 
   @@index([metricId])

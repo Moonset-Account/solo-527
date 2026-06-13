@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, Filter, Search } from "lucide-react";
-import { mockData } from "@/utils/mockData";
 import { AlertRuleCard } from "@/components/alerts/AlertRuleCard";
 import { api } from "@/trpc/react";
 
@@ -18,16 +17,7 @@ export default function AlertRulesPage() {
   const deleteMutation = api.alertRule.delete.useMutation();
   const ctx = api.useUtils();
 
-  const rawRules = listQuery.data && listQuery.data.length > 0
-    ? listQuery.data.map((rule) => ({
-        ...rule,
-        createdAt: rule.createdAt.toISOString(),
-        updatedAt: rule.updatedAt.toISOString(),
-        _count: (rule as any)._count || { anomalies: 0 },
-      }))
-    : mockData.alertRules;
-
-  const rules = rawRules as any[];
+  const rules = listQuery.data ?? [];
 
   const filteredRules = rules.filter((rule) => {
     const matchesFilter =
@@ -98,6 +88,32 @@ export default function AlertRulesPage() {
               <div className="h-3 w-64 bg-neutral-200 rounded animate-pulse" />
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (listQuery.isError || rules.length === 0) {
+    return (
+      <div className="animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-xl lg:text-2xl font-bold text-neutral-900">告警规则</h1>
+            <p className="text-sm text-neutral-500 mt-1">共 0 条规则</p>
+          </div>
+
+          <Link href="/alerts/rules/new" className="btn btn-primary">
+            <Plus className="w-4 h-4" />
+            新建规则
+          </Link>
+        </div>
+
+        <div className="card p-12 text-center">
+          <p className="text-neutral-500 text-base mb-4">暂无告警规则，点击新建创建第一条</p>
+          <Link href="/alerts/rules/new" className="btn btn-primary">
+            <Plus className="w-4 h-4" />
+            新建规则
+          </Link>
         </div>
       </div>
     );

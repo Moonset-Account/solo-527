@@ -181,6 +181,47 @@ export const anomalyRouter = router({
       };
     }),
 
+  getStats: publicProcedure
+    .input(
+      z.object({
+        status: z.array(z.enum(["OPEN", "INVESTIGATING", "RESOLVED", "IGNORED"])).optional(),
+        severity: z.array(z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"])).optional(),
+        metricId: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const where = {
+        ...(input.status?.length ? { status: { in: input.status } } : {}),
+        ...(input.severity?.length ? { severity: { in: input.severity } } : {}),
+        ...(input.metricId ? { metricId: input.metricId } : {}),
+        ...(input.startDate || input.endDate
+          ? {
+              detectedAt: {
+                ...(input.startDate ? { gte: input.startDate } : {}),
+                ...(input.endDate ? { lte: input.endDate } : {}),
+              },
+            }
+          : {}),
+      };
+
+      const anomalies = await db.anomaly.findMany({
+        where,
+        select: { status: true, severity: true },
+      });
+
+      const total = anomalies.length;
+      const open = anomalies.filter(
+        (a) => a.status === "OPEN" || a.status === "INVESTIGATING"
+      ).length;
+      const criticalOrHigh = anomalies.filter(
+        (a) => a.severity === "CRITICAL" || a.severity === "HIGH"
+      ).length;
+
+      return { total, open, criticalOrHigh };
+    }),
+
   getTrendData: publicProcedure
     .input(
       z.object({

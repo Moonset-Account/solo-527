@@ -4,6 +4,18 @@ import { router, protectedProcedure, publicProcedure, directorProcedure } from "
 import { db } from "@/server/db";
 
 export const reportRouter = router({
+  me: publicProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId || !ctx.user) {
+      return null;
+    }
+    return {
+      id: ctx.user.id,
+      name: ctx.user.name,
+      email: ctx.user.email,
+      role: ctx.role,
+    };
+  }),
+
   getMonthly: publicProcedure
     .input(z.object({ month: z.string() }))
     .query(async ({ input }) => {

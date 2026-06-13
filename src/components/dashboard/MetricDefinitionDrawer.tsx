@@ -1,8 +1,8 @@
 "use client";
 
 import { X, Info, Calculator, Database, Clock, History } from "lucide-react";
-import { mockData } from "@/utils/mockData";
 import { formatDateTime } from "@/utils/format";
+import { api } from "@/trpc/react";
 
 interface MetricDefinitionDrawerProps {
   metricId: string | null;
@@ -15,9 +15,10 @@ export function MetricDefinitionDrawer({
   isOpen,
   onClose,
 }: MetricDefinitionDrawerProps) {
-  const metric = metricId
-    ? mockData.metrics.find((m) => m.id === metricId)
-    : null;
+  const { data: metric } = api.metric.getById.useQuery(
+    { id: metricId ?? "" },
+    { enabled: !!metricId && isOpen }
+  );
 
   if (!metric) return null;
 
@@ -75,54 +76,56 @@ export function MetricDefinitionDrawer({
               </div>
             </div>
 
-            <div className="p-4 bg-gradient-to-br from-primary-50 to-sky-50 rounded-xl border border-primary-100">
-              <div className="flex items-center gap-2 mb-3">
-                <Calculator className="w-4 h-4 text-primary-600" />
-                <h3 className="text-sm font-medium text-primary-800">计算公式</h3>
-              </div>
-              <div className="p-3 bg-white/70 rounded-lg font-mono text-sm text-neutral-700">
-                {metric.formula}
-              </div>
-            </div>
-
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-              <div className="flex items-center gap-2 mb-2">
-                <Database className="w-4 h-4 text-amber-600" />
-                <h3 className="text-sm font-medium text-amber-800">数据来源</h3>
-              </div>
-              <p className="text-sm text-amber-700">{metric.dataSource}</p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <History className="w-4 h-4 text-neutral-500" />
-                <h3 className="text-sm font-medium text-neutral-800">口径变更记录</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="relative pl-4 pb-3 border-l-2 border-neutral-100 last:border-l-0">
-                  <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-primary-500" />
-                  <div className="text-xs text-neutral-500 mb-1">
-                    2024-03-15 14:30
-                  </div>
-                  <div className="text-sm text-neutral-700">
-                    新增退款订单剔除逻辑
-                  </div>
-                  <div className="text-xs text-neutral-500 mt-1">
-                    修改人：数据运营
-                  </div>
+            {metric.formula && (
+              <div className="p-4 bg-gradient-to-br from-primary-50 to-sky-50 rounded-xl border border-primary-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calculator className="w-4 h-4 text-primary-600" />
+                  <h3 className="text-sm font-medium text-primary-800">计算公式</h3>
                 </div>
-                <div className="relative pl-4 pb-3 border-l-2 border-neutral-100 last:border-l-0">
-                  <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-neutral-300" />
-                  <div className="text-xs text-neutral-500 mb-1">
-                    2024-01-01 00:00
-                  </div>
-                  <div className="text-sm text-neutral-700">指标初始定义</div>
-                  <div className="text-xs text-neutral-500 mt-1">
-                    创建人：系统
-                  </div>
+                <div className="p-3 bg-white/70 rounded-lg font-mono text-sm text-neutral-700">
+                  {metric.formula}
                 </div>
               </div>
-            </div>
+            )}
+
+            {metric.dataSource && (
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Database className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-medium text-amber-800">数据来源</h3>
+                </div>
+                <p className="text-sm text-amber-700">{metric.dataSource}</p>
+              </div>
+            )}
+
+            {metric.changeLogs && metric.changeLogs.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <History className="w-4 h-4 text-neutral-500" />
+                  <h3 className="text-sm font-medium text-neutral-800">口径变更记录</h3>
+                </div>
+                <div className="space-y-3">
+                  {metric.changeLogs.map((log, index) => (
+                    <div
+                      key={log.id}
+                      className="relative pl-4 pb-3 border-l-2 border-neutral-100 last:border-l-0"
+                    >
+                      <div
+                        className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full ${
+                          index === 0 ? "bg-primary-500" : "bg-neutral-300"
+                        }`}
+                      />
+                      <div className="text-xs text-neutral-500 mb-1">
+                        {formatDateTime(log.createdAt)}
+                      </div>
+                      <div className="text-sm text-neutral-700">
+                        {log.description || log.fieldChanged}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-4 border-t border-neutral-100">

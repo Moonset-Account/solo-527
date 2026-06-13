@@ -3,19 +3,19 @@
 import { useState } from "react";
 import { Filter, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { severityConfig, statusConfig } from "@/utils/format";
-import { mockData } from "@/utils/mockData";
+import { api } from "@/trpc/react";
 
-interface Filters {
-  statuses: string[];
-  severities: string[];
-  metricId: string;
-  dateFrom: string;
-  dateTo: string;
+interface AnomalyFilterInput {
+  status?: ("OPEN" | "INVESTIGATING" | "RESOLVED" | "IGNORED")[];
+  severity?: ("LOW" | "MEDIUM" | "HIGH" | "CRITICAL")[];
+  metricId?: string;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 interface AnomalyFilterBarProps {
-  filters: Filters;
-  onChange: (filters: Filters) => void;
+  filters: AnomalyFilterInput;
+  onChange: (filters: AnomalyFilterInput) => void;
 }
 
 const statusOptions = Object.entries(statusConfig).map(([key, val]) => ({
@@ -35,37 +35,49 @@ const severityOptions = Object.entries(severityConfig).map(([key, val]) => ({
 
 export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
   const [expanded, setExpanded] = useState(true);
+  const { data: metrics } = api.metric.list.useQuery();
 
   const toggleStatus = (status: string) => {
-    const next = filters.statuses.includes(status)
-      ? filters.statuses.filter((s) => s !== status)
-      : [...filters.statuses, status];
-    onChange({ ...filters, statuses: next });
+    const currentStatuses = filters.status ?? [];
+    const next = currentStatuses.includes(status as "OPEN" | "INVESTIGATING" | "RESOLVED" | "IGNORED")
+      ? currentStatuses.filter((s) => s !== status)
+      : [...currentStatuses, status as "OPEN" | "INVESTIGATING" | "RESOLVED" | "IGNORED"];
+    onChange({ ...filters, status: next.length > 0 ? next : undefined });
   };
 
   const toggleSeverity = (severity: string) => {
-    const next = filters.severities.includes(severity)
-      ? filters.severities.filter((s) => s !== severity)
-      : [...filters.severities, severity];
-    onChange({ ...filters, severities: next });
+    const currentSeverities = filters.severity ?? [];
+    const next = currentSeverities.includes(severity as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL")
+      ? currentSeverities.filter((s) => s !== severity)
+      : [...currentSeverities, severity as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"];
+    onChange({ ...filters, severity: next.length > 0 ? next : undefined });
   };
 
   const resetFilters = () => {
     onChange({
-      statuses: [],
-      severities: [],
-      metricId: "",
-      dateFrom: "",
-      dateTo: "",
+      status: undefined,
+      severity: undefined,
+      metricId: undefined,
+      startDate: undefined,
+      endDate: undefined,
     });
   };
 
   const hasActiveFilters =
-    filters.statuses.length > 0 ||
-    filters.severities.length > 0 ||
-    filters.metricId !== "" ||
-    filters.dateFrom !== "" ||
-    filters.dateTo !== "";
+    (filters.status?.length ?? 0) > 0 ||
+    (filters.severity?.length ?? 0) > 0 ||
+    filters.metricId !== undefined ||
+    filters.startDate !== undefined ||
+    filters.endDate !== undefined;
+
+  const formatDateValue = (date?: Date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   return (
     <div className="card">
@@ -78,10 +90,10 @@ export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
           <span className="text-sm font-medium text-neutral-700">筛选条件</span>
           {hasActiveFilters && (
             <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary-100 text-primary-700 text-xs font-medium flex items-center justify-center">
-              {filters.statuses.length +
-                filters.severities.length +
+              {(filters.status?.length ?? 0) +
+                (filters.severity?.length ?? 0) +
                 (filters.metricId ? 1 : 0) +
-                (filters.dateFrom || filters.dateTo ? 1 : 0)}
+                (filters.startDate || filters.endDate ? 1 : 0)}
             </span>
           )}
         </div>
@@ -118,7 +130,7 @@ export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
                   key={opt.value}
                   onClick={() => toggleStatus(opt.value)}
                   className={`badge transition-all ${
-                    filters.statuses.includes(opt.value)
+                    filters.status?.includes(opt.value as "OPEN" | "INVESTIGATING" | "RESOLVED" | "IGNORED")
                       ? `${opt.bg} ${opt.color} ring-1 ring-current`
                       : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
                   }`}
@@ -139,14 +151,14 @@ export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
                   key={opt.value}
                   onClick={() => toggleSeverity(opt.value)}
                   className={`badge transition-all ${
-                    filters.severities.includes(opt.value)
+                    filters.severity?.includes(opt.value as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL")
                       ? `${opt.bg} ${opt.color} ring-1 ring-current`
                       : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      filters.severities.includes(opt.value)
+                      filters.severity?.includes(opt.value as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL")
                         ? opt.dot
                         : "bg-neutral-400"
                     }`}
@@ -163,14 +175,17 @@ export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
                 关联指标
               </label>
               <select
-                value={filters.metricId}
+                value={filters.metricId ?? ""}
                 onChange={(e) =>
-                  onChange({ ...filters, metricId: e.target.value })
+                  onChange({
+                    ...filters,
+                    metricId: e.target.value || undefined,
+                  })
                 }
                 className="select"
               >
                 <option value="">全部指标</option>
-                {mockData.metrics.map((m) => (
+                {metrics?.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
                   </option>
@@ -184,9 +199,12 @@ export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
               </label>
               <input
                 type="date"
-                value={filters.dateFrom}
+                value={formatDateValue(filters.startDate)}
                 onChange={(e) =>
-                  onChange({ ...filters, dateFrom: e.target.value })
+                  onChange({
+                    ...filters,
+                    startDate: e.target.value ? new Date(e.target.value) : undefined,
+                  })
                 }
                 className="input"
               />
@@ -198,9 +216,12 @@ export function AnomalyFilterBar({ filters, onChange }: AnomalyFilterBarProps) {
               </label>
               <input
                 type="date"
-                value={filters.dateTo}
+                value={formatDateValue(filters.endDate)}
                 onChange={(e) =>
-                  onChange({ ...filters, dateTo: e.target.value })
+                  onChange({
+                    ...filters,
+                    endDate: e.target.value ? new Date(e.target.value) : undefined,
+                  })
                 }
                 className="input"
               />

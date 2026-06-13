@@ -11,7 +11,6 @@ import {
   SlidersHorizontal,
   Bell,
 } from "lucide-react";
-import { mockData } from "@/utils/mockData";
 import {
   severityConfig,
   periodConfig,
@@ -50,9 +49,7 @@ export default function NewAlertRulePage() {
   const ctx = api.useUtils();
   const metricsQuery = api.metric.list.useQuery();
 
-  const metrics = metricsQuery.data && metricsQuery.data.length > 0
-    ? metricsQuery.data
-    : mockData.metrics;
+  const metrics = metricsQuery.data ?? [];
 
   const canGoNext = () => {
     switch (currentStep) {
@@ -128,6 +125,27 @@ export default function NewAlertRulePage() {
         </div>
         <div className="card p-12">
           <div className="h-6 w-40 bg-neutral-200 rounded animate-pulse mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (metricsQuery.isError || metrics.length === 0) {
+    return (
+      <div className="animate-fade-in max-w-3xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-xl lg:text-2xl font-bold text-neutral-900">新建告警规则</h1>
+          <p className="text-sm text-neutral-500 mt-1">按步骤配置新的告警规则</p>
+        </div>
+        <div className="card p-12 text-center">
+          <p className="text-neutral-500 text-base">暂无可用指标</p>
+          <button
+            onClick={() => router.push("/alerts/rules")}
+            className="btn btn-secondary mt-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            返回列表
+          </button>
         </div>
       </div>
     );

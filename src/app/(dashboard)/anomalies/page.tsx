@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -11,76 +11,89 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { mockData } from "@/utils/mockData";
+import { api } from "@/trpc/react";
 import {
   severityConfig,
   statusConfig,
   formatNumber,
   getRelativeTime,
-  formatDate,
 } from "@/utils/format";
 import { AnomalyFilterBar } from "@/components/anomalies/AnomalyFilterBar";
 
-interface Filters {
-  statuses: string[];
-  severities: string[];
-  metricId: string;
-  dateFrom: string;
-  dateTo: string;
-}
-
 const PAGE_SIZE = 8;
 
+interface AnomalyFilterInput {
+  status?: ("OPEN" | "INVESTIGATING" | "RESOLVED" | "IGNORED")[];
+  severity?: ("LOW" | "MEDIUM" | "HIGH" | "CRITICAL")[];
+  metricId?: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+function SkeletonCard() {
+  return (
+    <div className="card block overflow-hidden">
+      <div className="flex">
+        <div className="w-1.5 rounded-l-xl bg-neutral-200 flex-shrink-0 animate-pulse" />
+        <div className="flex-1 p-4 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse" />
+              <div className="h-5 w-10 bg-neutral-200 rounded-full animate-pulse" />
+            </div>
+            <div className="h-5 w-12 bg-neutral-200 rounded-full animate-pulse" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-neutral-50 rounded-lg p-2.5">
+              <div className="h-3 w-8 bg-neutral-200 rounded mb-1 animate-pulse" />
+              <div className="h-5 w-16 bg-neutral-200 rounded animate-pulse" />
+            </div>
+            <div className="bg-neutral-50 rounded-lg p-2.5">
+              <div className="h-3 w-8 bg-neutral-200 rounded mb-1 animate-pulse" />
+              <div className="h-5 w-16 bg-neutral-200 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="h-5 w-20 bg-neutral-200 rounded animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="h-3 w-12 bg-neutral-200 rounded animate-pulse" />
+              <div className="h-3 w-16 bg-neutral-200 rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AnomaliesPage() {
-  const [filters, setFilters] = useState<Filters>({
-    statuses: [],
-    severities: [],
-    metricId: "",
-    dateFrom: "",
-    dateTo: "",
-  });
+  const [filters, setFilters] = useState<AnomalyFilterInput>({});
   const [page, setPage] = useState(1);
 
-  const filteredAnomalies = useMemo(() => {
-    return mockData.anomalies.filter((a) => {
-      if (
-        filters.statuses.length > 0 &&
-        !filters.statuses.includes(a.status)
-      )
-        return false;
-      if (
-        filters.severities.length > 0 &&
-        !filters.severities.includes(a.severity)
-      )
-        return false;
-      if (filters.metricId && a.metricId !== filters.metricId) return false;
-      if (filters.dateFrom) {
-        const d = new Date(filters.dateFrom);
-        if (a.detectedAt < d) return false;
-      }
-      if (filters.dateTo) {
-        const d = new Date(filters.dateTo);
-        d.setDate(d.getDate() + 1);
-        if (a.detectedAt >= d) return false;
-      }
-      return true;
-    });
-  }, [filters]);
+  const { data: listData, isLoading: listLoading } = api.anomaly.list.useQuery(
+    {
+      ...filters,
+      page,
+      pageSize: PAGE_SIZE,
+    },
+  );
 
-  const totalCount = filteredAnomalies.length;
-  const openCount = filteredAnomalies.filter(
-    (a) => a.status === "OPEN" || a.status === "INVESTIGATING"
-  ).length;
-  const criticalCount = filteredAnomalies.filter(
-    (a) => a.severity === "CRITICAL" || a.severity === "HIGH"
-  ).length;
+  const { data: statsData } = api.anomaly.getStats.useQuery(filters);
+
+  const handleFilterChange = useCallback((newFilters: AnomalyFilterInput) => {
+    setFilters(newFilters);
+    setPage(1);
+  }, []);
+
+  const totalCount = statsData?.total ?? 0;
+  const openCount = statsData?.open ?? 0;
+  const criticalCount = statsData?.criticalOrHigh ?? 0;
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedAnomalies = filteredAnomalies.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
+  const items = listData?.items ?? [];
+
+  const isLoading = listLoading;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -99,7 +112,11 @@ export default function AnomaliesPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-neutral-800">
-                {totalCount}
+                {isLoading ? (
+                  <span className="inline-block h-7 w-8 bg-neutral-200 rounded animate-pulse" />
+                ) : (
+                  totalCount
+                )}
               </p>
               <p className="text-xs text-neutral-500">异常总数</p>
             </div>
@@ -112,7 +129,11 @@ export default function AnomaliesPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-neutral-800">
-                {openCount}
+                {isLoading ? (
+                  <span className="inline-block h-7 w-8 bg-neutral-200 rounded animate-pulse" />
+                ) : (
+                  openCount
+                )}
               </p>
               <p className="text-xs text-neutral-500">待处理</p>
             </div>
@@ -125,7 +146,11 @@ export default function AnomaliesPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-neutral-800">
-                {criticalCount}
+                {isLoading ? (
+                  <span className="inline-block h-7 w-8 bg-neutral-200 rounded animate-pulse" />
+                ) : (
+                  criticalCount
+                )}
               </p>
               <p className="text-xs text-neutral-500">高/严重</p>
             </div>
@@ -133,16 +158,22 @@ export default function AnomaliesPage() {
         </div>
       </div>
 
-      <AnomalyFilterBar filters={filters} onChange={setFilters} />
+      <AnomalyFilterBar filters={filters} onChange={handleFilterChange} />
 
-      {pagedAnomalies.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <div className="card p-12 text-center">
           <AlertTriangle className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-          <p className="text-neutral-500 text-sm">没有找到匹配的异常记录</p>
+          <p className="text-neutral-500 text-sm">暂无异常记录</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {pagedAnomalies.map((anomaly) => {
+          {items.map((anomaly) => {
             const severity =
               severityConfig[
                 anomaly.severity as keyof typeof severityConfig
@@ -247,7 +278,7 @@ export default function AnomaliesPage() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setPage(currentPage - 1)}
-              disabled={currentPage <= 1}
+              disabled={currentPage <= 1 || isLoading}
               className="p-2 rounded-lg hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -256,7 +287,8 @@ export default function AnomaliesPage() {
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition-colors ${
+                disabled={isLoading}
+                className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                   p === currentPage
                     ? "bg-primary-700 text-white"
                     : "hover:bg-neutral-100 text-neutral-600"
@@ -267,7 +299,7 @@ export default function AnomaliesPage() {
             ))}
             <button
               onClick={() => setPage(currentPage + 1)}
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || isLoading}
               className="p-2 rounded-lg hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />

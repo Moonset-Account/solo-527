@@ -12,6 +12,7 @@ export const alertRuleRouter = router({
         include: {
           metric: true,
           createdBy: { select: { name: true, email: true } },
+          _count: { select: { anomalies: true } },
         },
         orderBy: { createdAt: "desc" },
       });

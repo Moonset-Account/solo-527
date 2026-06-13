@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -27,7 +27,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import { api } from "@/trpc/react";
-import { mockData } from "@/utils/mockData";
 import {
   severityConfig,
   statusConfig,
@@ -38,11 +37,29 @@ import {
 } from "@/utils/format";
 import { MetricDefinitionDrawer } from "@/components/dashboard/MetricDefinitionDrawer";
 
-interface Comment {
-  id: string;
-  author: string;
-  content: string;
-  createdAt: Date;
+function generateTrendData(expectedValue: number, days: number) {
+  const data = [];
+  const base = expectedValue;
+
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    let variation = (Math.random() - 0.5) * 0.15;
+    if (isWeekend) variation += 0.08;
+
+    const value = base * (1 + variation);
+
+    data.push({
+      date: date.toISOString().split("T")[0],
+      value: Math.round(value * 100) / 100,
+      expected: expectedValue,
+    });
+  }
+
+  return data;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -68,19 +85,91 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+function SkeletonDetail() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-neutral-100">
+            <ArrowLeft className="w-5 h-5 text-neutral-300" />
+          </div>
+          <div>
+            <div className="h-6 w-24 bg-neutral-200 rounded mb-1" />
+            <div className="h-4 w-32 bg-neutral-200 rounded" />
+          </div>
+        </div>
+        <div className="h-9 w-28 bg-neutral-200 rounded-lg" />
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="lg:w-[60%] space-y-6">
+          <div className="card p-5 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-neutral-100" />
+                <div>
+                  <div className="h-5 w-32 bg-neutral-200 rounded mb-1" />
+                  <div className="h-4 w-24 bg-neutral-200 rounded" />
+                </div>
+              </div>
+              <div className="h-6 w-12 bg-neutral-200 rounded-full" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-neutral-50 rounded-lg p-3">
+                  <div className="h-3 w-8 bg-neutral-200 rounded mb-2" />
+                  <div className="h-5 w-16 bg-neutral-200 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card p-5">
+            <div className="h-5 w-20 bg-neutral-200 rounded mb-4" />
+            <div className="h-56 bg-neutral-50 rounded-lg" />
+          </div>
+        </div>
+
+        <div className="lg:w-[40%] space-y-6">
+          <div className="card p-5">
+            <div className="h-5 w-24 bg-neutral-200 rounded mb-4" />
+            <div className="space-y-3">
+              <div className="h-10 bg-neutral-100 rounded-lg" />
+              <div className="h-20 bg-neutral-100 rounded-lg" />
+              <div className="h-10 bg-neutral-100 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="card p-5">
+            <div className="h-5 w-24 bg-neutral-200 rounded mb-4" />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 bg-neutral-50 rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AnomalyDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
   const ctx = api.useUtils();
 
-  const anomalyQuery = api.anomaly.getById.useQuery(id, { enabled: !!id });
+  const {
+    data: anomaly,
+    isLoading,
+    isError,
+    error,
+  } = api.anomaly.getById.useQuery(id, { enabled: !!id });
+
   const statusMutation = api.anomaly.updateStatus.useMutation();
   const rootCauseMutation = api.anomaly.updateRootCause.useMutation();
   const addCommentMutation = api.anomaly.addComment.useMutation();
-
-  const fallbackAnomaly = mockData.anomalies.find((a) => a.id === id);
-  const anomaly = anomalyQuery.data ?? fallbackAnomaly ?? null;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rootCauseCategory, setRootCauseCategory] = useState("");
@@ -96,11 +185,23 @@ export default function AnomalyDetailPage() {
     }
   }, [anomaly?.id]);
 
-  if (!anomaly) {
+  const trendData = useMemo(() => {
+    if (!anomaly) return [];
+    return generateTrendData(anomaly.expectedValue, 30);
+  }, [anomaly?.expectedValue, anomaly?.id]);
+
+  if (isLoading) {
+    return <SkeletonDetail />;
+  }
+
+  if (isError || !anomaly) {
+    const isNotFound = error?.data?.code === "NOT_FOUND";
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <AlertTriangle className="w-16 h-16 text-neutral-300 mb-4" />
-        <p className="text-neutral-500 text-lg">未找到该异常记录</p>
+        <p className="text-neutral-500 text-lg">
+          {isNotFound ? "异常记录不存在" : "加载失败"}
+        </p>
         <Link
           href="/anomalies"
           className="mt-4 text-primary-600 hover:text-primary-700 text-sm font-medium"
@@ -111,40 +212,12 @@ export default function AnomalyDetailPage() {
     );
   }
 
-  const apiComments = anomalyQuery.data?.comments;
-  const comments: Comment[] = apiComments
-    ? apiComments.map((c) => ({
-        id: c.id,
-        author: c.user?.name || "系统",
-        content: c.content,
-        createdAt: c.createdAt,
-      }))
-    : (fallbackAnomaly?.comments?.map((c: any, i: number) => ({
-        id: `comment-${i}`,
-        author: c.author || "系统",
-        content: c.content,
-        createdAt: fallbackAnomaly.detectedAt,
-      })) || [
-        {
-          id: "comment-init",
-          author: "系统",
-          content: `检测到${anomaly.metric.name}异常，偏差率 ${anomaly.deviationPercentage}%`,
-          createdAt: anomaly.detectedAt,
-        },
-      ]);
-
-  const currentStatus = anomalyQuery.data?.status ?? anomaly.status;
+  const comments = anomaly.comments ?? [];
+  const currentStatus = anomaly.status;
 
   const severity = severityConfig[anomaly.severity as keyof typeof severityConfig];
   const status = statusConfig[currentStatus as keyof typeof statusConfig];
   const isNegative = anomaly.deviationPercentage < 0;
-
-  const trendData = mockData
-    .generateMetricData(anomaly.metricId, 30)
-    .map((d) => ({
-      ...d,
-      expected: anomaly.expectedValue,
-    }));
 
   const handleRootCauseSave = () => {
     rootCauseMutation.mutate(
@@ -510,29 +583,35 @@ export default function AnomalyDetailPage() {
             </div>
 
             <div className="space-y-0 max-h-[320px] overflow-y-auto scrollbar-thin pr-1">
-              {comments.map((comment, index) => (
-                <div
-                  key={comment.id}
-                  className="relative pl-5 pb-4 border-l-2 border-neutral-100 last:border-l-0"
-                >
+              {comments.length === 0 ? (
+                <p className="text-sm text-neutral-400 text-center py-4">
+                  暂无处理记录
+                </p>
+              ) : (
+                comments.map((comment, index) => (
                   <div
-                    className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full ${
-                      index === 0 ? "bg-primary-500" : "bg-neutral-300"
-                    }`}
-                  />
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-neutral-700">
-                      {comment.author}
-                    </span>
-                    <span className="text-xs text-neutral-400">
-                      {getRelativeTime(comment.createdAt)}
-                    </span>
+                    key={comment.id}
+                    className="relative pl-5 pb-4 border-l-2 border-neutral-100 last:border-l-0"
+                  >
+                    <div
+                      className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full ${
+                        index === 0 ? "bg-primary-500" : "bg-neutral-300"
+                      }`}
+                    />
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-neutral-700">
+                        {comment.user?.name || "系统"}
+                      </span>
+                      <span className="text-xs text-neutral-400">
+                        {getRelativeTime(comment.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-neutral-600">
+                      {comment.content}
+                    </p>
                   </div>
-                  <p className="text-sm text-neutral-600">
-                    {comment.content}
-                  </p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <div className="mt-4 flex gap-2">
