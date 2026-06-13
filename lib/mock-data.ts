@@ -1,0 +1,546 @@
+import {
+  User,
+  Department,
+  Task,
+  Attachment,
+  Comment,
+  AuditLog,
+  ReminderRule,
+} from '@/types';
+import { generateId } from './utils';
+
+const now = new Date();
+const daysFromNow = (days: number): string => {
+  const date = new Date(now);
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+};
+
+const daysAgo = (days: number): string => {
+  const date = new Date(now);
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
+};
+
+export const mockDepartments: Department[] = [
+  {
+    id: 'dept-001',
+    name: '行政部',
+    manager_id: 'user-002',
+    created_at: daysAgo(30),
+  },
+  {
+    id: 'dept-002',
+    name: '技术部',
+    manager_id: 'user-003',
+    created_at: daysAgo(30),
+  },
+  {
+    id: 'dept-003',
+    name: '市场部',
+    manager_id: 'user-004',
+    created_at: daysAgo(30),
+  },
+  {
+    id: 'dept-004',
+    name: '财务部',
+    manager_id: 'user-005',
+    created_at: daysAgo(30),
+  },
+];
+
+export const mockUsers: User[] = [
+  {
+    id: 'user-001',
+    email: 'admin@company.com',
+    name: '系统管理员',
+    role: 'admin',
+    department_id: 'dept-001',
+    created_at: daysAgo(30),
+  },
+  {
+    id: 'user-002',
+    email: 'hr@company.com',
+    name: '张经理',
+    role: 'manager',
+    department_id: 'dept-001',
+    created_at: daysAgo(25),
+  },
+  {
+    id: 'user-003',
+    email: 'tech@company.com',
+    name: '李主管',
+    role: 'manager',
+    department_id: 'dept-002',
+    created_at: daysAgo(25),
+  },
+  {
+    id: 'user-004',
+    email: 'marketing@company.com',
+    name: '王总监',
+    role: 'manager',
+    department_id: 'dept-003',
+    created_at: daysAgo(25),
+  },
+  {
+    id: 'user-005',
+    email: 'finance@company.com',
+    name: '赵经理',
+    role: 'manager',
+    department_id: 'dept-004',
+    created_at: daysAgo(25),
+  },
+  {
+    id: 'user-006',
+    email: 'emp1@company.com',
+    name: '陈小华',
+    role: 'user',
+    department_id: 'dept-002',
+    created_at: daysAgo(20),
+  },
+  {
+    id: 'user-007',
+    email: 'emp2@company.com',
+    name: '林小雨',
+    role: 'user',
+    department_id: 'dept-002',
+    created_at: daysAgo(20),
+  },
+  {
+    id: 'user-008',
+    email: 'emp3@company.com',
+    name: '刘建国',
+    role: 'user',
+    department_id: 'dept-003',
+    created_at: daysAgo(20),
+  },
+  {
+    id: 'user-009',
+    email: 'user-009',
+    name: '孙晓红',
+    role: 'user',
+    department_id: 'dept-001',
+    created_at: daysAgo(15),
+  },
+  {
+    id: 'user-010',
+    email: 'test',
+    name: '周伟',
+    role: 'user',
+    department_id: 'dept-004',
+    created_at: daysAgo(15),
+  },
+];
+
+export const mockTasks: Task[] = [
+  {
+    id: 'task-001',
+    title: '更新员工培训计划',
+    description: '完成Q3季度新员工入职培训计划，包括培训课程安排、讲师邀请、场地预订等。',
+    status: 'in_progress',
+    priority: 'high',
+    progress: 60,
+    department_id: 'dept-001',
+    assignee_id: 'user-009',
+    creator_id: 'user-002',
+    deadline: daysFromNow(3),
+    requires_attachment: true,
+    created_at: daysAgo(7),
+    updated_at: daysAgo(2),
+  },
+  {
+    id: 'task-002',
+    title: '办公设备采购审批',
+    description: '审批技术部提交的10台新电脑采购申请，包括预算审核、供应商比价、合同签订。',
+    status: 'todo',
+    priority: 'medium',
+    progress: 0,
+    department_id: 'dept-004',
+    assignee_id: 'user-010',
+    creator_id: 'user-005',
+    deadline: daysFromNow(7),
+    requires_attachment: true,
+    created_at: daysAgo(3),
+    updated_at: daysAgo(3),
+  },
+  {
+    id: 'task-003',
+    title: '系统安全漏洞修复',
+    description: '修复上周安全扫描发现的3个高危漏洞，需要在本周内完成修复并提交测试。',
+    status: 'in_progress',
+    priority: 'urgent',
+    progress: 80,
+    department_id: 'dept-002',
+    assignee_id: 'user-006',
+    creator_id: 'user-003',
+    deadline: daysFromNow(2),
+    requires_attachment: false,
+    created_at: daysAgo(5),
+    updated_at: daysAgo(1),
+  },
+  {
+    id: 'task-004',
+    title: '月度市场活动策划',
+    description: '策划8月份新品发布会活动方案，包括活动主题、流程安排、嘉宾邀请、预算编制。',
+    status: 'todo',
+    priority: 'high',
+    progress: 0,
+    department_id: 'dept-003',
+    assignee_id: 'user-008',
+    creator_id: 'user-004',
+    deadline: daysFromNow(10),
+    requires_attachment: true,
+    created_at: daysAgo(2),
+    updated_at: daysAgo(2),
+  },
+  {
+    id: 'task-005',
+    title: '员工满意度调查',
+    description: '完成上半年员工满意度调查问卷设计、发放、回收及数据分析报告。',
+    status: 'completed',
+    priority: 'medium',
+    progress: 100,
+    department_id: 'dept-001',
+    assignee_id: 'user-009',
+    creator_id: 'user-002',
+    deadline: daysAgo(1),
+    completed_at: daysAgo(1),
+    requires_attachment: true,
+    created_at: daysAgo(14),
+    updated_at: daysAgo(1),
+  },
+  {
+    id: 'task-006',
+    title: '财务报表审计',
+    description: '完成Q2季度财务报表审计工作，配合外部审计机构完成审计程序。',
+    status: 'overdue',
+    priority: 'high',
+    progress: 45,
+    department_id: 'dept-004',
+    assignee_id: 'user-010',
+    creator_id: 'user-005',
+    deadline: daysAgo(3),
+    requires_attachment: true,
+    created_at: daysAgo(20),
+    updated_at: daysAgo(4),
+  },
+  {
+    id: 'task-007',
+    title: '新功能开发',
+    description: '开发客户管理系统的报表导出功能，支持多种格式导出。',
+    status: 'completed',
+    priority: 'medium',
+    progress: 100,
+    department_id: 'dept-002',
+    assignee_id: 'user-007',
+    creator_id: 'user-003',
+    deadline: daysAgo(5),
+    completed_at: daysAgo(6),
+    requires_attachment: false,
+    created_at: daysAgo(21),
+    updated_at: daysAgo(6),
+  },
+  {
+    id: 'task-008',
+    title: '品牌宣传视频拍摄',
+    description: '拍摄公司新版企业宣传视频，包括脚本策划、拍摄、后期剪辑。',
+    status: 'in_progress',
+    priority: 'high',
+    progress: 30,
+    department_id: 'dept-003',
+    assignee_id: 'user-008',
+    creator_id: 'user-004',
+    deadline: daysFromNow(14),
+    requires_attachment: true,
+    created_at: daysAgo(10),
+    updated_at: daysAgo(3),
+  },
+  {
+    id: 'task-009',
+    title: '年会筹备工作',
+    description: '2024年度年会筹备，场地预订、节目征集、流程策划。',
+    status: 'todo',
+    priority: 'low',
+    progress: 0,
+    department_id: 'dept-001',
+    creator_id: 'user-002',
+    deadline: daysFromNow(30),
+    requires_attachment: false,
+    created_at: daysAgo(1),
+    updated_at: daysAgo(1),
+  },
+  {
+    id: 'task-010',
+    title: '代码评审系统升级',
+    description: '升级代码评审系统升级到最新版本，包括性能优化、新功能添加。',
+    status: 'overdue',
+    priority: 'medium',
+    progress: 90,
+    department_id: 'dept-002',
+    assignee_id: 'user-006',
+    creator_id: 'user-003',
+    deadline: daysAgo(1),
+    requires_attachment: true,
+    created_at: daysAgo(14),
+    updated_at: daysAgo(2),
+  },
+];
+
+export const mockAttachments: Attachment[] = [
+  {
+    id: 'att-001',
+    task_id: 'task-005',
+    version: 1,
+    file_name: '员工满意度调查方案.docx',
+    file_path: '/attachments/task-001/survey.docx',
+    file_size: 1024000,
+    mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploaded_by: 'user-009',
+    created_at: daysAgo(8),
+  },
+  {
+    id: 'att-002',
+    task_id: 'task-005',
+    version: 2,
+    file_name: '员工满意度调查报告.xlsx',
+    file_path: '/attachments/task-001/results.xlsx',
+    file_size: 512000,
+    mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    uploaded_by: 'user-009',
+    created_at: daysAgo(3),
+  },
+  {
+    id: 'att-003',
+    task_id: 'task-003',
+    version: 1,
+    file_name: '漏洞修复报告.pdf',
+    file_path: '/attachments/task-003/report.pdf',
+    file_size: 2048000,
+    mime_type: 'application/pdf',
+    uploaded_by: 'user-006',
+    created_at: daysAgo(4),
+  },
+  {
+    id: 'att-004',
+    task_id: 'task-007',
+    version: 1,
+    file_name: '功能设计文档.pdf',
+    file_path: '/attachments/task-007/design.pdf',
+    file_size: 1536000,
+    mime_type: 'application/pdf',
+    uploaded_by: 'user-007',
+    created_at: daysAgo(18),
+  },
+  {
+    id: 'att-005',
+    task_id: 'task-008',
+    version: 1,
+    file_name: '视频脚本.docx',
+    file_path: '/attachments/task-008/script.docx',
+    file_size: 256000,
+    mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploaded_by: 'user-008',
+    created_at: daysAgo(7),
+  },
+];
+
+export const mockComments: Comment[] = [
+  {
+    id: 'comment-001',
+    task_id: 'task-003',
+    user_id: 'user-003',
+    content: '请务必在截止日期前完成，这个漏洞修复，安全问题比较紧急。',
+    mentions: ['user-006'],
+    created_at: daysAgo(4),
+  },
+  {
+    id: 'comment-002',
+    task_id: 'task-003',
+    user_id: 'user-006',
+    content: '好的，已经修复了2个，剩下1个预计明天完成。',
+    mentions: [],
+    created_at: daysAgo(3),
+  },
+  {
+    id: 'comment-003',
+    task_id: 'task-005',
+    user_id: 'user-002',
+    content: '调查报告做得很详细，请分享给各部门主管。',
+    mentions: ['user-009'],
+    created_at: daysAgo(2),
+  },
+  {
+    id: 'comment-004',
+    task_id: 'task-006',
+    user_id: 'user-005',
+    content: '进度有些滞后，请加快进度，审计机构下周要来现场审计。',
+    mentions: ['user-010'],
+    created_at: daysAgo(2),
+  },
+  {
+    id: 'comment-005',
+    task_id: 'task-008',
+    user_id: 'user-008',
+    content: '脚本已经上传，请审核。',
+    mentions: ['user-004'],
+    created_at: daysAgo(6),
+  },
+];
+
+export const mockAuditLogs: AuditLog[] = [
+  {
+    id: 'log-001',
+    task_id: 'task-001',
+    user_id: 'user-002',
+    action: 'create',
+    new_value: 'todo',
+    metadata: { title: '更新员工培训计划' },
+    created_at: daysAgo(7),
+  },
+  {
+    id: 'log-002',
+    task_id: 'task-001',
+    user_id: 'user-009',
+    action: 'claim',
+    new_value: 'user-009',
+    created_at: daysAgo(6),
+  },
+  {
+    id: 'log-003',
+    task_id: 'task-001',
+    user_id: 'user-009',
+    action: 'update_status',
+    old_value: 'todo',
+    new_value: 'in_progress',
+    created_at: daysAgo(5),
+  },
+  {
+    id: 'log-004',
+    task_id: 'task-001',
+    user_id: 'user-009',
+    action: 'update_progress',
+    old_value: '0',
+    new_value: '30',
+    created_at: daysAgo(4),
+  },
+  {
+    id: 'log-005',
+    task_id: 'task-001',
+    user_id: 'user-009',
+    action: 'update_progress',
+    old_value: '30',
+    new_value: '60',
+    created_at: daysAgo(2),
+  },
+  {
+    id: 'log-006',
+    task_id: 'task-005',
+    user_id: 'user-009',
+    action: 'upload_attachment',
+    new_value: '员工满意度调查方案.docx',
+    metadata: { version: 1, size: 1024000 },
+    created_at: daysAgo(8),
+  },
+  {
+    id: 'log-007',
+    task_id: 'task-005',
+    user_id: 'user-009',
+    action: 'upload_attachment',
+    new_value: '员工满意度调查报告.xlsx',
+    metadata: { version: 2, size: 512000 },
+    created_at: daysAgo(3),
+  },
+  {
+    id: 'log-008',
+    task_id: 'task-005',
+    user_id: 'user-009',
+    action: 'update_status',
+    old_value: 'in_progress',
+    new_value: 'completed',
+    created_at: daysAgo(1),
+  },
+  {
+    id: 'log-009',
+    task_id: 'task-003',
+    user_id: 'user-003',
+    action: 'comment',
+    new_value: '务必在截止日期前完成...',
+    created_at: daysAgo(4),
+  },
+  {
+    id: 'log-010',
+    task_id: 'task-010',
+    user_id: 'user-006',
+    action: 'update_status',
+    old_value: 'in_progress',
+    new_value: 'overdue',
+    created_at: daysAgo(1),
+  },
+  {
+    id: 'log-011',
+    task_id: 'task-010',
+    user_id: 'user-006',
+    action: 'missing_attachment',
+    metadata: { warning: '标记完成但未上传附件' },
+    created_at: daysAgo(1),
+  },
+];
+
+export const mockReminderRules: ReminderRule[] = [
+  {
+    id: 'rule-001',
+    days_before: 3,
+    repeat_interval: 24,
+    notify_email: true,
+    enabled: true,
+    created_at: daysAgo(30),
+  },
+  {
+    id: 'rule-002',
+    department_id: 'dept-002',
+    days_before: 5,
+    repeat_interval: 12,
+    notify_email: true,
+    enabled: true,
+    created_at: daysAgo(20),
+  },
+  {
+    id: 'rule-003',
+    department_id: 'dept-004',
+    days_before: 2,
+    repeat_interval: 6,
+    notify_email: true,
+    enabled: true,
+    created_at: daysAgo(15),
+  },
+];
+
+export const dataService = {
+  getUserByEmail: (email: string): User | undefined => {
+    return mockUsers.find(u => u.email === email);
+  },
+
+  getDepartments: (): Department[] => {
+    return mockDepartments;
+  },
+
+  getDepartmentById: (id: string): Department | undefined => {
+    return mockDepartments.find(d => d.id === id);
+  },
+
+  getUsers: (): User[] => {
+    return mockUsers;
+  },
+
+  getUserById: (id: string): User | undefined => {
+    return mockUsers.find(u => u.id === id);
+  },
+
+  getUsersByDepartment: (departmentId: string): User[] => {
+    return mockUsers.filter(u => u.department_id === departmentId);
+  },
+
+  getManagers: (): User[] => {
+    return mockUsers.filter(u => u.role === 'manager' || u.role === 'admin');
+  },
+};
