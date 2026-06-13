@@ -88,7 +88,7 @@ router.post('/', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_MANAGER', 
         writeOffNo,
         billId: parseInt(billId),
         customerId: parseInt(customerId),
-        writeOffAmount,
+        writeOffAmount: parseFloat(writeOffAmount),
         reason,
         remark,
         applyById: req.user.id,
@@ -104,9 +104,17 @@ router.post('/', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_MANAGER', 
       writeOffId: writeOff.id,
       eventType: 'WRITEOFF_APPLIED',
       eventName: '冲销申请',
-      description: `提交冲销申请 ${writeOffNo}，金额 ${writeOffAmount} 元`,
+      description: `提交冲销申请 ${writeOffNo}，冲销 ¥${parseFloat(writeOffAmount).toLocaleString()}，原因：${reason}`,
       operatorId: req.user.id,
       operatorName: req.user.name,
+    });
+
+    await prisma.bill.update({
+      where: { id: parseInt(billId) },
+      data: {
+        lastHandler: req.user.name,
+        lastHandleTime: new Date(),
+      },
     });
 
     res.json({ writeOff });
@@ -134,6 +142,26 @@ router.put('/:id/approve', authenticate, requireRoles('FINANCE_MANAGER', 'ADMIN'
       },
     });
 
+    if (writeOff.billId) {
+      await createTimelineEvent({
+        billId: writeOff.billId,
+        writeOffId,
+        eventType: 'WRITEOFF_APPROVED',
+        eventName: '冲销审批通过',
+        description: `冲销申请 ${writeOff.writeOffNo} 金额 ¥${parseFloat(writeOff.writeOffAmount).toLocaleString()} 已通过审批${approveRemark ? `，意见：${approveRemark}` : ''}`,
+        operatorId: req.user.id,
+        operatorName: req.user.name,
+      });
+
+      await prisma.bill.update({
+        where: { id: writeOff.billId },
+        data: {
+          lastHandler: req.user.name,
+          lastHandleTime: new Date(),
+        },
+      });
+    }
+
     res.json({ writeOff });
   } catch (error) {
     console.error('审批冲销失败:', error);
@@ -159,6 +187,26 @@ router.put('/:id/reject', authenticate, requireRoles('FINANCE_MANAGER', 'ADMIN')
       },
     });
 
+    if (writeOff.billId) {
+      await createTimelineEvent({
+        billId: writeOff.billId,
+        writeOffId,
+        eventType: 'WRITEOFF_REJECTED',
+        eventName: '冲销申请被拒',
+        description: `冲销申请 ${writeOff.writeOffNo} 金额 ¥${parseFloat(writeOff.writeOffAmount).toLocaleString()} 被拒绝${approveRemark ? `，原因：${approveRemark}` : ''}`,
+        operatorId: req.user.id,
+        operatorName: req.user.name,
+      });
+
+      await prisma.bill.update({
+        where: { id: writeOff.billId },
+        data: {
+          lastHandler: req.user.name,
+          lastHandleTime: new Date(),
+        },
+      });
+    }
+
     res.json({ writeOff });
   } catch (error) {
     console.error('拒绝冲销失败:', error);
@@ -181,21 +229,40 @@ router.put('/:id/process', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_
     });
 
     if (writeOff.billId) {
-      await prisma.bill.update({
+      const bill = await prisma.bill.findUnique({
         where: { id: writeOff.billId },
-        data: {
-          status: 'WRITTEN_OFF',
-          lastHandler: req.user.name,
-          lastHandleTime: new Date(),
-        },
+        select: { totalAmount: true, paidAmount: true, balanceAmount: true },
       });
+
+      if (bill) {
+        const newBalance = parseFloat(bill.totalAmount) - parseFloat(bill.paidAmount) - parseFloat(writeOff.writeOffAmount);
+        await prisma.bill.update({
+          where: { id: writeOff.billId },
+          data: {
+            paidAmount: parseFloat(bill.paidAmount) + parseFloat(writeOff.writeOffAmount),
+            balanceAmount: Math.max(0, newBalance),
+            status: Math.max(0, newBalance) <= 0 ? 'WRITTEN_OFF' : 'PARTIAL_PAID',
+            lastHandler: req.user.name,
+            lastHandleTime: new Date(),
+          },
+        });
+      } else {
+        await prisma.bill.update({
+          where: { id: writeOff.billId },
+          data: {
+            status: 'WRITTEN_OFF',
+            lastHandler: req.user.name,
+            lastHandleTime: new Date(),
+          },
+        });
+      }
 
       await createTimelineEvent({
         billId: writeOff.billId,
         writeOffId,
         eventType: 'WRITEOFF_PROCESSED',
         eventName: '冲销已执行',
-        description: `冲销 ${writeOff.writeOffNo} 已执行，金额 ${writeOff.writeOffAmount} 元`,
+        description: `冲销 ${writeOff.writeOffNo} 已执行，冲销金额 ¥${parseFloat(writeOff.writeOffAmount).toLocaleString()}，账单余额已同步调整`,
         operatorId: req.user.id,
         operatorName: req.user.name,
       });

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import prisma from '../config/prisma.js';
 import { authenticate, requireRoles } from '../middleware/auth.js';
+import { generatePaymentNo } from '../utils/generators.js';
+import { createTimelineEvent } from '../utils/timeline.js';
 
 const router = Router();
 
@@ -97,7 +99,7 @@ router.post('/:id/match', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_M
         transactionId,
         billId: billId ? parseInt(billId) : null,
         paymentId: paymentId ? parseInt(paymentId) : null,
-        matchAmount,
+        matchAmount: parseFloat(matchAmount),
         matchType,
         remark,
         matchedById: req.user.id,
@@ -125,6 +127,46 @@ router.post('/:id/match', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_M
         status,
       },
     });
+
+    if (billId) {
+      const resolvedBillId = parseInt(billId);
+      const matchedBill = await prisma.bill.findUnique({
+        where: { id: resolvedBillId },
+        select: { id: true, totalAmount: true, paidAmount: true, balanceAmount: true, customerId: true },
+      });
+
+      if (matchedBill) {
+        const newPaidAmount = parseFloat(matchedBill.paidAmount) + parseFloat(matchAmount);
+        const newBalance = parseFloat(matchedBill.totalAmount) - newPaidAmount;
+        let billStatus = 'PARTIAL_PAID';
+        if (newBalance <= 0) {
+          billStatus = 'PAID';
+        } else if (newBalance < parseFloat(matchedBill.totalAmount)) {
+          billStatus = 'PARTIAL_PAID';
+        }
+
+        await prisma.bill.update({
+          where: { id: resolvedBillId },
+          data: {
+            paidAmount: newPaidAmount,
+            balanceAmount: Math.max(0, newBalance),
+            status: billStatus,
+            lastHandler: req.user.name,
+            lastHandleTime: new Date(),
+          },
+        });
+
+        await createTimelineEvent({
+          billId: resolvedBillId,
+          transactionMatchId: match.id,
+          eventType: 'PAYMENT_RECEIVED',
+          eventName: '流水匹配收款',
+          description: `银行流水 ${transaction.transNo} 匹配收款 ¥${parseFloat(matchAmount).toLocaleString()}，匹配单号：MATCH-${match.id}`,
+          operatorId: req.user.id,
+          operatorName: req.user.name,
+        });
+      }
+    }
 
     res.json({ match });
   } catch (error) {
@@ -168,7 +210,44 @@ router.post('/:id/unmatch', authenticate, requireRoles('FINANCE_MANAGER', 'ADMIN
       },
     });
 
-    res.json({ message: '取消匹配成功' });
+    if (match.billId) {
+      const unmatchBill = await prisma.bill.findUnique({
+        where: { id: match.billId },
+        select: { id: true, totalAmount: true, paidAmount: true, balanceAmount: true },
+      });
+      if (unmatchBill) {
+        const newPaid = Math.max(0, parseFloat(unmatchBill.paidAmount) - parseFloat(match.matchAmount));
+        const newBal = parseFloat(unmatchBill.totalAmount) - newPaid;
+        let billStatus = 'UNPAID';
+        if (newBal <= 0) {
+          billStatus = 'PAID';
+        } else if (newPaid > 0) {
+          billStatus = 'PARTIAL_PAID';
+        }
+        await prisma.bill.update({
+          where: { id: match.billId },
+          data: {
+            paidAmount: newPaid,
+            balanceAmount: Math.max(0, newBal),
+            status: billStatus,
+            lastHandler: req.user.name,
+            lastHandleTime: new Date(),
+          },
+        });
+
+        await createTimelineEvent({
+          billId: match.billId,
+          transactionMatchId: match.id,
+          eventType: 'PAYMENT_ADJUSTED',
+          eventName: '流水取消匹配',
+          description: `流水匹配已取消，已扣减付款 ¥${parseFloat(match.matchAmount).toLocaleString()}，匹配单号：MATCH-${match.id}`,
+          operatorId: req.user.id,
+          operatorName: req.user.name,
+        });
+      }
+    }
+
+    res.json({ message: '取消匹配成功，账单余额已恢复' });
   } catch (error) {
     console.error('取消匹配失败:', error);
     res.status(500).json({ message: '服务器内部错误' });

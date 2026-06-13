@@ -117,9 +117,17 @@ router.post('/', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_MANAGER', 
         refundId: refund.id,
         eventType: 'REFUND_APPLIED',
         eventName: '退款申请',
-        description: `提交退款申请 ${refundNo}，金额 ${refundAmount} 元`,
+        description: `提交退款申请 ${refundNo}，金额 ¥${parseFloat(refundAmount).toLocaleString()}，原因：${refundReason}`,
         operatorId: req.user.id,
         operatorName: req.user.name,
+      });
+
+      await prisma.bill.update({
+        where: { id: parseInt(billId) },
+        data: {
+          lastHandler: req.user.name,
+          lastHandleTime: new Date(),
+        },
       });
     }
 
@@ -154,9 +162,17 @@ router.put('/:id/approve', authenticate, requireRoles('FINANCE_MANAGER', 'ADMIN'
         refundId,
         eventType: 'REFUND_APPROVED',
         eventName: '退款审批通过',
-        description: `退款申请 ${refund.refundNo} 已通过审批`,
+        description: `退款申请 ${refund.refundNo} 金额 ¥${parseFloat(refund.refundAmount).toLocaleString()} 已通过审批${approveRemark ? `，意见：${approveRemark}` : ''}`,
         operatorId: req.user.id,
         operatorName: req.user.name,
+      });
+
+      await prisma.bill.update({
+        where: { id: refund.billId },
+        data: {
+          lastHandler: req.user.name,
+          lastHandleTime: new Date(),
+        },
       });
     }
 
@@ -191,9 +207,17 @@ router.put('/:id/reject', authenticate, requireRoles('FINANCE_MANAGER', 'ADMIN')
         refundId,
         eventType: 'REFUND_REJECTED',
         eventName: '退款申请被拒',
-        description: `退款申请 ${refund.refundNo} 被拒绝`,
+        description: `退款申请 ${refund.refundNo} 金额 ¥${parseFloat(refund.refundAmount).toLocaleString()} 被拒绝${approveRemark ? `，原因：${approveRemark}` : ''}`,
         operatorId: req.user.id,
         operatorName: req.user.name,
+      });
+
+      await prisma.bill.update({
+        where: { id: refund.billId },
+        data: {
+          lastHandler: req.user.name,
+          lastHandleTime: new Date(),
+        },
       });
     }
 
@@ -246,7 +270,7 @@ router.put('/:id/process', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_
         refundId,
         eventType: 'REFUND_PROCESSED',
         eventName: '退款已处理',
-        description: `退款 ${refund.refundNo} 已完成，金额 ${refund.refundAmount} 元`,
+        description: `退款 ${refund.refundNo} 已完成，退款 ¥${parseFloat(refund.refundAmount).toLocaleString()}，账单余额已同步调整`,
         operatorId: req.user.id,
         operatorName: req.user.name,
       });
