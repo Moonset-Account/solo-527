@@ -58,19 +58,19 @@ export class TodoService {
   }
 
   async getTodoStats(): Promise<any> {
-    const types = ['voting_exception', 'review', 'follow_up', 'urgent'];
-    const statuses = ['pending', 'processing', 'completed'];
+    const types = ['voting_exception', 'review', 'follow_up', 'urgent'] as const;
+    const statuses = ['pending', 'processing', 'completed'] as const;
     const stats: any = {};
 
     for (const type of types) {
       stats[type] = await this.todoRepository.count({
-        where: { type, deleted: false },
+        where: { type: type as any, deleted: false },
       });
     }
 
     for (const status of statuses) {
       stats[status] = await this.todoRepository.count({
-        where: { status, deleted: false },
+        where: { status: status as any, deleted: false },
       });
     }
 

@@ -1,9 +1,5 @@
 import { Entity, Column, OneToMany } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { Event } from '../../modules/event/entities/event.entity';
-import { Task } from '../../modules/task/entities/task.entity';
-import { Todo } from '../../modules/todo/entities/todo.entity';
-import { VoteRecord } from '../../modules/vote/entities/vote-record.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
 
 export type UserRole = 'admin' | 'manager' | 'worker' | 'resident';
 export type UserShift = 'morning' | 'afternoon' | 'night';
@@ -45,18 +41,18 @@ export class User extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   votingIneligibleReason: string;
 
-  @OneToMany(() => Event, event => event.reporter)
-  reportedEvents: Event[];
+  @OneToMany('Event', 'reporter')
+  reportedEvents: any[];
 
-  @OneToMany(() => Event, event => event.assignee)
-  assignedEvents: Event[];
+  @OneToMany('Event', 'assignee')
+  assignedEvents: any[];
 
-  @OneToMany(() => Task, task => task.assignee)
-  assignedTasks: Task[];
+  @OneToMany('Task', 'assignee')
+  assignedTasks: any[];
 
-  @OneToMany(() => Todo, todo => todo.assignee)
-  assignedTodos: Todo[];
+  @OneToMany('Todo', 'assignee')
+  assignedTodos: any[];
 
-  @OneToMany(() => VoteRecord, record => record.voter)
-  voteRecords: VoteRecord[];
+  @OneToMany('VoteRecord', 'voter')
+  voteRecords: any[];
 }

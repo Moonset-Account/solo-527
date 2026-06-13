@@ -42,6 +42,7 @@ const EventList: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const [form] = Form.useForm();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const activeTab = type || 'rectification';
 
@@ -122,6 +123,48 @@ const EventList: React.FC = () => {
         }
       },
     });
+  };
+
+  const handleGetCurrentLocation = () => {
+    setLocationLoading(true);
+    if (!navigator.geolocation) {
+      message.error('您的浏览器不支持定位功能');
+      setLocationLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        form.setFieldsValue({
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+        });
+        message.success('定位成功');
+        setLocationLoading(false);
+      },
+      (error) => {
+        let errorMsg = '定位失败，请手动输入';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg = '定位权限被拒绝，请在浏览器设置中允许定位';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = '位置信息不可用';
+            break;
+          case error.TIMEOUT:
+            errorMsg = '定位超时，请重试';
+            break;
+        }
+        message.error(errorMsg);
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
   };
 
   const handleUpdateStatus = async (id: string, status: EventStatus) => {
@@ -346,6 +389,17 @@ const EventList: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          <div style={{ marginBottom: 16, marginTop: -8 }}>
+            <Button
+              icon={<EnvironmentOutlined />}
+              loading={locationLoading}
+              onClick={handleGetCurrentLocation}
+              type="dashed"
+              block
+            >
+              {locationLoading ? '定位中...' : '获取当前位置'}
+            </Button>
+          </div>
           <Form.Item name="location" label="具体位置">
             <Input placeholder="请输入具体位置描述" />
           </Form.Item>

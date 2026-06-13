@@ -70,19 +70,19 @@ export class TaskService {
   }
 
   async getTaskStats(): Promise<any> {
-    const types = ['rectification', 'patrol', 'review'];
-    const statuses = ['pending', 'in_progress', 'completed', 'cancelled'];
+    const types = ['rectification', 'patrol', 'review'] as const;
+    const statuses = ['pending', 'in_progress', 'completed', 'cancelled'] as const;
     const stats: any = {};
 
     for (const type of types) {
       stats[type] = await this.taskRepository.count({
-        where: { type, deleted: false },
+        where: { type: type as any, deleted: false },
       });
     }
 
     for (const status of statuses) {
       stats[status] = await this.taskRepository.count({
-        where: { status, deleted: false },
+        where: { status: status as any, deleted: false },
       });
     }
 

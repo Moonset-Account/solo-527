@@ -99,15 +99,15 @@ export class ReportService {
   }
 
   async getEventClosureStats(): Promise<any> {
-    const types = ['rectification', 'vote', 'patrol'];
-    const statuses = ['pending', 'processing', 'reviewing', 'voting', 'completed', 'closed'];
+    const types = ['rectification', 'vote', 'patrol'] as const;
+    const statuses = ['pending', 'processing', 'reviewing', 'voting', 'completed', 'closed'] as const;
     const result: any = {};
 
     for (const type of types) {
       result[type] = {};
       for (const status of statuses) {
         result[type][status] = await this.eventRepository.count({
-          where: { type, status, deleted: false },
+          where: { type: type as any, status: status as any, deleted: false },
         });
       }
     }

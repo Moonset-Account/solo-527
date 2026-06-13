@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseInterceptors, UploadedFile as NestUploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { EventService } from './event.service';
+import { EventService, UploadedFile } from './event.service';
 import { CreateEventDto, UpdateEventDto, QueryEventDto, CreateNoteDto } from './dto/event.dto';
 import { Event } from './entities/event.entity';
 import { Note } from './entities/note.entity';
@@ -71,7 +71,7 @@ export class EventController {
   uploadAttachment(
     @Param('id') eventId: string,
     @Body('uploaderId') uploaderId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @NestUploadedFile() file: UploadedFile,
   ): Promise<Attachment> {
     return this.eventService.addAttachment(eventId, uploaderId, file);
   }

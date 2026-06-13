@@ -5,7 +5,7 @@ import {
   DashboardOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
-  VoteOutlined,
+  CheckSquareOutlined,
   CarOutlined,
   BellOutlined,
   BarChartOutlined,
@@ -75,13 +75,13 @@ const App: React.FC = () => {
       label: '事件管理',
       children: [
         { key: '/events/rectification', icon: <CheckCircleOutlined />, label: '整改复查' },
-        { key: '/events/vote', icon: <VoteOutlined />, label: '议题投票' },
+        { key: '/events/vote', icon: <CheckSquareOutlined />, label: '议题投票' },
         { key: '/events/patrol', icon: <CarOutlined />, label: '巡逻任务' },
       ],
     },
     {
       key: '/votes',
-      icon: <VoteOutlined />,
+      icon: <CheckSquareOutlined />,
       label: '投票管理',
     },
     {

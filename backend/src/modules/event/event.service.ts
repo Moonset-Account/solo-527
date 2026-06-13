@@ -8,6 +8,18 @@ import { History } from './entities/history.entity';
 import { User } from '../user/entities/user.entity';
 import { CreateEventDto, UpdateEventDto, QueryEventDto, CreateNoteDto } from './dto/event.dto';
 
+export interface UploadedFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer?: Buffer;
+}
+
 @Injectable()
 export class EventService {
   constructor(
@@ -88,7 +100,7 @@ export class EventService {
     const { operatorId, ...updateData } = updateEventDto;
 
     if (updateData.status === 'reviewing' && event.status !== 'reviewing') {
-      updateData.reviewTime = new Date();
+      event.reviewTime = new Date();
     }
 
     Object.assign(event, updateData);
@@ -155,7 +167,7 @@ export class EventService {
   async addAttachment(
     eventId: string,
     uploaderId: string,
-    file: Express.Multer.File,
+    file: UploadedFile,
   ): Promise<Attachment> {
     const attachment = this.attachmentRepository.create({
       eventId,
