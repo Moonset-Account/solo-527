@@ -37,7 +37,7 @@ const TransactionList = () => {
 
   const fetchBillOptions = async (customerId) => {
     try {
-      const params = { status: ['UNPAID', 'PARTIAL_PAID', 'OVERDUE'] };
+      const params = { status: 'UNPAID,PARTIAL_PAID,OVERDUE' };
       if (customerId) {
         params.customerId = customerId;
       }

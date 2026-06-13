@@ -52,7 +52,7 @@ const RefundList = () => {
   const fetchBillOptions = async (customerId) => {
     try {
       const res = await request.get('/bills/options/list', {
-        params: { customerId, status: ['PAID', 'PARTIAL_PAID'] },
+        params: { customerId, status: 'PAID,PARTIAL_PAID' },
       });
       setBillOptions(res.list || []);
     } catch (error) {

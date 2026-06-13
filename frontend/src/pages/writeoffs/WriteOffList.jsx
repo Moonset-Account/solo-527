@@ -41,7 +41,7 @@ const WriteOffList = () => {
   const fetchBillOptions = async (customerId) => {
     try {
       const res = await request.get('/bills/options/list', {
-        params: { customerId, status: ['UNPAID', 'PARTIAL_PAID', 'OVERDUE'] },
+        params: { customerId, status: 'UNPAID,PARTIAL_PAID,OVERDUE' },
       });
       setBillOptions(res.list || []);
     } catch (error) {

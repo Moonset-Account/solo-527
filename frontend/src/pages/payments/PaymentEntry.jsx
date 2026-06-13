@@ -49,7 +49,7 @@ const PaymentEntry = () => {
   const fetchBillOptions = async (customerId) => {
     try {
       const res = await request.get('/bills/options/list', {
-        params: { customerId, status: ['UNPAID', 'PARTIAL_PAID', 'OVERDUE'] },
+        params: { customerId, status: 'UNPAID,PARTIAL_PAID,OVERDUE' },
       });
       setBillOptions(res.list || []);
     } catch (error) {
@@ -82,11 +82,20 @@ const PaymentEntry = () => {
     setPaying(true);
     try {
       const values = form.getFieldsValue();
+      const resolvedCustomerId = isCustomer
+        ? bill?.customerId
+        : (bill?.customerId || values.customerId);
+      if (!resolvedCustomerId) {
+        message.error('无法获取客户信息，请返回账单列表重试');
+        setPaying(false);
+        return;
+      }
       const payload = {
-        ...values,
         billId: billId ? parseInt(billId) : values.billId ? parseInt(values.billId) : null,
-        customerId: isCustomer ? bill?.customerId : parseInt(values.customerId),
+        customerId: parseInt(resolvedCustomerId),
         amount: parseFloat(values.amount),
+        paymentMethod: values.paymentMethod,
+        remark: values.remark || '',
         paymentDate: new Date().toISOString(),
       };
 
