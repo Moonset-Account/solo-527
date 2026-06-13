@@ -383,8 +383,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { route as ziggyRoute } from 'ziggy-js';
+import route from '@/utils/route';
 
 const page = usePage<any>();
 
@@ -485,15 +486,17 @@ const doValidate = async () => {
   if (!selectedLeads.value.length) { ElMessage.warning('请先选择线索'); return; }
   if (!batchOp.value) { ElMessage.warning('请选择批量操作'); return; }
   try {
-    const { data } = await router.post('/batch/validate', {
+    const { data } = await axios.post(route('batch.validate'), {
       operation: batchOp.value,
       lead_ids: selectedLeads.value,
       params: { ...batchParams },
-    }, { only: ['error'] });
+    }, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-Inertia': 'false' },
+    });
     batchValidationResult.value = data;
     ElMessage.success(`校验完成：通过 ${data.summary.passed}，失败 ${data.summary.failed}`);
   } catch (e: any) {
-    ElMessage.error(e?.data?.message || '校验失败');
+    ElMessage.error(e?.response?.data?.message || e?.message || '校验失败');
   }
 };
 
@@ -505,26 +508,34 @@ const doProcess = async (force: boolean) => {
     : `确认执行【${batchOp.value}】操作？共 ${selectedLeads.value.length} 条线索。`;
   try {
     await ElMessageBox.confirm(msg, '确认批量操作', { type: force ? 'warning' : 'info' });
-    const { data } = await router.post('/batch/process', {
+    const { data } = await axios.post(route('batch.process'), {
       operation: batchOp.value,
       lead_ids: selectedLeads.value,
       params: { ...batchParams },
       force,
-    }, { only: ['error'], preserveScroll: true });
+    }, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-Inertia': 'false' },
+    });
     if (data?.results) {
       const r = data.results;
-      if (r.failed) {
+      if (r.failed && r.failed > 0) {
         batchErrors.value = r.failures;
-        batchValidationResult.value = { summary: r, failures: r.failures };
-        ElMessage.warning(`部分成功 ${r.success}，失败 ${r.failed}，请查看错误原因`);
+        batchValidationResult.value = { summary: r, failures: r.failures, passed: r.success_ids };
+        ElMessage.warning(`部分成功 ${r.success}，失败 ${r.failed}，请查看下方错误原因`);
       } else {
         ElMessage.success(data.message || `成功处理 ${r.success} 条`);
+        clearSelection();
       }
+    } else {
+      ElMessage.success(data?.message || '处理完成');
+      clearSelection();
     }
-    clearSelection();
     router.reload({ only: ['leads'], preserveState: true });
   } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.data?.error || '执行失败');
+    if (e !== 'cancel' && e !== 'confirm') {
+      const errMsg = e?.response?.data?.error || e?.response?.data?.message || e?.message || '执行失败';
+      ElMessage.error(errMsg);
+    }
   }
 };
 
@@ -539,8 +550,6 @@ const exportLeads = () => {
   });
   window.open(`/exports/leads?${params.toString()}`, '_blank');
 };
-
-const route = ziggyRoute;
 </script>
 
 <style scoped>

@@ -179,7 +179,7 @@ import { computed, reactive, ref } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { route as ziggyRoute } from 'ziggy-js';
+import route from '@/utils/route';
 
 const page = usePage<any>();
 const formRef = ref<FormInstance>();
@@ -234,8 +234,6 @@ const submit = () => {
     });
   });
 };
-
-const route = ziggyRoute;
 </script>
 
 <style scoped>

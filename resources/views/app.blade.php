@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
-    @vite(['resources/js/app.ts', "resources/js/Pages/{$page['component']}.vue'])
+    @vite(['resources/js/app.ts', 'resources/css/app.css'])
     @inertiaHead
 </head>
 <body class="font-sans antialiased">
