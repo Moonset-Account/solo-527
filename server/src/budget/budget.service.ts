@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Budget } from './budget.entity.js';
 import { BudgetItem } from './budget-item.entity.js';
 import { MaterialItem } from './material-item.entity.js';
+import { Project } from '../project/project.entity.js';
 import { CreateBudgetDto, UpdateBudgetDto, BudgetItemDto } from './dto.js';
 import { NotificationService } from '../notification/notification.service.js';
 
@@ -16,6 +17,8 @@ export class BudgetService {
     private budgetItemRepo: Repository<BudgetItem>,
     @InjectRepository(MaterialItem)
     private materialItemRepo: Repository<MaterialItem>,
+    @InjectRepository(Project)
+    private projectRepo: Repository<Project>,
     private notificationService: NotificationService,
   ) {}
 
@@ -41,6 +44,7 @@ export class BudgetService {
       order: { version: 'DESC' },
     });
     const version = lastBudget ? lastBudget.version + 1 : 1;
+    const targetStatus = dto.status || 'draft';
 
     const budget = this.budgetRepo.create({
       projectId,
@@ -50,13 +54,26 @@ export class BudgetService {
       totalCost: dto.totalCost || 0,
       changeReason: dto.changeReason || null,
       createdBy: userId,
-      status: dto.status || 'draft',
+      status: targetStatus,
     });
 
     const savedBudget = (await this.budgetRepo.save(budget)) as Budget;
 
     if (dto.items?.length) {
       await this.saveItems(savedBudget.id, dto.items);
+    }
+
+    if (targetStatus === 'pending_review') {
+      const project = await this.projectRepo.findOne({ where: { id: projectId } });
+      if (project) {
+        await this.notificationService.notifyRole(
+          project.companyId,
+          'owner',
+          'budget_change',
+          `预算版本 V${version} 已提交审核`,
+          { budgetId: savedBudget.id, projectId }
+        );
+      }
     }
 
     return this.findOne(savedBudget.id);
@@ -71,6 +88,7 @@ export class BudgetService {
     const hasChanges = dto.items && dto.items.length > 0;
     let newVersion = budget.version;
     let savedBudget = budget;
+    const targetStatus = dto.status || budget.status;
 
     if (hasChanges) {
       const newBudget = this.budgetRepo.create({
@@ -82,7 +100,7 @@ export class BudgetService {
         changeReason: dto.changeReason || budget.changeReason,
         createdBy: budget.createdBy,
         reviewedBy: budget.reviewedBy,
-        status: 'draft',
+        status: targetStatus,
       });
       savedBudget = await this.budgetRepo.save(newBudget);
       newVersion = savedBudget.version;
@@ -96,9 +114,22 @@ export class BudgetService {
         materialCost: dto.materialCost ?? budget.materialCost,
         totalCost: dto.totalCost ?? budget.totalCost,
         changeReason: dto.changeReason ?? budget.changeReason,
-        status: dto.status ?? budget.status,
+        status: targetStatus,
       });
       savedBudget = await this.budgetRepo.save(savedBudget);
+    }
+
+    if (targetStatus === 'pending_review' && (budget.status as string) !== 'pending_review') {
+      const project = await this.projectRepo.findOne({ where: { id: budget.projectId } });
+      if (project) {
+        await this.notificationService.notifyRole(
+          project.companyId,
+          'owner',
+          'budget_change',
+          `预算版本 V${savedBudget.version} 已提交审核`,
+          { budgetId: savedBudget.id, projectId: budget.projectId }
+        );
+      }
     }
 
     return this.findOne(savedBudget.id);
