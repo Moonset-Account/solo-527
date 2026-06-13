@@ -1,13 +1,19 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import Optional, List
-from app.models import PurchaseRequest, PurchaseStatus, User, Attachment, Note
+from datetime import date
+from decimal import Decimal
+from app.models import (
+    PurchaseRequest, PurchaseStatus, User, Attachment, Note,
+    DeliveryRecord, DeliveryDiff
+)
 from app.schemas import PurchaseRequestCreate, PurchaseRequestUpdate, ClosePurchaseRequest
 from app.repositories import PurchaseRepository
 from app.services.approval_service import ApprovalService
 from app.services.notification_service import NotificationService
 from app.utils.file_handler import save_upload_file, delete_file
 from app.models.notification import NotificationType
+from sqlalchemy import func
 
 purchase_repo = PurchaseRepository()
 
@@ -112,8 +118,64 @@ class PurchaseService:
         if purchase.status == PurchaseStatus.CLOSED:
             raise HTTPException(status_code=400, detail="需求已关闭")
         
+        previous_status = purchase.status
         purchase.status = PurchaseStatus.CLOSED
         purchase.closing_note = close_data.closing_note
+
+        total_delivered = db.query(func.sum(DeliveryRecord.delivered_quantity)).filter(
+            DeliveryRecord.purchase_id == purchase_id
+        ).scalar() or Decimal(0)
+
+        if total_delivered == 0 and previous_status in [
+            PurchaseStatus.APPROVED, PurchaseStatus.QUOTED,
+            PurchaseStatus.EXPIRED, PurchaseStatus.DELIVERED
+        ]:
+            delivery = DeliveryRecord(
+                purchase_id=purchase_id,
+                delivered_quantity=total_delivered,
+                delivery_date=date.today(),
+                invoice_status_code="closed",
+                remark=f"采购需求关闭：{close_data.closing_note}" if close_data.closing_note else "采购需求关闭"
+            )
+            db.add(delivery)
+            db.flush()
+
+            quantity_diff = total_delivered - purchase.quantity
+            diff = DeliveryDiff(
+                delivery_id=delivery.id,
+                diff_type="quantity",
+                diff_value=quantity_diff,
+                description=f"关闭差异：预期 {float(purchase.quantity)} {purchase.unit}，实际交付 {float(total_delivered)} {purchase.unit}"
+            )
+            db.add(diff)
+
+            if close_data.closing_note:
+                closing_diff = DeliveryDiff(
+                    delivery_id=delivery.id,
+                    diff_type="closed",
+                    diff_value=Decimal(0),
+                    description=f"关闭说明：{close_data.closing_note}"
+                )
+                db.add(closing_diff)
+        elif total_delivered > 0 and close_data.closing_note:
+            last_delivery = db.query(DeliveryRecord).filter(
+                DeliveryRecord.purchase_id == purchase_id
+            ).order_by(DeliveryRecord.created_at.desc()).first()
+
+            if last_delivery:
+                existing_close_diff = db.query(DeliveryDiff).filter(
+                    DeliveryDiff.delivery_id == last_delivery.id,
+                    DeliveryDiff.diff_type == "closed"
+                ).first()
+
+                if not existing_close_diff:
+                    closing_diff = DeliveryDiff(
+                        delivery_id=last_delivery.id,
+                        diff_type="closed",
+                        diff_value=Decimal(0),
+                        description=f"关闭说明：{close_data.closing_note}"
+                    )
+                    db.add(closing_diff)
         
         db.commit()
         db.refresh(purchase)

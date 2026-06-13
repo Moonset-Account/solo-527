@@ -402,31 +402,69 @@ function renderDiffTypeChart() {
         diffTypeChart.destroy();
     }
     
-    const data = {
-        labels: ['数量短缺', '数量超额', '质量问题', '时间延迟', '其他'],
-        datasets: [{
-            data: [35, 25, 15, 18, 7],
-            backgroundColor: [
+    fetch('/api/deliveries/stats/diff-types')
+        .then(res => res.json())
+        .then(apiData => {
+            const typeLabels = {
+                'quantity': '数量差异',
+                'closed': '关闭说明',
+                'quality': '质量问题',
+                'delay': '时间延迟',
+                'other': '其他'
+            };
+            const typeColors = {
+                'quantity': { bg: 'rgba(245, 63, 63, 0.8)', border: '#F53F3F' },
+                'closed': { bg: 'rgba(114, 46, 209, 0.8)', border: '#722ED1' },
+                'quality': { bg: 'rgba(255, 193, 7, 0.8)', border: '#FFC107' },
+                'delay': { bg: 'rgba(22, 93, 255, 0.8)', border: '#165DFF' },
+                'other': { bg: 'rgba(134, 144, 156, 0.8)', border: '#86909C' }
+            };
+            
+            const types = Object.keys(apiData);
+            if (types.length === 0) {
+                const defaultLabels = ['数量差异', '关闭说明', '质量问题', '时间延迟', '其他'];
+                const defaultData = [0, 0, 0, 0, 0];
+                const defaultBg = Object.values(typeColors).map(c => c.bg);
+                const defaultBorder = Object.values(typeColors).map(c => c.border);
+                renderDiffTypeChartWithData(ctx, defaultLabels, defaultData, defaultBg, defaultBorder);
+                return;
+            }
+            
+            const labels = types.map(t => typeLabels[t] || t);
+            const data = types.map(t => apiData[t].count || 0);
+            const bgColors = types.map(t => (typeColors[t] || typeColors['other']).bg);
+            const borderColors = types.map(t => (typeColors[t] || typeColors['other']).border);
+            
+            renderDiffTypeChartWithData(ctx, labels, data, bgColors, borderColors);
+        })
+        .catch(err => {
+            console.error('Failed to load diff type stats:', err);
+            const defaultLabels = ['数量差异', '关闭说明', '质量问题', '时间延迟', '其他'];
+            const defaultData = [0, 0, 0, 0, 0];
+            const defaultBg = [
                 'rgba(245, 63, 63, 0.8)',
-                'rgba(255, 125, 0, 0.8)',
+                'rgba(114, 46, 209, 0.8)',
                 'rgba(255, 193, 7, 0.8)',
                 'rgba(22, 93, 255, 0.8)',
                 'rgba(134, 144, 156, 0.8)'
-            ],
-            borderColor: [
-                '#F53F3F',
-                '#FF7D00',
-                '#FFC107',
-                '#165DFF',
-                '#86909C'
-            ],
-            borderWidth: 2
-        }]
-    };
-    
+            ];
+            const defaultBorder = ['#F53F3F', '#722ED1', '#FFC107', '#165DFF', '#86909C'];
+            renderDiffTypeChartWithData(ctx, defaultLabels, defaultData, defaultBg, defaultBorder);
+        });
+}
+
+function renderDiffTypeChartWithData(ctx, labels, data, bgColors, borderColors) {
     diffTypeChart = new Chart(ctx, {
         type: 'doughnut',
-        data: data,
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: bgColors,
+                borderColor: borderColors,
+                borderWidth: 2
+            }]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -444,8 +482,8 @@ function renderDiffTypeChart() {
                     callbacks: {
                         label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return `${context.label}: ${context.parsed}% (${percentage}%)`;
+                            const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0.0';
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
                         }
                     }
                 }

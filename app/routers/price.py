@@ -78,11 +78,23 @@ def update_price_record(
 
 @router.get("/stats", response_model=PriceStats)
 def get_price_stats(
-    material_name: str,
+    material_name: Optional[str] = Query(None),
     specification: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if not material_name:
+        from decimal import Decimal
+        return PriceStats(
+            material_name="",
+            specification="",
+            current_price=Decimal(0),
+            avg_price=Decimal(0),
+            max_price=Decimal(0),
+            min_price=Decimal(0),
+            price_change=Decimal(0),
+            change_percent=Decimal(0)
+        )
     return PriceService.get_price_stats(db, material_name, specification)
 
 
