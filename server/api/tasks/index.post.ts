@@ -45,8 +45,8 @@ export default defineEventHandler(async (event) => {
 
   const result = await enqueueBatchTask(task.id)
   if (!result.queued) {
-    console.warn('[tasks] enqueue failed, fallback to local:', result.reason)
-    setTimeout(() => processTaskFallback(task.id), 1500)
+    console.warn('[tasks] enqueue failed, running local fallback immediately:', result.reason)
+    processTaskFallback(task.id)
   }
 
   return task

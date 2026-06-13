@@ -25,8 +25,8 @@ export default defineEventHandler(async (event) => {
 
   const result = await enqueueBatchTask(id!)
   if (!result.queued) {
-    console.warn('[tasks/process] enqueue failed, fallback to local:', result.reason)
-    setTimeout(() => processTaskFallback(id!), 500)
+    console.warn('[tasks/process] enqueue failed, running local fallback immediately:', result.reason)
+    processTaskFallback(id!)
   }
 
   return await db.batchTask.findUnique({ where: { id } })

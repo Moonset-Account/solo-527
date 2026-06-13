@@ -1,54 +1,45 @@
 import { Queue, Worker, QueueEvents } from 'bullmq'
 import { useDB } from './db'
 import { mockGenerateSuggestion } from './mock'
-import Redis from 'ioredis'
 
 const QUEUE_NAME = 'batch-suggestions'
 const TIMEOUT_INTERVAL_MS = 30_000
 
-let redisConnection: Redis | null = null
 let suggestionQueue: Queue | null = null
 let suggestionWorker: Worker | null = null
 let suggestionQueueEvents: QueueEvents | null = null
 let timeoutTimer: any = null
 let workerStarted = false
-let queueErrored = false
+let queueAvailable: boolean | null = null
 
-function getRedisConnection(): Redis | null {
-  if (queueErrored) return null
-  if (redisConnection) return redisConnection
-  try {
-    const config = useRuntimeConfig()
-    const conn = new Redis(config.redisUrl, {
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: false,
-      lazyConnect: true,
-    })
-    conn.on('error', (err) => {
-      console.warn('[Redis] connection error (fallback to local processing):', err.message)
-      queueErrored = true
-    })
-    redisConnection = conn
-    return conn
-  } catch (e) {
-    console.warn('[Redis] failed to instantiate client:', e)
-    queueErrored = true
-    return null
-  }
+function getRedisConfig() {
+  const config = useRuntimeConfig()
+  return config.redisUrl || 'redis://localhost:6379'
 }
 
-export function isQueueReady(): boolean {
-  const conn = getRedisConnection()
-  return !!conn && !queueErrored
+export async function isQueueReady(): Promise<boolean> {
+  if (queueAvailable !== null) return queueAvailable
+  try {
+    const q = useSuggestionQueue()
+    if (!q) {
+      queueAvailable = false
+      return false
+    }
+    await q.ping()
+    queueAvailable = true
+    return true
+  } catch {
+    queueAvailable = false
+    return false
+  }
 }
 
 export function useSuggestionQueue(): Queue | null {
   if (suggestionQueue) return suggestionQueue
-  const conn = getRedisConnection()
-  if (!conn) return null
   try {
+    const redisConfig = getRedisConfig()
     suggestionQueue = new Queue(QUEUE_NAME, {
-      connection: conn as any,
+      connection: typeof redisConfig === 'string' ? redisConfig as any : redisConfig,
       defaultJobOptions: {
         attempts: 2,
         backoff: { type: 'exponential', delay: 1000 },
@@ -56,10 +47,18 @@ export function useSuggestionQueue(): Queue | null {
         removeOnFail: 100,
       },
     })
+    suggestionQueue.on('error', (err) => {
+      console.warn('[Queue] error:', err.message)
+      queueAvailable = false
+    })
+    suggestionQueue.on('connected', () => {
+      console.log('[Queue] connected')
+      queueAvailable = true
+    })
     return suggestionQueue
   } catch (e) {
-    console.warn('[Queue] useSuggestionQueue failed:', e)
-    queueErrored = true
+    console.warn('[Queue] failed to instantiate:', e)
+    queueAvailable = false
     return null
   }
 }
@@ -69,9 +68,11 @@ export async function enqueueBatchTask(taskId: string): Promise<{ queued: boolea
   if (!queue) return { queued: false, reason: 'queue not available' }
   try {
     await queue.add('process-batch', { taskId }, { jobId: taskId, removeOnComplete: false, removeOnFail: false })
+    queueAvailable = true
     return { queued: true }
   } catch (e: any) {
     console.warn('[Queue] enqueue failed:', e?.message)
+    queueAvailable = false
     return { queued: false, reason: e?.message }
   }
 }
@@ -165,33 +166,39 @@ export function startSuggestionWorker() {
   if (workerStarted) return
   workerStarted = true
 
-  const conn = getRedisConnection()
-  if (conn && !queueErrored) {
-    try {
-      suggestionWorker = new Worker(QUEUE_NAME, async (job) => {
-        const { taskId } = job.data
-        return processTaskFallback(taskId)
-      }, {
-        connection: conn as any,
-        concurrency: 2,
-      })
+  try {
+    const redisConfig = getRedisConfig()
 
-      suggestionWorker.on('completed', (job) => {
-        console.log(`[BullMQ] Job completed: ${job.id}`, job.returnvalue)
-      })
-      suggestionWorker.on('failed', (job, err) => {
-        console.error(`[BullMQ] Job failed: ${job?.id}`, err.message)
-      })
+    suggestionWorker = new Worker(QUEUE_NAME, async (job) => {
+      const { taskId } = job.data
+      return processTaskFallback(taskId)
+    }, {
+      connection: typeof redisConfig === 'string' ? redisConfig as any : redisConfig,
+      concurrency: 2,
+    })
 
-      suggestionQueueEvents = new QueueEvents(QUEUE_NAME, { connection: conn as any })
-      suggestionQueueEvents.on('failed', ({ jobId, failedReason }) => {
-        console.error(`[BullMQ] Queue event failed: ${jobId} ${failedReason}`)
-      })
-    } catch (e) {
-      console.warn('[BullMQ] Worker start failed, will rely on local fallback + timeout detector:', e)
-    }
-  } else {
-    console.warn('[BullMQ] Redis not available, queue worker disabled; local fallback + timeout detector active')
+    suggestionWorker.on('completed', (job) => {
+      console.log(`[BullMQ] Job completed: ${job.id}`, job.returnvalue)
+    })
+    suggestionWorker.on('failed', (job, err) => {
+      console.error(`[BullMQ] Job failed: ${job?.id}`, err.message)
+    })
+    suggestionWorker.on('error', (err) => {
+      console.error('[BullMQ] Worker error:', err.message)
+    })
+    suggestionWorker.on('connected', () => {
+      console.log('[BullMQ] Worker connected')
+      queueAvailable = true
+    })
+
+    suggestionQueueEvents = new QueueEvents(QUEUE_NAME, {
+      connection: typeof redisConfig === 'string' ? redisConfig as any : redisConfig,
+    })
+    suggestionQueueEvents.on('failed', ({ jobId, failedReason }) => {
+      console.error(`[BullMQ] Queue event failed: ${jobId} ${failedReason}`)
+    })
+  } catch (e) {
+    console.warn('[BullMQ] Worker start failed, will rely on local fallback + timeout detector:', e)
   }
 
   startTimeoutDetector()

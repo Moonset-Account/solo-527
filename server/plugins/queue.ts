@@ -1,4 +1,4 @@
-import { startSuggestionWorker, enqueueBatchTask } from '~/server/utils/queue'
+import { startSuggestionWorker, enqueueBatchTask, processTaskFallback } from '~/server/utils/queue'
 import { useDB } from '~/server/utils/db'
 
 export default defineNitroPlugin(async () => {
@@ -23,9 +23,11 @@ export default defineNitroPlugin(async () => {
     if (orphanedTasks.length > 0) {
       console.log(`[NitroPlugin] Found ${orphanedTasks.length} in-progress tasks, re-enqueueing...`)
       for (const t of orphanedTasks) {
-        try {
-          await enqueueBatchTask(t.id)
-        } catch {}
+        const result = await enqueueBatchTask(t.id)
+        if (!result.queued) {
+          console.warn(`[NitroPlugin] Re-enqueue task ${t.id} failed, running local fallback`)
+          processTaskFallback(t.id)
+        }
       }
     }
   } catch (e) {
