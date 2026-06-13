@@ -10,6 +10,36 @@ const generateRequestNo = () => {
   return `CG${year}${month}${day}${random}`
 }
 
+const FLUCTUATION_THRESHOLD = 5
+
+const checkPriceFluctuation = async (requestId, items) => {
+  const alerts = []
+  for (const item of items) {
+    const latestPrice = await prisma.priceHistory.findFirst({
+      where: { materialName: item.materialName },
+      orderBy: { effectiveDate: 'desc' },
+    })
+    if (latestPrice && latestPrice.price > 0) {
+      const oldPrice = parseFloat(latestPrice.price)
+      const newPrice = parseFloat(item.estimatedPrice || item.estimatedPrice)
+      const fluctuation = ((newPrice - oldPrice) / oldPrice) * 100
+      if (Math.abs(fluctuation) >= FLUCTUATION_THRESHOLD) {
+        const alert = await prisma.priceFluctuationAlert.create({
+          data: {
+            requestId,
+            materialName: item.materialName,
+            oldPrice: latestPrice.price,
+            newPrice,
+            fluctuation: parseFloat(fluctuation.toFixed(2)),
+          },
+        })
+        alerts.push(alert)
+      }
+    }
+  }
+  return alerts
+}
+
 const getList = async (req, res) => {
   try {
     const { page = 1, pageSize = 10, status, keyword, department } = req.query
@@ -80,11 +110,12 @@ const getDetail = async (req, res) => {
 
 const create = async (req, res) => {
   try {
-    const { title, projectName, department, items, remark, deliveryDate, status = 'draft' } = req.body
+    const { title, projectName, department, items, remark, deliveryDate, status = 'draft', tempKey } = req.body
     const requestNo = generateRequestNo()
 
+    const parsedItems = JSON.parse(items || '[]')
     let totalAmount = 0
-    const itemData = JSON.parse(items || '[]').map(item => {
+    const itemData = parsedItems.map(item => {
       const amount = parseFloat(item.quantity) * parseFloat(item.estimatedPrice)
       totalAmount += amount
       return {
@@ -114,8 +145,16 @@ const create = async (req, res) => {
       include: { items: true },
     })
 
+    if (tempKey) {
+      await prisma.attachment.updateMany({
+        where: { tempKey, requestId: null },
+        data: { requestId: request.id, tempKey: null },
+      })
+    }
+
     if (status === 'pending') {
       await createApprovalRecords(request.id, totalAmount)
+      await checkPriceFluctuation(request.id, parsedItems)
     }
 
     success(res, request, '创建成功')
@@ -161,6 +200,7 @@ const update = async (req, res) => {
     }
 
     let totalAmount = existing.totalAmount
+    let parsedItems = null
     let updateData = {
       title: title || existing.title,
       projectName: projectName || existing.projectName,
@@ -171,7 +211,8 @@ const update = async (req, res) => {
     }
 
     if (items) {
-      const itemData = JSON.parse(items).map(item => ({
+      parsedItems = JSON.parse(items)
+      const itemData = parsedItems.map(item => ({
         materialName: item.materialName,
         specification: item.specification || '',
         unit: item.unit,
@@ -195,6 +236,8 @@ const update = async (req, res) => {
 
     if (status === 'pending' && existing.status === 'draft') {
       await createApprovalRecords(parseInt(id), totalAmount)
+      const itemsForCheck = parsedItems || request.items
+      await checkPriceFluctuation(parseInt(id), itemsForCheck)
     }
 
     success(res, request, '更新成功')
@@ -207,7 +250,10 @@ const submit = async (req, res) => {
   try {
     const { id } = req.params
 
-    const existing = await prisma.purchaseRequest.findUnique({ where: { id: parseInt(id) } })
+    const existing = await prisma.purchaseRequest.findUnique({
+      where: { id: parseInt(id) },
+      include: { items: true },
+    })
     if (!existing) {
       return error(res, '采购需求不存在', 404)
     }
@@ -216,14 +262,17 @@ const submit = async (req, res) => {
       return error(res, '只能提交草稿状态的需求', 400)
     }
 
-    const request = await prisma.purchaseRequest.update({
+    const totalAmount = parseFloat(existing.totalAmount)
+
+    await prisma.purchaseRequest.update({
       where: { id: parseInt(id) },
       data: { status: 'pending', currentLevel: 1 },
     })
 
-    await createApprovalRecords(parseInt(id), existing.totalAmount.toNumber())
+    await createApprovalRecords(parseInt(id), totalAmount)
+    await checkPriceFluctuation(parseInt(id), existing.items)
 
-    success(res, request, '提交成功')
+    success(res, { id: parseInt(id) }, '提交成功，价格波动检测已完成')
   } catch (e) {
     error(res, e.message)
   }
@@ -231,23 +280,32 @@ const submit = async (req, res) => {
 
 const uploadAttachment = async (req, res) => {
   try {
-    const { requestId } = req.body
+    const { requestId, tempKey } = req.body
     const file = req.file
 
     if (!file) {
       return error(res, '请上传文件', 400)
     }
 
-    const attachment = await prisma.attachment.create({
-      data: {
-        requestId: parseInt(requestId),
-        fileName: file.originalname,
-        fileType: file.mimetype,
-        fileSize: file.size,
-        fileUrl: `/uploads/${file.filename}`,
-        uploadedBy: req.user.id,
-      },
-    })
+    if (!requestId && !tempKey) {
+      return error(res, 'requestId 或 tempKey 至少传一个', 400)
+    }
+
+    const data = {
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      fileUrl: `/uploads/${file.filename}`,
+      uploadedBy: req.user.id,
+    }
+    if (requestId && parseInt(requestId) > 0) {
+      data.requestId = parseInt(requestId)
+    }
+    if (tempKey) {
+      data.tempKey = tempKey
+    }
+
+    const attachment = await prisma.attachment.create({ data })
 
     success(res, attachment, '上传成功')
   } catch (e) {

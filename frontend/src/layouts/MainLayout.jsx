@@ -12,11 +12,11 @@ import {
   LogoutOutlined,
   TeamOutlined,
 } from '@ant-design/icons'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 
 const { Sider, Header, Content } = Layout
 
-const MainLayout = ({ children }) => {
+const MainLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
@@ -77,7 +77,7 @@ const MainLayout = ({ children }) => {
           </Dropdown>
         </Header>
         <Content style={{ margin: '24px', background: '#fff', borderRadius: 8, minHeight: 280 }}>
-          {children}
+          <Outlet />
         </Content>
       </Layout>
     </Layout>

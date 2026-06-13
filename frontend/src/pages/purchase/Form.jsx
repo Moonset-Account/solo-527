@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import {
   Form, Input, InputNumber, DatePicker, Button, Space, Table,
-  Upload, message, Card, Divider,
+  Upload, message, Card, Divider, Alert,
 } from 'antd'
-import { PlusOutlined, DeleteOutlined, UploadOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined, DeleteOutlined, UploadOutlined, SaveOutlined, SendOutlined,
+  ExclamationCircleOutlined,
+} from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
@@ -12,7 +15,10 @@ import {
   getPurchaseRequestDetail,
   uploadAttachment,
   deleteAttachment,
+  getPriceHistory,
 } from '../../services/api'
+
+const generateTempKey = () => `temp_${Date.now()}_${Math.floor(Math.random() * 100000)}`
 
 const PurchaseRequestForm = () => {
   const [form] = Form.useForm()
@@ -20,6 +26,8 @@ const PurchaseRequestForm = () => {
   const [attachments, setAttachments] = useState([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [tempKey, setTempKey] = useState('')
+  const [priceWarnings, setPriceWarnings] = useState([])
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = !!id
@@ -27,8 +35,14 @@ const PurchaseRequestForm = () => {
   useEffect(() => {
     if (isEdit) {
       fetchDetail()
+    } else {
+      setTempKey(generateTempKey())
     }
   }, [id])
+
+  useEffect(() => {
+    checkPriceWarnings()
+  }, [items])
 
   const fetchDetail = async () => {
     setLoading(true)
@@ -46,6 +60,33 @@ const PurchaseRequestForm = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const checkPriceWarnings = async () => {
+    const warnings = []
+    for (const item of items) {
+      if (!item.materialName || !item.estimatedPrice || item.estimatedPrice <= 0) continue
+      try {
+        const res = await getPriceHistory({ materialName: item.materialName, pageSize: 1 })
+        if (res.list && res.list.length > 0) {
+          const history = res.list[0]
+          const oldPrice = parseFloat(history.price)
+          const newPrice = parseFloat(item.estimatedPrice)
+          if (oldPrice > 0) {
+            const fluctuation = ((newPrice - oldPrice) / oldPrice) * 100
+            if (Math.abs(fluctuation) >= 5) {
+              warnings.push({
+                materialName: item.materialName,
+                oldPrice,
+                newPrice,
+                fluctuation: parseFloat(fluctuation.toFixed(2)),
+              })
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    setPriceWarnings(warnings)
   }
 
   const addItem = () => {
@@ -70,7 +111,7 @@ const PurchaseRequestForm = () => {
     const newItems = [...items]
     newItems[index][field] = value
     if (field === 'quantity' || field === 'estimatedPrice') {
-      newItems[index].totalAmount = (newItems[index].quantity || 0) * (newItems[index].estimatedPrice || 0)
+      newItems[index].totalAmount = (parseFloat(newItems[index].quantity) || 0) * (parseFloat(newItems[index].estimatedPrice) || 0)
     }
     setItems(newItems)
   }
@@ -80,7 +121,11 @@ const PurchaseRequestForm = () => {
   const handleUpload = async (file) => {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('requestId', id || 0)
+    if (isEdit) {
+      formData.append('requestId', id)
+    } else {
+      formData.append('tempKey', tempKey)
+    }
 
     try {
       const data = await uploadAttachment(formData)
@@ -99,6 +144,7 @@ const PurchaseRequestForm = () => {
   }
 
   const saveRequest = async (status) => {
+    setSubmitting(true)
     try {
       const values = await form.validateFields()
       
@@ -109,7 +155,7 @@ const PurchaseRequestForm = () => {
 
       const validItems = items.filter(item => item.materialName && item.quantity > 0 && item.estimatedPrice > 0)
       if (validItems.length === 0) {
-        message.error('请填写完整的物料明细')
+        message.error('请填写完整的物料明细（名称、数量、单价不能为空）')
         return
       }
 
@@ -127,21 +173,27 @@ const PurchaseRequestForm = () => {
         status,
       }
 
+      if (!isEdit) {
+        data.tempKey = tempKey
+      }
+
+      let alertMsg = '保存成功'
       if (isEdit) {
         await updatePurchaseRequest(id, data)
-        message.success('更新成功')
+        if (status === 'pending') alertMsg = '提交成功，审批流程已启动，价格波动检测已完成'
       } else {
-        const res = await createPurchaseRequest(data)
-        if (attachments.length > 0) {
-          // 如果有附件且是新建的，需要重新上传到正确的需求ID
-        }
-        message.success('创建成功')
+        await createPurchaseRequest(data)
+        if (status === 'pending') alertMsg = '提交成功，审批流程已启动，价格波动检测已完成'
       }
+
+      message.success(alertMsg)
       navigate('/purchase-requests')
     } catch (e) {
       if (e.errorFields) {
-        // form validation error
+        message.error('请检查表单填写是否正确')
       }
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -249,6 +301,29 @@ const PurchaseRequestForm = () => {
         {isEdit ? '编辑采购需求' : '新建采购需求'}
       </div>
 
+      {priceWarnings.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<ExclamationCircleOutlined />}
+          style={{ marginBottom: 16 }}
+          message={`检测到 ${priceWarnings.length} 项物料价格波动超过5%`}
+          description={
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {priceWarnings.map((w, i) => (
+                <li key={i}>
+                  <strong>{w.materialName}：</strong>
+                  历史价 ¥{w.oldPrice.toLocaleString()}，当前价 ¥{w.newPrice.toLocaleString()}，
+                  <span style={{ color: w.fluctuation > 0 ? '#f5222d' : '#52c41a' }}>
+                    波动 {w.fluctuation > 0 ? '+' : ''}{w.fluctuation}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          }
+        />
+      )}
+
       <Form form={form} layout="vertical" loading={loading}>
         <Card title="基本信息" style={{ marginBottom: 16 }}>
           <Form.Item name="title" label="需求标题" rules={[{ required: true, message: '请输入需求标题' }]}>
@@ -294,7 +369,7 @@ const PurchaseRequestForm = () => {
           </Upload>
           <div style={{ marginTop: 12 }}>
             {attachments.length === 0 ? (
-              <span style={{ color: '#999' }}>暂无附件</span>
+              <span style={{ color: '#999' }}>暂无附件，可上传图纸、报价单等</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {attachments.map((att) => (
