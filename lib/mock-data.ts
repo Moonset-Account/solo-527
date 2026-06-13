@@ -513,6 +513,14 @@ export const mockAuditLogs: AuditLog[] = [
     created_at: daysAgo(5),
   },
   {
+    id: 'log-005e',
+    task_id: 'task-001',
+    user_id: 'user-002',
+    action: 'missing_attachment',
+    metadata: { warning: '标记完成但未上传最终版培训方案附件' },
+    created_at: daysAgo(1),
+  },
+  {
     id: 'log-006',
     task_id: 'task-005',
     user_id: 'user-009',

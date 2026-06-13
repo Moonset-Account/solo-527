@@ -493,11 +493,28 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         currentUser: state.currentUser,
       }),
-      onRehydrateStorage: (state) => {
-        return (restoredState, error) => {
-          if (error) return;
+      onRehydrateStorage: () => {
+        return (restoredState) => {
           if (restoredState?.currentUser) {
             setAuthCookie({ currentUser: restoredState.currentUser });
+            if (restoredState.tasks.length === 0) {
+              const allTasks = mockTasks.map((task) => {
+                if (task.status === 'completed') return task;
+                if (isOverdue(task.deadline, task.status)) {
+                  return { ...task, status: 'overdue' as const };
+                }
+                return task;
+              });
+              set({
+                tasks: allTasks,
+                users: mockUsers,
+                departments: mockDepartments,
+                attachments: mockAttachments,
+                comments: mockComments,
+                auditLogs: mockAuditLogs,
+                reminderRules: mockReminderRules,
+              });
+            }
           }
         };
       },

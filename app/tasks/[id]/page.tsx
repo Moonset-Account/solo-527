@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useStore } from '@/store/useStore';
+import type { TaskWithRelations } from '@/types';
 import { formatDate, getDaysRemaining, getOverdueDays, cn } from '@/lib/utils';
 import StatusBadge from '@/components/StatusBadge';
 import PriorityBadge from '@/components/PriorityBadge';
@@ -33,26 +34,31 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const taskId = params.id as string;
   const getTaskById = useStore((state) => state.getTaskById);
-  const [task, setTask] = useState(getTaskById(taskId));
+  const tasksLoaded = useStore((state) => state.tasks.length > 0);
+  const [task, setTask] = useState<TaskWithRelations | undefined>(undefined);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    if (!tasksLoaded) return;
     const loadedTask = getTaskById(taskId);
     setTask(loadedTask);
     if (!loadedTask) {
       router.push('/');
     }
-  }, [taskId, getTaskById, router, refreshKey]);
+  }, [taskId, getTaskById, router, refreshKey, tasksLoaded]);
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
   };
 
-  if (!task) {
+  if (!tasksLoaded || !task) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-96">
-          <p className="text-gray-500">事项不存在或已被删除</p>
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-900 rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-500">加载中...</p>
+          </div>
         </div>
       </AppLayout>
     );
