@@ -1,0 +1,272 @@
+// Prisma schema for 工程材料采购审批流系统
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  password     String
+  realName     String
+  role         String    // admin, procurement_manager, project_manager, purchaser, finance
+  department   String?
+  phone        String?
+  email        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  purchaseRequests      PurchaseRequest[]      @relation("requester")
+  approvalRecords       ApprovalRecord[]
+  priceReviews          PriceReview[]         @relation("reviewer")
+  deliveryConfirmations DeliveryConfirmation[] @relation("confirmer")
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  contact     String?
+  phone       String?
+  address     String?
+  bankAccount String?
+  taxNumber   String?
+  riskLevel   Int      @default(1) // 1-5 风险等级
+  riskNote    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchaseOrders   PurchaseOrder[]
+  priceHistory     PriceHistory[]
+  supplierRiskLogs SupplierRiskLog[]
+}
+
+model PurchaseRequest {
+  id             Int      @id @default(autoincrement())
+  requestNo      String   @unique
+  title          String
+  projectName    String
+  department     String
+  requesterId    Int
+  status         String   // draft, pending, approved, rejected, completed
+  currentLevel   Int      @default(1)
+  totalAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  remark         String?
+  deliveryDate   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  requester   User              @relation("requester", fields: [requesterId], references: [id])
+  items       PurchaseItem[]
+  attachments Attachment[]
+  approvals   ApprovalRecord[]
+  priceAlerts PriceFluctuationAlert[]
+  purchaseOrder PurchaseOrder?
+}
+
+model PurchaseItem {
+  id                Int      @id @default(autoincrement())
+  requestId         Int
+  materialName      String
+  specification     String
+  unit              String
+  quantity          Decimal  @db.Decimal(12, 2)
+  estimatedPrice    Decimal  @db.Decimal(12, 2)
+  actualPrice       Decimal? @db.Decimal(12, 2)
+  totalAmount       Decimal  @db.Decimal(12, 2)
+  remark            String?
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+}
+
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  requestId  Int
+  fileName   String
+  fileType   String
+  fileSize   Int
+  fileUrl    String
+  uploadedBy Int
+  createdAt  DateTime @default(now())
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalLevel {
+  id        Int      @id @default(autoincrement())
+  level     Int
+  name      String
+  role      String
+  minAmount Decimal  @db.Decimal(12, 2)
+  maxAmount Decimal  @db.Decimal(12, 2)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([level])
+}
+
+model ApprovalRecord {
+  id        Int      @id @default(autoincrement())
+  requestId Int
+  level     Int
+  approverId Int
+  status    String   // pending, approved, rejected
+  comment   String?
+  approvedAt DateTime?
+  createdAt DateTime @default(now())
+
+  request  PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver User            @relation(fields: [approverId], references: [id])
+
+  @@index([requestId])
+}
+
+model PriceHistory {
+  id          Int      @id @default(autoincrement())
+  supplierId  Int
+  materialName String
+  specification String
+  price       Decimal  @db.Decimal(12, 2)
+  unit        String
+  effectiveDate DateTime
+  source      String?
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId, materialName])
+}
+
+model PriceFluctuationAlert {
+  id           Int      @id @default(autoincrement())
+  requestId    Int
+  materialName String
+  oldPrice     Decimal  @db.Decimal(12, 2)
+  newPrice     Decimal  @db.Decimal(12, 2)
+  fluctuation  Decimal  @db.Decimal(5, 2) // 波动百分比
+  isReviewed   Boolean  @default(false)
+  reviewedBy   Int?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime @default(now())
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id])
+
+  @@index([requestId])
+}
+
+model PriceReview {
+  id          Int      @id @default(autoincrement())
+  alertId     Int
+  reviewerId  Int
+  conclusion  String
+  suggestion  String?
+  createdAt   DateTime @default(now())
+
+  alert    PriceFluctuationAlert @relation(fields: [alertId], references: [id])
+  reviewer User                  @relation("reviewer", fields: [reviewerId], references: [id])
+}
+
+model PurchaseOrder {
+  id           Int      @id @default(autoincrement())
+  orderNo      String   @unique
+  requestId    Int
+  supplierId   Int
+  totalAmount  Decimal  @db.Decimal(12, 2)
+  paymentAmount Decimal? @db.Decimal(12, 2)
+  status       String   // pending, partial_delivered, delivered, completed, cancelled
+  deliveryDate DateTime?
+  remark       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  request   PurchaseRequest      @relation(fields: [requestId], references: [id])
+  supplier  Supplier             @relation(fields: [supplierId], references: [id])
+  delivery  DeliveryConfirmation[]
+  paymentDiff PaymentDifferenceAlert[]
+}
+
+model DeliveryConfirmation {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  confirmerId Int
+  deliveryQty Decimal  @db.Decimal(12, 2)
+  qualityStatus String  // qualified, unqualified, partial
+  remark      String?
+  attachmentUrl String?
+  confirmedAt DateTime @default(now())
+
+  order     PurchaseOrder @relation(fields: [orderId], references: [id])
+  confirmer User          @relation("confirmer", fields: [confirmerId], references: [id])
+
+  @@index([orderId])
+}
+
+model PaymentDifferenceAlert {
+  id            Int      @id @default(autoincrement())
+  orderId       Int
+  orderAmount   Decimal  @db.Decimal(12, 2)
+  actualPayment Decimal  @db.Decimal(12, 2)
+  difference    Decimal  @db.Decimal(12, 2)
+  diffPercent   Decimal  @db.Decimal(5, 2)
+  status        String   // pending, resolved
+  handlerId     Int?
+  handledAt     DateTime?
+  handleNote    String?
+  createdAt     DateTime @default(now())
+
+  order PurchaseOrder @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+model SupplierRiskLog {
+  id          Int      @id @default(autoincrement())
+  supplierId  Int
+  riskType    String   // payment_diff, delivery_delay, quality_issue, price_fluctuation
+  severity    Int      // 1-5
+  description String
+  source      String?
+  createdAt   DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId])
+}
+
+model BatchUpdateLog {
+  id          Int      @id @default(autoincrement())
+  batchNo     String   @unique
+  operatorId  Int
+  operation   String
+  totalCount  Int
+  successCount Int
+  failCount   Int
+  scopeNote   String
+  createdAt   DateTime @default(now())
+
+  details BatchUpdateDetail[]
+}
+
+model BatchUpdateDetail {
+  id          Int      @id @default(autoincrement())
+  logId       Int
+  recordId    Int
+  success     Boolean
+  errorFields Json?
+  errorMessage String?
+  data        Json?
+
+  log BatchUpdateLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@index([logId])
+}
