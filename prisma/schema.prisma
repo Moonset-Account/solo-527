@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  displayName  String
+  passwordHash String
+  role         String    @default("agent")
+  supervisorId String?
+  supervisor   User?     @relation("Supervisor", fields: [supervisorId], references: [id])
+  agents       User[]    @relation("Supervisor")
+  batchTasks   BatchTask[]
+  questions    Question[]
+  suggestions  ReplySuggestion[]
+  filterPresets FilterPreset[]
+  todoItems    TodoItem[]
+  createdAt    DateTime  @default(now())
+
+  @@index([role])
+  @@index([supervisorId])
+  @@map("User")
+}
+
+model BatchTask {
+  id             String   @id @default(uuid())
+  name           String
+  status         String   @default("pending")
+  totalItems     Int      @default(0)
+  completedItems Int      @default(0)
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  timeoutMinutes Int      @default(30)
+  config         Json
+  createdBy      String
+  creator        User     @relation(fields: [createdBy], references: [id])
+  questions      Question[]
+  callLogs       CallLog[]
+  todoItems      TodoItem[]
+  createdAt      DateTime @default(now())
+
+  @@index([status])
+  @@index([createdBy])
+  @@index([scheduledAt])
+  @@map("BatchTask")
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  content      String
+  templateVars Json?
+  batchTaskId  String?
+  batchTask    BatchTask? @relation(fields: [batchTaskId], references: [id])
+  createdBy    String
+  creator      User     @relation(fields: [createdBy], references: [id])
+  suggestions  ReplySuggestion[]
+  callLogs     CallLog[]
+  createdAt    DateTime @default(now())
+
+  @@index([batchTaskId])
+  @@index([createdBy])
+  @@map("Question")
+}
+
+model ReplySuggestion {
+  id             String           @id @default(uuid())
+  questionId     String
+  question       Question         @relation(fields: [questionId], references: [id])
+  content        String
+  confidence     Float            @default(0)
+  isHit          Boolean          @default(false)
+  hitVerifiedBy  String?
+  verifier       User?            @relation(fields: [hitVerifiedBy], references: [id])
+  references     ReferenceSource[]
+  createdAt      DateTime         @default(now())
+
+  @@index([questionId])
+  @@index([isHit])
+  @@index([hitVerifiedBy])
+  @@map("ReplySuggestion")
+}
+
+model ReferenceSource {
+  id                String         @id @default(uuid())
+  replySuggestionId String
+  replySuggestion   ReplySuggestion @relation(fields: [replySuggestionId], references: [id], onDelete: Cascade)
+  docTitle          String
+  docUrl            String         @default("")
+  relevanceScore    Float          @default(0)
+  isMissing         Boolean        @default(false)
+  missingReason     String?
+
+  @@index([replySuggestionId])
+  @@index([isMissing, missingReason])
+  @@map("ReferenceSource")
+}
+
+model CallLog {
+  id             String   @id @default(uuid())
+  batchTaskId    String?
+  batchTask      BatchTask? @relation(fields: [batchTaskId], references: [id])
+  questionId     String
+  question       Question @relation(fields: [questionId], references: [id])
+  endpoint       String
+  requestBody    Json?
+  responseStatus Int      @default(0)
+  responseBody   Json?
+  durationMs     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([batchTaskId])
+  @@index([questionId])
+  @@index([createdAt])
+  @@map("CallLog")
+}
+
+model FilterPreset {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  page      String
+  filters   Json
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([page])
+  @@map("FilterPreset")
+}
+
+model TodoItem {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  batchTaskId String?
+  batchTask   BatchTask? @relation(fields: [batchTaskId], references: [id])
+  type        String
+  status      String    @default("pending")
+  dueAt       DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, status])
+  @@index([dueAt])
+  @@index([batchTaskId])
+  @@map("TodoItem")
+}
