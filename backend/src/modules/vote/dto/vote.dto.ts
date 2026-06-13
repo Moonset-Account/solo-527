@@ -31,6 +31,7 @@ export class CreateVoteDto {
   @IsOptional()
   endTime?: string;
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   allowAbstain?: boolean;
@@ -80,6 +81,7 @@ export class CastVoteDto {
   @IsOptional()
   selectedOptions?: string[];
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   isAbstained?: boolean;
@@ -99,22 +101,27 @@ export class CreateVoteRuleDto {
   @IsString()
   description: string;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   passThreshold?: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   quorumThreshold?: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   votingDurationHours?: number;
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   allowProxyVoting?: boolean;
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   isDefault?: boolean;

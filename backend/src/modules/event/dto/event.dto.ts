@@ -1,4 +1,5 @@
-import { IsString, IsEnum, IsOptional, IsNumber, IsDateString, IsBoolean, IsArray } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsNumber, IsDateString, IsBoolean, IsArray, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 import { EventType, EventStatus } from '../entities/event.entity';
 
 export class CreateEventDto {
@@ -11,10 +12,12 @@ export class CreateEventDto {
   @IsEnum(['rectification', 'vote', 'patrol'])
   type: EventType;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   latitude?: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   longitude?: number;
@@ -56,10 +59,12 @@ export class UpdateEventDto {
   @IsOptional()
   status?: EventStatus;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   latitude?: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   longitude?: number;
@@ -84,6 +89,7 @@ export class UpdateEventDto {
   @IsOptional()
   reviewResult?: string;
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   isRectified?: boolean;

@@ -92,12 +92,16 @@ const EventList: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     try {
-      await eventApi.createEvent({
+      const payload = {
         ...values,
         type: activeTab,
         reporterId: currentUser.id,
         deadline: values.deadline?.format('YYYY-MM-DD HH:mm:ss'),
-      }) as any;
+        latitude: values.latitude !== undefined && values.latitude !== '' ? Number(values.latitude) : undefined,
+        longitude: values.longitude !== undefined && values.longitude !== '' ? Number(values.longitude) : undefined,
+        priority: values.priority !== undefined ? Number(values.priority) : 0,
+      };
+      await eventApi.createEvent(payload) as any;
       message.success('创建成功');
       setModalVisible(false);
       form.resetFields();

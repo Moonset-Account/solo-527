@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "description": "北桥网格事件台 - 网格事件协商投票站",
   "private": true,
-  "workspaces": [
-    "backend",
-    "frontend"
-  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run start:dev",
@@ -14,7 +10,7 @@
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "install:all": "cd backend && npm install && cd ../frontend && npm install && cd .. && npm install"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

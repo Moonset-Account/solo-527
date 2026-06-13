@@ -1,4 +1,5 @@
 import { IsString, IsEnum, IsOptional, IsDateString, IsBoolean, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 import { TodoType, TodoStatus } from '../entities/todo.entity';
 
 export class CreateTodoDto {
@@ -11,6 +12,7 @@ export class CreateTodoDto {
   @IsEnum(['voting_exception', 'review', 'follow_up', 'urgent'])
   type: TodoType;
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   priority?: number;
@@ -27,6 +29,7 @@ export class CreateTodoDto {
   @IsOptional()
   deadline?: string;
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   affectsHelpProgress?: boolean;
@@ -55,6 +58,7 @@ export class UpdateTodoDto {
   @IsOptional()
   status?: TodoStatus;
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   priority?: number;
@@ -77,6 +81,7 @@ export class QueryTodoDto {
   @IsOptional()
   assigneeId?: string;
 
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   affectsHelpProgress?: boolean;

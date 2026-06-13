@@ -338,7 +338,7 @@ const TodoList: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="affectsHelpProgress" label="是否影响帮扶进度" valuePropName="checked" initialValue={false}>
+          <Form.Item name="affectsHelpProgress" label="是否影响帮扶进度" initialValue={false}>
             <Select>
               <Select.Option value={true}>是</Select.Option>
               <Select.Option value={false}>否</Select.Option>

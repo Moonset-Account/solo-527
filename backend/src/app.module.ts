@@ -8,6 +8,7 @@ import { TaskModule } from './modules/task/task.module';
 import { TodoModule } from './modules/todo/todo.module';
 import { ReportModule } from './modules/report/report.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { SeedModule } from './modules/seed/seed.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UploadModule } from './modules/upload/upload.module';
     TodoModule,
     ReportModule,
     UploadModule,
+    SeedModule,
   ],
 })
 export class AppModule {}
