@@ -530,11 +530,18 @@ function renderDeliveryRecords(data) {
     tbody.innerHTML = data.items.map(item => {
         const quantityDiff = parseFloat(item.quantity_diff || 0);
         const hasDiff = quantityDiff !== 0;
+        const isClosed = item.delivered_quantity === 0;
+        const hasDiffs = item.diffs && item.diffs.length > 0;
+        const closedDiffs = item.diffs ? item.diffs.filter(d => d.diff_type === 'closed') : [];
+        const otherDiffs = item.diffs ? item.diffs.filter(d => d.diff_type !== 'closed') : [];
         
         let statusClass = 'bg-green-100 text-green-800';
         let statusText = '准时交付';
         
-        if (quantityDiff > 0) {
+        if (isClosed) {
+            statusClass = 'bg-gray-200 text-gray-700';
+            statusText = '已关闭';
+        } else if (quantityDiff > 0) {
             statusClass = 'bg-blue-100 text-blue-800';
             statusText = '超额交付';
         } else if (quantityDiff < 0) {
@@ -544,28 +551,46 @@ function renderDeliveryRecords(data) {
         
         const diffClass = quantityDiff > 0 ? 'text-success' : quantityDiff < 0 ? 'text-danger' : 'text-gray-500';
         const diffIcon = quantityDiff > 0 ? 'fa-arrow-up' : quantityDiff < 0 ? 'fa-arrow-down' : 'fa-minus';
-        const diffDisplay = quantityDiff !== 0 ? `${quantityDiff > 0 ? '+' : ''}${quantityDiff.toLocaleString('zh-CN')}` : '-';
+        const diffDisplay = quantityDiff !== 0 ? `${quantityDiff > 0 ? '+' : ''}${quantityDiff.toLocaleString('zh-CN')}` : (isClosed ? '未交付' : '-');
         
         const invoiceStatusMap = {
             'pending': { class: 'bg-yellow-100 text-yellow-800', text: '待开票' },
             'invoiced': { class: 'bg-green-100 text-green-800', text: '已开票' },
             'paid': { class: 'bg-blue-100 text-blue-800', text: '已付款' },
-            'overdue': { class: 'bg-red-100 text-red-800', text: '逾期' }
+            'overdue': { class: 'bg-red-100 text-red-800', text: '逾期' },
+            'closed': { class: 'bg-gray-100 text-gray-600', text: '已关闭' }
         };
         const invoiceStatus = invoiceStatusMap[item.invoice_status_code] || { class: 'bg-gray-100 text-gray-800', text: '未设置' };
         
+        let remarkHtml = '';
+        if (item.remark) {
+            remarkHtml = `<div class="mt-1 text-xs text-gray-500 max-w-xs truncate" title="${item.remark}"><i class="fas fa-sticky-note mr-1 text-gray-400"></i>${item.remark}</div>`;
+        }
+        
+        let closedDiffHtml = '';
+        closedDiffs.slice(0, 2).forEach(d => {
+            closedDiffHtml += `<div class="mt-1 text-xs text-purple-600 max-w-xs truncate" title="${d.description}"><i class="fas fa-info-circle mr-1"></i>${d.description}</div>`;
+        });
+        if (closedDiffs.length > 2) {
+            closedDiffHtml += `<div class="mt-1 text-xs text-purple-600">+ ${closedDiffs.length - 2} 条更多</div>`;
+        }
+        
         return `
-            <tr class="hover:bg-gray-50 transition">
+            <tr class="hover:bg-gray-50 transition ${isClosed ? 'bg-gray-50/70' : ''}">
                 <td class="px-6 py-4">
-                    <span class="text-sm font-medium text-gray-900">${item.purchase_request_no || '-'}</span>
+                    <div>
+                        <span class="text-sm font-medium ${isClosed ? 'text-gray-500 line-through' : 'text-gray-900'}">${item.purchase_request_no || '-'}</span>
+                        ${closedDiffHtml}
+                        ${remarkHtml}
+                    </div>
                 </td>
                 <td class="px-6 py-4">
                     <div>
                         <p class="text-sm font-medium text-gray-900">${item.material_name || '-'}</p>
-                        ${item.diffs && item.diffs.length > 0 ? `
+                        ${hasDiffs && otherDiffs.length > 0 ? `
                             <div class="flex items-center mt-1">
                                 <i class="fas fa-exclamation-circle text-xs text-warning mr-1"></i>
-                                <span class="text-xs text-warning">${item.diffs.length} 项差异</span>
+                                <span class="text-xs text-warning">${otherDiffs.length} 项差异</span>
                             </div>
                         ` : ''}
                     </div>
@@ -574,11 +599,11 @@ function renderDeliveryRecords(data) {
                     ${parseFloat(item.expected_quantity || 0).toLocaleString('zh-CN')}
                 </td>
                 <td class="px-6 py-4">
-                    <span class="text-sm font-semibold text-gray-900">${parseFloat(item.delivered_quantity || 0).toLocaleString('zh-CN')}</span>
+                    <span class="text-sm font-semibold ${isClosed ? 'text-gray-400' : 'text-gray-900'}">${parseFloat(item.delivered_quantity || 0).toLocaleString('zh-CN')}</span>
                 </td>
                 <td class="px-6 py-4">
                     <span class="text-sm font-medium ${diffClass}">
-                        <i class="fas ${diffIcon} mr-1"></i>
+                        ${isClosed || quantityDiff !== 0 ? `<i class="fas ${diffIcon} mr-1"></i>` : ''}
                         ${diffDisplay}
                     </span>
                 </td>
@@ -600,10 +625,12 @@ function renderDeliveryRecords(data) {
                         <button onclick="viewDeliveryDetail(${item.id})" class="text-primary hover:text-blue-600 text-sm transition">
                             查看
                         </button>
-                        <button onclick="syncDeliveryStatus(${item.purchase_id})" class="text-gray-500 hover:text-gray-700 text-sm transition">
-                            同步
-                        </button>
-                        ${hasDiff ? `
+                        ${!isClosed ? `
+                            <button onclick="syncDeliveryStatus(${item.purchase_id})" class="text-gray-500 hover:text-gray-700 text-sm transition">
+                                同步
+                            </button>
+                        ` : ''}
+                        ${hasDiffs ? `
                             <button onclick="viewDiffDetail(${item.id})" class="text-warning hover:text-orange-600 text-sm transition">
                                 差异
                             </button>

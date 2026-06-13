@@ -122,13 +122,24 @@ def get_expiring_prices(
 
 @router.get("/trend")
 def get_price_trend(
-    material_name: str,
+    material_name: Optional[str] = Query(None),
     specification: Optional[str] = Query(None),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    if not material_name:
+        return {
+            "labels": [],
+            "data": [],
+            "material_name": "",
+            "specification": specification or "",
+            "max_price": 0,
+            "min_price": 0,
+            "max_price_date": None,
+            "min_price_date": None
+        }
     return PriceService.get_price_trend_data(db, material_name, specification, start_date, end_date)
 
 

@@ -6,14 +6,14 @@ from decimal import Decimal
 
 class DeliveryRecordBase(BaseModel):
     purchase_id: int
-    delivered_quantity: Decimal = Field(..., gt=0, max_digits=12, decimal_places=2)
+    delivered_quantity: Decimal = Field(..., ge=0, max_digits=12, decimal_places=2)
     delivery_date: date
     invoice_status_code: Optional[str] = None
     remark: Optional[str] = None
 
 
 class DeliveryRecordCreate(DeliveryRecordBase):
-    pass
+    delivered_quantity: Decimal = Field(..., gt=0, max_digits=12, decimal_places=2)
 
 
 class DeliveryRecordUpdate(BaseModel):
