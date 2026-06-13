@@ -51,37 +51,47 @@ const BillDetail = () => {
 
   const handlePayment = async (values) => {
     try {
+      const paymentDate = values.paymentDate
+        ? (typeof values.paymentDate === 'string' ? values.paymentDate : dayjs(values.paymentDate).format('YYYY-MM-DD'))
+        : dayjs().format('YYYY-MM-DD');
       await request.post('/payments', {
         ...values,
-        billId: id,
+        amount: parseFloat(values.amount),
+        billId: parseInt(id),
         customerId: bill.customerId,
-        paymentDate: values.paymentDate?.format('YYYY-MM-DD'),
+        paymentDate: new Date(paymentDate).toISOString(),
       });
-      message.success('登记付款成功');
+      message.success('登记收款成功，账单余额已更新');
       setShowPaymentModal(false);
       paymentForm.resetFields();
       fetchBillDetail();
       fetchTimeline();
     } catch (error) {
-      console.error('登记付款失败:', error);
+      console.error('登记收款失败:', error);
+      message.error('登记收款失败');
     }
   };
 
   const handleCreateCollection = async (values) => {
     try {
+      const dueDate = values.dueDate
+        ? (typeof values.dueDate === 'string' ? values.dueDate : dayjs(values.dueDate).format('YYYY-MM-DD'))
+        : dayjs().add(3, 'day').format('YYYY-MM-DD');
       await request.post('/collections', {
         ...values,
-        billId: id,
+        billId: parseInt(id),
         customerId: bill.customerId,
-        dueDate: values.dueDate?.format('YYYY-MM-DD'),
-        amount: bill.balanceAmount,
+        dueDate: dueDate,
+        amount: parseFloat(bill.balanceAmount),
       });
-      message.success('创建催收单成功');
+      message.success('创建催收单成功，已写入时间轴');
       setShowCollectionModal(false);
       collectionForm.resetFields();
+      fetchBillDetail();
       fetchTimeline();
     } catch (error) {
       console.error('创建催收单失败:', error);
+      message.error('创建催收单失败');
     }
   };
 

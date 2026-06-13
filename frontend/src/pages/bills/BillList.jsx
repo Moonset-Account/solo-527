@@ -13,10 +13,12 @@ const BillList = () => {
   const [bills, setBills] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({});
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [customerOptions, setCustomerOptions] = useState([]);
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -27,6 +29,21 @@ const BillList = () => {
   useEffect(() => {
     fetchBills();
   }, [page, pageSize, filters]);
+
+  useEffect(() => {
+    if (canCreate) {
+      fetchCustomerOptions();
+    }
+  }, [canCreate]);
+
+  const fetchCustomerOptions = async () => {
+    try {
+      const res = await request.get('/customers/options/list');
+      setCustomerOptions(res.list || []);
+    } catch (error) {
+      console.error('获取客户列表失败:', error);
+    }
+  };
 
   const fetchBills = async () => {
     setLoading(true);
@@ -57,27 +74,57 @@ const BillList = () => {
   };
 
   const handleExport = async () => {
+    setExporting(true);
     try {
-      const params = new URLSearchParams(filters).toString();
-      window.open(`/api/statistics/export/bills?${params}`, '_blank');
+      const response = await request.get('/statistics/export/bills', {
+        params: filters,
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `账单列表_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('账单导出成功');
     } catch (error) {
       console.error('导出失败:', error);
+      message.error('账单导出失败');
+    } finally {
+      setExporting(false);
     }
   };
 
   const handleCreate = async (values) => {
     try {
-      await request.post('/bills', {
+      const billDate = values.billDate
+        ? (typeof values.billDate === 'string' ? values.billDate : dayjs(values.billDate).format('YYYY-MM-DD'))
+        : dayjs().format('YYYY-MM-DD');
+      const dueDate = values.dueDate
+        ? (typeof values.dueDate === 'string' ? values.dueDate : dayjs(values.dueDate).format('YYYY-MM-DD'))
+        : dayjs().add(30, 'day').format('YYYY-MM-DD');
+      const res = await request.post('/bills', {
         ...values,
-        billDate: values.billDate?.format('YYYY-MM-DD'),
-        dueDate: values.dueDate?.format('YYYY-MM-DD'),
+        customerId: parseInt(values.customerId),
+        totalAmount: parseFloat(values.totalAmount),
+        billDate,
+        dueDate,
       });
       message.success('创建账单成功');
       setShowCreateModal(false);
       form.resetFields();
       fetchBills();
+      if (res.bill?.id) {
+        setTimeout(() => {
+          navigate(`/bills/${res.bill.id}`);
+        }, 500);
+      }
     } catch (error) {
       console.error('创建账单失败:', error);
+      message.error('创建账单失败');
     }
   };
 
@@ -207,7 +254,7 @@ const BillList = () => {
               新建账单
             </Button>
           )}
-          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+          <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
             导出
           </Button>
           <Button icon={<ReloadOutlined />} onClick={fetchBills}>
@@ -273,23 +320,40 @@ const BillList = () => {
         footer={null}
         width={600}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleCreate}
+          initialValues={{
+            billDate: dayjs(),
+            dueDate: dayjs().add(30, 'day'),
+            billPeriod: dayjs().format('YYYY-MM'),
+          }}
+        >
           <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
-            <Select placeholder="请选择客户">
-              {/* 实际项目中应该从接口获取客户列表 */}
+            <Select
+              placeholder="请选择客户"
+              showSearch
+              optionFilterProp="children"
+            >
+              {customerOptions.map(c => (
+                <Option key={c.id} value={c.id}>
+                  {c.customerNo} - {c.name}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item name="billPeriod" label="账期" rules={[{ required: true, message: '请输入账期' }]}>
             <Input placeholder="如 2025-01" />
           </Form.Item>
           <Form.Item name="billDate" label="账单日期" rules={[{ required: true, message: '请选择账单日期' }]}>
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
           </Form.Item>
           <Form.Item name="dueDate" label="到期日期" rules={[{ required: true, message: '请选择到期日期' }]}>
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
           </Form.Item>
           <Form.Item name="totalAmount" label="账单金额" rules={[{ required: true, message: '请输入账单金额' }]}>
-            <Input type="number" prefix="¥" />
+            <Input type="number" prefix="¥" step="0.01" min="0" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={3} />

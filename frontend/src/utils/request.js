@@ -3,7 +3,7 @@ import { message } from 'antd';
 
 const request = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 60000,
 });
 
 request.interceptors.request.use(
@@ -19,13 +19,30 @@ request.interceptors.request.use(
   }
 );
 
+const parseBlobError = async (blob) => {
+  try {
+    const text = await blob.text();
+    return JSON.parse(text);
+  } catch {
+    return { message: '请求失败' };
+  }
+};
+
 request.interceptors.response.use(
   (response) => {
     return response.data;
   },
-  (error) => {
+  async (error) => {
     if (error.response) {
       const { status, data } = error.response;
+      let errMsg = '请求失败';
+
+      if (data instanceof Blob) {
+        const parsed = await parseBlobError(data);
+        errMsg = parsed.message || errMsg;
+      } else {
+        errMsg = data?.message || errMsg;
+      }
       
       if (status === 401) {
         localStorage.removeItem('token');
@@ -33,9 +50,9 @@ request.interceptors.response.use(
         message.error('登录已过期，请重新登录');
         window.location.href = '/login';
       } else if (status === 403) {
-        message.error(data?.message || '无权限访问');
+        message.error(errMsg || '无权限访问');
       } else {
-        message.error(data?.message || '请求失败');
+        message.error(errMsg || '请求失败');
       }
     } else if (error.request) {
       message.error('网络错误，请检查网络连接');

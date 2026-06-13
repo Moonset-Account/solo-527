@@ -21,10 +21,33 @@ const WriteOffList = () => {
   const [approveType, setApproveType] = useState('approve');
   const [createForm] = Form.useForm();
   const [approveForm] = Form.useForm();
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [billOptions, setBillOptions] = useState([]);
 
   useEffect(() => {
     fetchWriteOffs();
+    fetchCustomerOptions();
   }, [page, pageSize, filters]);
+
+  const fetchCustomerOptions = async () => {
+    try {
+      const res = await request.get('/customers/options/list');
+      setCustomerOptions(res.list || []);
+    } catch (error) {
+      console.error('获取客户列表失败:', error);
+    }
+  };
+
+  const fetchBillOptions = async (customerId) => {
+    try {
+      const res = await request.get('/bills/options/list', {
+        params: { customerId, status: ['UNPAID', 'PARTIAL_PAID', 'OVERDUE'] },
+      });
+      setBillOptions(res.list || []);
+    } catch (error) {
+      console.error('获取账单列表失败:', error);
+    }
+  };
 
   const fetchWriteOffs = async () => {
     setLoading(true);
@@ -58,13 +81,21 @@ const WriteOffList = () => {
 
   const handleCreate = async (values) => {
     try {
-      await request.post('/writeoffs', values);
-      message.success('提交冲销申请成功');
+      const payload = {
+        ...values,
+        customerId: parseInt(values.customerId),
+        billId: parseInt(values.billId),
+        writeOffAmount: parseFloat(values.writeOffAmount),
+      };
+      await request.post('/writeoffs', payload);
+      message.success('提交冲销申请成功，已写入时间轴');
       setShowCreateModal(false);
       createForm.resetFields();
+      setBillOptions([]);
       fetchWriteOffs();
     } catch (error) {
       console.error('创建冲销失败:', error);
+      message.error('创建冲销申请失败');
     }
   };
 
@@ -81,11 +112,12 @@ const WriteOffList = () => {
         ? `/writeoffs/${detailData.id}/approve`
         : `/writeoffs/${detailData.id}/reject`;
       await request.put(url, values);
-      message.success(approveType === 'approve' ? '审批通过' : '已拒绝');
+      message.success(approveType === 'approve' ? '审批通过，已写入时间轴' : '已拒绝，已写入时间轴');
       setShowApproveModal(false);
       fetchWriteOffs();
     } catch (error) {
       console.error('操作失败:', error);
+      message.error('操作失败');
     }
   };
 
@@ -96,10 +128,11 @@ const WriteOffList = () => {
       onOk: async () => {
         try {
           await request.put(`/writeoffs/${record.id}/process`);
-          message.success('冲销执行成功');
+          message.success('冲销执行成功，账单余额已更新，已写入时间轴');
           fetchWriteOffs();
         } catch (error) {
           console.error('执行冲销失败:', error);
+          message.error('执行冲销失败');
         }
       },
     });
@@ -265,17 +298,45 @@ const WriteOffList = () => {
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
-            <Select placeholder="请选择客户" showSearch>
-              {/* 实际项目中从接口获取 */}
+            <Select
+              placeholder="请选择客户"
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) => {
+                createForm.setFieldsValue({ billId: undefined });
+                fetchBillOptions(value);
+              }}
+            >
+              {customerOptions.map(c => (
+                <Option key={c.id} value={c.id}>
+                  {c.customerNo} - {c.name}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item name="billId" label="关联账单" rules={[{ required: true, message: '请选择账单' }]}>
-            <Select placeholder="请选择账单" showSearch>
-              {/* 实际项目中从接口获取 */}
+            <Select
+              placeholder="请选择账单"
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) => {
+                const selected = billOptions.find(b => b.id === value);
+                if (selected) {
+                  createForm.setFieldsValue({
+                    writeOffAmount: selected.balanceAmount,
+                  });
+                }
+              }}
+            >
+              {billOptions.map(b => (
+                <Option key={b.id} value={b.id}>
+                  {b.billNo} ({b.billPeriod}) - 待收 ¥{Number(b.balanceAmount).toLocaleString()}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item name="writeOffAmount" label="冲销金额" rules={[{ required: true, message: '请输入冲销金额' }]}>
-            <Input type="number" prefix="¥" />
+            <Input type="number" prefix="¥" step="0.01" min="0" />
           </Form.Item>
           <Form.Item name="reason" label="冲销原因" rules={[{ required: true, message: '请输入冲销原因' }]}>
             <TextArea rows={4} placeholder="请详细说明冲销原因..." />

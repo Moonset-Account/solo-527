@@ -22,6 +22,8 @@ const RefundList = () => {
   const [approveForm] = Form.useForm();
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approveType, setApproveType] = useState('approve');
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [billOptions, setBillOptions] = useState([]);
   const { user } = useAuthStore();
 
   const isCustomer = user?.role === 'CUSTOMER';
@@ -31,6 +33,32 @@ const RefundList = () => {
   useEffect(() => {
     fetchRefunds();
   }, [page, pageSize, filters]);
+
+  useEffect(() => {
+    if (canCreate && !isCustomer) {
+      fetchCustomerOptions();
+    }
+  }, [canCreate]);
+
+  const fetchCustomerOptions = async () => {
+    try {
+      const res = await request.get('/customers/options/list');
+      setCustomerOptions(res.list || []);
+    } catch (error) {
+      console.error('获取客户列表失败:', error);
+    }
+  };
+
+  const fetchBillOptions = async (customerId) => {
+    try {
+      const res = await request.get('/bills/options/list', {
+        params: { customerId, status: ['PAID', 'PARTIAL_PAID'] },
+      });
+      setBillOptions(res.list || []);
+    } catch (error) {
+      console.error('获取账单列表失败:', error);
+    }
+  };
 
   const fetchRefunds = async () => {
     setLoading(true);
@@ -64,13 +92,21 @@ const RefundList = () => {
 
   const handleCreate = async (values) => {
     try {
-      await request.post('/refunds', values);
-      message.success('提交退款申请成功');
+      const payload = {
+        ...values,
+        customerId: isCustomer ? user?.customerId : parseInt(values.customerId),
+        billId: values.billId ? parseInt(values.billId) : null,
+        refundAmount: parseFloat(values.refundAmount),
+      };
+      await request.post('/refunds', payload);
+      message.success('提交退款申请成功，已写入时间轴');
       setShowCreateModal(false);
       createForm.resetFields();
+      setBillOptions([]);
       fetchRefunds();
     } catch (error) {
       console.error('创建退款失败:', error);
+      message.error('创建退款申请失败');
     }
   };
 
@@ -83,15 +119,16 @@ const RefundList = () => {
 
   const handleConfirmApprove = async (values) => {
     try {
-      const url = approveType === 'approve' 
-        ? `/refunds/${detailData.id}/approve` 
+      const url = approveType === 'approve'
+        ? `/refunds/${detailData.id}/approve`
         : `/refunds/${detailData.id}/reject`;
       await request.put(url, values);
-      message.success(approveType === 'approve' ? '审批通过' : '已拒绝');
+      message.success(approveType === 'approve' ? '审批通过，已写入时间轴' : '已拒绝，已写入时间轴');
       setShowApproveModal(false);
       fetchRefunds();
     } catch (error) {
       console.error('操作失败:', error);
+      message.error('操作失败');
     }
   };
 
@@ -268,20 +305,53 @@ const RefundList = () => {
         width={500}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]} hidden={isCustomer}>
-            <Select placeholder="请选择客户" showSearch>
-              {/* 实际项目中从接口获取 */}
-            </Select>
-          </Form.Item>
+          {!isCustomer && (
+            <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
+              <Select
+                placeholder="请选择客户"
+                showSearch
+                optionFilterProp="children"
+                onChange={(value) => {
+                  createForm.setFieldsValue({ billId: undefined });
+                  fetchBillOptions(value);
+                }}
+              >
+                {customerOptions.map(c => (
+                  <Option key={c.id} value={c.id}>
+                    {c.customerNo} - {c.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
           <Form.Item name="billId" label="关联账单">
-            <Select placeholder="请选择账单" showSearch allowClear>
-              {/* 实际项目中从接口获取 */}
+            <Select
+              placeholder="请选择账单（可选）"
+              showSearch
+              optionFilterProp="children"
+              allowClear
+              onChange={(value) => {
+                const selected = billOptions.find(b => b.id === value);
+                if (selected) {
+                  const paid = parseFloat(selected.totalAmount) - parseFloat(selected.balanceAmount);
+                  createForm.setFieldsValue({
+                    refundAmount: paid > 0 ? paid : selected.totalAmount,
+                    refundType: parseFloat(selected.balanceAmount) <= 0 ? 'FULL' : 'PARTIAL',
+                  });
+                }
+              }}
+            >
+              {billOptions.map(b => (
+                <Option key={b.id} value={b.id}>
+                  {b.billNo} ({b.billPeriod}) - 总额 ¥{Number(b.totalAmount).toLocaleString()}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item name="refundAmount" label="退款金额" rules={[{ required: true, message: '请输入退款金额' }]}>
-            <Input type="number" prefix="¥" />
+            <Input type="number" prefix="¥" step="0.01" min="0" />
           </Form.Item>
-          <Form.Item name="refundType" label="退款类型" rules={[{ required: true, message: '请选择退款类型' }]}>
+          <Form.Item name="refundType" label="退款类型" rules={[{ required: true, message: '请选择退款类型' }]} initialValue="PARTIAL">
             <Select>
               <Option value="FULL">全额退款</Option>
               <Option value="PARTIAL">部分退款</Option>

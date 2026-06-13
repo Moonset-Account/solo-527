@@ -18,10 +18,35 @@ const TransactionList = () => {
   const [detailDrawer, setDetailDrawer] = useState(false);
   const [detailData, setDetailData] = useState(null);
   const [matchForm] = Form.useForm();
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [billOptions, setBillOptions] = useState([]);
 
   useEffect(() => {
     fetchTransactions();
+    fetchCustomerOptions();
   }, [page, pageSize, filters]);
+
+  const fetchCustomerOptions = async () => {
+    try {
+      const res = await request.get('/customers/options/list');
+      setCustomerOptions(res.list || []);
+    } catch (error) {
+      console.error('获取客户列表失败:', error);
+    }
+  };
+
+  const fetchBillOptions = async (customerId) => {
+    try {
+      const params = { status: ['UNPAID', 'PARTIAL_PAID', 'OVERDUE'] };
+      if (customerId) {
+        params.customerId = customerId;
+      }
+      const res = await request.get('/bills/options/list', { params });
+      setBillOptions(res.list || []);
+    } catch (error) {
+      console.error('获取账单列表失败:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -56,21 +81,33 @@ const TransactionList = () => {
   const handleMatch = (record) => {
     setSelectedTrans(record);
     setShowMatchModal(true);
+    setBillOptions([]);
     matchForm.setFieldsValue({
       matchAmount: record.amount,
       matchType: 'FULL',
+      customerId: undefined,
+      billId: undefined,
     });
+    fetchBillOptions(null);
   };
 
   const handleConfirmMatch = async (values) => {
     try {
-      await request.post(`/transactions/${selectedTrans.id}/match`, values);
-      message.success('匹配成功');
+      const payload = {
+        ...values,
+        customerId: values.customerId ? parseInt(values.customerId) : null,
+        billId: values.billId ? parseInt(values.billId) : null,
+        matchAmount: parseFloat(values.matchAmount),
+      };
+      await request.post(`/transactions/${selectedTrans.id}/match`, payload);
+      message.success('匹配成功，账单已更新，时间轴已写入记录');
       setShowMatchModal(false);
       matchForm.resetFields();
+      setBillOptions([]);
       fetchTransactions();
     } catch (error) {
       console.error('匹配失败:', error);
+      message.error('匹配失败');
     }
   };
 
@@ -246,9 +283,47 @@ const TransactionList = () => {
           </div>
         )}
         <Form form={matchForm} layout="vertical" onFinish={handleConfirmMatch}>
+          <Form.Item name="customerId" label="客户">
+            <Select
+              placeholder="先选择客户（可选，过滤账单）"
+              showSearch
+              optionFilterProp="children"
+              allowClear
+              onChange={(value) => {
+                matchForm.setFieldsValue({ billId: undefined });
+                fetchBillOptions(value);
+              }}
+            >
+              {customerOptions.map(c => (
+                <Option key={c.id} value={c.id}>
+                  {c.customerNo} - {c.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item name="billId" label="关联账单">
-            <Select placeholder="选择要匹配的账单" showSearch allowClear>
-              {/* 实际项目中从接口获取未匹配账单列表 */}
+            <Select
+              placeholder="选择要匹配的账单（可选）"
+              showSearch
+              optionFilterProp="children"
+              allowClear
+              onChange={(value) => {
+                const selected = billOptions.find(b => b.id === value);
+                if (selected) {
+                  const unmatched = parseFloat(selected.balanceAmount);
+                  const transAmount = parseFloat(selectedTrans?.amount || 0);
+                  matchForm.setFieldsValue({
+                    matchAmount: Math.min(unmatched, transAmount),
+                    matchType: unmatched <= transAmount ? 'FULL' : 'PARTIAL',
+                  });
+                }
+              }}
+            >
+              {billOptions.map(b => (
+                <Option key={b.id} value={b.id}>
+                  {b.billNo} ({b.billPeriod}) - {b.customer?.name || '未知客户'} - 待收 ¥{Number(b.balanceAmount).toLocaleString()}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item
@@ -256,9 +331,9 @@ const TransactionList = () => {
             label="匹配金额"
             rules={[{ required: true, message: '请输入匹配金额' }]}
           >
-            <Input type="number" prefix="¥" />
+            <Input type="number" prefix="¥" step="0.01" min="0" />
           </Form.Item>
-          <Form.Item name="matchType" label="匹配类型">
+          <Form.Item name="matchType" label="匹配类型" initialValue="FULL">
             <Select>
               <Option value="FULL">全额匹配</Option>
               <Option value="PARTIAL">部分匹配</Option>

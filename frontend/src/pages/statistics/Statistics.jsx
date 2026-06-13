@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Progress, Table, Tag, Button, Space, DatePicker, Select, Form } from 'antd';
+import { Card, Row, Col, Statistic, Progress, Table, Tag, Button, Space, DatePicker, Select, Form, Dropdown, message } from 'antd';
 import {
   DollarOutlined,
   CheckCircleOutlined,
@@ -9,11 +9,11 @@ import {
   BarChartOutlined,
   PieChartOutlined,
   DownloadOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import request from '../../utils/request.js';
 import dayjs from 'dayjs';
 
-const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 const Statistics = () => {
@@ -21,6 +21,8 @@ const Statistics = () => {
   const [trendData, setTrendData] = useState([]);
   const [agingData, setAgingData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportType, setExportType] = useState(null);
 
   useEffect(() => {
     fetchAllData();
@@ -44,9 +46,66 @@ const Statistics = () => {
     }
   };
 
-  const handleExport = () => {
-    window.open('/api/statistics/export/bills', '_blank');
+  const doExport = async (type) => {
+    setExporting(true);
+    setExportType(type);
+    try {
+      const endpointMap = {
+        bills: '/statistics/export/bills',
+        transactions: '/statistics/export/transactions',
+        payments: '/statistics/export/payments',
+        collections: '/statistics/export/collections',
+      };
+      const labelMap = {
+        bills: '账单列表',
+        transactions: '流水列表',
+        payments: '付款记录',
+        collections: '催收记录',
+      };
+      const response = await request.get(endpointMap[type], {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `${labelMap[type]}_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success(`${labelMap[type]}导出成功`);
+    } catch (error) {
+      console.error('导出失败:', error);
+      message.error('导出失败');
+    } finally {
+      setExporting(false);
+      setExportType(null);
+    }
   };
+
+  const exportMenuItems = [
+    {
+      key: 'bills',
+      icon: <ExportOutlined />,
+      label: '导出账单列表（含收费进度、逾期天数）',
+    },
+    {
+      key: 'transactions',
+      icon: <ExportOutlined />,
+      label: '导出流水列表',
+    },
+    {
+      key: 'payments',
+      icon: <ExportOutlined />,
+      label: '导出付款记录',
+    },
+    {
+      key: 'collections',
+      icon: <ExportOutlined />,
+      label: '导出催收记录',
+    },
+  ];
 
   const statsCards = [
     {
@@ -114,8 +173,19 @@ const Statistics = () => {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>回款统计</h2>
         <Space>
-          <Button icon={<DownloadOutlined />} onClick={handleExport}>
-            导出报表
+          <Dropdown
+            menu={{
+              items: exportMenuItems,
+              onClick: ({ key }) => doExport(key),
+            }}
+            disabled={exporting}
+          >
+            <Button icon={<DownloadOutlined />} loading={exporting}>
+              导出报表{exporting && exportType ? `(${exportType})` : ''}
+            </Button>
+          </Dropdown>
+          <Button onClick={fetchAllData}>
+            刷新
           </Button>
         </Space>
       </div>

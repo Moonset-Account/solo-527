@@ -86,9 +86,31 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_MANAGER', 'ADMIN'), async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { billId, customerId, amount, paymentMethod, paymentDate, remark } = req.body;
+
+    let finalCustomerId = parseInt(customerId);
+
+    if (req.user.role === 'CUSTOMER') {
+      const customer = await prisma.customer.findFirst({
+        where: { email: req.user.email },
+      });
+      if (!customer) {
+        return res.status(400).json({ message: '客户信息不存在' });
+      }
+      finalCustomerId = customer.id;
+
+      if (billId) {
+        const bill = await prisma.bill.findUnique({
+          where: { id: parseInt(billId) },
+          select: { customerId: true },
+        });
+        if (!bill || bill.customerId !== customer.id) {
+          return res.status(403).json({ message: '无权操作该账单' });
+        }
+      }
+    }
 
     const paymentNo = generatePaymentNo();
 
@@ -96,8 +118,8 @@ router.post('/', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_MANAGER', 
       data: {
         paymentNo,
         billId: billId ? parseInt(billId) : null,
-        customerId: parseInt(customerId),
-        amount,
+        customerId: finalCustomerId,
+        amount: parseFloat(amount),
         paymentMethod,
         paymentDate: new Date(paymentDate),
         remark,
