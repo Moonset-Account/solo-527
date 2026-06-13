@@ -5,7 +5,7 @@ import { formatNumber, formatPercent } from "@/utils/format";
 
 interface MetricCardProps {
   title: string;
-  value: number;
+  value: number | null | undefined;
   unit?: string;
   change?: number;
   changeLabel?: string;
@@ -44,6 +44,8 @@ export function MetricCard({
     return trend === "up" ? goodBg : badBg;
   };
 
+  const hasValue = value != null;
+
   return (
     <div
       className={`card p-5 transition-all duration-200 ${
@@ -57,12 +59,14 @@ export function MetricCard({
 
       <div className="flex items-end gap-2 mb-3">
         <span className="text-2xl lg:text-3xl font-bold text-neutral-900 font-mono tracking-tight">
-          {unit === "%" ? value.toFixed(1) : formatNumber(value)}
+          {hasValue
+            ? (unit === "%" ? value!.toFixed(1) : formatNumber(value!))
+            : "—"}
           <span className="text-lg font-normal text-neutral-500 ml-1">{unit}</span>
         </span>
       </div>
 
-      {change !== undefined && (
+      {hasValue && change !== undefined ? (
         <div className="flex items-center gap-2">
           <div
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${getTrendBg()} ${getTrendColor()}`}
@@ -72,6 +76,8 @@ export function MetricCard({
           </div>
           <span className="text-xs text-neutral-500">{changeLabel}</span>
         </div>
+      ) : (
+        <span className="text-xs text-primary-600 font-medium">查看口径 →</span>
       )}
     </div>
   );

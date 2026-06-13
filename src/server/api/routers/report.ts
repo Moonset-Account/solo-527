@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createHash } from "crypto";
 import { router, protectedProcedure, publicProcedure, directorProcedure } from "../trpc";
 import { db } from "@/server/db";
+import { TRPCError } from "@trpc/server";
 
 export const reportRouter = router({
   me: publicProcedure.query(async ({ ctx }) => {
@@ -15,6 +16,35 @@ export const reportRouter = router({
       role: ctx.role,
     };
   }),
+
+  listUsers: protectedProcedure.query(async () => {
+    const users = await db.user.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    return users;
+  }),
+
+  updateUserRole: directorProcedure
+    .input(z.object({ userId: z.string(), role: z.enum(["SALES_DIRECTOR", "SALES_MANAGER", "DATA_OPERATOR"]) }))
+    .mutation(async ({ input }) => {
+      const user = await db.user.findUnique({ where: { id: input.userId } });
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+      }
+      const updated = await db.user.update({
+        where: { id: input.userId },
+        data: { role: input.role },
+      });
+      return updated;
+    }),
 
   getMonthly: publicProcedure
     .input(z.object({ month: z.string() }))

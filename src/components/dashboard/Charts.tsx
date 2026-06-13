@@ -13,8 +13,8 @@ import {
   BarChart,
   Legend,
 } from "recharts";
-import { mockData } from "@/utils/mockData";
 import { formatNumber } from "@/utils/format";
+import { api } from "@/trpc/react";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -41,7 +41,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function AnomalyTrendChart() {
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
-  const data = mockData.generateTrendData(Number(period));
+  const { data, isLoading } = api.anomaly.getTrendData.useQuery({
+    days: Number(period),
+  });
 
   return (
     <div className="card p-5">
@@ -68,54 +70,67 @@ export function AnomalyTrendChart() {
       </div>
 
       <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 12, fill: "#9ca3af" }}
-              tickLine={false}
-              axisLine={{ stroke: "#e5e7eb" }}
-              tickFormatter={(value) => {
-                const d = new Date(value);
-                return `${d.getMonth() + 1}/${d.getDate()}`;
-              }}
-              interval={Math.floor(data.length / 6)}
-            />
-            <YAxis
-              tick={{ fontSize: 12, fill: "#9ca3af" }}
-              tickLine={false}
-              axisLine={false}
-              width={30}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              iconType="circle"
-              iconSize={8}
-              wrapperStyle={{ fontSize: "12px", paddingTop: "16px" }}
-            />
-            <Bar
-              dataKey="count"
-              name="全部异常"
-              fill="#93c5fd"
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar dataKey="high" name="高优先级" fill="#f97316" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="critical" name="严重" fill="#ef4444" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {isLoading ? (
+          <div className="h-full bg-neutral-100 animate-pulse rounded-lg" />
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data ?? []} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 12, fill: "#9ca3af" }}
+                tickLine={false}
+                axisLine={{ stroke: "#e5e7eb" }}
+                tickFormatter={(value) => {
+                  const d = new Date(value);
+                  return `${d.getMonth() + 1}/${d.getDate()}`;
+                }}
+                interval={Math.floor((data?.length ?? 1) / 6)}
+              />
+              <YAxis
+                tick={{ fontSize: 12, fill: "#9ca3af" }}
+                tickLine={false}
+                axisLine={false}
+                width={30}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: "12px", paddingTop: "16px" }}
+              />
+              <Bar
+                dataKey="count"
+                name="全部异常"
+                fill="#93c5fd"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar dataKey="high" name="高优先级" fill="#f97316" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="critical" name="严重" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
 }
 
 export function MetricTrendChart({ metricId, metricName }: { metricId: string; metricName: string }) {
-  const data = mockData.generateMetricData(metricId, 30);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data } = api.metric.getData.useQuery({
+    metricId,
+    startDate: thirtyDaysAgo,
+    endDate: now,
+    period: "DAY",
+  });
 
   return (
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+        <AreaChart data={data ?? []} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />

@@ -104,6 +104,40 @@ export const metricRouter = router({
       return { success: true };
     }),
 
+  createUserChangeLog: protectedProcedure
+    .input(
+      z.object({
+        metricId: z.string(),
+        fieldChanged: z.string(),
+        oldValue: z.string().optional(),
+        newValue: z.string().optional(),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const metric = await db.metric.findUnique({ where: { id: input.metricId } });
+      if (!metric) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "指标不存在" });
+      }
+      const log = await db.metricChangeLog.create({
+        data: {
+          metricId: input.metricId,
+          fieldChanged: input.fieldChanged,
+          oldValue: input.oldValue,
+          newValue: input.newValue,
+          description: input.description,
+          createdById: ctx.userId,
+        },
+        include: {
+          metric: { select: { name: true, code: true } },
+          createdBy: { select: { name: true, email: true } },
+          approvedBy: { select: { name: true, email: true } },
+          rejectedBy: { select: { name: true, email: true } },
+        },
+      });
+      return log;
+    }),
+
   getChangeLogs: publicProcedure
     .input(z.object({ metricId: z.string().optional() }))
     .query(async ({ input }) => {
