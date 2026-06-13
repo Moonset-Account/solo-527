@@ -1,14 +1,14 @@
 import { IsEnum, IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ExportType, ExportFormat } from './export-log.entity.js';
+import { ExportType, ExportFormat, ExportTypeEnum, ExportFormatEnum } from './export-log.entity.js';
 
 export class ExportLogFilterDto {
   @IsOptional()
-  @IsEnum(ExportType)
+  @IsEnum(ExportTypeEnum)
   type?: ExportType;
 
   @IsOptional()
-  @IsEnum(ExportFormat)
+  @IsEnum(ExportFormatEnum)
   format?: ExportFormat;
 
   @IsOptional()
@@ -31,6 +31,6 @@ export class ExportLogFilterDto {
 
 export class ExportDto {
   @IsOptional()
-  @IsEnum(ExportFormat)
+  @IsEnum(ExportFormatEnum)
   format?: ExportFormat = 'xlsx';
 }

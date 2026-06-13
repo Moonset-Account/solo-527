@@ -23,6 +23,10 @@ export class ContractService {
     return this.contractRepo.findOne({ where: { projectId } });
   }
 
+  async findById(id: string) {
+    return this.contractRepo.findOne({ where: { id }, relations: ['project'] });
+  }
+
   async create(projectId: string, dto: CreateContractDto) {
     const budget = await this.budgetRepo.findOne({ where: { id: dto.budgetId } });
     if (!budget) throw new NotFoundException('Budget not found');

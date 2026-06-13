@@ -18,6 +18,11 @@ import { RolesGuard } from '../auth/roles.guard.js';
 export class ContractController {
   constructor(private contractService: ContractService) {}
 
+  @Get('contracts/:id')
+  async findById(@Param('id') id: string) {
+    return this.contractService.findById(id);
+  }
+
   @Get('projects/:projectId/contract')
   async findByProject(@Param('projectId') projectId: string) {
     return this.contractService.findByProject(projectId);

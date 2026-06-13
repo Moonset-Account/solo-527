@@ -6,10 +6,22 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { User } from '../auth/user.entity.js';
+import { User } from '../common/user.entity.js';
 
-export type ExportType = 'feedbacks' | 'after_sale' | 'budget' | 'projects';
-export type ExportFormat = 'xlsx' | 'csv';
+export const ExportTypeEnum = {
+  FEEDBACKS: 'feedbacks',
+  AFTER_SALE: 'after_sale',
+  BUDGET: 'budget',
+  PROJECTS: 'projects',
+} as const;
+
+export const ExportFormatEnum = {
+  XLSX: 'xlsx',
+  CSV: 'csv',
+} as const;
+
+export type ExportType = typeof ExportTypeEnum[keyof typeof ExportTypeEnum];
+export type ExportFormat = typeof ExportFormatEnum[keyof typeof ExportFormatEnum];
 
 @Entity('export_logs')
 export class ExportLog {
