@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id      Int    @id @default(autoincrement())
+  name    String
+  address String
+  users   User[]
+}
+
+model User {
+  id                Int               @id @default(autoincrement())
+  username          String            @unique
+  password          String
+  displayName       String
+  role              String
+  storeId           Int
+  store             Store             @relation(fields: [storeId], references: [id])
+  createdAt         DateTime          @default(now())
+  confirmedAlerts   Alert[]           @relation("ConfirmedAlerts")
+  escalatedAlerts   Alert[]           @relation("EscalatedAlerts")
+  dutyAlerts        Alert[]           @relation("DutyAlerts")
+  submittedRequests AccountRequest[]  @relation("SubmittedRequests")
+  approvedRequests  AccountRequest[]  @relation("ApprovedRequests")
+  dutyRequests      AccountRequest[]  @relation("DutyRequests")
+  inspectionPlans   InspectionPlan[]
+  inspectionTasks   InspectionTask[]
+  dutySchedules     DutySchedule[]
+  processRecords    ProcessRecord[]
+  auditLogs         AuditLog[]
+}
+
+model Alert {
+  id              Int       @id @default(autoincrement())
+  title           String
+  level           String    @default("info")
+  source          String
+  description     String?
+  status          String    @default("pending")
+  confirmedBy     Int?
+  confirmedAt     DateTime?
+  escalatedTo     Int?
+  escalatedAt     DateTime?
+  dutyStaffId     Int?
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+  confirmedByUser User?     @relation("ConfirmedAlerts", fields: [confirmedBy], references: [id])
+  escalatedToUser User?     @relation("EscalatedAlerts", fields: [escalatedTo], references: [id])
+  dutyStaff       User?     @relation("DutyAlerts", fields: [dutyStaffId], references: [id])
+  processRecords  ProcessRecord[]
+  auditLogs       AuditLog[]
+}
+
+model AccountRequest {
+  id              Int            @id @default(autoincrement())
+  accountType     String
+  purpose         String
+  urgency         String         @default("medium")
+  reason          String?
+  status          String         @default("pending")
+  applicantId     Int
+  approverId      Int?
+  approvalNote    String?
+  approvedAt      DateTime?
+  dutyStaffId     Int?
+  createdAt       DateTime       @default(now())
+  completedAt     DateTime?
+  applicant       User           @relation("SubmittedRequests", fields: [applicantId], references: [id])
+  approver        User?          @relation("ApprovedRequests", fields: [approverId], references: [id])
+  dutyStaff       User?          @relation("DutyRequests", fields: [dutyStaffId], references: [id])
+  processRecords  ProcessRecord[]
+  auditLogs       AuditLog[]
+}
+
+model InspectionPlan {
+  id         Int               @id @default(autoincrement())
+  name       String
+  frequency  String            @default("weekly")
+  assigneeId Int
+  assignee   User              @relation(fields: [assigneeId], references: [id])
+  createdAt  DateTime          @default(now())
+  tasks      InspectionTask[]
+}
+
+model InspectionTask {
+  id            Int              @id @default(autoincrement())
+  planId        Int
+  status        String           @default("pending")
+  assigneeId    Int
+  result        String?
+  note          String?
+  executedAt    DateTime?
+  scheduledDate DateTime
+  createdAt     DateTime         @default(now())
+  plan          InspectionPlan   @relation(fields: [planId], references: [id])
+  assignee      User             @relation(fields: [assigneeId], references: [id])
+  processRecords ProcessRecord[]
+}
+
+model DutySchedule {
+  id        Int      @id @default(autoincrement())
+  staffId   Int
+  date      DateTime
+  shift     String   @default("morning")
+  createdAt DateTime @default(now())
+  staff     User     @relation(fields: [staffId], references: [id])
+}
+
+model ProcessRecord {
+  id                 Int              @id @default(autoincrement())
+  ticketType         String
+  ticketId           Int
+  action             String
+  note               String?
+  operatorId         Int
+  duration           Int?
+  createdAt          DateTime         @default(now())
+  operator           User             @relation(fields: [operatorId], references: [id])
+  alertId            Int?
+  alert              Alert?           @relation(fields: [alertId], references: [id])
+  accountRequestId   Int?
+  accountRequest     AccountRequest?  @relation(fields: [accountRequestId], references: [id])
+  inspectionTaskId   Int?
+  inspectionTask     InspectionTask?  @relation(fields: [inspectionTaskId], references: [id])
+}
+
+model AuditLog {
+  id                  Int             @id @default(autoincrement())
+  operatorId          Int
+  action              String
+  entityType          String
+  entityId            Int
+  detail              String?
+  createdAt           DateTime        @default(now())
+  operator            User            @relation(fields: [operatorId], references: [id])
+  alertId             Int?
+  alert               Alert?          @relation(fields: [alertId], references: [id])
+  accountRequestId    Int?
+  accountRequest      AccountRequest? @relation(fields: [accountRequestId], references: [id])
+}
