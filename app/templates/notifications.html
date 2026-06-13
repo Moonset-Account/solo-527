@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}通知中心 - 松石排课消课台{% endblock %}
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-title">通知中心</div>
+        <a class="menu-item active" href="/notifications"><span class="menu-icon">🔔</span>全部通知</a>
+        <a class="menu-item" href="/notifications/unread"><span class="menu-icon">🆕</span>未读消息</a>
+        <a class="menu-item" href="/notifications/class"><span class="menu-icon">📅</span>上课提醒</a>
+        <a class="menu-item" href="/notifications/homework"><span class="menu-icon">📝</span>作业反馈</a>
+        <a class="menu-item" href="/notifications/hours"><span class="menu-icon">⏱️</span>课时预警</a>
+        <div class="sidebar-title" style="margin-top:16px;">设置</div>
+        <a class="menu-item" href="/notifications/settings"><span class="menu-icon">⚙️</span>通知设置</a>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">🔔 通知中心</h1>
+            <p class="page-subtitle">查看排课提醒、作业反馈、课时预警等系统通知</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">消息列表</div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-sm btn-secondary" onclick="markAllRead()">✓ 全部标为已读</button>
+                    {% if current_user.role in ['super_admin', 'admin', 'principal', 'staff'] %}
+                    <button class="btn btn-sm btn-primary" onclick="showSendNotification()">📢 发送通知</button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body" id="notif-list" hx-get="/partials/notifications?limit=100" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+                <div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markAllRead() {
+    if (!confirm('确认全部标为已读？')) return;
+    htmx.ajax('POST', '/api/notifications/read-all', {
+        target: 'body',
+        onSuccess: () => { location.reload(); showToast('已全部标记为已读'); }
+    });
+}
+
+function markRead(id) {
+    htmx.ajax('POST', `/api/notifications/${id}/read`, {
+        target: 'body',
+        onSuccess: () => { document.getElementById(`notif-${id}`)?.classList.add('read-item'); }
+    });
+}
+
+function showSendNotification() {
+    fetch('/api/admin/users').then(r=>r.json()).then(users=>{
+        openModal(`
+            <div class="modal-header"><div class="modal-title">📢 发送系统通知</div><button class="modal-close" onclick="closeModal()">×</button></div>
+            <form hx-post="/api/notifications" class="modal-body" hx-on::after-request="if(event.detail.successful){closeModal();location.reload();showToast('通知已发送')}">
+                <div class="form-row"><label class="form-label">接收用户 *</label>
+                    <select class="form-select" name="recipient_id" required>
+                        <option value="">请选择用户</option>
+                        ${users.map(u=>`<option value="${u.id}">${u.real_name || u.username} (${u.role})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-grid-2">
+                    <div class="form-row"><label class="form-label">通知类型</label>
+                        <select class="form-select" name="notification_type">
+                            <option value="notice">系统公告</option>
+                            <option value="class_reminder">上课提醒</option>
+                            <option value="homework">作业通知</option>
+                            <option value="feedback">反馈通知</option>
+                            <option value="hours_low">课时预警</option>
+                            <option value="schedule_change">排课变更</option>
+                        </select>
+                    </div>
+                    <div class="form-row"><label class="form-label">推送渠道</label>
+                        <select class="form-select" name="channel">
+                            <option value="in_app">站内信</option>
+                            <option value="sms">短信</option>
+                            <option value="wechat">微信</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row"><label class="form-label">通知标题 *</label><input class="form-input" name="title" required></div>
+                <div class="form-row"><label class="form-label">通知内容 *</label><textarea class="form-textarea" name="content" rows="5" required></textarea></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">发送通知</button>
+                </div>
+            </form>
+        `);
+    });
+}
+</script>
+<style>.read-item{opacity:0.6;}</style>
+{% endblock %}

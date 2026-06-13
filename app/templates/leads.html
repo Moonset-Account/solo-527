@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}招生转化 - 松石排课消课台{% endblock %}
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-title">招生中心</div>
+        <a class="menu-item active" href="/leads"><span class="menu-icon">🎯</span>线索管理</a>
+        <a class="menu-item" href="/leads/funnel"><span class="menu-icon">📈</span>转化漏斗</a>
+        <a class="menu-item" href="/leads/followups"><span class="menu-icon">💬</span>跟进记录</a>
+        <div class="sidebar-title" style="margin-top:16px;">数据分析</div>
+        <a class="menu-item" href="/reports#conversion"><span class="menu-icon">📊</span>转化报表</a>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">招生转化</h1>
+            <p class="page-subtitle">管理线索、跟进记录、转化状态，月底复盘招生情况</p>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns: repeat(5, 1fr);" id="funnel-stats"
+             hx-get="/partials/funnel" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+            <div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🎯 线索列表</div>
+                <div style="display:flex; gap:8px;">
+                    <select class="form-select" style="width:120px;" id="filter-status" onchange="loadLeads()">
+                        <option value="">全部状态</option>
+                        <option value="new">新线索</option>
+                        <option value="contacted">已联系</option>
+                        <option value="interested">有意向</option>
+                        <option value="trial_scheduled">已约试听</option>
+                        <option value="trial_completed">试听完成</option>
+                        <option value="converted">已转化</option>
+                        <option value="lost">已流失</option>
+                    </select>
+                    <select class="form-select" style="width:120px;" id="filter-source" onchange="loadLeads()">
+                        <option value="">全部来源</option>
+                        <option value="online_ad">线上广告</option>
+                        <option value="referral">转介绍</option>
+                        <option value="walk_in">上门咨询</option>
+                        <option value="phone">电话咨询</option>
+                        <option value="event">活动</option>
+                        <option value="other">其他</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="showCreateLead()">➕ 录入线索</button>
+                </div>
+            </div>
+            <div class="card-body" id="leads-list" hx-get="/partials/leads" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+                <div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadLeads() {
+    const s = document.getElementById('filter-status').value;
+    const so = document.getElementById('filter-source').value;
+    let url = '/partials/leads?';
+    if (s) url += `status=${s}&`;
+    if (so) url += `source=${so}&`;
+    htmx.ajax('GET', url, { target: '#leads-list' });
+}
+
+function showCreateLead() {
+    fetch('/api/admin/campuses').then(r=>r.json()).then(campuses=>{
+        fetch('/api/admin/users?role=staff').then(r2=>r2.json()).then(staffs=>{
+            openModal(`
+                <div class="modal-header"><div class="modal-title">➕ 录入线索</div><button class="modal-close" onclick="closeModal()">×</button></div>
+                <form hx-post="/api/leads" class="modal-body" hx-on::after-request="if(event.detail.successful){closeModal();loadLeads();htmx.trigger('#funnel-stats','load');showToast('线索已录入')}">
+                    <div class="form-grid-2">
+                        <div class="form-row"><label class="form-label">家长姓名 *</label><input class="form-input" name="name" required></div>
+                        <div class="form-row"><label class="form-label">联系电话 *</label><input class="form-input" name="phone" required></div>
+                        <div class="form-row"><label class="form-label">邮箱</label><input type="email" class="form-input" name="email"></div>
+                        <div class="form-row"><label class="form-label">孩子姓名</label><input class="form-input" name="student_name"></div>
+                        <div class="form-row"><label class="form-label">孩子年龄</label><input type="number" class="form-input" name="student_age"></div>
+                        <div class="form-row"><label class="form-label">孩子年级</label>
+                            <select class="form-select" name="student_grade">
+                                <option value="">请选择</option>
+                                ${['幼儿园','小班','中班','大班','一年级','二年级','三年级','四年级','五年级','六年级','初一','初二','初三'].map(g=>`<option value="${g}">${g}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-row"><label class="form-label">来源渠道</label>
+                            <select class="form-select" name="source">
+                                <option value="other">其他</option>
+                                <option value="online_ad">线上广告</option>
+                                <option value="referral">转介绍</option>
+                                <option value="walk_in">上门咨询</option>
+                                <option value="phone">电话咨询</option>
+                                <option value="event">活动</option>
+                            </select>
+                        </div>
+                        <div class="form-row"><label class="form-label">所属校区</label>
+                            <select class="form-select" name="campus_id">
+                                <option value="">请选择</option>
+                                ${campuses.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row"><label class="form-label">备注 / 需求描述</label><textarea class="form-textarea" name="remarks" rows="3"></textarea></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存线索</button>
+                    </div>
+                </form>
+            `);
+        });
+    });
+}
+
+function viewLeadFollowups(leadId, name, phone) {
+    fetch(`/api/leads/funnel`).then(()=>{
+        openModal(`
+            <div class="modal-header"><div class="modal-title">💬 ${name} (${phone}) - 跟进详情</div><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="margin-bottom:16px;">
+                    <button class="btn btn-sm btn-primary" onclick="showAddFollowup(${leadId}, '${name}')">➕ 添加跟进</button>
+                    <button class="btn btn-sm btn-success" onclick="convertLead(${leadId})">✅ 标记转化</button>
+                </div>
+                <div class="timeline" id="followups-list-${leadId}" hx-get="/api/leads" hx-trigger="load">
+                    <div class="empty">暂无跟进记录</div>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+        `);
+    });
+}
+
+function showAddFollowup(leadId, name) {
+    openModal(`
+        <div class="modal-header"><div class="modal-title">📝 添加跟进 - ${name}</div><button class="modal-close" onclick="closeModal()">×</button></div>
+        <form hx-post="/api/leads/follow-up" class="modal-body" hx-on::after-request="if(event.detail.successful){closeModal();loadLeads();showToast('跟进记录已保存')}">
+            <input type="hidden" name="lead_id" value="${leadId}">
+            <div class="form-grid-2">
+                <div class="form-row"><label class="form-label">跟进方式</label>
+                    <select class="form-select" name="method">
+                        <option value="">请选择</option>
+                        <option value="phone">电话</option>
+                        <option value="wechat">微信</option>
+                        <option value="visit">上门</option>
+                        <option value="trial">试听</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-row"><label class="form-label">下次跟进时间</label><input type="datetime-local" class="form-input" name="next_action"></div>
+            </div>
+            <div class="form-row"><label class="form-label">沟通内容 *</label><textarea class="form-textarea" name="content" rows="4" required></textarea></div>
+            <div class="form-row"><label class="form-label">沟通结果</label><input class="form-input" name="result" placeholder="如：已预约下周六试听"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    `);
+}
+
+function convertLead(leadId) {
+    if (!confirm('确认将该线索标记为已转化？')) return;
+    htmx.ajax('POST', '/api/leads/convert', {
+        values: { lead_id: leadId },
+        target: 'body',
+        onSuccess: () => { loadLeads(); htmx.trigger('#funnel-stats','load'); showToast('已标记为转化成功'); }
+    });
+}
+</script>
+{% endblock %}

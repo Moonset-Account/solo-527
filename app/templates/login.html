@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 松石排课消课台</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        }
+        .login-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            color: white;
+        }
+        .brand-logo { font-size: 48px; margin-bottom: 24px; }
+        .brand-title {
+            font-size: 38px; font-weight: 700; margin-bottom: 16px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .brand-sub { font-size: 16px; opacity: 0.9; line-height: 1.8; max-width: 480px; }
+        .features { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .feature {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+        .feature-icon { font-size: 22px; }
+        .login-right {
+            width: 520px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        .login-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        .login-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+        .login-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 32px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .login-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+        .remember { display: flex; align-items: center; gap: 6px; color: #6b7280; cursor: pointer; }
+        .forgot { color: #667eea; text-decoration: none; font-weight: 500; }
+        .login-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(102,126,234,0.3);
+        }
+        .login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+        .error-box {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        .demo-tips {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #075985;
+            line-height: 1.7;
+        }
+        .demo-tips strong { color: #0369a1; }
+        @media (max-width: 960px) {
+            .login-left { display: none; }
+            .login-right { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-left">
+        <div class="brand-logo">📚</div>
+        <h1 class="brand-title">松石排课消课台</h1>
+        <p class="brand-sub">专为少儿编程教育机构打造的一站式排课、消课、课时管理系统。智能排课、冲突提醒、课时统计、招生转化，让教务工作轻松高效。</p>
+        <div class="features">
+            <div class="feature"><span class="feature-icon">📅</span><span>智能排课<br/>冲突自动提醒</span></div>
+            <div class="feature"><span class="feature-icon">⏱️</span><span>一键消课<br/>课时实时统计</span></div>
+            <div class="feature"><span class="feature-icon">📝</span><span>作业点评<br/>家长即时通知</span></div>
+            <div class="feature"><span class="feature-icon">📊</span><span>报表复盘<br/>招生转化分析</span></div>
+        </div>
+    </div>
+    <div class="login-right">
+        <div class="login-box">
+            <h2 class="login-title">欢迎回来 👋</h2>
+            <p class="login-subtitle">登录您的账号继续使用</p>
+
+            {% if error %}
+            <div class="error-box">{{ error }}</div>
+            {% endif %}
+
+            <form hx-post="/api/auth/login" hx-target="this" hx-swap="outerHTML"
+                  onsubmit="document.getElementById('login-btn').disabled=true;">
+                <div class="form-group">
+                    <label class="form-label">邮箱 / 手机号</label>
+                    <input class="form-input" type="text" name="email" required
+                           placeholder="请输入邮箱或手机号" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input class="form-input" type="password" name="password" required
+                           placeholder="请输入密码" autocomplete="current-password">
+                </div>
+                <div class="login-options">
+                    <label class="remember">
+                        <input type="checkbox" name="remember_me" checked> 记住登录状态
+                    </label>
+                    <a href="#" class="forgot">忘记密码？</a>
+                </div>
+                <button type="submit" id="login-btn" class="login-btn">
+                    立即登录
+                </button>
+            </form>
+
+            <div class="demo-tips">
+                <strong>🎯 演示账号：</strong><br/>
+                超管：admin@songshi.com / Admin@123456<br/>
+                校长：principal@songshi.com / Test@123456<br/>
+                教务：staff@songshi.com / Test@123456<br/>
+                老师：teacher@songshi.com / Test@123456
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('htmx:afterRequest', function(evt) {
+            try {
+                const data = JSON.parse(evt.detail.xhr.responseText);
+                if (data.access_token) {
+                    window.location.href = '/';
+                } else if (data.detail) {
+                    alert(data.detail);
+                    document.getElementById('login-btn').disabled = false;
+                    location.reload();
+                }
+            } catch(e) {
+                alert('登录请求失败，请重试');
+            }
+        });
+    </script>
+</body>
+</html>

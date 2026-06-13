@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}操作审计 - 松石排课消课台{% endblock %}
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-title">审计中心</div>
+        <a class="menu-item active" href="/audit"><span class="menu-icon">📋</span>操作审计日志</a>
+        <a class="menu-item" href="/audit/changes"><span class="menu-icon">🔄</span>数据变更追踪</a>
+        <a class="menu-item" href="/audit/login"><span class="menu-icon">🔐</span>登录日志</a>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">📋 操作审计日志</h1>
+            <p class="page-subtitle">完整记录系统所有操作，谁在什么时间改了什么，一目了然</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">查询条件</div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <input type="date" class="form-input" style="width:140px;" id="start_date" onchange="loadLogs()">
+                    <input type="date" class="form-input" style="width:140px;" id="end_date" onchange="loadLogs()">
+                    <select class="form-select" style="width:130px;" id="action" onchange="loadLogs()">
+                        <option value="">操作类型</option>
+                        <option value="login_success">登录成功</option>
+                        <option value="login_failed">登录失败</option>
+                        <option value="logout">退出登录</option>
+                        <option value="create_user">创建用户</option>
+                        <option value="update_user">修改用户</option>
+                        <option value="create_course">创建课程</option>
+                        <option value="update_course">修改课程</option>
+                        <option value="create_schedule">新建排课</option>
+                        <option value="bulk_create_schedules">批量排课</option>
+                        <option value="cancel_schedule">取消排课</option>
+                        <option value="create_homework">发布作业</option>
+                        <option value="review_homework">点评作业</option>
+                        <option value="create_lead">录入线索</option>
+                        <option value="convert_lead">转化线索</option>
+                        <option value="consume_hours">消课</option>
+                        <option value="change_password">改密码</option>
+                        <option value="generate_monthly_report">生成月报</option>
+                    </select>
+                    <select class="form-select" style="width:140px;" id="target_type" onchange="loadLogs()">
+                        <option value="">对象类型</option>
+                        <option value="user">用户</option>
+                        <option value="course">课程</option>
+                        <option value="schedule">排课</option>
+                        <option value="homework">作业</option>
+                        <option value="lead">线索</option>
+                        <option value="hour_package">课时包</option>
+                        <option value="campus">校区</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body" id="audit-list" hx-get="/partials/audit?limit=100" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+                <div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadLogs() {
+    const sd = document.getElementById('start_date').value;
+    const ed = document.getElementById('end_date').value;
+    const ac = document.getElementById('action').value;
+    const tt = document.getElementById('target_type').value;
+    let url = '/partials/audit?limit=100&';
+    if (sd) url += `start_date=${sd}&`;
+    if (ed) url += `end_date=${ed}&`;
+    if (ac) url += `action=${ac}&`;
+    if (tt) url += `target_type=${tt}&`;
+    htmx.ajax('GET', url, { target: '#audit-list' });
+}
+</script>
+{% endblock %}

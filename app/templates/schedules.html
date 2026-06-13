@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}排课消课 - 松石排课消课台{% endblock %}
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-title">排课消课</div>
+        <a class="menu-item active" href="/schedules"><span class="menu-icon">📅</span>课程表</a>
+        <a class="menu-item" href="/schedules/create"><span class="menu-icon">➕</span>新建排课</a>
+        <a class="menu-item" href="/schedules/bulk"><span class="menu-icon">📋</span>批量排课</a>
+        <a class="menu-item" href="/schedules/attendance"><span class="menu-icon">✅</span>考勤登记</a>
+        <a class="menu-item" href="/schedules/consume"><span class="menu-icon">⏱️</span>课时消耗</a>
+        <div class="sidebar-title" style="margin-top:16px;">冲突管理</div>
+        <a class="menu-item" href="/schedules/conflicts"><span class="menu-icon">⚠️</span>冲突记录</a>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">排课消课中心</h1>
+            <p class="page-subtitle">查看课程表、新建排课、登记考勤、自动消课，冲突自动提醒校长</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📅 课程表</div>
+                <div style="display:flex; gap:8px;">
+                    <select class="form-select" style="width:140px;" id="filter-status" onchange="loadSchedules()">
+                        <option value="">全部状态</option>
+                        <option value="scheduled">已排课</option>
+                        <option value="conducted">已完成</option>
+                        <option value="cancelled">已取消</option>
+                    </select>
+                    <input type="date" class="form-input" style="width:140px;" id="filter-start" onchange="loadSchedules()">
+                    <input type="date" class="form-input" style="width:140px;" id="filter-end" onchange="loadSchedules()">
+                    <button class="btn btn-sm btn-primary" onclick="showCreateSchedule()">➕ 新建排课</button>
+                    <button class="btn btn-sm btn-secondary" onclick="showBulkSchedule()">📋 批量排课</button>
+                </div>
+            </div>
+            <div class="card-body" id="schedule-list" hx-get="/partials/schedules" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+                <div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadSchedules() {
+    const status = document.getElementById('filter-status').value;
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+    let url = '/partials/schedules?';
+    if (status) url += `status=${status}&`;
+    if (start) url += `start_date=${start}&`;
+    if (end) url += `end_date=${end}&`;
+    htmx.ajax('GET', url, { target: '#schedule-list' });
+}
+
+function showCreateSchedule() {
+    fetch('/api/courses/classes/list').then(r => r.json()).then(classes => {
+        fetch('/api/admin/classrooms').then(r2 => r2.json()).then(classrooms => {
+            fetch('/api/admin/users?role=teacher').then(r3 => r3.json()).then(teachers => {
+                openModal(`
+                    <div class="modal-header">
+                        <div class="modal-title">➕ 新建排课</div>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <form hx-post="/api/schedules" hx-target="body" class="modal-body"
+                          hx-on::after-request="if(event.detail.successful) { closeModal(); loadSchedules(); showToast('排课成功！'); if(event.detail.serverResponse?.has_conflict){showToast('存在排课冲突，已通知校长','warning');} }">
+                        <div class="form-grid-2">
+                            <div class="form-row">
+                                <label class="form-label">班级 *</label>
+                                <select class="form-select" name="course_class_id" required>
+                                    <option value="">请选择班级</option>
+                                    ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">授课老师 *</label>
+                                <select class="form-select" name="teacher_id" required>
+                                    <option value="">请选择老师</option>
+                                    ${teachers.map(t => `<option value="${t.id}">${t.real_name || t.username}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">教室 *</label>
+                                <select class="form-select" name="classroom_id" required>
+                                    <option value="">请选择教室</option>
+                                    ${classrooms.map(r => `<option value="${r.id}">${r.name} (${r.capacity}人)</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">上课日期 *</label>
+                                <input type="date" class="form-input" name="schedule_date" required>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">开始时间 *</label>
+                                <input type="time" class="form-input" name="start_time" value="09:00" required>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">结束时间 *</label>
+                                <input type="time" class="form-input" name="end_time" value="10:30" required>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">节次编号</label>
+                                <input type="number" class="form-input" name="session_no" placeholder="例如：第1次课">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">本节课主题</label>
+                            <input type="text" class="form-input" name="topic" placeholder="例如：Scratch 小猫角色动画">
+                        </div>
+                        <div class="modal-footer">
+                            <input type="hidden" name="check_conflict" value="true">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                            <button type="submit" class="btn btn-primary">创建排课</button>
+                        </div>
+                    </form>
+                `);
+            });
+        });
+    });
+}
+
+function showBulkSchedule() {
+    fetch('/api/courses/classes/list').then(r => r.json()).then(classes => {
+        fetch('/api/admin/classrooms').then(r2 => r2.json()).then(classrooms => {
+            fetch('/api/admin/users?role=teacher').then(r3 => r3.json()).then(teachers => {
+                openModal(`
+                    <div class="modal-header">
+                        <div class="modal-title">📋 批量排课（按周循环）</div>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <form hx-post="/api/schedules/bulk" hx-target="body" class="modal-body"
+                          hx-on::after-request="if(event.detail.successful){closeModal();loadSchedules();const d=event.detail.serverResponse;showToast('成功创建 '+d.created_count+' 节排课');if(d.has_conflict){showToast('部分日期存在冲突，已通知校长','warning');}}">
+                        <div class="form-grid-2">
+                            <div class="form-row">
+                                <label class="form-label">班级 *</label>
+                                <select class="form-select" name="course_class_id" required>
+                                    <option value="">请选择班级</option>
+                                    ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">授课老师 *</label>
+                                <select class="form-select" name="teacher_id" required>
+                                    <option value="">请选择老师</option>
+                                    ${teachers.map(t => `<option value="${t.id}">${t.real_name || t.username}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">教室 *</label>
+                                <select class="form-select" name="classroom_id" required>
+                                    <option value="">请选择教室</option>
+                                    ${classrooms.map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-row">
+                                <label class="form-label">开始日期 *</label>
+                                <input type="date" class="form-input" name="start_date" required>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">结束日期 *</label>
+                                <input type="date" class="form-input" name="end_date" required>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">开始时间 *</label>
+                                <input type="time" class="form-input" name="start_time" value="09:00" required>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">结束时间 *</label>
+                                <input type="time" class="form-input" name="end_time" value="10:30" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">上课星期（可多选）*</label>
+                            <div class="weekday-checkboxes">
+                                <label><input type="checkbox" name="weekdays" value="0" checked><span>周一</span></label>
+                                <label><input type="checkbox" name="weekdays" value="1" checked><span>周二</span></label>
+                                <label><input type="checkbox" name="weekdays" value="2" checked><span>周三</span></label>
+                                <label><input type="checkbox" name="weekdays" value="3" checked><span>周四</span></label>
+                                <label><input type="checkbox" name="weekdays" value="4" checked><span>周五</span></label>
+                                <label><input type="checkbox" name="weekdays" value="5"><span>周六</span></label>
+                                <label><input type="checkbox" name="weekdays" value="6"><span>周日</span></label>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <input type="hidden" name="check_conflict" value="true">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                            <button type="submit" class="btn btn-primary">批量创建排课</button>
+                        </div>
+                    </form>
+                `);
+            });
+        });
+    });
+}
+
+function cancelSchedule(id) {
+    if (!confirm('确定取消该节排课？')) return;
+    htmx.ajax('DELETE', `/api/schedules/${id}`, {
+        target: 'body',
+        onSuccess: () => { loadSchedules(); showToast('排课已取消'); }
+    });
+}
+
+function viewAttendance(id, date, className) {
+    fetch(`/api/schedules/attendance/${id}`).then(r => r.json()).then(data => {
+        const rows = data.length ? data.map(a => `
+            <tr>
+                <td>${a.student_name}</td>
+                <td><span class="tag ${
+                    a.status==='present'?'tag-green':a.status==='absent'?'tag-red':
+                    a.status==='late'?'tag-yellow':a.status==='leave'?'tag-gray':'tag-blue'
+                }">${
+                    a.status==='present'?'出勤':a.status==='absent'?'缺勤':
+                    a.status==='late'?'迟到':a.status==='leave'?'请假':'补课'
+                }</span></td>
+                <td>${a.remarks || '-'}</td>
+                <td>${a.check_in_time ? a.check_in_time.slice(11,16) : '-'}</td>
+            </tr>`).join('') : '<tr><td colspan="4" class="empty" style="padding:24px;">暂无考勤数据</td></tr>';
+        openModal(`
+            <div class="modal-header">
+                <div class="modal-title">📋 ${className} - ${date} 考勤详情</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <table><thead><tr><th>学生姓名</th><th>状态</th><th>备注</th><th>签到时间</th></tr></thead><tbody>${rows}</tbody></table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+                <button class="btn btn-primary" onclick="doConsumeHours(${id})">🔄 一键消课</button>
+            </div>
+        `);
+    });
+}
+
+function doConsumeHours(scheduleId) {
+    if (!confirm('将对本节所有出勤学生自动扣减课时，是否继续？')) return;
+    htmx.ajax('POST', '/api/schedules/consume-hours', {
+        values: { schedule_id: scheduleId, auto_consume: true },
+        target: 'body',
+        onSuccess: (res) => {
+            closeModal();
+            loadSchedules();
+            if (res.errors?.length) showToast('部分学生扣减失败：'+res.errors.join(','), 'warning');
+            else showToast(`成功消课 ${res.consumed_count} 人`);
+        }
+    });
+}
+</script>
+{% endblock %}
