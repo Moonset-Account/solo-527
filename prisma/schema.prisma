@@ -1,0 +1,176 @@
+// Prisma schema for Sales Anomaly Monitor
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SALES_DIRECTOR
+  SALES_MANAGER
+  DATA_OPERATOR
+}
+
+enum AlertPeriod {
+  DAY
+  WEEK
+  MONTH
+}
+
+enum ThresholdType {
+  ABSOLUTE
+  PERCENTAGE
+}
+
+enum AlertDirection {
+  ABOVE
+  BELOW
+  BOTH
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AnomalyStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  IGNORED
+}
+
+model User {
+  id                     String             @id @default(cuid())
+  clerkId                String             @unique
+  email                  String             @unique
+  name                   String?
+  role                   UserRole           @default(SALES_MANAGER)
+  avatarUrl              String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  alertRules             AlertRule[]
+  assignedAnomalies      Anomaly[]          @relation("assignedAnomalies")
+  comments               AnomalyComment[]
+  createdMetricChanges   MetricChangeLog[]  @relation("createdChanges")
+  approvedMetricChanges  MetricChangeLog[]  @relation("approvedChanges")
+}
+
+model Metric {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  formula     String?
+  dataSource  String?
+  unit        String
+  category    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  alertRules  AlertRule[]
+  anomalies   Anomaly[]
+  changeLogs  MetricChangeLog[]
+  dataPoints  MetricDataPoint[]
+}
+
+model AlertRule {
+  id             String         @id @default(cuid())
+  name           String
+  metricId       String
+  metric         Metric         @relation(fields: [metricId], references: [id])
+  period         AlertPeriod
+  thresholdType  ThresholdType
+  thresholdValue Float
+  direction      AlertDirection
+  severity       AlertSeverity
+  channels       Json
+  isEnabled      Boolean        @default(true)
+  createdById    String
+  createdBy      User           @relation(fields: [createdById], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  anomalies      Anomaly[]
+}
+
+model Anomaly {
+  id                 String        @id @default(cuid())
+  alertRuleId        String
+  alertRule          AlertRule     @relation(fields: [alertRuleId], references: [id])
+  metricId           String
+  metric             Metric        @relation(fields: [metricId], references: [id])
+  detectedAt         DateTime      @default(now())
+  periodStart        DateTime
+  periodEnd          DateTime
+  actualValue        Float
+  expectedValue      Float
+  deviation          Float
+  deviationPercentage Float
+  severity           AlertSeverity
+  status             AnomalyStatus @default(OPEN)
+  summary            String?
+  rootCause          String?
+  rootCauseCategory  String?
+  assignedToId       String?
+  assignedTo         User?         @relation("assignedAnomalies", fields: [assignedToId], references: [id])
+  resolvedAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  comments           AnomalyComment[]
+
+  @@index([status])
+  @@index([severity])
+  @@index([detectedAt])
+}
+
+model AnomalyComment {
+  id         String   @id @default(cuid())
+  anomalyId  String
+  anomaly    Anomaly  @relation(fields: [anomalyId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([anomalyId])
+}
+
+model MetricChangeLog {
+  id           String   @id @default(cuid())
+  metricId     String
+  metric       Metric   @relation(fields: [metricId], references: [id])
+  fieldChanged String
+  oldValue     String?
+  newValue     String?
+  createdById  String
+  createdBy    User     @relation("createdChanges", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  approvedById String?
+  approvedBy   User?    @relation("approvedChanges", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  description  String?
+
+  @@index([metricId])
+  @@index([createdAt])
+}
+
+model MetricDataPoint {
+  id        String   @id @default(cuid())
+  metricId  String
+  metric    Metric   @relation(fields: [metricId], references: [id])
+  date      DateTime
+  value     Float
+  period    AlertPeriod
+
+  @@unique([metricId, date, period])
+  @@index([metricId, date])
+}
