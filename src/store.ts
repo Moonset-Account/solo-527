@@ -285,17 +285,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
           return { batchResult: retryResult };
         }
 
-        const remainingFailures = prev.failures.filter((f) => f.requestId !== requestId);
-        const newSuccessCount = prev.successCount + retryResult.successCount;
-        const newFailCount = remainingFailures.length;
+        const retryFailedItem = retryResult.failures.find((f) => f.requestId === requestId);
+        let newFailures = [...prev.failures];
+        let newSuccessCount = prev.successCount;
+        let newSuccessIds = [...prev.successIds];
+
+        if (retryFailedItem) {
+          newFailures = newFailures.map((f) =>
+            f.requestId === requestId
+              ? { ...f, reason: retryFailedItem.reason, retryable: retryFailedItem.retryable }
+              : f,
+          );
+        } else if (retryResult.successCount > 0 && retryResult.successIds.includes(requestId)) {
+          newFailures = newFailures.filter((f) => f.requestId !== requestId);
+          newSuccessCount = prev.successCount + retryResult.successCount;
+          newSuccessIds = [...prev.successIds, ...retryResult.successIds];
+        }
 
         return {
           batchResult: {
             totalCount: prev.totalCount,
             successCount: newSuccessCount,
-            failCount: newFailCount,
-            successIds: [...prev.successIds, ...retryResult.successIds],
-            failures: remainingFailures,
+            failCount: newFailures.length,
+            successIds: newSuccessIds,
+            failures: newFailures,
           },
         };
       });

@@ -37,14 +37,24 @@ router.post('/process', (req: Request, res: Response): void => {
     const validStatusesForReject: RequestStatus[] = ['identity_verifying', 'quota_checking', 'assigned', 'pending']
 
     if (batch.operation === 'approve' && !validStatusesForApprove.includes(request.status)) {
+      const canRetry = request.status === 'pending' || request.status === 'rejected' || request.status === 'waitlisted'
       result.failCount++
-      result.failures.push({ requestId, reason: `当前状态 ${request.status} 不可审批通过`, retryable: false })
+      result.failures.push({
+        requestId,
+        reason: `当前状态 ${request.status} 不可审批通过，建议先进行身份审核或重试`,
+        retryable: canRetry,
+      })
       continue
     }
 
     if (batch.operation === 'reject' && !validStatusesForReject.includes(request.status)) {
+      const canRetry = request.status === 'rejected' || request.status === 'waitlisted'
       result.failCount++
-      result.failures.push({ requestId, reason: `当前状态 ${request.status} 不可拒绝`, retryable: false })
+      result.failures.push({
+        requestId,
+        reason: `当前状态 ${request.status} 不可拒绝`,
+        retryable: canRetry,
+      })
       continue
     }
 
@@ -156,8 +166,13 @@ router.post('/retry', (req: Request, res: Response): void => {
   }
 
   if (request.status !== 'rejected' && request.status !== 'waitlisted') {
+    const canRetry = request.status !== 'completed'
     result.failCount = 1
-    result.failures.push({ requestId, reason: `当前状态 ${request.status} 不可重试，只有被拒绝或候补的申请可以重试`, retryable: false })
+    result.failures.push({
+      requestId,
+      reason: `当前状态 ${request.status} 不可直接重试，${canRetry ? '可先调整申请状态后再重试' : '已完成的申请无法重试'}`,
+      retryable: canRetry,
+    })
     res.json({ success: true, data: result })
     return
   }
