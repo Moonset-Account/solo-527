@@ -14,7 +14,8 @@ router.get('/', authenticate, requireRoles('FINANCE_STAFF', 'FINANCE_MANAGER', '
     const where = {};
 
     if (status) {
-      where.status = status;
+      const statuses = Array.isArray(status) ? status : status.split(',');
+      where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
     }
 
     if (customerId) {

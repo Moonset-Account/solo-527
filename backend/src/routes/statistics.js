@@ -172,7 +172,10 @@ router.get('/export/bills', authenticate, async (req, res) => {
     const isCustomer = req.user.role === 'CUSTOMER';
 
     const where = {};
-    if (status) where.status = status;
+    if (status) {
+      const statuses = Array.isArray(status) ? status : status.split(',');
+      where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
+    }
     if (customerId && !isCustomer) where.customerId = parseInt(customerId);
     if (startDate || endDate) {
       where.billDate = {};
@@ -256,7 +259,10 @@ router.get('/export/transactions', authenticate, requireRoles('FINANCE_STAFF', '
     const { status, customerId, startDate, endDate } = req.query;
 
     const where = {};
-    if (status) where.status = status;
+    if (status) {
+      const statuses = Array.isArray(status) ? status : status.split(',');
+      where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
+    }
     if (customerId) where.customerId = parseInt(customerId);
     if (startDate || endDate) {
       where.transDate = {};
@@ -321,7 +327,10 @@ router.get('/export/payments', authenticate, async (req, res) => {
     const isCustomer = req.user.role === 'CUSTOMER';
 
     const where = {};
-    if (status) where.status = status;
+    if (status) {
+      const statuses = Array.isArray(status) ? status : status.split(',');
+      where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
+    }
     if (customerId && !isCustomer) where.customerId = parseInt(customerId);
     if (billId) where.billId = parseInt(billId);
     if (startDate || endDate) {
@@ -405,7 +414,10 @@ router.get('/export/collections', authenticate, requireRoles('FINANCE_STAFF', 'F
     const { status, customerId, priority } = req.query;
 
     const where = {};
-    if (status) where.status = status;
+    if (status) {
+      const statuses = Array.isArray(status) ? status : status.split(',');
+      where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
+    }
     if (customerId) where.customerId = parseInt(customerId);
     if (priority) where.priority = priority;
 

@@ -208,7 +208,8 @@ router.get('/options/list', authenticate, async (req, res) => {
     }
 
     if (status) {
-      where.status = status;
+      const statuses = Array.isArray(status) ? status : status.split(',');
+      where.status = statuses.length > 1 ? { in: statuses } : statuses[0];
     }
 
     const bills = await prisma.bill.findMany({
