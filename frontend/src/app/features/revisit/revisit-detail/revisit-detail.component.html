@@ -1,0 +1,173 @@
+<div class="container">
+  <app-page-header [title]="isRecordContact ? '记录联系' : (isEdit ? '编辑复诊流失记录' : '新增复诊流失记录')"></app-page-header>
+
+  <mat-card>
+    <mat-card-content>
+      <ng-container *ngIf="isRecordContact && revisit">
+        <div class="contact-info">
+          <h3>患者信息</h3>
+          <div class="info-row">
+            <span class="label">患者姓名：</span>
+            <span class="value">{{ revisit.patientName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">联系电话：</span>
+            <span class="value">{{ revisit.patientPhone }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">上次就诊：</span>
+            <span class="value">{{ revisit.lastVisitDate }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">逾期天数：</span>
+            <span class="value">{{ revisit.daysOverdue }} 天</span>
+          </div>
+          <div class="info-row">
+            <span class="label">治疗历史：</span>
+            <span class="value">{{ revisit.treatmentHistory }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">已联系次数：</span>
+            <span class="value">{{ revisit.contactAttempts }} 次</span>
+          </div>
+        </div>
+
+        <mat-divider style="margin: 24px 0;"></mat-divider>
+
+        <form [formGroup]="contactForm" (ngSubmit)="onRecordContact()" class="form-container">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>联系结果</mat-label>
+            <textarea matInput formControlName="contactResult" rows="4" placeholder="请记录与患者的沟通内容" required></textarea>
+          </mat-form-field>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>下次随访日期</mat-label>
+              <input matInput [matDatepicker]="nextPicker" formControlName="nextFollowUpDate">
+              <mat-datepicker-toggle matSuffix [for]="nextPicker"></mat-datepicker-toggle>
+              <mat-datepicker #nextPicker></mat-datepicker>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>备注</mat-label>
+            <textarea matInput formControlName="notes" rows="2"></textarea>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="onCancel()">取消</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="contactForm.invalid">
+              <mat-icon>save</mat-icon>
+              保存记录
+            </button>
+          </div>
+        </form>
+      </ng-container>
+
+      <ng-container *ngIf="!isRecordContact">
+        <form [formGroup]="revisitForm" (ngSubmit)="onSubmit()" class="form-container">
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>患者ID</mat-label>
+              <input matInput formControlName="patientId" type="number" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>患者姓名</mat-label>
+              <input matInput formControlName="patientName" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>联系电话</mat-label>
+              <input matInput formControlName="patientPhone" required>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>上次就诊日期</mat-label>
+              <input matInput [matDatepicker]="lastVisitPicker" formControlName="lastVisitDate" required>
+              <mat-datepicker-toggle matSuffix [for]="lastVisitPicker"></mat-datepicker-toggle>
+              <mat-datepicker #lastVisitPicker></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>预计复诊日期</mat-label>
+              <input matInput [matDatepicker]="expectedPicker" formControlName="expectedReturnDate" required>
+              <mat-datepicker-toggle matSuffix [for]="expectedPicker"></mat-datepicker-toggle>
+              <mat-datepicker #expectedPicker></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>风险等级</mat-label>
+              <mat-select formControlName="churnRiskLevel" required>
+                <mat-option *ngFor="let level of riskLevelOptions" [value]="level.value">{{ level.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>负责人ID</mat-label>
+              <input matInput formControlName="assignedTo" type="number" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>负责人姓名</mat-label>
+              <input matInput formControlName="assignedToName" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" *ngIf="isEdit">
+              <mat-label>状态</mat-label>
+              <mat-select formControlName="status">
+                <mat-option *ngFor="let status of statusOptions" [value]="status.value">{{ status.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>治疗历史</mat-label>
+            <textarea matInput formControlName="treatmentHistory" rows="3" required></textarea>
+          </mat-form-field>
+
+          <div class="form-row" *ngIf="isEdit">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>处理结果</mat-label>
+              <textarea matInput formControlName="outcome" rows="2"></textarea>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>备注</mat-label>
+            <textarea matInput formControlName="notes" rows="3"></textarea>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="onCancel()">取消</button>
+            <button
+              *ngIf="isEdit && revisit?.status !== 'visited' && revisit?.status !== 'lost'"
+              mat-raised-button
+              color="accent"
+              type="button"
+              (click)="onMarkAsVisited()">
+              <mat-icon>check_circle</mat-icon>
+              标记复诊
+            </button>
+            <button
+              *ngIf="isEdit && revisit?.status !== 'visited' && revisit?.status !== 'lost'"
+              mat-raised-button
+              color="warn"
+              type="button"
+              (click)="onMarkAsLost()">
+              <mat-icon>person_off</mat-icon>
+              标记流失
+            </button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="revisitForm.invalid">
+              {{ isEdit ? '更新' : '创建' }}
+            </button>
+          </div>
+        </form>
+      </ng-container>
+    </mat-card-content>
+  </mat-card>
+</div>

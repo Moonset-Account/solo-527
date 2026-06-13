@@ -1,0 +1,122 @@
+<div class="container">
+  <app-page-header [title]="isEdit ? '编辑预约' : '新增预约'"></app-page-header>
+
+  <mat-card>
+    <mat-card-content>
+      <form [formGroup]="appointmentForm" (ngSubmit)="onSubmit()" class="form-container">
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>患者ID</mat-label>
+            <input matInput formControlName="patientId" type="number" required>
+            <mat-error *ngIf="appointmentForm.get('patientId')?.hasError('required')">
+              请输入患者ID
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>患者姓名</mat-label>
+            <input matInput formControlName="patientName" required>
+            <mat-error *ngIf="appointmentForm.get('patientName')?.hasError('required')">
+              请输入患者姓名
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>联系电话</mat-label>
+            <input matInput formControlName="patientPhone" required>
+            <mat-error *ngIf="appointmentForm.get('patientPhone')?.hasError('required')">
+              请输入联系电话
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>医生ID</mat-label>
+            <input matInput formControlName="doctorId" type="number" required>
+            <mat-error *ngIf="appointmentForm.get('doctorId')?.hasError('required')">
+              请输入医生ID
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>医生姓名</mat-label>
+            <input matInput formControlName="doctorName" required>
+            <mat-error *ngIf="appointmentForm.get('doctorName')?.hasError('required')">
+              请输入医生姓名
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>预约类型</mat-label>
+            <mat-select formControlName="type" required>
+              <mat-option *ngFor="let type of appointmentTypes" [value]="type.value">{{ type.label }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="appointmentForm.get('type')?.hasError('required')">
+              请选择预约类型
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>预约日期</mat-label>
+            <input matInput [matDatepicker]="datePicker" formControlName="appointmentDate" required>
+            <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
+            <mat-datepicker #datePicker></mat-datepicker>
+            <mat-error *ngIf="appointmentForm.get('appointmentDate')?.hasError('required')">
+              请选择预约日期
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>可用时段</mat-label>
+            <mat-select formControlName="slotId" required>
+              <mat-option *ngFor="let slot of availableSlots" [value]="slot.id">
+                {{ slot.startTime }} - {{ slot.endTime }} (剩余: {{ slot.maxPatients - slot.currentPatients }})
+              </mat-option>
+            </mat-select>
+            <mat-error *ngIf="appointmentForm.get('slotId')?.hasError('required')">
+              请选择预约时段
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>开始时间</mat-label>
+            <input matInput formControlName="startTime" readonly>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>结束时间</mat-label>
+            <input matInput formControlName="endTime" readonly>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row" *ngIf="isEdit">
+          <mat-form-field appearance="outline">
+            <mat-label>状态</mat-label>
+            <mat-select formControlName="status">
+              <mat-option *ngFor="let status of statusOptions" [value]="status.value">{{ status.label }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>备注</mat-label>
+          <textarea matInput formControlName="notes" rows="3"></textarea>
+        </mat-form-field>
+
+        <div class="form-actions">
+          <button mat-button type="button" (click)="onCancel()">取消</button>
+          <button mat-raised-button color="primary" type="submit" [disabled]="appointmentForm.invalid">
+            {{ isEdit ? '更新' : '创建' }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

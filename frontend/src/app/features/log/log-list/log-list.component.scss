@@ -1,0 +1,55 @@
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-actions button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.url-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.method-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.method-badge.get {
+  background-color: #4caf50;
+}
+
+.method-badge.post {
+  background-color: #2196f3;
+}
+
+.method-badge.put {
+  background-color: #ff9800;
+}
+
+.method-badge.patch {
+  background-color: #9c27b0;
+}
+
+.method-badge.delete {
+  background-color: #f44336;
+}
+
+.error-code {
+  color: #f44336;
+  font-weight: 600;
+}

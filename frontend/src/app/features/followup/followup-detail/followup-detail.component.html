@@ -1,0 +1,168 @@
+<div class="container">
+  <app-page-header [title]="isRecordContact ? '记录随访联系' : (isEdit ? '编辑随访任务' : '新增随访任务')"></app-page-header>
+
+  <mat-card>
+    <mat-card-content>
+      <ng-container *ngIf="isRecordContact && followup">
+        <div class="contact-info">
+          <h3>患者信息</h3>
+          <div class="info-row">
+            <span class="label">患者姓名：</span>
+            <span class="value">{{ followup.patientName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">联系电话：</span>
+            <span class="value">{{ followup.patientPhone }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">治疗类型：</span>
+            <span class="value">{{ followup.treatmentType }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">随访内容：</span>
+            <span class="value">{{ followup.content }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">已联系次数：</span>
+            <span class="value">{{ followup.attempts }} 次</span>
+          </div>
+        </div>
+
+        <mat-divider style="margin: 24px 0;"></mat-divider>
+
+        <form [formGroup]="contactForm" (ngSubmit)="onRecordContact()" class="form-container">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>联系结果</mat-label>
+            <textarea matInput formControlName="response" rows="4" placeholder="请记录与患者的沟通内容" required></textarea>
+          </mat-form-field>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>更新状态</mat-label>
+              <mat-select formControlName="status" required>
+                <mat-option *ngFor="let status of statusOptions" [value]="status.value">{{ status.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>下次随访日期</mat-label>
+              <input matInput [matDatepicker]="nextPicker" formControlName="nextFollowUpDate">
+              <mat-datepicker-toggle matSuffix [for]="nextPicker"></mat-datepicker-toggle>
+              <mat-datepicker #nextPicker></mat-datepicker>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>备注</mat-label>
+            <textarea matInput formControlName="remarks" rows="2"></textarea>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="onCancel()">取消</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="contactForm.invalid">
+              <mat-icon>save</mat-icon>
+              保存记录
+            </button>
+          </div>
+        </form>
+      </ng-container>
+
+      <ng-container *ngIf="!isRecordContact">
+        <form [formGroup]="followupForm" (ngSubmit)="onSubmit()" class="form-container">
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>患者ID</mat-label>
+              <input matInput formControlName="patientId" type="number" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>患者姓名</mat-label>
+              <input matInput formControlName="patientName" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>联系电话</mat-label>
+              <input matInput formControlName="patientPhone" required>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>关联预约ID</mat-label>
+              <input matInput formControlName="appointmentId" type="number" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>治疗类型</mat-label>
+              <input matInput formControlName="treatmentType" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>随访类型</mat-label>
+              <mat-select formControlName="followUpType" required>
+                <mat-option *ngFor="let type of followUpTypeOptions" [value]="type.value">{{ type.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>负责人ID</mat-label>
+              <input matInput formControlName="assignedTo" type="number" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>负责人姓名</mat-label>
+              <input matInput formControlName="assignedToName" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>随访日期</mat-label>
+              <input matInput [matDatepicker]="datePicker" formControlName="followUpDate" required>
+              <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
+              <mat-datepicker #datePicker></mat-datepicker>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>随访内容</mat-label>
+            <textarea matInput formControlName="content" rows="4" required></textarea>
+          </mat-form-field>
+
+          <div class="form-row" *ngIf="isEdit">
+            <mat-form-field appearance="outline">
+              <mat-label>状态</mat-label>
+              <mat-select formControlName="status">
+                <mat-option *ngFor="let status of statusOptions" [value]="status.value">{{ status.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>患者反馈</mat-label>
+              <input matInput formControlName="response">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>下次随访日期</mat-label>
+              <input matInput [matDatepicker]="nextDatePicker" formControlName="nextFollowUpDate">
+              <mat-datepicker-toggle matSuffix [for]="nextDatePicker"></mat-datepicker-toggle>
+              <mat-datepicker #nextDatePicker></mat-datepicker>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>备注</mat-label>
+            <textarea matInput formControlName="remarks" rows="3"></textarea>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="onCancel()">取消</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="followupForm.invalid">
+              {{ isEdit ? '更新' : '创建' }}
+            </button>
+          </div>
+        </form>
+      </ng-container>
+    </mat-card-content>
+  </mat-card>
+</div>

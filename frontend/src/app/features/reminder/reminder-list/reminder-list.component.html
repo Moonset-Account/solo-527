@@ -1,0 +1,187 @@
+<div class="container">
+  <app-page-header
+    title="催办任务管理"
+    [showAddButton]="true"
+    addButtonText="新增任务"
+    addButtonRouterLink="new">
+  </app-page-header>
+
+  <mat-card>
+    <mat-card-content>
+      <form [formGroup]="filterForm" (ngSubmit)="onSearch()" class="filter-bar">
+        <mat-form-field appearance="outline">
+          <mat-label>任务标题</mat-label>
+          <input matInput formControlName="title" placeholder="请输入任务标题">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>患者姓名</mat-label>
+          <input matInput formControlName="patientName" placeholder="请输入患者姓名">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>任务类型</mat-label>
+          <mat-select formControlName="type">
+            <mat-option value="">全部</mat-option>
+            <mat-option *ngFor="let type of typeOptions" [value]="type.value">{{ type.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>优先级</mat-label>
+          <mat-select formControlName="priority">
+            <mat-option value="">全部</mat-option>
+            <mat-option *ngFor="let priority of priorityOptions" [value]="priority.value">{{ priority.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>状态</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="">全部</mat-option>
+            <mat-option *ngFor="let status of statusOptions" [value]="status.value">{{ status.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>开始日期</mat-label>
+          <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+          <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>结束日期</mat-label>
+          <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+          <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+
+        <div class="filter-actions">
+          <button mat-raised-button color="primary" type="submit">
+            <mat-icon>search</mat-icon>
+            查询
+          </button>
+          <button mat-button type="button" (click)="onReset()">
+            <mat-icon>refresh</mat-icon>
+            重置
+          </button>
+        </div>
+      </form>
+
+      <div class="batch-actions" *ngIf="selection.selected.length > 0">
+        <span>已选择 {{ selection.selected.length }} 项</span>
+        <button mat-raised-button color="primary" (click)="onBatchSend()">
+          <mat-icon>send</mat-icon>
+          批量发送
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table mat-table [dataSource]="dataSource" matSort class="full-width">
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef>
+              <mat-checkbox
+                (change)="$event ? toggleAllRows() : null"
+                [checked]="selection.hasValue() && isAllSelected()"
+                [indeterminate]="selection.hasValue() && !isAllSelected()">
+              </mat-checkbox>
+            </th>
+            <td mat-cell *matCellDef="let row">
+              <mat-checkbox (click)="$event.stopPropagation()"
+                (change)="$event ? selection.toggle(row) : null"
+                [checked]="selection.isSelected(row)">
+              </mat-checkbox>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="id">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
+            <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="title">
+            <th mat-header-cell *matHeaderCellDef>任务标题</th>
+            <td mat-cell *matCellDef="let element">{{ element.title }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="patientName">
+            <th mat-header-cell *matHeaderCellDef>患者姓名</th>
+            <td mat-cell *matCellDef="let element">{{ element.patientName }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>类型</th>
+            <td mat-cell *matCellDef="let element">{{ getTypeLabel(element.type) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="priority">
+            <th mat-header-cell *matHeaderCellDef>优先级</th>
+            <td mat-cell *matCellDef="let element">
+              <app-status-badge [status]="element.priority"></app-status-badge>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>状态</th>
+            <td mat-cell *matCellDef="let element">
+              <app-status-badge [status]="element.status"></app-status-badge>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="assignedToName">
+            <th mat-header-cell *matHeaderCellDef>负责人</th>
+            <td mat-cell *matCellDef="let element">{{ element.assignedToName }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="dueDate">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>截止日期</th>
+            <td mat-cell *matCellDef="let element">{{ element.dueDate }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>操作</th>
+            <td mat-cell *matCellDef="let element">
+              <div class="action-buttons">
+                <button
+                  mat-icon-button
+                  color="primary"
+                  (click)="onEdit(element.id)"
+                  matTooltip="编辑">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  color="accent"
+                  (click)="onSendReminder(element.id)"
+                  matTooltip="发送提醒">
+                  <mat-icon>send</mat-icon>
+                </button>
+                <button
+                  *ngIf="element.status !== 'completed' && element.status !== 'cancelled'"
+                  mat-icon-button
+                  color="primary"
+                  (click)="onComplete(element.id)"
+                  matTooltip="标记完成">
+                  <mat-icon>check_circle</mat-icon>
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="total"
+        [pageSize]="pageSize"
+        [pageIndex]="page - 1"
+        [pageSizeOptions]="[10, 20, 50, 100]"
+        (page)="onPageChange($event)"
+        showFirstLastButtons>
+      </mat-paginator>
+    </mat-card-content>
+  </mat-card>
+</div>

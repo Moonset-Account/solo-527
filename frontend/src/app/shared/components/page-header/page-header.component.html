@@ -1,0 +1,11 @@
+<div class="page-header">
+  <h1 class="page-title">{{ title }}</h1>
+  <button
+    *ngIf="showAddButton"
+    mat-raised-button
+    color="primary"
+    [routerLink]="addButtonRouterLink">
+    <mat-icon>add</mat-icon>
+    {{ addButtonText }}
+  </button>
+</div>

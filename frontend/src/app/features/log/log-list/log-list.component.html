@@ -1,0 +1,280 @@
+<div class="container">
+  <app-page-header title="系统日志" [showAddButton]="false"></app-page-header>
+
+  <mat-card>
+    <mat-card-content>
+      <form [formGroup]="filterForm" (ngSubmit)="onSearch()" class="filter-bar">
+        <mat-form-field appearance="outline">
+          <mat-label>操作人</mat-label>
+          <input matInput formControlName="operatorName" placeholder="请输入操作人姓名">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>操作类型</mat-label>
+          <mat-select formControlName="operationType">
+            <mat-option value="">全部</mat-option>
+            <mat-option *ngFor="let type of operationTypeOptions" [value]="type.value">{{ type.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>状态</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="">全部</mat-option>
+            <mat-option *ngFor="let status of statusOptions" [value]="status.value">{{ status.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>开始日期</mat-label>
+          <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+          <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>结束日期</mat-label>
+          <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+          <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+
+        <div class="filter-actions">
+          <button mat-raised-button color="primary" type="submit">
+            <mat-icon>search</mat-icon>
+            查询
+          </button>
+          <button mat-button type="button" (click)="onReset()">
+            <mat-icon>refresh</mat-icon>
+            重置
+          </button>
+          <button mat-raised-button color="accent" type="button" (click)="onExport()">
+            <mat-icon>download</mat-icon>
+            导出
+          </button>
+        </div>
+      </form>
+
+      <mat-tab-group [selectedIndex]="activeTab === 'operations' ? 0 : activeTab === 'requests' ? 1 : 2"
+                     (selectedTabChange)="onTabChange($event.index === 0 ? 'operations' : $event.index === 1 ? 'requests' : 'retries')">
+
+        <mat-tab label="操作日志">
+          <div class="table-container">
+            <table mat-table [dataSource]="operationDataSource" class="full-width">
+              <ng-container matColumnDef="id">
+                <th mat-header-cell *matHeaderCellDef>ID</th>
+                <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="operatorName">
+                <th mat-header-cell *matHeaderCellDef>操作人</th>
+                <td mat-cell *matCellDef="let element">{{ element.operatorName }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="operationType">
+                <th mat-header-cell *matHeaderCellDef>操作类型</th>
+                <td mat-cell *matCellDef="let element">{{ getOperationTypeLabel(element.operationType) }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="targetType">
+                <th mat-header-cell *matHeaderCellDef>目标类型</th>
+                <td mat-cell *matCellDef="let element">{{ element.targetType }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="targetId">
+                <th mat-header-cell *matHeaderCellDef>目标ID</th>
+                <td mat-cell *matCellDef="let element">{{ element.targetId }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="operationTime">
+                <th mat-header-cell *matHeaderCellDef>操作时间</th>
+                <td mat-cell *matCellDef="let element">{{ element.operationTime }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="ip">
+                <th mat-header-cell *matHeaderCellDef>IP地址</th>
+                <td mat-cell *matCellDef="let element">{{ element.ip }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>操作</th>
+                <td mat-cell *matCellDef="let element">
+                  <button mat-icon-button color="primary" (click)="onViewDetail('operation', element.id)" matTooltip="查看详情">
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="operationColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: operationColumns;"></tr>
+            </table>
+          </div>
+
+          <mat-paginator
+            #operationPaginator
+            [length]="operationTotal"
+            [pageSize]="pageSize"
+            [pageIndex]="page - 1"
+            [pageSizeOptions]="[10, 20, 50, 100]"
+            (page)="onPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+        </mat-tab>
+
+        <mat-tab label="API请求日志">
+          <div class="table-container">
+            <table mat-table [dataSource]="requestDataSource" class="full-width">
+              <ng-container matColumnDef="id">
+                <th mat-header-cell *matHeaderCellDef>ID</th>
+                <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="requestMethod">
+                <th mat-header-cell *matHeaderCellDef>方法</th>
+                <td mat-cell *matCellDef="let element">
+                  <span class="method-badge" [ngClass]="element.requestMethod.toLowerCase()">
+                    {{ element.requestMethod }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="requestUrl">
+                <th mat-header-cell *matHeaderCellDef>请求URL</th>
+                <td mat-cell *matCellDef="let element" class="url-cell">{{ element.requestUrl }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="statusCode">
+                <th mat-header-cell *matHeaderCellDef>状态码</th>
+                <td mat-cell *matCellDef="let element">
+                  <span [class.error-code]="element.statusCode >= 400">{{ element.statusCode }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="responseTime">
+                <th mat-header-cell *matHeaderCellDef>响应时间</th>
+                <td mat-cell *matCellDef="let element">{{ element.responseTime }}ms</td>
+              </ng-container>
+
+              <ng-container matColumnDef="requestTime">
+                <th mat-header-cell *matHeaderCellDef>请求时间</th>
+                <td mat-cell *matCellDef="let element">{{ element.requestTime }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="userId">
+                <th mat-header-cell *matHeaderCellDef>用户ID</th>
+                <td mat-cell *matCellDef="let element">{{ element.userId }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>状态</th>
+                <td mat-cell *matCellDef="let element">
+                  <span class="status-badge" [ngClass]="getStatusClass(element.status)">
+                    {{ statusOptions.find(s => s.value === element.status)?.label || element.status }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>操作</th>
+                <td mat-cell *matCellDef="let element">
+                  <button mat-icon-button color="primary" (click)="onViewDetail('request', element.id)" matTooltip="查看详情">
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="requestColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: requestColumns;"></tr>
+            </table>
+          </div>
+
+          <mat-paginator
+            #requestPaginator
+            [length]="requestTotal"
+            [pageSize]="pageSize"
+            [pageIndex]="page - 1"
+            [pageSizeOptions]="[10, 20, 50, 100]"
+            (page)="onPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+        </mat-tab>
+
+        <mat-tab label="API重试日志">
+          <div class="table-container">
+            <table mat-table [dataSource]="retryDataSource" class="full-width">
+              <ng-container matColumnDef="id">
+                <th mat-header-cell *matHeaderCellDef>ID</th>
+                <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="requestLogId">
+                <th mat-header-cell *matHeaderCellDef>请求日志ID</th>
+                <td mat-cell *matCellDef="let element">{{ element.requestLogId }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="retryCount">
+                <th mat-header-cell *matHeaderCellDef>已重试次数</th>
+                <td mat-cell *matCellDef="let element">{{ element.retryCount }} / {{ element.maxRetries }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="maxRetries">
+                <th mat-header-cell *matHeaderCellDef>最大重试次数</th>
+                <td mat-cell *matCellDef="let element">{{ element.maxRetries }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="lastRetryTime">
+                <th mat-header-cell *matHeaderCellDef>上次重试时间</th>
+                <td mat-cell *matCellDef="let element">{{ element.lastRetryTime || '-' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="nextRetryTime">
+                <th mat-header-cell *matHeaderCellDef>下次重试时间</th>
+                <td mat-cell *matCellDef="let element">{{ element.nextRetryTime || '-' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>状态</th>
+                <td mat-cell *matCellDef="let element">
+                  <span class="status-badge" [ngClass]="getStatusClass(element.status)">
+                    {{ retryStatusOptions.find(s => s.value === element.status)?.label || element.status }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>操作</th>
+                <td mat-cell *matCellDef="let element">
+                  <button
+                    *ngIf="element.status === 'pending' || element.status === 'failed'"
+                    mat-icon-button
+                    color="primary"
+                    (click)="onRetry(element.id)"
+                    matTooltip="立即重试">
+                    <mat-icon>refresh</mat-icon>
+                  </button>
+                  <button mat-icon-button color="primary" (click)="onViewDetail('retry', element.id)" matTooltip="查看详情">
+                    <mat-icon>visibility</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="retryColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: retryColumns;"></tr>
+            </table>
+          </div>
+
+          <mat-paginator
+            #retryPaginator
+            [length]="retryTotal"
+            [pageSize]="pageSize"
+            [pageIndex]="page - 1"
+            [pageSizeOptions]="[10, 20, 50, 100]"
+            (page)="onPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+        </mat-tab>
+
+      </mat-tab-group>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,176 @@
+<div class="container">
+  <app-page-header [title]="logType === 'operation' ? '操作日志详情' : logType === 'request' ? 'API请求日志详情' : 'API重试日志详情'" [showAddButton]="false"></app-page-header>
+
+  <mat-card>
+    <mat-card-content>
+      <button mat-button (click)="onBack()" style="margin-bottom: 16px;">
+        <mat-icon>arrow_back</mat-icon>
+        返回列表
+      </button>
+
+      <ng-container *ngIf="logType === 'operation' && operationLog">
+        <h2 class="detail-title">操作日志 #{{ operationLog.id }}</h2>
+
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="label">操作人：</span>
+            <span class="value">{{ operationLog.operatorName }} (ID: {{ operationLog.operatorId }})</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">操作类型：</span>
+            <span class="value">{{ operationLog.operationType }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">目标类型：</span>
+            <span class="value">{{ operationLog.targetType }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">目标ID：</span>
+            <span class="value">{{ operationLog.targetId }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">操作时间：</span>
+            <span class="value">{{ operationLog.operationTime }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">IP地址：</span>
+            <span class="value">{{ operationLog.ip }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">User-Agent：</span>
+            <span class="value">{{ operationLog.userAgent }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">诊所ID：</span>
+            <span class="value">{{ operationLog.clinicId }}</span>
+          </div>
+        </div>
+
+        <mat-divider style="margin: 24px 0;"></mat-divider>
+
+        <h3>操作前数据</h3>
+        <pre class="json-display">{{ formatJson(operationLog.beforeData) }}</pre>
+
+        <h3>操作后数据</h3>
+        <pre class="json-display">{{ formatJson(operationLog.afterData) }}</pre>
+
+        <div class="detail-item" style="margin-top: 24px;">
+          <span class="label">备注：</span>
+          <span class="value">{{ operationLog.remarks || '-' }}</span>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="logType === 'request' && requestLog">
+        <h2 class="detail-title">API请求日志 #{{ requestLog.id }}</h2>
+
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="label">请求方法：</span>
+            <span class="value">
+              <span class="method-badge" [ngClass]="requestLog.requestMethod.toLowerCase()">
+                {{ requestLog.requestMethod }}
+              </span>
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="label">状态码：</span>
+            <span class="value" [class.error-code]="requestLog.statusCode >= 400">{{ requestLog.statusCode }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">响应时间：</span>
+            <span class="value">{{ requestLog.responseTime }}ms</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">用户ID：</span>
+            <span class="value">{{ requestLog.userId || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">请求时间：</span>
+            <span class="value">{{ requestLog.requestTime }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">IP地址：</span>
+            <span class="value">{{ requestLog.ip }}</span>
+          </div>
+          <div class="detail-item full-width">
+            <span class="label">请求URL：</span>
+            <span class="value url-text">{{ requestLog.requestUrl }}</span>
+          </div>
+        </div>
+
+        <mat-divider style="margin: 24px 0;"></mat-divider>
+
+        <h3>请求头</h3>
+        <pre class="json-display">{{ formatJson(requestLog.requestHeaders) }}</pre>
+
+        <h3>请求体</h3>
+        <pre class="json-display">{{ formatJson(requestLog.requestBody) }}</pre>
+
+        <h3>响应头</h3>
+        <pre class="json-display">{{ formatJson(requestLog.responseHeaders) }}</pre>
+
+        <h3>响应体</h3>
+        <pre class="json-display">{{ formatJson(requestLog.responseBody) }}</pre>
+
+        <div class="detail-item" style="margin-top: 24px;">
+          <span class="label">错误信息：</span>
+          <span class="value error-text">{{ requestLog.errorMessage || '-' }}</span>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="logType === 'retry' && retryLog">
+        <h2 class="detail-title">API重试日志 #{{ retryLog.id }}</h2>
+
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="label">请求日志ID：</span>
+            <span class="value">{{ retryLog.requestLogId }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">已重试次数：</span>
+            <span class="value">{{ retryLog.retryCount }} / {{ retryLog.maxRetries }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">最大重试次数：</span>
+            <span class="value">{{ retryLog.maxRetries }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">状态：</span>
+            <span class="value">
+              <span class="status-badge" [ngClass]="retryLog.status === 'success' ? 'status-completed' : 'status-cancelled'">
+                {{ retryLog.status }}
+              </span>
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="label">重试间隔：</span>
+            <span class="value">{{ retryLog.retryInterval }}秒</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">上次重试时间：</span>
+            <span class="value">{{ retryLog.lastRetryTime || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">下次重试时间：</span>
+            <span class="value">{{ retryLog.nextRetryTime || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">创建时间：</span>
+            <span class="value">{{ retryLog.createdAt }}</span>
+          </div>
+        </div>
+
+        <mat-divider style="margin: 24px 0;"></mat-divider>
+
+        <h3>重试历史</h3>
+        <pre class="json-display">{{ formatJson(retryLog.retryHistory) }}</pre>
+
+        <div class="detail-item" style="margin-top: 24px;">
+          <span class="label">错误信息：</span>
+          <span class="value error-text">{{ retryLog.errorMessage || '-' }}</span>
+        </div>
+      </ng-container>
+
+    </mat-card-content>
+  </mat-card>
+</div>
