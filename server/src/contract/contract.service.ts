@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contract } from './contract.entity.js';
 import { Budget } from '../budget/budget.entity.js';
+import { Project } from '../project/project.entity.js';
 import { CreateContractDto, UpdateContractDto } from './dto.js';
+import { NotificationService } from '../notification/notification.service.js';
 
 @Injectable()
 export class ContractService {
@@ -12,6 +14,9 @@ export class ContractService {
     private contractRepo: Repository<Contract>,
     @InjectRepository(Budget)
     private budgetRepo: Repository<Budget>,
+    @InjectRepository(Project)
+    private projectRepo: Repository<Project>,
+    private notificationService: NotificationService,
   ) {}
 
   async findByProject(projectId: string) {
@@ -31,7 +36,7 @@ export class ContractService {
       budgetId: dto.budgetId,
       name: dto.name,
       content: dto.content,
-      totalAmount: budget.totalAmount,
+      totalAmount: budget.totalCost,
       status: 'draft',
     });
     return this.contractRepo.save(contract);
@@ -61,6 +66,31 @@ export class ContractService {
     contract.status = 'signed';
     contract.signedAt = new Date();
     contract.signedIp = ip;
-    return this.contractRepo.save(contract);
+    const saved = await this.contractRepo.save(contract);
+
+    await this.projectRepo.update(contract.projectId, {
+      status: 'contracted',
+      updatedAt: new Date(),
+    });
+
+    const project = await this.projectRepo.findOne({ where: { id: contract.projectId } });
+    if (project) {
+      await this.notificationService.notifyRole(
+        project.companyId,
+        'owner',
+        'contract_signed',
+        `合同已签署 - ${project.name}`,
+        { projectId: contract.projectId, contractId: id }
+      );
+      await this.notificationService.notifyRole(
+        project.companyId,
+        'worker',
+        'contract_signed',
+        `合同已签署，可以开始施工 - ${project.name}`,
+        { projectId: contract.projectId, contractId: id }
+      );
+    }
+
+    return saved;
   }
 }

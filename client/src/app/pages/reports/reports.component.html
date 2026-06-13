@@ -6,7 +6,7 @@
     </button>
   </div>
 
-  <div class="filter-bar">
+  <div class="filter-bar" [formGroup]="filterForm">
     <mat-form-field appearance="outline" class="period-field">
       <mat-label>统计周期</mat-label>
       <mat-select formControlName="period">

@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatListModule } from '@angular/material/list';
@@ -41,6 +41,10 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   unreadCount = 0;
   showNotifications = false;
   private sub = new Subscription();
+  private touchStartX = 0;
+  private touchStartY = 0;
+
+  @ViewChild('sidenav') sidenav!: any;
 
   navItems = [
     { label: '仪表盘', icon: 'dashboard', route: '/admin/dashboard' },
@@ -52,15 +56,18 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   ];
 
   mobileNavItems = [
-    { label: '仪表盘', icon: 'dashboard', route: '/admin/dashboard' },
+    { label: '首页', icon: 'home', route: '/admin/dashboard' },
     { label: '项目', icon: 'folder', route: '/admin/projects' },
+    { label: '新增', icon: 'add_circle', route: '', isAction: true },
     { label: '售后', icon: 'build', route: '/admin/after-sale' },
-    { label: '更多', icon: 'more_horiz', route: '' },
+    { label: '我的', icon: 'person', route: '', isAction: true },
   ];
 
   constructor(
     private authService: AuthService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private router: Router,
+    private elementRef: ElementRef
   ) {
     this.checkScreenSize();
   }
@@ -68,6 +75,30 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   @HostListener('window:resize')
   onResize(): void {
     this.checkScreenSize();
+  }
+
+  @HostListener('touchstart', ['$event'])
+  onTouchStart(event: TouchEvent): void {
+    if (!this.isMobile) return;
+    this.touchStartX = event.touches[0].clientX;
+    this.touchStartY = event.touches[0].clientY;
+  }
+
+  @HostListener('touchend', ['$event'])
+  onTouchEnd(event: TouchEvent): void {
+    if (!this.isMobile) return;
+    const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
+    const deltaX = touchEndX - this.touchStartX;
+    const deltaY = touchEndY - this.touchStartY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (deltaX > 0 && this.touchStartX < 30) {
+        this.sidenavOpened = true;
+      } else if (deltaX < 0 && this.sidenavOpened) {
+        this.sidenavOpened = false;
+      }
+    }
   }
 
   private checkScreenSize(): void {
@@ -85,11 +116,18 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     const user = this.authService.getCurrentUser();
     if (user) {
       this.notificationService.connectWebSocket(user.id);
+      this.notificationService.requestNotificationPermission();
+      this.notificationService.refreshUnreadCount();
     }
     this.sub.add(
       this.notificationService.notification$.subscribe((n) => {
         this.notifications.unshift(n);
         this.unreadCount++;
+      })
+    );
+    this.sub.add(
+      this.notificationService.unreadCount$.subscribe((count) => {
+        this.unreadCount = count;
       })
     );
   }
@@ -129,6 +167,24 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
       this.notifications.forEach((n) => (n.read = true));
       this.unreadCount = 0;
     });
+  }
+
+  onMobileNavItemClick(item: any): void {
+    if (item.isAction) {
+      if (item.label === '新增') {
+        this.router.navigate(['/admin/projects']);
+      } else if (item.label === '我的') {
+        this.showUserMenu();
+      }
+    }
+  }
+
+  private showUserMenu(): void {
+    const event = new MouseEvent('click');
+    const userBtn = this.elementRef.nativeElement.querySelector('.user-btn');
+    if (userBtn) {
+      userBtn.dispatchEvent(event);
+    }
   }
 
   logout(): void {

@@ -16,25 +16,22 @@ export class ProjectPhoto {
   @Column({ name: 'project_id' })
   projectId: string;
 
-  @Column({ length: 200 })
-  filename: string;
+  @Column({ length: 100, nullable: true })
+  area: string;
 
-  @Column({ length: 500 })
-  path: string;
+  @Column({ length: 1000 })
+  url: string;
 
-  @Column({ length: 50, nullable: true })
-  mimetype: string;
+  @Column({ name: 'thumbnail_url', length: 1000, nullable: true })
+  thumbnailUrl: string;
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
-
-  @Column({ name: 'taken_at', type: 'timestamp', nullable: true })
-  takenAt: Date;
+  @Column({ name: 'uploaded_by', nullable: true })
+  uploadedBy: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @ManyToOne(() => Project)
+  @ManyToOne(() => Project, (project) => project.photos)
   @JoinColumn({ name: 'project_id' })
   project: Project;
 }

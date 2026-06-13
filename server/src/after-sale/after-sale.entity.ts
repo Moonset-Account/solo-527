@@ -19,11 +19,8 @@ export class AfterSaleOrder {
   @Column({ name: 'project_id' })
   projectId: string;
 
-  @Column({ name: 'customer_id' })
-  customerId: string;
-
-  @Column({ name: 'assigned_to', nullable: true })
-  assignedTo: string;
+  @Column({ name: 'assignee_id', nullable: true })
+  assigneeId: string;
 
   @Column({ length: 200 })
   title: string;
@@ -34,14 +31,17 @@ export class AfterSaleOrder {
   @Column({ length: 20, default: 'pending' })
   status: string;
 
-  @Column({ length: 50, nullable: true })
-  priority: string;
-
-  @Column({ type: 'text', nullable: true, name: 'resolution_note' })
-  resolutionNote: string;
+  @Column({ name: 'resolved_at', type: 'timestamp', nullable: true })
+  resolvedAt: Date;
 
   @Column({ name: 'closed_at', type: 'timestamp', nullable: true })
   closedAt: Date;
+
+  @Column({ length: 20, nullable: true })
+  source: string;
+
+  @Column({ name: 'source_id', type: 'uuid', nullable: true })
+  sourceId: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -53,11 +53,7 @@ export class AfterSaleOrder {
   @JoinColumn({ name: 'project_id' })
   project: Project;
 
-  @ManyToOne(() => Customer)
-  @JoinColumn({ name: 'customer_id' })
-  customer: Customer;
-
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'assigned_to' })
+  @JoinColumn({ name: 'assignee_id' })
   assignee: User;
 }

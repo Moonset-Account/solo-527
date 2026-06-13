@@ -32,8 +32,8 @@ export class NotificationService {
     return { message: 'All notifications marked as read' };
   }
 
-  async create(userId: string, type: string, title: string, message?: string, data?: any) {
-    const notification = this.notificationRepo.create({ userId, type, title, message, data });
+  async create(userId: string, type: string, title: string, content?: string, relatedId?: string) {
+    const notification = this.notificationRepo.create({ userId, type, title, content, relatedId });
     const saved = await this.notificationRepo.save(notification);
     this.notificationGateway.sendToUser(userId, saved);
     return saved;
@@ -42,7 +42,7 @@ export class NotificationService {
   async notifyRole(companyId: string, role: string, type: string, title: string, data?: any) {
     const users = await this.userRepo.find({ where: { companyId, role } });
     for (const user of users) {
-      await this.create(user.id, type, title, undefined, data);
+      await this.create(user.id, type, title, undefined, data?.budgetId);
     }
   }
 }

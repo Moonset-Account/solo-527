@@ -45,6 +45,7 @@ export interface Project {
   area: number;
   style: string;
   status: ProjectStatus;
+  totalBudget: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -146,8 +147,42 @@ export interface Feedback {
   customerId: string;
   stage: FeedbackStage;
   rating: number;
+  qualityRating?: number;
+  serviceRating?: number;
+  scheduleRating?: number;
+  communicationRating?: number;
+  costRating?: number;
   comment: string;
+  suggestion?: string;
+  wouldRecommend?: boolean;
   createdAt: Date;
+  project?: Project;
+  customer?: Customer;
+}
+
+export interface RatingDistribution {
+  rating: number;
+  count: number;
+}
+
+export interface StageDistribution {
+  stage: string;
+  count: number;
+  avgRating: number;
+}
+
+export interface FeedbackStats {
+  totalCount: number;
+  averageRating: number;
+  averageQualityRating: number;
+  averageServiceRating: number;
+  averageScheduleRating: number;
+  averageCommunicationRating: number;
+  averageCostRating: number;
+  ratingDistribution: RatingDistribution[];
+  stageDistribution: StageDistribution[];
+  wouldRecommendCount: number;
+  wouldRecommendRate: number;
 }
 
 export type AfterSaleStatus = 'pending' | 'processing' | 'closed';
@@ -202,17 +237,44 @@ export interface MonthlyBreakdown {
   avgResolutionDays: number;
 }
 
-export interface BudgetComparison {
-  left: Budget;
-  right: Budget;
-  differences: BudgetDiffItem[];
+export interface BudgetDiffValue {
+  oldValue: number;
+  newValue: number;
+  diff: number;
+  diffPercent: number;
+  changed: boolean;
 }
 
-export interface BudgetDiffItem {
-  category: BudgetItemCategory;
-  leftItem: BudgetItem | null;
-  rightItem: BudgetItem | null;
+export interface BudgetDiffSummary {
+  laborCost: BudgetDiffValue;
+  materialCost: BudgetDiffValue;
+  totalCost: BudgetDiffValue;
+  itemCount: BudgetDiffValue;
+  addedCount: number;
+  removedCount: number;
+  modifiedCount: number;
+}
+
+export interface FieldChange {
   field: string;
-  leftValue: string | number | null;
-  rightValue: string | number | null;
+  label: string;
+  oldValue: number;
+  newValue: number;
+}
+
+export interface BudgetItemDifference {
+  type: 'added' | 'removed' | 'modified';
+  category: BudgetItemCategory;
+  name: string;
+  oldValue: BudgetItem | null;
+  newValue: BudgetItem | null;
+  fieldChanges?: FieldChange[];
+  priceDiff?: number;
+}
+
+export interface BudgetComparison {
+  budgetA: Budget;
+  budgetB: Budget;
+  summary: BudgetDiffSummary;
+  itemDifferences: BudgetItemDifference[];
 }

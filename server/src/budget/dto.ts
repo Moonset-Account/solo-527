@@ -64,21 +64,22 @@ export class BudgetItemDto {
 }
 
 export class CreateBudgetDto {
-  @IsString()
-  @MaxLength(200)
-  name: string;
-
-  @IsOptional()
-  @IsNumber()
-  managementFee?: number;
-
-  @IsOptional()
-  @IsNumber()
-  designFee?: number;
-
   @IsOptional()
   @IsString()
-  remark?: string;
+  changeReason?: string;
+
+  @IsNumber()
+  laborCost: number;
+
+  @IsNumber()
+  materialCost: number;
+
+  @IsNumber()
+  totalCost: number;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
 
   @IsOptional()
   @IsArray()
@@ -90,24 +91,34 @@ export class CreateBudgetDto {
 export class UpdateBudgetDto {
   @IsOptional()
   @IsString()
-  @MaxLength(200)
-  name?: string;
+  changeReason?: string;
 
   @IsOptional()
   @IsNumber()
-  managementFee?: number;
+  laborCost?: number;
 
   @IsOptional()
   @IsNumber()
-  designFee?: number;
+  materialCost?: number;
+
+  @IsOptional()
+  @IsNumber()
+  totalCost?: number;
 
   @IsOptional()
   @IsString()
-  remark?: string;
+  status?: string;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BudgetItemDto)
   items?: BudgetItemDto[];
+}
+
+export class RejectBudgetDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
 }

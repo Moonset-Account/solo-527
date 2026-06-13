@@ -8,7 +8,7 @@
     </div>
   </div>
 
-  <div class="filter-bar">
+  <div class="filter-bar" [formGroup]="filterForm">
     <mat-form-field appearance="outline" class="filter-field">
       <mat-label>状态</mat-label>
       <mat-select formControlName="status">

@@ -19,8 +19,8 @@ export class AfterSaleService {
     return this.api.patch<AfterSaleOrder>(`/after-sale/${id}`, data);
   }
 
-  assign(id: string, assignedTo: string): Observable<AfterSaleOrder> {
-    return this.api.post<AfterSaleOrder>(`/after-sale/${id}/assign`, { assignedTo });
+  assign(id: string, assigneeId: string): Observable<AfterSaleOrder> {
+    return this.api.post<AfterSaleOrder>(`/after-sale/${id}/assign`, { assigneeId });
   }
 
   close(id: string): Observable<AfterSaleOrder> {

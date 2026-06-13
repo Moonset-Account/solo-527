@@ -8,7 +8,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
-import { Budget, BudgetComparison, BudgetDiffItem } from '@shared/models';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTableModule } from '@angular/material/table';
+import { Budget, BudgetComparison, BudgetItemDifference } from '@shared/models';
 import { BudgetService } from '@shared/services/budget.service';
 import { StatusLabelPipe } from '@shared/pipes/status-label.pipe';
 import { CategoryLabelPipe } from '@shared/pipes/category-label.pipe';
@@ -27,6 +31,10 @@ import { CurrencyPipe } from '@shared/pipes/currency.pipe';
     MatChipsModule,
     MatSnackBarModule,
     MatDialogModule,
+    MatSelectModule,
+    MatFormFieldModule,
+    MatProgressBarModule,
+    MatTableModule,
     StatusLabelPipe,
     CategoryLabelPipe,
     CurrencyPipe,
@@ -41,6 +49,20 @@ export class BudgetVersionsComponent implements OnInit {
   comparison: BudgetComparison | null = null;
   leftVersionId = '';
   rightVersionId = '';
+  loadingComparison = false;
+  filterType: 'all' | 'added' | 'removed' | 'modified' = 'all';
+
+  categoryLabels: Record<string, string> = {
+    demolition: '拆除工程',
+    plumbing: '水电工程',
+    masonry: '泥瓦工程',
+    carpentry: '木工工程',
+    painting: '油漆工程',
+    main_material: '主材',
+    other: '其他',
+  };
+
+  displayedColumns: string[] = ['type', 'category', 'name', 'oldValue', 'newValue', 'diff'];
 
   constructor(
     private route: ActivatedRoute,
@@ -72,25 +94,72 @@ export class BudgetVersionsComponent implements OnInit {
       this.snackBar.open('请选择两个版本进行对比', '关闭', { duration: 3000 });
       return;
     }
+    if (this.leftVersionId === this.rightVersionId) {
+      this.snackBar.open('请选择两个不同的版本', '关闭', { duration: 3000 });
+      return;
+    }
+    this.loadingComparison = true;
     this.budgetService.compare(this.leftVersionId, this.rightVersionId).subscribe({
       next: (data) => {
         this.comparison = data;
         this.showComparison = true;
+        this.loadingComparison = false;
       },
-      error: () => this.snackBar.open('对比失败', '关闭', { duration: 3000 }),
+      error: () => {
+        this.snackBar.open('对比失败', '关闭', { duration: 3000 });
+        this.loadingComparison = false;
+      },
     });
   }
 
   closeComparison(): void {
     this.showComparison = false;
     this.comparison = null;
+    this.leftVersionId = '';
+    this.rightVersionId = '';
+    this.filterType = 'all';
   }
 
   goBack(): void {
     this.router.navigate(['/admin/projects', this.projectId]);
   }
 
-  isDiffChanged(diff: BudgetDiffItem): boolean {
-    return diff.leftValue !== diff.rightValue;
+  getFilteredDifferences(): BudgetItemDifference[] {
+    if (!this.comparison) return [];
+    if (this.filterType === 'all') return this.comparison.itemDifferences;
+    return this.comparison.itemDifferences.filter(d => d.type === this.filterType);
+  }
+
+  getDiffTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      added: '新增',
+      removed: '删除',
+      modified: '修改',
+    };
+    return labels[type] || type;
+  }
+
+  getDiffTypeIcon(type: string): string {
+    const icons: Record<string, string> = {
+      added: 'add_circle',
+      removed: 'remove_circle',
+      modified: 'edit',
+    };
+    return icons[type] || 'info';
+  }
+
+  formatDiff(diff: number): string {
+    const prefix = diff > 0 ? '+' : '';
+    return `${prefix}${diff.toFixed(2)}`;
+  }
+
+  getDiffClass(diff: number): string {
+    if (diff > 0) return 'diff-increase';
+    if (diff < 0) return 'diff-decrease';
+    return '';
+  }
+
+  getBudgetById(id: string): Budget | undefined {
+    return this.budgets.find(b => b.id === id);
   }
 }

@@ -15,25 +15,40 @@
           <div class="compare-controls">
             <div class="compare-select">
               <label>版本 A</label>
-              <select [(ngModel)]="leftVersionId" class="version-select">
-                <option value="">选择版本</option>
-                @for (b of budgets; track b.id) {
-                  <option [value]="b.id">版本 {{ b.version }}</option>
-                }
-              </select>
+              <mat-form-field appearance="outline" class="version-select-field">
+                <mat-select [(ngModel)]="leftVersionId">
+                  <mat-option value="">选择版本</mat-option>
+                  @for (b of budgets; track b.id) {
+                    <mat-option [value]="b.id">版本 {{ b.version }} - {{ b.totalCost | currency }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
             </div>
             <mat-icon class="compare-icon">compare_arrows</mat-icon>
             <div class="compare-select">
               <label>版本 B</label>
-              <select [(ngModel)]="rightVersionId" class="version-select">
-                <option value="">选择版本</option>
-                @for (b of budgets; track b.id) {
-                  <option [value]="b.id">版本 {{ b.version }}</option>
-                }
-              </select>
+              <mat-form-field appearance="outline" class="version-select-field">
+                <mat-select [(ngModel)]="rightVersionId">
+                  <mat-option value="">选择版本</mat-option>
+                  @for (b of budgets; track b.id) {
+                    <mat-option [value]="b.id">版本 {{ b.version }} - {{ b.totalCost | currency }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
             </div>
-            <button mat-raised-button color="primary" (click)="compareVersions()" class="compare-btn">
-              <mat-icon>compare</mat-icon> 对比
+            <button 
+              mat-raised-button 
+              color="primary" 
+              (click)="compareVersions()" 
+              class="compare-btn"
+              [disabled]="loadingComparison"
+            >
+              @if (loadingComparison) {
+                <mat-icon class="spin">sync</mat-icon>
+              } @else {
+                <mat-icon>compare</mat-icon>
+              }
+              {{ loadingComparison ? '对比中...' : '开始对比' }}
             </button>
           </div>
         </mat-card-content>
@@ -52,10 +67,12 @@
                   </span>
                 </div>
                 <div class="version-details">
-                  <div class="detail-row" *ngIf="budget.changeReason">
-                    <span class="detail-label">变更原因:</span>
-                    <span>{{ budget.changeReason }}</span>
-                  </div>
+                  @if (budget.changeReason) {
+                    <div class="detail-row">
+                      <span class="detail-label">变更原因:</span>
+                      <span>{{ budget.changeReason }}</span>
+                    </div>
+                  }
                   <div class="detail-row">
                     <span class="detail-label">总金额:</span>
                     <span class="detail-value">{{ budget.totalCost | currency }}</span>
@@ -94,21 +111,99 @@
         </button>
       </div>
 
+      <div class="comparison-stats">
+        <div class="stat-card added">
+          <mat-icon>add_circle</mat-icon>
+          <div class="stat-content">
+            <span class="stat-value">{{ comparison.summary.addedCount }}</span>
+            <span class="stat-label">新增项目</span>
+          </div>
+        </div>
+        <div class="stat-card modified">
+          <mat-icon>edit</mat-icon>
+          <div class="stat-content">
+            <span class="stat-value">{{ comparison.summary.modifiedCount }}</span>
+            <span class="stat-label">修改项目</span>
+          </div>
+        </div>
+        <div class="stat-card removed">
+          <mat-icon>remove_circle</mat-icon>
+          <div class="stat-content">
+            <span class="stat-value">{{ comparison.summary.removedCount }}</span>
+            <span class="stat-label">删除项目</span>
+          </div>
+        </div>
+      </div>
+
       <div class="comparison-summary">
-        <mat-card class="version-summary left">
+        <mat-card class="version-summary">
+          <mat-card-header>
+            <mat-card-title>版本 {{ comparison.budgetA.version }}</mat-card-title>
+            <mat-chip-list>
+              <mat-chip class="old-version">旧版本</mat-chip>
+            </mat-chip-list>
+          </mat-card-header>
           <mat-card-content>
-            <h3>版本 {{ comparison.left.version }}</h3>
-            <div class="summary-row"><span>人工费</span><span>{{ comparison.left.laborCost | currency }}</span></div>
-            <div class="summary-row"><span>材料费</span><span>{{ comparison.left.materialCost | currency }}</span></div>
-            <div class="summary-row total"><span>总计</span><span>{{ comparison.left.totalCost | currency }}</span></div>
+            <div class="summary-row">
+              <span>人工费</span>
+              <span>{{ comparison.budgetA.laborCost | currency }}</span>
+            </div>
+            <div class="summary-row">
+              <span>材料费</span>
+              <span>{{ comparison.budgetA.materialCost | currency }}</span>
+            </div>
+            <div class="summary-row total">
+              <span>总计</span>
+              <span>{{ comparison.budgetA.totalCost | currency }}</span>
+            </div>
           </mat-card-content>
         </mat-card>
-        <mat-card class="version-summary right">
+
+        <div class="diff-arrow-center">
+          <mat-icon>arrow_forward</mat-icon>
+        </div>
+
+        <mat-card class="version-summary">
+          <mat-card-header>
+            <mat-card-title>版本 {{ comparison.budgetB.version }}</mat-card-title>
+            <mat-chip-list>
+              <mat-chip class="new-version">新版本</mat-chip>
+            </mat-chip-list>
+          </mat-card-header>
           <mat-card-content>
-            <h3>版本 {{ comparison.right.version }}</h3>
-            <div class="summary-row"><span>人工费</span><span>{{ comparison.right.laborCost | currency }}</span></div>
-            <div class="summary-row"><span>材料费</span><span>{{ comparison.right.materialCost | currency }}</span></div>
-            <div class="summary-row total"><span>总计</span><span>{{ comparison.right.totalCost | currency }}</span></div>
+            <div class="summary-row">
+              <span>人工费</span>
+              <span [class.changed]="comparison.summary.laborCost.changed">
+                {{ comparison.budgetB.laborCost | currency }}
+                @if (comparison.summary.laborCost.changed) {
+                  <span class="diff-badge" [ngClass]="getDiffClass(comparison.summary.laborCost.diff)">
+                    {{ formatDiff(comparison.summary.laborCost.diff) }}
+                  </span>
+                }
+              </span>
+            </div>
+            <div class="summary-row">
+              <span>材料费</span>
+              <span [class.changed]="comparison.summary.materialCost.changed">
+                {{ comparison.budgetB.materialCost | currency }}
+                @if (comparison.summary.materialCost.changed) {
+                  <span class="diff-badge" [ngClass]="getDiffClass(comparison.summary.materialCost.diff)">
+                    {{ formatDiff(comparison.summary.materialCost.diff) }}
+                  </span>
+                }
+              </span>
+            </div>
+            <div class="summary-row total">
+              <span>总计</span>
+              <span [class.changed]="comparison.summary.totalCost.changed">
+                {{ comparison.budgetB.totalCost | currency }}
+                @if (comparison.summary.totalCost.changed) {
+                  <span class="diff-badge total-diff" [ngClass]="getDiffClass(comparison.summary.totalCost.diff)">
+                    {{ formatDiff(comparison.summary.totalCost.diff) }}
+                  </span>
+                }
+              </span>
+            </div>
           </mat-card-content>
         </mat-card>
       </div>
@@ -118,17 +213,115 @@
           <mat-card-title>差异明细</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          @for (diff of comparison.differences; track $index) {
-            <div class="diff-row" [class.changed]="isDiffChanged(diff)">
-              <div class="diff-category">{{ diff.category | categoryLabel }}</div>
-              <div class="diff-field">{{ diff.field }}</div>
-              <div class="diff-left">{{ diff.leftValue ?? '-' }}</div>
-              <div class="diff-arrow"><mat-icon>arrow_forward</mat-icon></div>
-              <div class="diff-right">{{ diff.rightValue ?? '-' }}</div>
+          <div class="diff-filters">
+            <button 
+              mat-stroked-button 
+              [class.active]="filterType === 'all'"
+              (click)="filterType = 'all'"
+            >
+              全部 ({{ comparison.itemDifferences.length }})
+            </button>
+            <button 
+              mat-stroked-button 
+              [class.active]="filterType === 'modified'"
+              (click)="filterType = 'modified'"
+              class="modified-btn"
+            >
+              <mat-icon>edit</mat-icon>
+              修改 ({{ comparison.summary.modifiedCount }})
+            </button>
+            <button 
+              mat-stroked-button 
+              [class.active]="filterType === 'added'"
+              (click)="filterType = 'added'"
+              class="added-btn"
+            >
+              <mat-icon>add_circle</mat-icon>
+              新增 ({{ comparison.summary.addedCount }})
+            </button>
+            <button 
+              mat-stroked-button 
+              [class.active]="filterType === 'removed'"
+              (click)="filterType = 'removed'"
+              class="removed-btn"
+            >
+              <mat-icon>remove_circle</mat-icon>
+              删除 ({{ comparison.summary.removedCount }})
+            </button>
+          </div>
+
+          <div class="diff-list">
+            @for (diff of getFilteredDifferences(); track diff.name) {
+              <div class="diff-item" [ngClass]="diff.type">
+                <div class="diff-item-header">
+                  <div class="diff-type-badge" [ngClass]="diff.type">
+                    <mat-icon>{{ getDiffTypeIcon(diff.type) }}</mat-icon>
+                    <span>{{ getDiffTypeLabel(diff.type) }}</span>
+                  </div>
+                  <div class="diff-category-badge">
+                    {{ diff.category | categoryLabel }}
+                  </div>
+                  <div class="diff-item-name">
+                    {{ diff.name }}
+                  </div>
+                  @if (diff.priceDiff !== undefined) {
+                    <div class="diff-price" [ngClass]="getDiffClass(diff.priceDiff)">
+                      {{ formatDiff(diff.priceDiff) }}
+                    </div>
+                  }
+                </div>
+
+                @if (diff.fieldChanges && diff.fieldChanges.length > 0) {
+                  <div class="diff-field-list">
+                    @for (field of diff.fieldChanges; track field.field) {
+                      <div class="diff-field-row">
+                        <span class="diff-field-label">{{ field.label }}</span>
+                        <span class="diff-field-old">{{ field.oldValue }}</span>
+                        <mat-icon class="diff-field-arrow">arrow_forward</mat-icon>
+                        <span class="diff-field-new">{{ field.newValue }}</span>
+                        <span class="diff-field-diff" [ngClass]="getDiffClass(field.newValue - field.oldValue)">
+                          {{ formatDiff(field.newValue - field.oldValue) }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+
+                <div class="diff-item-values">
+                  <div class="value-block old-value">
+                    <div class="value-label">原值</div>
+                    @if (diff.oldValue) {
+                      <div class="value-detail">
+                        <span>数量: {{ diff.oldValue.quantity }}</span>
+                        <span>单价: {{ diff.oldValue.unitPrice | currency }}</span>
+                        <span>合价: {{ diff.oldValue.totalPrice | currency }}</span>
+                      </div>
+                    } @else {
+                      <div class="value-empty">-</div>
+                    }
+                  </div>
+                  <div class="value-block new-value">
+                    <div class="value-label">新值</div>
+                    @if (diff.newValue) {
+                      <div class="value-detail">
+                        <span>数量: {{ diff.newValue.quantity }}</span>
+                        <span>单价: {{ diff.newValue.unitPrice | currency }}</span>
+                        <span>合价: {{ diff.newValue.totalPrice | currency }}</span>
+                      </div>
+                    } @else {
+                      <div class="value-empty">-</div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          @if (getFilteredDifferences().length === 0) {
+            <div class="no-diff">
+              <mat-icon>check_circle</mat-icon>
+              <p>两个版本无{{ filterType !== 'all' ? getDiffTypeLabel(filterType) : '差异' }}</p>
             </div>
-          }
-          @if (comparison.differences.length === 0) {
-            <div class="no-diff">两个版本无差异</div>
           }
         </mat-card-content>
       </mat-card>

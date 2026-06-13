@@ -6,7 +6,96 @@
     </button>
   </div>
 
-  <div class="filter-bar">
+  @if (statsLoading) {
+    <div class="loading-state">
+      <mat-icon class="spin">sync</mat-icon>
+      <p>加载统计数据...</p>
+    </div>
+  } @else if (stats) {
+    <div class="stats-section">
+      <div class="stats-overview">
+        <div class="stat-card main-stat">
+          <div class="stat-icon">
+            <mat-icon>star</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">综合评分</div>
+            <div class="stat-value">{{ stats.averageRating.toFixed(1) }}</div>
+            <div class="stat-sub">共 {{ stats.totalCount }} 条评价</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon recommend">
+            <mat-icon>thumb_up</mat-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">推荐率</div>
+            <div class="stat-value">{{ (stats.wouldRecommendRate * 100).toFixed(0) }}%</div>
+            <div class="stat-sub">{{ stats.wouldRecommendCount }} 人愿意推荐</div>
+          </div>
+        </div>
+
+        @for (dim of getAverageDimensions(); track dim.key) {
+          <div class="stat-card">
+            <div class="stat-content">
+              <div class="stat-label">{{ dim.label }}</div>
+              <div class="stat-value">{{ dim.value.toFixed(1) }}</div>
+              <div class="stars-small">
+                @for (star of getStarArray(Math.round(dim.value)); track $index) {
+                  <mat-icon class="star-small" [class.filled]="star === 1">
+                    {{ star === 1 ? 'star' : 'star_border' }}
+                  </mat-icon>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="stats-detail">
+        <div class="rating-distribution">
+          <h3>评分分布</h3>
+          @for (rating of [5, 4, 3, 2, 1]; track rating) {
+            <div class="rating-row">
+              <span class="rating-label">{{ rating }} 星</span>
+              <mat-progress-bar 
+                mode="determinate" 
+                [value]="getRatingPercentage(rating)"
+                [color]="rating >= 4 ? 'primary' : rating >= 3 ? 'accent' : 'warn'"
+              ></mat-progress-bar>
+              <span class="rating-count">
+                {{ stats.ratingDistribution.find(d => d.rating === rating)?.count || 0 }}
+                ({{ getRatingPercentage(rating) }}%)
+              </span>
+            </div>
+          }
+        </div>
+
+        @if (stats.stageDistribution.length > 0) {
+          <div class="stage-distribution">
+            <h3>各阶段评价</h3>
+            @for (stage of stats.stageDistribution; track stage.stage) {
+              <div class="stage-row">
+                <span class="stage-label">{{ getStageLabel(stage.stage) }}</span>
+                <div class="stage-stars">
+                  @for (star of getStarArray(Math.round(stage.avgRating)); track $index) {
+                    <mat-icon class="star-small" [class.filled]="star === 1">
+                      {{ star === 1 ? 'star' : 'star_border' }}
+                    </mat-icon>
+                  }
+                  <span class="stage-avg">{{ stage.avgRating.toFixed(1) }}</span>
+                </div>
+                <span class="stage-count">{{ stage.count }} 条</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="filter-bar" [formGroup]="filterForm">
     <mat-form-field appearance="outline" class="filter-field">
       <mat-label>阶段</mat-label>
       <mat-select formControlName="stage">
@@ -41,18 +130,18 @@
     <table mat-table [dataSource]="feedbacks" class="feedback-table">
       <ng-container matColumnDef="project">
         <th mat-header-cell *matHeaderCellDef>项目</th>
-        <td mat-cell *matCellDef="let fb">{{ fb.projectId }}</td>
+        <td mat-cell *matCellDef="let fb">{{ fb.project?.name || fb.projectId }}</td>
       </ng-container>
       <ng-container matColumnDef="customer">
         <th mat-header-cell *matHeaderCellDef>客户</th>
-        <td mat-cell *matCellDef="let fb">{{ fb.customerId }}</td>
+        <td mat-cell *matCellDef="let fb">{{ fb.customer?.name || fb.customerId }}</td>
       </ng-container>
       <ng-container matColumnDef="stage">
         <th mat-header-cell *matHeaderCellDef>阶段</th>
         <td mat-cell *matCellDef="let fb">{{ getStageLabel(fb.stage) }}</td>
       </ng-container>
       <ng-container matColumnDef="rating">
-        <th mat-header-cell *matHeaderCellDef>评分</th>
+        <th mat-header-cell *matHeaderCellDef>综合评分</th>
         <td mat-cell *matCellDef="let fb">
           <div class="star-display">
             @for (star of getStarArray(fb.rating); track $index) {
@@ -63,10 +152,26 @@
           </div>
         </td>
       </ng-container>
+      <ng-container matColumnDef="details">
+        <th mat-header-cell *matHeaderCellDef>分项评分</th>
+        <td mat-cell *matCellDef="let fb">
+          <div class="dimension-chips">
+            @if (fb.qualityRating) {
+              <mat-chip class="dim-chip" title="施工质量">质:{{ fb.qualityRating }}</mat-chip>
+            }
+            @if (fb.serviceRating) {
+              <mat-chip class="dim-chip" title="服务态度">服:{{ fb.serviceRating }}</mat-chip>
+            }
+            @if (fb.scheduleRating) {
+              <mat-chip class="dim-chip" title="工期控制">工:{{ fb.scheduleRating }}</mat-chip>
+            }
+          </div>
+        </td>
+      </ng-container>
       <ng-container matColumnDef="comment">
         <th mat-header-cell *matHeaderCellDef>评价</th>
         <td mat-cell *matCellDef="let fb">
-          <span class="comment-text">{{ fb.comment }}</span>
+          <span class="comment-text">{{ fb.comment || '-' }}</span>
         </td>
       </ng-container>
       <ng-container matColumnDef="date">
@@ -75,13 +180,6 @@
       </ng-container>
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
 
-    @if (feedbacks.length === 0) {
-      <div class="empty-state">
-        <mat-icon>feedback</mat-icon>
-        <p>暂无反馈数据</p>
-      </div>
-    }
-  </div>
-</div>
+[truncated by convert_rollouts_to_sft: original content length=10122 chars for checker-safe SFT export]
+

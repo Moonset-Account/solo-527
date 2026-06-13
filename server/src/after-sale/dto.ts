@@ -1,11 +1,8 @@
-import { IsString, IsOptional, IsUUID, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsUUID, MaxLength, IsDateString } from 'class-validator';
 
 export class CreateAfterSaleDto {
   @IsUUID()
   projectId: string;
-
-  @IsUUID()
-  customerId: string;
 
   @IsString()
   @MaxLength(200)
@@ -16,8 +13,20 @@ export class CreateAfterSaleDto {
   description?: string;
 
   @IsOptional()
+  @IsUUID()
+  assigneeId?: string;
+
+  @IsOptional()
   @IsString()
-  priority?: string;
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  source?: string;
+
+  @IsOptional()
+  @IsUUID()
+  sourceId?: string;
 }
 
 export class UpdateAfterSaleDto {
@@ -35,17 +44,13 @@ export class UpdateAfterSaleDto {
   status?: string;
 
   @IsOptional()
-  @IsString()
-  priority?: string;
-
-  @IsOptional()
-  @IsString()
-  resolutionNote?: string;
+  @IsUUID()
+  assigneeId?: string;
 }
 
 export class AssignAfterSaleDto {
   @IsUUID()
-  assignedTo: string;
+  assigneeId: string;
 }
 
 export class AfterSaleFilterDto {
@@ -58,10 +63,10 @@ export class AfterSaleFilterDto {
   projectId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   startDate?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   endDate?: string;
 }

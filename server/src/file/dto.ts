@@ -3,5 +3,13 @@ import { IsString, IsOptional, IsUUID, MaxLength } from 'class-validator';
 export class UploadPhotoDto {
   @IsOptional()
   @IsString()
-  description?: string;
+  area?: string;
+}
+
+export class UploadFileDto {
+  @IsString()
+  entityType: 'contract' | 'project';
+
+  @IsUUID()
+  entityId: string;
 }

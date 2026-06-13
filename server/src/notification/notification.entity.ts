@@ -23,10 +23,10 @@ export class Notification {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  message: string;
+  content: string;
 
-  @Column({ type: 'jsonb', nullable: true })
-  data: any;
+  @Column({ name: 'related_id', nullable: true })
+  relatedId: string;
 
   @Column({ default: false })
   read: boolean;

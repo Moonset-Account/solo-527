@@ -20,21 +20,46 @@
     <mat-card class="key-fields-card">
       <mat-card-content>
         <div class="fields-grid">
-          <div class="field-item">
+          <div class="field-item highlight">
             <div class="field-label">项目名称</div>
             <div class="field-value">{{ project.name }}</div>
           </div>
-          <div class="field-item">
+          <div class="field-item highlight">
             <div class="field-label">客户</div>
             <div class="field-value">{{ project.customerName }}</div>
           </div>
-          <div class="field-item">
+          <div class="field-item highlight">
             <div class="field-label">面积</div>
             <div class="field-value">{{ project.area }} m²</div>
           </div>
-          <div class="field-item">
+          <div class="field-item highlight budget">
             <div class="field-label">总预算</div>
             <div class="field-value budget-value">{{ project.latestBudget?.totalCost | currency }}</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">地址</div>
+            <div class="field-value">{{ project.address || '-' }}</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">装修风格</div>
+            <div class="field-value">{{ project.style || '-' }}</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">创建时间</div>
+            <div class="field-value">{{ project.createdAt | date:'yyyy-MM-dd' }}</div>
+          </div>
+          <div class="field-item">
+            <div class="field-label">预算版本</div>
+            <div class="field-value">
+              @if (project.latestBudget) {
+                <span>V{{ project.latestBudget.version }}</span>
+                <span class="status-chip small" [ngClass]="project.latestBudget.status">
+                  {{ project.latestBudget.status | statusLabel }}
+                </span>
+              } @else {
+                -
+              }
+            </div>
           </div>
         </div>
       </mat-card-content>
@@ -103,6 +128,12 @@
                   {{ project.latestBudget.status | statusLabel }}
                 </span>
               </div>
+              @if (project.latestBudget.changeReason) {
+                <div class="summary-row change-reason">
+                  <span>变更原因</span>
+                  <span class="reason-text">{{ project.latestBudget.changeReason }}</span>
+                </div>
+              }
             </div>
             <div class="budget-actions">
               <button mat-raised-button color="primary" (click)="editBudget()">
@@ -159,13 +190,13 @@
       <div class="tab-toolbar">
         <mat-form-field appearance="outline" class="search-field">
           <mat-label>搜索材料</mat-label>
-          <input matInput [(ngModel)]="materialSearchTerm" placeholder="输入材料名称">
+          <input matInput [(ngModel)]="materialSearchTerm" placeholder="输入材料名称或描述">
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
       </div>
       @for (group of getFilteredGroups(); track group.category) {
         <mat-accordion class="category-group">
-          <mat-expansion-panel>
+          <mat-expansion-panel expanded="true">
             <mat-expansion-panel-header>
               <mat-panel-title>
                 {{ group.category | categoryLabel }}
@@ -182,41 +213,75 @@
                 <span class="col-unit">单位</span>
                 <span class="col-price">单价</span>
                 <span class="col-total">小计</span>
+                <span class="col-action">操作</span>
               </div>
               @for (item of group.items; track item.id) {
-                <mat-expansion-panel class="item-row">
-                  <mat-expansion-panel-header>
-                    <mat-panel-title class="item-title">
-                      <span class="col-name">{{ item.name }}</span>
-                      <span class="col-qty">{{ item.quantity }}</span>
-                      <span class="col-unit">{{ item.unit }}</span>
-                      <span class="col-price">{{ item.unitPrice | currency }}</span>
-                      <span class="col-total">{{ item.totalPrice | currency }}</span>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-                  @if (item.materials && item.materials.length > 0) {
-                    <div class="materials-list">
-                      <div class="material-header">
-                        <span>材料名称</span>
-                        <span>规格</span>
-                        <span>数量</span>
-                        <span>单价</span>
-                        <span>小计</span>
-                      </div>
-                      @for (mat of item.materials; track mat.id) {
-                        <div class="material-row">
-                          <span>{{ mat.name }}</span>
-                          <span>{{ mat.specification }}</span>
-                          <span>{{ mat.quantity }} {{ mat.unit }}</span>
-                          <span>{{ mat.unitPrice | currency }}</span>
-                          <span>{{ mat.totalPrice | currency }}</span>
+                <div class="item-row-wrapper">
+                  <mat-expansion-panel class="item-row" [class.editing]="editingItemId === item.id">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title class="item-title">
+                        <span class="col-name">{{ item.name }}</span>
+                        <span class="col-qty">{{ item.quantity }}</span>
+                        <span class="col-unit">{{ item.unit }}</span>
+                        <span class="col-price">{{ item.unitPrice | currency }}</span>
+                        <span class="col-total">{{ item.totalPrice | currency }}</span>
+                        <span class="col-action">
+                          <button mat-icon-button (click)="startQuickEdit(item); $event.stopPropagation()" matTooltip="快速编辑">
+                            <mat-icon>edit</mat-icon>
+                          </button>
+                        </span>
+                      </mat-panel-title>
+                    </mat-expansion-panel-header>
+                    @if (editingItemId === item.id) {
+                      <div class="quick-edit-form">
+                        <div class="edit-row">
+                          <mat-form-field appearance="outline">
+                            <mat-label>数量</mat-label>
+                            <input matInput type="number" formControlName="quantity">
+                          </mat-form-field>
+                          <mat-form-field appearance="outline">
+                            <mat-label>单价</mat-label>
+                            <input matInput type="number" formControlName="unitPrice">
+                          </mat-form-field>
                         </div>
-                      }
-                    </div>
-                  } @else {
-                    <div class="no-materials">暂无材料详情</div>
-                  }
-                </mat-expansion-panel>
+                        <mat-form-field appearance="outline" class="full-width">
+                          <mat-label>描述</mat-label>
+                          <textarea matInput formControlName="description" rows="2"></textarea>
+                        </mat-form-field>
+                        <div class="edit-actions">
+                          <button mat-raised-button color="primary" (click)="saveQuickEdit(item)">
+                            <mat-icon>save</mat-icon> 保存
+                          </button>
+                          <button mat-stroked-button (click)="cancelQuickEdit()">
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    }
+                    @if (item.materials && item.materials.length > 0) {
+                      <div class="materials-list">
+                        <div class="material-header">
+                          <span>材料名称</span>
+                          <span>规格</span>
+                          <span>数量</span>
+                          <span>单价</span>
+                          <span>小计</span>
+                        </div>
+                        @for (mat of item.materials; track mat.id) {
+                          <div class="material-row">
+                            <span>{{ mat.name }}</span>
+                            <span>{{ mat.specification }}</span>
+                            <span>{{ mat.quantity }} {{ mat.unit }}</span>
+                            <span>{{ mat.unitPrice | currency }}</span>
+                            <span>{{ mat.totalPrice | currency }}</span>
+                          </div>
+                        }
+                      </div>
+                    } @else if (editingItemId !== item.id) {
+                      <div class="no-materials">暂无材料详情</div>
+                    }
+                  </mat-expansion-panel>
+                </div>
               }
             </div>
           </mat-expansion-panel>
@@ -231,15 +296,45 @@
   <ng-template #photosTab>
     <div class="tab-content">
       <div class="tab-toolbar">
-        <button mat-raised-button color="primary" (click)="fileInputPhoto.click()">
+        <mat-form-field appearance="outline" class="area-select">
+          <mat-label>上传区域</mat-label>
+          <mat-select [(ngModel)]="photoArea">
+            <mat-option value="">请选择区域</mat-option>
+            @for (area of photoAreas; track area) {
+              <mat-option [value]="area">{{ area }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <button mat-raised-button color="primary" (click)="triggerPhotoUpload()">
           <mat-icon>{{ isMobile ? 'camera_alt' : 'cloud_upload' }}</mat-icon>
           {{ isMobile ? '拍照上传' : '上传照片' }}
         </button>
-        <input #fileInputPhoto type="file" accept="image/*" hidden (change)="onPhotoUpload($event)">
+        <input #fileInputPhoto type="file" accept="image/*" multiple hidden (change)="onPhotoUpload($event)">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>搜索区域</mat-label>
+          <input matInput [(ngModel)]="photoSearchTerm" placeholder="输入区域名称">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
       </div>
-      @for (areaGroup of getPhotosByArea(); track areaGroup.area) {
+
+      <div
+        class="drop-zone"
+        [class.drag-over]="dragOver"
+        (drop)="onPhotoDrop($event)"
+        (dragover)="onPhotoDragOver($event)"
+        (dragleave)="onPhotoDragLeave()"
+      >
+        <mat-icon>cloud_upload</mat-icon>
+        <p>拖拽照片到此处上传，或点击上方按钮</p>
+      </div>
+
+      @for (areaGroup of getFilteredPhotosByArea(); track areaGroup.area) {
         <div class="photo-area">
-          <h3>{{ areaGroup.area }}</h3>
+          <h3>
+            <mat-icon>location_on</mat-icon>
+            {{ areaGroup.area }}
+            <span class="photo-count">({{ areaGroup.photos.length }}张)</span>
+          </h3>
           <div class="photo-grid">
             @for (photo of areaGroup.photos; track photo.id) {
               <div class="photo-card" [style.background-image]="'url(' + photo.thumbnailUrl + ')'">
@@ -256,7 +351,7 @@
           </div>
         </div>
       }
-      @if (getPhotosByArea().length === 0) {
+      @if (getFilteredPhotosByArea().length === 0) {
         <div class="empty-tab">暂无现场照片</div>
       }
     </div>
@@ -265,28 +360,43 @@
   <ng-template #attachmentsTab>
     <div class="tab-content">
       <div class="tab-toolbar">
-        <button mat-raised-button color="primary" (click)="fileInputAttachment.click()">
+        <button mat-raised-button color="primary" (click)="triggerAttachmentUpload()">
           <mat-icon>cloud_upload</mat-icon>
           上传附件
         </button>
-        <input #fileInputAttachment type="file" hidden (change)="onAttachmentUpload($event)">
+        <input #fileInputAttachment type="file" multiple hidden (change)="onAttachmentUpload($event)">
       </div>
+
+      <div
+        class="drop-zone"
+        [class.drag-over]="attachmentDragOver"
+        (drop)="onAttachmentDrop($event)"
+        (dragover)="onAttachmentDragOver($event)"
+        (dragleave)="onAttachmentDragLeave()"
+      >
+        <mat-icon>attach_file</mat-icon>
+        <p>拖拽附件到此处上传，或点击上方按钮</p>
+        <span class="hint">支持 PDF、Word、Excel、图片等格式</span>
+      </div>
+
       @if (project.attachments && project.attachments.length > 0) {
-        <mat-list>
+        <mat-list class="attachment-list">
           @for (att of project.attachments; track att.id) {
             <mat-list-item class="attachment-item">
-              <mat-icon matListItemIcon>
+              <mat-icon matListItemIcon class="att-icon">
                 @switch (att.fileType) {
                   @case ('pdf') { picture_as_pdf }
                   @case ('image') { image }
                   @default { insert_drive_file }
                 }
               </mat-icon>
-              <span matListItemTitle>{{ att.fileName }}</span>
-              <span matListItemLine>{{ formatFileSize(att.fileSize) }} · {{ att.createdAt | date:'yyyy-MM-dd' }}</span>
-              <div class="attachment-actions">
-                <a mat-icon-button [href]="att.url" target="_blank" matTooltip="下载">
-                  <mat-icon>download</mat-icon>
+              <div matListItemTitle class="att-name">{{ att.fileName }}</div>
+              <div matListItemLine class="att-meta">
+                {{ formatFileSize(att.fileSize) }} · {{ att.createdAt | date:'yyyy-MM-dd HH:mm' }}
+              </div>
+              <div class="attachment-actions" matListItemMeta>
+                <a mat-icon-button [href]="att.url" target="_blank" matTooltip="预览/下载">
+                  <mat-icon>open_in_new</mat-icon>
                 </a>
                 <button mat-icon-button color="warn" (click)="deleteAttachment(att.id)" matTooltip="删除">
                   <mat-icon>delete</mat-icon>

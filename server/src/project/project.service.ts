@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from './project.entity.js';
 import { CreateProjectDto, UpdateProjectDto } from './dto.js';
+import { Budget } from '../budget/budget.entity.js';
 
 @Injectable()
 export class ProjectService {
@@ -22,10 +23,33 @@ export class ProjectService {
   async findOne(id: string) {
     const project = await this.projectRepo.findOne({
       where: { id },
-      relations: ['customer', 'budgets', 'contracts'],
+      relations: [
+        'customer',
+        'budgets',
+        'budgets.items',
+        'budgets.items.materials',
+        'contracts',
+        'contracts.attachments',
+        'photos',
+        'attachments',
+      ],
+      order: {
+        budgets: { version: 'DESC' },
+        photos: { createdAt: 'DESC' },
+        attachments: { createdAt: 'DESC' },
+      },
     });
     if (!project) throw new NotFoundException('Project not found');
-    return project;
+    const projectObj: any = { ...project };
+    if (project.budgets && project.budgets.length > 0) {
+      projectObj.latestBudget = project.budgets[0] as Budget;
+    } else {
+      projectObj.latestBudget = null;
+    }
+    projectObj.contract = project.contracts && project.contracts.length > 0 ? project.contracts[0] : null;
+    projectObj.feedbacks = [];
+    projectObj.afterSaleOrders = [];
+    return projectObj;
   }
 
   async create(companyId: string, dto: CreateProjectDto) {

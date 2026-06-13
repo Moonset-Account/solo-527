@@ -34,10 +34,11 @@ export class FileController {
   }))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Body('projectId') projectId: string,
+    @Body('entityType') entityType: 'contract' | 'project',
+    @Body('entityId') entityId: string,
     @Request() req: any,
   ) {
-    return this.fileService.uploadFile(file, projectId, req.user.id);
+    return this.fileService.uploadFile(file, entityType || 'project', entityId, req.user.id);
   }
 
   @Post('projects/:projectId/photos')
@@ -54,8 +55,9 @@ export class FileController {
     @UploadedFile() file: Express.Multer.File,
     @Param('projectId') projectId: string,
     @Body() dto: UploadPhotoDto,
+    @Request() req: any,
   ) {
-    return this.fileService.uploadPhoto(file, projectId, dto.description);
+    return this.fileService.uploadPhoto(file, projectId, dto.area, req.user.id);
   }
 
   @Delete('files/:id')

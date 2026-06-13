@@ -13,6 +13,8 @@ import { Company } from '../common/company.entity.js';
 import { Customer } from '../common/customer.entity.js';
 import { Budget } from '../budget/budget.entity.js';
 import { Contract } from '../contract/contract.entity.js';
+import { ProjectPhoto } from '../file/project-photo.entity.js';
+import { Attachment } from '../file/attachment.entity.js';
 
 @Entity('projects')
 export class Project {
@@ -34,7 +36,13 @@ export class Project {
   @Column({ length: 500, nullable: true })
   address: string;
 
-  @Column({ length: 20, default: 'planning' })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  area: number;
+
+  @Column({ length: 50, nullable: true })
+  style: string;
+
+  @Column({ length: 20, default: 'draft' })
   status: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
@@ -68,4 +76,10 @@ export class Project {
 
   @OneToMany(() => Contract, (contract) => contract.project)
   contracts: Contract[];
+
+  @OneToMany(() => ProjectPhoto, (photo) => photo.project)
+  photos: ProjectPhoto[];
+
+  @OneToMany(() => Attachment, (attachment) => attachment.project)
+  attachments: Attachment[];
 }

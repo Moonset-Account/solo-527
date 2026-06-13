@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsUUID, Min, Max, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsUUID, Min, Max, MaxLength, IsBoolean } from 'class-validator';
 
 export class CreateFeedbackDto {
   @IsUUID()
@@ -14,12 +14,46 @@ export class CreateFeedbackDto {
   rating: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  qualityRating?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  serviceRating?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  scheduleRating?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  communicationRating?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  costRating?: number;
+
+  @IsOptional()
   @IsString()
-  content?: string;
+  comment?: string;
 
   @IsOptional()
   @IsString()
   suggestion?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  wouldRecommend?: boolean;
 }
 
 export class FeedbackFilterDto {
@@ -34,6 +68,26 @@ export class FeedbackFilterDto {
   @IsOptional()
   @IsString()
   stage?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  minRating?: number;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+}
+
+export class FeedbackStatsDto {
+  @IsOptional()
+  @IsString()
+  companyId?: string;
 
   @IsOptional()
   @IsString()

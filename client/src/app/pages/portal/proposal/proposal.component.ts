@@ -96,23 +96,28 @@ export class PortalProposalComponent implements OnInit {
   }
 
   confirm(): void {
-    this.budgetService.approve(this.budget.id).subscribe({
-      next: () => {
-        this.snackBar.open('已确认报价单', '关闭', { duration: 2000 });
-        this.loadBudget(this.budget.id);
-      },
-      error: () => this.snackBar.open('操作失败', '关闭', { duration: 3000 }),
-    });
+    if (confirm('确定要确认此报价单吗？确认后将无法修改。')) {
+      this.budgetService.confirm(this.budget.id).subscribe({
+        next: () => {
+          this.snackBar.open('已确认报价单', '关闭', { duration: 2000 });
+          this.loadBudget(this.budget.id);
+        },
+        error: () => this.snackBar.open('操作失败', '关闭', { duration: 3000 }),
+      });
+    }
   }
 
   requestChanges(): void {
-    this.budgetService.reject(this.budget.id).subscribe({
-      next: () => {
-        this.snackBar.open('已请求修改', '关闭', { duration: 2000 });
-        this.loadBudget(this.budget.id);
-      },
-      error: () => this.snackBar.open('操作失败', '关闭', { duration: 3000 }),
-    });
+    const reason = prompt('请输入修改意见（可选）：');
+    if (reason !== null) {
+      this.budgetService.requestChanges(this.budget.id, reason || undefined).subscribe({
+        next: () => {
+          this.snackBar.open('已提交修改请求', '关闭', { duration: 2000 });
+          this.loadBudget(this.budget.id);
+        },
+        error: () => this.snackBar.open('操作失败', '关闭', { duration: 3000 }),
+      });
+    }
   }
 
   canAct(): boolean {

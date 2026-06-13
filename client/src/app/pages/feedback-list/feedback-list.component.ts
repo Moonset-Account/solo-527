@@ -10,8 +10,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatChipsModule } from '@angular/material/chips';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import { Feedback, FeedbackStage } from '@shared/models';
+import { Feedback, FeedbackStage, FeedbackStats } from '@shared/models';
 import { FeedbackService } from '@shared/services/feedback.service';
 import { ExportService } from '@shared/services/export.service';
 import { StatusLabelPipe } from '@shared/pipes/status-label.pipe';
@@ -31,6 +33,8 @@ import { StatusLabelPipe } from '@shared/pipes/status-label.pipe';
     MatIconModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    MatProgressBarModule,
+    MatChipsModule,
     ReactiveFormsModule,
     StatusLabelPipe,
   ],
@@ -39,8 +43,10 @@ import { StatusLabelPipe } from '@shared/pipes/status-label.pipe';
 })
 export class FeedbackListComponent implements OnInit {
   feedbacks: Feedback[] = [];
-  displayedColumns: string[] = ['project', 'customer', 'stage', 'rating', 'comment', 'date'];
+  stats: FeedbackStats | null = null;
+  displayedColumns: string[] = ['project', 'customer', 'stage', 'rating', 'details', 'comment', 'date'];
   filterForm: FormGroup;
+  statsLoading = false;
 
   stageOptions: { value: FeedbackStage | ''; label: string }[] = [
     { value: '', label: '全部阶段' },
@@ -58,6 +64,14 @@ export class FeedbackListComponent implements OnInit {
     { value: 1, label: '1星' },
   ];
 
+  dimensionLabels: Record<string, string> = {
+    averageQualityRating: '施工质量',
+    averageServiceRating: '服务态度',
+    averageScheduleRating: '工期控制',
+    averageCommunicationRating: '沟通效率',
+    averageCostRating: '造价控制',
+  };
+
   constructor(
     private fb: FormBuilder,
     private feedbackService: FeedbackService,
@@ -74,22 +88,43 @@ export class FeedbackListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadFeedbacks();
-    this.filterForm.valueChanges.subscribe(() => this.loadFeedbacks());
+    this.loadStats();
+    this.filterForm.valueChanges.subscribe(() => {
+      this.loadFeedbacks();
+      this.loadStats();
+    });
   }
 
   loadFeedbacks(): void {
-    const filters: Record<string, any> = {};
-    const formVal = this.filterForm.value;
-    if (formVal.projectId) filters['projectId'] = formVal.projectId;
-    if (formVal.stage) filters['stage'] = formVal.stage;
-    if (formVal.startDate) filters['startDate'] = formVal.startDate.toISOString();
-    if (formVal.endDate) filters['endDate'] = formVal.endDate.toISOString();
-    if (formVal.minRating > 0) filters['minRating'] = formVal.minRating;
-
+    const filters = this.buildFilters();
     this.feedbackService.getAll(filters).subscribe({
       next: (data) => (this.feedbacks = data),
       error: () => {},
     });
+  }
+
+  loadStats(): void {
+    const filters = this.buildFilters();
+    this.statsLoading = true;
+    this.feedbackService.getStats(filters).subscribe({
+      next: (data) => {
+        this.stats = data;
+        this.statsLoading = false;
+      },
+      error: () => {
+        this.statsLoading = false;
+      },
+    });
+  }
+
+  private buildFilters(): Record<string, any> {
+    const filters: Record<string, any> = {};
+    const formVal = this.filterForm.value;
+    if (formVal.stage) filters['stage'] = formVal.stage;
+    if (formVal.startDate) filters['startDate'] = formVal.startDate.toISOString();
+    if (formVal.endDate) filters['endDate'] = formVal.endDate.toISOString();
+    if (formVal.minRating > 0) filters['minRating'] = formVal.minRating;
+    return filters;
   }
 
   getStarArray(rating: number): number[] {
@@ -105,12 +140,23 @@ export class FeedbackListComponent implements OnInit {
     return labels[stage] || stage;
   }
 
+  getAverageDimensions(): { key: string; label: string; value: number }[] {
+    if (!this.stats) return [];
+    return Object.entries(this.dimensionLabels).map(([key, label]) => ({
+      key,
+      label,
+      value: (this.stats as any)[key] || 0,
+    }));
+  }
+
+  getRatingPercentage(rating: number): number {
+    if (!this.stats || this.stats.totalCount === 0) return 0;
+    const dist = this.stats.ratingDistribution.find(d => d.rating === rating);
+    return dist ? Math.round(dist.count / this.stats.totalCount * 100) : 0;
+  }
+
   exportExcel(): void {
-    const filters: Record<string, any> = {};
-    const formVal = this.filterForm.value;
-    if (formVal.stage) filters['stage'] = formVal.stage;
-    if (formVal.startDate) filters['startDate'] = formVal.startDate.toISOString();
-    if (formVal.endDate) filters['endDate'] = formVal.endDate.toISOString();
+    const filters = this.buildFilters();
     this.exportService.exportFeedbacks(filters);
   }
 }

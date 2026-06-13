@@ -42,4 +42,12 @@ export class BudgetService {
   compare(id: string, compareVersionId: string): Observable<BudgetComparison> {
     return this.api.get<BudgetComparison>(`/budgets/${id}/compare/${compareVersionId}`);
   }
+
+  confirm(id: string): Observable<any> {
+    return this.api.post<any>(`/budgets/${id}/confirm`, {});
+  }
+
+  requestChanges(id: string, reason?: string): Observable<any> {
+    return this.api.post<any>(`/budgets/${id}/request-changes`, { reason });
+  }
 }

@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
-import { AfterSaleService } from './after-sale.service.js';
+import { AfterSaleService, AfterSaleReport } from './after-sale.service.js';
 import { CreateAfterSaleDto, UpdateAfterSaleDto, AssignAfterSaleDto, AfterSaleFilterDto } from './dto.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { ExportService } from '../export/export.service.js';
@@ -29,6 +29,11 @@ export class AfterSaleController {
     return this.afterSaleService.findAll(filters);
   }
 
+  @Get('report')
+  async getReport(@Query('period') period: string = 'month'): Promise<AfterSaleReport> {
+    return this.afterSaleService.getReport(period);
+  }
+
   @Post()
   async create(@Body() dto: CreateAfterSaleDto) {
     return this.afterSaleService.create(dto);
@@ -41,7 +46,7 @@ export class AfterSaleController {
 
   @Post(':id/assign')
   async assign(@Param('id') id: string, @Body() dto: AssignAfterSaleDto) {
-    return this.afterSaleService.assign(id, dto.assignedTo);
+    return this.afterSaleService.assign(id, dto.assigneeId);
   }
 
   @Post(':id/close')

@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -14,6 +14,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatSelectModule } from '@angular/material/select';
 import { ProjectDetail, ProjectPhoto, Attachment, BudgetItem, BudgetItemCategory } from '@shared/models';
 import { ProjectService } from '@shared/services/project.service';
 import { ApiService } from '@shared/services/api.service';
@@ -28,6 +29,7 @@ import { Subject, takeUntil } from 'rxjs';
   imports: [
     CommonModule,
     FormsModule,
+    ReactiveFormsModule,
     RouterModule,
     MatCardModule,
     MatTabsModule,
@@ -41,6 +43,7 @@ import { Subject, takeUntil } from 'rxjs';
     MatTooltipModule,
     MatDialogModule,
     MatSnackBarModule,
+    MatSelectModule,
     StatusLabelPipe,
     CategoryLabelPipe,
     CurrencyPipe,
@@ -55,6 +58,17 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   selectedTabIndex = 0;
   photoSearchTerm = '';
   materialSearchTerm = '';
+  photoArea = '';
+  dragOver = false;
+  attachmentDragOver = false;
+  quickEditForm: FormGroup;
+  editingItemId: string | null = null;
+
+  photoAreas = ['客厅', '卧室', '厨房', '卫生间', '阳台', '玄关', '其他'];
+
+  @ViewChild('fileInputPhoto') fileInputPhoto!: ElementRef;
+  @ViewChild('fileInputAttachment') fileInputAttachment!: ElementRef;
+
   private destroy$ = new Subject<void>();
 
   categoryOrder: BudgetItemCategory[] = [
@@ -66,9 +80,15 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     private router: Router,
     private projectService: ProjectService,
     private api: ApiService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private fb: FormBuilder
   ) {
     this.checkScreenSize();
+    this.quickEditForm = this.fb.group({
+      quantity: [''],
+      unitPrice: [''],
+      description: [''],
+    });
   }
 
   @HostListener('window:resize')
@@ -140,16 +160,65 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (!this.project?.photos) return [];
     const groups = new Map<string, ProjectPhoto[]>();
     for (const photo of this.project.photos) {
-      if (!groups.has(photo.area)) {
-        groups.set(photo.area, []);
+      const area = photo.area || '未分类';
+      if (!groups.has(area)) {
+        groups.set(area, []);
       }
-      groups.get(photo.area)!.push(photo);
+      groups.get(area)!.push(photo);
     }
     return Array.from(groups.entries()).map(([area, photos]) => ({ area, photos }));
   }
 
+  getFilteredPhotosByArea(): { area: string; photos: ProjectPhoto[] }[] {
+    const groups = this.getPhotosByArea();
+    if (!this.photoSearchTerm) return groups;
+    const term = this.photoSearchTerm.toLowerCase();
+    return groups
+      .map((g) => ({
+        ...g,
+        photos: g.photos.filter((p) => p.area?.toLowerCase().includes(term)),
+      }))
+      .filter((g) => g.photos.length > 0);
+  }
+
   getCategorySubtotal(items: BudgetItem[]): number {
     return items.reduce((sum, i) => sum + i.totalPrice, 0);
+  }
+
+  startQuickEdit(item: BudgetItem): void {
+    this.editingItemId = item.id;
+    this.quickEditForm.patchValue({
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      description: item.description,
+    });
+  }
+
+  cancelQuickEdit(): void {
+    this.editingItemId = null;
+    this.quickEditForm.reset();
+  }
+
+  saveQuickEdit(item: BudgetItem): void {
+    const values = this.quickEditForm.value;
+    const updatedItem = {
+      ...item,
+      quantity: parseFloat(values.quantity) || item.quantity,
+      unitPrice: parseFloat(values.unitPrice) || item.unitPrice,
+      description: values.description || item.description,
+      totalPrice: (parseFloat(values.quantity) || item.quantity) * (parseFloat(values.unitPrice) || item.unitPrice),
+    };
+
+    this.api.patch(`/budget-items/${item.id}`, updatedItem).subscribe({
+      next: () => {
+        this.snackBar.open('更新成功', '关闭', { duration: 2000 });
+        this.loadProject(this.project.id);
+        this.cancelQuickEdit();
+      },
+      error: () => {
+        this.snackBar.open('更新失败', '关闭', { duration: 3000 });
+      },
+    });
   }
 
   editBudget(): void {
@@ -179,41 +248,85 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
   onPhotoUpload(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('description', '');
-      this.api.upload(`/projects/${this.project.id}/photos`, formData).subscribe({
-        next: () => {
-          this.loadProject(this.project.id);
-          this.snackBar.open('照片上传成功', '关闭', { duration: 2000 });
-        },
-        error: () => {
-          this.snackBar.open('照片上传失败', '关闭', { duration: 3000 });
-        },
-      });
+      this.uploadPhotos(Array.from(input.files));
       input.value = '';
     }
+  }
+
+  onPhotoDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver = false;
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      this.uploadPhotos(Array.from(event.dataTransfer.files));
+    }
+  }
+
+  onPhotoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver = true;
+  }
+
+  onPhotoDragLeave(): void {
+    this.dragOver = false;
+  }
+
+  private async uploadPhotos(files: File[]): Promise<void> {
+    const area = this.photoArea || '未分类';
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('area', area);
+
+      try {
+        await this.api.upload(`/projects/${this.project.id}/photos`, formData).toPromise();
+      } catch (e) {
+        this.snackBar.open(`照片 ${file.name} 上传失败`, '关闭', { duration: 3000 });
+      }
+    }
+    this.snackBar.open('照片上传成功', '关闭', { duration: 2000 });
+    this.loadProject(this.project.id);
   }
 
   onAttachmentUpload(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('projectId', this.project.id);
-      this.api.upload('/files/upload', formData).subscribe({
-        next: () => {
-          this.loadProject(this.project.id);
-          this.snackBar.open('附件上传成功', '关闭', { duration: 2000 });
-        },
-        error: () => {
-          this.snackBar.open('附件上传失败', '关闭', { duration: 3000 });
-        },
-      });
+      this.uploadAttachments(Array.from(input.files));
       input.value = '';
     }
+  }
+
+  onAttachmentDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.attachmentDragOver = false;
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      this.uploadAttachments(Array.from(event.dataTransfer.files));
+    }
+  }
+
+  onAttachmentDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.attachmentDragOver = true;
+  }
+
+  onAttachmentDragLeave(): void {
+    this.attachmentDragOver = false;
+  }
+
+  private async uploadAttachments(files: File[]): Promise<void> {
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('entityType', 'project');
+      formData.append('entityId', this.project.id);
+
+      try {
+        await this.api.upload('/files/upload', formData).toPromise();
+      } catch (e) {
+        this.snackBar.open(`附件 ${file.name} 上传失败`, '关闭', { duration: 3000 });
+      }
+    }
+    this.snackBar.open('附件上传成功', '关闭', { duration: 2000 });
+    this.loadProject(this.project.id);
   }
 
   deletePhoto(photoId: string): void {
@@ -242,5 +355,13 @@ export class ProjectDetailComponent implements OnInit, OnDestroy {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  triggerPhotoUpload(): void {
+    this.fileInputPhoto.nativeElement.click();
+  }
+
+  triggerAttachmentUpload(): void {
+    this.fileInputAttachment.nativeElement.click();
   }
 }

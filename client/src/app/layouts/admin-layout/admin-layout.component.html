@@ -5,7 +5,7 @@
     [opened]="sidenavOpened"
     class="app-sidenav"
     [fixedInViewport]="isMobile"
-    fixedTopGap="64"
+    fixedTopGap="56"
   >
     <div class="sidenav-header">
       <mat-icon class="sidenav-logo">home_repair_service</mat-icon>
@@ -24,25 +24,28 @@
 
   <mat-sidenav-content class="app-content">
     <mat-toolbar color="primary" class="app-toolbar">
-      <button mat-icon-button (click)="toggleSidenav()" class="menu-btn">
+      <button mat-icon-button (click)="toggleSidenav()" class="menu-btn" aria-label="菜单">
         <mat-icon>menu</mat-icon>
       </button>
-      <span class="toolbar-title">装修预算管理系统</span>
+      <span class="toolbar-title">装修预算管理</span>
       <span class="toolbar-spacer"></span>
 
       <button mat-icon-button class="notification-btn" [matMenuTriggerFor]="notifMenu"
-              [matBadge]="unreadCount > 0 ? unreadCount : ''" matBadgeColor="warn" matBadgeSize="small">
+              [matBadge]="unreadCount > 0 ? unreadCount : ''" matBadgeColor="warn" matBadgeSize="small"
+              aria-label="通知">
         <mat-icon>notifications</mat-icon>
       </button>
       <mat-menu #notifMenu="matMenu" class="notification-menu" [overlapTrigger]="false">
         <div class="notification-header">
           <span>通知</span>
-          <button mat-button (click)="markAllAsRead()" *ngIf="unreadCount > 0">全部已读</button>
+          @if (unreadCount > 0) {
+            <button mat-button (click)="markAllAsRead()">全部已读</button>
+          }
         </div>
         <mat-divider></mat-divider>
         @for (notif of notifications.slice(0, 10); track notif.id) {
           <div class="notification-item" [class.unread]="!notif.read" (click)="markAsRead(notif, $event)">
-            <mat-icon class="notification-icon">
+            <mat-icon class="notification-icon" aria-hidden="true">
               @switch (notif.type) {
                 @case ('budget_change') { account_balance_wallet }
                 @case ('contract_signed') { description }
@@ -62,11 +65,13 @@
         }
       </mat-menu>
 
-      <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
-        <mat-icon>account_circle</mat-icon>
-        <span class="user-name">{{ currentUser?.username || '用户' }}</span>
-      </button>
-      <mat-menu #userMenu="matMenu">
+      @if (!isMobile) {
+        <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
+          <mat-icon>account_circle</mat-icon>
+          <span class="user-name">{{ currentUser?.username || '用户' }}</span>
+        </button>
+      }
+      <mat-menu #userMenu="matMenu" class="user-menu">
         <button mat-menu-item disabled>
           <mat-icon>person</mat-icon>
           <span>{{ currentUser?.username }}</span>
@@ -90,7 +95,11 @@
     @if (isMobile) {
       <nav class="bottom-nav">
         @for (item of mobileNavItems; track item.label) {
-          <a class="bottom-nav-item" [routerLink]="item.route" routerLinkActive="bottom-active">
+          <a class="bottom-nav-item" 
+             [routerLink]="item.isAction ? null : item.route" 
+             routerLinkActive="bottom-active"
+             [class.action-btn]="item.isAction"
+             (click)="!item.route && onMobileNavItemClick(item); $event.preventDefault()">
             <mat-icon>{{ item.icon }}</mat-icon>
             <span>{{ item.label }}</span>
           </a>

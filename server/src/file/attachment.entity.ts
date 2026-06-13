@@ -7,26 +7,30 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Project } from '../project/project.entity.js';
+import { Contract } from '../contract/contract.entity.js';
 
 @Entity('attachments')
 export class Attachment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'project_id' })
-  projectId: string;
+  @Column({ name: 'entity_type', length: 20 })
+  entityType: 'contract' | 'project';
 
-  @Column({ length: 200 })
-  filename: string;
+  @Column({ name: 'entity_id' })
+  entityId: string;
 
-  @Column({ length: 500 })
-  path: string;
+  @Column({ name: 'file_name', length: 500 })
+  fileName: string;
 
-  @Column({ length: 50, nullable: true })
-  mimetype: string;
+  @Column({ type: 'bigint', default: 0, name: 'file_size' })
+  fileSize: number;
 
-  @Column({ type: 'bigint', nullable: true })
-  size: number;
+  @Column({ name: 'file_type', length: 50, nullable: true })
+  fileType: string;
+
+  @Column({ length: 1000 })
+  url: string;
 
   @Column({ name: 'uploaded_by', nullable: true })
   uploadedBy: string;
@@ -35,6 +39,10 @@ export class Attachment {
   createdAt: Date;
 
   @ManyToOne(() => Project)
-  @JoinColumn({ name: 'project_id' })
+  @JoinColumn({ name: 'entity_id' })
   project: Project;
+
+  @ManyToOne(() => Contract)
+  @JoinColumn({ name: 'entity_id' })
+  contract: Contract;
 }

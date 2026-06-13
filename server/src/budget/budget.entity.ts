@@ -22,32 +22,26 @@ export class Budget {
   @Column()
   version: number;
 
-  @Column({ length: 200 })
-  name: string;
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'labor_cost' })
+  laborCost: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  subtotal: number;
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'material_cost' })
+  materialCost: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'management_fee' })
-  managementFee: number;
-
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'design_fee' })
-  designFee: number;
-
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'tax_amount' })
-  taxAmount: number;
-
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'total_amount' })
-  totalAmount: number;
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'total_cost' })
+  totalCost: number;
 
   @Column({ length: 20, default: 'draft' })
   status: string;
 
+  @Column({ type: 'text', nullable: true, name: 'change_reason' })
+  changeReason: string | null;
+
   @Column({ name: 'created_by' })
   createdBy: string;
 
-  @Column({ type: 'text', nullable: true })
-  remark: string;
+  @Column({ name: 'reviewed_by', nullable: true })
+  reviewedBy: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -59,6 +53,6 @@ export class Budget {
   @JoinColumn({ name: 'project_id' })
   project: Project;
 
-  @OneToMany(() => BudgetItem, (item) => item.budget)
+  @OneToMany(() => BudgetItem, (item) => item.budget, { cascade: true })
   items: BudgetItem[];
 }
