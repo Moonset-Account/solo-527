@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 40 33% 96%;
+    --foreground: 22 18% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 22 18% 18%;
+    --primary: 166 42% 17%;
+    --primary-foreground: 40 33% 96%;
+    --secondary: 40 61% 58%;
+    --secondary-foreground: 22 18% 18%;
+    --muted: 40 14% 90%;
+    --muted-foreground: 25 10% 45%;
+    --accent: 40 61% 58%;
+    --accent-foreground: 22 18% 18%;
+    --destructive: 4 78% 46%;
+    --destructive-foreground: 40 33% 96%;
+    --border: 40 14% 85%;
+    --input: 40 14% 85%;
+    --ring: 166 42% 17%;
+    --success: 153 56% 41%;
+    --warning: 40 61% 58%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-[#F8F6F0] text-[#1F2937] font-sans antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Noto Serif SC', serif;
+  }
+}
+
+@layer utilities {
+  .card-border-left {
+    @apply border-l-4;
+  }
+  .card-border-left-green {
+    @apply border-l-4 border-l-pine-800;
+  }
+  .card-border-left-amber {
+    @apply border-l-4 border-l-amber-400;
+  }
+  .card-border-left-red {
+    @apply border-l-4 border-red-600;
+  }
+  .card-border-left-emerald {
+    @apply border-l-4 border-emerald-500;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+  .animate-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}

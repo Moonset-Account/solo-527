@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  name      String
+  email     String
+  role      String   @default("OPERATOR")
+  avatar    String?
+
+  serviceRequests  ServiceRequest[] @relation("Requester")
+  assignedServices ServiceRequest[] @relation("Assignee")
+  assignedRepairs  Repair[]         @relation("RepairAssignee")
+  inspections      Inspection[]
+  handledAnomalies Anomaly[]
+  attachments      Attachment[]
+  notes            Note[]
+  auditLogs        AuditLog[]
+  createdBills     Bill[]           @relation("BillCreator")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Building {
+  id      String @id @default(cuid())
+  name    String
+  floors  Int
+  address String?
+  rooms   Room[]
+}
+
+model Room {
+  id         String   @id @default(cuid())
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  floor      String
+  unitNumber String
+  area       Float
+  price      Float
+  status     String   @default("VACANT")
+  tenantId   String?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+
+  contracts Contract[]
+  bills     Bill[]
+  repairs   Repair[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tenant {
+  id       String @id @default(cuid())
+  name     String
+  contact  String
+  phone    String
+  email    String?
+  industry String?
+  status   String @default("ACTIVE")
+
+  rooms           Room[]
+  contracts       Contract[]
+  serviceRequests ServiceRequest[]
+  bills           Bill[]
+  repairs         Repair[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contract {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  monthlyRent Float
+  status      String   @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceRequest {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  requesterId String
+  requester   User     @relation("Requester", fields: [requesterId], references: [id])
+  type        String
+  description String
+  status      String   @default("PENDING")
+  assigneeId  String?
+  assignee    User?    @relation("Assignee", fields: [assigneeId], references: [id])
+  rejectReason String?
+
+  statusLogs ServiceStatusLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceStatusLog {
+  id               String        @id @default(cuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+  fromStatus       String?
+  toStatus         String
+  operatorId       String
+  note             String?
+
+  createdAt DateTime @default(now())
+}
+
+model Bill {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id])
+  period      String
+  totalAmount Float
+  status      String   @default("PENDING")
+  dueDate     DateTime
+  paidAt      DateTime?
+  creatorId   String
+  creator     User     @relation("BillCreator", fields: [creatorId], references: [id])
+
+  items       BillItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BillItem {
+  id       String @id @default(cuid())
+  billId   String
+  bill     Bill   @relation(fields: [billId], references: [id], onDelete: Cascade)
+  name     String
+  amount   Float
+  category String
+}
+
+model Repair {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  roomId      String
+  room        Room      @relation(fields: [roomId], references: [id])
+  reporterId  String
+  description String
+  urgency     String    @default("MEDIUM")
+  status      String    @default("PENDING")
+  assigneeId  String?
+  assignee    User?     @relation("RepairAssignee", fields: [assigneeId], references: [id])
+  result      String?
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+}
+
+model Inspection {
+  id          String   @id @default(cuid())
+  area        String
+  inspectorId String
+  inspector   User     @relation(fields: [inspectorId], references: [id])
+  inspectedAt DateTime @default(now())
+  status      String   @default("COMPLETED")
+
+  items     InspectionItem[]
+  anomalies Anomaly[]
+
+  createdAt DateTime @default(now())
+}
+
+model InspectionItem {
+  id            String     @id @default(cuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  item          String
+  passed        Boolean
+  note          String?
+}
+
+model Anomaly {
+  id              String      @id @default(cuid())
+  inspectionId    String
+  inspection      Inspection  @relation(fields: [inspectionId], references: [id])
+  affectedObjects String
+  handlerId       String
+  handler         User        @relation(fields: [handlerId], references: [id])
+  followUpAction  String
+  status          String      @default("OPEN")
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+}
+
+model Attachment {
+  id          String @id @default(cuid())
+  entityType  String
+  entityId    String
+  fileName    String
+  filePath    String
+  fileType    String
+  fileSize    Int
+  uploaderId  String
+  uploader    User   @relation(fields: [uploaderId], references: [id])
+
+  uploadedAt DateTime @default(now())
+}
+
+model Note {
+  id         String @id @default(cuid())
+  entityType String
+  entityId   String
+  authorId   String
+  author     User   @relation(fields: [authorId], references: [id])
+  content    String
+
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  field      String
+  oldValue   String?
+  newValue   String?
+  operatorId String
+  operator   User     @relation(fields: [operatorId], references: [id])
+  operatedAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([field])
+  @@index([operatorId])
+  @@index([operatedAt])
+}
