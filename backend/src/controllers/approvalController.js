@@ -68,22 +68,52 @@ const deleteLevel = async (req, res) => {
 const getMyApprovals = async (req, res) => {
   try {
     const { page = 1, pageSize = 10, status } = req.query
-    const where = {
-      approver: { role: req.user.role },
+    const userRole = req.user.role
+    const userId = req.user.id
+
+    let where = { OR: [] }
+
+    if (status === 'pending' || !status) {
+      const levels = await prisma.approvalLevel.findMany({
+        where: { enabled: true, role: userRole },
+        select: { level: true },
+      })
+      const myLevels = levels.map(l => l.level)
+      if (myLevels.length > 0) {
+        where.OR.push({
+          status: 'pending',
+          level: { in: myLevels },
+        })
+      }
     }
-    if (status) where.status = status
+
+    if (status === 'approved' || status === 'rejected' || !status) {
+      where.OR.push({
+        status: status || { in: ['approved', 'rejected'] },
+        approverId: userId,
+      })
+    }
+
+    if (where.OR.length === 0) {
+      return success(res, { list: [], total: 0, page: parseInt(page), pageSize: parseInt(pageSize) })
+    }
 
     const [approvals, total] = await Promise.all([
       prisma.approvalRecord.findMany({
         where,
         skip: (page - 1) * pageSize,
         take: parseInt(pageSize),
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { status: 'asc' },
+          { createdAt: 'desc' },
+        ],
         include: {
           request: {
             include: {
               requester: { select: { realName: true, department: true } },
               items: true,
+              attachments: true,
+              priceAlerts: true,
             },
           },
           approver: { select: { realName: true, role: true } },
