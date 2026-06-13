@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
 import { Prisma } from "@prisma/client";
+
 
 const trackedFields = [
   "chiefComplaint", "diagnosis", "treatmentPlan",
@@ -28,21 +30,23 @@ export const consultationRouter = createTRPCRouter({
       }
       if (input.intentionLevel) where.intentionLevel = input.intentionLevel;
 
-      const [total, list] = await Promise.all([
-        ctx.db.consultationRecord.count({ where }),
-        ctx.db.consultationRecord.findMany({
-          where,
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-          orderBy: { consultationDate: "desc" },
-          include: {
-            customer: true,
-            createdBy: true,
-            leads: true,
-          },
-        }),
-      ]);
-      return { total, list };
+      return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+        const [total, list] = await Promise.all([
+          ctx.db.consultationRecord.count({ where }),
+          ctx.db.consultationRecord.findMany({
+            where,
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            orderBy: { consultationDate: "desc" },
+            include: {
+              customer: true,
+              createdBy: true,
+              leads: true,
+            },
+          }),
+        ]);
+        return { total, list };
+      }, "consultation.list");
     }),
 
   create: protectedProcedure
@@ -62,6 +66,7 @@ export const consultationRouter = createTRPCRouter({
       leadQuality: z.enum(["HIGH", "MEDIUM", "LOW", "POTENTIAL"]).default("POTENTIAL"),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "创建咨询记录");
       const result = await ctx.db.$transaction(async (tx) => {
         const record = await tx.consultationRecord.create({
           data: {
@@ -121,6 +126,7 @@ export const consultationRouter = createTRPCRouter({
       remark: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "更新咨询记录");
       const old = await ctx.db.consultationRecord.findUnique({ where: { id: input.id } });
       if (!old) throw new Error("记录不存在");
 
@@ -155,21 +161,23 @@ export const consultationRouter = createTRPCRouter({
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const [todayCount, weekCount, total, intentions] = await Promise.all([
-      ctx.db.consultationRecord.count({
-        where: { consultationDate: { gte: today } },
-      }),
-      ctx.db.consultationRecord.count({
-        where: { consultationDate: { gte: weekAgo } },
-      }),
-      ctx.db.consultationRecord.count(),
-      ctx.db.consultationRecord.groupBy({
-        by: ["intentionLevel"],
-        where: { intentionLevel: { not: null } },
-        _count: true,
-      }),
-    ]);
+    return safeDbCall(ctx, { todayCount: 0, weekCount: 0, total: 0, intentions: [] }, async () => {
+      const [todayCount, weekCount, total, intentions] = await Promise.all([
+        ctx.db.consultationRecord.count({
+          where: { consultationDate: { gte: today } },
+        }),
+        ctx.db.consultationRecord.count({
+          where: { consultationDate: { gte: weekAgo } },
+        }),
+        ctx.db.consultationRecord.count(),
+        ctx.db.consultationRecord.groupBy({
+          by: ["intentionLevel"],
+          where: { intentionLevel: { not: null } },
+          _count: true,
+        }),
+      ]);
 
-    return { todayCount, weekCount, total, intentions };
+      return { todayCount, weekCount, total, intentions };
+    }, "consultation.stats");
   }),
 });

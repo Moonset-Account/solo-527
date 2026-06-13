@@ -1,31 +1,104 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser, UserButton } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { UserRole } from "@prisma/client";
+import type { UserRole, User as PrismaUser } from "@prisma/client";
+
+const USE_MOCK_AUTH = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === "true";
+
+// 运行时动态导入避免 Clerk key 校验失败时整个 app 崩溃
+let UserButton: any = null;
+if (!USE_MOCK_AUTH) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const clerk = require("@clerk/nextjs");
+    UserButton = clerk.UserButton;
+  } catch {}
+}
+
+type MockUserType = {
+  id: string;
+  fullName: string | null;
+  primaryEmailAddress: { emailAddress: string } | null;
+};
+
+const MOCK_USER: MockUserType = {
+  id: "mock-admin-user",
+  fullName: "系统管理员",
+  primaryEmailAddress: { emailAddress: "admin@dental-clinic.dev" },
+};
+
+function useAuthCompat() {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [user, setUser] = useState<MockUserType | null>(null);
+
+  useEffect(() => {
+    if (USE_MOCK_AUTH) {
+      setUser(MOCK_USER);
+      setIsLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    import("@clerk/nextjs").then(({ useUser }) => {
+      if (!cancelled) {
+        try {
+          const u = (useUser as () => any)();
+          setIsLoaded(u.isLoaded);
+          setUser(u.user);
+        } catch {
+          setIsLoaded(true);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { user, isLoaded };
+}
+
+function UserButtonCompat() {
+  if (USE_MOCK_AUTH) {
+    return (
+      <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50">
+        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center font-semibold text-sm">
+          管
+        </div>
+        <div className="text-sm">
+          <div className="font-medium text-slate-900">系统管理员</div>
+          <div className="text-xs text-slate-500">admin@dental-clinic.dev</div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useAuthCompat();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const ensure = api.user.ensureUser.useMutation();
-  const me = api.user.me.useQuery(undefined, { enabled: !!user });
+  const me = api.user.me.useQuery();
 
   useEffect(() => {
     if (isLoaded && !user) {
-      router.push("/sign-in");
-    } else if (user && !me.data && !me.isLoading) {
+      if (!USE_MOCK_AUTH) router.push("/sign-in");
+      return;
+    }
+    // Mock 模式下：tRPC context 已经自动创建/返回 mock 用户，跳过 ensure 调用
+    if (!USE_MOCK_AUTH && user && !me.data && !me.isLoading && !ensure.isPending) {
       ensure.mutate({
         email: user.primaryEmailAddress?.emailAddress ?? "",
         name: user.fullName ?? undefined,
       });
     }
-  }, [isLoaded, user, me.data, me.isLoading, router, ensure]);
+  }, [isLoaded, user, me.data, me.isLoading, router, ensure.isPending, ensure]);
 
   if (!isLoaded || !user) {
     return (
@@ -35,7 +108,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const role = (me.data?.role ?? "RECEPTIONIST") as UserRole;
+  const role = (me.data?.role ?? "ADMIN") as UserRole;
   const isAdmin = role === "ADMIN" || role === "MANAGER";
 
   const navItems = [
@@ -98,7 +171,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="border-t border-slate-200 p-3">
           <div className={`flex items-center gap-3 ${sidebarOpen ? "" : "justify-center"}`}>
-            <UserButton afterSignOutUrl="/" />
+            {USE_MOCK_AUTH ? (
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center font-semibold text-sm">
+                管
+              </div>
+            ) : (
+              UserButton ? <UserButton afterSignOutUrl="/" /> : null
+            )}
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">

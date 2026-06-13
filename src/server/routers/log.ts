@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, managerProcedure, adminProcedure } from "../trpc";
+import { safeDbCall } from "../lib/safeDb";
 
 export const logRouter = createTRPCRouter({
   list: managerProcedure
@@ -25,17 +26,19 @@ export const logRouter = createTRPCRouter({
         if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
-      const [total, list] = await Promise.all([
-        ctx.db.operationLog.count({ where }),
-        ctx.db.operationLog.findMany({
-          where,
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-          orderBy: { createdAt: "desc" },
-          include: { operator: true },
-        }),
-      ]);
-      return { total, list };
+      return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+        const [total, list] = await Promise.all([
+          ctx.db.operationLog.count({ where }),
+          ctx.db.operationLog.findMany({
+            where,
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            orderBy: { createdAt: "desc" },
+            include: { operator: true },
+          }),
+        ]);
+        return { total, list };
+      }, "log.list");
     }),
 
   byEntity: managerProcedure
@@ -45,45 +48,58 @@ export const logRouter = createTRPCRouter({
       limit: z.number().default(100),
     }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.operationLog.findMany({
-        where: { entityType: input.entityType, entityId: input.entityId },
-        take: input.limit,
-        orderBy: { createdAt: "desc" },
-        include: { operator: true },
-      });
+      return safeDbCall(ctx, [], () =>
+        ctx.db.operationLog.findMany({
+          where: { entityType: input.entityType, entityId: input.entityId },
+          take: input.limit,
+          orderBy: { createdAt: "desc" },
+          include: { operator: true },
+        }),
+        "log.byEntity"
+      );
     }),
 
   entityTypes: managerProcedure.query(async ({ ctx }) => {
-    const result = await ctx.db.operationLog.groupBy({
-      by: ["entityType"],
-      _count: true,
-    });
-    return result.map((r) => ({ type: r.entityType, count: r._count }));
+    return safeDbCall(ctx, [], async () => {
+      const result = await ctx.db.operationLog.groupBy({
+        by: ["entityType"],
+        _count: true,
+      });
+      return result.map((r) => ({ type: r.entityType, count: r._count }));
+    }, "log.entityTypes");
   }),
 
   stats: adminProcedure.query(async ({ ctx }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [todayCount, total, byOperator, byEntity, byAction] = await Promise.all([
-      ctx.db.operationLog.count({ where: { createdAt: { gte: today } } }),
-      ctx.db.operationLog.count(),
-      ctx.db.operationLog.groupBy({
-        by: ["operatorId"],
-        _count: true,
-        orderBy: { _count: { operatorId: "desc" } },
-        take: 10,
-      }),
-      ctx.db.operationLog.groupBy({
-        by: ["entityType"],
-        _count: true,
-      }),
-      ctx.db.operationLog.groupBy({
-        by: ["action"],
-        _count: true,
-      }),
-    ]);
+    return safeDbCall(ctx, {
+      todayCount: 0,
+      total: 0,
+      byOperator: [],
+      byEntity: [],
+      byAction: [],
+    }, async () => {
+      const [todayCount, total, byOperator, byEntity, byAction] = await Promise.all([
+        ctx.db.operationLog.count({ where: { createdAt: { gte: today } } }),
+        ctx.db.operationLog.count(),
+        ctx.db.operationLog.groupBy({
+          by: ["operatorId"],
+          _count: true,
+          orderBy: { _count: { operatorId: "desc" } },
+          take: 10,
+        }),
+        ctx.db.operationLog.groupBy({
+          by: ["entityType"],
+          _count: true,
+        }),
+        ctx.db.operationLog.groupBy({
+          by: ["action"],
+          _count: true,
+        }),
+      ]);
 
-    return { todayCount, total, byOperator, byEntity, byAction };
+      return { todayCount, total, byOperator, byEntity, byAction };
+    }, "log.stats");
   }),
 });

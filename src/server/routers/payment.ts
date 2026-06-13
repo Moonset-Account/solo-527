@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
 import { Prisma } from "@prisma/client";
 
@@ -30,30 +31,35 @@ export const paymentRouter = createTRPCRouter({
         if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
-      const [total, list] = await Promise.all([
-        ctx.db.payment.count({ where }),
-        ctx.db.payment.findMany({
-          where,
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-          orderBy: { createdAt: "desc" },
-          include: {
-            customer: true,
-            lead: { include: { customer: true } },
-            createdBy: true,
-          },
-        }),
-      ]);
-      return { total, list };
+      return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+        const [total, list] = await Promise.all([
+          ctx.db.payment.count({ where }),
+          ctx.db.payment.findMany({
+            where,
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            orderBy: { createdAt: "desc" },
+            include: {
+              customer: true,
+              lead: { include: { customer: true } },
+              createdBy: true,
+            },
+          }),
+        ]);
+        return { total, list };
+      }, "payment.list");
     }),
 
   byLead: protectedProcedure
     .input(z.string())
     .query(async ({ ctx, input }) => {
-      return ctx.db.payment.findMany({
-        where: { leadId: input },
-        orderBy: { createdAt: "desc" },
-      });
+      return safeDbCall(ctx, [], () =>
+        ctx.db.payment.findMany({
+          where: { leadId: input },
+          orderBy: { createdAt: "desc" },
+        }),
+        "payment.byLead"
+      );
     }),
 
   create: protectedProcedure
@@ -69,6 +75,7 @@ export const paymentRouter = createTRPCRouter({
       remark: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "创建回款记录");
       const data: any = {
         ...input,
         status: deriveStatus(input.totalAmount, input.paidAmount, input.status),
@@ -102,6 +109,7 @@ export const paymentRouter = createTRPCRouter({
       remark: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "更新回款记录");
       const old = await ctx.db.payment.findUnique({ where: { id: input.id } });
       if (!old) throw new Error("回款记录不存在");
 
@@ -145,6 +153,7 @@ export const paymentRouter = createTRPCRouter({
       remark: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "追加回款");
       const old = await ctx.db.payment.findUnique({ where: { id: input.id } });
       if (!old) throw new Error("回款记录不存在");
 
@@ -176,42 +185,54 @@ export const paymentRouter = createTRPCRouter({
     }),
 
   dashboard: protectedProcedure.query(async ({ ctx }) => {
-    const all = await ctx.db.payment.findMany();
+    return safeDbCall(ctx, {
+      totalReceivable: 0,
+      totalReceived: 0,
+      outstanding: 0,
+      collectionRate: 0,
+      unpaidCount: 0,
+      byMonth: {},
+      byStatus: {},
+      overdueCount: 0,
+      overdueAmount: 0,
+    }, async () => {
+      const all = await ctx.db.payment.findMany();
 
-    const totalReceivable = all.reduce((s, p) => s + Number(p.totalAmount), 0);
-    const totalReceived = all.reduce((s, p) => s + Number(p.paidAmount), 0);
-    const unpaidCount = all.filter((p) => p.status === "UNPAID" || p.status === "PARTIAL").length;
+      const totalReceivable = all.reduce((s, p) => s + Number(p.totalAmount), 0);
+      const totalReceived = all.reduce((s, p) => s + Number(p.paidAmount), 0);
+      const unpaidCount = all.filter((p) => p.status === "UNPAID" || p.status === "PARTIAL").length;
 
-    const byMonth: Record<string, { receivable: number; received: number }> = {};
-    for (const p of all) {
-      const key = p.createdAt.toISOString().slice(0, 7);
-      if (!byMonth[key]) byMonth[key] = { receivable: 0, received: 0 };
-      byMonth[key].receivable += Number(p.totalAmount);
-      byMonth[key].received += Number(p.paidAmount);
-    }
+      const byMonth: Record<string, { receivable: number; received: number }> = {};
+      for (const p of all) {
+        const key = p.createdAt.toISOString().slice(0, 7);
+        if (!byMonth[key]) byMonth[key] = { receivable: 0, received: 0 };
+        byMonth[key].receivable += Number(p.totalAmount);
+        byMonth[key].received += Number(p.paidAmount);
+      }
 
-    const byStatus: Record<string, number> = {};
-    for (const p of all) {
-      byStatus[p.status] = (byStatus[p.status] ?? 0) + 1;
-    }
+      const byStatus: Record<string, number> = {};
+      for (const p of all) {
+        byStatus[p.status] = (byStatus[p.status] ?? 0) + 1;
+      }
 
-    const overdue = all.filter((p) => {
-      if (p.status === "PAID" || p.status === "REFUNDED") return false;
-      if (!p.dueDate) return false;
-      return p.dueDate < new Date();
-    });
+      const overdue = all.filter((p) => {
+        if (p.status === "PAID" || p.status === "REFUNDED") return false;
+        if (!p.dueDate) return false;
+        return p.dueDate < new Date();
+      });
 
-    return {
-      totalReceivable,
-      totalReceived,
-      outstanding: totalReceivable - totalReceived,
-      collectionRate: totalReceivable ? totalReceived / totalReceivable : 0,
-      unpaidCount,
-      byMonth,
-      byStatus,
-      overdueCount: overdue.length,
-      overdueAmount: overdue.reduce((s, p) => s + (Number(p.totalAmount) - Number(p.paidAmount)), 0),
-    };
+      return {
+        totalReceivable,
+        totalReceived,
+        outstanding: totalReceivable - totalReceived,
+        collectionRate: totalReceivable ? totalReceived / totalReceivable : 0,
+        unpaidCount,
+        byMonth,
+        byStatus,
+        overdueCount: overdue.length,
+        overdueAmount: overdue.reduce((s, p) => s + (Number(p.totalAmount) - Number(p.paidAmount)), 0),
+      };
+    }, "payment.dashboard");
   }),
 
   export: protectedProcedure
@@ -229,29 +250,35 @@ export const paymentRouter = createTRPCRouter({
         if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
-      const data = await ctx.db.payment.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        include: { customer: true, createdBy: true },
-      });
-
-      const headers = ["客户", "项目", "应收", "已收", "未收", "状态", "创建人", "创建时间", "到期日"];
-      const rows = data.map((p) => [
-        p.customer?.name ?? "",
-        p.itemName,
-        String(p.totalAmount),
-        String(p.paidAmount),
-        String(Number(p.totalAmount) - Number(p.paidAmount)),
-        statusText(p.status),
-        p.createdBy?.name ?? "",
-        p.createdAt.toISOString().slice(0, 10),
-        p.dueDate?.toISOString().slice(0, 10) ?? "",
-      ]);
-
-      return {
-        headers, rows,
+      return safeDbCall(ctx, {
+        headers: [],
+        rows: [],
         filename: `payments_${new Date().toISOString().slice(0, 10)}.csv`,
-      };
+      }, async () => {
+        const data = await ctx.db.payment.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          include: { customer: true, createdBy: true },
+        });
+
+        const headers = ["客户", "项目", "应收", "已收", "未收", "状态", "创建人", "创建时间", "到期日"];
+        const rows = data.map((p) => [
+          p.customer?.name ?? "",
+          p.itemName,
+          String(p.totalAmount),
+          String(p.paidAmount),
+          String(Number(p.totalAmount) - Number(p.paidAmount)),
+          statusText(p.status),
+          p.createdBy?.name ?? "",
+          p.createdAt.toISOString().slice(0, 10),
+          p.dueDate?.toISOString().slice(0, 10) ?? "",
+        ]);
+
+        return {
+          headers, rows,
+          filename: `payments_${new Date().toISOString().slice(0, 10)}.csv`,
+        };
+      }, "payment.export");
     }),
 });
 

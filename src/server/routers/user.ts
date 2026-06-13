@@ -1,18 +1,23 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, managerProcedure, adminProcedure } from "../trpc";
-import { createLog, diffAndCreateLogs, createLogs } from "../lib/logs";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
+import { createLog, diffAndCreateLogs } from "../lib/logs";
 
 export const userRouter = createTRPCRouter({
   me: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.user.findUnique({
-      where: { id: ctx.dbUser.id },
-    });
+    return safeDbCall(ctx, ctx.dbUser, () =>
+      ctx.db.user.findUnique({
+        where: { id: ctx.dbUser.id },
+      })
+    );
   }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.user.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    return safeDbCall(ctx, [ctx.dbUser], () =>
+      ctx.db.user.findMany({
+        orderBy: { createdAt: "desc" },
+      })
+    );
   }),
 
   updateRole: adminProcedure
@@ -21,6 +26,7 @@ export const userRouter = createTRPCRouter({
       role: z.enum(["RECEPTIONIST", "DOCTOR", "MANAGER", "ADMIN"]),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "修改用户角色");
       const old = await ctx.db.user.findUnique({ where: { id: input.userId } });
       if (!old) throw new Error("用户不存在");
 
@@ -49,17 +55,23 @@ export const userRouter = createTRPCRouter({
       name: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.user.findUnique({
-        where: { clerkId: ctx.userId },
-      });
-      if (existing) return existing;
+      if (ctx.dbUnavailable) return ctx.dbUser;
+      try {
+        const existing = await ctx.db.user.findUnique({
+          where: { clerkId: ctx.userId },
+        });
+        if (existing) return existing;
 
-      return ctx.db.user.create({
-        data: {
-          clerkId: ctx.userId,
-          email: input.email,
-          name: input.name,
-        },
-      });
+        return await ctx.db.user.create({
+          data: {
+            clerkId: ctx.userId,
+            email: input.email,
+            name: input.name,
+          },
+        });
+      } catch (e) {
+        console.error("[ensureUser] DB error, returning context user:", e);
+        return ctx.dbUser;
+      }
     }),
 });

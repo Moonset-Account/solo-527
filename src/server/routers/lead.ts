@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, managerProcedure } from "../trpc";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
 import { Prisma } from "@prisma/client";
 
@@ -44,59 +45,63 @@ export const leadRouter = createTRPCRouter({
       }
       if (input.isAnomaly !== undefined) where.isAnomaly = input.isAnomaly;
 
-      const [total, list] = await Promise.all([
-        ctx.db.lead.count({ where }),
-        ctx.db.lead.findMany({
-          where,
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-          orderBy: { createdAt: "desc" },
-          include: {
-            customer: true,
-            stage: true,
-            assignedTo: true,
-            createdBy: true,
-            record: true,
-            followUpPlans: { orderBy: { planDate: "desc" }, take: 5 },
-            payments: true,
-          },
-        }),
-      ]);
-      return { total, list };
+      return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+        const [total, list] = await Promise.all([
+          ctx.db.lead.count({ where }),
+          ctx.db.lead.findMany({
+            where,
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            orderBy: { createdAt: "desc" },
+            include: {
+              customer: true,
+              stage: true,
+              assignedTo: true,
+              createdBy: true,
+              record: true,
+              followUpPlans: { orderBy: { planDate: "desc" }, take: 5 },
+              payments: true,
+            },
+          }),
+        ]);
+        return { total, list };
+      }, "lead.list");
     }),
 
   detail: protectedProcedure
     .input(z.string())
     .query(async ({ ctx, input }) => {
-      const lead = await ctx.db.lead.findUnique({
-        where: { id: input },
-        include: {
-          customer: { include: { tags: { include: { tag: true } } } },
-          stage: true,
-          assignedTo: true,
-          createdBy: true,
-          record: true,
-          followUpPlans: { orderBy: { planDate: "desc" } },
-          payments: { orderBy: { createdAt: "desc" } },
-        },
-      });
-      if (!lead) return null;
-      const logs = await ctx.db.operationLog.findMany({
-        where: { entityType: "Lead", entityId: input },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        include: { operator: true },
-      });
-      const plans = await ctx.db.followUpPlan.findMany({
-        where: { leadId: input },
-        orderBy: { planDate: "desc" },
-        include: { createdBy: true },
-      });
-      const payments = await ctx.db.payment.findMany({
-        where: { leadId: input },
-        orderBy: { createdAt: "desc" },
-      });
-      return { ...lead, followUpPlans: plans, payments, logs };
+      return safeDbCall(ctx, null, async () => {
+        const lead = await ctx.db.lead.findUnique({
+          where: { id: input },
+          include: {
+            customer: { include: { tags: { include: { tag: true } } } },
+            stage: true,
+            assignedTo: true,
+            createdBy: true,
+            record: true,
+            followUpPlans: { orderBy: { planDate: "desc" } },
+            payments: { orderBy: { createdAt: "desc" } },
+          },
+        });
+        if (!lead) return null;
+        const logs = await ctx.db.operationLog.findMany({
+          where: { entityType: "Lead", entityId: input },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          include: { operator: true },
+        });
+        const plans = await ctx.db.followUpPlan.findMany({
+          where: { leadId: input },
+          orderBy: { planDate: "desc" },
+          include: { createdBy: true },
+        });
+        const payments = await ctx.db.payment.findMany({
+          where: { leadId: input },
+          orderBy: { createdAt: "desc" },
+        });
+        return { ...lead, followUpPlans: plans, payments, logs };
+      }, "lead.detail");
     }),
 
   create: protectedProcedure
@@ -110,6 +115,7 @@ export const leadRouter = createTRPCRouter({
       assignedToId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "创建线索");
       const data: any = { ...input, createdById: ctx.dbUser.id };
       if (input.estimatedAmount !== undefined && input.estimatedAmount !== null) {
         data.estimatedAmount = new Prisma.Decimal(input.estimatedAmount);
@@ -140,6 +146,7 @@ export const leadRouter = createTRPCRouter({
       isAnomaly: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "更新线索");
       const old = await ctx.db.lead.findUnique({ where: { id: input.id } });
       if (!old) throw new Error("线索不存在");
 
@@ -177,6 +184,7 @@ export const leadRouter = createTRPCRouter({
       assignedToId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "分配线索");
       const old = await ctx.db.lead.findUnique({ where: { id: input.id } });
       const updated = await ctx.db.lead.update({
         where: { id: input.id },
@@ -214,68 +222,79 @@ export const leadRouter = createTRPCRouter({
         if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
-      const leads = await ctx.db.lead.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        include: {
-          customer: true,
-          stage: true,
-          assignedTo: true,
-          payments: true,
-        },
-      });
+      return safeDbCall(ctx, { headers: [], rows: [], filename: `leads_${new Date().toISOString().slice(0, 10)}.csv` }, async () => {
+        const leads = await ctx.db.lead.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            customer: true,
+            stage: true,
+            assignedTo: true,
+            payments: true,
+          },
+        });
 
-      const headers = [
-        "线索标题", "客户姓名", "联系电话", "质量等级", "状态", "阶段",
-        "预估金额", "已回款", "责任人", "创建时间", "下次回访",
-      ];
+        const headers = [
+          "线索标题", "客户姓名", "联系电话", "质量等级", "状态", "阶段",
+          "预估金额", "已回款", "责任人", "创建时间", "下次回访",
+        ];
 
-      const rows = leads.map((l) => [
-        l.title,
-        l.customer?.name ?? "",
-        l.customer?.phone ?? "",
-        qualityText(l.quality),
-        statusText(l.status),
-        l.stage?.name ?? "",
-        String(l.estimatedAmount ?? 0),
-        String(l.payments.reduce((s, p) => s + Number(p.paidAmount), 0)),
-        l.assignedTo?.name ?? "",
-        l.createdAt.toISOString().slice(0, 10),
-        l.nextFollowAt?.toISOString().slice(0, 10) ?? "",
-      ]);
+        const rows = leads.map((l) => [
+          l.title,
+          l.customer?.name ?? "",
+          l.customer?.phone ?? "",
+          qualityText(l.quality),
+          statusText(l.status),
+          l.stage?.name ?? "",
+          String(l.estimatedAmount ?? 0),
+          String(l.payments.reduce((s, p) => s + Number(p.paidAmount), 0)),
+          l.assignedTo?.name ?? "",
+          l.createdAt.toISOString().slice(0, 10),
+          l.nextFollowAt?.toISOString().slice(0, 10) ?? "",
+        ]);
 
-      return {
-        headers,
-        rows,
-        filename: `leads_${new Date().toISOString().slice(0, 10)}.csv`,
-      };
+        return {
+          headers,
+          rows,
+          filename: `leads_${new Date().toISOString().slice(0, 10)}.csv`,
+        };
+      }, "lead.export");
     }),
 
   stats: protectedProcedure.query(async ({ ctx }) => {
-    const all = await ctx.db.lead.findMany({
-      include: { payments: true },
-    });
+    return safeDbCall(ctx, {
+      total: 0,
+      byQuality: { HIGH: 0, MEDIUM: 0, LOW: 0, POTENTIAL: 0 },
+      byStatus: {},
+      totalEstimated: 0,
+      totalPaid: 0,
+      conversionRate: 0,
+    }, async () => {
+      const all = await ctx.db.lead.findMany({
+        include: { payments: true },
+      });
 
-    const byQuality = { HIGH: 0, MEDIUM: 0, LOW: 0, POTENTIAL: 0 };
-    const byStatus: Record<string, number> = {};
-    let totalEstimated = 0;
-    let totalPaid = 0;
+      const byQuality = { HIGH: 0, MEDIUM: 0, LOW: 0, POTENTIAL: 0 };
+      const byStatus: Record<string, number> = {};
+      let totalEstimated = 0;
+      let totalPaid = 0;
 
-    for (const l of all) {
-      byQuality[l.quality] = (byQuality[l.quality] ?? 0) + 1;
-      byStatus[l.status] = (byStatus[l.status] ?? 0) + 1;
-      totalEstimated += Number(l.estimatedAmount ?? 0);
-      totalPaid += l.payments.reduce((s, p) => s + Number(p.paidAmount), 0);
-    }
+      for (const l of all) {
+        byQuality[l.quality] = (byQuality[l.quality] ?? 0) + 1;
+        byStatus[l.status] = (byStatus[l.status] ?? 0) + 1;
+        totalEstimated += Number(l.estimatedAmount ?? 0);
+        totalPaid += l.payments.reduce((s, p) => s + Number(p.paidAmount), 0);
+      }
 
-    return {
-      total: all.length,
-      byQuality,
-      byStatus,
-      totalEstimated,
-      totalPaid,
-      conversionRate: all.length ? (byStatus["CLOSED_WON"] ?? 0) / all.length : 0,
-    };
+      return {
+        total: all.length,
+        byQuality,
+        byStatus,
+        totalEstimated,
+        totalPaid,
+        conversionRate: all.length ? (byStatus["CLOSED_WON"] ?? 0) / all.length : 0,
+      };
+    }, "lead.stats");
   }),
 });
 

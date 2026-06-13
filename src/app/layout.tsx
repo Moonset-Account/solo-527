@@ -1,5 +1,4 @@
 import { type Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { TRPCProvider } from "@/components/TRPCProvider";
 
@@ -9,18 +8,28 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
-export default function RootLayout({
+const USE_MOCK_AUTH = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === "true";
+
+async function ClerkProviderWrapper({ children }: { children: React.ReactNode }) {
+  if (USE_MOCK_AUTH) {
+    return <>{children}</>;
+  }
+  const { ClerkProvider } = await import("@clerk/nextjs");
+  return <ClerkProvider>{children}</ClerkProvider>;
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="zh-CN">
-        <body>
+    <html lang="zh-CN">
+      <body>
+        <ClerkProviderWrapper>
           <TRPCProvider>{children}</TRPCProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProviderWrapper>
+      </body>
+    </html>
   );
 }

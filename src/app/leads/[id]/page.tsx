@@ -5,11 +5,13 @@ import { AppLayout } from "@/components/AppLayout";
 import LeadDetailPage from "@/pages/LeadDetailPage";
 
 export default function Page() {
-  const params = useParams<{ id: string }>();
+  const params = useParams() as { id: string } | undefined;
   const router = useRouter();
+  const id = params?.id ?? "";
+  if (!id) return <div>加载中...</div>;
   return (
     <AppLayout>
-      <LeadDetailPage id={params.id} onBack={() => router.push("/leads")} />
+      <LeadDetailPage id={id} onBack={() => router.push("/leads")} />
     </AppLayout>
   );
 }

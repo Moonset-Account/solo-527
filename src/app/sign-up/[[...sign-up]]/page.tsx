@@ -1,6 +1,17 @@
-import { SignUp } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+const USE_MOCK_AUTH = process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH === "true";
 
 export default function SignUpPage() {
+  if (USE_MOCK_AUTH) redirect("/dashboard");
+
+  let SignUp: any = null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const clerk = require("@clerk/nextjs");
+    SignUp = clerk.SignUp;
+  } catch {}
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dental-50 via-white to-primary-50">
       <div className="max-w-md w-full px-6">
@@ -11,14 +22,20 @@ export default function SignUpPage() {
         </div>
         <div className="card">
           <div className="card-body">
-            <SignUp
-              appearance={{
-                elements: {
-                  formButtonPrimary: "bg-dental-600 hover:bg-dental-700",
-                  footerActionLink: "text-dental-600 hover:text-dental-700",
-                },
-              }}
-            />
+            {SignUp ? (
+              <SignUp
+                appearance={{
+                  elements: {
+                    formButtonPrimary: "bg-dental-600 hover:bg-dental-700",
+                    footerActionLink: "text-dental-600 hover:text-dental-700",
+                  },
+                }}
+              />
+            ) : (
+              <div className="text-center py-6 text-slate-500">
+                请配置 Clerk 环境变量或启用 Mock 认证
+              </div>
+            )}
           </div>
         </div>
       </div>

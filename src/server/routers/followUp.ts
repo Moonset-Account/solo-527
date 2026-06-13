@@ -1,23 +1,31 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, managerProcedure } from "../trpc";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
 import { createLog } from "../lib/logs";
 import { Prisma } from "@prisma/client";
+
 
 export const followUpRouter = createTRPCRouter({
   rules: {
     list: protectedProcedure.query(async ({ ctx }) => {
-      return ctx.db.followUpRule.findMany({
-        where: { isActive: true },
-        orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
-        include: { triggerStage: true },
-      });
+      return safeDbCall(ctx, [], () =>
+        ctx.db.followUpRule.findMany({
+          where: { isActive: true },
+          orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+          include: { triggerStage: true },
+        }),
+        "followUp.rules.list"
+      );
     }),
 
     listAll: managerProcedure.query(async ({ ctx }) => {
-      return ctx.db.followUpRule.findMany({
-        orderBy: [{ isActive: "desc" }, { priority: "desc" }],
-        include: { triggerStage: true },
-      });
+      return safeDbCall(ctx, [], () =>
+        ctx.db.followUpRule.findMany({
+          orderBy: [{ isActive: "desc" }, { priority: "desc" }],
+          include: { triggerStage: true },
+        }),
+        "followUp.rules.listAll"
+      );
     }),
 
     create: managerProcedure
@@ -32,6 +40,7 @@ export const followUpRouter = createTRPCRouter({
         priority: z.number().default(0),
       }))
       .mutation(async ({ ctx, input }) => {
+        assertDbAvailable(ctx, "创建回访规则");
         const data: any = { ...input };
         if (input.triggerCondition) {
           data.triggerCondition = input.triggerCondition as unknown as Prisma.InputJsonValue;
@@ -53,6 +62,7 @@ export const followUpRouter = createTRPCRouter({
         priority: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        assertDbAvailable(ctx, "更新回访规则");
         const { id, ...rest } = input;
         const data: any = {};
         for (const [key, value] of Object.entries(rest)) {
@@ -69,6 +79,7 @@ export const followUpRouter = createTRPCRouter({
     delete: managerProcedure
       .input(z.string())
       .mutation(async ({ ctx, input }) => {
+        assertDbAvailable(ctx, "删除回访规则");
         return ctx.db.followUpRule.update({
           where: { id: input },
           data: { isActive: false },
@@ -96,20 +107,22 @@ export const followUpRouter = createTRPCRouter({
           if (input.dateTo) where.planDate.lte = input.dateTo;
         }
 
-        const [total, list] = await Promise.all([
-          ctx.db.followUpPlan.count({ where }),
-          ctx.db.followUpPlan.findMany({
-            where,
-            skip: (input.page - 1) * input.pageSize,
-            take: input.pageSize,
-            orderBy: [{ planDate: "asc" }],
-            include: {
-              lead: { include: { customer: true, stage: true } },
-              createdBy: true,
-            },
-          }),
-        ]);
-        return { total, list };
+        return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+          const [total, list] = await Promise.all([
+            ctx.db.followUpPlan.count({ where }),
+            ctx.db.followUpPlan.findMany({
+              where,
+              skip: (input.page - 1) * input.pageSize,
+              take: input.pageSize,
+              orderBy: [{ planDate: "asc" }],
+              include: {
+                lead: { include: { customer: true, stage: true } },
+                createdBy: true,
+              },
+            }),
+          ]);
+          return { total, list };
+        }, "followUp.plans.list");
       }),
 
     create: protectedProcedure
@@ -120,6 +133,7 @@ export const followUpRouter = createTRPCRouter({
         content: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
+        assertDbAvailable(ctx, "创建回访计划");
         const plan = await ctx.db.$transaction(async (tx) => {
           const p = await tx.followUpPlan.create({
             data: { ...input, createdById: ctx.dbUser.id },
@@ -154,6 +168,7 @@ export const followUpRouter = createTRPCRouter({
         result: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
+        assertDbAvailable(ctx, "完成回访计划");
         const plan = await ctx.db.followUpPlan.update({
           where: { id: input.id },
           data: {
@@ -182,18 +197,21 @@ export const followUpRouter = createTRPCRouter({
       const now = new Date();
       const twoDaysLater = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
-      return ctx.db.followUpPlan.findMany({
-        where: {
-          isCompleted: false,
-          planDate: { lte: twoDaysLater },
-          createdById: ctx.dbUser.id,
-        },
-        orderBy: { planDate: "asc" },
-        take: 10,
-        include: {
-          lead: { include: { customer: true, stage: true } },
-        },
-      });
+      return safeDbCall(ctx, [], () =>
+        ctx.db.followUpPlan.findMany({
+          where: {
+            isCompleted: false,
+            planDate: { lte: twoDaysLater },
+            createdById: ctx.dbUser.id,
+          },
+          orderBy: { planDate: "asc" },
+          take: 10,
+          include: {
+            lead: { include: { customer: true, stage: true } },
+          },
+        }),
+        "followUp.plans.upcoming"
+      );
     }),
   },
 });

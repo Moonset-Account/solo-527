@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
 
 const trackedFields = ["name", "phone", "email", "source", "remark"] as const;
@@ -26,42 +27,47 @@ export const customerRouter = createTRPCRouter({
         where.tags = { some: { tagId: { in: input.tagIds } } };
       }
 
-      const [total, list] = await Promise.all([
-        ctx.db.customer.count({ where }),
-        ctx.db.customer.findMany({
-          where,
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-          orderBy: { createdAt: "desc" },
-          include: {
-            tags: { include: { tag: true } },
-            consultations: { take: 3, orderBy: { createdAt: "desc" } },
-            leads: { take: 3, orderBy: { createdAt: "desc" } },
-            _count: { select: { consultations: true, leads: true, payments: true } },
-          },
-        }),
-      ]);
-      return { total, list };
+      return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+        const [total, list] = await Promise.all([
+          ctx.db.customer.count({ where }),
+          ctx.db.customer.findMany({
+            where,
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            orderBy: { createdAt: "desc" },
+            include: {
+              tags: { include: { tag: true } },
+              consultations: { take: 3, orderBy: { createdAt: "desc" } },
+              leads: { take: 3, orderBy: { createdAt: "desc" } },
+              _count: { select: { consultations: true, leads: true, payments: true } },
+            },
+          }),
+        ]);
+        return { total, list };
+      }, "customer.list");
     }),
 
   detail: protectedProcedure
     .input(z.string())
     .query(async ({ ctx, input }) => {
-      return ctx.db.customer.findUnique({
-        where: { id: input },
-        include: {
-          tags: { include: { tag: true } },
-          consultations: {
-            orderBy: { createdAt: "desc" },
-            include: { createdBy: true },
+      return safeDbCall(ctx, null, () =>
+        ctx.db.customer.findUnique({
+          where: { id: input },
+          include: {
+            tags: { include: { tag: true } },
+            consultations: {
+              orderBy: { createdAt: "desc" },
+              include: { createdBy: true },
+            },
+            leads: {
+              orderBy: { createdAt: "desc" },
+              include: { stage: true, assignedTo: true, followUpPlans: true, payments: true },
+            },
+            payments: { orderBy: { createdAt: "desc" } },
           },
-          leads: {
-            orderBy: { createdAt: "desc" },
-            include: { stage: true, assignedTo: true, followUpPlans: true, payments: true },
-          },
-          payments: { orderBy: { createdAt: "desc" } },
-        },
-      });
+        }),
+        "customer.detail"
+      );
     }),
 
   create: protectedProcedure
@@ -77,6 +83,7 @@ export const customerRouter = createTRPCRouter({
       tagIds: z.array(z.string()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "创建客户");
       const existing = await ctx.db.customer.findFirst({
         where: { phone: input.phone },
       });
@@ -123,6 +130,7 @@ export const customerRouter = createTRPCRouter({
       tagIds: z.array(z.string()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "更新客户");
       const old = await ctx.db.customer.findUnique({ where: { id: input.id } });
       if (!old) throw new Error("客户不存在");
 

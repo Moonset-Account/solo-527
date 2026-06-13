@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, managerProcedure } from "../trpc";
+import { safeDbCall, assertDbAvailable } from "../lib/safeDb";
 import { createLog, diffAndCreateLogs } from "../lib/logs";
 
 const trackedFields = [
@@ -31,43 +32,47 @@ export const abnormalRouter = createTRPCRouter({
         if (input.dateTo) where.createdAt.lte = input.dateTo;
       }
 
-      const [total, list] = await Promise.all([
-        ctx.db.abnormalRecord.count({ where }),
-        ctx.db.abnormalRecord.findMany({
-          where,
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-          orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
+      return safeDbCall(ctx, { total: 0, list: [] }, async () => {
+        const [total, list] = await Promise.all([
+          ctx.db.abnormalRecord.count({ where }),
+          ctx.db.abnormalRecord.findMany({
+            where,
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+            orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
+            include: {
+              lead: { include: { customer: true, stage: true } },
+              customer: true,
+              reporter: true,
+              handler: true,
+            },
+          }),
+        ]);
+        return { total, list };
+      }, "abnormal.list");
+    }),
+
+  detail: protectedProcedure
+    .input(z.string())
+    .query(async ({ ctx, input }) => {
+      return safeDbCall(ctx, null, async () => {
+        const rec = await ctx.db.abnormalRecord.findUnique({
+          where: { id: input },
           include: {
             lead: { include: { customer: true, stage: true } },
             customer: true,
             reporter: true,
             handler: true,
           },
-        }),
-      ]);
-      return { total, list };
-    }),
-
-  detail: protectedProcedure
-    .input(z.string())
-    .query(async ({ ctx, input }) => {
-      const rec = await ctx.db.abnormalRecord.findUnique({
-        where: { id: input },
-        include: {
-          lead: { include: { customer: true, stage: true } },
-          customer: true,
-          reporter: true,
-          handler: true,
-        },
-      });
-      if (!rec) return null;
-      const logs = await ctx.db.operationLog.findMany({
-        where: { entityType: "AbnormalRecord", entityId: input },
-        orderBy: { createdAt: "desc" },
-        include: { operator: true },
-      });
-      return { ...rec, logs };
+        });
+        if (!rec) return null;
+        const logs = await ctx.db.operationLog.findMany({
+          where: { entityType: "AbnormalRecord", entityId: input },
+          orderBy: { createdAt: "desc" },
+          include: { operator: true },
+        });
+        return { ...rec, logs };
+      }, "abnormal.detail");
     }),
 
   create: protectedProcedure
@@ -86,6 +91,7 @@ export const abnormalRouter = createTRPCRouter({
       severity: z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]).default("NORMAL"),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "创建异常记录");
       const rec = await ctx.db.abnormalRecord.create({
         data: {
           ...input,
@@ -126,6 +132,7 @@ export const abnormalRouter = createTRPCRouter({
       severity: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "更新异常记录");
       const old = await ctx.db.abnormalRecord.findUnique({ where: { id: input.id } });
       if (!old) throw new Error("异常记录不存在");
 
@@ -149,6 +156,7 @@ export const abnormalRouter = createTRPCRouter({
       handlerId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "指定异常责任人");
       const old = await ctx.db.abnormalRecord.findUnique({ where: { id: input.id } });
       const updated = await ctx.db.abnormalRecord.update({
         where: { id: input.id },
@@ -176,6 +184,7 @@ export const abnormalRouter = createTRPCRouter({
       resolved: z.boolean().default(false),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "处理异常记录");
       const old = await ctx.db.abnormalRecord.findUnique({
         where: { id: input.id },
         include: { lead: true },
@@ -220,6 +229,7 @@ export const abnormalRouter = createTRPCRouter({
       reason: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      assertDbAvailable(ctx, "标记线索撞单");
       await ctx.db.leadDuplicate.create({
         data: {
           leadId: input.leadId,
@@ -250,27 +260,38 @@ export const abnormalRouter = createTRPCRouter({
     }),
 
   stats: protectedProcedure.query(async ({ ctx }) => {
-    const all = await ctx.db.abnormalRecord.findMany();
-    const byType: Record<string, number> = {};
-    const byStatus: Record<string, number> = {};
-    const bySeverity: Record<string, number> = {};
+    return safeDbCall(ctx, {
+      total: 0,
+      byType: {},
+      byStatus: {},
+      bySeverity: {},
+      pending: 0,
+      processing: 0,
+      unresolved: 0,
+      critical: 0,
+    }, async () => {
+      const all = await ctx.db.abnormalRecord.findMany();
+      const byType: Record<string, number> = {};
+      const byStatus: Record<string, number> = {};
+      const bySeverity: Record<string, number> = {};
 
-    for (const r of all) {
-      byType[r.type] = (byType[r.type] ?? 0) + 1;
-      byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-      bySeverity[r.severity] = (bySeverity[r.severity] ?? 0) + 1;
-    }
+      for (const r of all) {
+        byType[r.type] = (byType[r.type] ?? 0) + 1;
+        byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+        bySeverity[r.severity] = (bySeverity[r.severity] ?? 0) + 1;
+      }
 
-    const pending = all.filter((r) => r.status === "PENDING").length;
-    const processing = all.filter((r) => r.status === "PROCESSING").length;
-    const critical = all.filter((r) => r.severity === "CRITICAL" && r.status !== "RESOLVED").length;
+      const pending = all.filter((r) => r.status === "PENDING").length;
+      const processing = all.filter((r) => r.status === "PROCESSING").length;
+      const critical = all.filter((r) => r.severity === "CRITICAL" && r.status !== "RESOLVED").length;
 
-    return {
-      total: all.length,
-      byType, byStatus, bySeverity,
-      pending, processing,
-      unresolved: all.length - (byStatus["RESOLVED"] ?? 0),
-      critical,
-    };
+      return {
+        total: all.length,
+        byType, byStatus, bySeverity,
+        pending, processing,
+        unresolved: all.length - (byStatus["RESOLVED"] ?? 0),
+        critical,
+      };
+    }, "abnormal.stats");
   }),
 });
