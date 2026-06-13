@@ -1,8 +1,8 @@
 import os
 import uuid
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, Query, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, or_, and_
@@ -13,12 +13,15 @@ from app.database import get_db
 from app.auth import get_current_user, RoleChecker
 from app.models import (
     User, RoleEnum, Ticket, TicketStatus, TicketPriority,
-    Attachment, TicketNote, TicketTimeline, TicketSimilarity
+    Attachment, TicketNote, TicketTimeline, TicketSimilarity,
+    CustomerFeedback, RiskSample, KBArticle, KBVersionHistory
 )
 from app.schemas import (
     TicketCreate, TicketUpdate, TicketResponse, TicketDetailResponse,
     TicketListResponse, TicketNoteCreate, TicketNoteResponse,
-    TicketTimelineResponse, AttachmentResponse, TicketSimilarityResponse
+    TicketTimelineResponse, AttachmentResponse, TicketSimilarityResponse,
+    CustomerFeedbackResponse, RiskSampleResponse,
+    KBArticleResponse, KBVersionResponse
 )
 
 router = APIRouter(prefix="/tickets", tags=["工单"])
@@ -49,17 +52,15 @@ async def _add_timeline(
     db.add(timeline)
 
 
-@router.post("", response_model=TicketResponse)
-async def create_ticket(
-    ticket_in: TicketCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
+async def _create_ticket_internal(
+    db: AsyncSession, title: str, description: str, priority: TicketPriority,
+    category: Optional[str], current_user: User
+) -> Ticket:
     ticket = Ticket(
-        title=ticket_in.title,
-        description=ticket_in.description,
-        priority=ticket_in.priority,
-        category=ticket_in.category,
+        title=title,
+        description=description,
+        priority=priority,
+        category=category,
         created_by=current_user.id,
         status=TicketStatus.PENDING,
     )
@@ -80,6 +81,90 @@ async def create_ticket(
         pass
 
     return ticket
+
+
+async def _save_attachment(
+    db: AsyncSession, ticket_id: int, file: UploadFile, user_id: int
+) -> Optional[Attachment]:
+    upload_dir = settings.UPLOAD_DIR
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir, exist_ok=True)
+
+    file_ext = os.path.splitext(file.filename or "file")[1]
+    new_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(upload_dir, new_filename)
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    attachment = Attachment(
+        ticket_id=ticket_id,
+        original_filename=file.filename or new_filename,
+        file_path=file_path,
+        file_size=len(content),
+        mime_type=file.content_type or "application/octet-stream",
+        uploaded_by=user_id
+    )
+    db.add(attachment)
+    return attachment
+
+
+@router.post("", response_model=TicketResponse)
+async def create_ticket(
+    ticket_in: TicketCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await _create_ticket_internal(
+        db, ticket_in.title, ticket_in.description,
+        ticket_in.priority, ticket_in.category, current_user
+    )
+
+
+@router.post("/create-with-attachments", response_model=TicketDetailResponse)
+async def create_ticket_with_attachments(
+    title: str = Form(...),
+    description: str = Form(...),
+    priority: TicketPriority = Form(TicketPriority.MEDIUM),
+    category: Optional[str] = Form(None),
+    files: List[UploadFile] = File(default_factory=list),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    ticket = await _create_ticket_internal(db, title, description, priority, category, current_user)
+
+    attachments_created = []
+    if files:
+        for file in files:
+            att = await _save_attachment(db, ticket.id, file, current_user.id)
+            attachments_created.append(att)
+        await _add_timeline(
+            db, ticket.id, "attachment_added",
+            f"上传了 {len(files)} 个附件",
+            current_user.id
+        )
+        await db.commit()
+
+    from sqlalchemy.orm import selectinload
+    query = select(Ticket).options(
+        selectinload(Ticket.requester),
+        selectinload(Ticket.assigned_agent),
+        selectinload(Ticket.attachments),
+        selectinload(Ticket.notes),
+        selectinload(Ticket.timeline_events)
+    ).where(Ticket.id == ticket.id)
+    result = await db.execute(query)
+    ticket = result.scalar_one_or_none()
+
+    return TicketDetailResponse(
+        **TicketResponse.model_validate(ticket).model_dump(),
+        requester=ticket.requester,
+        assigned_agent=ticket.assigned_agent,
+        attachments=attachments_created or ticket.attachments,
+        notes=ticket.notes,
+        timeline_events=ticket.timeline_events
+    )
 
 
 @router.get("", response_model=TicketListResponse)
@@ -174,7 +259,43 @@ async def get_ticket(
     if current_user.role == RoleEnum.CUSTOMER and ticket.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    return ticket
+    fb_result = await db.execute(
+        select(CustomerFeedback).where(CustomerFeedback.ticket_id == ticket_id)
+    )
+    feedback = fb_result.scalar_one_or_none()
+
+    risk_result = await db.execute(
+        select(RiskSample).where(RiskSample.ticket_id == ticket_id).order_by(RiskSample.detected_at.desc())
+    )
+    risk_samples = risk_result.scalars().all()
+
+    kb_article = None
+    kb_versions = []
+    if ticket.kb_article_id:
+        kb_result = await db.execute(
+            select(KBArticle).where(KBArticle.id == ticket.kb_article_id)
+        )
+        kb_article = kb_result.scalar_one_or_none()
+        if kb_article:
+            kb_v_result = await db.execute(
+                select(KBVersionHistory).where(
+                    KBVersionHistory.article_id == ticket.kb_article_id
+                ).order_by(KBVersionHistory.version.desc()).limit(5)
+            )
+            kb_versions = kb_v_result.scalars().all()
+
+    return TicketDetailResponse(
+        **TicketResponse.model_validate(ticket).model_dump(),
+        requester=ticket.requester,
+        assigned_agent=ticket.assigned_agent,
+        attachments=[AttachmentResponse.model_validate(a) for a in ticket.attachments],
+        notes=[TicketNoteResponse.model_validate(n) for n in ticket.notes],
+        timeline_events=[TicketTimelineResponse.model_validate(t) for t in ticket.timeline_events],
+        feedback=CustomerFeedbackResponse.model_validate(feedback) if feedback else None,
+        risk_samples=[RiskSampleResponse.model_validate(r) for r in risk_samples],
+        kb_article=KBArticleResponse.model_validate(kb_article) if kb_article else None,
+        kb_versions=[KBVersionResponse.model_validate(v) for v in kb_versions]
+    )
 
 
 @router.put("/{ticket_id}", response_model=TicketResponse)

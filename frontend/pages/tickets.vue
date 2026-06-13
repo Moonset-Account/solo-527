@@ -104,6 +104,22 @@
             <n-select v-model:value="createForm.category" :options="categoryOptions" clearable />
           </n-form-item>
         </n-space>
+        <n-form-item label="附件">
+          <n-upload
+            :show-file-list="true"
+            v-model:file-list="createAttachments"
+            multiple
+            :max="10"
+            accept=""
+            :custom-request="() => {}"
+            :on-change="handleCreateFileChange"
+          >
+            <n-button>📎 选择附件（可选多文件）</n-button>
+          </n-upload>
+          <div class="upload-hint">
+            支持图片、文档、压缩包等，单个文件最大 20MB
+          </div>
+        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -120,14 +136,14 @@
 import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
-import type { DataTableColumns, FormInst, SelectMixedOption, TagProps } from 'naive-ui'
+import type { DataTableColumns, FormInst, SelectMixedOption, TagProps, UploadFileInfo, UploadOnChange } from 'naive-ui'
 
 definePageMeta({
   layout: 'default'
 })
 
 const router = useRouter()
-const { get, post } = useApi()
+const { get, post, baseURL } = useApi()
 const message = useMessage()
 const auth = useAuthStore()
 
@@ -182,6 +198,12 @@ const createForm = reactive({
   priority: 'medium',
   category: null as string | null
 })
+
+const createAttachments = ref<UploadFileInfo[]>([])
+
+const handleCreateFileChange: UploadOnChange = ({ fileList }) => {
+  createAttachments.value = fileList
+}
 
 const createRules = {
   title: [
@@ -401,16 +423,31 @@ const handleCreate = async () => {
     await createFormRef.value?.validate()
     creating.value = true
 
-    const payload: any = {
-      title: createForm.title,
-      description: createForm.description,
-      priority: createForm.priority
-    }
+    const formData = new FormData()
+    formData.append('title', createForm.title)
+    formData.append('description', createForm.description)
+    formData.append('priority', createForm.priority)
     if (createForm.category) {
-      payload.category = createForm.category
+      formData.append('category', createForm.category)
     }
+    createAttachments.value.forEach(info => {
+      if (info.file?.file instanceof File) {
+        formData.append('files', info.file.file)
+      }
+    })
 
-    await post('/tickets', payload)
+    const token = auth.token
+    await fetch(`${baseURL}/tickets/create-with-attachments`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    }).then(async resp => {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        throw new Error(err.detail || '创建工单失败')
+      }
+    })
+
     message.success('工单创建成功')
     showCreateModal.value = false
     resetCreateForm()
@@ -428,6 +465,7 @@ const resetCreateForm = () => {
   createForm.description = ''
   createForm.priority = 'medium'
   createForm.category = null
+  createAttachments.value = []
 }
 
 onMounted(() => {

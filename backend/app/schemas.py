@@ -143,21 +143,6 @@ class TicketResponse(BaseModel):
         from_attributes = True
 
 
-class TicketDetailResponse(TicketResponse):
-    requester: Optional[UserResponse] = None
-    assigned_agent: Optional[UserResponse] = None
-    attachments: List[AttachmentResponse] = []
-    notes: List[TicketNoteResponse] = []
-    timeline_events: List[TicketTimelineResponse] = []
-
-
-class TicketListResponse(BaseModel):
-    items: List[TicketResponse]
-    total: int
-    page: int
-    page_size: int
-
-
 class KBCategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -272,6 +257,25 @@ class RiskSampleResponse(RiskSampleBase):
 
     class Config:
         from_attributes = True
+
+
+class TicketDetailResponse(TicketResponse):
+    requester: Optional[UserResponse] = None
+    assigned_agent: Optional[UserResponse] = None
+    attachments: List[AttachmentResponse] = []
+    notes: List[TicketNoteResponse] = []
+    timeline_events: List[TicketTimelineResponse] = []
+    feedback: Optional[CustomerFeedbackResponse] = None
+    risk_samples: List[RiskSampleResponse] = []
+    kb_article: Optional[KBArticleResponse] = None
+    kb_versions: List[KBVersionResponse] = []
+
+
+class TicketListResponse(BaseModel):
+    items: List[TicketResponse]
+    total: int
+    page: int
+    page_size: int
 
 
 class StatsOverview(BaseModel):

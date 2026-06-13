@@ -108,6 +108,64 @@
         </n-descriptions>
       </n-card>
 
+      <n-card v-if="ticket" title="SLA 响应与超时统计" :bordered="true">
+        <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen">
+          <n-gi span="1 s:1 m:1 l:1 xl:1">
+            <div class="stat-card stat-primary">
+              <div class="stat-label">响应时长</div>
+              <div class="stat-value">
+                {{ ticket.first_response_at
+                  ? formatDuration(ticket.response_time_seconds)
+                  : ticket.status === 'pending' ? '待响应' : '-' }}
+              </div>
+              <div class="stat-sub">
+                首响时间：{{ formatDateTime(ticket.first_response_at) }}
+              </div>
+            </div>
+          </n-gi>
+          <n-gi span="1 s:1 m:1 l:1 xl:1">
+            <div class="stat-card" :class="isOverdue(ticket.sla_deadline) ? 'stat-error' : 'stat-success'">
+              <div class="stat-label">SLA 状态</div>
+              <div class="stat-value">
+                {{ isOverdue(ticket.sla_deadline) ? '已超时' : ticket.status === 'resolved' || ticket.status === 'closed' ? '已达标' : isNearDeadline(ticket.sla_deadline) ? '即将到期' : '正常' }}
+              </div>
+              <div class="stat-sub">
+                截止：{{ formatDateTime(ticket.sla_deadline) }}
+                <span v-if="isOverdue(ticket.sla_deadline)" class="risk-tag">⚠️ 超时</span>
+                <span v-else-if="isNearDeadline(ticket.sla_deadline)" class="warn-tag">临近</span>
+                <n-tag v-if="ticket.has_overdue_risk" type="error" size="small" style="margin-left: 8px;">有风险</n-tag>
+              </div>
+            </div>
+          </n-gi>
+          <n-gi span="1 s:1 m:1 l:1 xl:1">
+            <div class="stat-card stat-info">
+              <div class="stat-label">解决时长</div>
+              <div class="stat-value">
+                {{ ticket.resolved_at
+                  ? formatDuration(ticket.resolution_time_seconds)
+                  : ticket.status === 'closed' || ticket.status === 'resolved' ? '无记录' : '处理中' }}
+              </div>
+              <div class="stat-sub">
+                完成时间：{{ formatDateTime(ticket.resolved_at) }}
+              </div>
+            </div>
+          </n-gi>
+          <n-gi span="1 s:1 m:1 l:1 xl:1">
+            <div class="stat-card stat-warn">
+              <div class="stat-label">处理流转</div>
+              <div class="stat-value small">
+                创建：{{ formatDateTime(ticket.created_at) }}
+              </div>
+              <div class="stat-sub">
+                处理人：{{ ticket.assigned_agent?.full_name || ticket.assigned_agent?.username || '未分配' }}
+                <br />
+                创建人：{{ ticket.requester?.full_name || ticket.requester?.username || '用户#' + ticket.created_by }}
+              </div>
+            </div>
+          </n-gi>
+        </n-grid>
+      </n-card>
+
       <n-tabs v-model:value="activeTab" type="line" animated v-if="ticket">
         <n-tab-pane name="detail" tab="详情">
           <n-space vertical :size="16">
@@ -118,12 +176,39 @@
             </n-card>
 
             <n-card title="关联知识库文章" :bordered="true">
-              <div v-if="kbArticle">
-                <n-space>
-                  <n-tag type="success" size="small">已关联</n-tag>
-                  <a @click="navigateToKb(kbArticle.id)" class="kb-link">
-                    📄 {{ kbArticle.title }}
-                  </a>
+              <div v-if="ticket.kb_article || kbArticle">
+                <n-space vertical :size="12">
+                  <n-space>
+                    <n-tag type="success" size="small">已关联</n-tag>
+                    <a @click="navigateToKb((ticket.kb_article || kbArticle).id)" class="kb-link">
+                      📄 {{ (ticket.kb_article || kbArticle).title }}
+                    </a>
+                    <n-tag type="info" size="small">
+                      v{{ (ticket.kb_article || kbArticle).version || 1 }}
+                    </n-tag>
+                  </n-space>
+
+                  <div v-if="ticket.kb_versions && ticket.kb_versions.length > 0">
+                    <div class="subsection-title">版本历史引用（最近 {{ Math.min(5, ticket.kb_versions.length) }} 个版本）：</div>
+                    <n-space vertical :size="8">
+                      <div
+                        v-for="ver in ticket.kb_versions"
+                        :key="ver.id"
+                        class="version-item"
+                      >
+                        <n-space align="center">
+                          <n-tag size="small" type="info">v{{ ver.version }}</n-tag>
+                          <span class="version-summary">
+                            {{ ver.change_summary || '无变更说明' }}
+                          </span>
+                          <span class="version-meta">
+                            用户 #{{ ver.changed_by || '-' }} ·
+                            {{ formatDateTime(ver.created_at) }}
+                          </span>
+                        </n-space>
+                      </div>
+                    </n-space>
+                  </div>
                 </n-space>
               </div>
               <n-empty v-else description="暂无关联知识库文章" />
@@ -277,6 +362,103 @@
           </n-card>
         </n-tab-pane>
 
+        <n-tab-pane name="feedback" tab="客户反馈">
+          <n-card title="客户反馈记录" :bordered="true">
+            <div v-if="ticket.feedback">
+              <n-space vertical :size="16">
+                <n-descriptions :column="2" bordered size="small">
+                  <n-descriptions-item label="提交时间">
+                    {{ formatDateTime(ticket.feedback.submitted_at) }}
+                  </n-descriptions-item>
+                  <n-descriptions-item label="审核状态">
+                    <n-tag
+                      :type="ticket.feedback.reviewed_at ? 'success' : 'warning'"
+                      size="small"
+                    >
+                      {{ ticket.feedback.reviewed_at ? '已审核' : '待审核' }}
+                    </n-tag>
+                  </n-descriptions-item>
+                  <n-descriptions-item label="满意度评分" :span="2">
+                    <n-space>
+                      <n-rate v-model:value="starRating" readonly count="5" />
+                      <span class="star-count">{{ ticket.feedback.rating }} / 5</span>
+                    </n-space>
+                  </n-descriptions-item>
+                  <n-descriptions-item label="客户留言" :span="2">
+                    <div class="feedback-comment">
+                      {{ ticket.feedback.comment || '客户未留言' }}
+                    </div>
+                  </n-descriptions-item>
+                  <n-descriptions-item v-if="ticket.feedback.reviewed_at" label="审核人">
+                    用户 #{{ ticket.feedback.reviewed_by }}
+                  </n-descriptions-item>
+                  <n-descriptions-item v-if="ticket.feedback.reviewed_at" label="审核时间">
+                    {{ formatDateTime(ticket.feedback.reviewed_at) }}
+                  </n-descriptions-item>
+                  <n-descriptions-item v-if="ticket.feedback.review_note" label="审核备注" :span="2">
+                    <div class="review-note">
+                      {{ ticket.feedback.review_note }}
+                    </div>
+                  </n-descriptions-item>
+                </n-descriptions>
+              </n-space>
+            </div>
+            <n-empty v-else description="该工单暂无客户反馈记录" />
+          </n-card>
+        </n-tab-pane>
+
+        <n-tab-pane name="risk" tab="风险样本">
+          <n-card title="风险检测记录" :bordered="true">
+            <n-space vertical :size="12" v-if="ticket.risk_samples && ticket.risk_samples.length > 0">
+              <n-card
+                v-for="risk in ticket.risk_samples"
+                :key="risk.id"
+                size="small"
+                hoverable
+                :class="`risk-card risk-${risk.risk_level}`"
+              >
+                <template #header>
+                  <div class="risk-header">
+                    <n-space>
+                      <n-tag
+                        :type="riskTagType(risk.risk_level)"
+                        size="small"
+                      >
+                        {{ riskLabel(risk.risk_level) }}
+                      </n-tag>
+                      <n-tag v-if="risk.risk_type" size="small" type="info">
+                        {{ risk.risk_type }}
+                      </n-tag>
+                      <n-tag
+                        :type="risk.is_verified ? 'success' : 'warning'"
+                        size="small"
+                      >
+                        {{ risk.is_verified ? '已确认' : '待确认' }}
+                      </n-tag>
+                    </n-space>
+                    <span class="risk-time">{{ formatDateTime(risk.detected_at) }}</span>
+                  </div>
+                </template>
+                <n-space vertical :size="8">
+                  <div class="risk-description" v-if="risk.description">
+                    {{ risk.description }}
+                  </div>
+                  <n-space wrap :size="16" class="risk-meta">
+                    <span>检测人：用户 #{{ risk.detected_by || '系统自动检测' }}</span>
+                    <span v-if="risk.is_verified">
+                      审核人：用户 #{{ risk.verified_by }} · {{ formatDateTime(risk.verified_at) }}
+                    </span>
+                  </n-space>
+                  <div v-if="risk.mitigation_note" class="mitigation-note">
+                    📌 缓解措施：{{ risk.mitigation_note }}
+                  </div>
+                </n-space>
+              </n-card>
+            </n-space>
+            <n-empty v-else description="该工单暂无风险检测记录" />
+          </n-card>
+        </n-tab-pane>
+
         <n-tab-pane name="similar" tab="相似工单">
           <n-space vertical :size="16">
             <n-spin :show="similarLoading">
@@ -364,6 +546,10 @@ const noteForm = reactive({
 })
 
 const ticketId = computed(() => Number(route.params.id))
+
+const starRating = computed(() => {
+  return ticket.value?.feedback?.rating || 0
+})
 
 const sortedNotes = computed(() => {
   if (!ticket.value?.notes) return []
@@ -529,7 +715,9 @@ async function fetchTicket() {
   loading.value = true
   try {
     ticket.value = await get<any>(`/tickets/${ticketId.value}`)
-    if (ticket.value.kb_article_id) {
+    if (ticket.value.kb_article) {
+      kbArticle.value = ticket.value.kb_article
+    } else if (ticket.value.kb_article_id) {
       try {
         kbArticle.value = await get<any>(`/knowledge-base/articles/${ticket.value.kb_article_id}`)
       } catch {
@@ -828,5 +1016,173 @@ onMounted(() => {
     font-size: 12px;
     color: #86909c;
   }
+}
+
+.stat-card {
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #c9cdd4;
+  background: #fafbfc;
+
+  .stat-label {
+    font-size: 12px;
+    color: #86909c;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1d2129;
+    margin-bottom: 6px;
+    &.small {
+      font-size: 13px;
+      font-weight: 500;
+      color: #4e5969;
+    }
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: #86909c;
+    line-height: 1.6;
+  }
+
+  &.stat-primary {
+    border-left-color: #2080f0;
+    background: #f2f7ff;
+    .stat-value { color: #2080f0; }
+  }
+  &.stat-success {
+    border-left-color: #00b42a;
+    background: #f0ffed;
+    .stat-value { color: #00b42a; }
+  }
+  &.stat-error {
+    border-left-color: #f53f3f;
+    background: #fff1f0;
+    .stat-value { color: #f53f3f; }
+  }
+  &.stat-info {
+    border-left-color: #722ed1;
+    background: #f9f0ff;
+    .stat-value { color: #722ed1; }
+  }
+  &.stat-warn {
+    border-left-color: #ff7d00;
+    background: #fff7e8;
+    .stat-value { color: #ff7d00; }
+  }
+}
+
+.risk-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 8px;
+  color: #f53f3f;
+  font-weight: 500;
+  font-size: 12px;
+}
+.warn-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 8px;
+  color: #ff7d00;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.kb-link {
+  color: #2080f0;
+  cursor: pointer;
+  font-weight: 500;
+  &:hover { text-decoration: underline; }
+}
+
+.subsection-title {
+  font-size: 13px;
+  color: #4e5969;
+  font-weight: 500;
+  margin: 8px 0;
+  padding-left: 8px;
+  border-left: 3px solid #2080f0;
+}
+
+.version-item {
+  padding: 10px 12px;
+  background: #f7f8fa;
+  border-radius: 6px;
+  transition: background 0.15s;
+  &:hover { background: #f2f7ff; }
+
+  .version-summary {
+    flex: 1;
+    font-size: 13px;
+    color: #1d2129;
+  }
+  .version-meta {
+    font-size: 12px;
+    color: #86909c;
+    white-space: nowrap;
+  }
+}
+
+.risk-card {
+  border-left: 3px solid #c9cdd4;
+  &.risk-high { border-left-color: #ff7d00; }
+  &.risk-critical { border-left-color: #f53f3f; }
+  &.risk-medium { border-left-color: #2080f0; }
+  &.risk-low { border-left-color: #00b42a; }
+}
+
+.risk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  .risk-time {
+    font-size: 12px;
+    color: #86909c;
+  }
+}
+.risk-description {
+  font-size: 13px;
+  color: #4e5969;
+  line-height: 1.6;
+}
+.risk-meta {
+  font-size: 12px;
+  color: #86909c;
+}
+.mitigation-note {
+  padding: 8px 12px;
+  background: #f0ffed;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #00b42a;
+  border: 1px dashed #00b42a;
+}
+
+.feedback-comment {
+  padding: 8px 12px;
+  background: #f7f8fa;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #4e5969;
+  line-height: 1.6;
+  min-height: 32px;
+}
+.review-note {
+  padding: 8px 12px;
+  background: #f2f7ff;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #2080f0;
+  border: 1px dashed #2080f0;
+}
+.star-count {
+  font-size: 13px;
+  color: #86909c;
 }
 </style>
