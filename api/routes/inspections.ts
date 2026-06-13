@@ -6,14 +6,20 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/plans', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/plans', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
     const pageSize = parseInt(req.query.pageSize as string) || 20
 
+    const where: Record<string, unknown> = {}
+    if (req.user!.role !== 'admin') {
+      where.assigneeId = req.user!.id
+    }
+
     const [total, items] = await Promise.all([
-      prisma.inspectionPlan.count(),
+      prisma.inspectionPlan.count({ where }),
       prisma.inspectionPlan.findMany({
+        where,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
@@ -56,7 +62,7 @@ router.post('/plans', requireAuth, requireAdmin, async (req: Request, res: Respo
   }
 })
 
-router.get('/plans/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/plans/:id', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = parseInt(req.params.id)
     const plan = await prisma.inspectionPlan.findUnique({
@@ -72,6 +78,11 @@ router.get('/plans/:id', async (req: Request, res: Response, next: NextFunction)
       },
     })
     if (!plan) return next(createError('NOT_FOUND', '巡检计划不存在或已删除'))
+
+    if (req.user!.role !== 'admin' && plan.assigneeId !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限查看此巡检计划'))
+    }
+
     res.json({ data: plan })
   } catch (err) {
     next(err)
@@ -181,7 +192,7 @@ router.put('/plans/:id', requireAuth, requireAdmin, async (req: Request, res: Re
   }
 })
 
-router.get('/tasks', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/tasks', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const planId = req.query.planId as string
     const status = req.query.status as string
@@ -191,6 +202,10 @@ router.get('/tasks', async (req: Request, res: Response, next: NextFunction): Pr
     if (planId) where.planId = parseInt(planId)
     if (status) where.status = status
     if (assigneeId) where.assigneeId = parseInt(assigneeId)
+
+    if (req.user!.role !== 'admin') {
+      where.assigneeId = req.user!.id
+    }
 
     const items = await prisma.inspectionTask.findMany({
       where,
@@ -207,7 +222,7 @@ router.get('/tasks', async (req: Request, res: Response, next: NextFunction): Pr
   }
 })
 
-router.get('/tasks/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/tasks/:id', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = parseInt(req.params.id)
     const task = await prisma.inspectionTask.findUnique({
@@ -222,6 +237,11 @@ router.get('/tasks/:id', async (req: Request, res: Response, next: NextFunction)
       },
     })
     if (!task) return next(createError('NOT_FOUND', '巡检任务不存在或已删除'))
+
+    if (req.user!.role !== 'admin' && task.assigneeId !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限查看此巡检任务'))
+    }
+
     res.json({ data: task })
   } catch (err) {
     next(err)
@@ -235,7 +255,15 @@ router.put('/tasks/:id/execute', requireAuth, async (req: Request, res: Response
     if (!result) return next(createError('VALIDATION_ERROR', '巡检结果为必填项'))
 
     const existing = await prisma.inspectionTask.findUnique({ where: { id } })
-    if (!existing) return next(createError('NOT_FOUND'))
+    if (!existing) return next(createError('NOT_FOUND', '巡检任务不存在或已删除'))
+
+    if (req.user!.role !== 'admin' && existing.assigneeId !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限执行此巡检任务'))
+    }
+
+    if (existing.status !== 'pending') {
+      return next(createError('INVALID_STATE', '该巡检任务已执行，无需重复操作'))
+    }
 
     const now = new Date()
     const duration = existing.scheduledDate ? Math.round((now.getTime() - new Date(existing.scheduledDate).getTime()) / 60000) : null
@@ -262,8 +290,16 @@ router.put('/tasks/:id/execute', requireAuth, async (req: Request, res: Response
       },
     })
 
+    await logAudit({
+      operatorId: req.user!.id,
+      action: 'execute_inspection_task',
+      entityType: 'inspection_task',
+      entityId: id,
+      detail: `结果: ${result}${note ? ` - ${note}` : ''}`,
+    })
+
     if (result === 'abnormal') {
-      await prisma.alert.create({
+      const alert = await prisma.alert.create({
         data: {
           title: `巡检异常: ${existing.planId}`,
           level: 'warning',
@@ -272,6 +308,26 @@ router.put('/tasks/:id/execute', requireAuth, async (req: Request, res: Response
           status: 'pending',
           dutyStaffId: req.user!.id,
         },
+      })
+
+      await prisma.processRecord.create({
+        data: {
+          ticketType: 'alert',
+          ticketId: alert.id,
+          action: 'created',
+          operatorId: req.user!.id,
+          note: '由巡检异常自动生成',
+          alertId: alert.id,
+        },
+      })
+
+      await logAudit({
+        operatorId: req.user!.id,
+        action: 'create_alert_from_inspection',
+        entityType: 'alert',
+        entityId: alert.id,
+        detail: `巡检任务ID:${id} - ${note || '巡检异常'}`,
+        alertId: alert.id,
       })
     }
 

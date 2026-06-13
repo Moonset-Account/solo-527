@@ -4,11 +4,26 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/overview', requireAuth, async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/overview', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    const isAdmin = req.user!.role === 'admin'
+    const userId = req.user!.id
+
+    const alertWhere: Record<string, unknown> = {}
+    const requestWhere: Record<string, unknown> = {}
+    const taskWhere: Record<string, unknown> = {}
+    const recordWhere: Record<string, unknown> = { createdAt: { gte: weekAgo }, duration: { not: null } }
+
+    if (!isAdmin) {
+      alertWhere.OR = [{ dutyStaffId: userId }, { confirmedBy: userId }]
+      requestWhere.OR = [{ applicantId: userId }, { dutyStaffId: userId }]
+      taskWhere.assigneeId = userId
+      recordWhere.operatorId = userId
+    }
 
     const [
       pendingAlerts,
@@ -21,19 +36,19 @@ router.get('/overview', requireAuth, async (_req: Request, res: Response, next: 
       pendingInspectionTasks,
       weeklyResponseStats,
     ] = await Promise.all([
-      prisma.alert.count({ where: { status: 'pending' } }),
-      prisma.alert.count({ where: { createdAt: { gte: today } } }),
-      prisma.accountRequest.count({ where: { status: 'pending' } }),
-      prisma.accountRequest.count({ where: { createdAt: { gte: today } } }),
-      prisma.inspectionTask.count({ where: { status: 'pending' } }),
-      prisma.inspectionTask.count(),
+      prisma.alert.count({ where: { ...alertWhere, status: 'pending' } }),
+      prisma.alert.count({ where: { ...alertWhere, createdAt: { gte: today } } }),
+      prisma.accountRequest.count({ where: { ...requestWhere, status: 'pending' } }),
+      prisma.accountRequest.count({ where: { ...requestWhere, createdAt: { gte: today } } }),
+      prisma.inspectionTask.count({ where: { ...taskWhere, status: 'pending' } }),
+      prisma.inspectionTask.count({ where: taskWhere }),
       prisma.dutySchedule.findMany({
         where: { date: { gte: today, lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) } },
         include: { staff: { select: { id: true, displayName: true } } },
       }),
-      prisma.inspectionTask.count({ where: { status: 'pending', scheduledDate: { gte: today, lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) } } }),
+      prisma.inspectionTask.count({ where: { ...taskWhere, status: 'pending', scheduledDate: { gte: today, lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) } } }),
       prisma.processRecord.findMany({
-        where: { createdAt: { gte: weekAgo }, duration: { not: null } },
+        where: recordWhere,
         select: { ticketType: true, action: true, duration: true, createdAt: true },
       }),
     ])

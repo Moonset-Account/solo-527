@@ -6,7 +6,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = parseInt(req.params.id)
     const request = await prisma.accountRequest.findUnique({
@@ -22,13 +22,18 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
       },
     })
     if (!request) return next(createError('NOT_FOUND', '账号申请不存在或已删除'))
+
+    if (req.user!.role !== 'admin' && request.applicantId !== req.user!.id && request.dutyStaffId !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限查看此申请详情'))
+    }
+
     res.json({ data: request })
   } catch (err) {
     next(err)
   }
 })
 
-router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
     const pageSize = parseInt(req.query.pageSize as string) || 20
@@ -40,6 +45,13 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
     if (status) where.status = status
     if (applicantId) where.applicantId = parseInt(applicantId)
     if (urgency) where.urgency = urgency
+
+    if (req.user!.role !== 'admin') {
+      where.OR = [
+        { applicantId: req.user!.id },
+        { dutyStaffId: req.user!.id },
+      ]
+    }
 
     const [total, items] = await Promise.all([
       prisma.accountRequest.count({ where }),
@@ -106,6 +118,15 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
         note: `自动分配值班人员: ${dutySchedule.staff.displayName}`,
         accountRequestId: request.id,
       },
+    })
+
+    await logAudit({
+      operatorId: req.user!.id,
+      action: 'create_account_request',
+      entityType: 'account_request',
+      entityId: request.id,
+      detail: `${accountType} - ${purpose}`,
+      accountRequestId: request.id,
     })
 
     res.status(201).json({ data: request })

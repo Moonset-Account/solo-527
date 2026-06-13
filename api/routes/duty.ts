@@ -6,7 +6,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const month = req.query.month as string
     const staffId = req.query.staffId as string
@@ -19,6 +19,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
       where.date = { gte: start, lt: end }
     }
     if (staffId) where.staffId = parseInt(staffId)
+
+    if (req.user!.role !== 'admin') {
+      where.staffId = req.user!.id
+    }
 
     const items = await prisma.dutySchedule.findMany({
       where,

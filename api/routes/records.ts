@@ -1,9 +1,10 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import prisma from '../lib/prisma.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
     const pageSize = parseInt(req.query.pageSize as string) || 20
@@ -13,6 +14,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
     const where: Record<string, unknown> = {}
     if (ticketType) where.ticketType = ticketType
     if (ticketId) where.ticketId = parseInt(ticketId)
+
+    if (req.user!.role !== 'admin') {
+      where.operatorId = req.user!.id
+    }
 
     const [total, items] = await Promise.all([
       prisma.processRecord.count({ where }),
@@ -33,10 +38,16 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
   }
 })
 
-router.get('/stats', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/stats', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const where: Record<string, unknown> = { duration: { not: null } }
+
+    if (req.user!.role !== 'admin') {
+      where.operatorId = req.user!.id
+    }
+
     const records = await prisma.processRecord.findMany({
-      where: { duration: { not: null } },
+      where,
       select: { ticketType: true, action: true, duration: true },
     })
 

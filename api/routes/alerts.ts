@@ -6,7 +6,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
     const pageSize = parseInt(req.query.pageSize as string) || 20
@@ -16,6 +16,13 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
     const where: Record<string, unknown> = {}
     if (level) where.level = level
     if (status) where.status = status
+
+    if (req.user!.role !== 'admin') {
+      where.OR = [
+        { dutyStaffId: req.user!.id },
+        { confirmedBy: req.user!.id },
+      ]
+    }
 
     const [total, items] = await Promise.all([
       prisma.alert.count({ where }),
@@ -27,7 +34,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
         include: {
           confirmedByUser: { select: { id: true, displayName: true } },
           escalatedToUser: { select: { id: true, displayName: true } },
-          dutyStaff: { select: { id: true, displayName: true } },
+          dutyStaff: { select: { id: true, displayName: true, storeId: true } },
         },
       }),
     ])
@@ -38,7 +45,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
   }
 })
 
-router.get('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/:id', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = parseInt(req.params.id)
     const alert = await prisma.alert.findUnique({
@@ -53,7 +60,12 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
         },
       },
     })
-    if (!alert) return next(createError('NOT_FOUND'))
+    if (!alert) return next(createError('NOT_FOUND', '告警不存在或已被删除'))
+
+    if (req.user!.role !== 'admin' && alert.dutyStaffId !== req.user!.id && alert.confirmedBy !== req.user!.id) {
+      return next(createError('FORBIDDEN', '您没有权限查看此告警详情'))
+    }
+
     res.json({ data: alert })
   } catch (err) {
     next(err)
@@ -84,6 +96,15 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
         operatorId: req.user!.id,
         alertId: alert.id,
       },
+    })
+
+    await logAudit({
+      operatorId: req.user!.id,
+      action: 'create_alert',
+      entityType: 'alert',
+      entityId: alert.id,
+      detail: `${title} - ${level || 'info'}`,
+      alertId: alert.id,
     })
 
     res.status(201).json({ data: alert })
@@ -131,16 +152,18 @@ router.post('/:id/confirm', requireAuth, async (req: Request, res: Response, nex
       },
     })
 
-    if (dutyStaffId) {
-      await logAudit({
-        operatorId: req.user!.id,
-        action: 'confirm_and_assign_alert',
-        entityType: 'alert',
-        entityId: id,
-        detail: `确认告警并指派值班人员ID: ${dutyStaffId}`,
-        alertId: id,
-      })
-    }
+    const auditDetail = dutyStaffId
+      ? `确认告警并指派值班人员ID: ${dutyStaffId}${note ? ` - ${note}` : ''}`
+      : `确认告警${note ? ` - ${note}` : ''}`
+
+    await logAudit({
+      operatorId: req.user!.id,
+      action: 'confirm_alert',
+      entityType: 'alert',
+      entityId: id,
+      detail: auditDetail,
+      alertId: id,
+    })
 
     res.json({ data: alert })
   } catch (err) {
@@ -271,6 +294,15 @@ router.post('/:id/resolve', requireAuth, async (req: Request, res: Response, nex
         duration,
         alertId: id,
       },
+    })
+
+    await logAudit({
+      operatorId: req.user!.id,
+      action: 'resolve_alert',
+      entityType: 'alert',
+      entityId: id,
+      detail: note || '解决告警',
+      alertId: id,
     })
 
     res.json({ data: alert })
