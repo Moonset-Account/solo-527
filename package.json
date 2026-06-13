@@ -1,0 +1,13 @@
+{
+  "name": "brand-video-review-system",
+  "version": "1.0.0",
+  "description": "品牌短视频审稿发布系统",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix ./server install && npm --prefix ./client install",
+    "dev:server": "npm --prefix ./server run start:dev",
+    "dev:client": "npm --prefix ./client run dev",
+    "build:server": "npm --prefix ./server run build",
+    "build:client": "npm --prefix ./client run build"
+  }
+}
