@@ -326,16 +326,101 @@ export default function NoticesIndex() {
 
 function ReceiptConfirmButton({ receiptId }: { receiptId: string }) {
   const fetcher = useFetcher();
+  const [open, setOpen] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const submitting = fetcher.state === "submitting";
+  const result = fetcher.data as { success?: boolean } | null;
+  const [confirmed, setConfirmed] = useState(false);
+
+  useEffect(() => {
+    if (result?.success) {
+      setConfirmed(true);
+      const t = setTimeout(() => setOpen(false), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [result]);
+
+  if (confirmed) {
+    return (
+      <span className="chip-green shrink-0 flex items-center gap-1 animate-slide-up">
+        <CheckCircle2 className="w-3 h-3" />
+        已确认
+      </span>
+    );
+  }
+
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        fetcher.submit({ type: "confirm", receiptId }, { method: "POST", encType: "application/json" as any });
-      }}
-      className="chip-green shrink-0 hover:opacity-90"
-    >
-      代确认回执
-    </button>
+    <>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        className="chip-green shrink-0 hover:opacity-90"
+      >
+        代确认回执
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-[80] bg-slate-900/40 flex items-center justify-center p-4"
+          onClick={() => !submitting && setOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-lg2 bg-white shadow-xl overflow-hidden animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200">
+              <div className="text-base font-bold text-slate-900">确认回执 &amp; 录入反馈</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">反馈将同步写入月度复盘报表</div>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="input-label">家长反馈（可选，将关联报表）</label>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  rows={4}
+                  placeholder="例如：已知悉，孩子会准时参加；或者有特殊情况请假等…"
+                  className="input resize-none"
+                />
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <ListChecks className="w-3 h-3" />
+                提交后将自动记录操作留痕，反馈直接写入月度复盘报表
+              </div>
+            </div>
+            <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2">
+              <button
+                disabled={submitting}
+                onClick={() => setOpen(false)}
+                className="btn-outline btn-sm"
+              >
+                取消
+              </button>
+              <button
+                disabled={submitting}
+                onClick={() => {
+                  fetcher.submit(
+                    { type: "confirm", receiptId, feedback },
+                    { method: "POST", encType: "application/json" as any }
+                  );
+                }}
+                className="btn-success btn-sm"
+              >
+                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                确认回执 {feedback && "（含反馈）"}
+              </button>
+            </div>
+            {result?.success && (
+              <div className="absolute inset-x-0 bottom-0 bg-mint-500 text-white px-4 py-2.5 text-xs font-medium flex items-center gap-2 animate-slide-up">
+                <CheckCircle2 className="w-4 h-4" />
+                回执已确认，反馈已同步报表
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

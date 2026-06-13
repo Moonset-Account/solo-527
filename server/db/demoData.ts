@@ -242,7 +242,7 @@ class DemoStore {
   }
 
   create(name: string, doc: AnyDoc): AnyDoc {
-    const newDoc = { ...doc, _id: doc._id || this.id(name.slice(0, 3)), createdAt: doc.createdAt || formatDateTime(new Date()), updatedAt: formatDateTime(new Date()) };
+    const newDoc: any = { ...doc, _id: doc._id || this.id(name.slice(0, 3)), createdAt: doc.createdAt || formatDateTime(new Date()), updatedAt: formatDateTime(new Date()) };
     if (!newDoc.id) newDoc.id = newDoc._id;
     (this.data[name] = this.data[name] || []).push(newDoc);
     return { ...newDoc };

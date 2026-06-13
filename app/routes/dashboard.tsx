@@ -119,7 +119,7 @@ export default function Dashboard() {
   const [remark, setRemark] = useState("");
   const [versionId, setVersionId] = useState("");
   const [hoursPerStudent, setHoursPerStudent] = useState(2);
-  const [toast, setToast] = useState<{ text: string; type: "success" | "warn" } | null>(null);
+  const [toast, setToast] = useState<{ text: string; sub?: string; type: "success" | "warn" } | null>(null);
   const consumeFetcher = useFetcher<CreateConsumptionResponse>();
 
   useEffect(() => {
@@ -130,12 +130,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (actionResult?.success) {
-      setToast({ text: `已成功消课 ${actionResult.records.length} 条记录`, type: "success" });
+      const totalHours = actionResult.records.reduce((s, r) => s + r.hours, 0);
+      setToast({
+        text: `已成功消课 ${actionResult.records.length} 人 · 共 ${totalHours}h`,
+        sub: "操作留痕已记录 · 数据已同步课时统计报表",
+        type: "success",
+      });
       markConsumed(actionResult.records.map((r) => r.id));
       if (actionResult.insufficientAlerts.length) {
-        setTimeout(() => setToast({ text: `${actionResult.insufficientAlerts.length} 位学员课时不足`, type: "warn" }), 1800);
+        setTimeout(
+          () =>
+            setToast({
+              text: `${actionResult.insufficientAlerts.length} 位学员课时不足`,
+              sub: "请联系家长续报，已加入预警列表",
+              type: "warn",
+            }),
+          2200
+        );
       }
-      setTimeout(() => setToast(null), 4000);
+      setTimeout(() => setToast(null), 5000);
       closeConsumptionPanel();
     } else if ((actionResult as any)?.error) {
       setToast({ text: (actionResult as any).error, type: "warn" });
@@ -212,12 +225,17 @@ export default function Dashboard() {
       {toast && (
         <div
           className={cn(
-            "fixed top-5 right-5 z-[60] animate-slide-in-right rounded-lg2 px-4 py-3 border shadow-lg flex items-center gap-2.5 text-sm font-medium",
+            "fixed top-5 right-5 z-[60] animate-slide-in-right rounded-lg2 px-4 py-3 border shadow-lg flex items-start gap-2.5 text-sm font-medium min-w-[260px]",
             toast.type === "success" ? "bg-mint-500 border-mint-400 text-white" : "bg-amber-500 border-amber-400 text-white"
           )}
         >
-          {toast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-          {toast.text}
+          {toast.type === "success" ? <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" /> : <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />}
+          <div className="flex-1 min-w-0">
+            <div>{toast.text}</div>
+            {toast.sub && (
+              <div className="text-[11px] opacity-85 mt-0.5 leading-snug">{toast.sub}</div>
+            )}
+          </div>
         </div>
       )}
 

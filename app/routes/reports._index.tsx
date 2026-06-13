@@ -370,7 +370,13 @@ export default function ReportsIndex() {
   );
 }
 
-function AuditLogsPanel({ logs }: { logs: AuditLog[] }) {
+type JsonAuditLog = Omit<AuditLog, "detail"> & { detail?: Record<string, any> };
+type JsonConsumptionRecord = Omit<ConsumptionRecord, "auditLogs" | "feedback"> & {
+  auditLogs?: JsonAuditLog[];
+  feedback?: Feedback;
+};
+
+function AuditLogsPanel({ logs }: { logs: JsonAuditLog[] }) {
   return (
     <div className="rounded-lg2 border border-slate-200 bg-white overflow-hidden">
       <div className="px-3.5 py-2.5 bg-slate-50/60 border-b border-slate-200 flex items-center gap-2">
@@ -402,7 +408,7 @@ function AuditLogsPanel({ logs }: { logs: AuditLog[] }) {
   );
 }
 
-function describeAudit(l: AuditLog) {
+function describeAudit(l: JsonAuditLog) {
   const d = l.detail || {};
   switch (l.action) {
     case "create_consumption":
@@ -422,7 +428,7 @@ function describeAudit(l: AuditLog) {
   }
 }
 
-function FeedbackPanel({ record, onAdd }: { record: ConsumptionRecord; onAdd: () => void }) {
+function FeedbackPanel({ record, onAdd }: { record: JsonConsumptionRecord; onAdd: () => void }) {
   return (
     <div className="rounded-lg2 border border-slate-200 bg-white overflow-hidden">
       <div className="px-3.5 py-2.5 bg-slate-50/60 border-b border-slate-200 flex items-center justify-between">

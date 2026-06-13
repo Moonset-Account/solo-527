@@ -47,14 +47,18 @@ export async function action({ request, context }: ActionFunctionArgs) {
   );
 }
 
+type LoginActionData =
+  | { error: string; success?: never; redirectTo?: never; user?: never }
+  | { success: boolean; redirectTo: string; user: any; error?: never };
+
 export default function LoginPage() {
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData<typeof action>() as LoginActionData | undefined;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (actionData?.success && actionData.redirectTo) {
+    if (actionData && "success" in actionData && actionData.success && actionData.redirectTo) {
       setTimeout(() => {
         window.location.href = actionData.redirectTo;
       }, 300);
@@ -160,7 +164,7 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            {actionData?.error && (
+            {actionData && "error" in actionData && actionData.error && (
               <div className="rounded-lg2 px-3 py-2.5 bg-red-50 border border-red-200 text-red-600 text-xs">
                 {actionData.error}
               </div>
