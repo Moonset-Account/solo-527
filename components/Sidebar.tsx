@@ -31,6 +31,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const logout = useStore((state) => state.logout);
 
   const handleLogout = () => {
+    document.cookie = 'weekly-meeting-dashboard-store=; path=/; max-age=0; SameSite=Lax';
     logout();
     router.push('/login');
     router.refresh();

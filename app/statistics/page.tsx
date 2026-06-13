@@ -69,15 +69,21 @@ export default function StatisticsPage() {
       ? departmentStats
       : departmentStats.filter(s => s.department_id === selectedDept);
     
+    const totalTasks = stats.reduce((sum, s) => sum + s.total_tasks, 0);
+    const completedTasks = stats.reduce((sum, s) => sum + s.completed_tasks, 0);
+    
+    let closureRate = 0;
+    if (totalTasks > 0) {
+      closureRate = Math.round((completedTasks / totalTasks) * 100);
+    }
+    
     return {
-      total: stats.reduce((sum, s) => sum + s.total_tasks, 0),
-      completed: stats.reduce((sum, s) => sum + s.completed_tasks, 0),
+      total: totalTasks,
+      completed: completedTasks,
       overdue: stats.reduce((sum, s) => sum + s.overdue_tasks, 0),
       inProgress: stats.reduce((sum, s) => sum + s.in_progress_tasks, 0),
       todo: stats.reduce((sum, s) => sum + s.todo_tasks, 0),
-      closureRate: stats.length > 0 
-        ? Math.round((stats.reduce((sum, s) => sum + s.completed_tasks, 0) / 
-           stats.reduce((sum, s) => sum + s.total_tasks, 0) * 100)) || 0,
+      closureRate,
     };
   }, [departmentStats, selectedDept]);
 
@@ -91,11 +97,10 @@ export default function StatisticsPage() {
   const barData = useMemo(() => 
     departmentStats.map(dept => ({
       name: dept.department_name,
-      闭环率: dept.closure_rate,
-      已完成: dept.completed_tasks,
-      已延期: dept.overdue_tasks,
-    }))
-  , [departmentStats]);
+      closureRate: dept.closure_rate,
+      completed: dept.completed_tasks,
+      overdue: dept.overdue_tasks,
+    })), [departmentStats]);
 
   const statusCards = [
     { label: '总事项数', value: overallStats.total, icon: ListTodo, color: 'bg-gray-500' },
@@ -259,9 +264,9 @@ export default function StatisticsPage() {
               }}
             />
             <Legend />
-            <Bar dataKey="闭环率" fill="#0F3460" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="已完成" fill="#21BF73" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="已延期" fill="#E94560" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="closureRate" name="闭环率" fill="#0F3460" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="completed" name="已完成" fill="#21BF73" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="overdue" name="已延期" fill="#E94560" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

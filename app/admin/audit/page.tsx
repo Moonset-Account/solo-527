@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { useStore } from '@/store/useStore';
 import { formatDate, getActionLabel } from '@/lib/utils';
+import type { AuditAction } from '@/types';
 import Avatar from '@/components/Avatar';
 import {
   History,
@@ -54,7 +55,7 @@ export default function AuditLogPage() {
   const [filterAction, setFilterAction] = useState<string>('all');
   const [filterUser, setFilterUser] = useState<string>('all');
 
-  const actions = [
+  const actions: AuditAction[] = [
     'create',
     'update_status',
     'update_progress',

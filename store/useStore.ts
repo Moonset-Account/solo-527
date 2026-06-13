@@ -28,6 +28,20 @@ import {
 } from '@/lib/mock-data';
 import { generateId, isOverdue } from '@/lib/utils';
 
+const AUTH_COOKIE_NAME = 'weekly-meeting-dashboard-store';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+const setAuthCookie = (state: { currentUser: any }) => {
+  if (typeof document === 'undefined') return;
+  const value = JSON.stringify({ state: { currentUser: state.currentUser }, version: 0 });
+  document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+};
+
+const clearAuthCookie = () => {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+};
+
 interface AppState {
   currentUser: User | null;
   tasks: Task[];
@@ -99,6 +113,9 @@ export const useStore = create<AppState>()(
             auditLogs: mockAuditLogs,
             reminderRules: mockReminderRules,
           });
+          setTimeout(() => {
+            setAuthCookie({ currentUser: user });
+          }, 0);
           return true;
         }
         return false;
@@ -106,6 +123,7 @@ export const useStore = create<AppState>()(
 
       logout: () => {
         set({ currentUser: null });
+        clearAuthCookie();
       },
 
       fetchTasks: async () => {
@@ -475,6 +493,14 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         currentUser: state.currentUser,
       }),
+      onRehydrateStorage: (state) => {
+        return (restoredState, error) => {
+          if (error) return;
+          if (restoredState?.currentUser) {
+            setAuthCookie({ currentUser: restoredState.currentUser });
+          }
+        };
+      },
     }
   )
 );

@@ -1,16 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { LogIn, AlertCircle } from 'lucide-react';
+
+const AUTH_COOKIE_NAME = 'weekly-meeting-dashboard-store';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const login = useStore((state) => state.login);
+  const currentUser = useStore((state) => state.currentUser);
   const router = useRouter();
+
+  useEffect(() => {
+    if (currentUser) {
+      const value = JSON.stringify({ state: { currentUser }, version: 0 });
+      document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+      router.push('/');
+    }
+  }, [currentUser, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,10 +31,7 @@ export default function LoginPage() {
 
     try {
       const success = await login(email);
-      if (success) {
-        router.push('/');
-        router.refresh();
-      } else {
+      if (!success) {
         setError('邮箱不存在，请使用以下测试账号：admin@company.com、hr@company.com、emp1@company.com');
       }
     } catch {
