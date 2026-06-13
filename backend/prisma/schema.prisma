@@ -161,6 +161,7 @@ model PriceFluctuationAlert {
   createdAt    DateTime @default(now())
 
   request PurchaseRequest @relation(fields: [requestId], references: [id])
+  reviews PriceReview[]
 
   @@index([requestId])
 }
@@ -180,7 +181,7 @@ model PriceReview {
 model PurchaseOrder {
   id           Int      @id @default(autoincrement())
   orderNo      String   @unique
-  requestId    Int
+  requestId    Int      @unique
   supplierId   Int
   totalAmount  Decimal  @db.Decimal(12, 2)
   paymentAmount Decimal? @db.Decimal(12, 2)
