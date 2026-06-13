@@ -194,12 +194,14 @@ export async function submitFeedback(
   const { FeedbackModel: FM2 } = await import("@/server/models/Feedback");
   const FeedbackModel2: any = FM2;
   const now = formatDateTime(new Date());
+  const source = consumptionId ? "consumption" : "manual";
   let doc: any;
   try {
     doc = await FeedbackModel2.create({
       studentId,
       studentName,
       consumptionId,
+      source,
       content,
       rating,
       createdAt: now,
@@ -210,6 +212,7 @@ export async function submitFeedback(
       studentId,
       studentName,
       consumptionId,
+      source,
       content,
       rating,
       createdAt: now,

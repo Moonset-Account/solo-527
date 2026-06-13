@@ -147,6 +147,8 @@ export interface Feedback {
   studentId: string;
   studentName?: string;
   consumptionId?: string;
+  noticeReceiptId?: string;
+  source?: "consumption" | "notice_receipt" | "manual";
   content: string;
   rating?: number;
   createdAt: string;

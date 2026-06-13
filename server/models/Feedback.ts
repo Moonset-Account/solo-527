@@ -8,6 +8,8 @@ const FeedbackSchema = new Schema<IFeedback>(
     studentId: { type: String, required: true, index: true },
     studentName: String,
     consumptionId: { type: String, index: true },
+    noticeReceiptId: { type: String, index: true },
+    source: { type: String, enum: ["consumption", "notice_receipt", "manual"], default: "manual" },
     content: { type: String, required: true },
     rating: { type: Number, min: 1, max: 5 },
     createdAt: { type: String, required: true },

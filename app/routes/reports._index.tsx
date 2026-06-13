@@ -505,19 +505,19 @@ function EmbeddedFeedbacksSection({ feedbacks }: { feedbacks: Feedback[] }) {
                   <span className="ml-auto text-[10px] text-slate-400 font-nums">{f.createdAt.slice(5, 16)}</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{f.content}</p>
-                {f.consumptionId && (
+                {f.source === "consumption" && f.consumptionId && (
                   <div className="mt-2 text-[10px] text-mint-500 flex items-center gap-1">
                     <ChevronRight className="w-3 h-3" />
                     关联消课记录 · 数据已写入报表
                   </div>
                 )}
-                {(f as any).noticeReceiptId && (
+                {f.source === "notice_receipt" && (
                   <div className="mt-2 text-[10px] text-slate-600 flex items-center gap-1">
                     <Bell className="w-3 h-3" />
                     来自通知回执 · 已同步月度复盘
                   </div>
                 )}
-                {!f.consumptionId && !(f as any).noticeReceiptId && f.writerRole === "parent" && (
+                {(!f.source || f.source === "manual") && f.writerRole === "parent" && (
                   <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1">
                     <MessageSquare className="w-3 h-3" />
                     家长反馈 · 已同步月度复盘
