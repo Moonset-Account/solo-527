@@ -37,6 +37,7 @@ export default function DashboardPage() {
 
   const { data: overview, isLoading: overviewLoading } = api.report.getOverview.useQuery();
   const { data: metrics, isLoading: metricsLoading } = api.metric.list.useQuery();
+  const { data: latestValues } = api.metric.getLatestValues.useQuery();
   const seedMutation = api.seed.seedDemo.useMutation();
 
   const isEmpty = !metricsLoading && metrics && metrics.length === 0;
@@ -129,15 +130,24 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
             {metricsLoading
               ? Array.from({ length: 6 }).map((_, i) => <SkeletonMetricCard key={i} />)
-              : (metrics ?? []).map((metric) => (
-                  <MetricCard
-                    key={metric.id}
-                    title={metric.name}
-                    value={null}
-                    unit={metric.unit}
-                    onClick={() => openCaliberDrawer(metric.id)}
-                  />
-                ))}
+              : (metrics ?? []).map((metric) => {
+                  const metricData = latestValues?.[metric.id];
+                  const value = metricData?.value ?? null;
+                  const change = metricData?.change;
+                  const trend = change ? (change > 0 ? "up" : change < 0 ? "down" : "flat") : undefined;
+                  return (
+                    <MetricCard
+                      key={metric.id}
+                      title={metric.name}
+                      value={value}
+                      unit={metric.unit}
+                      change={change}
+                      trend={trend}
+                      isPositive={true}
+                      onClick={() => openCaliberDrawer(metric.id)}
+                    />
+                  );
+                })}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6">

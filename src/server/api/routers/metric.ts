@@ -49,6 +49,44 @@ export const metricRouter = router({
       return data;
     }),
 
+  getLatestValues: publicProcedure.query(async () => {
+    const metrics = await db.metric.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    });
+
+    const result: Record<string, { value: number; date: Date; previousValue?: number; change?: number }> = {};
+
+    await Promise.all(
+      metrics.map(async (metric) => {
+        const latestPoints = await db.metricDataPoint.findMany({
+          where: { metricId: metric.id, period: "DAY" },
+          orderBy: { date: "desc" },
+          take: 2,
+        });
+
+        if (latestPoints.length > 0) {
+          const latest = latestPoints[0];
+          const previous = latestPoints[1];
+
+          let change: number | undefined;
+          if (previous && previous.value !== 0) {
+            change = ((latest.value - previous.value) / previous.value) * 100;
+          }
+
+          result[metric.id] = {
+            value: latest.value,
+            date: latest.date,
+            previousValue: previous?.value,
+            change,
+          };
+        }
+      }),
+    );
+
+    return result;
+  }),
+
   create: protectedProcedure
     .input(
       z.object({
@@ -167,18 +205,40 @@ export const metricRouter = router({
       if (log.approvedById || log.rejectedById) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "该变更已被审批或拒绝" });
       }
-      const updated = await db.metricChangeLog.update({
-        where: { id: input },
-        data: {
-          approvedById: ctx.userId,
-          approvedAt: new Date(),
-        },
-        include: {
-          metric: { select: { name: true, code: true } },
-          createdBy: { select: { name: true, email: true } },
-          approvedBy: { select: { name: true, email: true } },
-          rejectedBy: { select: { name: true, email: true } },
-        },
+      const updated = await db.$transaction(async (tx) => {
+        const updatedLog = await tx.metricChangeLog.update({
+          where: { id: input },
+          data: {
+            approvedById: ctx.userId,
+            approvedAt: new Date(),
+          },
+          include: {
+            metric: { select: { name: true, code: true } },
+            createdBy: { select: { name: true, email: true } },
+            approvedBy: { select: { name: true, email: true } },
+            rejectedBy: { select: { name: true, email: true } },
+          },
+        });
+
+        if (log.newValue != null) {
+          const fieldMap: Record<string, string> = {
+            description: "description",
+            formula: "formula",
+            dataSource: "dataSource",
+            name: "name",
+            unit: "unit",
+            category: "category",
+          };
+          const field = fieldMap[log.fieldChanged];
+          if (field) {
+            await tx.metric.update({
+              where: { id: log.metricId },
+              data: { [field]: log.newValue },
+            });
+          }
+        }
+
+        return updatedLog;
       });
       return updated;
     }),

@@ -74,7 +74,7 @@ export default function ReportsPage() {
   const rejectMutation = api.metric.rejectChangeLog.useMutation();
   const seedMutation = api.seed.seedDemo.useMutation();
 
-  const userRole = meQuery.data?.role ?? "DIRECTOR";
+  const userRole = meQuery.data?.role ?? null;
   const isDemo = !meQuery.data;
 
   const isDbEmpty = metricsQuery.data?.length === 0;
@@ -201,8 +201,9 @@ export default function ReportsPage() {
     });
   };
 
-  const isExportDisabled = !isDirector || exportMutation.isPending;
-  const exportTooltip = !isDirector ? "仅销售总监可导出报表" : "";
+  const isRoleLoading = meQuery.isLoading || userRole === null;
+  const isExportDisabled = !isDirector || isRoleLoading || exportMutation.isPending;
+  const exportTooltip = isRoleLoading ? "加载中..." : !isDirector ? "仅销售总监可导出报表" : "";
 
   const isLoading = monthlyQuery.isLoading || changeLogsQuery.isLoading || metricsQuery.isLoading;
 
@@ -255,16 +256,18 @@ export default function ReportsPage() {
         </div>
         <div className="flex items-center gap-3 self-start sm:self-auto">
           <span className={`badge ${
-            isDirector
+            isRoleLoading
+              ? "bg-neutral-100 text-neutral-500 border-neutral-200"
+              : isDirector
               ? "bg-primary-50 text-primary-700 border-primary-200"
               : userRole === "MANAGER"
               ? "bg-sky-50 text-sky-700 border-sky-200"
               : "bg-neutral-100 text-neutral-700 border-neutral-200"
           } border`}>
             <User className="w-3 h-3" />
-            {isDemo ? "演示模式 (" : "当前角色："}
-            {roleLabelMap[userRole]}
-            {isDemo ? ")" : ""}
+            {isRoleLoading ? "加载中..." : isDemo ? "演示模式 (" : "当前角色："}
+            {!isRoleLoading && roleLabelMap[userRole]}
+            {!isRoleLoading && isDemo ? ")" : ""}
           </span>
           <button
             onClick={handleExport}
@@ -272,12 +275,12 @@ export default function ReportsPage() {
             title={exportTooltip}
             className="btn btn-primary self-start disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {exportMutation.isPending ? (
+            {isRoleLoading || exportMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Download className="w-4 h-4" />
             )}
-            {exportMutation.isPending ? "导出中..." : "导出报表"}
+            {isRoleLoading ? "加载中..." : exportMutation.isPending ? "导出中..." : "导出报表"}
           </button>
         </div>
       </div>
