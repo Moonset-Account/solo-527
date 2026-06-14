@@ -1,0 +1,163 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: #f5f7fa;
+  color: #303133;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+
+.page-container {
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.filter-bar {
+  background: #fff;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.table-card {
+  background: #fff;
+  padding: 16px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.stat-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: #303133;
+    margin: 8px 0;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: #909399;
+  }
+
+  .stat-trend {
+    font-size: 12px;
+    margin-top: 4px;
+
+    &.up {
+      color: #67c23a;
+    }
+
+    &.down {
+      color: #f56c6c;
+    }
+  }
+}
+
+.detail-card {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+}
+
+.detail-card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebeef5;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.detail-card-body {
+  padding: 20px;
+}
+
+.tag-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+.mr-8 {
+  margin-right: 8px;
+}
+
+.ml-8 {
+  margin-left: 8px;
+}
+
+.text-muted {
+  color: #909399;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

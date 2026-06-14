@@ -1,0 +1,37 @@
+{
+  "typescript": true,
+  "commands": [
+    "./commands",
+    "@adonisjs/core/commands",
+    "@adonisjs/repl/commands",
+    "@adonisjs/lucid/commands",
+    "@adonisjs/mail/commands"
+  ],
+  "exceptionHandlerNamespace": "App/Exceptions/Handler",
+  "aliases": {
+    "App": "app",
+    "Config": "config",
+    "Database": "database",
+    "Contracts": "contracts"
+  },
+  "preloads": [
+    "./start/routes",
+    "./start/kernel",
+    "./start/redis"
+  ],
+  "providers": [
+    "./providers/AppProvider",
+    "@adonisjs/core",
+    "@adonisjs/lucid",
+    "@adonisjs/auth",
+    "@adonisjs/redis",
+    "@adonisjs/mail",
+    "@adonisjs/bouncer"
+  ],
+  "aceProviders": [
+    "@adonisjs/repl"
+  ],
+  "tests": {
+    "suites": []
+  }
+}
