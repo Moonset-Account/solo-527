@@ -23,6 +23,7 @@
       "@adonisjs/auth",
       "@adonisjs/lucid",
       "@adonisjs/redis",
+      "@adonisjs/shield",
       "@adonisjs/mail",
       "@adonisjs/bouncer",
       "@japa/preset-adonis/build/adonis-typings"
