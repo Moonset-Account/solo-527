@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma, Prisma } from '../lib/prisma';
 
 export const logService = {
   async list(options: {
@@ -50,6 +50,12 @@ export const logService = {
     ipAddress?: string;
     userAgent?: string;
   }) {
-    return prisma.taskLog.create({ data });
+    return prisma.taskLog.create({
+      data: {
+        ...data,
+        oldValue: data.oldValue as Prisma.InputJsonValue | undefined,
+        newValue: data.newValue as Prisma.InputJsonValue | undefined,
+      },
+    });
   },
 };

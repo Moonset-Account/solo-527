@@ -20,6 +20,87 @@ import {
 import { cn, STATUS_LABEL, PRIORITY_LABEL, formatDateTime, formatDate } from '@/lib/utils';
 import { useSession } from '@/components/providers/SessionProvider';
 
+interface TaskUser {
+  id: string;
+  name: string;
+  department?: string;
+  email?: string;
+  role?: string;
+}
+
+interface ProcessNodeItem {
+  id: string;
+  nodeName: string;
+  fromStatus?: string;
+  toStatus: string;
+  remark?: string;
+  operatorId: string;
+  operator?: TaskUser;
+  createdAt: string;
+}
+
+interface ProgressRecordItem {
+  id: string;
+  progress: number;
+  remark?: string;
+  attachments?: string;
+  userId: string;
+  user?: TaskUser;
+  createdAt: string;
+}
+
+interface DelayReasonItem {
+  id: string;
+  reason: string;
+  expectedDate?: string;
+  userId: string;
+  user?: TaskUser;
+  createdAt: string;
+}
+
+interface ReminderItem {
+  id: string;
+  type: string;
+  channel: string;
+  content: string;
+  sentAt: string;
+  senderId: string;
+  sender?: TaskUser;
+}
+
+interface MeetingMinutesItem {
+  id: string;
+  title: string;
+  meetingDate: string;
+  content: string;
+  creatorId: string;
+  creator?: TaskUser;
+}
+
+interface TaskDetail {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority: string;
+  progress: number;
+  assigneeId?: string | null;
+  assignee?: TaskUser | null;
+  creatorId: string;
+  creator?: TaskUser;
+  dueDate?: string | null;
+  completedAt?: string | null;
+  remindCount: number;
+  lastRemindedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  processNodes: ProcessNodeItem[];
+  progressRecords: ProgressRecordItem[];
+  delayReasons: DelayReasonItem[];
+  reminders: ReminderItem[];
+  meetingMinutes?: MeetingMinutesItem | null;
+}
+
 interface Props {
   taskId: string;
   onClose: () => void;
@@ -32,7 +113,7 @@ export function TaskDetailDrawer({ taskId, onClose, onMutationSuccess }: Props) 
   const [tab, setTab] = useState<TabKey>('timeline');
   const { user } = useSession();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<TaskDetail>({
     queryKey: ['task-detail', taskId],
     queryFn: async () => {
       const res = await fetch(`/api/tasks/${taskId}`);
@@ -55,7 +136,7 @@ export function TaskDetailDrawer({ taskId, onClose, onMutationSuccess }: Props) 
   }, [onClose]);
 
   if (!data && !isLoading) return null;
-  const task = data;
+  const task: TaskDetail | undefined = data;
   const statusMeta = task ? STATUS_LABEL[task.status] : null;
   const priorityMeta = task ? PRIORITY_LABEL[task.priority] : null;
 
@@ -122,13 +203,13 @@ export function TaskDetailDrawer({ taskId, onClose, onMutationSuccess }: Props) 
                 <DetailItem
                   icon={<CalendarCheck className="w-4 h-4" />}
                   label="状态"
-                  value={statusMeta?.label}
+                  value={statusMeta?.label || task?.status || '-'}
                   badge={statusMeta?.className}
                 />
                 <DetailItem
                   icon={<GitBranch className="w-4 h-4" />}
                   label="优先级"
-                  value={priorityMeta?.label}
+                  value={priorityMeta?.label || task?.priority || '-'}
                 />
                 <DetailItem
                   icon={<Clock className="w-4 h-4" />}

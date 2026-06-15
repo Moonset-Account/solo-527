@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma, Prisma } from '../lib/prisma';
 import type { TaskPriority, TaskStatus } from '@/types';
 
 export interface TaskFilter {
@@ -133,7 +133,7 @@ export const taskService = {
               priority: data.priority,
               status,
               assigneeId: data.assigneeId || null,
-            },
+            } as Prisma.InputJsonValue,
           },
         },
       },
@@ -169,7 +169,7 @@ export const taskService = {
           action: 'TASK_CLAIMED',
           taskId,
           operatorId: userId,
-          newValue: { assigneeId: userId, status: 'IN_PROGRESS' },
+          newValue: { assigneeId: userId, status: 'IN_PROGRESS' } as Prisma.InputJsonValue,
         },
       });
       return updated;
@@ -192,7 +192,7 @@ export const taskService = {
         ? 'COMPLETED'
         : task.status === 'PENDING_CLAIM'
           ? 'IN_PROGRESS'
-          : task.status;
+          : (task.status as TaskStatus);
 
     return prisma.$transaction(async (tx) => {
       const updates: any = { progress: data.progress };
@@ -234,8 +234,8 @@ export const taskService = {
           action: newStatus === 'COMPLETED' ? 'TASK_COMPLETED' : 'PROGRESS_UPDATED',
           taskId,
           operatorId: userId,
-          oldValue: { progress: task.progress, status: task.status },
-          newValue: { progress: data.progress, status: newStatus },
+          oldValue: { progress: task.progress, status: task.status } as Prisma.InputJsonValue,
+          newValue: { progress: data.progress, status: newStatus } as Prisma.InputJsonValue,
         },
       });
 
@@ -287,7 +287,7 @@ export const taskService = {
             reason: data.reason,
             expectedDate: data.expectedDate || null,
             status: 'DELAYED',
-          },
+          } as Prisma.InputJsonValue,
         },
       });
       return { task: updated, reason };
@@ -326,8 +326,8 @@ export const taskService = {
           action: 'ASSIGNEE_CHANGED',
           taskId,
           operatorId,
-          oldValue: { assigneeId: oldAssigneeId },
-          newValue: { assigneeId: data.newAssigneeId, reason: data.reason || '' },
+          oldValue: { assigneeId: oldAssigneeId } as Prisma.InputJsonValue,
+          newValue: { assigneeId: data.newAssigneeId, reason: data.reason || '' } as Prisma.InputJsonValue,
         },
       });
       return updated;
@@ -366,7 +366,7 @@ export const taskService = {
           action: 'REMINDER_SENT',
           taskId,
           operatorId: senderId,
-          newValue: { channel, content: content.slice(0, 100) },
+          newValue: { channel, content: content.slice(0, 100) } as Prisma.InputJsonValue,
         },
       });
       return reminder;

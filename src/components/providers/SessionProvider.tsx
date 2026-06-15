@@ -56,7 +56,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string) => {
-    const res = await fetch('/api/auth/route', {
+    const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -68,7 +68,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch('/api/auth/route', { method: 'DELETE', credentials: 'include' });
+    await fetch('/api/auth', { method: 'DELETE', credentials: 'include' });
     setUser(null);
     router.push('/login');
   };

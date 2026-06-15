@@ -27,6 +27,7 @@ model User {
   delayReasons    DelayReason[]
   processNodes    ProcessNode[]
   meetingMinutes  MeetingMinutes[]
+  reminderRules   ReminderRule[]
 }
 
 model Task {
@@ -148,4 +149,30 @@ model TaskLog {
   @@index([action])
   @@index([operatorId])
   @@index([createdAt])
+}
+
+model ReminderRule {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?  @db.Text
+  filterStatus String?  // 空=全部, 或 PENDING_CLAIM/IN_PROGRESS/DELAYED 逗号分隔
+  filterPriority String? // 空=全部, 或 HIGH/MEDIUM/LOW 逗号分隔
+  filterAssigneeIds String? @db.Text // Json 数组字符串, 空=全部责任人
+  frequency    String   // DAILY / WEEKLY / MONTHLY / CRON / ONCE
+  cronExpr     String?  // frequency=CRON 时使用
+  runDayOfWeek Int?     // frequency=WEEKLY: 0-6 (周日到周六)
+  runDayOfMonth Int?    // frequency=MONTHLY: 1-31
+  runTime      String   // "HH:mm" 24小时制, 如 "09:30"
+  channel      String   // IN_APP / EMAIL / SMS, 逗号分隔多渠道
+  content      String   @db.Text
+  enabled      Boolean  @default(true)
+  lastRunAt    DateTime?
+  nextRunAt    DateTime?
+  creatorId    String
+  creator      User     @relation(fields: [creatorId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([enabled, nextRunAt])
+  @@index([creatorId])
 }
