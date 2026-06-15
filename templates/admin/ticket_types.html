@@ -1,0 +1,287 @@
+{% extends "admin_base.html" %}
+{% block title %}票种库存 - 管理后台{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">🎟️ 票种与库存管理</h1>
+    <p class="text-sm text-gray mt-1">维护全局票种类型，针对场次配置票价和库存</p>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><span class="card-title">📋 全局票种类型</span>
+    <button class="btn btn-primary btn-sm" onclick="openTTModal()">+ 新增票种</button>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>编码</th><th>名称</th><th>类型</th><th>颜色/标识</th><th>排序</th><th>默认</th><th>操作</th></tr></thead>
+      <tbody id="tt-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span class="card-title">🎫 场次票种配置</span>
+    <div class="d-flex gap-2 align-center">
+      <select id="ev-select" class="form-select" style="width:280px" onchange="loadTTConfigs()">
+        <option value="">请选择场次...</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="openTTCModal()" id="add-ttc-btn" disabled>+ 配置票价</button>
+    </div>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr>
+        <th>票种</th><th>原价</th><th>售价</th><th>总库存</th><th>已售</th><th>预留</th><th>可用</th>
+        <th>单购限制</th><th>销售时间</th><th>状态</th><th>操作</th>
+      </tr></thead>
+      <tbody id="ttc-body"><tr><td colspan="11"><div class="empty-state"><p class="text-sm text-gray">请先选择场次</p></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tt-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:520px">
+    <div class="modal-header"><h3 class="font-semibold text-lg" id="tt-title">新增票种</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="tt-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tt-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">编码 *</label><input type="text" id="tt-code" class="form-control" placeholder="VIP / NORMAL"></div>
+        <div class="form-group"><label class="form-label">类型 *</label>
+          <select id="tt-type" class="form-select">
+            <option value="single">普通票</option><option value="vip">VIP票</option>
+            <option value="student">学生票</option><option value="early_bird">早鸟票</option>
+            <option value="couple">情侣票</option><option value="group">团体票</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">名称 *</label><input type="text" id="tt-name" class="form-control"></div>
+        <div class="form-group"><label class="form-label">颜色</label><input type="color" id="tt-color" class="form-control" value="#3498DB" style="padding:2px;height:36px"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">排序</label><input type="number" id="tt-sort" class="form-control" value="0"></div>
+        <div class="form-group"><label class="form-label">默认票种</label>
+          <select id="tt-default" class="form-select"><option value="false">否</option><option value="true">是</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">描述</label><input type="text" id="tt-desc" class="form-control"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="tt-modal">取消</button>
+      <button class="btn btn-primary" onclick="saveTT()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="ttc-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:560px">
+    <div class="modal-header"><h3 class="font-semibold text-lg" id="ttc-title">配置票价</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="ttc-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ttc-id">
+      <input type="hidden" id="ttc-event-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">票种 *</label>
+          <select id="ttc-ttid" class="form-select"><option value="">请选择...</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">是否启用</label>
+          <select id="ttc-active" class="form-select"><option value="true">启用</option><option value="false">停用</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">原价 (¥)</label><input type="number" id="ttc-oprice" class="form-control" step="0.01" value="0"></div>
+        <div class="form-group"><label class="form-label">售价 (¥) *</label><input type="number" id="ttc-price" class="form-control" step="0.01" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">总库存 *</label><input type="number" id="ttc-inv" class="form-control" value="0"></div>
+        <div class="form-group"><label class="form-label">预留数</label><input type="number" id="ttc-resv" class="form-control" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">每单最少</label><input type="number" id="ttc-min" class="form-control" value="1"></div>
+        <div class="form-group"><label class="form-label">每单最多</label><input type="number" id="ttc-max" class="form-control" value="10"></div>
+        <div class="form-group"><label class="form-label">排序</label><input type="number" id="ttc-sort" class="form-control" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">开售时间</label><input type="datetime-local" id="ttc-start" class="form-control"></div>
+        <div class="form-group"><label class="form-label">停售时间</label><input type="datetime-local" id="ttc-end" class="form-control"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="ttc-modal">取消</button>
+      <button class="btn btn-primary" onclick="saveTTC()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toLocalInput(d) { if (!d) return ''; const x = new Date(d); const off = x.getTimezoneOffset() * 60000; return new Date(x - off).toISOString().slice(0,16); }
+
+async function loadTicketTypes() {
+  try {
+    const data = await apiRequest('/admin/ticket-types', { method: 'GET' });
+    const tbody = document.getElementById('tt-body');
+    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray py-4">暂无票种</td></tr>'; return; }
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td class="font-mono">${escapeHtml(t.code)}</td>
+        <td>${escapeHtml(t.name)}${t.is_default ? ' <span class="badge badge-primary">默认</span>' : ''}</td>
+        <td><span class="badge badge-info">${getStatusText(t.type)}</span></td>
+        <td><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:${t.color || '#ccc'};vertical-align:middle;margin-right:4px"></span>${t.color || ''}</td>
+        <td>${t.sort_order}</td>
+        <td>${t.is_default ? '是' : '否'}</td>
+        <td><button class="btn btn-sm btn-outline" onclick="editTT(${t.id}, ${JSON.stringify(t).replace(/"/g, '&quot;')})">编辑</button></td>
+      </tr>`).join('');
+    const sel = document.getElementById('ttc-ttid');
+    sel.innerHTML = '<option value="">请选择...</option>' + data.map(t => `<option value="${t.id}">${t.name} (${t.code})</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadEvents() {
+  try {
+    const data = await apiRequest('/admin/events?page=1&page_size=100', { method: 'GET' });
+    const sel = document.getElementById('ev-select');
+    sel.innerHTML = '<option value="">请选择场次...</option>' + (data.items || []).map(e => `<option value="${e.id}">${e.name} (${e.code})</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadTTConfigs() {
+  const eid = document.getElementById('ev-select').value;
+  document.getElementById('add-ttc-btn').disabled = !eid;
+  document.getElementById('ttc-event-id').value = eid || '';
+  const tbody = document.getElementById('ttc-body');
+  if (!eid) { tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><p class="text-sm text-gray">请先选择场次</p></div></td></tr>'; return; }
+  try {
+    const data = await apiRequest(`/admin/events/${eid}/ticket-type-configs`, { method: 'GET' });
+    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><p class="text-sm text-gray">该场次暂无票种配置，点击右上角添加</p></div></td></tr>'; return; }
+    tbody.innerHTML = data.map(c => `
+      <tr>
+        <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c.ticket_type_color || '#ccc'};vertical-align:middle;margin-right:4px"></span>${escapeHtml(c.ticket_type_name || '票种')}</td>
+        <td>${formatCurrency(c.original_price)}</td>
+        <td class="font-semibold text-primary">${formatCurrency(c.price)}</td>
+        <td>${c.total_inventory}</td>
+        <td class="text-success">${c.sold_count}</td>
+        <td class="text-warning">${c.reserved_count}</td>
+        <td><span class="badge ${c.available_count>0?'badge-success':'badge-gray'}">${c.available_count}</span></td>
+        <td>${c.min_per_order}-${c.max_per_order}</td>
+        <td class="text-xs">${c.sales_start_time?formatDate(c.sales_start_time):'默认'}<br>${c.sales_end_time?'→ ' + formatDate(c.sales_end_time):''}</td>
+        <td><span class="badge ${c.is_active?'badge-success':'badge-gray'}">${c.is_active?'启用':'停用'}</span></td>
+        <td><button class="btn btn-sm btn-outline" onclick='editTTC(${JSON.stringify(c).replace(/'/g, "&#39;")})'>编辑</button></td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+function openTTModal() {
+  document.getElementById('tt-id').value = '';
+  document.getElementById('tt-title').textContent = '新增票种';
+  ['tt-code','tt-name','tt-desc'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('tt-type').value = 'single';
+  document.getElementById('tt-color').value = '#3498DB';
+  document.getElementById('tt-sort').value = '0';
+  document.getElementById('tt-default').value = 'false';
+  openModal('tt-modal');
+}
+
+function editTT(id, t) {
+  document.getElementById('tt-id').value = id;
+  document.getElementById('tt-title').textContent = '编辑票种';
+  document.getElementById('tt-code').value = t.code || '';
+  document.getElementById('tt-name').value = t.name || '';
+  document.getElementById('tt-type').value = typeof t.type === 'string' ? t.type : t.type?.value || 'single';
+  document.getElementById('tt-color').value = t.color || '#3498DB';
+  document.getElementById('tt-sort').value = t.sort_order || 0;
+  document.getElementById('tt-default').value = t.is_default ? 'true' : 'false';
+  document.getElementById('tt-desc').value = t.description || '';
+  openModal('tt-modal');
+}
+
+async function saveTT() {
+  const id = document.getElementById('tt-id').value;
+  const payload = {
+    code: document.getElementById('tt-code').value.trim(),
+    name: document.getElementById('tt-name').value.trim(),
+    type: document.getElementById('tt-type').value,
+    color: document.getElementById('tt-color').value,
+    description: document.getElementById('tt-desc').value.trim() || null,
+    sort_order: parseInt(document.getElementById('tt-sort').value) || 0,
+    is_default: document.getElementById('tt-default').value === 'true',
+  };
+  try {
+    if (id) await apiRequest(`/admin/ticket-types/${id}`, { method: 'PUT', body: payload });
+    else await apiRequest('/admin/ticket-types', { method: 'POST', body: payload });
+    showToast('保存成功', 'success');
+    closeModal('tt-modal');
+    loadTicketTypes();
+  } catch(e) {}
+}
+
+function openTTCModal() {
+  const eid = document.getElementById('ev-select').value;
+  if (!eid) return;
+  document.getElementById('ttc-id').value = '';
+  document.getElementById('ttc-title').textContent = '新增票种配置';
+  document.getElementById('ttc-ttid').value = '';
+  document.getElementById('ttc-active').value = 'true';
+  document.getElementById('ttc-oprice').value = '0';
+  document.getElementById('ttc-price').value = '0';
+  document.getElementById('ttc-inv').value = '0';
+  document.getElementById('ttc-resv').value = '0';
+  document.getElementById('ttc-min').value = '1';
+  document.getElementById('ttc-max').value = '10';
+  document.getElementById('ttc-sort').value = '0';
+  document.getElementById('ttc-start').value = '';
+  document.getElementById('ttc-end').value = '';
+  openModal('ttc-modal');
+}
+
+function editTTC(c) {
+  document.getElementById('ttc-id').value = c.id;
+  document.getElementById('ttc-title').textContent = '编辑票种配置';
+  document.getElementById('ttc-ttid').value = c.ticket_type_id || '';
+  document.getElementById('ttc-active').value = c.is_active ? 'true' : 'false';
+  document.getElementById('ttc-oprice').value = c.original_price;
+  document.getElementById('ttc-price').value = c.price;
+  document.getElementById('ttc-inv').value = c.total_inventory;
+  document.getElementById('ttc-resv').value = c.reserved_count;
+  document.getElementById('ttc-min').value = c.min_per_order;
+  document.getElementById('ttc-max').value = c.max_per_order;
+  document.getElementById('ttc-sort').value = c.sort_order;
+  document.getElementById('ttc-start').value = toLocalInput(c.sales_start_time);
+  document.getElementById('ttc-end').value = toLocalInput(c.sales_end_time);
+  openModal('ttc-modal');
+}
+
+async function saveTTC() {
+  const id = document.getElementById('ttc-id').value;
+  const eid = document.getElementById('ttc-event-id').value;
+  const ttid = document.getElementById('ttc-ttid').value;
+  if (!ttid) { showToast('请选择票种', 'warning'); return; }
+  const payload = {
+    event_id: parseInt(eid),
+    ticket_type_id: parseInt(ttid),
+    is_active: document.getElementById('ttc-active').value === 'true',
+    original_price: parseFloat(document.getElementById('ttc-oprice').value) || 0,
+    price: parseFloat(document.getElementById('ttc-price').value) || 0,
+    total_inventory: parseInt(document.getElementById('ttc-inv').value) || 0,
+    reserved_count: parseInt(document.getElementById('ttc-resv').value) || 0,
+    min_per_order: parseInt(document.getElementById('ttc-min').value) || 1,
+    max_per_order: parseInt(document.getElementById('ttc-max').value) || 10,
+    sort_order: parseInt(document.getElementById('ttc-sort').value) || 0,
+    sales_start_time: document.getElementById('ttc-start').value ? new Date(document.getElementById('ttc-start').value).toISOString() : null,
+    sales_end_time: document.getElementById('ttc-end').value ? new Date(document.getElementById('ttc-end').value).toISOString() : null,
+  };
+  try {
+    if (id) await apiRequest(`/admin/ticket-type-configs/${id}`, { method: 'PUT', body: payload });
+    else await apiRequest('/admin/ticket-type-configs', { method: 'POST', body: payload });
+    showToast('保存成功', 'success');
+    closeModal('ttc-modal');
+    loadTTConfigs();
+  } catch(e) {}
+}
+
+loadTicketTypes();
+loadEvents();
+</script>
+{% endblock %}

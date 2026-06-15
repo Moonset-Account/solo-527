@@ -1,0 +1,378 @@
+{% extends "admin_base.html" %}
+{% block title %}座位管理 - 管理后台{% endblock %}
+{% block content %}
+<div id="event-info" class="card mb-3"></div>
+
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">🪑 座位管理</h1>
+    <p class="text-sm text-gray mt-1" id="ev-meta">-</p>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn btn-secondary btn-sm" onclick="goToPage('/admin/events')">← 返回场次</button>
+    <button class="btn btn-outline btn-sm" onclick="openGenModal()">⚙ 批量生成座位</button>
+    <button class="btn btn-danger btn-sm" onclick="clearSeats()">🗑 清空座位</button>
+  </div>
+</div>
+
+<div class="filter-bar mb-3">
+  <div class="form-group"><label class="form-label">区域</label>
+    <select id="f-area" class="form-select" onchange="loadSeats()">
+      <option value="">全部</option>
+      <option value="vip">VIP区</option>
+      <option value="front">前区</option>
+      <option value="middle">中区</option>
+      <option value="back">后区</option>
+      <option value="standing">站区</option>
+    </select>
+  </div>
+  <div class="form-group"><label class="form-label">状态</label>
+    <select id="f-status" class="form-select" onchange="loadSeats()">
+      <option value="">全部</option>
+      <option value="available">可售</option>
+      <option value="locked">锁定</option>
+      <option value="sold">已售</option>
+      <option value="refunded">已退</option>
+      <option value="reserved">预留</option>
+      <option value="blocked">屏蔽</option>
+    </select>
+  </div>
+  <div class="form-group"><label class="form-label">批量操作 (已选<span id="sel-count">0</span>)</label>
+    <select id="batch-status" class="form-select">
+      <option value="">设为状态...</option>
+      <option value="available">设为可售</option>
+      <option value="reserved">设为预留</option>
+      <option value="blocked">设为屏蔽</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="batchStatus()">应用</button>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><span class="card-title">座位图预览</span>
+    <label style="font-size:12px;color:#6b7280"><input type="checkbox" id="sel-all-view" onchange="toggleSelectAllView()"> 全选当前视图</label>
+  </div>
+  <div class="card-body" id="seat-view" style="max-height:520px;overflow:auto">
+    <div class="text-gray text-center py-5">加载中...</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table" id="seats-table">
+      <thead><tr>
+        <th style="width:36px"><input type="checkbox" id="sel-all-table" onchange="toggleSelectAllTable()"></th>
+        <th>座位号</th><th>区域</th><th>排</th><th>座</th>
+        <th>原价</th><th>现价</th><th>状态</th><th>票种</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="seats-pagination" class="card-footer"></div>
+</div>
+
+<div id="gen-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:600px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg">批量生成座位</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="gen-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warning text-sm">使用下方配置快速生成标准座位布局，将按 VIP区→前区→中区→后区 的顺序依次生成</div>
+      <div id="layout-editor"></div>
+      <button class="btn btn-outline btn-sm mt-2" onclick="addLayoutRow()">+ 添加区域</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="gen-modal">取消</button>
+      <button class="btn btn-primary" onclick="submitGenerate()">生成座位</button>
+    </div>
+  </div>
+</div>
+
+<div id="seat-edit-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:440px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg">编辑座位</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="seat-edit-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-seat-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">状态</label>
+          <select id="s-status" class="form-select">
+            <option value="available">可售</option><option value="locked">锁定</option>
+            <option value="sold">已售</option><option value="reserved">预留</option>
+            <option value="blocked">屏蔽</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">区域</label>
+          <select id="s-area" class="form-select">
+            <option value="vip">VIP区</option><option value="front">前区</option>
+            <option value="middle">中区</option><option value="back">后区</option>
+            <option value="standing">站区</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">原价</label><input type="number" id="s-base" class="form-control" step="0.01"></div>
+        <div class="form-group"><label class="form-label">现价</label><input type="number" id="s-current" class="form-control" step="0.01"></div>
+      </div>
+      <div class="form-group"><label class="form-label">备注</label><input type="text" id="s-notes" class="form-control"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="seat-edit-modal">取消</button>
+      <button class="btn btn-primary" onclick="saveSeat()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const eventId = {{ event_id }};
+let layoutRows = [];
+let selectedSeats = new Set();
+let currentSeats = [];
+let currentPage = 1; const pageSize = 30;
+
+async function loadEventInfo() {
+  try {
+    const ev = await apiRequest(`/admin/events/${eventId}`, { method: 'GET' });
+    document.getElementById('event-info').innerHTML = `
+      <div class="card-body">
+        <div class="d-flex align-center gap-3">
+          <div style="width:64px;height:64px;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;display:flex;align-items:center;justify-content:center;font-size:1.75rem">🎤</div>
+          <div>
+            <h2 style="font-size:1.125rem">${escapeHtml(ev.name)} <span class="badge ${getStatusBadgeClass(ev.status)}" style="margin-left:0.25rem">${getStatusText(ev.status)}</span></h2>
+            <div class="text-sm text-gray">${escapeHtml(ev.venue)} · ${formatDateTime(ev.start_time)}</div>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('ev-meta').textContent = `共${ev.total_seats}座 / 已售${ev.sold_seats} / 预留${ev.reserved_seats} / 屏蔽${ev.blocked_seats} / 上座率${ev.occupancy_rate||0}%`;
+  } catch(e) {}
+}
+
+async function loadSeats() {
+  let url = `/admin/events/${eventId}/seats?page=${currentPage}&page_size=${pageSize}`;
+  const area = document.getElementById('f-area').value;
+  const status = document.getElementById('f-status').value;
+  if (area) url += `&area=${area}`;
+  if (status) url += `&status=${status}`;
+  try {
+    const data = await apiRequest(url, { method: 'GET' });
+    currentSeats = data || [];
+    renderSeatsTable(currentSeats);
+  } catch(e) {}
+  await loadSeatView();
+}
+
+function renderSeatsTable(seats) {
+  const tbody = document.querySelector('#seats-table tbody');
+  if (seats.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-state-icon">🪑</div><p>暂无座位数据，请先批量生成</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = seats.map(s => `
+    <tr>
+      <td><input type="checkbox" class="seat-chk" data-id="${s.id}" ${selectedSeats.has(s.id)?'checked':''} onchange="onSeatChg(${s.id}, this)"></td>
+      <td class="font-mono font-semibold">${escapeHtml(s.seat_code)}</td>
+      <td><span class="badge badge-info">${getStatusText(s.area)}</span></td>
+      <td>${escapeHtml(s.row)}</td><td>${s.col}</td>
+      <td>${formatCurrency(s.base_price)}</td>
+      <td class="font-semibold">${formatCurrency(s.current_price)}</td>
+      <td><span class="badge ${getStatusBadgeClass(s.status)}">${getStatusText(s.status)}</span></td>
+      <td>${escapeHtml(s.ticket_type_name || '-')}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="editSeat(${s.id})">编辑</button></td>
+    </tr>
+  `).join('');
+  updateSelCount();
+}
+
+async function loadSeatView() {
+  try {
+    const data = await apiRequest(`/public/events/${eventId}/seats/matrix`, { method: 'GET' });
+    const container = document.getElementById('seat-view');
+    let html = `<div style="text-align:center;margin-bottom:1.25rem">
+      <div style="display:inline-block;padding:0.4rem 3.5rem;background:#fef3c7;border:1px solid #fde68a;border-radius:0 0 50% 50%;font-weight:600;color:#92400e;font-size:0.8rem">🎤 舞台 🎤</div>
+    </div>`;
+    (data.areas || []).forEach(area => {
+      html += `<div class="section-area" style="margin-bottom:1rem">
+        <div class="section-header"><span class="section-title">${escapeHtml(area.name)} · ${area.price_min !== area.price_max ? formatCurrency(area.price_min) + ' - ' + formatCurrency(area.price_max) : formatCurrency(area.price_min)}</span>
+          <span class="text-xs text-gray">${area.total}座 · 已售率 ${data.stats ? Math.round(((data.stats.sold || 0) / Math.max(1, data.stats.total)) * 100) : 0}%</span>
+        </div>
+        <div style="overflow-x:auto">${(area.matrix || []).map(row => `
+          <div style="display:flex;justify-content:center;align-items:center;gap:3px;margin:2px 0">
+            <span style="width:28px;text-align:right;color:#9ca3af;font-size:11px;margin-right:6px">${row.row}</span>
+            ${(row.seats || []).map(seat => {
+              if (!seat) return '<span style="width:22px;height:22px"></span>';
+              let cls = 'seat-' + seat.status;
+              if (area.key === 'vip' && seat.status === 'available') cls += ' seat-vip';
+              if (selectedSeats.has(seat.id)) cls = 'seat-selected';
+              return `<div class="seat ${cls}" style="width:22px;height:22px;font-size:10px"
+                title="${seat.code} ${formatCurrency(seat.price)}"
+                data-id="${seat.id}" onclick="toggleSeatSelect(${seat.id}, this)">${seat.col}</div>`;
+            }).join('')}
+          </div>`).join('')}
+        </div></div>`;
+    });
+    container.innerHTML = html;
+  } catch(e) {}
+}
+
+function toggleSeatSelect(id, el) {
+  const status = el.className.match(/seat-(sold|locked|reserved|blocked|refunded)/);
+  if (status) { showToast(`该座位状态为${getStatusText(status[1])}，不可选择`, 'warning'); return; }
+  if (selectedSeats.has(id)) { selectedSeats.delete(id); el.classList.remove('seat-selected'); if (el.className.includes('vip')) el.classList.add('seat-vip'); el.classList.add('seat-available'); }
+  else { selectedSeats.add(id); el.classList.remove('seat-available', 'seat-vip'); el.classList.add('seat-selected'); }
+  updateSelCount();
+  const chk = document.querySelector(`.seat-chk[data-id="${id}"]`);
+  if (chk) chk.checked = selectedSeats.has(id);
+}
+function onSeatChg(id, el) {
+  if (el.checked) selectedSeats.add(id); else selectedSeats.delete(id);
+  const v = document.querySelector(`.seat[data-id="${id}"]`);
+  if (v) toggleSeatSelect(id, v);
+  updateSelCount();
+}
+function updateSelCount() { document.getElementById('sel-count').textContent = selectedSeats.size; }
+
+function toggleSelectAllView() {
+  const checked = document.getElementById('sel-all-view').checked;
+  document.querySelectorAll('.seat').forEach(el => {
+    const id = parseInt(el.dataset.id);
+    const bad = el.className.match(/seat-(sold|locked|reserved|blocked|refunded)/);
+    if (bad) return;
+    if (checked) { selectedSeats.add(id); el.classList.remove('seat-available','seat-vip'); el.classList.add('seat-selected'); }
+    else { selectedSeats.delete(id); el.classList.remove('seat-selected'); if (el.className.includes('seat-vip') || el.previousSibling) { if(el.dataset.vip !== undefined || el.className.includes('vip')) el.classList.add('seat-vip'); } el.classList.add('seat-available'); }
+    const chk = document.querySelector(`.seat-chk[data-id="${id}"]`);
+    if (chk) chk.checked = checked;
+  });
+  updateSelCount();
+}
+function toggleSelectAllTable() {
+  const checked = document.getElementById('sel-all-table').checked;
+  document.querySelectorAll('.seat-chk').forEach(cb => { cb.checked = checked; onSeatChg(parseInt(cb.dataset.id), cb); });
+}
+
+async function batchStatus() {
+  const status = document.getElementById('batch-status').value;
+  if (!status) { showToast('请选择目标状态', 'warning'); return; }
+  if (selectedSeats.size === 0) { showToast('请先选择座位', 'warning'); return; }
+  if (!confirm(`将 ${selectedSeats.size} 个座位设为【${getStatusText(status)}】？`)) return;
+  try {
+    await apiRequest('/admin/seats/batch-status', { method: 'POST', body: { seat_ids: Array.from(selectedSeats), status, _skip: true },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    const ids = Array.from(selectedSeats);
+    const params = new URLSearchParams(); params.append('status', status);
+    ids.forEach(id => params.append('seat_ids', id));
+    await fetch('/api/admin/seats/batch-status?' + params.toString(), { method: 'POST', credentials: 'same-origin' }).then(r => r.json());
+    showToast('批量更新成功', 'success');
+    selectedSeats.clear(); loadSeats();
+  } catch(e) {}
+}
+
+async function editSeat(id) {
+  try {
+    const s = currentSeats.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('edit-seat-id').value = s.id;
+    document.getElementById('s-status').value = s.status;
+    document.getElementById('s-area').value = s.area;
+    document.getElementById('s-base').value = s.base_price;
+    document.getElementById('s-current').value = s.current_price;
+    document.getElementById('s-notes').value = s.notes || '';
+    openModal('seat-edit-modal');
+  } catch(e) {}
+}
+
+async function saveSeat() {
+  const id = document.getElementById('edit-seat-id').value;
+  try {
+    await apiRequest(`/admin/seats/${id}`, { method: 'PUT', body: {
+      status: document.getElementById('s-status').value,
+      area: document.getElementById('s-area').value,
+      base_price: parseFloat(document.getElementById('s-base').value),
+      current_price: parseFloat(document.getElementById('s-current').value),
+      notes: document.getElementById('s-notes').value || null,
+    }});
+    showToast('保存成功', 'success');
+    closeModal('seat-edit-modal');
+    loadSeats();
+  } catch(e) {}
+}
+
+async function clearSeats() {
+  if (!confirm('确定清空本场次的所有座位吗？已售/锁定的座位将不会被删除！')) return;
+  try {
+    await apiRequest(`/admin/events/${eventId}/seats`, { method: 'DELETE' });
+    showToast('已清空', 'success');
+    loadSeats();
+    loadEventInfo();
+  } catch(e) {}
+}
+
+function addLayoutRow(area='back', rows=10, cols=20, price=280, row_prefix='', blocked='') {
+  layoutRows.push({ area, rows, cols, price, row_prefix, blocked });
+  renderLayoutEditor();
+}
+function removeLayoutRow(i) { layoutRows.splice(i, 1); renderLayoutEditor(); }
+function renderLayoutEditor() {
+  const c = document.getElementById('layout-editor');
+  if (layoutRows.length === 0) {
+    c.innerHTML = '<div class="text-sm text-gray text-center py-3">点击下方 +添加区域 开始配置</div>';
+    return;
+  }
+  const areaMap = [['vip','VIP区'],['front','前区'],['middle','中区'],['back','后区'],['standing','站区']];
+  c.innerHTML = layoutRows.map((r, i) => `
+    <div class="card mb-2" style="box-shadow:none;border:1px solid #e5e7eb">
+      <div class="card-header" style="padding:0.5rem 0.75rem">
+        <span class="card-title text-sm">区域 #${i+1}</span>
+        <button class="btn btn-sm btn-danger" onclick="removeLayoutRow(${i})">删除</button>
+      </div>
+      <div class="card-body" style="padding:0.75rem">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">区域类型</label>
+            <select class="form-select" onchange="layoutRows[${i}].area=this.value">
+              ${areaMap.map(([k,n]) => `<option value="${k}" ${r.area===k?'selected':''}>${n}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">行数</label><input type="number" class="form-control" value="${r.rows}" onchange="layoutRows[${i}].rows=parseInt(this.value)"></div>
+          <div class="form-group"><label class="form-label">列数</label><input type="number" class="form-control" value="${r.cols}" onchange="layoutRows[${i}].cols=parseInt(this.value)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">单价(¥)</label><input type="number" class="form-control" value="${r.price}" onchange="layoutRows[${i}].price=parseFloat(this.value)"></div>
+          <div class="form-group"><label class="form-label">排前缀</label><input type="text" class="form-control" value="${r.row_prefix}" placeholder="如 V, A" onchange="layoutRows[${i}].row_prefix=this.value"></div>
+          <div class="form-group"><label class="form-label">起始排号</label><input type="number" class="form-control" value="1" onchange="layoutRows[${i}].start_row=parseInt(this.value)"></div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function openGenModal() {
+  layoutRows = [
+    { area: 'vip', rows: 5, cols: 12, price: 1880, row_prefix: 'V' },
+    { area: 'front', rows: 8, cols: 20, price: 980, row_prefix: 'A' },
+    { area: 'middle', rows: 12, cols: 28, price: 580, row_prefix: 'M' },
+    { area: 'back', rows: 10, cols: 30, price: 280, row_prefix: 'B' },
+  ];
+  renderLayoutEditor();
+  openModal('gen-modal');
+}
+
+async function submitGenerate() {
+  if (layoutRows.length === 0) { showToast('请至少配置一个区域', 'warning'); return; }
+  const layouts = layoutRows.map(r => ({
+    area: r.area, rows: r.rows || 10, cols: r.cols || 10,
+    row_prefix: r.row_prefix || '', price: r.price || 0, start_row: r.start_row || 1,
+    blocked: r.blocked ? r.blocked : [],
+  }));
+  try {
+    const r = await apiRequest('/admin/events/generate-seats', { method: 'POST', body: { event_id: eventId, layouts } });
+    showToast(`成功生成 ${r.created} 个座位`, 'success');
+    closeModal('gen-modal');
+    loadSeats(); loadEventInfo();
+  } catch(e) {}
+}
+
+loadEventInfo();
+loadSeats();
+</script>
+{% endblock %}

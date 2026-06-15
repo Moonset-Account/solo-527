@@ -1,0 +1,259 @@
+{% extends "admin_base.html" %}
+{% block title %}场次管理 - 管理后台{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">🎫 场次管理</h1><p class="text-sm text-gray mt-1">创建和维护演出场次</p></div>
+  <div class="toolbar-right">
+    <button class="btn btn-primary" onclick="openEventModal()">+ 新建场次</button>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="form-group" style="flex:2;min-width:280px">
+    <label class="form-label">关键字</label>
+    <input type="text" id="keyword" class="form-control" placeholder="名称/编码/艺人/场馆...">
+  </div>
+  <div class="form-group">
+    <label class="form-label">状态</label>
+    <select id="f-status" class="form-select">
+      <option value="">全部</option>
+      <option value="draft">草稿</option>
+      <option value="active">进行中</option>
+      <option value="sold_out">售罄</option>
+      <option value="completed">已完成</option>
+      <option value="cancelled">已取消</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="searchEvents(1)">搜索</button>
+    <button class="btn btn-secondary" onclick="resetFilter()">重置</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table" id="events-table">
+      <thead><tr>
+        <th>编码</th><th>场次名称</th><th>艺人/场馆</th><th>演出时间</th>
+        <th>售票时间</th><th>销售</th><th>状态</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="events-pagination" class="card-footer"></div>
+</div>
+
+<div id="event-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:720px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg" id="event-modal-title">新建场次</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="event-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-event-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">场次编码 *</label>
+          <input type="text" id="ev-code" class="form-control" placeholder="CONCERT-2026-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">场次名称 *</label>
+          <input type="text" id="ev-name" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">艺人</label>
+          <input type="text" id="ev-artist" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">状态</label>
+          <select id="ev-status" class="form-select">
+            <option value="draft">草稿</option>
+            <option value="active">进行中</option>
+            <option value="sold_out">售罄</option>
+            <option value="completed">已完成</option>
+            <option value="cancelled">已取消</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">场馆 *</label>
+        <input type="text" id="ev-venue" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">场馆地址</label>
+        <input type="text" id="ev-address" class="form-control">
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">演出开始 *</label><input type="datetime-local" id="ev-start" class="form-control"></div>
+        <div class="form-group"><label class="form-label">演出结束 *</label><input type="datetime-local" id="ev-end" class="form-control"></div>
+        <div class="form-group"><label class="form-label">入场时间</label><input type="datetime-local" id="ev-door" class="form-control"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">售票开始 *</label><input type="datetime-local" id="ev-sales-start" class="form-control"></div>
+        <div class="form-group"><label class="form-label">售票结束 *</label><input type="datetime-local" id="ev-sales-end" class="form-control"></div>
+        <div class="form-group"><label class="form-label">退款截止</label><input type="datetime-local" id="ev-refund-dl" class="form-control"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">单订单最大票数</label>
+          <input type="number" id="ev-max-tickets" class="form-control" value="4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">需要报名审核</label>
+          <select id="ev-need-reg" class="form-select"><option value="false">否</option><option value="true">是</option></select>
+        </div>
+      </div>
+      <div id="reg-times" style="display:none" class="form-row">
+        <div class="form-group"><label class="form-label">报名开始</label><input type="datetime-local" id="ev-reg-start" class="form-control"></div>
+        <div class="form-group"><label class="form-label">报名结束</label><input type="datetime-local" id="ev-reg-end" class="form-control"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">描述</label>
+        <textarea id="ev-desc" class="form-control" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="event-modal">取消</button>
+      <button class="btn btn-primary" onclick="saveEvent()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPage = 1; const pageSize = 15;
+function toLocalInput(d) { if (!d) return ''; const x = new Date(d); const off = x.getTimezoneOffset() * 60000; return new Date(x - off).toISOString().slice(0,16); }
+
+async function searchEvents(page = 1) {
+  currentPage = page;
+  let url = `/admin/events?page=${page}&page_size=${pageSize}`;
+  const kw = document.getElementById('keyword').value.trim();
+  const st = document.getElementById('f-status').value;
+  if (kw) url += `&keyword=${encodeURIComponent(kw)}`;
+  if (st) url += `&status=${st}`;
+  try {
+    const data = await apiRequest(url, { method: 'GET' });
+    renderEvents(data);
+  } catch(e) {}
+}
+function resetFilter() {
+  document.getElementById('keyword').value = '';
+  document.getElementById('f-status').value = '';
+  searchEvents(1);
+}
+function renderEvents(data) {
+  const tbody = document.querySelector('#events-table tbody');
+  if (!data.items || data.items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">🎭</div><p>暂无场次</p></div></td></tr>';
+    document.getElementById('events-pagination').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = data.items.map(ev => `
+    <tr>
+      <td><span class="font-mono text-sm">${ev.code}</span></td>
+      <td>
+        <div class="font-semibold">${escapeHtml(ev.name)}</div>
+        <div class="text-xs text-gray">${escapeHtml(ev.artist || '-')}</div>
+      </td>
+      <td>
+        <div>📍 ${escapeHtml(ev.venue)}</div>
+        <div class="text-xs text-gray">${escapeHtml(ev.address || '')}</div>
+      </td>
+      <td>${formatDateTime(ev.start_time)}<div class="text-xs text-gray">至 ${formatDateTime(ev.end_time)}</div></td>
+      <td class="text-xs">${formatDate(ev.sales_start_time)}<div class="text-gray">至 ${formatDate(ev.sales_end_time)}</div></td>
+      <td>
+        <div>${ev.sold_seats}/${ev.total_seats}</div>
+        <div class="progress" style="width:100px"><div class="progress-bar" style="width:${ev.occupancy_rate || 0}%"></div></div>
+        <div class="text-xs text-gray">${ev.occupancy_rate || 0}% 上座率</div>
+      </td>
+      <td><span class="badge ${getStatusBadgeClass(ev.status)}">${getStatusText(ev.status)}</span></td>
+      <td>
+        <div class="table-actions">
+          <button class="btn btn-sm btn-outline" onclick="goToPage('/events/${ev.id}/book')" target="_blank">预览</button>
+          <button class="btn btn-sm btn-outline" onclick="goToPage('/admin/events/${ev.id}/seats')">座位</button>
+          <button class="btn btn-sm btn-secondary" onclick="editEvent(${ev.id})">编辑</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('events-pagination').innerHTML = buildPaginationHtml(data.total, data.page, data.page_size, 'searchEvents');
+}
+
+function openEventModal() {
+  document.getElementById('edit-event-id').value = '';
+  document.getElementById('event-modal-title').textContent = '新建场次';
+  ['ev-code','ev-name','ev-artist','ev-venue','ev-address','ev-start','ev-end','ev-door','ev-sales-start','ev-sales-end','ev-refund-dl','ev-desc','ev-reg-start','ev-reg-end']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ev-status').value = 'draft';
+  document.getElementById('ev-max-tickets').value = '4';
+  document.getElementById('ev-need-reg').value = 'false';
+  document.getElementById('reg-times').style.display = 'none';
+  openModal('event-modal');
+}
+
+async function editEvent(id) {
+  try {
+    const ev = await apiRequest(`/admin/events/${id}`, { method: 'GET' });
+    document.getElementById('edit-event-id').value = ev.id;
+    document.getElementById('event-modal-title').textContent = '编辑场次';
+    document.getElementById('ev-code').value = ev.code;
+    document.getElementById('ev-name').value = ev.name;
+    document.getElementById('ev-artist').value = ev.artist || '';
+    document.getElementById('ev-venue').value = ev.venue;
+    document.getElementById('ev-address').value = ev.address || '';
+    document.getElementById('ev-status').value = ev.status;
+    document.getElementById('ev-start').value = toLocalInput(ev.start_time);
+    document.getElementById('ev-end').value = toLocalInput(ev.end_time);
+    document.getElementById('ev-door').value = toLocalInput(ev.door_time);
+    document.getElementById('ev-sales-start').value = toLocalInput(ev.sales_start_time);
+    document.getElementById('ev-sales-end').value = toLocalInput(ev.sales_end_time);
+    document.getElementById('ev-refund-dl').value = toLocalInput(ev.refund_deadline);
+    document.getElementById('ev-max-tickets').value = ev.max_tickets_per_order;
+    document.getElementById('ev-need-reg').value = ev.requires_registration ? 'true' : 'false';
+    document.getElementById('reg-times').style.display = ev.requires_registration ? 'flex' : 'none';
+    document.getElementById('ev-reg-start').value = toLocalInput(ev.registration_start);
+    document.getElementById('ev-reg-end').value = toLocalInput(ev.registration_end);
+    document.getElementById('ev-desc').value = ev.description || '';
+    openModal('event-modal');
+  } catch(e) {}
+}
+
+document.getElementById('ev-need-reg').addEventListener('change', e => {
+  document.getElementById('reg-times').style.display = e.target.value === 'true' ? 'flex' : 'none';
+});
+
+async function saveEvent() {
+  const id = document.getElementById('edit-event-id').value;
+  const payload = {
+    code: document.getElementById('ev-code').value.trim(),
+    name: document.getElementById('ev-name').value.trim(),
+    artist: document.getElementById('ev-artist').value.trim() || null,
+    venue: document.getElementById('ev-venue').value.trim(),
+    address: document.getElementById('ev-address').value.trim() || null,
+    status: document.getElementById('ev-status').value,
+    start_time: new Date(document.getElementById('ev-start').value).toISOString(),
+    end_time: new Date(document.getElementById('ev-end').value).toISOString(),
+    door_time: document.getElementById('ev-door').value ? new Date(document.getElementById('ev-door').value).toISOString() : null,
+    sales_start_time: new Date(document.getElementById('ev-sales-start').value).toISOString(),
+    sales_end_time: new Date(document.getElementById('ev-sales-end').value).toISOString(),
+    refund_deadline: document.getElementById('ev-refund-dl').value ? new Date(document.getElementById('ev-refund-dl').value).toISOString() : null,
+    max_tickets_per_order: parseInt(document.getElementById('ev-max-tickets').value) || 4,
+    requires_registration: document.getElementById('ev-need-reg').value === 'true',
+    registration_start: document.getElementById('ev-reg-start').value ? new Date(document.getElementById('ev-reg-start').value).toISOString() : null,
+    registration_end: document.getElementById('ev-reg-end').value ? new Date(document.getElementById('ev-reg-end').value).toISOString() : null,
+    description: document.getElementById('ev-desc').value.trim() || null,
+  };
+  try {
+    if (id) await apiRequest(`/admin/events/${id}`, { method: 'PUT', body: payload });
+    else await apiRequest('/admin/events', { method: 'POST', body: payload });
+    showToast('保存成功', 'success');
+    closeModal('event-modal');
+    searchEvents(currentPage);
+  } catch(e) {}
+}
+
+searchEvents(1);
+document.getElementById('keyword').addEventListener('keypress', e => { if (e.key === 'Enter') searchEvents(1); });
+</script>
+{% endblock %}

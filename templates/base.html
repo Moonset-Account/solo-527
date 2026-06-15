@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ settings.APP_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="navbar-brand"><span>♪</span> 音乐票务</a>
+      <div class="navbar-nav">
+        <a href="/events" class="{% if request.url.path == '/events' %}active{% endif %}">演出列表</a>
+        <a href="/orders" class="{% if request.url.path == '/orders' %}active{% endif %}">我的订单</a>
+        <a href="/admin">管理后台</a>
+      </div>
+      <div class="navbar-user" id="nav-user">
+        <div class="spinner htmx-indicator"></div>
+        <button class="btn btn-primary btn-sm" onclick="goToPage('/login')">登录</button>
+      </div>
+    </div>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="mt-4" style="padding:2rem 0;text-align:center;color:#9ca3af;border-top:1px solid #e5e7eb;margin-top:3rem">
+    <p>© 2026 音乐演出座位库存系统 · FastAPI + HTMX + PostgreSQL + Redis</p>
+  </footer>
+  <div class="toast-container"></div>
+  <script src="/static/js/app.js"></script>
+  <script>
+    async function loadNavUser() {
+      try {
+        const user = await apiRequest('/auth/me', { method: 'GET' });
+        const el = document.getElementById('nav-user');
+        el.innerHTML = `<span style="color:#6b7280">${escapeHtml(user.real_name || user.username)} (${user.role})</span>
+          <button class="btn btn-outline btn-sm" onclick="doLogout()">退出</button>`;
+      } catch (e) {}
+    }
+    async function doLogout() {
+      try { await apiRequest('/auth/logout', { method: 'POST' }); } catch(e) {}
+      goToPage('/login');
+    }
+    loadNavUser();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

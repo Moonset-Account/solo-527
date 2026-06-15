@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}首页 - {{ settings.APP_NAME }}{% endblock %}
+{% block content %}
+<div class="hero">
+  <div class="container">
+    <h1>🎵 发现精彩演出</h1>
+    <p>在线选座购票，安全便捷，多种演出类型任你选择</p>
+  </div>
+</div>
+<div class="container">
+  <div class="events-grid" id="events-list">
+    <div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-state-icon">🎫</div>
+      <p>加载中...</p>
+    </div>
+  </div>
+</div>
+<script>
+  async function loadEvents() {
+    try {
+      const data = await apiRequest('/public/events?page=1&page_size=20', { method: 'GET' });
+      const list = document.getElementById('events-list');
+      if (!data.items || data.items.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🎭</div><p>暂无演出</p></div>';
+        return;
+      }
+      list.innerHTML = data.items.map(ev => {
+        const areaDisplay = { vip: 'VIP区', front: '前区', middle: '中区', back: '后区', standing: '站区' };
+        const price = ev.occupancy_rate ? '' : '';
+        return `<div class="event-card">
+          <div class="event-card-img" style="background:linear-gradient(135deg, hsl(${(ev.id * 47) % 360},70%,55%), hsl(${(ev.id * 47 + 60) % 360},70%,45%))">🎸</div>
+          <div class="event-card-body">
+            <div class="event-card-title">${escapeHtml(ev.name)}</div>
+            <div class="event-card-meta">
+              <div>🎤 ${escapeHtml(ev.artist || '多名艺人')}</div>
+              <div>📍 ${escapeHtml(ev.venue)}</div>
+              <div>🕐 ${formatDateTime(ev.start_time)}</div>
+              <div>
+                <span class="badge ${getStatusBadgeClass(ev.status)}">${getStatusText(ev.status)}</span>
+                <span class="badge badge-info mt-1" style="margin-left:0.25rem">上座率 ${ev.occupancy_rate || 0}%</span>
+              </div>
+            </div>
+          </div>
+          <div class="event-card-footer">
+            <span class="event-price">¥${ev.total_seats > 0 ? '起' : '-'}</span>
+            <button class="btn btn-primary btn-sm" onclick="goToPage('/events/${ev.id}/book')">立即选座</button>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      const list = document.getElementById('events-list');
+      list.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">⚠️</div><p>加载失败，请刷新重试</p></div>';
+    }
+  }
+  loadEvents();
+</script>
+{% endblock %}

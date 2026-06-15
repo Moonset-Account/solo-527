@@ -1,0 +1,210 @@
+{% extends "admin_base.html" %}
+{% block title %}预警中心 - 管理后台{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">⚠️ 重复占座预警中心</h1>
+    <p class="text-sm text-gray mt-1">
+      系统在 <span class="badge badge-warning">60秒</span> 内检测到同一用户/IP对同座位重复尝试
+      <span class="badge badge-danger">≥3次</span> 时自动触发预警。关闭预警后在上座率统计中会实时反映状态变化
+    </p>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn btn-success btn-sm" onclick="resolveAll()">✅ 一键处理全部</button>
+  </div>
+</div>
+
+<div class="stats-grid mb-4" id="alert-stats">
+  <div class="stat-card"><div class="stat-label">全部预警</div><div class="stat-value" id="s-total">-</div></div>
+  <div class="stat-card"><div class="stat-label">待处理</div><div class="stat-value text-warning" id="s-pending">-</div></div>
+  <div class="stat-card"><div class="stat-label">已解决</div><div class="stat-value text-success" id="s-done">-</div></div>
+  <div class="stat-card"><div class="stat-label">涉及场次</div><div class="stat-value text-primary" id="s-events">-</div></div>
+</div>
+
+<div class="filter-bar">
+  <div class="form-group"><label class="form-label">场次</label>
+    <select id="f-event" class="form-select" onchange="loadList(1)">
+      <option value="">全部</option>
+    </select>
+  </div>
+  <div class="form-group"><label class="form-label">状态</label>
+    <select id="f-resolved" class="form-select" onchange="loadList(1)">
+      <option value="">全部</option>
+      <option value="false" selected>待处理</option>
+      <option value="true">已处理</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="loadList(1)">刷新</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table" id="alert-table">
+      <thead><tr>
+        <th>ID</th><th>场次</th><th>座位</th><th>用户标识</th>
+        <th>尝试次数</th><th>首次</th><th>最近</th><th>状态</th><th>处理信息</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="pagination" class="card-footer"></div>
+</div>
+
+<script>
+let currentPage = 1; const pageSize = 20;
+let currentList = [];
+
+async function loadEvents() {
+  try {
+    const d = await apiRequest('/admin/events?page=1&page_size=200', { method: 'GET' });
+    document.getElementById('f-event').innerHTML = '<option value="">全部</option>' +
+      (d.items || []).map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadStats() {
+  try {
+    const d = await apiRequest('/reports/alerts/repeat-seat?page=1&page_size=1000', { method: 'GET' });
+    const pending = await apiRequest('/reports/alerts/repeat-seat?is_resolved=false&page=1&page_size=1', { method: 'GET' });
+    const done = await apiRequest('/reports/alerts/repeat-seat?is_resolved=true&page=1&page_size=1', { method: 'GET' });
+    document.getElementById('s-total').textContent = d.total;
+    document.getElementById('s-pending').textContent = pending.total;
+    document.getElementById('s-done').textContent = done.total;
+    const evSet = new Set((d.items || []).map(a => a.event_id).filter(Boolean));
+    document.getElementById('s-events').textContent = evSet.size;
+  } catch(e) {}
+}
+
+async function loadList(page = 1) {
+  currentPage = page;
+  let url = `/reports/alerts/repeat-seat?page=${page}&page_size=${pageSize}`;
+  const ev = document.getElementById('f-event').value;
+  const rs = document.getElementById('f-resolved').value;
+  if (ev) url += `&event_id=${ev}`;
+  if (rs !== '') url += `&is_resolved=${rs}`;
+  try {
+    const data = await apiRequest(url, { method: 'GET' });
+    currentList = data.items || [];
+    render(data);
+  } catch(e) {}
+}
+
+function render(data) {
+  const tbody = document.querySelector('#alert-table tbody');
+  if (!data.items || data.items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-state-icon">✅</div><p>没有预警记录</p></div></td></tr>';
+    document.getElementById('pagination').innerHTML = ''; return;
+  }
+  tbody.innerHTML = data.items.map(a => `
+    <tr style="${a.is_resolved ? '' : 'background:#fffbeb'}">
+      <td class="font-mono text-xs">#${a.id}</td>
+      <td class="truncate" style="max-width:180px" title="${escapeHtml(a.event_name || '')}">${escapeHtml(a.event_name || '#' + a.event_id)}</td>
+      <td><span class="font-semibold badge badge-info">${a.seat_code || '#' + a.seat_id}</span></td>
+      <td class="font-mono text-xs" style="max-width:160px"><div class="truncate" title="${escapeHtml(a.user_identifier)}">${escapeHtml(a.user_identifier)}</div></td>
+      <td><span class="badge ${a.attempt_count>=5?'badge-danger':a.attempt_count>=3?'badge-warning':'badge-gray'}">${a.attempt_count} 次</span></td>
+      <td class="text-xs">${formatDateTime(a.first_attempt_at)}</td>
+      <td class="text-xs text-danger font-semibold">${formatDateTime(a.last_attempt_at)}</td>
+      <td>${a.is_resolved ? '<span class="badge badge-success">已处理</span>' : '<span class="badge badge-warning">待处理</span>'}</td>
+      <td class="text-xs">${a.is_resolved ? `
+        <div>处理人：${a.resolved_by ? '#' + a.resolved_by : '-'}</div>
+        <div class="text-gray">${formatDate(a.resolved_at)}</div>
+        ${a.resolution_note ? `<div class="truncate" style="max-width:160px" title="${escapeHtml(a.resolution_note)}">${escapeHtml(a.resolution_note)}</div>` : ''}
+      ` : '<span class="text-gray">-</span>'}</td>
+      <td>
+        <div class="table-actions">
+          ${!a.is_resolved ? `<button class="btn btn-sm btn-success" onclick="resolveOne(${a.id})">处理</button>` : ''}
+          <button class="btn btn-sm btn-outline" onclick="showDetail(${a.id})">详情</button>
+        </div>
+      </td>
+    </tr>`).join('');
+  document.getElementById('pagination').innerHTML = buildPaginationHtml(data.total, data.page, data.page_size, 'loadList');
+}
+
+async function resolveOne(id) {
+  const note = prompt('处理说明:', '人工核查：已确认为正常购票用户') || '业务处理完成';
+  if (note === null) return;
+  try {
+    await apiRequest(`/admin/alerts/repeat-seat/${id}/resolve`, { method: 'POST', body: { resolution_note: note } });
+    showToast('已标记为处理', 'success');
+    loadStats(); loadList(currentPage);
+  } catch(e) {}
+}
+
+async function resolveAll() {
+  if (!confirm('确认将所有待处理预警标记为已处理？\n处理后上座率统计会自动刷新状态')) return;
+  try {
+    const list = await apiRequest('/reports/alerts/repeat-seat?is_resolved=false&page=1&page_size=500', { method: 'GET' });
+    let count = 0;
+    for (const a of (list.items || [])) {
+      try {
+        await apiRequest(`/admin/alerts/repeat-seat/${a.id}/resolve`, { method: 'POST', body: { resolution_note: '批量关闭' } });
+        count++;
+      } catch(e) {}
+    }
+    showToast(`批量处理了 ${count} 条预警`, 'success');
+    loadStats(); loadList(currentPage);
+  } catch(e) {}
+}
+
+function showDetail(id) {
+  const a = currentList.find(x => x.id === id);
+  if (!a) return;
+  const body = document.body;
+  const div = document.createElement('div');
+  div.className = 'modal';
+  div.style.display = 'flex';
+  div.innerHTML = `<div class="modal-dialog" style="max-width:560px">
+    <div class="modal-header"><h3 class="font-semibold text-lg">⚠️ 预警详情 #${a.id}</h3>
+      <button class="btn btn-outline btn-sm" id="x-close">×</button>
+    </div>
+    <div class="modal-body text-sm">
+      <div class="alert ${a.is_resolved?'alert-success':'alert-warning'} mb-3">${a.is_resolved?'✅ 已处理':'⏳ 待处理'} - 重复占座预警</div>
+      <div class="form-row mb-3">
+        <div><div class="text-xs text-gray">场次</div><div class="font-semibold">${escapeHtml(a.event_name || '#' + a.event_id)}</div></div>
+        <div><div class="text-xs text-gray">座位</div><div class="font-semibold">${a.seat_code || '#' + a.seat_id}</div></div>
+        <div><div class="text-xs text-gray">尝试次数</div><div><span class="badge badge-danger">${a.attempt_count} 次</span></div></div>
+      </div>
+      <div class="form-row mb-3">
+        <div><div class="text-xs text-gray">用户标识</div><div class="font-mono text-xs">${escapeHtml(a.user_identifier)}</div></div>
+        <div><div class="text-xs text-gray">检测窗口</div><div>${a.window_seconds || 60} 秒</div></div>
+      </div>
+      <div class="form-row mb-3">
+        <div><div class="text-xs text-gray">首次尝试</div><div>${formatDateTime(a.first_attempt_at)}</div></div>
+        <div><div class="text-xs text-gray">最近尝试</div><div class="text-danger font-semibold">${formatDateTime(a.last_attempt_at)}</div></div>
+      </div>
+      ${a.is_resolved ? `<div class="card mb-3" style="box-shadow:none;border:1px solid #e5e7eb">
+        <div class="card-header py-2"><span class="card-title text-sm">✅ 处理记录</span></div>
+        <div class="card-body text-xs">
+          <div>处理人：${a.resolved_by ? '用户#' + a.resolved_by : '-'}</div>
+          <div>处理时间：${formatDateTime(a.resolved_at)}</div>
+          <div>说明：${escapeHtml(a.resolution_note || '-')}</div>
+        </div></div>` : ''}
+      <div class="card mb-3" style="box-shadow:none;border:1px solid #e5e7eb">
+        <div class="card-header py-2"><span class="card-title text-sm">🔗 快速跳转</span></div>
+        <div class="card-body d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline btn-sm" href="/admin/events/${a.event_id}/seats" target="_blank">座位管理</a>
+          <a class="btn btn-outline btn-sm" href="/admin/orders?event_id=${a.event_id}" target="_blank">该场次订单</a>
+          <a class="btn btn-outline btn-sm" href="/admin/reports" target="_blank">上座率统计</a>
+        </div></div>
+      <p class="text-xs text-gray">ℹ️ 处理此预警后，对应座位的上座率统计会实时刷新。</p>
+    </div>
+    <div class="modal-footer">
+      ${!a.is_resolved ? `<button class="btn btn-success" id="do-resolve">标记为已处理</button>` : ''}
+      <button class="btn btn-primary" id="do-close">关闭</button>
+    </div>
+  </div>`;
+  body.appendChild(div);
+  const close = () => div.remove();
+  div.addEventListener('click', e => { if (e.target === div) close(); });
+  div.querySelector('#x-close').onclick = close;
+  div.querySelector('#do-close').onclick = close;
+  const btn = div.querySelector('#do-resolve');
+  if (btn) btn.onclick = () => { close(); resolveOne(id); };
+}
+
+loadEvents();
+loadStats();
+loadList(1);
+</script>
+{% endblock %}

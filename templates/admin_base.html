@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ settings.APP_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container">
+      <a href="/admin" class="navbar-brand"><span>♪</span> 音乐票务管理后台</a>
+      <div class="navbar-nav">
+        <a href="/events" target="_blank">前台购票</a>
+      </div>
+      <div class="navbar-user" id="nav-user">
+        <div class="spinner htmx-indicator"></div>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">概览</div>
+      <a href="/admin" class="sidebar-link {% if request.url.path == '/admin' %}active{% endif %}">📊 仪表盘</a>
+      <div class="sidebar-section">场次管理</div>
+      <a href="/admin/events" class="sidebar-link {% if '/admin/events' in request.url.path %}active{% endif %}">🎫 场次管理</a>
+      <a href="/admin/ticket-types" class="sidebar-link {% if '/admin/ticket-types' in request.url.path %}active{% endif %}">🎟️ 票种库存</a>
+      <div class="sidebar-section">订单财务</div>
+      <a href="/admin/orders" class="sidebar-link {% if '/admin/orders' in request.url.path %}active{% endif %}">📋 订单管理</a>
+      <a href="/admin/refunds" class="sidebar-link {% if '/admin/refunds' in request.url.path %}active{% endif %}">💰 退款审批</a>
+      <div class="sidebar-section">业务流程</div>
+      <a href="/admin/registrations" class="sidebar-link {% if '/admin/registrations' in request.url.path %}active{% endif %}">📝 报名审核</a>
+      <a href="/admin/alerts" class="sidebar-link {% if '/admin/alerts' in request.url.path %}active{% endif %}">⚠️ 重复占座预警</a>
+      <div class="sidebar-section">数据复盘</div>
+      <a href="/admin/reports" class="sidebar-link {% if '/admin/reports' in request.url.path %}active{% endif %}">📈 报表中心</a>
+      <div class="sidebar-section">系统配置</div>
+      <a href="/admin/configs" class="sidebar-link {% if '/admin/configs' in request.url.path %}active{% endif %}">⚙️ 配置管理</a>
+    </aside>
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <div class="toast-container"></div>
+  <script src="/static/js/app.js"></script>
+  <script>
+    async function loadNavUser() {
+      try {
+        const user = await apiRequest('/auth/me', { method: 'GET' });
+        const el = document.getElementById('nav-user');
+        el.innerHTML = `<span style="color:#6b7280">${escapeHtml(user.real_name || user.username)} (${user.role})</span>
+          <button class="btn btn-outline btn-sm" onclick="doLogout()">退出</button>`;
+      } catch (e) {
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      }
+    }
+    async function doLogout() {
+      try { await apiRequest('/auth/logout', { method: 'POST' }); } catch(e) {}
+      window.location.href = '/login';
+    }
+    loadNavUser();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,219 @@
+{% extends "admin_base.html" %}
+{% block title %}仪表盘 - 管理后台{% endblock %}
+{% block content %}
+<h1 style="font-size:1.5rem" class="mb-3">📊 运营仪表盘</h1>
+<div class="stats-grid mb-4" id="stats-cards">
+  <div class="stat-card"><div class="stat-label">全部场次</div><div class="stat-value" id="s-events">-</div><div class="stat-delta" id="s-active-events">-</div></div>
+  <div class="stat-card"><div class="stat-label">今日订单</div><div class="stat-value" id="s-orders-today">-</div><div class="stat-delta" id="s-revenue-today">-</div></div>
+  <div class="stat-card"><div class="stat-label">累计收入</div><div class="stat-value" id="s-revenue">-</div><div class="stat-delta down" id="s-refund">-</div></div>
+  <div class="stat-card"><div class="stat-label">待办事项</div><div class="stat-value" id="s-todo">-</div><div class="stat-delta" style="color:#f59e0b" id="s-alerts">-</div></div>
+</div>
+
+<div class="form-row mb-4">
+  <div style="flex:1.2">
+    <div class="card h-full">
+      <div class="card-header"><span class="card-title">📈 近7天收入趋势</span></div>
+      <div class="card-body" id="revenue-chart" style="min-height:280px"></div>
+    </div>
+  </div>
+  <div style="flex:1">
+    <div class="card h-full">
+      <div class="card-header"><span class="card-title">🔥 场次销售排行</span>
+        <button class="btn btn-sm btn-outline" onclick="loadEventReport()">查看全部</button>
+      </div>
+      <div class="card-body" id="top-events-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="form-row">
+  <div style="flex:1">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⚠️ 待处理预警 (重复占座)</span>
+        <a href="/admin/alerts" class="btn btn-sm btn-outline">查看全部</a>
+      </div>
+      <div class="card-body" id="pending-alerts-list"></div>
+    </div>
+  </div>
+  <div style="flex:1">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">💰 待退款审批</span>
+        <a href="/admin/refunds" class="btn btn-sm btn-outline">全部退款</a>
+      </div>
+      <div class="card-body" id="pending-refunds-list"></div>
+    </div>
+  </div>
+  <div style="flex:1">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📝 待报名审核</span>
+        <a href="/admin/registrations" class="btn btn-sm btn-outline">全部审核</a>
+      </div>
+      <div class="card-body" id="pending-registrations-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadDashboard() {
+  try {
+    const stats = await apiRequest('/reports/dashboard', { method: 'GET' });
+    document.getElementById('s-events').textContent = stats.total_events;
+    document.getElementById('s-active-events').textContent = `${stats.active_events} 场进行中`;
+    document.getElementById('s-orders-today').textContent = stats.total_orders_today;
+    document.getElementById('s-revenue-today').textContent = `今日 ${formatCurrency(stats.revenue_today)}`;
+    document.getElementById('s-revenue').textContent = formatCurrency(stats.net_revenue || stats.total_revenue);
+    document.getElementById('s-refund').textContent = `已退 ${formatCurrency(stats.total_refund)}`;
+    document.getElementById('s-todo').textContent = stats.pending_refunds + stats.pending_registrations;
+    document.getElementById('s-alerts').textContent = `⚠️ ${stats.unresolved_alerts} 条预警待处理`;
+  } catch(e) {}
+}
+
+async function loadRevenueChart() {
+  const today = new Date();
+  const end = new Date(today.getTime() + 86400000);
+  const start = new Date(today.getTime() - 6 * 86400000);
+  try {
+    const data = await apiRequest(`/reports/revenue?start_date=${start.toISOString()}&end_date=${end.toISOString()}&group_by=day`, { method: 'GET' });
+    const byDay = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start.getTime() + i * 86400000);
+      byDay[d.toISOString().slice(5,10)] = { revenue: 0, refund: 0, orders: 0, tickets: 0 };
+    }
+    data.forEach(d => {
+      const key = d.date.slice(5);
+      if (byDay[key]) {
+        byDay[key] = { revenue: d.revenue, refund: d.refund_amount, orders: d.order_count, tickets: d.ticket_count };
+      }
+    });
+    const maxVal = Math.max(1, ...Object.values(byDay).map(v => v.revenue + v.refund));
+    const container = document.getElementById('revenue-chart');
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;align-items:end;height:220px;padding-bottom:2.5rem">
+        ${Object.entries(byDay).map(([day, v]) => {
+          const net = Math.max(0, v.revenue - v.refund);
+          const h = (net / maxVal) * 100;
+          const hRefund = (v.refund / maxVal) * 100;
+          return `<div style="text-align:center;position:relative;height:100%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:4px">
+            <div style="font-size:11px;color:#6b7280;font-weight:500">${formatCurrency(net)}</div>
+            <div style="width:100%;max-width:48px;height:${h + hRefund}%;display:flex;flex-direction:column;justify-content:end;border-radius:6px 6px 0 0;overflow:hidden">
+              ${hRefund > 0 ? `<div style="background:#fecaca;height:${hRefund / (h + hRefund) * 100}%"></div>` : ''}
+              <div style="background:linear-gradient(180deg,#818cf8,#6366f1);height:100%;min-height:4px"></div>
+            </div>
+            <div style="font-size:11px;color:#9ca3af;position:absolute;bottom:-1.75rem">${day.replace('-','/')}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="d-flex gap-3 mt-2 justify-center text-sm">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#6366f1;border-radius:2px;margin-right:4px"></span>净收入</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#fecaca;border-radius:2px;margin-right:4px"></span>退款</span>
+      </div>
+    `;
+  } catch(e) {}
+}
+
+async function loadEventReport() {
+  try {
+    const data = await apiRequest('/reports/events?page=1&page_size=5', { method: 'GET' });
+    const list = document.getElementById('top-events-list');
+    if (!data.items || data.items.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><p>暂无数据</p></div>';
+      return;
+    }
+    list.innerHTML = data.items.map((ev, i) => `
+      <div class="d-flex align-center gap-2 py-2" style="border-bottom:1px solid #f3f4f6">
+        <div style="width:24px;height:24px;border-radius:50%;background:${i<3?'#f59e0b':'#e5e7eb'};color:${i<3?'#fff':'#6b7280'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">${i+1}</div>
+        <div style="flex:1;min-width:0">
+          <div class="truncate font-semibold text-sm">${escapeHtml(ev.event_name)}</div>
+          <div class="text-sm text-gray">${ev.sold_seats}/${ev.total_seats} · 上座率 ${ev.occupancy_rate}%</div>
+        </div>
+        <div class="text-right">
+          <div class="font-bold text-primary text-sm">${formatCurrency(ev.net_amount || ev.revenue)}</div>
+          <div class="progress" style="width:80px"><div class="progress-bar" style="width:${ev.occupancy_rate}%"></div></div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function loadPendingAlerts() {
+  try {
+    const data = await apiRequest('/reports/alerts/repeat-seat?is_resolved=false&page=1&page_size=5', { method: 'GET' });
+    const list = document.getElementById('pending-alerts-list');
+    if (!data.items || data.items.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:2rem">✅</div><p>暂无待处理预警</p></div>';
+      return;
+    }
+    list.innerHTML = data.items.map(a => `
+      <div class="d-flex align-center gap-2 py-2" style="border-bottom:1px solid #f3f4f6">
+        <span class="badge badge-danger">${a.attempt_count}次</span>
+        <div style="flex:1;min-width:0">
+          <div class="truncate font-semibold text-sm">${escapeHtml(a.event_name || '#' + a.event_id)} - ${a.seat_code || '#' + a.seat_id}</div>
+          <div class="text-xs text-gray">${a.user_identifier} · ${formatDateTime(a.last_attempt_at)}</div>
+        </div>
+        <button class="btn btn-sm btn-success" onclick="resolveAlertQuick(${a.id})">处理</button>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function resolveAlertQuick(id) {
+  try {
+    await apiRequest(`/admin/alerts/repeat-seat/${id}/resolve`, { method: 'POST', body: { resolution_note: '仪表盘快速处理' } });
+    showToast('已标记为已处理', 'success');
+    loadDashboard(); loadPendingAlerts();
+  } catch(e) {}
+}
+
+async function loadPendingRefunds() {
+  try {
+    const data = await apiRequest('/business/refunds?status=pending&page=1&page_size=5', { method: 'GET' });
+    const list = document.getElementById('pending-refunds-list');
+    if (!data.items || data.items.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:2rem">✅</div><p>暂无待审批退款</p></div>';
+      return;
+    }
+    list.innerHTML = data.items.map(r => `
+      <div class="d-flex align-center gap-2 py-2" style="border-bottom:1px solid #f3f4f6">
+        <span class="badge badge-warning">待审</span>
+        <div style="flex:1;min-width:0">
+          <div class="truncate font-semibold text-sm">${r.order_no} · <span class="text-danger">${formatCurrency(r.actual_amount || r.refund_amount)}</span></div>
+          <div class="text-xs text-gray truncate">${escapeHtml(r.user_name || '#' + r.user_id)} · ${escapeHtml(r.reason || '')}</div>
+        </div>
+        <a href="/admin/refunds" class="btn btn-sm btn-primary">审批</a>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function loadPendingRegistrations() {
+  try {
+    const data = await apiRequest('/business/registrations?status=pending&page=1&page_size=5', { method: 'GET' });
+    const list = document.getElementById('pending-registrations-list');
+    if (!data.items || data.items.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:2rem">✅</div><p>暂无待审核报名</p></div>';
+      return;
+    }
+    list.innerHTML = data.items.map(r => `
+      <div class="d-flex align-center gap-2 py-2" style="border-bottom:1px solid #f3f4f6">
+        <span class="badge badge-warning">待审</span>
+        <div style="flex:1;min-width:0">
+          <div class="truncate font-semibold text-sm">${escapeHtml(r.user_name || '#' + r.user_id)}</div>
+          <div class="text-xs text-gray">${escapeHtml(r.event_name || '#' + r.event_id)} · ${formatDateTime(r.created_at)}</div>
+        </div>
+        <a href="/admin/registrations" class="btn btn-sm btn-primary">审核</a>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+loadDashboard();
+loadRevenueChart();
+loadEventReport();
+loadPendingAlerts();
+loadPendingRefunds();
+loadPendingRegistrations();
+</script>
+{% endblock %}

@@ -1,0 +1,318 @@
+{% extends "admin_base.html" %}
+{% block title %}配置管理 - 管理后台{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">⚙️ 系统配置</h1>
+    <p class="text-sm text-gray mt-1">所有业务参数走配置项，便于灰度调整。支持 <span class="badge badge-primary">草稿</span> <span class="badge badge-success">启用</span> <span class="badge badge-gray">停用</span> 三态流转</p>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn btn-primary btn-sm" onclick="openModal()">+ 新增配置</button>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="form-group"><label class="form-label">分类</label>
+    <select id="f-category" class="form-select" onchange="loadList(1)">
+      <option value="">全部</option>
+      <option value="basic">基础配置</option>
+      <option value="seat">座位相关</option>
+      <option value="refund">退款相关</option>
+      <option value="order">订单相关</option>
+      <option value="gray">灰度配置</option>
+      <option value="general">通用</option>
+    </select>
+  </div>
+  <div class="form-group"><label class="form-label">状态</label>
+    <select id="f-status" class="form-select" onchange="loadList(1)">
+      <option value="">全部</option>
+      <option value="draft">草稿</option>
+      <option value="enabled">启用</option>
+      <option value="disabled">停用</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="loadList(1)">刷新</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table" id="cfg-table">
+      <thead><tr>
+        <th>配置键</th><th>名称</th><th>分类</th><th>类型</th>
+        <th>当前值</th><th>状态</th><th>生效时间</th><th>版本</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="pagination" class="card-footer"></div>
+</div>
+
+<div id="cfg-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:640px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg" id="cfg-title">新增配置</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="cfg-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cfg-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">配置键 *</label>
+          <input type="text" id="cfg-key" class="form-control" placeholder="如: site.title">
+          <p class="form-text">全局唯一，使用 . 分层命名</p>
+        </div>
+        <div class="form-group"><label class="form-label">名称 *</label>
+          <input type="text" id="cfg-name" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">分类</label>
+          <select id="cfg-category" class="form-select">
+            <option value="general">通用</option>
+            <option value="basic">基础配置</option>
+            <option value="seat">座位相关</option>
+            <option value="refund">退款相关</option>
+            <option value="order">订单相关</option>
+            <option value="gray">灰度配置</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">值类型</label>
+          <select id="cfg-vtype" class="form-select" onchange="renderValueEditor()">
+            <option value="string">字符串</option>
+            <option value="integer">整数</option>
+            <option value="float">浮点</option>
+            <option value="boolean">布尔</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">状态</label>
+          <select id="cfg-status" class="form-select">
+            <option value="draft">草稿</option>
+            <option value="enabled">启用</option>
+            <option value="disabled">停用</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">排序</label>
+          <input type="number" id="cfg-sort" class="form-control" value="0">
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">配置值 *</label>
+        <div id="cfg-value-editor"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">生效从</label>
+          <input type="datetime-local" id="cfg-from" class="form-control">
+        </div>
+        <div class="form-group"><label class="form-label">生效至</label>
+          <input type="datetime-local" id="cfg-to" class="form-control">
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">描述</label>
+        <textarea id="cfg-desc" class="form-control" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="cfg-modal">取消</button>
+      <button class="btn btn-primary" onclick="saveCfg()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="log-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:560px">
+    <div class="modal-header"><h3 class="font-semibold text-lg">📜 变更历史</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="log-modal">×</button>
+    </div>
+    <div class="modal-body" id="log-body" style="max-height:60vh;overflow:auto"></div>
+  </div>
+</div>
+
+<script>
+let currentPage = 1; const pageSize = 20;
+function toLocalInput(d) { if (!d) return ''; const x = new Date(d); const off = x.getTimezoneOffset() * 60000; return new Date(x - off).toISOString().slice(0,16); }
+
+async function loadList(page = 1) {
+  currentPage = page;
+  let url = `/admin/configs?page=${page}&page_size=${pageSize}`;
+  const c = document.getElementById('f-category').value;
+  const s = document.getElementById('f-status').value;
+  if (c) url += `&category=${c}`;
+  if (s) url += `&status=${s}`;
+  try {
+    const data = await apiRequest(url, { method: 'GET' });
+    render(data);
+  } catch(e) {}
+}
+
+function render(data) {
+  const tbody = document.querySelector('#cfg-table tbody');
+  if (!data.items || data.items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">⚙️</div><p>暂无配置</p></div></td></tr>';
+    document.getElementById('pagination').innerHTML = ''; return;
+  }
+  tbody.innerHTML = data.items.map(c => {
+    let vDisplay = '';
+    try {
+      if (typeof c.value === 'object' && c.value !== null) {
+        const v = c.value.value !== undefined ? c.value.value : c.value;
+        if (typeof v === 'boolean') vDisplay = v ? '✅ 是' : '❌ 否';
+        else if (typeof v === 'object') vDisplay = `<code class="text-xs">${JSON.stringify(v).slice(0,50)}</code>`;
+        else vDisplay = `<span class="font-semibold">${escapeHtml(String(v))}</span>`;
+      } else vDisplay = String(c.value);
+    } catch(e) { vDisplay = String(c.value); }
+    return `<tr>
+      <td class="font-mono text-xs">${escapeHtml(c.key)}</td>
+      <td class="font-semibold text-sm">${escapeHtml(c.name)}</td>
+      <td><span class="badge badge-info">${escapeHtml(c.category || 'general')}</span></td>
+      <td class="text-xs">${escapeHtml(c.value_type || '')}</td>
+      <td>${vDisplay}</td>
+      <td><span class="badge ${c.status==='enabled'?'badge-success':c.status==='disabled'?'badge-gray':'badge-warning'}">${getStatusText(c.status)}</span></td>
+      <td class="text-xs">${c.effective_from?formatDate(c.effective_from):'-'}${c.effective_to?' ~ '+formatDate(c.effective_to):''}</td>
+      <td class="text-xs">v${c.version}</td>
+      <td>
+        <div class="table-actions">
+          ${c.status!=='enabled'?`<button class="btn btn-sm btn-success" onclick="setStatus(${c.id},'enabled')">启用</button>`:''}
+          ${c.status==='enabled'?`<button class="btn btn-sm btn-gray" style="background:#e5e7eb;color:#374151" onclick="setStatus(${c.id},'disabled')">停用</button>`:''}
+          ${c.status==='disabled'?`<button class="btn btn-sm btn-warning" onclick="setStatus(${c.id},'draft')">转草稿</button>`:''}
+          <button class="btn btn-sm btn-outline" onclick="editCfg(${JSON.stringify(c).replace(/"/g, '&quot;')})">编辑</button>
+          <button class="btn btn-sm btn-outline" onclick='showLog(${JSON.stringify(c.change_log||[]).replace(/'/g, "&#39;")})'>历史</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pagination').innerHTML = buildPaginationHtml(data.total, data.page, data.page_size, 'loadList');
+}
+
+function renderValueEditor() {
+  const type = document.getElementById('cfg-vtype').value;
+  const c = document.getElementById('cfg-value-editor');
+  if (type === 'string') c.innerHTML = '<input type="text" id="cfg-value" class="form-control" placeholder="字符串值">';
+  else if (type === 'integer') c.innerHTML = '<input type="number" id="cfg-value" class="form-control" step="1" placeholder="整数值">';
+  else if (type === 'float') c.innerHTML = '<input type="number" id="cfg-value" class="form-control" step="0.01" placeholder="浮点数值">';
+  else if (type === 'boolean') c.innerHTML = `
+    <div class="d-flex gap-3">
+      <label><input type="radio" name="cfg-bool-val" value="true"> 是 / 真 / True</label>
+      <label><input type="radio" name="cfg-bool-val" value="false" checked> 否 / 假 / False</label>
+    </div>`;
+  else c.innerHTML = '<textarea id="cfg-value" class="form-control" rows="4" placeholder=\'{"key": "value"}\'></textarea>';
+}
+
+function openModal() {
+  document.getElementById('cfg-id').value = '';
+  document.getElementById('cfg-title').textContent = '新增配置';
+  ['cfg-key','cfg-name','cfg-desc','cfg-from','cfg-to','cfg-value'].forEach(i => {
+    const el = document.getElementById(i);
+    if (el) el.value = '';
+  });
+  document.getElementById('cfg-category').value = 'general';
+  document.getElementById('cfg-vtype').value = 'string';
+  document.getElementById('cfg-status').value = 'draft';
+  document.getElementById('cfg-sort').value = '0';
+  renderValueEditor();
+  openModal('cfg-modal');
+}
+
+function editCfg(c) {
+  document.getElementById('cfg-id').value = c.id;
+  document.getElementById('cfg-title').textContent = '编辑配置';
+  document.getElementById('cfg-key').value = c.key;
+  document.getElementById('cfg-name').value = c.name;
+  document.getElementById('cfg-category').value = c.category;
+  document.getElementById('cfg-vtype').value = c.value_type;
+  document.getElementById('cfg-status').value = c.status;
+  document.getElementById('cfg-sort').value = c.sort_order;
+  document.getElementById('cfg-desc').value = c.description || '';
+  document.getElementById('cfg-from').value = toLocalInput(c.effective_from);
+  document.getElementById('cfg-to').value = toLocalInput(c.effective_to);
+  renderValueEditor();
+  setTimeout(() => {
+    const val = c.value && c.value.value !== undefined ? c.value.value : c.value;
+    if (c.value_type === 'boolean') {
+      const radios = document.getElementsByName('cfg-bool-val');
+      radios.forEach(r => r.checked = (String(val) === r.value));
+    } else if (c.value_type === 'json') {
+      document.getElementById('cfg-value').value = typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val);
+    } else {
+      document.getElementById('cfg-value').value = val !== undefined && val !== null ? String(val) : '';
+    }
+  }, 50);
+  openModal('cfg-modal');
+}
+
+function parseValueByType() {
+  const type = document.getElementById('cfg-vtype').value;
+  let value;
+  if (type === 'boolean') {
+    const checked = document.querySelector('input[name="cfg-bool-val"]:checked');
+    value = { value: checked && checked.value === 'true' };
+  } else if (type === 'json') {
+    try { value = { value: JSON.parse(document.getElementById('cfg-value').value) }; }
+    catch(e) { alert('JSON格式错误'); throw e; }
+  } else if (type === 'integer') {
+    value = { value: parseInt(document.getElementById('cfg-value').value) || 0 };
+  } else if (type === 'float') {
+    value = { value: parseFloat(document.getElementById('cfg-value').value) || 0 };
+  } else {
+    value = { value: document.getElementById('cfg-value').value };
+  }
+  return value;
+}
+
+async function saveCfg() {
+  const id = document.getElementById('cfg-id').value;
+  let value;
+  try { value = parseValueByType(); } catch(e) { return; }
+  const payload = {
+    key: document.getElementById('cfg-key').value.trim(),
+    name: document.getElementById('cfg-name').value.trim(),
+    category: document.getElementById('cfg-category').value,
+    value_type: document.getElementById('cfg-vtype').value,
+    status: document.getElementById('cfg-status').value,
+    sort_order: parseInt(document.getElementById('cfg-sort').value) || 0,
+    description: document.getElementById('cfg-desc').value.trim() || null,
+    value: value,
+    effective_from: document.getElementById('cfg-from').value ? new Date(document.getElementById('cfg-from').value).toISOString() : null,
+    effective_to: document.getElementById('cfg-to').value ? new Date(document.getElementById('cfg-to').value).toISOString() : null,
+  };
+  try {
+    if (id) await apiRequest(`/admin/configs/${id}`, { method: 'PUT', body: payload });
+    else await apiRequest('/admin/configs', { method: 'POST', body: payload });
+    showToast('保存成功', 'success');
+    closeModal('cfg-modal');
+    loadList(currentPage);
+  } catch(e) {}
+}
+
+async function setStatus(id, status) {
+  if (!confirm(`确认将状态修改为【${getStatusText(status)}】？`)) return;
+  try {
+    await apiRequest(`/admin/configs/${id}/status?status=${status}`, { method: 'POST' });
+    showToast('状态已更新', 'success');
+    loadList(currentPage);
+  } catch(e) {}
+}
+
+function showLog(logs) {
+  const body = document.getElementById('log-body');
+  if (!logs || logs.length === 0) { body.innerHTML = '<div class="text-gray text-center py-4">暂无变更记录</div>'; }
+  else {
+    body.innerHTML = logs.slice().reverse().map((l, i) => `
+      <div class="card mb-2" style="box-shadow:none;border:1px solid #e5e7eb">
+        <div class="card-header py-2" style="padding:0.5rem 1rem">
+          <span class="badge badge-primary">#${logs.length - i}</span>
+          <span class="text-xs">${escapeHtml(l.action || '')}</span>
+          <span class="text-xs text-gray ml-auto">${formatDateTime(l.timestamp)}</span>
+        </div>
+        <div class="card-body text-xs" style="padding:0.75rem 1rem">
+          <pre style="margin:0;white-space:pre-wrap;word-break:break-all">${escapeHtml(JSON.stringify(l, null, 2))}</pre>
+        </div>
+      </div>`).join('');
+  }
+  openModal('log-modal');
+}
+
+loadList(1);
+</script>
+{% endblock %}

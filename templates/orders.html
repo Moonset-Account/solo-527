@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}我的订单 - {{ settings.APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:1.5rem">
+  <div class="toolbar">
+    <div>
+      <h1 style="font-size:1.5rem">📋 我的订单</h1>
+      <p class="text-sm text-gray mt-1">查看购票记录、申请退款</p>
+    </div>
+  </div>
+
+  <div class="tabs" id="status-tabs">
+    <div class="tab active" data-status="" onclick="switchTab('')">全部</div>
+    <div class="tab" data-status="pending" onclick="switchTab('pending')">待支付</div>
+    <div class="tab" data-status="paid" onclick="switchTab('paid')">已支付</div>
+    <div class="tab" data-status="refund_pending" onclick="switchTab('refund_pending')">退款中</div>
+    <div class="tab" data-status="refunded" onclick="switchTab('refunded')">已退款</div>
+    <div class="tab" data-status="cancelled" onclick="switchTab('cancelled')">已取消</div>
+  </div>
+
+  <div id="orders-list"></div>
+  <div id="pagination-bar"></div>
+</div>
+
+<div id="refund-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:520px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg">💰 申请退款</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="refund-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="refund-order-info" class="mb-4"></div>
+      <div class="form-group">
+        <label class="form-label">选择退款座位</label>
+        <div id="refund-seat-options" class="d-flex gap-2 flex-wrap"></div>
+        <p class="form-text">可部分或全部座位申请退款</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">退款原因</label>
+        <textarea id="refund-reason" class="form-control" rows="3" placeholder="请描述退款原因"></textarea>
+      </div>
+      <div style="padding:0.75rem;background:#fef3c7;border-radius:0.5rem" class="text-sm">
+        <div class="d-flex justify-between mb-1"><span>预计退款金额</span><span id="refund-amount" class="font-bold text-danger">¥0.00</span></div>
+        <div class="d-flex justify-between"><span>退款手续费 (5%)</span><span id="refund-fee">¥0.00</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="refund-modal">取消</button>
+      <button class="btn btn-danger" id="submit-refund-btn" onclick="submitRefund()">提交退款申请</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPage = 1; const pageSize = 10;
+let currentStatus = '';
+let refundOrderData = null;
+let refundSeatsSelected = new Set();
+
+function switchTab(status) {
+  currentStatus = status;
+  document.querySelectorAll('#status-tabs .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.status === status);
+  });
+  loadOrders(1);
+}
+
+async function loadOrders(page = 1) {
+  currentPage = page;
+  let url = `/public/orders?page=${page}&page_size=${pageSize}`;
+  if (currentStatus) url += `&status=${currentStatus}`;
+  try {
+    const data = await apiRequest(url, { method: 'GET' });
+    renderOrders(data);
+  } catch(e) {}
+}
+
+function renderOrders(data) {
+  const container = document.getElementById('orders-list');
+  if (!data.items || data.items.length === 0) {
+    container.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-state-icon">📦</div><p>暂无订单记录</p></div></div>';
+    document.getElementById('pagination-bar').innerHTML = '';
+    return;
+  }
+  container.innerHTML = data.items.map(o => `
+    <div class="card mb-3">
+      <div class="card-header">
+        <div class="d-flex align-center gap-2">
+          <span class="font-mono text-sm text-gray">${o.order_no}</span>
+          <span class="badge ${getStatusBadgeClass(o.status)}">${getStatusText(o.status)}</span>
+        </div>
+        <div class="text-sm text-gray">${formatDateTime(o.created_at)}</div>
+      </div>
+      <div class="card-body">
+        <div class="d-flex gap-3 flex-wrap">
+          <div style="flex:1;min-width:240px">
+            <div class="font-semibold mb-1">🎫 ${escapeHtml(o.event_name || '场次 #' + o.event_id)}</div>
+            <div class="text-sm text-gray mb-2">${o.items.map(i => `${i.seat_code}(${i.area})`).join('、')} · 共${o.ticket_count}张</div>
+            <div class="text-sm">
+              ${o.contact_name ? `<span class="text-gray">联系人：${escapeHtml(o.contact_name)}</span> ` : ''}
+              ${o.contact_phone ? `<span class="text-gray">${escapeHtml(o.contact_phone)}</span>` : ''}
+            </div>
+          </div>
+          <div style="min-width:180px;text-align:right">
+            <div class="mb-2">
+              <div class="text-sm text-gray">订单金额</div>
+              <div class="text-xl font-bold text-primary">${formatCurrency(o.pay_amount)}</div>
+              ${o.refund_amount > 0 ? `<div class="text-sm text-danger">已退 ${formatCurrency(o.refund_amount)}</div>` : ''}
+            </div>
+            <div class="d-flex gap-1 justify-end flex-wrap">
+              ${o.status === 'pending' ? `
+                <button class="btn btn-primary btn-sm" onclick="goPay(${o.id})">去支付</button>
+                <button class="btn btn-outline btn-sm" onclick="cancelOrder(${o.id}, '${o.order_no}')">取消订单</button>
+              ` : ''}
+              ${(o.status === 'paid' || o.status === 'completed') ? `
+                <button class="btn btn-warning btn-sm" onclick="openRefund(${o.id})">申请退款</button>
+              ` : ''}
+              ${o.status === 'refund_pending' ? `<span class="badge badge-warning">退款审核中</span>` : ''}
+              ${o.status === 'refunded' ? `<span class="badge badge-gray">退款已完成</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('pagination-bar').innerHTML = buildPaginationHtml(data.total, data.page, data.page_size, 'loadOrders');
+}
+
+async function goPay(orderId) {
+  showToast('功能演示：跳转支付', 'info');
+}
+
+async function cancelOrder(orderId, orderNo) {
+  if (!confirm(`确定取消订单 ${orderNo}？`)) return;
+  try {
+    await apiRequest(`/public/orders/${orderId}/cancel`, { method: 'POST' });
+    showToast('订单已取消', 'success');
+    loadOrders(currentPage);
+  } catch(e) {}
+}
+
+async function openRefund(orderId) {
+  try {
+    const list = await apiRequest(`/public/orders?page=1&page_size=100`, { method: 'GET' });
+    const order = list.items.find(o => o.id === orderId);
+    if (!order) return;
+    refundOrderData = order;
+    refundSeatsSelected = new Set();
+    const refundable = order.items.filter(i => !i.is_refunded);
+    document.getElementById('refund-order-info').innerHTML = `
+      <div class="d-flex justify-between py-1"><span class="text-gray">订单号</span><span class="font-mono text-sm">${order.order_no}</span></div>
+      <div class="d-flex justify-between py-1"><span class="text-gray">场次</span><span>${escapeHtml(order.event_name || '#' + order.event_id)}</span></div>
+      <div class="d-flex justify-between py-1"><span class="text-gray">可退座位</span><span>${refundable.map(i => i.seat_code).join('、')}</span></div>
+    `;
+    const seatContainer = document.getElementById('refund-seat-options');
+    seatContainer.innerHTML = refundable.map(i => `
+      <label class="badge badge-info" style="cursor:pointer;padding:0.375rem 0.75rem">
+        <input type="checkbox" style="margin-right:4px;vertical-align:middle"
+          onchange="toggleRefundSeat(${i.seat_id}, ${i.sale_price}, this)"
+          data-price="${i.sale_price}" data-id="${i.seat_id}">
+        ${i.seat_code} ${formatCurrency(i.sale_price)}
+      </label>
+    `).join('');
+    updateRefundAmount();
+    openModal('refund-modal');
+  } catch(e) {}
+}
+
+function toggleRefundSeat(seatId, price, el) {
+  if (el.checked) refundSeatsSelected.add(seatId);
+  else refundSeatsSelected.delete(seatId);
+  updateRefundAmount();
+}
+
+function updateRefundAmount() {
+  let total = 0;
+  document.querySelectorAll('#refund-seat-options input[type="checkbox"]:checked').forEach(cb => {
+    total += parseFloat(cb.dataset.price);
+  });
+  const fee = Math.max(2, total * 0.05);
+  document.getElementById('refund-fee').textContent = formatCurrency(fee);
+  document.getElementById('refund-amount').textContent = formatCurrency(Math.max(0, total - fee));
+  return { total, fee, actual: Math.max(0, total - fee) };
+}
+
+async function submitRefund() {
+  if (refundSeatsSelected.size === 0) {
+    showToast('请至少选择一个退款座位', 'warning');
+    return;
+  }
+  const reason = document.getElementById('refund-reason').value.trim();
+  if (!reason) {
+    showToast('请填写退款原因', 'warning');
+    return;
+  }
+  const { total } = updateRefundAmount();
+  const btn = document.getElementById('submit-refund-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 提交中...';
+  try {
+    await apiRequest('/business/refunds', {
+      method: 'POST',
+      body: {
+        order_id: refundOrderData.id,
+        refund_amount: total,
+        reason: reason,
+        seat_ids: Array.from(refundSeatsSelected)
+      }
+    });
+    closeModal('refund-modal');
+    showToast('退款申请已提交，等待审核', 'success');
+    loadOrders(currentPage);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '提交退款申请';
+  }
+}
+
+loadOrders();
+</script>
+{% endblock %}

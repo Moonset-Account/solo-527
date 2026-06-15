@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% block title %}选座购票 - {{ settings.APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:1.5rem">
+  <div id="event-header" class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex align-center gap-3">
+        <div style="width:120px;height:120px;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:white;font-size:3rem">🎸</div>
+        <div class="flex-grow:1">
+          <h1 id="event-name" style="font-size:1.5rem">加载中...</h1>
+          <div class="text-gray mt-2" id="event-meta"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="registration-alert" style="display:none" class="alert alert-warning mb-3"></div>
+  <div id="alert-area"></div>
+
+  <div class="form-row mb-3">
+    <div style="flex:2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🪑 选择座位</span>
+          <div class="d-flex gap-2 text-sm">
+            <span class="badge badge-gray"><span class="seat seat-available" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></span> 可售</span>
+            <span class="badge badge-primary"><span class="seat seat-selected" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></span> 已选</span>
+            <span class="badge badge-warning"><span class="seat seat-locked" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></span> 锁定</span>
+            <span class="badge badge-gray"><span class="seat seat-sold" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></span> 已售</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="text-align:center;margin-bottom:1.5rem">
+            <div style="display:inline-block;padding:0.5rem 4rem;background:#fef3c7;border:1px solid #fde68a;border-radius:0 0 50% 50%;font-weight:600;color:#92400e;font-size:0.875rem">🎤 舞台 Stage 🎤</div>
+          </div>
+          <div id="seat-map"></div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎟️ 订单信息</span>
+        </div>
+        <div class="card-body">
+          <div id="ticket-types" class="mb-3"></div>
+          <div class="form-group">
+            <label class="form-label">已选座位</label>
+            <div id="selected-seats-list" class="text-gray text-sm">请在左侧选择座位</div>
+          </div>
+          <div style="padding:1rem;background:#f9fafb;border-radius:0.5rem;margin-bottom:1rem">
+            <div class="d-flex justify-between mb-1"><span class="text-gray">选座数量</span><span id="seat-count">0 个</span></div>
+            <div class="d-flex justify-between mb-1"><span class="text-gray">座位总价</span><span id="seat-total">¥0.00</span></div>
+            <div class="d-flex justify-between mb-1"><span class="text-gray">优惠</span><span>-¥0.00</span></div>
+            <hr style="margin:0.5rem 0;border-color:#e5e7eb">
+            <div class="d-flex justify-between align-center">
+              <span class="font-semibold">应付金额</span>
+              <span class="text-xl font-bold text-primary" id="pay-total">¥0.00</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">联系人姓名</label>
+            <input type="text" id="contact-name" class="form-control" placeholder="请输入姓名">
+          </div>
+          <div class="form-group">
+            <label class="form-label">联系电话</label>
+            <input type="tel" id="contact-phone" class="form-control" placeholder="请输入手机号">
+          </div>
+          <div id="lock-countdown" style="display:none" class="alert alert-info mb-3">
+            <span>⏰ 座位已锁定，请在</span>
+            <span id="countdown-time" class="font-bold">05:00</span>
+            <span>内完成支付</span>
+          </div>
+          <button id="submit-btn" class="btn btn-primary btn-lg w-full" onclick="submitOrder()" disabled>
+            请选择座位
+          </button>
+          <button id="cancel-lock-btn" class="btn btn-secondary w-full mt-2" style="display:none" onclick="cancelLock()">
+            释放座位
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pay-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:440px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg">💳 确认支付</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="pay-modal">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="pay-order-info" class="mb-4"></div>
+      <div class="form-group">
+        <label class="form-label">支付方式</label>
+        <select id="pay-method" class="form-select">
+          <option value="alipay">支付宝</option>
+          <option value="wechat">微信支付</option>
+          <option value="card">银行卡</option>
+          <option value="free">测试/免支付</option>
+        </select>
+      </div>
+      <p class="text-sm text-gray" style="margin-bottom:0">本系统为演示系统，点击确认将模拟完成支付</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="pay-modal">取消</button>
+      <button class="btn btn-primary" id="confirm-pay-btn" onclick="confirmPay()">确认支付</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const eventId = {{ event_id }};
+let eventInfo = null;
+let seatsData = null;
+let selectedSeats = {};
+let lockKey = null;
+let countdownTimer = null;
+let currentOrderId = null;
+
+async function loadEvent() {
+  try {
+    eventInfo = await apiRequest(`/public/events/${eventId}`, { method: 'GET' });
+    document.getElementById('event-name').textContent = eventInfo.name;
+    document.getElementById('event-meta').innerHTML = `
+      <div>🎤 ${escapeHtml(eventInfo.artist || '多名艺人')} · 📍 ${escapeHtml(eventInfo.venue)}</div>
+      <div class="mt-1">🕐 ${formatDateTime(eventInfo.start_time)} - ${formatDateTime(eventInfo.end_time)}
+        <span class="badge ${getStatusBadgeClass(eventInfo.status)}" style="margin-left:0.5rem">${getStatusText(eventInfo.status)}</span>
+        <span class="badge badge-info mt-1" style="margin-left:0.25rem">上座率 ${eventInfo.occupancy_rate || 0}%</span>
+      </div>
+    `;
+    if (eventInfo.requires_registration) {
+      try {
+        const reg = await apiRequest(`/public/events/${eventId}/registration-status`, { method: 'GET' });
+        const alert = document.getElementById('registration-alert');
+        if (!reg.registered) {
+          alert.style.display = 'flex';
+          alert.innerHTML = '⚠️ 本场次需要报名审核通过后才能购票，<a href="/orders" style="margin:0 0.25rem">去报名</a>';
+        } else if (reg.status !== 'approved') {
+          alert.style.display = 'flex';
+          alert.innerHTML = `⏳ 您的报名审核状态：${getStatusText(reg.status)}${reg.review_remark ? ' - ' + reg.review_remark : ''}`;
+        }
+      } catch(e) {}
+    }
+    await loadSeats();
+    await loadTicketTypes();
+  } catch(e) {
+    document.getElementById('event-header').innerHTML = '<div class="card-body">场次加载失败或不存在</div>';
+  }
+}
+
+async function loadSeats() {
+  try {
+    const data = await apiRequest(`/public/events/${eventId}/seats/matrix`, { method: 'GET' });
+    seatsData = data;
+    renderSeatMap(data.areas);
+    renderStats(data.stats);
+  } catch(e) {}
+}
+
+async function loadTicketTypes() {
+  try {
+    const data = await apiRequest(`/public/events/${eventId}/ticket-types`, { method: 'GET' });
+    const container = document.getElementById('ticket-types');
+    if (data && data.length) {
+      container.innerHTML = `<div class="mb-1 font-semibold text-sm">票种</div>` +
+        data.map(t => `
+          <div class="d-flex justify-between align-center py-1 text-sm">
+            <span><span style="display:inline-block;width:10px;height:10px;background:${t.ticket_type_color || '#999'};border-radius:2px;margin-right:0.375rem"></span>${escapeHtml(t.ticket_type_name || '票种')}</span>
+            <span>${formatCurrency(t.price)} <span class="text-gray">(剩${t.available_count})</span></span>
+          </div>
+        `).join('');
+    }
+  } catch(e) {}
+}
+
+function renderStats(stats) {
+  const statsHtml = document.createElement('div');
+  statsHtml.className = 'd-flex gap-3 mb-3 text-sm flex-wrap';
+  statsHtml.innerHTML = `
+    <span class="badge badge-success">可售 ${stats.available}</span>
+    <span class="badge badge-warning">锁定 ${stats.locked}</span>
+    <span class="badge badge-gray">已售 ${stats.sold}</span>
+    <span class="badge badge-primary">预留 ${stats.reserved}</span>
+    <span class="badge badge-danger">屏蔽 ${stats.blocked}</span>
+    <span class="badge badge-info">上座率 ${stats.occupancy_rate}%</span>
+  `;
+  const map = document.getElementById('seat-map');
+  if (map.querySelector('.seat-stats-bar')) map.querySelector('.seat-stats-bar').remove();
+  map.prepend(statsHtml);
+  statsHtml.classList.add('seat-stats-bar');
+}
+
+function renderSeatMap(areas) {
+  const container = document.getElementById('seat-map');
+  container.querySelectorAll('.section-area').forEach(e => e.remove());
+  areas.forEach(area => {
+    const section = document.createElement('div');
+    section.className = 'section-area';
+    section.innerHTML = `
+      <div class="section-header">
+        <span class="section-title">${escapeHtml(area.name)} · 共${area.total}座</span>
+        <span class="section-price">${formatCurrency(area.price_min)}${area.price_min !== area.price_max ? ' - ' + formatCurrency(area.price_max) : ''}</span>
+      </div>
+      <div style="overflow-x:auto">
+        ${area.matrix.map(row => `
+          <div style="display:flex;justify-content:center;align-items:center;gap:4px;margin:3px 0">
+            <span style="width:32px;text-align:right;color:#9ca3af;font-size:11px;margin-right:4px">${row.row}</span>
+            ${row.seats.map(seat => {
+              if (!seat) return '<span style="width:26px;height:26px"></span>';
+              let cls = 'seat-' + seat.status;
+              if (area.key === 'vip' && seat.status === 'available') cls += ' seat-vip';
+              if (selectedSeats[seat.id]) cls = 'seat-selected';
+              const title = `${seat.code} 排${row.row}座${Object.keys(row.seats).indexOf(String(seat.col)) >= 0 ? '' : ''} ${formatCurrency(seat.price)}`;
+              return `<div class="seat ${cls}" title="${title}"
+                data-id="${seat.id}" data-code="${seat.code}" data-price="${seat.price}" data-area="${area.key}"
+                onclick="toggleSeat(this, ${seat.id}, '${seat.code}', ${seat.price}, '${seat.status}')">
+                ${seat.col}
+              </div>`;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(section);
+  });
+}
+
+function toggleSeat(el, id, code, price, status) {
+  if (status === 'sold' || status === 'locked' || status === 'blocked' || status === 'refunded' || status === 'reserved') {
+    if (status === 'locked') showToast('该座位正在被他人锁定，请稍后或选择其他座位', 'warning');
+    return;
+  }
+  if (selectedSeats[id]) {
+    delete selectedSeats[id];
+    el.classList.remove('seat-selected');
+    el.classList.add('seat-available');
+  } else {
+    if (Object.keys(selectedSeats).length >= (eventInfo.max_tickets_per_order || 6)) {
+      showToast(`每单最多购买 ${eventInfo.max_tickets_per_order} 张票`, 'warning');
+      return;
+    }
+    selectedSeats[id] = { code, price };
+    el.classList.remove('seat-available');
+    el.classList.add('seat-selected');
+  }
+  updateSelectionSummary();
+}
+
+function updateSelectionSummary() {
+  const ids = Object.keys(selectedSeats);
+  const listEl = document.getElementById('selected-seats-list');
+  const countEl = document.getElementById('seat-count');
+  const totalEl = document.getElementById('seat-total');
+  const payEl = document.getElementById('pay-total');
+  const btn = document.getElementById('submit-btn');
+  if (ids.length === 0) {
+    listEl.className = 'text-gray text-sm';
+    listEl.textContent = '请在左侧选择座位';
+    countEl.textContent = '0 个';
+    totalEl.textContent = '¥0.00';
+    payEl.textContent = '¥0.00';
+    btn.disabled = true;
+    btn.textContent = '请选择座位';
+    return;
+  }
+  const seats = Object.entries(selectedSeats).map(([id, s]) =>
+    `<span class="badge badge-primary" style="margin:0 0.125rem 0.125rem 0">${s.code} · ${formatCurrency(s.price)}</span>`
+  ).join('');
+  listEl.className = '';
+  listEl.innerHTML = seats;
+  const total = ids.reduce((sum, id) => sum + selectedSeats[id].price, 0);
+  countEl.textContent = `${ids.length} 个`;
+  totalEl.textContent = formatCurrency(total);
+  payEl.textContent = formatCurrency(total);
+  btn.disabled = false;
+  btn.textContent = lockKey ? '继续结算' : '锁定座位并下单';
+}
+
+async function submitOrder() {
+  if (!lockKey) {
+    await lockSeats();
+  } else {
+    await createOrder();
+  }
+}
+
+async function lockSeats() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 锁定中...';
+  try {
+    const seatIds = Object.keys(selectedSeats).map(Number);
+    const data = await apiRequest('/public/seats/lock', {
+      method: 'POST',
+      body: { event_id: eventId, seat_ids: seatIds }
+    });
+    lockKey = data.lock_key;
+    showToast(`已锁定 ${data.seats.length} 个座位，请在 ${data.timeout_seconds} 秒内完成支付`, 'success');
+    document.getElementById('lock-countdown').style.display = 'flex';
+    document.getElementById('cancel-lock-btn').style.display = 'block';
+    startCountdown(data.timeout_seconds);
+    seatsData.areas.forEach(area => {
+      area.seats.forEach(s => {
+        if (selectedSeats[s.id]) s.status = 'locked';
+      });
+    });
+    renderSeatMap(seatsData.areas);
+    updateSelectionSummary();
+    await createOrder();
+  } catch (e) {
+    btn.disabled = false;
+    updateSelectionSummary();
+    await loadSeats();
+  }
+}
+
+function startCountdown(seconds) {
+  if (countdownTimer) clearInterval(countdownTimer);
+  const start = Date.now();
+  const end = start + seconds * 1000;
+  const update = () => {
+    const remain = Math.max(0, Math.floor((end - Date.now()) / 1000));
+    const m = String(Math.floor(remain / 60)).padStart(2, '0');
+    const s = String(remain % 60).padStart(2, '0');
+    document.getElementById('countdown-time').textContent = `${m}:${s}`;
+    if (remain <= 0) {
+      clearInterval(countdownTimer);
+      showToast('座位锁定已超时', 'warning');
+      lockKey = null;
+      document.getElementById('lock-countdown').style.display = 'none';
+      document.getElementById('cancel-lock-btn').style.display = 'none';
+      selectedSeats = {};
+      loadSeats();
+      updateSelectionSummary();
+    }
+  };
+  update();
+  countdownTimer = setInterval(update, 1000);
+}
+
+async function cancelLock() {
+  if (!lockKey) return;
+  try {
+    await apiRequest('/public/seats/unlock', { method: 'POST', body: { lock_key: lockKey } });
+    if (countdownTimer) clearInterval(countdownTimer);
+    lockKey = null;
+    selectedSeats = {};
+    document.getElementById('lock-countdown').style.display = 'none';
+    document.getElementById('cancel-lock-btn').style.display = 'none';
+    showToast('已释放座位', 'info');
+    await loadSeats();
+    updateSelectionSummary();
+  } catch(e) {}
+}
+
+async function createOrder() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 创建订单...';
+  try {
+    const seatIds = Object.keys(selectedSeats).map(Number);
+    const contactName = document.getElementById('contact-name').value.trim();
+    const contactPhone = document.getElementById('contact-phone').value.trim();
+    const order = await apiRequest(`/public/orders?lock_key=${encodeURIComponent(lockKey)}`, {
+      method: 'POST',
+      body: { event_id: eventId, seat_ids: seatIds, contact_name: contactName, contact_phone: contactPhone }
+    });
+    currentOrderId = order.id;
+    document.getElementById('pay-order-info').innerHTML = `
+      <div class="d-flex justify-between py-1"><span class="text-gray">订单号</span><span class="font-mono text-sm">${order.order_no}</span></div>
+      <div class="d-flex justify-between py-1"><span class="text-gray">票数</span><span>${order.ticket_count} 张</span></div>
+      <div class="d-flex justify-between py-1"><span class="text-gray">座位</span><span>${order.items.map(i => i.seat_code).join('、')}</span></div>
+      <hr style="margin:0.5rem 0;border-color:#e5e7eb">
+      <div class="d-flex justify-between align-center">
+        <span class="font-semibold text-lg">应付金额</span>
+        <span class="text-xl font-bold text-primary">${formatCurrency(order.pay_amount)}</span>
+      </div>
+    `;
+    openModal('pay-modal');
+    btn.disabled = false;
+    updateSelectionSummary();
+  } catch(e) {
+    btn.disabled = false;
+    if (e.message && e.message.includes('座位锁')) {
+      lockKey = null;
+      selectedSeats = {};
+      if (countdownTimer) clearInterval(countdownTimer);
+      document.getElementById('lock-countdown').style.display = 'none';
+      document.getElementById('cancel-lock-btn').style.display = 'none';
+      loadSeats();
+      updateSelectionSummary();
+    }
+  }
+}
+
+async function confirmPay() {
+  if (!currentOrderId) return;
+  const btn = document.getElementById('confirm-pay-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 支付处理中...';
+  try {
+    const method = document.getElementById('pay-method').value;
+    const order = await apiRequest('/public/orders/pay', {
+      method: 'POST',
+      body: { order_id: currentOrderId, payment_method: method }
+    });
+    closeModal('pay-modal');
+    showToast('🎉 支付成功！即将跳转到订单详情', 'success');
+    setTimeout(() => goToPage('/orders'), 1000);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '确认支付';
+  }
+}
+
+loadEvent();
+</script>
+{% endblock %}

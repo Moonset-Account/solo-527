@@ -1,0 +1,207 @@
+{% extends "admin_base.html" %}
+{% block title %}报名审核 - 管理后台{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">📝 报名审核</h1>
+    <p class="text-sm text-gray mt-1">审核用户的演出报名申请</p>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn btn-success btn-sm" onclick="batchReview(true)">✅ 批量通过</button>
+    <button class="btn btn-danger btn-sm" onclick="batchReview(false)">❌ 批量驳回</button>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="form-group"><label class="form-label">场次</label>
+    <select id="f-event" class="form-select" onchange="loadList(1)">
+      <option value="">全部</option>
+    </select>
+  </div>
+  <div class="form-group"><label class="form-label">状态</label>
+    <select id="f-status" class="form-select" onchange="loadList(1)">
+      <option value="">全部</option>
+      <option value="pending" selected>待审核</option>
+      <option value="approved">已通过</option>
+      <option value="rejected">已驳回</option>
+    </select>
+  </div>
+  <div class="form-group" style="flex:2;min-width:260px"><label class="form-label">搜索 (姓名/电话)</label>
+    <input type="text" id="keyword" class="form-control" onkeypress="if(event.key==='Enter')loadList(1)">
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="loadList(1)">搜索</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body" style="padding:0">
+    <table class="table" id="reg-table">
+      <thead><tr>
+        <th style="width:32px"><input type="checkbox" id="sel-all" onchange="toggleSelectAll()"></th>
+        <th>用户</th><th>场次</th><th>报名信息</th>
+        <th>状态</th><th>申请时间</th><th>审核</th><th>操作</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="pagination" class="card-footer"></div>
+</div>
+
+<div id="review-modal" class="modal" style="display:none">
+  <div class="modal-dialog" style="max-width:560px">
+    <div class="modal-header">
+      <h3 class="font-semibold text-lg" id="review-title">审核</h3>
+      <button class="btn btn-outline btn-sm" data-close-modal="review-modal">×</button>
+    </div>
+    <div class="modal-body" id="review-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal="review-modal">取消</button>
+      <button class="btn btn-danger" onclick="submitReview(false)">❌ 驳回</button>
+      <button class="btn btn-success" onclick="submitReview(true)">✅ 通过</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPage = 1; const pageSize = 20;
+let currentList = [];
+let currentId = null;
+let selected = new Set();
+
+async function loadEvents() {
+  try {
+    const data = await apiRequest('/admin/events?page=1&page_size=200', { method: 'GET' });
+    document.getElementById('f-event').innerHTML = '<option value="">全部</option>' +
+      (data.items || []).map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadList(page = 1) {
+  currentPage = page;
+  let url = `/business/registrations?page=${page}&page_size=${pageSize}`;
+  const ev = document.getElementById('f-event').value;
+  const st = document.getElementById('f-status').value;
+  const kw = document.getElementById('keyword').value.trim();
+  if (ev) url += `&event_id=${ev}`;
+  if (st) url += `&status=${st}`;
+  if (kw) url += `&keyword=${encodeURIComponent(kw)}`;
+  try {
+    const data = await apiRequest(url, { method: 'GET' });
+    currentList = data.items || [];
+    render(data);
+  } catch(e) {}
+}
+
+function render(data) {
+  const tbody = document.querySelector('#reg-table tbody');
+  if (!data.items || data.items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📝</div><p>暂无数据</p></div></td></tr>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = data.items.map(r => `
+    <tr>
+      <td><input type="checkbox" class="chk-item" value="${r.id}" ${selected.has(r.id)?'checked':''} onchange="onChk(${r.id},this)"></td>
+      <td>
+        <div class="font-semibold text-sm">${escapeHtml(r.user_name || '用户#' + r.user_id)}</div>
+        <div class="text-xs text-gray">${escapeHtml(r.user_email || '')} ${r.user_phone?' · '+escapeHtml(r.user_phone):''}</div>
+      </td>
+      <td>${escapeHtml(r.event_name || '#' + r.event_id)}</td>
+      <td style="max-width:320px"><div class="text-xs" style="max-height:60px;overflow:auto">
+        ${Object.entries(r.form_data || {}).map(([k,v]) => `<div><span class="text-gray">${k}:</span> ${escapeHtml(String(v))}</div>`).join('') || '<span class="text-gray">无附加信息</span>'}
+      </div></td>
+      <td><span class="badge ${getStatusBadgeClass(r.status)}">${getStatusText(r.status)}</span></td>
+      <td class="text-xs">${formatDateTime(r.created_at)}</td>
+      <td class="text-xs">${r.reviewed_at ? `${escapeHtml(r.review_remark || '-')}<br><span class="text-gray">${formatDateTime(r.reviewed_at)}</span>` : '-'}</td>
+      <td>
+        ${r.status === 'pending' ? `<div class="table-actions">
+          <button class="btn btn-sm btn-success" onclick="openReview(${r.id})">审核</button>
+          <button class="btn btn-sm btn-outline" onclick="quickAction(${r.id},true)">通过</button>
+          <button class="btn btn-sm btn-outline" onclick="quickAction(${r.id},false)">驳回</button>
+        </div>` : '<span class="text-gray text-xs">已处理</span>'}
+      </td>
+    </tr>`).join('');
+  document.getElementById('pagination').innerHTML = buildPaginationHtml(data.total, data.page, data.page_size, 'loadList');
+  updateSelAll();
+}
+
+function onChk(id, el) { if (el.checked) selected.add(id); else selected.delete(id); }
+function toggleSelectAll() {
+  const on = document.getElementById('sel-all').checked;
+  document.querySelectorAll('.chk-item').forEach(cb => { cb.checked = on; onChk(parseInt(cb.value), cb); });
+}
+function updateSelAll() {
+  const boxes = document.querySelectorAll('.chk-item');
+  document.getElementById('sel-all').checked = boxes.length > 0 && Array.from(boxes).every(b => b.checked);
+}
+
+function openReview(id) {
+  currentId = id;
+  const r = currentList.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('review-title').textContent = `审核报名 #${id}`;
+  document.getElementById('review-body').innerHTML = `
+    <div class="alert alert-info text-sm">请仔细核对报名信息，通过后用户即可购票</div>
+    <div class="form-row mb-2">
+      <div><div class="text-xs text-gray">用户</div><div class="font-semibold">${escapeHtml(r.user_name || '#' + r.user_id)}</div></div>
+      <div><div class="text-xs text-gray">场次</div><div>${escapeHtml(r.event_name || '#' + r.event_id)}</div></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">报名信息</label>
+      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb">
+        <div class="card-body text-sm">
+          ${Object.entries(r.form_data || {}).map(([k,v]) => `<div class="d-flex py-1" style="border-bottom:1px dashed #f3f4f6"><span style="width:120px;color:#6b7280">${escapeHtml(k)}</span><span>${escapeHtml(String(v))}</span></div>`).join('') || '<span class="text-gray">无</span>'}
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">审核备注</label>
+      <textarea id="review-remark" class="form-control" rows="2" placeholder="选填"></textarea>
+    </div>`;
+  openModal('review-modal');
+}
+
+async function submitReview(approved) {
+  if (!currentId) return;
+  try {
+    await apiRequest(`/business/registrations/${currentId}/review`, {
+      method: 'POST',
+      body: { approved, review_remark: document.getElementById('review-remark').value.trim() || null }
+    });
+    showToast(approved ? '已通过' : '已驳回', 'success');
+    closeModal('review-modal');
+    loadList(currentPage);
+  } catch(e) {}
+}
+
+async function quickAction(id, approved) {
+  const remark = approved ? '快速审核通过' : prompt('请填写驳回原因:', '不符合条件');
+  if (!approved && remark === null) return;
+  try {
+    await apiRequest(`/business/registrations/${id}/review`, {
+      method: 'POST', body: { approved, review_remark: remark }
+    });
+    showToast(approved ? '已通过' : '已驳回', 'success');
+    loadList(currentPage);
+  } catch(e) {}
+}
+
+async function batchReview(approved) {
+  if (selected.size === 0) { showToast('请先勾选要批量处理的记录', 'warning'); return; }
+  if (!confirm(`确定对 ${selected.size} 条记录执行【${approved?'通过':'驳回'}】操作？`)) return;
+  const remark = approved ? '批量审核通过' : prompt('请填写驳回原因:', '批量操作');
+  if (!approved && remark === null) return;
+  try {
+    await apiRequest('/business/registrations/batch-review', {
+      method: 'POST', body: { ids: Array.from(selected), approved, review_remark: remark }
+    });
+    showToast(`成功处理 ${selected.size} 条`, 'success');
+    selected.clear();
+    loadList(currentPage);
+  } catch(e) {}
+}
+
+loadEvents();
+loadList(1);
+</script>
+{% endblock %}

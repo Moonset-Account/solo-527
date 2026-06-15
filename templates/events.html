@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}演出列表 - {{ settings.APP_NAME }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:1.5rem">
+  <div class="toolbar">
+    <div>
+      <h1 style="font-size:1.5rem">🎫 演出列表</h1>
+      <p class="text-sm text-gray mt-1">选择您感兴趣的演出，在线选座购票</p>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="form-group flex-grow">
+      <label class="form-label">搜索</label>
+      <input type="text" id="keyword" class="form-control" placeholder="搜索演出名称、艺人、场馆...">
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="searchEvents()">搜索</button>
+      <button class="btn btn-secondary" onclick="resetSearch()">重置</button>
+    </div>
+  </div>
+  <div id="events-list" class="events-grid"></div>
+  <div id="pagination-bar"></div>
+</div>
+<script>
+  let currentPage = 1; const pageSize = 9;
+  async function searchEvents(page = 1) {
+    currentPage = page;
+    const kw = document.getElementById('keyword').value.trim();
+    let url = `/public/events?page=${page}&page_size=${pageSize}`;
+    if (kw) url += `&keyword=${encodeURIComponent(kw)}`;
+    try {
+      const data = await apiRequest(url, { method: 'GET' });
+      renderEvents(data);
+    } catch(e) {}
+  }
+  function resetSearch() {
+    document.getElementById('keyword').value = '';
+    searchEvents(1);
+  }
+  function renderEvents(data) {
+    const list = document.getElementById('events-list');
+    if (!data.items || data.items.length === 0) {
+      list.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🎭</div><p>暂无符合条件的演出</p></div>';
+      document.getElementById('pagination-bar').innerHTML = '';
+      return;
+    }
+    list.innerHTML = data.items.map(ev => `
+      <div class="event-card">
+        <div class="event-card-img" style="background:linear-gradient(135deg, hsl(${(ev.id * 53) % 360},65%,55%), hsl(${(ev.id * 53 + 80) % 360},65%,45%))">🎤</div>
+        <div class="event-card-body">
+          <div class="event-card-title">${escapeHtml(ev.name)}</div>
+          <div class="event-card-meta">
+            <div>🎤 ${escapeHtml(ev.artist || '多名艺人')}</div>
+            <div>📍 ${escapeHtml(ev.venue)}</div>
+            <div>🕐 ${formatDateTime(ev.start_time)}</div>
+            <div>
+              <span class="badge ${getStatusBadgeClass(ev.status)}">${getStatusText(ev.status)}</span>
+              ${ev.requires_registration ? '<span class="badge badge-warning mt-1" style="margin-left:0.25rem">需报名</span>' : ''}
+            </div>
+          </div>
+        </div>
+        <div class="event-card-footer">
+          <div>
+            <div class="event-price">¥${ev.total_seats > 0 ? '起' : '-'}</div>
+            <div class="text-sm text-gray">${ev.sold_seats}/${ev.total_seats} 已售 · ${ev.occupancy_rate || 0}%</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="goToPage('/events/${ev.id}/book')">立即选座</button>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('pagination-bar').innerHTML = buildPaginationHtml(data.total, data.page, data.page_size, 'searchEvents');
+  }
+  document.getElementById('keyword').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchEvents(1); });
+  searchEvents(1);
+</script>
+{% endblock %}

@@ -1,0 +1,459 @@
+{% extends "admin_base.html" %}
+{% block title %}报表中心 - 管理后台{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div><h1 style="font-size:1.5rem">📈 报表与数据复盘</h1>
+    <p class="text-sm text-gray mt-1">多维度分析，所有报表可下钻到单据级别</p>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn btn-outline btn-sm" onclick="alert('实际部署中可对接导出功能')">📥 导出报表</button>
+  </div>
+</div>
+
+<div class="tabs" id="report-tabs">
+  <div class="tab active" data-t="summary" onclick="switchTab('summary')">📊 汇总总览</div>
+  <div class="tab" data-t="revenue" onclick="switchTab('revenue')">💰 收入报表</div>
+  <div class="tab" data-t="events" onclick="switchTab('events')">🎫 场次报表</div>
+  <div class="tab" data-t="occupancy" onclick="switchTab('occupancy')">🪑 上座率</div>
+  <div class="tab" data-t="drilldown" onclick="switchTab('drilldown')">🔍 单据下钻</div>
+</div>
+
+<div class="filter-bar">
+  <div class="form-group"><label class="form-label">开始日期</label>
+    <input type="date" id="f-start" class="form-control" onchange="loadCurrent()">
+  </div>
+  <div class="form-group"><label class="form-label">结束日期</label>
+    <input type="date" id="f-end" class="form-control" onchange="loadCurrent()">
+  </div>
+  <div class="form-group" id="f-event-wrap"><label class="form-label">场次</label>
+    <select id="f-event" class="form-select" onchange="loadCurrent()">
+      <option value="">全部场次</option>
+    </select>
+  </div>
+  <div class="form-group" id="f-group-wrap"><label class="form-label">时间粒度</label>
+    <select id="f-group" class="form-select" onchange="loadCurrent()">
+      <option value="day" selected>按天</option>
+      <option value="hour">按小时</option>
+      <option value="week">按周</option>
+      <option value="month">按月</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="loadCurrent()">查询</button>
+    <button class="btn btn-secondary" onclick="resetDates()">本月</button>
+  </div>
+</div>
+
+<div id="tab-summary" class="tab-panel"></div>
+<div id="tab-revenue" class="tab-panel" style="display:none"></div>
+<div id="tab-events" class="tab-panel" style="display:none"></div>
+<div id="tab-occupancy" class="tab-panel" style="display:none"></div>
+<div id="tab-drilldown" class="tab-panel" style="display:none"></div>
+
+<script>
+let currentTab = 'summary';
+function resetDates() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const toS = d => d.toISOString().slice(0,10);
+  document.getElementById('f-start').value = toS(start);
+  document.getElementById('f-end').value = toS(end);
+}
+
+function switchTab(t) {
+  currentTab = t;
+  document.querySelectorAll('#report-tabs .tab').forEach(x => x.classList.toggle('active', x.dataset.t === t));
+  document.querySelectorAll('.tab-panel').forEach(x => x.style.display = 'none');
+  document.getElementById('tab-' + t).style.display = 'block';
+  document.getElementById('f-group-wrap').style.display = (t === 'revenue') ? '' : 'none';
+  document.getElementById('f-event-wrap').style.display = (t === 'drilldown' || t === 'occupancy') ? '' : '';
+  loadCurrent();
+}
+
+function getQueryBase() {
+  const sd = document.getElementById('f-start').value;
+  const ed = document.getElementById('f-end').value;
+  const ev = document.getElementById('f-event').value;
+  const grp = document.getElementById('f-group').value;
+  const parts = [];
+  if (sd) parts.push('start_date=' + new Date(sd).toISOString());
+  if (ed) parts.push('end_date=' + new Date(ed + 'T23:59:59').toISOString());
+  if (ev) parts.push('event_id=' + ev);
+  if (grp) parts.push('group_by=' + grp);
+  return parts.join('&');
+}
+
+async function loadCurrent() {
+  if (currentTab === 'summary') await loadSummary();
+  else if (currentTab === 'revenue') await loadRevenue();
+  else if (currentTab === 'events') await loadEventReport();
+  else if (currentTab === 'occupancy') await loadOccupancy();
+  else if (currentTab === 'drilldown') await loadDrilldown(1);
+}
+
+async function loadEvents() {
+  try {
+    const d = await apiRequest('/admin/events?page=1&page_size=200', { method: 'GET' });
+    document.getElementById('f-event').innerHTML = '<option value="">全部场次</option>' +
+      (d.items || []).map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadSummary() {
+  const container = document.getElementById('tab-summary');
+  container.innerHTML = '<div class="text-center py-5 text-gray"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const dash = await apiRequest('/reports/dashboard', { method: 'GET' });
+    const qs = getQueryBase();
+    const summary = qs ? await apiRequest('/reports/summary?' + qs, { method: 'GET' }) : null;
+    container.innerHTML = `
+      <div class="stats-grid mb-4">
+        <div class="stat-card"><div class="stat-label">查询区间总收入</div><div class="stat-value text-primary">${formatCurrency(summary?.total_revenue || dash.total_revenue)}</div><div class="stat-delta">已支付订单</div></div>
+        <div class="stat-card"><div class="stat-label">区间退款总额</div><div class="stat-value text-danger">${formatCurrency(summary?.total_refund || dash.total_refund)}</div><div class="stat-delta down">${summary?.refund_rate ? summary.refund_rate+'% 退款率' : '累计退款'}</div></div>
+        <div class="stat-card"><div class="stat-label">区间净收入</div><div class="stat-value text-success">${formatCurrency(summary?.net_revenue || dash.net_revenue)}</div><div class="stat-delta">收入 - 退款</div></div>
+        <div class="stat-card"><div class="stat-label">订单数 / 票数</div><div class="stat-value">${summary?.total_orders || dash.total_orders_today}<span class="text-sm text-gray ml-2">/ ${summary?.total_tickets || '-'}</span></div><div class="stat-delta">客单价 ${formatCurrency(summary?.avg_order_value || 0)}</div></div>
+        <div class="stat-card"><div class="stat-label">全部场次</div><div class="stat-value">${dash.total_events}</div><div class="stat-delta">${dash.active_events} 场进行中</div></div>
+        <div class="stat-card"><div class="stat-label">待办总数</div><div class="stat-value text-warning">${dash.pending_refunds + dash.pending_registrations + dash.unresolved_alerts}</div><div class="stat-delta">退款 ${dash.pending_refunds} · 报名 ${dash.pending_registrations} · 预警 ${dash.unresolved_alerts}</div></div>
+      </div>
+      ${summary ? `<div class="card mb-4">
+        <div class="card-header"><span class="card-title">📊 收入趋势图（查询区间）</span></div>
+        <div class="card-body" id="sum-chart" style="min-height:260px"></div>
+      </div>` : ''}
+      <div class="card">
+        <div class="card-header"><span class="card-title">⏭ 快速进入</span></div>
+        <div class="card-body">
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline" onclick="switchTab('revenue')">💰 查看详细收入报表</button>
+            <button class="btn btn-outline" onclick="switchTab('events')">🎫 场次销售排名</button>
+            <button class="btn btn-outline" onclick="switchTab('occupancy')">🪑 区域上座率分析</button>
+            <button class="btn btn-outline" onclick="switchTab('drilldown')">🔍 单据下钻查询</button>
+          </div>
+        </div>
+      </div>`;
+    if (summary && summary.daily_data) {
+      const data = summary.daily_data;
+      const el = document.getElementById('sum-chart');
+      if (el) {
+        const max = Math.max(1, ...data.map(d => d.revenue));
+        el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(${Math.min(data.length, 30)},1fr);gap:6px;align-items:end;height:220px;padding:0 0 2rem 0;position:relative">
+          ${data.slice(0, 30).map(d => {
+            const h = ((d.net_revenue || 0) / max * 100) || 2;
+            const hr = ((d.refund_amount || 0) / max * 100);
+            return `<div style="display:flex;flex-direction:column;justify-content:end;height:100%;align-items:center;gap:2px;position:relative" title="${d.date}: 净收入${formatCurrency(d.net_revenue)} 退款${formatCurrency(d.refund_amount)}">
+              <span class="text-xs" style="position:absolute;top:-1.5rem">${d.order_count || ''}</span>
+              <div style="width:100%;max-width:32px;background:#fecaca;height:${hr}%;border-radius:4px 4px 0 0"></div>
+              <div style="width:100%;max-width:32px;background:linear-gradient(180deg,#818cf8,#6366f1);height:${h}%;border-radius:4px 4px 0 0"></div>
+              <span class="text-xs text-gray" style="position:absolute;bottom:-1.5rem;white-space:nowrap">${(d.date||d.period||'').slice(5,10)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="d-flex gap-3 mt-4 justify-center text-sm"><span><span style="display:inline-block;width:12px;height:12px;background:#6366f1;border-radius:2px"></span> 净收入</span><span><span style="display:inline-block;width:12px;height:12px;background:#fecaca;border-radius:2px"></span> 退款</span></div>`;
+      }
+    }
+  } catch(e) { container.innerHTML = '<div class="text-danger">加载失败</div>'; }
+}
+
+async function loadRevenue() {
+  const container = document.getElementById('tab-revenue');
+  container.innerHTML = '<div class="text-center py-5 text-gray"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const qs = getQueryBase();
+    const data = await apiRequest('/reports/revenue?' + qs, { method: 'GET' });
+    if (data.length === 0) { container.innerHTML = '<div class="card"><div class="empty-state">暂无数据</div></div>'; return; }
+    const max = Math.max(1, ...data.map(d => d.revenue));
+    const totals = data.reduce((s, d) => ({ revenue: s.revenue + d.revenue, refund: s.refund + d.refund_amount, orders: s.orders + d.order_count, tickets: s.tickets + d.ticket_count }), { revenue: 0, refund: 0, orders: 0, tickets: 0 });
+    container.innerHTML = `
+      <div class="stats-grid mb-4">
+        <div class="stat-card"><div class="stat-label">区间总收入</div><div class="stat-value text-primary">${formatCurrency(totals.revenue)}</div></div>
+        <div class="stat-card"><div class="stat-label">区间退款</div><div class="stat-value text-danger">${formatCurrency(totals.refund)}</div></div>
+        <div class="stat-card"><div class="stat-label">净收入</div><div class="stat-value text-success">${formatCurrency(totals.revenue - totals.refund)}</div></div>
+        <div class="stat-card"><div class="stat-label">订单 / 票数</div><div class="stat-value">${totals.orders}<span class="text-sm text-gray ml-2">/ ${totals.tickets}</span></div></div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header"><span class="card-title">📈 趋势图</span></div>
+        <div class="card-body" style="min-height:260px">
+          <div style="display:grid;grid-template-columns:repeat(${Math.min(data.length, 30)},1fr);gap:6px;align-items:end;height:220px;padding:0 0 2.5rem 0;position:relative">
+            ${data.slice(0, 30).map(d => {
+              const h = (d.revenue / max * 100) || 2;
+              const hr = (d.refund_amount / max * 100);
+              return `<div style="display:flex;flex-direction:column;justify-content:end;align-items:center;height:100%;gap:2px;position:relative" title="收入${formatCurrency(d.revenue)} 退款${formatCurrency(d.refund_amount)}">
+                <span class="text-xs" style="position:absolute;top:-1.5rem">${d.order_count}</span>
+                <div style="width:100%;max-width:36px;background:#fecaca;height:${hr}%;border-radius:4px 4px 0 0"></div>
+                <div style="width:100%;max-width:36px;background:linear-gradient(180deg,#10b981,#059669);height:${h}%;border-radius:4px 4px 0 0"></div>
+                <span class="text-xs text-gray" style="position:absolute;bottom:-2rem;white-space:nowrap">${(d.date||'').slice(5)}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table class="table">
+            <thead><tr><th>日期</th><th>订单数</th><th>票数</th><th>收入</th><th>退款笔数</th><th>退款金额</th><th>净收入</th></tr></thead>
+            <tbody>
+              ${data.map(d => `<tr>
+                <td class="font-semibold">${d.date || d.period || ''}</td>
+                <td><span class="badge badge-info">${d.order_count}</span></td>
+                <td>${d.ticket_count}</td>
+                <td class="text-primary font-semibold">${formatCurrency(d.revenue)}</td>
+                <td>${d.refund_count || 0}</td>
+                <td class="text-danger">${formatCurrency(d.refund_amount)}</td>
+                <td class="text-success font-bold">${formatCurrency(d.net_revenue)}</td>
+              </tr>`).join('')}
+              <tr style="background:#f9fafb;font-weight:700">
+                <td>合计</td><td>${totals.orders}</td><td>${totals.tickets}</td>
+                <td class="text-primary">${formatCurrency(totals.revenue)}</td>
+                <td>-</td><td class="text-danger">${formatCurrency(totals.refund)}</td>
+                <td class="text-success">${formatCurrency(totals.revenue - totals.refund)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {}
+}
+
+async function loadEventReport() {
+  const container = document.getElementById('tab-events');
+  container.innerHTML = '<div class="text-center py-5 text-gray"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const sd = document.getElementById('f-start').value;
+    const ed = document.getElementById('f-end').value;
+    let qs = 'page=1&page_size=50';
+    if (sd) qs += '&start_date=' + new Date(sd).toISOString();
+    if (ed) qs += '&end_date=' + new Date(ed + 'T23:59:59').toISOString();
+    const d = await apiRequest('/reports/events?' + qs, { method: 'GET' });
+    if (!d.items || d.items.length === 0) { container.innerHTML = '<div class="card"><div class="empty-state">暂无数据</div></div>'; return; }
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table class="table">
+            <thead><tr>
+              <th>排名</th><th>场次</th><th>演出时间</th><th>总座</th><th>已售</th>
+              <th>上座率</th><th>收入</th><th>退款</th><th>净收入</th><th>订单</th><th>下钻</th>
+            </tr></thead>
+            <tbody>
+              ${d.items.map((e, i) => `<tr>
+                <td><span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${i<3?'#f59e0b':'#e5e7eb'};color:${i<3?'#fff':'#6b7280'};text-align:center;line-height:24px;font-weight:700;font-size:12px">${i+1}</span></td>
+                <td><div class="font-semibold">${escapeHtml(e.event_name)}</div><div class="text-xs text-gray">${escapeHtml(e.artist || '')} · ${escapeHtml(e.venue || '')}</div></td>
+                <td class="text-xs">${formatDateTime(e.event_date)}</td>
+                <td>${e.total_seats}</td><td class="text-success font-semibold">${e.sold_seats}</td>
+                <td><div class="d-flex align-center gap-2" style="width:120px">
+                  <div class="progress" style="flex:1"><div class="progress-bar" style="width:${e.occupancy_rate}%;background:${e.occupancy_rate>=80?'#10b981':e.occupancy_rate>=50?'#3b82f6':'#f59e0b'}"></div></div>
+                  <span class="text-xs font-semibold">${e.occupancy_rate}%</span>
+                </div></td>
+                <td class="text-primary font-semibold">${formatCurrency(e.revenue)}</td>
+                <td class="text-danger">${formatCurrency(e.refund_amount)}</td>
+                <td class="text-success font-bold">${formatCurrency(e.net_amount)}</td>
+                <td>${e.order_count}</td>
+                <td>
+                  <div class="table-actions">
+                    <button class="btn btn-sm btn-outline" onclick="drilldownEvent(${e.event_id})">订单</button>
+                    <button class="btn btn-sm btn-outline" onclick="occupancyEvent(${e.event_id})">上座率</button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch(e) {}
+}
+
+function drilldownEvent(id) {
+  document.getElementById('f-event').value = id;
+  switchTab('drilldown');
+}
+function occupancyEvent(id) {
+  document.getElementById('f-event').value = id;
+  switchTab('occupancy');
+}
+
+async function loadOccupancy() {
+  const container = document.getElementById('tab-occupancy');
+  const ev = document.getElementById('f-event').value;
+  if (!ev) { container.innerHTML = '<div class="card"><div class="empty-state">请先选择场次</div></div>'; return; }
+  container.innerHTML = '<div class="text-center py-5 text-gray"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const areas = await apiRequest(`/reports/events/${ev}/seat-occupancy`, { method: 'GET' });
+    const ticket = await apiRequest(`/reports/events/${ev}/ticket-type-sales`, { method: 'GET' });
+    const totalRow = areas[areas.length - 1];
+    container.innerHTML = `
+      <div class="stats-grid mb-4">
+        <div class="stat-card"><div class="stat-label">总座位</div><div class="stat-value text-primary">${totalRow?.total || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">已售（含已退）</div><div class="stat-value text-success">${totalRow?.sold || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">实际可用</div><div class="stat-value">${totalRow?.available || 0}</div><div class="stat-delta" style="color:#f59e0b">预留 ${totalRow?.reserved||0} · 屏蔽 ${totalRow?.blocked||0}</div></div>
+        <div class="stat-card"><div class="stat-label">整体上座率</div><div class="stat-value ${totalRow?.rate>=80?'text-success':totalRow?.rate>=50?'text-primary':'text-warning'}">${totalRow?.rate || 0}%</div><div class="stat-delta">区域收入 ${formatCurrency(totalRow?.revenue || 0)}</div></div>
+      </div>
+      <div class="form-row mb-4">
+        <div class="card" style="flex:1">
+          <div class="card-header"><span class="card-title">🪑 区域上座率分析</span></div>
+          <div class="card-body" id="area-chart"></div>
+        </div>
+        <div class="card" style="flex:1">
+          <div class="card-header"><span class="card-title">🎟️ 票种销售分析</span></div>
+          <div class="card-body" id="ticket-chart"></div>
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header"><span class="card-title">📋 区域明细表</span></div>
+        <div class="card-body" style="padding:0">
+          <table class="table">
+            <thead><tr><th>区域</th><th>总座</th><th>已售</th><th>已退</th><th>预留</th><th>屏蔽</th><th>可售</th><th>锁定</th><th>上座率</th><th>区域收入</th></tr></thead>
+            <tbody>
+              ${areas.map(a => `<tr style="${a.area==='total'?'background:#f9fafb;font-weight:700':''}">
+                <td class="font-semibold">${escapeHtml(a.area_name || a.area)}</td>
+                <td>${a.total}</td><td class="text-success">${a.sold}</td><td class="text-gray">${a.refunded || 0}</td>
+                <td class="text-info">${a.reserved}</td><td class="text-danger">${a.blocked}</td>
+                <td>${a.available}</td><td class="text-warning">${a.locked || 0}</td>
+                <td><span class="badge ${a.rate>=80?'badge-success':a.rate>=50?'badge-info':'badge-warning'}">${a.rate}%</span></td>
+                <td class="font-semibold text-primary">${formatCurrency(a.revenue || 0)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    const areaChart = document.getElementById('area-chart');
+    const areaData = areas.filter(a => a.area !== 'total');
+    if (areaChart) {
+      const max = Math.max(100, ...areaData.map(a => a.rate || 0), 100);
+      areaChart.innerHTML = areaData.map(a => `
+        <div class="mb-3">
+          <div class="d-flex justify-between mb-1 text-sm">
+            <span class="font-semibold">${escapeHtml(a.area_name || a.area)}</span>
+            <span>${a.sold}/${a.total} · <span class="font-bold text-primary">${a.rate}%</span> · ${formatCurrency(a.revenue || 0)}</span>
+          </div>
+          <div class="progress" style="height:18px;border-radius:9999px;overflow:hidden">
+            <div style="width:${(a.sold/a.total*100)||0}%;background:#10b981;display:inline-block"></div>
+            <div style="width:${(a.reserved/a.total*100)||0}%;background:#3b82f6;display:inline-block"></div>
+            <div style="width:${(a.blocked/a.total*100)||0}%;background:#ef4444;display:inline-block"></div>
+          </div>
+        </div>`).join('') + `
+        <div class="d-flex gap-3 mt-3 text-xs justify-center flex-wrap">
+          <span><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:2px"></span> 已售</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px"></span> 预留</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px"></span> 屏蔽</span>
+        </div>`;
+    }
+    const tc = document.getElementById('ticket-chart');
+    if (tc && ticket.length) {
+      const max = Math.max(...ticket.map(t => t.sales_rate), 1);
+      tc.innerHTML = ticket.map(t => `
+        <div class="mb-3">
+          <div class="d-flex justify-between mb-1 text-sm">
+            <span class="font-semibold"><span style="display:inline-block;width:10px;height:10px;background:${t.color||'#999'};border-radius:2px;margin-right:4px"></span>${escapeHtml(t.name)}</span>
+            <span>${t.sold_count}/${t.total_inventory} · <span class="font-bold text-primary">${formatCurrency(t.revenue)}</span></span>
+          </div>
+          <div class="progress" style="height:16px">
+            <div class="progress-bar" style="width:${t.sales_rate}%;background:${t.color||'#6366f1'}"></div>
+          </div>
+        </div>`).join('');
+    } else if (tc) {
+      tc.innerHTML = '<div class="text-gray text-sm text-center py-4">暂无票种销售数据</div>';
+    }
+  } catch(e) {}
+}
+
+let drillPage = 1;
+async function loadDrilldown(page = 1) {
+  drillPage = page;
+  const container = document.getElementById('tab-drilldown');
+  container.innerHTML = '<div class="text-center py-5 text-gray"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const sd = document.getElementById('f-start').value;
+    const ed = document.getElementById('f-end').value;
+    const ev = document.getElementById('f-event').value;
+    let qs = `page=${page}&page_size=20`;
+    if (sd) qs += '&start_date=' + new Date(sd).toISOString();
+    if (ed) qs += '&end_date=' + new Date(ed + 'T23:59:59').toISOString();
+    if (ev) qs += '&event_id=' + ev;
+    const d = await apiRequest('/reports/orders/drilldown?' + qs, { method: 'GET' });
+    container.innerHTML = `
+      <div class="alert alert-info text-sm">ℹ️ 所有数据都是实时的订单明细数据，可直接点击详情查看完整单据信息。点击场次名或订单号可跳转到对应管理页。</div>
+      <div class="card mb-2">
+        <div class="card-body" style="padding:0">
+          <table class="table">
+            <thead><tr>
+              <th>订单号</th><th>场次</th><th>用户/联系人</th><th>票数</th><th>座位</th>
+              <th>应付</th><th>实付</th><th>已退</th><th>状态</th><th>下单时间</th><th>详情</th>
+            </tr></thead>
+            <tbody>
+              ${(!d.items||d.items.length===0)?'<tr><td colspan="11"><div class="empty-state">无数据</div></td></tr>':''}
+              ${(d.items||[]).map(o => `<tr>
+                <td class="font-mono text-xs">${o.order_no}</td>
+                <td><div class="truncate" style="max-width:180px">${escapeHtml(o.event_name || '#' + o.event_id)}</div></td>
+                <td><div class="font-semibold text-sm">${escapeHtml(o.contact_name || '#' + o.user_id)}</div><div class="text-xs text-gray">${escapeHtml(o.contact_phone || o.contact_email || '')}</div></td>
+                <td>${o.ticket_count}</td>
+                <td class="text-xs">${o.items.map(i=>i.seat_code).slice(0,3).join(',')}${o.items.length>3?' +'+(o.items.length-3):''}</td>
+                <td class="text-gray">${formatCurrency(o.total_amount)}</td>
+                <td class="font-bold text-primary">${formatCurrency(o.pay_amount)}</td>
+                <td class="${o.refund_amount>0?'text-danger font-semibold':'text-gray'}">${o.refund_amount>0?formatCurrency(o.refund_amount):'-'}</td>
+                <td><span class="badge ${getStatusBadgeClass(o.status)}">${getStatusText(o.status)}</span></td>
+                <td class="text-xs">${formatDateTime(o.created_at)}</td>
+                <td><button class="btn btn-sm btn-outline" onclick="viewDrillOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})">查看单据</button></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer" id="drill-pagination"></div>
+      </div>`;
+    document.getElementById('drill-pagination').innerHTML = buildPaginationHtml(d.total, d.page, d.page_size, 'loadDrilldown');
+  } catch(e) {}
+}
+
+function viewDrillOrder(o) {
+  const itemsHtml = o.items.map(i => `<tr>
+    <td class="font-mono text-xs">${i.ticket_no || '-'}</td>
+    <td class="font-semibold">${i.seat_code}</td>
+    <td>${getStatusText(i.area)}</td>
+    <td>${formatCurrency(i.original_price)}</td>
+    <td class="font-semibold">${formatCurrency(i.sale_price)}</td>
+    <td>${i.is_refunded?'<span class="badge badge-gray">已退</span>':'<span class="badge badge-success">有效</span>'}</td>
+  </tr>`).join('');
+  const body = document.body;
+  const div = document.createElement('div');
+  div.className = 'modal';
+  div.style.display = 'flex';
+  div.innerHTML = `<div class="modal-dialog" style="max-width:680px">
+    <div class="modal-header"><h3 class="font-semibold text-lg">📄 单据详情 - ${o.order_no}</h3>
+      <button class="btn btn-outline btn-sm" id="dr-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row mb-3 text-sm">
+        <div><div class="text-xs text-gray">订单号</div><div class="font-mono font-semibold">${o.order_no}</div></div>
+        <div><div class="text-xs text-gray">状态</div><span class="badge ${getStatusBadgeClass(o.status)}">${getStatusText(o.status)}</span></div>
+        <div><div class="text-xs text-gray">支付方式</div>${o.payment_method || '-'}</div>
+      </div>
+      <div class="card mb-3" style="box-shadow:none;border:1px solid #e5e7eb">
+        <div class="card-body" style="padding:0"><table class="table table-sm">
+          <thead><tr><th>票号</th><th>座位</th><th>区域</th><th>原价</th><th>售价</th><th>状态</th></tr></thead>
+          <tbody>${itemsHtml}</tbody>
+        </table></div>
+      </div>
+      <div style="padding:0.75rem 1rem;background:#f9fafb;border-radius:0.5rem" class="text-sm">
+        <div class="d-flex justify-between mb-1"><span class="text-gray">合计</span><span>${formatCurrency(o.total_amount)}</span></div>
+        <div class="d-flex justify-between mb-1"><span class="text-gray">优惠</span><span>-${formatCurrency(o.discount_amount||0)}</span></div>
+        <div class="d-flex justify-between mb-1"><span class="text-gray">已退</span><span class="text-danger">-${formatCurrency(o.refund_amount||0)}</span></div>
+        <hr style="margin:0.375rem 0;border-color:#e5e7eb">
+        <div class="d-flex justify-between"><span class="font-semibold text-lg">实收</span><span class="text-xl font-bold text-primary">${formatCurrency(o.pay_amount - (o.refund_amount||0))}</span></div>
+        <div class="text-xs text-gray mt-2">下单：${formatDateTime(o.created_at)}${o.paid_at?' · 支付：'+formatDateTime(o.paid_at):''}</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <a class="btn btn-outline" href="/admin/orders" target="_blank">在订单管理中打开</a>
+      <button class="btn btn-primary" id="dr-ok">关闭</button>
+    </div>
+  </div>`;
+  body.appendChild(div);
+  const close = () => div.remove();
+  div.addEventListener('click', e => { if (e.target === div) close(); });
+  div.querySelector('#dr-close').onclick = close;
+  div.querySelector('#dr-ok').onclick = close;
+}
+
+resetDates();
+loadEvents();
+loadCurrent();
+</script>
+{% endblock %}
