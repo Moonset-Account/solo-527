@@ -9,10 +9,10 @@ from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_user_from_request
 from app.database import get_db
-from app.models.event import Event, EventFlow, EventPhoto
+from app.models.event import Event, EventFlow, EventPhoto, FacilityStatus
 from app.models.user import User
 from app.services.event_service import EventService
-from app.tasks.duplicate_detect import detect_duplicate
+from app.tasks.duplicate_detect import _detect_duplicate
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -73,7 +73,7 @@ async def create_event(
         await db.commit()
 
     try:
-        detect_duplicate.delay(event_id)
+        await _detect_duplicate(event_id)
     except Exception:
         pass
 
@@ -85,6 +85,29 @@ async def create_event(
 async def event_stats(db: AsyncSession = Depends(get_db)):
     svc = EventService(db)
     return await svc.get_stats()
+
+
+@router.get("/users/list")
+async def list_users(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).order_by(User.id))
+    users = result.scalars().all()
+    return [{"id": u.id, "name": u.name, "role": u.role, "username": u.username} for u in users]
+
+
+@router.get("/facilities")
+async def list_facilities(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(FacilityStatus).order_by(FacilityStatus.id.desc()))
+    facilities = result.scalars().all()
+    return [
+        {
+            "id": f.id,
+            "facility_code": f.facility_code,
+            "facility_name": f.facility_name,
+            "is_intact": f.is_intact,
+            "checked_at": f.checked_at.isoformat() if f.checked_at else None,
+        }
+        for f in facilities
+    ]
 
 
 @router.get("/{event_id}")
@@ -168,13 +191,6 @@ async def upload_file(file: UploadFile = File(...)):
     with open(filepath, "wb") as f:
         f.write(content)
     return {"url": f"/uploads/{filename}"}
-
-
-@router.get("/users/list")
-async def list_users(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).order_by(User.id))
-    users = result.scalars().all()
-    return [{"id": u.id, "name": u.name, "role": u.role, "username": u.username} for u in users]
 
 
 @router.get("/{event_id}/flow-logs")

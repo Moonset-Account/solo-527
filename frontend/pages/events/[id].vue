@@ -24,6 +24,22 @@
           </NDescriptions>
         </NCard>
 
+        <NCard v-if="event.is_duplicate" title="重复上报检测结果" style="margin-bottom: 16px">
+          <NAlert type="warning" :bordered="false">
+            该事件经系统检测为重复上报，相关设施已标记为完好状态。
+          </NAlert>
+          <NDescriptions v-if="facilityInfo" :column="2" label-placement="left" bordered style="margin-top: 12px">
+            <NDescriptionsItem label="设施名称">{{ facilityInfo.facility_name }}</NDescriptionsItem>
+            <NDescriptionsItem label="设施编码">{{ facilityInfo.facility_code }}</NDescriptionsItem>
+            <NDescriptionsItem label="完好状态">
+              <NTag :type="facilityInfo.is_intact ? 'success' : 'error'" size="small">
+                {{ facilityInfo.is_intact ? '完好' : '损坏' }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem label="检查时间">{{ formatTime(facilityInfo.checked_at) }}</NDescriptionsItem>
+          </NDescriptions>
+        </NCard>
+
         <NCard title="流转记录" style="margin-bottom: 16px">
           <FlowTimeline :logs="flowLogs" />
         </NCard>
@@ -139,6 +155,7 @@ const api = useApi()
 
 const event = ref<any>(null)
 const flowLogs = ref<any[]>([])
+const facilityInfo = ref<any>(null)
 const loading = ref(true)
 const showAssignDrawer = ref(false)
 const assigning = ref(false)
@@ -179,6 +196,13 @@ onMounted(async () => {
   flowLogs.value = logs
   const users = await api.getUsers()
   userOptions.value = users.map((u: any) => ({ label: u.name, value: u.id }))
+  if (data?.is_duplicate) {
+    try {
+      const facilities = await api.getFacilities()
+      const code = `${data.event_type}_${Number(data.lng).toFixed(3)}_${Number(data.lat).toFixed(3)}`
+      facilityInfo.value = facilities.find((f: any) => f.facility_code === code) || null
+    } catch {}
+  }
   loading.value = false
 })
 
@@ -186,6 +210,15 @@ const refreshData = async () => {
   const id = route.params.id as string
   event.value = await api.getEvent(id)
   flowLogs.value = await api.getFlowLogs(id)
+  if (event.value?.is_duplicate) {
+    try {
+      const facilities = await api.getFacilities()
+      const code = `${event.value.event_type}_${Number(event.value.lng).toFixed(3)}_${Number(event.value.lat).toFixed(3)}`
+      facilityInfo.value = facilities.find((f: any) => f.facility_code === code) || null
+    } catch {}
+  } else {
+    facilityInfo.value = null
+  }
 }
 
 const handleAssign = async () => {
@@ -230,7 +263,7 @@ const handleReviewPass = async () => {
 
 const handleReviewReject = async () => {
   const id = route.params.id as string
-  await api.changeStatus(id, 'rectifying', '复查不通过，需重新整改')
+  await api.changeStatus(id, 'rejected', '复查不通过，需重新整改')
   message.error('复查不通过，已退回整改')
   await refreshData()
 }

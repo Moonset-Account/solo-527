@@ -122,7 +122,7 @@ export function useApi() {
       rectifying: { to_status: 'rectifying', action: '开始整改' },
       reviewed: { to_status: 'reviewing', action: '提交复查' },
       closed: { to_status: 'closed', action: '复查通过' },
-      rejected: { to_status: 'rectifying', action: '复查不通过' },
+      rejected: { to_status: 'rectifying', action: '复查驳回，退回整改' },
       duplicate_detected: { to_status: 'pending', action: '重复上报检测' },
       timeout_alert: { to_status: 'rectifying', action: '超时提醒' },
     }
@@ -256,6 +256,10 @@ export function useApi() {
     return await request<any[]>('/events/users/list')
   }
 
+  const getFacilities = async () => {
+    return await request<any[]>('/events/facilities')
+  }
+
   const uploadFile = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -294,6 +298,7 @@ export function useApi() {
     markNotificationRead,
     markAllNotificationsRead,
     getUsers,
+    getFacilities,
     uploadFile,
     login,
     me,

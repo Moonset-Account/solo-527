@@ -71,7 +71,7 @@
                 v-if="event.status === 'reviewing'"
                 size="small"
                 type="error"
-                @click.stop="handleReview(event, 'rectifying')"
+                @click.stop="handleReview(event, 'rejected')"
               >
                 驳回
               </NButton>
@@ -183,11 +183,11 @@ const handleReview = async (event: any, newStatus: string) => {
   const commentMap: Record<string, string> = {
     reviewing: '提交复查',
     closed: '复查通过，事件闭环',
-    rectifying: '复查不通过，需重新整改',
+    rejected: '复查不通过，需重新整改',
   }
   await api.changeStatus(event.id, newStatus, commentMap[newStatus])
   if (newStatus === 'closed') message.success('复查通过，事件已闭环')
-  else if (newStatus === 'rectifying') message.error('复查不通过，已退回整改')
+  else if (newStatus === 'rejected') message.error('复查不通过，已退回整改')
   else message.success('已提交复查')
   await loadEvents()
 }
