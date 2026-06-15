@@ -26,3 +26,5 @@ export type OperationType =
   | "SCRAP";
 
 export type AuditStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
+
+export type TemperatureZone = "FROZEN" | "CHILLED" | "NORMAL";

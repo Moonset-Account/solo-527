@@ -253,14 +253,16 @@ export default function SafetyStockPage() {
           const info = safetyStockStatusMap[s];
           return (
             <Col span={8} key={s}>
-              <Card>
+              <Card
+                onClick={() => setStatus(s)}
+                style={{ cursor: "pointer" }}
+                hoverable
+              >
                 <Statistic
                   title={`${info.label} SKU 数`}
                   value={stats[s]}
                   valueStyle={{ color: info.color === "green" ? "#52c41a" : info.color === "orange" ? "#fa8c16" : "#cf1322" }}
                   suffix="个"
-                  onClick={() => setStatus(s)}
-                  style={{ cursor: "pointer" }}
                 />
               </Card>
             </Col>

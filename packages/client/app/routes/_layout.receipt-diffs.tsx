@@ -472,8 +472,8 @@ export default function ReceiptDiffsPage() {
               <Descriptions.Item label="报告人">{currentDiff.reporter}</Descriptions.Item>
               <Descriptions.Item label="处理人">{currentDiff.handler || "-"}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={auditStatusMap[currentDiff.status as any]?.color}>
-                  {auditStatusMap[currentDiff.status as any]?.label}
+                <Tag color={auditStatusMap[currentDiff.status as keyof typeof auditStatusMap]?.color}>
+                  {auditStatusMap[currentDiff.status as keyof typeof auditStatusMap]?.label}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="差异描述" span={2}>{currentDiff.description}</Descriptions.Item>

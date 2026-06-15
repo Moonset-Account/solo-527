@@ -332,7 +332,7 @@ export default function ScanInboundPage() {
                     <Typography.Text strong>
                       {result.inventory.availableQuantity} {result.inventory.unit}
                     </Typography.Text>
-                    （合计：{result.inventory.totalQuantity}）
+                    （合计：{result.inventory.quantity}）
                   </Descriptions.Item>
                   {result.transaction.remark && (
                     <Descriptions.Item label="备注">

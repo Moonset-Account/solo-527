@@ -511,8 +511,8 @@ export default function TransfersPage() {
                 )}
               </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={auditStatusMap[currentTransfer.status as any]?.color}>
-                  {auditStatusMap[currentTransfer.status as any]?.label}
+                <Tag color={auditStatusMap[currentTransfer.status as keyof typeof auditStatusMap]?.color}>
+                  {auditStatusMap[currentTransfer.status as keyof typeof auditStatusMap]?.label}
                 </Tag>
               </Descriptions.Item>
               {currentTransfer.handlingStartTime && (

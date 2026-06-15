@@ -1,6 +1,6 @@
 import type { AppLoadContext, EntryContext } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
-import { isbot } from "isbot";
+import isbot from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { PassThrough } from "node:stream";
 
@@ -50,7 +50,7 @@ function handleBotRequest(
           responseHeaders.set("Content-Type", "text/html");
 
           resolve(
-            new Response(body, {
+            new Response(body as unknown as BodyInit, {
               headers: responseHeaders,
               status: responseStatusCode,
             })
@@ -96,7 +96,7 @@ function handleBrowserRequest(
           responseHeaders.set("Content-Type", "text/html");
 
           resolve(
-            new Response(body, {
+            new Response(body as unknown as BodyInit, {
               headers: responseHeaders,
               status: responseStatusCode,
             })

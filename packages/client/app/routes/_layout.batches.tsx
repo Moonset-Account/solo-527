@@ -110,11 +110,10 @@ export default function BatchesPage() {
 
   const loadHistory = async (batch: Batch) => {
     try {
-      const res = await api.get<ApiListResponse<any>>(
+      const res = await api.get<ApiSingleResponse<any[]>>(
         `/status-history/BATCH/${batch._id}`
       );
-      const list = res as ApiSingleResponse<any[]>;
-      setHistoryData(list.data || []);
+      setHistoryData(res.data || []);
       setHistoryOpen(true);
     } catch (err) {
       message.error((err as Error).message);
