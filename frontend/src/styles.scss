@@ -1,0 +1,256 @@
+@use '@angular/material' as mat;
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-toolbar {
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.app-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-sidenav {
+  width: 260px;
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.app-main {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  background-color: #f5f5f5;
+}
+
+.page-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+  color: rgba(0, 0, 0, 0.6);
+  margin: 0;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  padding: 20px;
+}
+
+.stat-title {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.stat-change {
+  font-size: 13px;
+  color: #4caf50;
+}
+
+.stat-change.negative {
+  color: #f44336;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-bar .mat-form-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.table-container {
+  background: white;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.money-positive {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.money-negative {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-draft { background: #e0e0e0; color: #616161; }
+.status-issued { background: #bbdefb; color: #1565c0; }
+.status-pending { background: #fff3e0; color: #e65100; }
+.status-partial { background: #fff9c4; color: #f57f17; }
+.status-paid { background: #c8e6c9; color: #2e7d32; }
+.status-overdue { background: #ffcdd2; color: #c62828; }
+.status-written_off { background: #d7ccc8; color: #5d4037; }
+.status-disputed { background: #e1bee7; color: #6a1b9a; }
+
+.severity-reminder { background: #e3f2fd; color: #1565c0; }
+.severity-warning { background: #fff3e0; color: #e65100; }
+.severity-urgent { background: #ffebee; color: #c62828; }
+.severity-legal { background: #fce4ec; color: #880e4f; }
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.timeline {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e0e0e0;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 24px;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1976d2;
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px #1976d2;
+}
+
+.timeline-date {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+  margin-bottom: 4px;
+}
+
+.timeline-content {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.export-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.export-summary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.export-summary-label {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-bottom: 4px;
+}
+
+.export-summary-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.linked-records {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.linked-record-chip {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.mat-row:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+}
+
+.loading-shade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 56px;
+  right: 0;
+  background: rgba(0, 0, 0, 0.15);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
