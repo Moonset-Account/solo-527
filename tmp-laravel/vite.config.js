@@ -22,7 +22,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
-            'ziggy-js': fileURLToPath(new URL('./vendor/tightenco/ziggy/dist/index.mjs', import.meta.url)),
+            'ziggy-js': fileURLToPath(new URL('./vendor/tightenco/ziggy/dist/index.esm.js', import.meta.url)),
         },
     },
     server: {

@@ -47,7 +47,42 @@ Route::get('/', function () {
 });
 
 Route::middleware('web')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::middleware(function ($request, $next) {
+        if (!Auth::check()) {
+            $user = User::firstOrCreate(
+                ['email' => 'compliance@example.com'],
+                [
+                    'name' => '合规经理',
+                    'password' => bcrypt('password123'),
+                    'role' => User::ROLE_COMPLIANCE_MANAGER,
+                    'department' => '合规部',
+                ]
+            );
+            User::firstOrCreate(
+                ['email' => 'secretary@example.com'],
+                [
+                    'name' => '项目秘书',
+                    'password' => bcrypt('password123'),
+                    'role' => User::ROLE_PROJECT_SECRETARY,
+                    'department' => '项目办',
+                ]
+            );
+            User::firstOrCreate(
+                ['email' => 'admin@example.com'],
+                [
+                    'name' => '管理员',
+                    'password' => bcrypt('password123'),
+                    'role' => User::ROLE_ADMIN,
+                    'department' => '技术部',
+                ]
+            );
+            Auth::login($user);
+        }
+        return $next($request);
+    })->group(function () {
+
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::prefix('checklists')->name('checklists.')->group(function () {
         Route::get('/', [ChecklistController::class, 'index'])->name('index');
@@ -115,4 +150,7 @@ Route::middleware('web')->group(function () {
     Route::prefix('download-logs')->name('download-logs.')->group(function () {
         Route::get('/', [DashboardController::class, 'downloadLogs'])->name('index');
     });
-});
+
+    }); // auth auto-login middleware group
+
+}); // web middleware group
