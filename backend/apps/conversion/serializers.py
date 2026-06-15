@@ -160,8 +160,8 @@ class ConversionReportSerializer(serializers.ModelSerializer):
         from apps.payments.models import PaymentOrder
         discrepancy_qs = PaymentOrder.objects.filter(
             has_discrepancy=True,
-            created_at__date__gte=start_date,
-            created_at__date__lte=end_date
+            paid_at__date__gte=start_date,
+            paid_at__date__lte=end_date
         )
         if not show_demo:
             discrepancy_qs = discrepancy_qs.filter(is_demo=False)
