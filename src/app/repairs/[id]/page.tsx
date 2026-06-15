@@ -403,7 +403,7 @@ export default function RepairDetailPage() {
                 />
                 <button
                   type="submit"
-                  disabled={!comment.trim() || addComment.isLoading}
+                  disabled={!comment.trim() || addComment.isPending}
                   className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-5 w-5" />
@@ -538,10 +538,10 @@ export default function RepairDetailPage() {
             </button>
             <button
               onClick={handleStatusChange}
-              disabled={!newStatus || updateStatus.isLoading}
+              disabled={!newStatus || updateStatus.isPending}
               className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {updateStatus.isLoading ? "更新中..." : "确认更新"}
+              {updateStatus.isPending ? "更新中..." : "确认更新"}
             </button>
           </>
         }
@@ -607,10 +607,10 @@ export default function RepairDetailPage() {
             </button>
             <button
               onClick={handleCreateComplaint}
-              disabled={!complaintTitle.trim() || !complaintDescription.trim() || createComplaint.isLoading}
+              disabled={!complaintTitle.trim() || !complaintDescription.trim() || createComplaint.isPending}
               className="px-4 py-2 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createComplaint.isLoading ? "提交中..." : "提交举报"}
+              {createComplaint.isPending ? "提交中..." : "提交举报"}
             </button>
           </>
         }
@@ -658,10 +658,10 @@ export default function RepairDetailPage() {
             </button>
             <button
               onClick={handleCreateRefund}
-              disabled={!refundAmount || !refundReason.trim() || createRefund.isLoading}
+              disabled={!refundAmount || !refundReason.trim() || createRefund.isPending}
               className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createRefund.isLoading ? "提交中..." : "提交申请"}
+              {createRefund.isPending ? "提交中..." : "提交申请"}
             </button>
           </>
         }

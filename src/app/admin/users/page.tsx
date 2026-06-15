@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
 import { StatusBadge } from "@/components/status-badge";
@@ -35,7 +36,7 @@ export default function AdminUsersPage() {
 
   const { data, isLoading, refetch } = api.user.list.useQuery(
     { page, ...filters },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const updateRole = api.user.updateRole.useMutation({
@@ -258,10 +259,10 @@ export default function AdminUsersPage() {
             </button>
             <button
               onClick={handleUpdateRole}
-              disabled={updateRole.isLoading}
+              disabled={updateRole.isPending}
               className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {updateRole.isLoading ? "保存中..." : "确认修改"}
+              {updateRole.isPending ? "保存中..." : "确认修改"}
             </button>
           </>
         }

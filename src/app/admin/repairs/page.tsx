@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
@@ -41,7 +42,7 @@ export default function AdminRepairsPage() {
 
   const { data, isLoading, refetch } = api.repair.list.useQuery(
     { page, ...filters },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const updateStatus = api.repair.updateStatus.useMutation({
@@ -159,11 +160,11 @@ export default function AdminRepairsPage() {
             </label>
             <button
               onClick={handleExport}
-              disabled={requestExport.isLoading}
+              disabled={requestExport.isPending}
               className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
             >
               <Download className="h-5 w-5" />
-              {requestExport.isLoading ? "导出中..." : "导出数据"}
+              {requestExport.isPending ? "导出中..." : "导出数据"}
             </button>
           </div>
         </div>
@@ -354,10 +355,10 @@ export default function AdminRepairsPage() {
             </button>
             <button
               onClick={handleStatusChange}
-              disabled={!newStatus || updateStatus.isLoading}
+              disabled={!newStatus || updateStatus.isPending}
               className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {updateStatus.isLoading ? "更新中..." : "确认更新"}
+              {updateStatus.isPending ? "更新中..." : "确认更新"}
             </button>
           </>
         }
@@ -423,10 +424,10 @@ export default function AdminRepairsPage() {
             </button>
             <button
               onClick={handleDelete}
-              disabled={deleteRepair.isLoading}
+              disabled={deleteRepair.isPending}
               className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {deleteRepair.isLoading ? "删除中..." : "确认删除"}
+              {deleteRepair.isPending ? "删除中..." : "确认删除"}
             </button>
           </>
         }

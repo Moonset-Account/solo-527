@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
 import { StatusBadge } from "@/components/status-badge";
@@ -33,7 +34,7 @@ export default function AdminExportsPage() {
 
   const { data, isLoading, refetch } = api.export.listTasks.useQuery(
     { page, pageSize: 20 },
-    { keepPreviousData: true, refetchInterval: 5000 }
+    { placeholderData: keepPreviousData, refetchInterval: 5000 }
   );
 
   const requestExport = api.export.requestExport.useMutation({
@@ -285,10 +286,10 @@ export default function AdminExportsPage() {
             </button>
             <button
               onClick={handleRequestExport}
-              disabled={requestExport.isLoading}
+              disabled={requestExport.isPending}
               className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {requestExport.isLoading ? "创建中..." : "创建导出任务"}
+              {requestExport.isPending ? "创建中..." : "创建导出任务"}
             </button>
           </div>
         </div>

@@ -11,7 +11,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.5.2",
     "@hookform/resolvers": "^5.4.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "^6.19.3",
     "@tanstack/react-query": "^5.101.0",
     "@trpc/next": "^11.17.0",
     "@trpc/react-query": "^11.17.0",
@@ -25,6 +25,7 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.79.0",
     "superjson": "^2.2.6",
+    "svix": "^1.95.2",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },
@@ -35,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { readFile, stat } from "fs/promises";
+import { join } from "path";
+import { existsSync } from "fs";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit-log";
-import { writeFile } from "fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
+import { LogAction } from "@prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -26,25 +27,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Export not completed" }, { status: 400 });
     }
 
+    if (!task.fileName) {
+      return NextResponse.json({ error: "No file available" }, { status: 400 });
+    }
+
     await createAuditLog({
-      action: "DOWNLOAD",
+      action: LogAction.DOWNLOAD,
       entityType: "ExportTask",
       entityId: taskId,
       userId: task.userId,
       description: `下载导出文件: ${task.fileName}`,
     });
 
-    const fileName = task.fileName || `export_${taskId}.xlsx`;
-    const mockContent = Buffer.from("Mock export content");
-    const tempPath = join(tmpdir(), fileName);
-    await writeFile(tempPath, mockContent);
+    const filePath = join(process.cwd(), "uploads", "exports", task.fileName);
 
-    const file = await import("fs").then(fs => fs.promises.readFile(tempPath));
+    if (!existsSync(filePath)) {
+      return NextResponse.json({ error: "File not found on disk" }, { status: 404 });
+    }
 
-    return new NextResponse(file, {
+    const data = await readFile(filePath);
+
+    return new NextResponse(data, {
       headers: {
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(task.fileName)}"`,
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Length": data.length.toString(),
       },
     });
   } catch (error) {

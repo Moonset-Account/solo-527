@@ -152,11 +152,11 @@ export default function NewComplaintPage() {
             </Link>
             <button
               type="submit"
-              disabled={createComplaint.isLoading}
+              disabled={createComplaint.isPending}
               className="flex items-center gap-2 px-6 py-3 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="h-5 w-5" />
-              {createComplaint.isLoading ? "提交中..." : "提交举报"}
+              {createComplaint.isPending ? "提交中..." : "提交举报"}
             </button>
           </div>
         </form>

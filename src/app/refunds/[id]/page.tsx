@@ -24,7 +24,7 @@ import { RefundStatus } from "@prisma/client";
 export default function RefundDetailPage() {
   const params = useParams();
   const [showProcessModal, setShowProcessModal] = useState(false);
-  const [newStatus, setNewStatus] = useState<RefundStatus.APPROVED | RefundStatus.REJECTED | "">("");
+  const [newStatus, setNewStatus] = useState<"APPROVED" | "REJECTED" | "">("");
   const [notes, setNotes] = useState("");
   const [transactionId, setTransactionId] = useState("");
 
@@ -235,14 +235,14 @@ export default function RefundDetailPage() {
             </button>
             <button
               onClick={handleProcess}
-              disabled={!newStatus || processRefund.isLoading}
+              disabled={!newStatus || processRefund.isPending}
               className={`px-4 py-2 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 newStatus === "APPROVED"
                   ? "bg-green-600 hover:bg-green-700"
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              {processRefund.isLoading ? "处理中..." : newStatus === "APPROVED" ? "确认批准" : "确认拒绝"}
+              {processRefund.isPending ? "处理中..." : newStatus === "APPROVED" ? "确认批准" : "确认拒绝"}
             </button>
           </>
         }

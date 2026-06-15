@@ -110,11 +110,11 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={updateProfile.isLoading}
+                disabled={updateProfile.isPending}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                {updateProfile.isLoading ? "保存中..." : "保存"}
+                {updateProfile.isPending ? "保存中..." : "保存"}
               </button>
             </div>
           )}

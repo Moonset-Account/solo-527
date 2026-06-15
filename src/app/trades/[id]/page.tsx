@@ -342,7 +342,7 @@ export default function TradeDetailPage() {
                 />
                 <button
                   type="submit"
-                  disabled={!comment.trim() || addComment.isLoading}
+                  disabled={!comment.trim() || addComment.isPending}
                   className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-5 w-5" />
@@ -430,10 +430,10 @@ export default function TradeDetailPage() {
             </button>
             <button
               onClick={handleStatusChange}
-              disabled={!newStatus || updateStatus.isLoading}
+              disabled={!newStatus || updateStatus.isPending}
               className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {updateStatus.isLoading ? "更新中..." : "确认更新"}
+              {updateStatus.isPending ? "更新中..." : "确认更新"}
             </button>
           </>
         }
@@ -484,10 +484,10 @@ export default function TradeDetailPage() {
             </button>
             <button
               onClick={handleCreateComplaint}
-              disabled={!complaintTitle.trim() || !complaintDescription.trim() || createComplaint.isLoading}
+              disabled={!complaintTitle.trim() || !complaintDescription.trim() || createComplaint.isPending}
               className="px-4 py-2 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createComplaint.isLoading ? "提交中..." : "提交举报"}
+              {createComplaint.isPending ? "提交中..." : "提交举报"}
             </button>
           </>
         }
@@ -535,10 +535,10 @@ export default function TradeDetailPage() {
             </button>
             <button
               onClick={handleLinkToRepair}
-              disabled={!linkRepairId.trim() || linkToRepair.isLoading}
+              disabled={!linkRepairId.trim() || linkToRepair.isPending}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {linkToRepair.isLoading ? "关联中..." : "确认关联"}
+              {linkToRepair.isPending ? "关联中..." : "确认关联"}
             </button>
           </>
         }

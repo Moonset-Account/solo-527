@@ -4,6 +4,9 @@ import { ExportFormat, ExportStatus, LogAction, RepairStatus } from "@prisma/cli
 import { logExport, createAuditLog } from "@/lib/audit-log";
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import { existsSync } from "fs";
 
 async function generateExport(taskId: string, type: string, format: ExportFormat, filters: any, userId: string) {
   await prisma.exportTask.update({
@@ -15,17 +18,13 @@ async function generateExport(taskId: string, type: string, format: ExportFormat
   });
 
   try {
-    let data;
-    let fileName: string;
-    let fileUrl: string;
-
     const where: any = {};
-    if (filters.status) where.status = filters.status;
-    if (filters.category) where.category = filters.category;
-    if (filters.dormNumber) where.dormNumber = filters.dormNumber;
-    if (filters.dateFrom) where.createdAt = { gte: new Date(filters.dateFrom) };
-    if (filters.dateTo) where.createdAt = { lte: new Date(filters.dateTo) };
-    if (filters.search) {
+    if (filters?.status) where.status = filters.status;
+    if (filters?.category) where.category = filters.category;
+    if (filters?.dormNumber) where.dormNumber = filters.dormNumber;
+    if (filters?.dateFrom) where.createdAt = { gte: new Date(filters.dateFrom) };
+    if (filters?.dateTo) where.createdAt = { lte: new Date(filters.dateTo) };
+    if (filters?.search) {
       where.OR = [
         { title: { contains: filters.search } },
         { description: { contains: filters.search } },
@@ -37,7 +36,7 @@ async function generateExport(taskId: string, type: string, format: ExportFormat
       include: {
         reportedBy: { select: { id: true, name: true, email: true, studentId: true, dormNumber: true, roomNumber: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
-        photos: { select: { url: true, fileName: true } },
+        photos: { select: { id: true, url: true, fileName: true } },
         comments: {
           where: { isInternal: false },
           orderBy: { createdAt: "desc" },
@@ -52,7 +51,7 @@ async function generateExport(taskId: string, type: string, format: ExportFormat
           },
         },
         activities: {
-          select: { activityName: true, points: true, createdAt: true },
+          select: { id: true, activityName: true, points: true, createdAt: true },
         },
         auditLogs: {
           where: { action: LogAction.STATUS_CHANGE },
@@ -73,6 +72,9 @@ async function generateExport(taskId: string, type: string, format: ExportFormat
     });
 
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = "宿舍报修交易担保台";
+    workbook.created = new Date();
+
     const worksheet = workbook.addWorksheet("报修记录");
 
     worksheet.columns = [
@@ -101,17 +103,40 @@ async function generateExport(taskId: string, type: string, format: ExportFormat
       { header: "完成时间", key: "completedAt", width: 20 },
     ];
 
+    const categoryMap: Record<string, string> = {
+      PLUMBING: "水电维修",
+      ELECTRICAL: "电器维修",
+      FURNITURE: "家具维修",
+      APPLIANCE: "家电维修",
+      DOOR_LOCK: "门锁维修",
+      WINDOW: "窗户维修",
+      OTHER: "其他",
+    };
+
+    const statusMap: Record<string, string> = {
+      PENDING: "待处理",
+      ASSIGNED: "已分配",
+      IN_PROGRESS: "处理中",
+      COMPLETED: "已完成",
+      CANCELLED: "已取消",
+      REJECTED: "已拒绝",
+    };
+
     for (const repair of repairs) {
       const lastChange = repair.auditLogs[0];
       const activityCount = repair._count.activities;
       const overLimit = activityCount > 10 ? "是" : "否";
-      const totalRefund = repair.refunds.reduce((sum, r) => sum + (r.status === "COMPLETED" ? r.amount.toNumber() : 0), 0);
+      const totalRefund = repair.refunds.reduce(
+        (sum: number, r: { status: string; amount: { toNumber: () => number } }) =>
+          sum + (r.status === "COMPLETED" ? r.amount.toNumber() : 0),
+        0
+      );
 
       worksheet.addRow({
         id: repair.id,
         title: repair.title,
-        category: repair.category,
-        status: repair.status,
+        category: categoryMap[repair.category] || repair.category,
+        status: statusMap[repair.status] || repair.status,
         priority: repair.priority,
         dormNumber: repair.dormNumber,
         roomNumber: repair.roomNumber,
@@ -127,32 +152,53 @@ async function generateExport(taskId: string, type: string, format: ExportFormat
         overLimit,
         lastChangeAt: lastChange?.createdAt?.toISOString(),
         lastChangeContent: lastChange?.description,
-        relatedTrade: repair.relatedTrade ? `${repair.relatedTrade.title} (${repair.relatedTrade.seller?.name} -> ${repair.relatedTrade.buyer?.name || "未交易"})` : "",
+        relatedTrade: repair.relatedTrade
+          ? `${repair.relatedTrade.title} (${repair.relatedTrade.seller?.name} -> ${repair.relatedTrade.buyer?.name || "未交易"})`
+          : "",
         refundAmount: totalRefund,
         createdAt: repair.createdAt.toISOString(),
         completedAt: repair.completedAt?.toISOString(),
       });
     }
 
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E7FF" },
+    };
+
+    const uploadsDir = join(process.cwd(), "uploads", "exports");
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true });
+    }
+
+    const fileName = `报修记录_${new Date().toISOString().slice(0, 10)}_${taskId.slice(-8)}.xlsx`;
+    const filePath = join(uploadsDir, fileName);
+
     const buffer = await workbook.xlsx.writeBuffer();
-    fileName = `报修记录_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    await writeFile(filePath, Buffer.from(buffer));
+
+    const fileUrl = `/api/files/exports/${fileName}`;
 
     await prisma.exportTask.update({
       where: { id: taskId },
       data: {
         status: ExportStatus.COMPLETED,
         fileName,
+        fileUrl,
         recordCount: repairs.length,
         completedAt: new Date(),
       },
     });
 
     await createAuditLog({
-      action: LogAction.DOWNLOAD,
+      action: LogAction.EXPORT,
       entityType: "ExportTask",
       entityId: taskId,
       userId,
-      description: `导出报修记录，共 ${repairs.length} 条`,
+      description: `导出报修记录，共 ${repairs.length} 条，文件: ${fileName}`,
     });
 
   } catch (error) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
@@ -30,12 +31,12 @@ export default function AdminComplaintsPage() {
   });
   const [showProcessModal, setShowProcessModal] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<string | null>(null);
-  const [newStatus, setNewStatus] = useState<ComplaintStatus.RESOLVED | ComplaintStatus.DISMISSED | "">("");
+  const [newStatus, setNewStatus] = useState<"RESOLVED" | "DISMISSED" | "">("");
   const [response, setResponse] = useState("");
 
   const { data, isLoading, refetch } = api.complaint.list.useQuery(
     { page, ...filters },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const processComplaint = api.complaint.updateStatus.useMutation({
@@ -266,14 +267,14 @@ export default function AdminComplaintsPage() {
             </button>
             <button
               onClick={handleProcess}
-              disabled={!newStatus || !response.trim() || processComplaint.isLoading}
+              disabled={!newStatus || !response.trim() || processComplaint.isPending}
               className={`px-4 py-2 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 newStatus === "RESOLVED"
                   ? "bg-green-600 hover:bg-green-700"
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              {processComplaint.isLoading ? "处理中..." : newStatus === "RESOLVED" ? "确认解决" : "确认驳回"}
+              {processComplaint.isPending ? "处理中..." : newStatus === "RESOLVED" ? "确认解决" : "确认驳回"}
             </button>
           </>
         }

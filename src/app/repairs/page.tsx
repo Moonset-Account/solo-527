@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
 import { StatusBadge } from "@/components/status-badge";
@@ -21,7 +22,7 @@ export default function RepairsPage() {
 
   const { data, isLoading } = api.repair.list.useQuery(
     { page, ...filters },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const filterConfig = [

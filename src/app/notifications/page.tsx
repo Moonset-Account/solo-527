@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
 import { StatusBadge } from "@/components/status-badge";
@@ -15,7 +16,7 @@ export default function NotificationsPage() {
 
   const { data, isLoading, refetch } = api.notification.list.useQuery(
     { page, pageSize: 20, unreadOnly },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const markAsRead = api.notification.markAsRead.useMutation({
@@ -89,7 +90,7 @@ export default function NotificationsPage() {
             {data?.unreadCount! > 0 && (
               <button
                 onClick={() => markAllAsRead.mutate()}
-                disabled={markAllAsRead.isLoading}
+                disabled={markAllAsRead.isPending}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 text-zinc-700 font-medium hover:bg-zinc-50 transition-colors disabled:opacity-50"
               >
                 <CheckCheck className="h-4 w-4" />

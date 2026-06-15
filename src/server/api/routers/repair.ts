@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../trpc";
-import { RepairCategory, RepairStatus, LogAction, ActivityType } from "@prisma/client";
+import { RepairCategory, RepairStatus, LogAction, Prisma } from "@prisma/client";
 import { createAuditLog, logRepairStatusChange, logCreate, logUpdate } from "@/lib/audit-log";
 import { notifyRepairStatusChange } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -324,6 +324,7 @@ export const repairRouter = createTRPCRouter({
   uploadPhoto: protectedProcedure
     .input(
       z.object({
+        repairRequestId: z.string().optional(),
         url: z.string(),
         key: z.string(),
         fileName: z.string(),
@@ -332,9 +333,12 @@ export const repairRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const { repairRequestId, ...photoData } = input;
+
       const photo = await ctx.prisma.repairPhoto.create({
         data: {
-          ...input,
+          ...photoData,
+          repairRequestId: repairRequestId || "",
           uploadedById: ctx.userId,
         },
       });
@@ -345,6 +349,7 @@ export const repairRouter = createTRPCRouter({
         entityId: photo.id,
         userId: ctx.userId,
         description: `${ctx.user.name} 上传了照片: ${input.fileName}`,
+        repairRequestId,
       });
 
       return photo;
@@ -463,7 +468,7 @@ export const repairRouter = createTRPCRouter({
             COUNT(*) as count,
             COUNT(*) FILTER (WHERE "status" = 'COMPLETED') as completed
           FROM "RepairRequest"
-          ${input.dateFrom || input.dateTo ? prisma.sql`WHERE 1=1 ${input.dateFrom ? prisma.sql`AND "createdAt" >= ${input.dateFrom}` : prisma.empty} ${input.dateTo ? prisma.sql`AND "createdAt" <= ${input.dateTo}` : prisma.empty}` : prisma.empty}
+          ${input.dateFrom || input.dateTo ? Prisma.sql`WHERE 1=1 ${input.dateFrom ? Prisma.sql`AND "createdAt" >= ${input.dateFrom}` : Prisma.empty} ${input.dateTo ? Prisma.sql`AND "createdAt" <= ${input.dateTo}` : Prisma.empty}` : Prisma.empty}
           GROUP BY DATE_TRUNC('month', "createdAt")
           ORDER BY month DESC
           LIMIT 12

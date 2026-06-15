@@ -238,11 +238,11 @@ export default function NewRepairPage() {
             </Link>
             <button
               type="submit"
-              disabled={createRepair.isLoading}
+              disabled={createRepair.isPending}
               className="flex items-center gap-2 px-6 py-3 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="h-5 w-5" />
-              {createRepair.isLoading ? "提交中..." : "提交报修"}
+              {createRepair.isPending ? "提交中..." : "提交报修"}
             </button>
           </div>
         </form>

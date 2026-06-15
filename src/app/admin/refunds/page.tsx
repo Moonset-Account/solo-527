@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
@@ -29,13 +30,13 @@ export default function AdminRefundsPage() {
   });
   const [showProcessModal, setShowProcessModal] = useState(false);
   const [selectedRefund, setSelectedRefund] = useState<string | null>(null);
-  const [newStatus, setNewStatus] = useState<RefundStatus.APPROVED | RefundStatus.REJECTED | "">("");
+  const [newStatus, setNewStatus] = useState<"APPROVED" | "REJECTED" | "">("");
   const [notes, setNotes] = useState("");
   const [transactionId, setTransactionId] = useState("");
 
   const { data, isLoading, refetch } = api.refund.list.useQuery(
     { page, ...filters },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const processRefund = api.refund.process.useMutation({
@@ -286,14 +287,14 @@ export default function AdminRefundsPage() {
             </button>
             <button
               onClick={handleProcess}
-              disabled={processRefund.isLoading}
+              disabled={processRefund.isPending}
               className={`px-4 py-2 rounded-lg text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 newStatus === "APPROVED"
                   ? "bg-green-600 hover:bg-green-700"
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              {processRefund.isLoading ? "处理中..." : newStatus === "APPROVED" ? "确认批准" : "确认拒绝"}
+              {processRefund.isPending ? "处理中..." : newStatus === "APPROVED" ? "确认批准" : "确认拒绝"}
             </button>
           </>
         }

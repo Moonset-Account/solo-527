@@ -163,7 +163,7 @@ export const tradeRouter = createTRPCRouter({
             select: { id: true, title: true, status: true, createdAt: true },
           },
           complaints: {
-            select: { id: true, title: true, status: true, createdAt: true },
+            select: { id: true, title: true, status: true, description: true, createdAt: true },
           },
           auditLogs: {
             include: {

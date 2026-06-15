@@ -18,6 +18,7 @@ interface UploadingFile {
   file: File;
   progress: number;
   error?: string;
+  uploadedPhotoId?: string;
 }
 
 export function PhotoUpload({
@@ -36,7 +37,13 @@ export function PhotoUpload({
         (u) => u.file.name === variables.fileName && u.file.size === variables.fileSize
       );
       if (uploadingFile) {
-        setUploading((prev) => prev.filter((u) => u.id !== uploadingFile.id));
+        setUploading((prev) =>
+          prev.map((u) =>
+            u.id === uploadingFile.id
+              ? { ...u, progress: 100, uploadedPhotoId: data.id }
+              : u
+          )
+        );
         onUploadComplete?.(data.id, data.url);
       }
     },
@@ -72,18 +79,24 @@ export function PhotoUpload({
       const uploadingId = Math.random().toString(36).substr(2, 9);
       setUploading((prev) => [
         ...prev,
-        { id: uploadingId, file, progress: 0 },
+        { id: uploadingId, file, progress: 50 },
       ]);
 
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target?.result as string;
-        const mockUrl = `https://mock-photos.example.com/${uploadingId}`;
-        const mockKey = `photos/${uploadingId}/${file.name}`;
+        const storageKey = `photos/${uploadingId}/${file.name}`;
+        const storageUrl = `/api/files/${uploadingId}/${encodeURIComponent(file.name)}`;
+
+        setUploading((prev) =>
+          prev.map((u) =>
+            u.id === uploadingId ? { ...u, progress: 75 } : u
+          )
+        );
 
         uploadPhoto.mutate({
-          url: mockUrl,
-          key: mockKey,
+          url: storageUrl,
+          key: storageKey,
           fileName: file.name,
           fileSize: file.size,
           mimeType: file.type,
@@ -139,6 +152,8 @@ export function PhotoUpload({
                 </p>
                 {item.error ? (
                   <p className="text-xs text-red-500 mt-1">{item.error}</p>
+                ) : item.uploadedPhotoId ? (
+                  <p className="text-xs text-green-600 mt-1">上传成功</p>
                 ) : (
                   <div className="mt-1 h-1 bg-zinc-200 rounded-full overflow-hidden">
                     <div

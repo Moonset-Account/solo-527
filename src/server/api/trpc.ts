@@ -2,11 +2,11 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 
 export const createTRPCContext = async () => {
-  const { userId } = auth();
+  const { userId } = await auth();
   const user = await currentUser();
 
   let dbUser = null;

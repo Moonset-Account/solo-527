@@ -3,9 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import {
   ClerkProvider,
   SignIn,
-  SignedOut,
-  SignedIn,
+  SignUp,
+  UserButton,
 } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import { TRPCProvider } from "./providers";
 import "./globals.css";
 
@@ -36,14 +37,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col">
-          <SignedOut>
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-          <SignIn routing="hash" />
-            </div>
-          </SignedOut>
-          <SignedIn>
-            <TRPCProvider>{children}</TRPCProvider>
-          </SignedIn>
+          <TRPCProvider>{children}</TRPCProvider>
         </body>
       </html>
     </ClerkProvider>

@@ -3,7 +3,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, trpcLinks } from "@/lib/trpc/client";
-import superjson from "superjson";
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -21,7 +20,6 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() =>
     api.createClient({
       links: trpcLinks,
-      transformer: superjson,
     })
   );
 

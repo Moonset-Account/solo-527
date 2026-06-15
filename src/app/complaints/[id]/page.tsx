@@ -241,10 +241,10 @@ export default function ComplaintDetailPage() {
             </button>
             <button
               onClick={handleProcess}
-              disabled={!newStatus || !response.trim() || processComplaint.isLoading}
+              disabled={!newStatus || !response.trim() || processComplaint.isPending}
               className="px-4 py-2 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {processComplaint.isLoading ? "处理中..." : "确认处理"}
+              {processComplaint.isPending ? "处理中..." : "确认处理"}
             </button>
           </>
         }

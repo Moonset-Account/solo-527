@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { AppLayout } from "@/components/app-layout";
 import { api } from "@/lib/trpc/client";
@@ -21,7 +22,7 @@ export default function ComplaintsPage() {
 
   const { data, isLoading } = api.complaint.list.useQuery(
     { page, ...filters },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const filterConfig = [
