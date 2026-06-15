@@ -12,7 +12,7 @@ export interface AuthUser {
   email: string
   role: UserRole
   display_name: string
-  lab_id: string
+  lab_id: string | null
 }
 
 export interface Lab {

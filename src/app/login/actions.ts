@@ -55,7 +55,7 @@ export async function signInWithPassword(
             email: data.user.email ?? email,
             display_name: data.user.user_metadata?.display_name ?? data.user.email ?? email,
             role: (data.user.user_metadata?.role as UserRole) ?? 'researcher',
-            lab_id: data.user.user_metadata?.lab_id ?? 'lab-1',
+            lab_id: data.user.user_metadata?.lab_id ?? null,
           },
           { onConflict: 'id' }
         )
@@ -117,7 +117,7 @@ export async function signUp(
           email: data.user.email ?? email,
           display_name,
           role,
-          lab_id: 'lab-1',
+          lab_id: null,
         })
 
         if (insertError) {

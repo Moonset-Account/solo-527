@@ -19,7 +19,7 @@ const testAccounts: Array<{
   email: string
   role: UserRole
   display_name: string
-  lab_id: string
+  lab_id: string | null
   password: string
 }> = [
   {
@@ -27,7 +27,7 @@ const testAccounts: Array<{
     email: 'researcher@lab.cn',
     role: 'researcher',
     display_name: '张明远',
-    lab_id: 'lab-1',
+    lab_id: null,
     password: '123456',
   },
   {
@@ -35,7 +35,7 @@ const testAccounts: Array<{
     email: 'archivist@lab.cn',
     role: 'archivist',
     display_name: '李文静',
-    lab_id: 'lab-1',
+    lab_id: null,
     password: '123456',
   },
   {
@@ -43,7 +43,7 @@ const testAccounts: Array<{
     email: 'admin@lab.cn',
     role: 'admin',
     display_name: '王管理',
-    lab_id: 'lab-1',
+    lab_id: null,
     password: '123456',
   },
   {
@@ -51,7 +51,7 @@ const testAccounts: Array<{
     email: 'teacher@lab.cn',
     role: 'equipment_teacher',
     display_name: '陈老师',
-    lab_id: 'lab-1',
+    lab_id: null,
     password: '123456',
   },
 ]

@@ -14,45 +14,46 @@ import AppShell from '@/components/layout/AppShell'
 import StatusBadge from '@/components/ui/StatusBadge'
 import type { Instrument, Station, Project, Sample, Booking } from '@/types'
 import { INSTRUMENT_STATUS_LABELS } from '@/types'
-import { createBooking } from '@/lib/actions/bookings'
+import { createBooking, listStations, listProjects, listSamples } from '@/lib/actions/bookings'
+import { listInstruments } from '@/lib/actions/equipment'
 
 const MOCK_INSTRUMENTS: Instrument[] = [
-  { id: 'inst-1', name: 'ICP-OES 电感耦合等离子体发射光谱仪', category: '光谱分析', status: 'available', teacher_id: 't-1', location: 'A栋302室', specifications: {}, created_at: '2024-01-01' },
-  { id: 'inst-2', name: '高效液相色谱仪 HPLC', category: '色谱分析', status: 'in_use', teacher_id: 't-2', location: 'B栋205室', specifications: {}, created_at: '2024-01-01' },
-  { id: 'inst-3', name: '气相色谱-质谱联用仪 GC-MS', category: '质谱分析', status: 'available', teacher_id: 't-3', location: 'A栋401室', specifications: {}, created_at: '2024-01-01' },
-  { id: 'inst-4', name: '电化学工作站', category: '电化学', status: 'available', teacher_id: 't-4', location: 'C栋108室', specifications: {}, created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'ICP-OES 电感耦合等离子体发射光谱仪', category: '光谱分析', status: 'available', teacher_id: null, location: 'A栋302室', specifications: {}, created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000002', name: '高效液相色谱仪 HPLC', category: '色谱分析', status: 'in_use', teacher_id: null, location: 'B栋205室', specifications: {}, created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000003', name: '气相色谱-质谱联用仪 GC-MS', category: '质谱分析', status: 'available', teacher_id: null, location: 'A栋401室', specifications: {}, created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000004', name: '电化学工作站', category: '电化学', status: 'available', teacher_id: null, location: 'C栋108室', specifications: {}, created_at: '2024-01-01' },
 ]
 
 const MOCK_STATIONS: Station[] = [
-  { id: 's-1', name: 'ICP-OES 台位1', instrument_id: 'inst-1', status: 'available', created_at: '2024-01-01' },
-  { id: 's-2', name: 'ICP-OES 台位2', instrument_id: 'inst-1', status: 'available', created_at: '2024-01-01' },
-  { id: 's-3', name: 'HPLC 台位1', instrument_id: 'inst-2', status: 'occupied', created_at: '2024-01-01' },
-  { id: 's-4', name: 'HPLC 台位2', instrument_id: 'inst-2', status: 'available', created_at: '2024-01-01' },
-  { id: 's-5', name: 'GC-MS 台位1', instrument_id: 'inst-3', status: 'available', created_at: '2024-01-01' },
-  { id: 's-6', name: '电化学 台位1', instrument_id: 'inst-4', status: 'available', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000011', name: 'ICP-OES 台位1', instrument_id: '00000000-0000-0000-0000-000000000001', status: 'available', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000012', name: 'ICP-OES 台位2', instrument_id: '00000000-0000-0000-0000-000000000001', status: 'available', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000013', name: 'HPLC 台位1', instrument_id: '00000000-0000-0000-0000-000000000002', status: 'occupied', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000014', name: 'HPLC 台位2', instrument_id: '00000000-0000-0000-0000-000000000002', status: 'available', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000015', name: 'GC-MS 台位1', instrument_id: '00000000-0000-0000-0000-000000000003', status: 'available', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000016', name: '电化学 台位1', instrument_id: '00000000-0000-0000-0000-000000000004', status: 'available', created_at: '2024-01-01' },
 ]
 
 const MOCK_PROJECTS: Project[] = [
-  { id: 'proj-1', name: '纳米材料表面分析', code: 'NM-2024-01', description: null, lead_id: null, start_date: '2024-01-01', end_date: '2024-12-31', created_at: '2024-01-01' },
-  { id: 'proj-2', name: '环境水质监测', code: 'EQ-2024-03', description: null, lead_id: null, start_date: '2024-03-01', end_date: '2024-12-31', created_at: '2024-03-01' },
-  { id: 'proj-3', name: '药物代谢动力学研究', code: 'PK-2024-05', description: null, lead_id: null, start_date: '2024-05-01', end_date: '2025-04-30', created_at: '2024-05-01' },
+  { id: '00000000-0000-0000-0000-000000000021', name: '纳米材料表面分析', code: 'NM-2024-01', description: null, lead_id: null, start_date: '2024-01-01', end_date: '2024-12-31', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000022', name: '环境水质监测', code: 'EQ-2024-03', description: null, lead_id: null, start_date: '2024-03-01', end_date: '2024-12-31', created_at: '2024-03-01' },
+  { id: '00000000-0000-0000-0000-000000000023', name: '药物代谢动力学研究', code: 'PK-2024-05', description: null, lead_id: null, start_date: '2024-05-01', end_date: '2025-04-30', created_at: '2024-05-01' },
 ]
 
 const MOCK_SAMPLES: Sample[] = [
-  { id: 'samp-1', sample_code: 'NM-001', name: 'TiO2纳米颗粒A', project_id: 'proj-1', created_by: null, processing_status: 'pending', responsible_person: '张三', created_at: '2024-01-01' },
-  { id: 'samp-2', sample_code: 'NM-002', name: 'ZnO纳米薄膜B', project_id: 'proj-1', created_by: null, processing_status: 'pending', responsible_person: '李四', created_at: '2024-01-01' },
-  { id: 'samp-3', sample_code: 'EQ-001', name: '自来水样-6月', project_id: 'proj-2', created_by: null, processing_status: 'in_progress', responsible_person: '王五', created_at: '2024-06-01' },
-  { id: 'samp-4', sample_code: 'EQ-002', name: '湖水样-西湖', project_id: 'proj-2', created_by: null, processing_status: 'pending', responsible_person: '赵六', created_at: '2024-06-01' },
-  { id: 'samp-5', sample_code: 'PK-001', name: '血浆样本A', project_id: 'proj-3', created_by: null, processing_status: 'pending', responsible_person: '钱七', created_at: '2024-05-01' },
+  { id: '00000000-0000-0000-0000-000000000031', sample_code: 'NM-001', name: 'TiO2纳米颗粒A', project_id: '00000000-0000-0000-0000-000000000021', created_by: null, processing_status: 'pending', responsible_person: '张三', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000032', sample_code: 'NM-002', name: 'ZnO纳米薄膜B', project_id: '00000000-0000-0000-0000-000000000021', created_by: null, processing_status: 'pending', responsible_person: '李四', created_at: '2024-01-01' },
+  { id: '00000000-0000-0000-0000-000000000033', sample_code: 'EQ-001', name: '自来水样-6月', project_id: '00000000-0000-0000-0000-000000000022', created_by: null, processing_status: 'in_progress', responsible_person: '王五', created_at: '2024-06-01' },
+  { id: '00000000-0000-0000-0000-000000000034', sample_code: 'EQ-002', name: '湖水样-西湖', project_id: '00000000-0000-0000-0000-000000000022', created_by: null, processing_status: 'pending', responsible_person: '赵六', created_at: '2024-06-01' },
+  { id: '00000000-0000-0000-0000-000000000035', sample_code: 'PK-001', name: '血浆样本A', project_id: '00000000-0000-0000-0000-000000000023', created_by: null, processing_status: 'pending', responsible_person: '钱七', created_at: '2024-05-01' },
 ]
 
 const MOCK_EXISTING_BOOKINGS: Booking[] = [
   {
-    id: 'b-exist-1',
-    user_id: 'u-2',
-    instrument_id: 'inst-1',
-    station_id: 's-1',
-    project_id: 'proj-1',
+    id: '00000000-0000-0000-0000-000000000041',
+    user_id: '00000000-0000-0000-0000-000000009991',
+    instrument_id: '00000000-0000-0000-0000-000000000001',
+    station_id: '00000000-0000-0000-0000-000000000011',
+    project_id: '00000000-0000-0000-0000-000000000021',
     start_time: '2026-06-15T08:00',
     end_time: '2026-06-15T12:00',
     status: 'confirmed',
@@ -62,11 +63,11 @@ const MOCK_EXISTING_BOOKINGS: Booking[] = [
     station: MOCK_STATIONS[0],
   },
   {
-    id: 'b-exist-2',
-    user_id: 'u-3',
-    instrument_id: 'inst-1',
-    station_id: 's-1',
-    project_id: 'proj-2',
+    id: '00000000-0000-0000-0000-000000000042',
+    user_id: '00000000-0000-0000-0000-000000009992',
+    instrument_id: '00000000-0000-0000-0000-000000000001',
+    station_id: '00000000-0000-0000-0000-000000000011',
+    project_id: '00000000-0000-0000-0000-000000000022',
     start_time: '2026-06-16T09:00',
     end_time: '2026-06-16T17:00',
     status: 'confirmed',
@@ -76,11 +77,11 @@ const MOCK_EXISTING_BOOKINGS: Booking[] = [
     station: MOCK_STATIONS[0],
   },
   {
-    id: 'b-exist-3',
-    user_id: 'u-4',
-    instrument_id: 'inst-1',
-    station_id: 's-2',
-    project_id: 'proj-1',
+    id: '00000000-0000-0000-0000-000000000043',
+    user_id: '00000000-0000-0000-0000-000000009993',
+    instrument_id: '00000000-0000-0000-0000-000000000001',
+    station_id: '00000000-0000-0000-0000-000000000012',
+    project_id: '00000000-0000-0000-0000-000000000021',
     start_time: '2026-06-17T13:00',
     end_time: '2026-06-17T17:00',
     status: 'pending',
@@ -114,6 +115,11 @@ export default function NewBookingPage() {
   const searchParams = useSearchParams()
   const preselectedInstrumentId = searchParams.get('instrument_id') || ''
 
+  const [instruments, setInstruments] = useState<Instrument[]>(MOCK_INSTRUMENTS)
+  const [stations, setStations] = useState<Station[]>(MOCK_STATIONS)
+  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
+  const [samples, setSamples] = useState<Sample[]>(MOCK_SAMPLES)
+
   const [instrumentId, setInstrumentId] = useState(preselectedInstrumentId)
   const [stationId, setStationId] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -127,7 +133,31 @@ export default function NewBookingPage() {
   const [isPending, startTransition] = useTransition()
   const [serverConflicts, setServerConflicts] = useState<Booking[]>([])
 
-  const filteredStations = MOCK_STATIONS.filter(
+  useEffect(() => {
+    startTransition(async () => {
+      const [instResult, stationResult, projResult, sampleResult] = await Promise.all([
+        listInstruments(),
+        listStations(),
+        listProjects(),
+        listSamples(),
+      ])
+
+      if (instResult.instruments && instResult.instruments.length > 0) {
+        setInstruments(instResult.instruments)
+      }
+      if (stationResult.stations && stationResult.stations.length > 0) {
+        setStations(stationResult.stations)
+      }
+      if (projResult.projects && projResult.projects.length > 0) {
+        setProjects(projResult.projects)
+      }
+      if (sampleResult.samples && sampleResult.samples.length > 0) {
+        setSamples(sampleResult.samples)
+      }
+    })
+  }, [])
+
+  const filteredStations = stations.filter(
     (s) => s.instrument_id === instrumentId && s.status !== 'disabled'
   )
 
@@ -162,9 +192,9 @@ export default function NewBookingPage() {
 
   const hasConflict = conflicts.length > 0
 
-  const selectedInstrument = MOCK_INSTRUMENTS.find((i) => i.id === instrumentId)
+  const selectedInstrument = instruments.find((i) => i.id === instrumentId)
 
-  const projectSamples = MOCK_SAMPLES.filter(
+  const projectSamples = samples.filter(
     (s) => !projectId || s.project_id === projectId
   )
 
@@ -256,7 +286,7 @@ export default function NewBookingPage() {
                   required
                 >
                   <option value="">请选择仪器</option>
-                  {MOCK_INSTRUMENTS.filter((i) => i.status !== 'disabled').map((inst) => (
+                  {instruments.filter((i) => i.status !== 'disabled').map((inst) => (
                     <option key={inst.id} value={inst.id}>
                       {inst.name}
                     </option>
@@ -332,7 +362,7 @@ export default function NewBookingPage() {
                   required
                 >
                   <option value="">请选择课题</option>
-                  {MOCK_PROJECTS.map((p) => (
+                  {projects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.code} - {p.name}
                     </option>

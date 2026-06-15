@@ -1,7 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Booking, BookingCreateRequest, BookingStatus } from '@/types'
+import type { Booking, BookingCreateRequest, BookingStatus, Instrument, Station, Project, Sample } from '@/types'
 
 export async function createBooking(data: BookingCreateRequest): Promise<{
   booking?: Booking
@@ -335,5 +335,92 @@ export async function getAllBookings(): Promise<{
     return { bookings: (bookings || []) as Booking[] }
   } catch {
     return { bookings: [] }
+  }
+}
+
+export async function listStations(instrumentId?: string): Promise<{
+  stations?: Station[]
+  error?: string
+}> {
+  try {
+    const supabase = createSupabaseServerClient()
+    if (!supabase) {
+      return { stations: [] }
+    }
+
+    let query = supabase
+      .from('stations')
+      .select('*')
+      .order('created_at', { ascending: true })
+
+    if (instrumentId) {
+      query = query.eq('instrument_id', instrumentId)
+    }
+
+    const { data: stations, error } = await query
+
+    if (error) {
+      return { stations: [] }
+    }
+
+    return { stations: (stations || []) as Station[] }
+  } catch {
+    return { stations: [] }
+  }
+}
+
+export async function listProjects(): Promise<{
+  projects?: Project[]
+  error?: string
+}> {
+  try {
+    const supabase = createSupabaseServerClient()
+    if (!supabase) {
+      return { projects: [] }
+    }
+
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return { projects: [] }
+    }
+
+    return { projects: (projects || []) as Project[] }
+  } catch {
+    return { projects: [] }
+  }
+}
+
+export async function listSamples(projectId?: string): Promise<{
+  samples?: Sample[]
+  error?: string
+}> {
+  try {
+    const supabase = createSupabaseServerClient()
+    if (!supabase) {
+      return { samples: [] }
+    }
+
+    let query = supabase
+      .from('samples')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (projectId) {
+      query = query.eq('project_id', projectId)
+    }
+
+    const { data: samples, error } = await query
+
+    if (error) {
+      return { samples: [] }
+    }
+
+    return { samples: (samples || []) as Sample[] }
+  } catch {
+    return { samples: [] }
   }
 }

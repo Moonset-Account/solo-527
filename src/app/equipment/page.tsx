@@ -5,11 +5,10 @@ import { Cpu, AlertTriangle, Clock, TrendingUp, Info, Calendar, AlertCircle } fr
 import AppShell from '@/components/layout/AppShell'
 import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
-import { listUtilizationLogs, aggregateUtilizationDaily } from '@/lib/actions/equipment'
-import type { DailyUtilization, UtilizationLog } from '@/types'
+import { listInstruments, listUtilizationLogs, aggregateUtilizationDaily } from '@/lib/actions/equipment'
+import type { DailyUtilization, Instrument, UtilizationLog } from '@/types'
 
 const CATEGORIES = ['结构分析', '形貌分析', '成分分析', '光学分析', '热分析']
-const INSTRUMENTS = ['XRD衍射仪', 'SEM扫描电镜', 'FTIR红外光谱仪', 'UV-Vis紫外分光光度计', 'DSC差示扫描量热仪']
 const LAST_7_DAYS = Array.from({ length: 7 }, (_, i) => {
   const d = new Date()
   d.setDate(d.getDate() - (6 - i))
@@ -21,9 +20,11 @@ const LAST_30_DAYS = Array.from({ length: 30 }, (_, i) => {
   return d.toISOString().split('T')[0]
 })
 
-function generateMockHeatmap(): Record<string, number> {
+const MOCK_INSTRUMENT_NAMES = ['XRD衍射仪', 'SEM扫描电镜', 'FTIR红外光谱仪', 'UV-Vis紫外分光光度计', 'DSC差示扫描量热仪']
+
+function generateMockHeatmap(instrumentNames: string[]): Record<string, number> {
   const map: Record<string, number> = {}
-  INSTRUMENTS.forEach(inst => {
+  instrumentNames.forEach(inst => {
     LAST_7_DAYS.forEach(day => {
       map[`${inst}-${day}`] = Math.floor(Math.random() * 12)
     })
@@ -35,9 +36,9 @@ interface MockDaily extends DailyUtilization {
   date_label: string
 }
 
-function generateMockDaily(): MockDaily[] {
-  return INSTRUMENTS.map(name => ({
-    instrument_id: `ins-${name}`,
+function generateMockDaily(instrumentNames: string[]): MockDaily[] {
+  return instrumentNames.map(name => ({
+    instrument_id: `00000000-0000-0000-0000-00000000000${MOCK_INSTRUMENT_NAMES.indexOf(name) + 1}`,
     instrument_name: name,
     date: LAST_30_DAYS[LAST_30_DAYS.length - 1],
     date_label: '',
@@ -62,13 +63,21 @@ function getHeatmapTextColor(used: number): string {
 }
 
 export default function EquipmentDashboard() {
+  const [instruments, setInstruments] = useState<Instrument[]>([])
   const [heatmapData, setHeatmapData] = useState<Record<string, number>>({})
   const [dailyData, setDailyData] = useState<MockDaily[]>([])
   const [isPending, startTransition] = useTransition()
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const mockHeatmap = useMemo(() => generateMockHeatmap(), [])
-  const mockDaily = useMemo(() => generateMockDaily(), [])
+  const instrumentNames = useMemo(() => {
+    if (instruments.length > 0) {
+      return instruments.map(i => i.name)
+    }
+    return MOCK_INSTRUMENT_NAMES
+  }, [instruments])
+
+  const mockHeatmap = useMemo(() => generateMockHeatmap(instrumentNames), [instrumentNames])
+  const mockDaily = useMemo(() => generateMockDaily(instrumentNames), [instrumentNames])
 
   useEffect(() => {
     startTransition(async () => {
@@ -76,49 +85,67 @@ export default function EquipmentDashboard() {
         const date_from = LAST_30_DAYS[0]
         const date_to = LAST_30_DAYS[LAST_30_DAYS.length - 1]
 
-        const [logsResult, dailyResult] = await Promise.all([
+        const [instrumentsResult, logsResult, dailyResult] = await Promise.all([
+          listInstruments(),
           listUtilizationLogs({ date_from, date_to }),
           aggregateUtilizationDaily(),
         ])
 
-        if (logsResult.error || dailyResult.error) {
-          setLoadError(logsResult.error || dailyResult.error || null)
+        if (instrumentsResult.error || logsResult.error || dailyResult.error) {
+          setLoadError(instrumentsResult.error || logsResult.error || dailyResult.error || null)
         }
+
+        let finalInstruments: Instrument[] = []
+        if (instrumentsResult.instruments && instrumentsResult.instruments.length > 0) {
+          finalInstruments = instrumentsResult.instruments
+        }
+        setInstruments(finalInstruments)
+
+        const names = finalInstruments.length > 0
+          ? finalInstruments.map(i => i.name)
+          : MOCK_INSTRUMENT_NAMES
 
         let finalHeatmap = mockHeatmap
         if (logsResult.logs && logsResult.logs.length > 0) {
           const hMap: Record<string, number> = {}
+          const last7Dates = LAST_30_DAYS.slice(-7)
           const last7Logs = logsResult.logs.filter(l => {
-            const logDate = l.log_date.slice(0, 10)
-            return LAST_30_DAYS.slice(-7).includes(logDate)
+            const logDate = (l.log_date as string).slice(0, 10)
+            return last7Dates.includes(logDate)
           })
-          INSTRUMENTS.forEach(inst => {
-            LAST_7_DAYS.forEach(day => {
-              const dayDate = LAST_30_DAYS.slice(-7)[LAST_7_DAYS.indexOf(day)]
+          names.forEach(instName => {
+            LAST_7_DAYS.forEach((day, dayIdx) => {
+              const dayDate = last7Dates[dayIdx]
               const found = last7Logs.find(l =>
-                (l.instrument?.name === inst || l.instrument_name === inst) &&
-                l.log_date.slice(0, 10) === dayDate
+                (l.instrument?.name === instName || l.instrument_name === instName) &&
+                (l.log_date as string).slice(0, 10) === dayDate
               )
-              hMap[`${inst}-${day}`] = found ? Math.round(found.used_hours) : 0
+              hMap[`${instName}-${day}`] = found ? Math.round(Number(found.used_hours)) : 0
             })
           })
           finalHeatmap = hMap
         }
         setHeatmapData(finalHeatmap)
 
-        let finalDaily = mockDaily
+        let finalDaily: MockDaily[] = mockDaily
         if (dailyResult.data && dailyResult.data.length > 0) {
-          const mapByName = new Map(dailyResult.data.map(d => [d.instrument_name, d]))
-          finalDaily = INSTRUMENTS.map(name => {
-            const d: DailyUtilization | undefined = mapByName.get(name)
+          const latestByInstrument = new Map<string, DailyUtilization>()
+          for (const d of dailyResult.data) {
+            const existing = latestByInstrument.get(d.instrument_name)
+            if (!existing || d.date > existing.date) {
+              latestByInstrument.set(d.instrument_name, d)
+            }
+          }
+          finalDaily = names.map(name => {
+            const d = latestByInstrument.get(name)
             if (d) {
               return {
                 ...d,
                 date_label: `${d.date.slice(5)}`,
               } as MockDaily
             }
-            return mockDaily.find(m => m.instrument_name === name) || {
-              instrument_id: `ins-${name}`,
+            return {
+              instrument_id: `00000000-0000-0000-0000-00000000000${names.indexOf(name) + 1}`,
               instrument_name: name,
               date: LAST_30_DAYS[LAST_30_DAYS.length - 1],
               date_label: '',
@@ -127,8 +154,6 @@ export default function EquipmentDashboard() {
               utilization_rate: 0,
             }
           })
-        } else {
-          finalDaily = mockDaily
         }
         setDailyData(finalDaily)
       } catch (e: unknown) {
@@ -140,11 +165,15 @@ export default function EquipmentDashboard() {
     })
   }, [mockHeatmap, mockDaily])
 
-  const totalInstruments = INSTRUMENTS.length
-  const disabledCount = 3
+  const totalInstruments = instruments.length > 0 ? instruments.length : instrumentNames.length
+  const disabledCount = instruments.length > 0
+    ? instruments.filter(i => i.status === 'disabled').length
+    : 3
   const avgUtilization = dailyData.length > 0
     ? Math.round(dailyData.reduce((s, d) => s + d.utilization_rate, 0) / dailyData.length)
     : 0
+
+  const todayStr = new Date().toISOString().slice(0, 10)
   const todayHours = dailyData.length > 0
     ? Math.round(dailyData.reduce((s, d) => s + d.used_hours, 0) * 10) / 10
     : 0
@@ -269,7 +298,7 @@ export default function EquipmentDashboard() {
               ))}
             </div>
 
-            {INSTRUMENTS.map(inst => (
+            {instrumentNames.map(inst => (
               <div key={inst} className="grid grid-cols-8 gap-2 mb-2">
                 <div className="text-sm text-slate-600 px-3 py-3 rounded-lg bg-slate-50 font-medium truncate">
                   {inst}

@@ -11,7 +11,7 @@ export async function GET() {
       email: 'demo@lab.test',
       role: 'researcher',
       display_name: '演示用户',
-      lab_id: 'lab-1',
+      lab_id: '',
     }
     return NextResponse.json(mockUser)
   }
@@ -38,7 +38,7 @@ export async function GET() {
           email: user.email,
           role: 'researcher',
           display_name: user.user_metadata?.display_name ?? user.email,
-          lab_id: user.user_metadata?.lab_id ?? 'lab-1',
+          lab_id: user.user_metadata?.lab_id ?? '',
         }
         return NextResponse.json(fallbackUser)
       }
@@ -54,7 +54,7 @@ export async function GET() {
         email: user.email,
         role,
         display_name: userRecord.display_name,
-        lab_id: userRecord.lab_id ?? 'lab-1',
+        lab_id: userRecord.lab_id ?? '',
       }
 
       return NextResponse.json(authUser)
@@ -64,7 +64,7 @@ export async function GET() {
         email: user.email,
         role: 'researcher',
         display_name: user.user_metadata?.display_name ?? user.email,
-        lab_id: user.user_metadata?.lab_id ?? 'lab-1',
+        lab_id: user.user_metadata?.lab_id ?? '',
       }
       return NextResponse.json(fallbackUser)
     }

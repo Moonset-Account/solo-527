@@ -32,7 +32,7 @@ export default async function HomePage() {
             email: user.email,
             role: 'researcher',
             display_name: user.user_metadata?.display_name ?? user.email,
-            lab_id: user.user_metadata?.lab_id ?? 'lab-1',
+            lab_id: user.user_metadata?.lab_id ?? '',
           }
         } else {
           const role = (['researcher', 'archivist', 'admin', 'equipment_teacher'].includes(
@@ -46,7 +46,7 @@ export default async function HomePage() {
             email: user.email,
             role,
             display_name: userRecord.display_name,
-            lab_id: userRecord.lab_id ?? 'lab-1',
+            lab_id: userRecord.lab_id ?? '',
           }
         }
       } catch {
@@ -55,7 +55,7 @@ export default async function HomePage() {
           email: user.email,
           role: 'researcher',
           display_name: user.user_metadata?.display_name ?? user.email,
-          lab_id: user.user_metadata?.lab_id ?? 'lab-1',
+          lab_id: user.user_metadata?.lab_id ?? '',
         }
       }
     } catch {
@@ -64,7 +64,7 @@ export default async function HomePage() {
         email: 'demo@lab.test',
         role: 'researcher',
         display_name: '演示用户',
-        lab_id: 'lab-1',
+        lab_id: '',
       }
     }
   } else {
@@ -73,7 +73,7 @@ export default async function HomePage() {
       email: 'demo@lab.test',
       role: 'researcher',
       display_name: '演示用户',
-      lab_id: 'lab-1',
+      lab_id: '',
     }
   }
 

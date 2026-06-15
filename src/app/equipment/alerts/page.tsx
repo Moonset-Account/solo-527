@@ -6,6 +6,7 @@ import type { DeactivationAlert } from '@/types'
 import AppShell from '@/components/layout/AppShell'
 import { cn } from '@/lib/utils'
 import { listDeactivationAlerts, resolveDeactivationAlert } from '@/lib/actions/equipment'
+import { useAppStore } from '@/store'
 
 const MOCK_ACTIVE: DeactivationAlert[] = [
   { id: 'a1', instrument_id: 'ins5', reason: '校准维护，预计3个工作日恢复', resolved: false, deactivated_at: '2024-03-16T08:00:00Z', resolved_at: null, resolved_by: null, instrument: { id: 'ins5', name: 'DSC差示扫描量热仪', category: '热分析', status: 'disabled', teacher_id: 't3', location: 'B202', specifications: {}, created_at: '' } },
@@ -31,6 +32,7 @@ export default function AlertsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [confirmDialog, setConfirmDialog] = useState<{ id: string; name: string } | null>(null)
+  const currentUserId = useAppStore((s) => s.user?.id) ?? ''
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message })
@@ -59,10 +61,15 @@ export default function AlertsPage() {
   const confirmRecover = () => {
     if (!confirmDialog) return
     const { id } = confirmDialog
+    if (!currentUserId) {
+      showToast('error', '无法恢复：当前用户未登录，请重新登录后操作')
+      setConfirmDialog(null)
+      return
+    }
     setActionLoading(id)
 
     startTransition(async () => {
-      const result = await resolveDeactivationAlert(id, 'admin-user')
+      const result = await resolveDeactivationAlert(id, currentUserId)
       if (result.success) {
         setActive(prev => prev.filter(a => a.id !== id))
         showToast('success', '设备已恢复可用')

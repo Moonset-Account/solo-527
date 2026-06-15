@@ -40,6 +40,23 @@ const fetchUserRole = async (
   }
 }
 
+const ROLE_ACCESS: Record<string, UserRole[]> = {
+  '/booking': ['researcher', 'admin'],
+  '/archive': ['researcher', 'archivist', 'admin'],
+  '/permissions': ['admin'],
+  '/equipment': ['admin', 'equipment_teacher'],
+  '/admin': ['admin'],
+}
+
+function canAccess(pathname: string, role: UserRole): boolean {
+  for (const [prefix, roles] of Object.entries(ROLE_ACCESS)) {
+    if (pathname.startsWith(prefix)) {
+      return roles.includes(role)
+    }
+  }
+  return true
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const baseResponse = NextResponse.next({
@@ -83,16 +100,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  if (pathname.startsWith('/admin/') || pathname.startsWith('/permissions/')) {
-    if (role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
-
-  if (pathname.startsWith('/equipment/')) {
-    if (role !== 'admin' && role !== 'equipment_teacher') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
+  if (!canAccess(pathname, role)) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return response

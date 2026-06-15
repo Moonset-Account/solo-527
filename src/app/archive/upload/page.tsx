@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useEffect, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -15,27 +15,28 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
-import type { ProcessingStatus } from '@/types'
+import type { ProcessingStatus, Project, Sample } from '@/types'
 import { PROCESSING_STATUS_LABELS } from '@/types'
 import { cn } from '@/lib/utils'
 import { uploadAndCreateArchive } from '@/lib/actions/archives'
+import { listProjects, listSamples } from '@/lib/actions/bookings'
 
-const MOCK_PROJECTS = [
-  { id: 'p1', code: 'PRJ-2024-001', name: '新型蛋白质结构研究' },
-  { id: 'p2', code: 'PRJ-2024-002', name: '纳米材料表征' },
-  { id: 'p3', code: 'PRJ-2024-003', name: '干细胞分化研究' },
-  { id: 'p4', code: 'PRJ-2024-004', name: '药物代谢动力学' },
+const MOCK_PROJECTS: { id: string; code: string; name: string }[] = [
+  { id: '00000000-0000-0000-0000-000000000021', code: 'PRJ-2024-001', name: '新型蛋白质结构研究' },
+  { id: '00000000-0000-0000-0000-000000000022', code: 'PRJ-2024-002', name: '纳米材料表征' },
+  { id: '00000000-0000-0000-0000-000000000023', code: 'PRJ-2024-003', name: '干细胞分化研究' },
+  { id: '00000000-0000-0000-0000-000000000024', code: 'PRJ-2024-004', name: '药物代谢动力学' },
 ]
 
-const MOCK_SAMPLES = [
-  { id: 's1', code: 'SMP-001', name: '蛋白质样本A1', project_id: 'p1' },
-  { id: 's2', code: 'SMP-002', name: 'DNA样本B3', project_id: 'p1' },
-  { id: 's3', code: 'SMP-003', name: '纳米粒子C7', project_id: 'p2' },
-  { id: 's4', code: 'SMP-004', name: '碳纳米管D2', project_id: 'p2' },
-  { id: 's5', code: 'SMP-005', name: '干细胞E5', project_id: 'p3' },
-  { id: 's6', code: 'SMP-006', name: 'RNA样本F1', project_id: 'p3' },
-  { id: 's7', code: 'SMP-007', name: '药物样本G3', project_id: 'p4' },
-  { id: 's8', code: 'SMP-008', name: '血清样本H7', project_id: 'p4' },
+const MOCK_SAMPLES: { id: string; code: string; name: string; project_id: string }[] = [
+  { id: '00000000-0000-0000-0000-000000000031', code: 'SMP-001', name: '蛋白质样本A1', project_id: '00000000-0000-0000-0000-000000000021' },
+  { id: '00000000-0000-0000-0000-000000000032', code: 'SMP-002', name: 'DNA样本B3', project_id: '00000000-0000-0000-0000-000000000021' },
+  { id: '00000000-0000-0000-0000-000000000033', code: 'SMP-003', name: '纳米粒子C7', project_id: '00000000-0000-0000-0000-000000000022' },
+  { id: '00000000-0000-0000-0000-000000000034', code: 'SMP-004', name: '碳纳米管D2', project_id: '00000000-0000-0000-0000-000000000022' },
+  { id: '00000000-0000-0000-0000-000000000035', code: 'SMP-005', name: '干细胞E5', project_id: '00000000-0000-0000-0000-000000000023' },
+  { id: '00000000-0000-0000-0000-000000000036', code: 'SMP-006', name: 'RNA样本F1', project_id: '00000000-0000-0000-0000-000000000023' },
+  { id: '00000000-0000-0000-0000-000000000037', code: 'SMP-007', name: '药物样本G3', project_id: '00000000-0000-0000-0000-000000000024' },
+  { id: '00000000-0000-0000-0000-000000000038', code: 'SMP-008', name: '血清样本H7', project_id: '00000000-0000-0000-0000-000000000024' },
 ]
 
 type Step = 1 | 2 | 3
@@ -63,14 +64,42 @@ export default function ArchiveUploadPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const filteredSamples = MOCK_SAMPLES.filter(
+  const [projects, setProjects] = useState(MOCK_PROJECTS)
+  const [samples, setSamples] = useState(MOCK_SAMPLES)
+
+  useEffect(() => {
+    startTransition(async () => {
+      const [projResult, sampleResult] = await Promise.all([
+        listProjects(),
+        listSamples(),
+      ])
+
+      if (projResult.projects && projResult.projects.length > 0) {
+        setProjects(projResult.projects.map((p: Project) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+        })))
+      }
+      if (sampleResult.samples && sampleResult.samples.length > 0) {
+        setSamples(sampleResult.samples.map((s: Sample) => ({
+          id: s.id,
+          code: s.sample_code,
+          name: s.name,
+          project_id: s.project_id ?? '',
+        })))
+      }
+    })
+  }, [])
+
+  const filteredSamples = samples.filter(
     (s) =>
       (!projectId || s.project_id === projectId) &&
       (s.code.includes(sampleSearch) || s.name.includes(sampleSearch))
   )
 
-  const selectedProject = MOCK_PROJECTS.find((p) => p.id === projectId)
-  const selectedSample = MOCK_SAMPLES.find((s) => s.id === sampleId)
+  const selectedProject = projects.find((p) => p.id === projectId)
+  const selectedSample = samples.find((s) => s.id === sampleId)
 
   const addCustomMeta = () => setCustomMetas((prev) => [...prev, { key: '', value: '' }])
   const removeCustomMeta = (idx: number) =>
@@ -285,7 +314,7 @@ export default function ArchiveUploadPage() {
                       className="input-field"
                     >
                       <option value="">请选择课题</option>
-                      {MOCK_PROJECTS.map((p) => (
+                      {projects.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.code} - {p.name}
                         </option>
