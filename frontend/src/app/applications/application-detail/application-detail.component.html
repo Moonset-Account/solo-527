@@ -1,0 +1,234 @@
+<div class="detail-page" *ngIf="!loading; else loadingTemplate">
+  <div class="detail-header">
+    <button mat-icon-button (click)="goBack()" matTooltip="返回列表">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>{{ application?.title }}</h2>
+    <mat-chip [class]="'status-badge ' + getStatusClass(application?.status || '')">
+      {{ getStatusLabel(application?.status || '') }}
+    </mat-chip>
+    <span class="spacer"></span>
+    <button mat-icon-button [matTooltip]="editMode ? '取消编辑' : '编辑'" (click)="toggleEditMode()">
+      <mat-icon>{{ editMode ? 'close' : 'edit' }}</mat-icon>
+    </button>
+    <button mat-raised-button color="primary" *ngIf="editMode" (click)="save()">
+      <mat-icon>save</mat-icon> 保存
+    </button>
+  </div>
+
+  <mat-tab-group class="detail-tabs" animationDuration="0ms">
+    <mat-tab label="基本信息">
+      <div class="tab-content">
+        <form [formGroup]="form" class="detail-form" *ngIf="form">
+          <div class="form-grid">
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>标题</mat-label>
+              <input matInput formControlName="title" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>申请人</mat-label>
+              <input matInput formControlName="applicantName" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>账号类型</mat-label>
+              <input matInput formControlName="accountType" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>状态</mat-label>
+              <mat-select formControlName="status" [disabled]="!editMode">
+                @for (opt of statusOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>优先级</mat-label>
+              <mat-select formControlName="priority" [disabled]="!editMode">
+                @for (opt of priorityOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>负责人</mat-label>
+              <input matInput formControlName="responsiblePerson" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>部门</mat-label>
+              <input matInput formControlName="department" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>系统名称</mat-label>
+              <input matInput formControlName="systemName" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>变更窗口开始</mat-label>
+              <input matInput formControlName="changeWindowStart" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>变更窗口结束</mat-label>
+              <input matInput formControlName="changeWindowEnd" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width" [class.readonly-field]="!editMode">
+              <mat-label>申请原因</mat-label>
+              <textarea matInput formControlName="reason" rows="3" [readonly]="!editMode"></textarea>
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>操作人</mat-label>
+              <input matInput formControlName="operatorName" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width" [class.readonly-field]="!editMode">
+              <mat-label>描述</mat-label>
+              <textarea matInput formControlName="description" rows="3" [readonly]="!editMode"></textarea>
+            </mat-form-field>
+          </div>
+        </form>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="变更窗口">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h3>变更窗口</h3>
+          <button mat-raised-button color="primary" (click)="addChangeWindow()">
+            <mat-icon>add</mat-icon> 新增变更窗口
+          </button>
+        </div>
+        <table mat-table [dataSource]="changeWindows" class="inline-table">
+          <ng-container matColumnDef="startTime">
+            <th mat-header-cell *matHeaderCellDef>开始时间</th>
+            <td mat-cell *matCellDef="let row">{{ row.startTime | date:'yyyy-MM-dd HH:mm' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="endTime">
+            <th mat-header-cell *matHeaderCellDef>结束时间</th>
+            <td mat-cell *matCellDef="let row">{{ row.endTime | date:'yyyy-MM-dd HH:mm' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>状态</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip class="status-chip">{{ row.status === 'PENDING' ? '待审批' : row.status === 'APPROVED' ? '已审批' : '已关闭' }}</mat-chip>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="approvedBy">
+            <th mat-header-cell *matHeaderCellDef>审批人</th>
+            <td mat-cell *matCellDef="let row">{{ row.approvedBy || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>描述</th>
+            <td mat-cell *matCellDef="let row">{{ row.description || '-' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedChangeWindowColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedChangeWindowColumns;"></tr>
+        </table>
+        <div class="empty-state" *ngIf="changeWindows.length === 0">
+          <mat-icon>schedule</mat-icon>
+          <span>暂无变更窗口</span>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="处理记录">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h3>处理记录</h3>
+          <button mat-raised-button color="primary" (click)="addProcessingRecord()">
+            <mat-icon>add</mat-icon> 添加记录
+          </button>
+        </div>
+        <table mat-table [dataSource]="processingRecords" class="inline-table">
+          <ng-container matColumnDef="action">
+            <th mat-header-cell *matHeaderCellDef>操作</th>
+            <td mat-cell *matCellDef="let row">{{ row.action }}</td>
+          </ng-container>
+          <ng-container matColumnDef="operatorName">
+            <th mat-header-cell *matHeaderCellDef>操作人</th>
+            <td mat-cell *matCellDef="let row">{{ row.operatorName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="previousValue">
+            <th mat-header-cell *matHeaderCellDef>原值</th>
+            <td mat-cell *matCellDef="let row">{{ row.previousValue || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="newValue">
+            <th mat-header-cell *matHeaderCellDef>新值</th>
+            <td mat-cell *matCellDef="let row">{{ row.newValue || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="details">
+            <th mat-header-cell *matHeaderCellDef>详情</th>
+            <td mat-cell *matCellDef="let row">{{ row.details || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>时间</th>
+            <td mat-cell *matCellDef="let row">{{ row.createdAt | date:'yyyy-MM-dd HH:mm' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedRecordColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedRecordColumns;"></tr>
+        </table>
+        <div class="empty-state" *ngIf="processingRecords.length === 0">
+          <mat-icon>history</mat-icon>
+          <span>暂无处理记录</span>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="账号申请详情">
+      <div class="tab-content">
+        <div class="detail-section">
+          <h3>账号信息</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>账号类型</label>
+              <span>{{ application?.accountType || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>系统名称</label>
+              <span>{{ application?.systemName || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>申请人</label>
+              <span>{{ application?.applicantName || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>部门</label>
+              <span>{{ application?.department || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>操作人</label>
+              <span>{{ application?.operatorName || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>负责人</label>
+              <span>{{ application?.responsiblePerson || '-' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h3>变更窗口</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>开始时间</label>
+              <span>{{ application?.changeWindowStart ? (application!.changeWindowStart | date:'yyyy-MM-dd HH:mm') : '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>结束时间</label>
+              <span>{{ application?.changeWindowEnd ? (application!.changeWindowEnd | date:'yyyy-MM-dd HH:mm') : '-' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section" *ngIf="application?.reason">
+          <h3>申请原因</h3>
+          <p class="reason-text">{{ application?.reason }}</p>
+        </div>
+        <div class="detail-section" *ngIf="application?.description">
+          <h3>详细描述</h3>
+          <p class="reason-text">{{ application?.description }}</p>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+</ng-template>

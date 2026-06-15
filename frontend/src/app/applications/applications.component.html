@@ -1,0 +1,86 @@
+<div class="applications-page">
+  <div class="page-header">
+    <h2>账号申请</h2>
+    <button mat-fab color="primary" (click)="navigateToCreate()" matTooltip="新建申请">
+      <mat-icon>add</mat-icon>
+    </button>
+  </div>
+
+  <mat-card class="filter-card">
+    <mat-card-content class="filter-bar">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>状态</mat-label>
+        <mat-select [(ngModel)]="statusFilter" (selectionChange)="onFilterChange()">
+          @for (opt of statusOptions; track opt.value) {
+            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>优先级</mat-label>
+        <mat-select [(ngModel)]="priorityFilter" (selectionChange)="onFilterChange()">
+          @for (opt of priorityOptions; track opt.value) {
+            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="table-card">
+    <mat-card-content>
+      <div class="loading-overlay" *ngIf="loading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+      <table mat-table [dataSource]="applications" class="data-table">
+        <ng-container matColumnDef="title">
+          <th mat-header-cell *matHeaderCellDef>标题</th>
+          <td mat-cell *matCellDef="let row">{{ row.title }}</td>
+        </ng-container>
+        <ng-container matColumnDef="applicantName">
+          <th mat-header-cell *matHeaderCellDef>申请人</th>
+          <td mat-cell *matCellDef="let row">{{ row.applicantName }}</td>
+        </ng-container>
+        <ng-container matColumnDef="accountType">
+          <th mat-header-cell *matHeaderCellDef>账号类型</th>
+          <td mat-cell *matCellDef="let row">{{ row.accountType }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>状态</th>
+          <td mat-cell *matCellDef="let row">
+            <mat-chip [class]="'status-chip ' + getStatusClass(row.status)">
+              {{ getStatusLabel(row.status) }}
+            </mat-chip>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="priority">
+          <th mat-header-cell *matHeaderCellDef>优先级</th>
+          <td mat-cell *matCellDef="let row">
+            <span [class]="getPriorityClass(row.priority)">{{ getPriorityLabel(row.priority) }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="responsiblePerson">
+          <th mat-header-cell *matHeaderCellDef>负责人</th>
+          <td mat-cell *matCellDef="let row">{{ row.responsiblePerson }}</td>
+        </ng-container>
+        <ng-container matColumnDef="department">
+          <th mat-header-cell *matHeaderCellDef>部门</th>
+          <td mat-cell *matCellDef="let row">{{ row.department }}</td>
+        </ng-container>
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>创建时间</th>
+          <td mat-cell *matCellDef="let row">{{ row.createdAt | date:'yyyy-MM-dd HH:mm' }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row" (click)="navigateToDetail(row.id)"></tr>
+      </table>
+
+      <mat-paginator
+        [length]="total"
+        [pageSize]="limit"
+        [pageSizeOptions]="[10, 25, 50]"
+        (page)="onPageChange($event)">
+      </mat-paginator>
+    </mat-card-content>
+  </mat-card>
+</div>

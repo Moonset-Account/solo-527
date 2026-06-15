@@ -1,0 +1,197 @@
+<div class="detail-page" *ngIf="!loading; else loadingTemplate">
+  <div class="detail-header">
+    <button mat-icon-button (click)="goBack()" matTooltip="返回列表">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>{{ fault?.title }}</h2>
+    <mat-chip [class]="'status-badge ' + getStatusClass(fault?.status || '')">
+      {{ getStatusLabel(fault?.status || '') }}
+    </mat-chip>
+    <mat-chip [class]="'severity-badge ' + getSeverityClass(fault?.severity || '')">
+      {{ getSeverityLabel(fault?.severity || '') }}
+    </mat-chip>
+    <span class="spacer"></span>
+    <button mat-raised-button color="warn" *ngIf="fault?.status !== 'RESOLVED' && fault?.status !== 'CLOSED'" (click)="resolveFault()">
+      <mat-icon>check_circle</mat-icon> 解决
+    </button>
+    <button mat-icon-button [matTooltip]="editMode ? '取消编辑' : '编辑'" (click)="toggleEditMode()">
+      <mat-icon>{{ editMode ? 'close' : 'edit' }}</mat-icon>
+    </button>
+    <button mat-raised-button color="primary" *ngIf="editMode" (click)="save()">
+      <mat-icon>save</mat-icon> 保存
+    </button>
+  </div>
+
+  <mat-tab-group class="detail-tabs" animationDuration="0ms">
+    <mat-tab label="基本信息">
+      <div class="tab-content">
+        <form [formGroup]="form" class="detail-form" *ngIf="form">
+          <div class="form-grid">
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>标题</mat-label>
+              <input matInput formControlName="title" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>报告人</mat-label>
+              <input matInput formControlName="reporterName" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>严重级别</mat-label>
+              <mat-select formControlName="severity" [disabled]="!editMode">
+                @for (opt of severityOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>状态</mat-label>
+              <mat-select formControlName="status" [disabled]="!editMode">
+                @for (opt of statusOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>负责人</mat-label>
+              <input matInput formControlName="responsiblePerson" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>部门</mat-label>
+              <input matInput formControlName="department" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+              <mat-label>系统名称</mat-label>
+              <input matInput formControlName="systemName" [readonly]="!editMode" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width" [class.readonly-field]="!editMode">
+              <mat-label>描述</mat-label>
+              <textarea matInput formControlName="description" rows="3" [readonly]="!editMode"></textarea>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width" [class.readonly-field]="!editMode">
+              <mat-label>解决方案</mat-label>
+              <textarea matInput formControlName="resolution" rows="3" [readonly]="!editMode"></textarea>
+            </mat-form-field>
+          </div>
+        </form>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="告警信息">
+      <div class="tab-content">
+        <div class="detail-section">
+          <h3>告警状态</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>告警状态</label>
+              <span [class]="fault?.alertStatus === 'ACTIVE' ? 'alert-active' : 'alert-inactive'">
+                {{ fault?.alertStatus === 'ACTIVE' ? '活跃' : '无告警' }}
+              </span>
+            </div>
+            <div class="info-item">
+              <label>告警日志ID</label>
+              <span>{{ fault?.alertLogId || '-' }}</span>
+            </div>
+            <div class="info-item">
+              <label>解决时间</label>
+              <span>{{ fault?.resolvedAt ? (fault!.resolvedAt | date:'yyyy-MM-dd HH:mm') : '未解决' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section" *ngIf="fault?.resolution">
+          <h3>解决方案</h3>
+          <p class="reason-text">{{ fault?.resolution }}</p>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="处理记录">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h3>处理记录</h3>
+          <button mat-raised-button color="primary" (click)="addProcessingRecord()">
+            <mat-icon>add</mat-icon> 添加记录
+          </button>
+        </div>
+        <table mat-table [dataSource]="processingRecords" class="inline-table">
+          <ng-container matColumnDef="action">
+            <th mat-header-cell *matHeaderCellDef>操作</th>
+            <td mat-cell *matCellDef="let row">{{ row.action }}</td>
+          </ng-container>
+          <ng-container matColumnDef="operatorName">
+            <th mat-header-cell *matHeaderCellDef>操作人</th>
+            <td mat-cell *matCellDef="let row">{{ row.operatorName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="previousValue">
+            <th mat-header-cell *matHeaderCellDef>原值</th>
+            <td mat-cell *matCellDef="let row">{{ row.previousValue || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="newValue">
+            <th mat-header-cell *matHeaderCellDef>新值</th>
+            <td mat-cell *matCellDef="let row">{{ row.newValue || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="details">
+            <th mat-header-cell *matHeaderCellDef>详情</th>
+            <td mat-cell *matCellDef="let row">{{ row.details || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>时间</th>
+            <td mat-cell *matCellDef="let row">{{ row.createdAt | date:'yyyy-MM-dd HH:mm' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedRecordColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedRecordColumns;"></tr>
+        </table>
+        <div class="empty-state" *ngIf="processingRecords.length === 0">
+          <mat-icon>history</mat-icon>
+          <span>暂无处理记录</span>
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="变更窗口">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h3>变更窗口</h3>
+          <button mat-raised-button color="primary" (click)="addChangeWindow()">
+            <mat-icon>add</mat-icon> 新增变更窗口
+          </button>
+        </div>
+        <table mat-table [dataSource]="changeWindows" class="inline-table">
+          <ng-container matColumnDef="startTime">
+            <th mat-header-cell *matHeaderCellDef>开始时间</th>
+            <td mat-cell *matCellDef="let row">{{ row.startTime | date:'yyyy-MM-dd HH:mm' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="endTime">
+            <th mat-header-cell *matHeaderCellDef>结束时间</th>
+            <td mat-cell *matCellDef="let row">{{ row.endTime | date:'yyyy-MM-dd HH:mm' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>状态</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip class="status-chip">{{ row.status === 'PENDING' ? '待审批' : row.status === 'APPROVED' ? '已审批' : '已关闭' }}</mat-chip>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="approvedBy">
+            <th mat-header-cell *matHeaderCellDef>审批人</th>
+            <td mat-cell *matCellDef="let row">{{ row.approvedBy || '-' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>描述</th>
+            <td mat-cell *matCellDef="let row">{{ row.description || '-' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedChangeWindowColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedChangeWindowColumns;"></tr>
+        </table>
+        <div class="empty-state" *ngIf="changeWindows.length === 0">
+          <mat-icon>schedule</mat-icon>
+          <span>暂无变更窗口</span>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+</ng-template>

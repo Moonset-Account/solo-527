@@ -1,0 +1,100 @@
+<div class="detail-page" *ngIf="!loading; else loadingTemplate">
+  <div class="detail-header">
+    <button mat-icon-button (click)="goBack()" matTooltip="返回列表">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>{{ isNew ? '新建巡检模板' : template?.name }}</h2>
+    <span class="spacer"></span>
+    <button mat-icon-button *ngIf="!isNew" [matTooltip]="editMode ? '取消编辑' : '编辑'" (click)="toggleEditMode()">
+      <mat-icon>{{ editMode ? 'close' : 'edit' }}</mat-icon>
+    </button>
+    <button mat-raised-button color="primary" *ngIf="editMode" (click)="save()">
+      <mat-icon>save</mat-icon> 保存
+    </button>
+  </div>
+
+  <form [formGroup]="form" *ngIf="form" class="template-form">
+    <mat-card class="form-card">
+      <mat-card-header>
+        <mat-card-title>基本信息</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="form-grid">
+          <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+            <mat-label>模板名称</mat-label>
+            <input matInput formControlName="name" [readonly]="!editMode" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
+            <mat-label>巡检频率</mat-label>
+            <mat-select formControlName="frequency" [disabled]="!editMode">
+              @for (opt of frequencyOptions; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width" [class.readonly-field]="!editMode">
+            <mat-label>描述</mat-label>
+            <textarea matInput formControlName="description" rows="2" [readonly]="!editMode"></textarea>
+          </mat-form-field>
+          <mat-slide-toggle formControlName="isActive" [disabled]="!editMode" class="toggle-field">
+            启用状态
+          </mat-slide-toggle>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="items-card">
+      <mat-card-header>
+        <mat-card-title>巡检项目</mat-card-title>
+        <span class="spacer"></span>
+        <button mat-icon-button color="primary" *ngIf="editMode" (click)="addItem()" matTooltip="添加项目">
+          <mat-icon>add_circle</mat-icon>
+        </button>
+      </mat-card-header>
+      <mat-card-content>
+        <div formArrayName="items" class="items-list">
+          @for (itemCtrl of items.controls; track $index) {
+            <div [formGroupName]="$index" class="item-row">
+              <div class="item-fields">
+                <mat-form-field appearance="outline" class="item-field" [class.readonly-field]="!editMode">
+                  <mat-label>项目名称</mat-label>
+                  <input matInput formControlName="name" [readonly]="!editMode" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="item-field" [class.readonly-field]="!editMode">
+                  <mat-label>类别</mat-label>
+                  <mat-select formControlName="category" [disabled]="!editMode">
+                    @for (opt of categoryOptions; track opt.value) {
+                      <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="item-field" [class.readonly-field]="!editMode">
+                  <mat-label>期望值</mat-label>
+                  <input matInput formControlName="expectedValue" [readonly]="!editMode" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="item-field-wide" [class.readonly-field]="!editMode">
+                  <mat-label>描述</mat-label>
+                  <input matInput formControlName="description" [readonly]="!editMode" />
+                </mat-form-field>
+              </div>
+              <button mat-icon-button color="warn" *ngIf="editMode" (click)="removeItem($index)" matTooltip="删除项目">
+                <mat-icon>remove_circle</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+        <div class="empty-state" *ngIf="items.controls.length === 0">
+          <mat-icon>list_alt</mat-icon>
+          <span>暂无巡检项目</span>
+          <button mat-raised-button color="primary" *ngIf="editMode" (click)="addItem()">添加巡检项目</button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </form>
+</div>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+</ng-template>

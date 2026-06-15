@@ -1,0 +1,48 @@
+<div class="templates-page">
+  <div class="page-header">
+    <h2>巡检模板</h2>
+    <button mat-fab color="primary" (click)="navigateToCreate()" matTooltip="新建模板">
+      <mat-icon>add</mat-icon>
+    </button>
+  </div>
+
+  <mat-card class="table-card">
+    <mat-card-content>
+      <div class="loading-overlay" *ngIf="loading">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+      <table mat-table [dataSource]="templates" class="data-table">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>模板名称</th>
+          <td mat-cell *matCellDef="let row">{{ row.name }}</td>
+        </ng-container>
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>描述</th>
+          <td mat-cell *matCellDef="let row">{{ row.description || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="frequency">
+          <th mat-header-cell *matHeaderCellDef>频率</th>
+          <td mat-cell *matCellDef="let row">{{ row.frequency }}</td>
+        </ng-container>
+        <ng-container matColumnDef="isActive">
+          <th mat-header-cell *matHeaderCellDef>状态</th>
+          <td mat-cell *matCellDef="let row">
+            <mat-chip [class]="row.isActive ? 'active-chip' : 'inactive-chip'">
+              {{ row.isActive ? '启用' : '停用' }}
+            </mat-chip>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="createdBy">
+          <th mat-header-cell *matHeaderCellDef>创建人</th>
+          <td mat-cell *matCellDef="let row">{{ row.createdBy }}</td>
+        </ng-container>
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>创建时间</th>
+          <td mat-cell *matCellDef="let row">{{ row.createdAt | date:'yyyy-MM-dd HH:mm' }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row" (click)="navigateToDetail(row.id)"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</div>
