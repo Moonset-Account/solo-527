@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0D9488;
+  --color-primary-light: #14B8A6;
+  --color-primary-dark: #0F766E;
+  --color-accent: #F59E0B;
+  --color-accent-light: #FBBF24;
+  --color-accent-dark: #D97706;
+  font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .badge-pending {
+    @apply bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+  .badge-confirmed {
+    @apply bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+  .badge-arrived {
+    @apply bg-teal-100 text-teal-800 text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+  .badge-completed {
+    @apply bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+  .badge-no_show {
+    @apply bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+  .badge-cancelled {
+    @apply bg-zinc-100 text-zinc-800 text-xs font-medium px-2.5 py-0.5 rounded-full;
+  }
+}
