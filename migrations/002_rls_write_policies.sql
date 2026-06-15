@@ -124,7 +124,7 @@ CREATE POLICY "Admins, equipment teachers and booking owners can update logs" ON
       SELECT 1 FROM bookings
       WHERE bookings.instrument_id = utilization_logs.instrument_id
       AND bookings.user_id = auth.uid()
-      AND bookings.status = 'completed'
+      AND bookings.status IN ('confirmed', 'completed')
       AND DATE(bookings.start_time) = utilization_logs.log_date
     )
   ) WITH CHECK (
@@ -133,7 +133,7 @@ CREATE POLICY "Admins, equipment teachers and booking owners can update logs" ON
       SELECT 1 FROM bookings
       WHERE bookings.instrument_id = utilization_logs.instrument_id
       AND bookings.user_id = auth.uid()
-      AND bookings.status = 'completed'
+      AND bookings.status IN ('confirmed', 'completed')
       AND DATE(bookings.start_time) = utilization_logs.log_date
     )
   );

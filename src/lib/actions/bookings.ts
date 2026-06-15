@@ -207,45 +207,23 @@ export async function completeBooking(bookingId: string): Promise<{
     const usedHours = Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
     const logDate = start.toISOString().slice(0, 10)
 
-    const { data: existingLog } = await supabase
-      .from('utilization_logs')
-      .select('*')
-      .eq('instrument_id', booking.instrument_id)
-      .eq('log_date', logDate)
-      .maybeSingle()
+    const { error: rpcError } = await supabase.rpc('upsert_utilization_log', {
+      p_instrument_id: booking.instrument_id,
+      p_log_date: logDate,
+      p_used_hours: usedHours,
+    })
 
-    if (existingLog) {
-      const { error: logUpdateError } = await supabase
-        .from('utilization_logs')
-        .update({
-          used_hours: (existingLog.used_hours as number) + usedHours,
-        })
-        .eq('id', existingLog.id)
-
-      if (logUpdateError) {
-        return { error: `设备利用率更新失败：${logUpdateError.message}` }
-      }
-    } else {
-      const { error: logInsertError } = await supabase.from('utilization_logs').insert({
-        instrument_id: booking.instrument_id,
-        log_date: logDate,
-        total_hours: 24,
-        used_hours: usedHours,
-        disabled_hours: 0,
-      })
-
-      if (logInsertError) {
-        return { error: `设备利用率记录失败：${logInsertError.message}` }
-      }
+    if (rpcError) {
+      return { error: `设备利用率记录失败：${rpcError.message}` }
     }
 
-    const { error: updateError } = await supabase
+    const { error: bookingUpdateError } = await supabase
       .from('bookings')
       .update({ status: 'completed' as BookingStatus })
       .eq('id', bookingId)
 
-    if (updateError) {
-      return { error: updateError.message }
+    if (bookingUpdateError) {
+      return { error: bookingUpdateError.message }
     }
 
     await supabase.from('audit_logs').insert({

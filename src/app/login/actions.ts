@@ -19,6 +19,7 @@ interface SignUpParams {
 interface ActionResult {
   success: boolean
   error?: string
+  _redirectTarget?: string
 }
 
 export async function signInWithPassword(
@@ -34,6 +35,8 @@ export async function signInWithPassword(
     }
   }
 
+  let result: ActionResult = { success: false }
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -41,13 +44,11 @@ export async function signInWithPassword(
     })
 
     if (error) {
-      return {
+      result = {
         success: false,
         error: error.message || '登录失败，请检查邮箱和密码',
       }
-    }
-
-    if (data.user) {
+    } else if (data.user) {
       const { error: upsertError } = await supabase.from('users').upsert(
         {
           id: data.user.id,
@@ -60,21 +61,32 @@ export async function signInWithPassword(
       )
 
       if (upsertError) {
-        return {
+        result = {
           success: false,
           error: '用户档案写入失败，请稍后重试',
         }
+      } else {
+        const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
+        result = { success: true, _redirectTarget: target }
+      }
+    } else {
+      result = {
+        success: false,
+        error: '登录失败，用户数据为空',
       }
     }
-
-    const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
-    redirect(target)
   } catch (e) {
-    return {
+    result = {
       success: false,
       error: e instanceof Error ? e.message : '登录时发生未知错误',
     }
   }
+
+  if (result.success && result._redirectTarget) {
+    redirect(result._redirectTarget)
+  }
+
+  return result
 }
 
 export async function signUp(
@@ -90,6 +102,8 @@ export async function signUp(
     }
   }
 
+  let result: ActionResult = { success: false }
+
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -103,13 +117,11 @@ export async function signUp(
     })
 
     if (error) {
-      return {
+      result = {
         success: false,
         error: error.message || '注册失败，请稍后重试',
       }
-    }
-
-    if (data.user) {
+    } else if (data.user) {
       const { error: insertError } = await supabase.from('users').insert({
         id: data.user.id,
         email: data.user.email ?? email,
@@ -119,21 +131,32 @@ export async function signUp(
       })
 
       if (insertError) {
-        return {
+        result = {
           success: false,
           error: '用户档案创建失败，请稍后重试',
         }
+      } else {
+        const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
+        result = { success: true, _redirectTarget: target }
+      }
+    } else {
+      result = {
+        success: false,
+        error: '注册失败，用户数据为空',
       }
     }
-
-    const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
-    redirect(target)
   } catch (e) {
-    return {
+    result = {
       success: false,
       error: e instanceof Error ? e.message : '注册时发生未知错误',
     }
   }
+
+  if (result.success && result._redirectTarget) {
+    redirect(result._redirectTarget)
+  }
+
+  return result
 }
 
 export async function signOut(): Promise<ActionResult> {
