@@ -3,12 +3,12 @@ import { defineStore } from 'pinia'
 export const useNotificationStore = defineStore('notification', {
   state: () => ({
     notifications: [] as any[],
-    loading: false
+    loading: false,
   }),
   getters: {
     unreadCount(state) {
-      return state.notifications.filter(n => !n.read).length
-    }
+      return state.notifications.filter((n: any) => !n.read).length
+    },
   },
   actions: {
     async fetchNotifications() {
@@ -20,16 +20,16 @@ export const useNotificationStore = defineStore('notification', {
         this.loading = false
       }
     },
-    async markRead(id: string) {
+    async markRead(id: string | number) {
       const api = useApi()
       await api.markNotificationRead(id)
-      const n = this.notifications.find(n => n.id === id)
+      const n = this.notifications.find((x: any) => String(x.id) === String(id))
       if (n) n.read = true
     },
     async markAllRead() {
-      for (const n of this.notifications.filter(n => !n.read)) {
-        await this.markRead(n.id)
-      }
-    }
-  }
+      const api = useApi()
+      await api.markAllNotificationsRead()
+      this.notifications.forEach((n: any) => (n.read = true))
+    },
+  },
 })

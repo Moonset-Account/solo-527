@@ -24,6 +24,7 @@ class EventCreate(BaseModel):
     lng: float | None = None
     lat: float | None = None
     address: str | None = None
+    photos: list[str] | None = None
 
 
 class AssignRequest(BaseModel):
@@ -40,55 +41,19 @@ class ReviewRequest(BaseModel):
     comment: str | None = None
 
 
-class EventPhotoResponse(BaseModel):
-    id: int
-    url: str
-    tag: str | None
-
-    model_config = {"from_attributes": True}
-
-
-class EventFlowResponse(BaseModel):
-    id: int
-    action: str
-    operator_id: int | None
-    comment: str | None
-    created_at: str | None
-
-    model_config = {"from_attributes": True}
-
-
-class EventResponse(BaseModel):
-    id: int
-    title: str
-    description: str | None
-    event_type: str
-    status: str
-    lng: float | None
-    lat: float | None
-    address: str | None
-    reporter_id: int | None
-    assignee_id: int | None
-    is_duplicate: bool
-    created_at: str | None
-    updated_at: str | None
-    closed_at: str | None
-    photos: list[EventPhotoResponse] = []
-    flows: list[EventFlowResponse] = []
-
-    model_config = {"from_attributes": True}
-
-
 @router.get("")
 async def list_events(
     status: str | None = None,
+    event_type: str | None = None,
     search: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     svc = EventService(db)
-    return await svc.list_events(status=status, search=search, page=page, page_size=page_size)
+    return await svc.list_events(
+        status=status, event_type=event_type, search=search, page=page, page_size=page_size
+    )
 
 
 @router.post("")
@@ -99,9 +64,21 @@ async def create_event(
 ):
     user = await get_current_user_from_request(request, db)
     svc = EventService(db)
-    event = await svc.create_event(data, user.id)
-    detect_duplicate.delay(event.id)
-    return event
+    event_id = await svc.create_event(data, user.id)
+
+    if data.photos:
+        for url in data.photos:
+            photo = EventPhoto(event_id=event_id, url=url, tag=data.event_type)
+            db.add(photo)
+        await db.commit()
+
+    try:
+        detect_duplicate.delay(event_id)
+    except Exception:
+        pass
+
+    result = await svc.get_event_detail(event_id)
+    return result
 
 
 @router.get("/stats")
@@ -140,7 +117,32 @@ async def rectify_event(
 ):
     user = await get_current_user_from_request(request, db)
     svc = EventService(db)
-    return await svc.rectify_event(event_id, user.id, data.comment)
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if event.status in ("pending", "assigned"):
+        new_status = "rectifying"
+        flow_action = "rectifying"
+    elif event.status == "rectifying":
+        new_status = "reviewing"
+        flow_action = "reviewed"
+    else:
+        flow_action = event.status
+        new_status = event.status
+
+    event.status = new_status
+    flow = EventFlow(
+        event_id=event_id,
+        action=flow_action,
+        operator_id=user.id,
+        comment=data.comment,
+    )
+    db.add(flow)
+    await db.commit()
+    await db.refresh(event)
+    return {"id": event.id, "status": event.status}
 
 
 @router.put("/{event_id}/review")
@@ -170,9 +172,9 @@ async def upload_file(file: UploadFile = File(...)):
 
 @router.get("/users/list")
 async def list_users(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User))
+    result = await db.execute(select(User).order_by(User.id))
     users = result.scalars().all()
-    return [{"id": u.id, "name": u.name, "role": u.role} for u in users]
+    return [{"id": u.id, "name": u.name, "role": u.role, "username": u.username} for u in users]
 
 
 @router.get("/{event_id}/flow-logs")

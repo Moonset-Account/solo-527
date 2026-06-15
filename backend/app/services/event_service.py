@@ -13,7 +13,12 @@ class EventService:
         self.db = db
 
     async def list_events(
-        self, status: str | None = None, search: str | None = None, page: int = 1, page_size: int = 20
+        self,
+        status: str | None = None,
+        event_type: str | None = None,
+        search: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
     ):
         query = select(Event).options(selectinload(Event.photos))
         count_query = select(func.count(Event.id))
@@ -21,6 +26,9 @@ class EventService:
         if status:
             query = query.where(Event.status == status)
             count_query = count_query.where(Event.status == status)
+        if event_type:
+            query = query.where(Event.event_type == event_type)
+            count_query = count_query.where(Event.event_type == event_type)
         if search:
             pattern = f"%{search}%"
             query = query.where(Event.title.ilike(pattern))
@@ -83,11 +91,7 @@ class EventService:
         self.db.add(flow)
         await self.db.commit()
 
-        return {
-            "id": event.id,
-            "title": event.title,
-            "status": event.status,
-        }
+        return event.id
 
     async def get_stats(self):
         statuses = ["pending", "assigned", "rectifying", "reviewing", "closed", "rejected"]

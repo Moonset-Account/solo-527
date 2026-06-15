@@ -5,7 +5,7 @@ export const useDictStore = defineStore('dict', {
     categories: [] as any[],
     currentCategory: null as string | null,
     items: [] as any[],
-    loading: false
+    loading: false,
   }),
   actions: {
     async fetchCategories() {
@@ -29,21 +29,15 @@ export const useDictStore = defineStore('dict', {
     },
     async addItem(category: string, data: any) {
       const api = useApi()
-      const item = await api.addDictItem(category, data)
-      if (item) {
-        await this.fetchItems(category)
-        await this.fetchCategories()
-      }
-      return item
+      const r = await api.addDictItem(category, data)
+      await this.fetchItems(category)
+      return r
     },
     async deleteItem(category: string, itemKey: string) {
       const api = useApi()
-      const result = await api.deleteDictItem(category, itemKey)
-      if (result) {
-        await this.fetchItems(category)
-        await this.fetchCategories()
-      }
-      return result
-    }
-  }
+      const r = await api.deleteDictItem(category, itemKey)
+      await this.fetchItems(category)
+      return r
+    },
+  },
 })

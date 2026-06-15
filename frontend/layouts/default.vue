@@ -1,52 +1,54 @@
 <template>
-  <NNotificationProvider>
-    <NMessageProvider>
-      <NLayout has-sider style="height: 100vh">
-        <NLayoutSider
-          bordered
-          collapse-mode="width"
-          :collapsed-width="64"
-          :width="220"
-          show-trigger
-          :native-scrollbar="false"
-          style="background: #1a365d"
-        >
-          <div class="sider-logo">
-            <span class="logo-icon">🔷</span>
-            <span v-if="!collapsed" class="logo-text">网格事件闭环</span>
-          </div>
-          <NMenu
-            v-model:value="activeKey"
-            :collapsed="collapsed"
+  <ClientOnly>
+    <NNotificationProvider>
+      <NMessageProvider>
+        <NLayout has-sider style="height: 100vh">
+          <NLayoutSider
+            bordered
+            collapse-mode="width"
             :collapsed-width="64"
-            :collapsed-icon-size="22"
-            :options="menuOptions"
-            :theme-overrides="menuThemeOverrides"
-            @update:value="handleMenuSelect"
-          />
-        </NLayoutSider>
-        <NLayout>
-          <NLayoutHeader bordered style="height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: #fff">
-            <div style="font-size: 16px; font-weight: 500; color: #1a365d">
-              {{ currentPageTitle }}
-            </div>
-            <div style="display: flex; align-items: center; gap: 16px">
-              <NotificationBell />
-              <div style="font-size: 14px; color: #2d3748">
-                {{ authStore.currentUser?.name || '管理员' }}
-              </div>
-            </div>
-          </NLayoutHeader>
-          <NLayoutContent
-            content-style="padding: 24px; background: #f5f7fa; min-height: calc(100vh - 56px)"
+            :width="220"
+            show-trigger
             :native-scrollbar="false"
+            style="background: #1a365d"
           >
-            <slot />
-          </NLayoutContent>
+            <div class="sider-logo">
+              <span class="logo-icon">🔷</span>
+              <span v-if="!collapsed" class="logo-text">网格事件闭环</span>
+            </div>
+            <NMenu
+              v-model:value="activeKey"
+              :collapsed="collapsed"
+              :collapsed-width="64"
+              :collapsed-icon-size="22"
+              :options="menuOptions"
+              :theme-overrides="menuThemeOverrides"
+              @update:value="handleMenuSelect"
+            />
+          </NLayoutSider>
+          <NLayout>
+            <NLayoutHeader bordered style="height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: #fff">
+              <div style="font-size: 16px; font-weight: 500; color: #1a365d">
+                {{ currentPageTitle }}
+              </div>
+              <div style="display: flex; align-items: center; gap: 16px">
+                <NotificationBell />
+                <div style="font-size: 14px; color: #2d3748">
+                  {{ authStore.currentUser?.name || '管理员' }}
+                </div>
+              </div>
+            </NLayoutHeader>
+            <NLayoutContent
+              content-style="padding: 24px; background: #f5f7fa; min-height: calc(100vh - 56px)"
+              :native-scrollbar="false"
+            >
+              <slot />
+            </NLayoutContent>
+          </NLayout>
         </NLayout>
-      </NLayout>
-    </NMessageProvider>
-  </NNotificationProvider>
+      </NMessageProvider>
+    </NNotificationProvider>
+  </ClientOnly>
 </template>
 
 <script setup lang="ts">

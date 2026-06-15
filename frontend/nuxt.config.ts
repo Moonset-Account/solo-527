@@ -26,11 +26,17 @@ export default defineNuxtConfig({
       apiBase: '/api'
     }
   },
+  build: {
+    transpile: ['naive-ui', 'vueuc', 'css-render', '@css-render/vue3-ssr', '@css-render/plugin-bem', 'evtd', 'seemly', 'vdirs', 'vooks']
+  },
   vite: {
+    optimizeDeps: {
+      include: ['naive-ui', 'vueuc', 'css-render', '@css-render/vue3-ssr', 'evtd', 'seemly', 'vdirs', 'vooks', 'date-fns']
+    },
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:8000',
+          target: 'http://localhost:8001',
           changeOrigin: true
         }
       }

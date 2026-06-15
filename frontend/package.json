@@ -4,22 +4,22 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "nuxt dev --port 3002",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
-    "naive-ui": "^2.38.1",
-    "nuxt": "^3.14.0",
-    "pinia": "^2.1.7",
-    "vue": "^3.4.27",
-    "vue-router": "^4.3.2"
+    "naive-ui": "^2.43.1",
+    "nuxt": "^3.14.1592",
+    "pinia": "^2.2.2",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
   },
   "devDependencies": {
-    "@nuxt/devtools": "^1.6.0",
-    "@types/node": "^20.12.12",
-    "typescript": "^5.4.5"
+    "@nuxt/devtools": "^1.6.1",
+    "@types/node": "^20.16.11",
+    "typescript": "^5.6.3"
   }
 }

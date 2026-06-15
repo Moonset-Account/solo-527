@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 export const useRuleStore = defineStore('rule', {
   state: () => ({
     rules: [] as any[],
-    loading: false
+    loading: false,
   }),
   actions: {
     async fetchRules() {
@@ -15,14 +15,11 @@ export const useRuleStore = defineStore('rule', {
         this.loading = false
       }
     },
-    async updateRule(id: string, data: any) {
+    async updateRule(id: string | number, data: any) {
       const api = useApi()
-      const result = await api.updateRule(id, data)
-      if (result) {
-        const idx = this.rules.findIndex(r => r.id === id)
-        if (idx >= 0) this.rules[idx] = result
-      }
-      return result
-    }
-  }
+      const r = await api.updateRule(id, data)
+      await this.fetchRules()
+      return r
+    },
+  },
 })
