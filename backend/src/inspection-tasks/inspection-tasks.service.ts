@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { InspectionTask, TaskStatus } from './entities/inspection-task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryTasksDto } from './dto/query-tasks.dto';
 import { InspectionTemplatesService } from '../inspection-templates/inspection-templates.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
@@ -56,22 +56,23 @@ export class InspectionTasksService {
     return saved;
   }
 
-  async findAll(pagination: PaginationDto, status?: string, assignee?: string) {
-    const query = this.taskRepository.createQueryBuilder('task');
+  async findAll(query: QueryTasksDto) {
+    const { page, limit, sortBy, sortOrder, status, assignee } = query;
+    const queryBuilder = this.taskRepository.createQueryBuilder('task');
 
     if (status) {
-      query.andWhere('task.status = :status', { status });
+      queryBuilder.andWhere('task.status = :status', { status });
     }
     if (assignee) {
-      query.andWhere('task.assignee = :assignee', { assignee });
+      queryBuilder.andWhere('task.assignee = :assignee', { assignee });
     }
 
-    query.orderBy(`task.${pagination.sortBy}`, pagination.sortOrder);
-    query.skip((pagination.page - 1) * pagination.limit);
-    query.take(pagination.limit);
+    queryBuilder.orderBy(`task.${sortBy}`, sortOrder);
+    queryBuilder.skip((page - 1) * limit);
+    queryBuilder.take(limit);
 
-    const [items, total] = await query.getManyAndCount();
-    return { data: items, total, page: pagination.page, limit: pagination.limit };
+    const [items, total] = await queryBuilder.getManyAndCount();
+    return { data: items, total, page, limit };
   }
 
   async findAllNoPagination(status?: string, assignee?: string) {

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@ne
 import { FaultsService } from './faults.service';
 import { CreateFaultDto } from './dto/create-fault.dto';
 import { UpdateFaultDto } from './dto/update-fault.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryFaultsDto } from './dto/query-faults.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -12,12 +12,8 @@ export class FaultsController {
   constructor(private faultsService: FaultsService) {}
 
   @Get()
-  async findAll(
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: string,
-    @Query('severity') severity?: string,
-  ) {
-    return this.faultsService.findAll(pagination, status, severity);
+  async findAll(@Query() query: QueryFaultsDto) {
+    return this.faultsService.findAll(query);
   }
 
   @Get('alerts')

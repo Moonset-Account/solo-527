@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } f
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryApplicationsDto } from './dto/query-applications.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -15,12 +15,8 @@ export class ApplicationsController {
   constructor(private applicationsService: ApplicationsService) {}
 
   @Get()
-  async findAll(
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: string,
-    @Query('priority') priority?: string,
-  ) {
-    return this.applicationsService.findAll(pagination, status, priority);
+  async findAll(@Query() query: QueryApplicationsDto) {
+    return this.applicationsService.findAll(query);
   }
 
   @Get(':id')

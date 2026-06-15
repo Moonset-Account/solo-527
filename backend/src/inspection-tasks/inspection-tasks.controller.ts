@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@ne
 import { InspectionTasksService } from './inspection-tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryTasksDto } from './dto/query-tasks.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -12,16 +12,11 @@ export class InspectionTasksController {
   constructor(private tasksService: InspectionTasksService) {}
 
   @Get()
-  async findAll(
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: string,
-    @Query('assignee') assignee?: string,
-    @Query('all') all?: string,
-  ) {
-    if (all === 'true') {
-      return this.tasksService.findAllNoPagination(status, assignee);
+  async findAll(@Query() query: QueryTasksDto) {
+    if (query.all === 'true') {
+      return this.tasksService.findAllNoPagination(query.status, query.assignee);
     }
-    return this.tasksService.findAll(pagination, status, assignee);
+    return this.tasksService.findAll(query);
   }
 
   @Get(':id')

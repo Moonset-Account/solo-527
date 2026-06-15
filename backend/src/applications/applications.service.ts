@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Application } from './entities/application.entity';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryApplicationsDto } from './dto/query-applications.dto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 @Injectable()
@@ -31,22 +31,23 @@ export class ApplicationsService {
     return saved;
   }
 
-  async findAll(pagination: PaginationDto, status?: string, priority?: string) {
-    const query = this.applicationRepository.createQueryBuilder('app');
+  async findAll(query: QueryApplicationsDto) {
+    const { page, limit, sortBy, sortOrder, status, priority } = query;
+    const queryBuilder = this.applicationRepository.createQueryBuilder('app');
 
     if (status) {
-      query.andWhere('app.status = :status', { status });
+      queryBuilder.andWhere('app.status = :status', { status });
     }
     if (priority) {
-      query.andWhere('app.priority = :priority', { priority });
+      queryBuilder.andWhere('app.priority = :priority', { priority });
     }
 
-    query.orderBy(`app.${pagination.sortBy}`, pagination.sortOrder);
-    query.skip((pagination.page - 1) * pagination.limit);
-    query.take(pagination.limit);
+    queryBuilder.orderBy(`app.${sortBy}`, sortOrder);
+    queryBuilder.skip((page - 1) * limit);
+    queryBuilder.take(limit);
 
-    const [items, total] = await query.getManyAndCount();
-    return { data: items, total, page: pagination.page, limit: pagination.limit };
+    const [items, total] = await queryBuilder.getManyAndCount();
+    return { data: items, total, page, limit };
   }
 
   async findOne(id: string) {

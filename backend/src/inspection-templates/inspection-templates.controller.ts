@@ -15,11 +15,11 @@ export class InspectionTemplatesController {
   constructor(private templatesService: InspectionTemplatesService) {}
 
   @Get()
-  async findAll(@Query() pagination: PaginationDto, @Query('all') all?: string) {
-    if (all === 'true') {
+  async findAll(@Query() query: PaginationDto) {
+    if (query.all === 'true') {
       return this.templatesService.findAllNoPagination();
     }
-    return this.templatesService.findAll(pagination);
+    return this.templatesService.findAll(query);
   }
 
   @Get(':id')

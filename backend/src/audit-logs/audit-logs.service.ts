@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryAuditLogsDto } from './dto/query-audit-logs.dto';
 
 @Injectable()
 export class AuditLogsService {
@@ -16,24 +16,25 @@ export class AuditLogsService {
     return this.auditLogRepository.save(log);
   }
 
-  async findAll(pagination: PaginationDto, entityType?: string, action?: string, operator?: string) {
-    const query = this.auditLogRepository.createQueryBuilder('log');
+  async findAll(query: QueryAuditLogsDto) {
+    const { page, limit, sortOrder, entityType, action, operator } = query;
+    const queryBuilder = this.auditLogRepository.createQueryBuilder('log');
 
     if (entityType) {
-      query.andWhere('log.entityType = :entityType', { entityType });
+      queryBuilder.andWhere('log.entityType = :entityType', { entityType });
     }
     if (action) {
-      query.andWhere('log.action = :action', { action });
+      queryBuilder.andWhere('log.action = :action', { action });
     }
     if (operator) {
-      query.andWhere('log.operator = :operator', { operator });
+      queryBuilder.andWhere('log.operator = :operator', { operator });
     }
 
-    query.orderBy('log.createdAt', pagination.sortOrder);
-    query.skip((pagination.page - 1) * pagination.limit);
-    query.take(pagination.limit);
+    queryBuilder.orderBy('log.createdAt', sortOrder);
+    queryBuilder.skip((page - 1) * limit);
+    queryBuilder.take(limit);
 
-    const [items, total] = await query.getManyAndCount();
-    return { data: items, total, page: pagination.page, limit: pagination.limit };
+    const [items, total] = await queryBuilder.getManyAndCount();
+    return { data: items, total, page, limit };
   }
 }

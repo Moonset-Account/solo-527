@@ -3,6 +3,10 @@ import { Type } from 'class-transformer';
 
 export class PaginationDto {
   @IsOptional()
+  @IsString()
+  all?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

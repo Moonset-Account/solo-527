@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Fault, FaultStatus, AlertStatus } from './entities/fault.entity';
 import { CreateFaultDto } from './dto/create-fault.dto';
 import { UpdateFaultDto } from './dto/update-fault.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { QueryFaultsDto } from './dto/query-faults.dto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 @Injectable()
@@ -31,22 +31,23 @@ export class FaultsService {
     return saved;
   }
 
-  async findAll(pagination: PaginationDto, status?: string, severity?: string) {
-    const query = this.faultRepository.createQueryBuilder('fault');
+  async findAll(query: QueryFaultsDto) {
+    const { page, limit, sortBy, sortOrder, status, severity } = query;
+    const queryBuilder = this.faultRepository.createQueryBuilder('fault');
 
     if (status) {
-      query.andWhere('fault.status = :status', { status });
+      queryBuilder.andWhere('fault.status = :status', { status });
     }
     if (severity) {
-      query.andWhere('fault.severity = :severity', { severity });
+      queryBuilder.andWhere('fault.severity = :severity', { severity });
     }
 
-    query.orderBy(`fault.${pagination.sortBy}`, pagination.sortOrder);
-    query.skip((pagination.page - 1) * pagination.limit);
-    query.take(pagination.limit);
+    queryBuilder.orderBy(`fault.${sortBy}`, sortOrder);
+    queryBuilder.skip((page - 1) * limit);
+    queryBuilder.take(limit);
 
-    const [items, total] = await query.getManyAndCount();
-    return { data: items, total, page: pagination.page, limit: pagination.limit };
+    const [items, total] = await queryBuilder.getManyAndCount();
+    return { data: items, total, page, limit };
   }
 
   async findOne(id: string) {
