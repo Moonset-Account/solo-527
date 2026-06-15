@@ -105,13 +105,12 @@
         <div class="impact-section direct-impact">
           <div class="impact-header">
             <span class="impact-icon">🔴</span>
-            <span class="impact-title">直接影响 (Direct Impact)</span>
-            <span class="impact-count">{{ impactScope.direct?.length || 0 }} 项</span>
+            <span class="impact-title">直接影响</span>
+            <span class="impact-count">{{ impactScopeItems.direct.length }} 项</span>
           </div>
-          <div v-if="impactScope.direct?.length" class="impact-list">
-            <div v-for="(item, index) in impactScope.direct" :key="index" class="impact-item">
-              <div class="impact-item-title">{{ item.title }}</div>
-              <div class="impact-item-desc">{{ item.description }}</div>
+          <div v-if="impactScopeItems.direct.length" class="impact-list">
+            <div v-for="(item, index) in impactScopeItems.direct" :key="index" class="impact-item">
+              <div class="impact-item-text">{{ item }}</div>
             </div>
           </div>
           <div v-else class="empty">无直接影响</div>
@@ -120,13 +119,12 @@
         <div class="impact-section indirect-impact">
           <div class="impact-header">
             <span class="impact-icon">🟡</span>
-            <span class="impact-title">间接影响 (Indirect Impact)</span>
-            <span class="impact-count">{{ impactScope.indirect?.length || 0 }} 项</span>
+            <span class="impact-title">间接影响</span>
+            <span class="impact-count">{{ impactScopeItems.indirect.length }} 项</span>
           </div>
-          <div v-if="impactScope.indirect?.length" class="impact-list">
-            <div v-for="(item, index) in impactScope.indirect" :key="index" class="impact-item">
-              <div class="impact-item-title">{{ item.title }}</div>
-              <div class="impact-item-desc">{{ item.description }}</div>
+          <div v-if="impactScopeItems.indirect.length" class="impact-list">
+            <div v-for="(item, index) in impactScopeItems.indirect" :key="index" class="impact-item">
+              <div class="impact-item-text">{{ item }}</div>
             </div>
           </div>
           <div v-else class="empty">无间接影响</div>
@@ -135,13 +133,12 @@
         <div class="impact-section related-impact">
           <div class="impact-header">
             <span class="impact-icon">🔵</span>
-            <span class="impact-title">关联范围 (Related Scope)</span>
-            <span class="impact-count">{{ impactScope.related?.length || 0 }} 项</span>
+            <span class="impact-title">关联范围</span>
+            <span class="impact-count">{{ impactScopeItems.related.length }} 项</span>
           </div>
-          <div v-if="impactScope.related?.length" class="impact-list">
-            <div v-for="(item, index) in impactScope.related" :key="index" class="impact-item">
-              <div class="impact-item-title">{{ item.title }}</div>
-              <div class="impact-item-desc">{{ item.description }}</div>
+          <div v-if="impactScopeItems.related.length" class="impact-list">
+            <div v-for="(item, index) in impactScopeItems.related" :key="index" class="impact-item">
+              <div class="impact-item-text">{{ item }}</div>
             </div>
           </div>
           <div v-else class="empty">无关联范围</div>
@@ -163,23 +160,23 @@
       <div v-if="processOrder.length" class="process-steps">
         <div
           v-for="(step, index) in processOrder"
-          :key="index"
+          :key="step.step || index"
           :class="['step-card', getStepCardClass(step.status)]"
         >
           <div class="step-number">
-            <span :class="['step-number-badge', getStepNumberClass(step.status)]">{{ index + 1 }}</span>
+            <span :class="['step-number-badge', getStepNumberClass(step.status)]">{{ step.step || index + 1 }}</span>
           </div>
           <div class="step-content">
             <div class="step-header">
-              <span class="step-name">{{ step.name }}</span>
+              <span class="step-name">{{ step.action || step.name || '未命名步骤' }}</span>
               <span :class="['step-status', getStepStatusClass(step.status)]">
                 {{ getStepStatusLabel(step.status) }}
               </span>
             </div>
-            <div class="step-description">{{ step.description }}</div>
+            <div class="step-description">{{ step.description || step.desc || '' }}</div>
             <div class="step-meta">
               <span class="step-responsible">
-                👤 负责人: <strong>{{ step.responsible }}</strong>
+                👤 负责人: <strong>{{ step.responsible || step.handler || '未指定' }}</strong>
               </span>
             </div>
           </div>
@@ -305,8 +302,8 @@
           <div class="form-group">
             <label class="form-label">选择步骤</label>
             <select v-model="stepForm.stepIndex" class="form-select">
-              <option :value="index" v-for="(step, index) in processOrder" :key="index">
-              步骤 {{ index + 1 }}: {{ step.name }}
+              <option :value="index" v-for="(step, index) in processOrder" :key="step.step || index">
+              步骤 {{ step.step || index + 1 }}: {{ step.action || step.name || '未命名' }}
               </option>
             </select>
           </div>
@@ -391,13 +388,127 @@ const impactScope = computed(() => {
   }
 })
 
-const processOrder = computed(() => {
-  if (!exception.value?.processOrder) return []
-  try {
-    return JSON.parse(exception.value.processOrder)
-  } catch (e) {
-    return []
+function normalizeImpactList(val: any): string[] {
+  if (!val) return []
+  if (Array.isArray(val)) {
+    return val.map(v => {
+      if (typeof v === 'string') return v
+      if (typeof v === 'object') return v.title || v.name || v.description || JSON.stringify(v)
+      return String(v)
+    })
   }
+  if (typeof val === 'string') {
+    if (val.includes('\n')) return val.split('\n').filter(Boolean)
+    return [val]
+  }
+  if (typeof val === 'object') {
+    return [val.title || val.description || JSON.stringify(val)]
+  }
+  return [String(val)]
+}
+
+const impactScopeItems = computed(() => {
+  const scope = impactScope.value
+  const raw = exception.value?.impactScope
+
+  // 优先使用解析后的 JSON 对象
+  if (scope && (Array.isArray(scope.direct) || scope.direct || scope.indirect || scope.related)) {
+    return {
+      direct: normalizeImpactList(scope.direct),
+      indirect: normalizeImpactList(scope.indirect),
+      related: normalizeImpactList(scope.related)
+    }
+  }
+
+  // 如果是纯文本字符串，按影响层级尝试提取
+  if (typeof raw === 'string' && raw) {
+    if (raw.startsWith('{') || raw.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw)
+        return {
+          direct: normalizeImpactList(parsed.direct || []),
+          indirect: normalizeImpactList(parsed.indirect || []),
+          related: normalizeImpactList(parsed.related || [])
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    const lines = raw.split('\n').filter(Boolean)
+    return {
+      direct: lines.slice(0, 1),
+      indirect: lines.slice(1, 3),
+      related: lines.slice(3)
+    }
+  }
+
+  return { direct: [], indirect: [], related: [] }
+})
+
+const processOrder = computed(() => {
+  const raw = exception.value?.processOrder
+  if (!raw) return []
+
+  // 数字类型
+  if (typeof raw === 'number') {
+    return Array.from({ length: raw }).map((_, i) => ({
+      step: i + 1,
+      action: `处理步骤 ${i + 1}`,
+      description: '',
+      responsible: '',
+      status: 'PENDING'
+    }))
+  }
+
+  // JSON 字符串
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.map((item, index) => ({
+          step: item.step || item.sort || index + 1,
+          action: item.action || item.name || item.title || `步骤 ${index + 1}`,
+          description: item.description || item.desc || item.detail || '',
+          responsible: item.responsible || item.handler || item.owner || '',
+          status: item.status || 'PENDING'
+        }))
+      }
+      if (typeof parsed === 'object') {
+        return [{
+          step: 1,
+          action: parsed.action || parsed.name || '处理步骤',
+          description: parsed.description || '',
+          responsible: parsed.responsible || '',
+          status: parsed.status || 'PENDING'
+        }]
+      }
+    } catch (e) {
+      // 非 JSON，当文本按行拆分
+      const lines = raw.split('\n').filter(Boolean)
+      if (lines.length > 0) {
+        return lines.map((line, i) => ({
+          step: i + 1,
+          action: line.replace(/^\d+[.、\s]*/, ''),
+          description: '',
+          responsible: '',
+          status: 'PENDING'
+        }))
+      }
+    }
+  }
+
+  // 数组类型
+  if (Array.isArray(raw)) {
+    return raw.map((item, index) => ({
+      step: item.step || index + 1,
+      action: item.action || item.name || `步骤 ${index + 1}`,
+      description: item.description || '',
+      responsible: item.responsible || '',
+      status: item.status || 'PENDING'
+    }))
+  }
+
+  return []
 })
 
 const historyList = computed(() => {
@@ -734,6 +845,8 @@ function formatTime(date: string) {
   padding: 10px 12px;
   border-radius: 6px;
   border-left: 3px solid;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .direct-impact .impact-item {
@@ -748,15 +861,10 @@ function formatTime(date: string) {
   border-left-color: #1890ff;
 }
 
-.impact-item-title {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.impact-item-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+.impact-item-text {
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-break: break-all;
 }
 
 .process-steps {

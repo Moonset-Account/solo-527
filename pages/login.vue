@@ -47,6 +47,10 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 
+definePageMeta({
+  layout: false
+})
+
 const { login, initAuth, isLoggedIn } = useAuth()
 
 const form = reactive({

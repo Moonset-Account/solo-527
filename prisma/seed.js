@@ -328,25 +328,7 @@ async function main() {
     }
   })
 
-  await prisma.satisfactionSurvey.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
-      workOrderId: workOrder3.id,
-      tenantId: tenant3.id,
-      respondentId: tenantUser3.id,
-      overallScore: 5,
-      responseSpeed: 5,
-      serviceAttitude: 5,
-      repairQuality: 4,
-      costReasonable: 5,
-      comment: '维修速度很快，工程师很专业',
-      improvement: '希望费用可以更透明一些',
-      sourceType: 'WORK_ORDER'
-    }
-  })
-
-  await prisma.inspectionTask.upsert({
+  const inspection1 = await prisma.inspectionTask.upsert({
     where: { taskNo: 'INSP202406150001' },
     update: {},
     create: {
@@ -362,7 +344,7 @@ async function main() {
     }
   })
 
-  await prisma.inspectionTask.upsert({
+  const inspection2 = await prisma.inspectionTask.upsert({
     where: { taskNo: 'INSP202406150002' },
     update: {},
     create: {
@@ -424,14 +406,41 @@ async function main() {
     where: { id: 1 },
     update: {},
     create: {
+      exceptionNo: 'EXC202406150001',
+      type: 'VISITOR_REJECT',
       sourceType: 'VISITOR',
       sourceId: visitor2.id,
+      relatedNo: visitor2.visitNo,
       title: '访客审核失败-身份信息不符',
       detail: '访客刘先生预约时填写的身份证号为110101199001011234，但现场出示的身份证号为110101199002025678，姓名虽然一致但身份证号不匹配。访客称是预约时填写错误，但无法提供其他有效身份证明。',
-      impactScope: '1. 涉及租户：贸易发展公司（A座8层801室）\n2. 涉及人员：租户接待人李助理、访客刘先生\n3. 安全影响：存在身份冒用风险，可能对租户及园区安全造成隐患\n4. 业务影响：租户正常商务接待受影响',
+      status: 'PENDING',
+      priority: 'HIGH',
+      impactScope: JSON.stringify({
+        direct: [
+          '访客刘先生本人无法进入园区',
+          '当日已安排的商务洽谈会面计划作废'
+        ],
+        indirect: [
+          '被访租户贸易发展公司接待计划受阻',
+          '可能影响租户与咨询公司的项目合作洽谈',
+          '租户方内部协调成本增加，需重新安排会议'
+        ],
+        related: [
+          '前台登记流程需调整该访客登记状态',
+          '安保检查系统需更新访客白名单信息',
+          '园区访客信用档案需记录本次异常'
+        ]
+      }),
       impactLevel: 'HIGH',
-      processOrder: 1,
-      suggestion: '1. 首先联系租户接待人李助理，核实本次访客预约的真实性和必要性\n2. 如确认是预约填写错误，要求访客重新提交正确的身份信息后再次审核\n3. 如无法核实访客身份，建议拒绝本次访问并提醒租户加强预约信息管理\n4. 将此次异常记录到该租户的信用档案中\n5. 对该访客进行标记，后续预约需加强审核',
+      processOrder: JSON.stringify([
+        { step: 1, action: '通知被访租户', description: '第一时间联系被访租户接待人李助理，告知访客预约被拒情况，协商是否需要重新预约或其他安排', responsible: '前台接待', status: 'PENDING' },
+        { step: 2, action: '联系访客说明原因', description: '向访客详细说明拒绝原因，提供后续申请的指导和建议，保持礼貌与专业态度', responsible: '运营人员', status: 'PENDING' },
+        { step: 3, action: '核实身份信息', description: '如访客声称填写错误，可协助核对正确身份信息，确认后启动重新审核流程', responsible: '运营人员', status: 'PENDING' },
+        { step: 4, action: '更新系统记录', description: '确保异常记录完整，包括原因、影响范围和处理措施，同步至租户服务档案与访客信用档案', responsible: '运营人员', status: 'PENDING' },
+        { step: 5, action: '跟进后续处理', description: '如访客需要重新申请提供协助；如租户有异议进行协调处理；涉及重要访客立即通知主管', responsible: '运营主管', status: 'PENDING' }
+      ]),
+      suggestion: '请联系租户核实情况，如访客确实是预约填写错误，可指导其补充正确身份信息后重新提交预约。若涉及重要商务访客，可由租户出具担保函后安排临时访问。本次异常需记录到租户信用档案，后续加强该租户预约信息审核。',
+      creatorId: operator.id,
       createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000)
     }
   })
@@ -440,19 +449,48 @@ async function main() {
     where: { id: 2 },
     update: {},
     create: {
+      exceptionNo: 'EXC202406150002',
+      type: 'VISITOR_REJECT',
       sourceType: 'VISITOR',
       sourceId: visitor2.id,
+      relatedNo: visitor2.visitNo,
       title: '访客审核失败-缺少企业资质证明',
       detail: '访客刘先生所在的"某咨询公司"未能在园区备案，且访客无法提供该公司的营业执照或介绍信等资质证明文件。根据园区规定，外来企业人员访问需要提供企业资质证明。',
-      impactScope: '1. 涉及租户：贸易发展公司\n2. 涉及访客企业：某咨询公司\n3. 管理影响：违反园区访客管理规定第3条\n4. 租户影响：可能影响租户与合作方的商务往来',
+      status: 'ASSIGNED',
+      priority: 'MEDIUM',
+      handlerId: engineer.id,
+      impactScope: JSON.stringify({
+        direct: [
+          '咨询公司人员无法进入园区开展业务',
+          '当日项目咨询会面无法正常进行'
+        ],
+        indirect: [
+          '贸易发展公司与咨询公司的项目合作进度可能延误',
+          '租户对园区服务满意度可能受到影响',
+          '需重新协调双方时间安排，增加沟通成本'
+        ],
+        related: [
+          '园区访客管理规定需向租户加强宣导',
+          '企业备案流程可优化，提供线上备案通道',
+          '租户服务专员需跟进租户后续需求'
+        ]
+      }),
       impactLevel: 'MEDIUM',
-      processOrder: 2,
-      suggestion: '1. 告知租户关于外来企业人员访问的资质要求\n2. 建议访客企业提供营业执照电子版进行备案\n3. 如为首次合作，可由租户出具担保函后临时放行\n4. 将该企业加入待备案列表，待后续完善资料',
+      processOrder: JSON.stringify([
+        { step: 1, action: '告知资质要求', description: '向租户和访客说明园区关于外来企业人员访问的资质要求和相关规定', responsible: '前台接待', status: 'DONE' },
+        { step: 2, action: '指导企业备案', description: '指导访客企业准备营业执照等资料，完成园区企业备案流程', responsible: '运营人员', status: 'IN_PROGRESS' },
+        { step: 3, action: '提供临时方案', description: '如为首次合作且情况紧急，可由租户出具担保函后安排临时放行', responsible: '运营主管', status: 'PENDING' },
+        { step: 4, action: '跟进访客重新预约', description: '待企业备案完成后，跟进访客重新提交预约申请并优先审核', responsible: '运营人员', status: 'PENDING' },
+        { step: 5, action: '复盘优化流程', description: '将该企业加入待备案列表，评估是否需要优化企业备案和访客审核流程', responsible: '管理员', status: 'PENDING' }
+      ]),
+      suggestion: '告知租户关于外来企业人员访问的资质要求，建议访客企业提供营业执照电子版进行线上备案。如为首次紧急合作，可由租户出具担保函后临时放行。建议定期向租户宣导园区访客管理规定，减少类似情况发生。',
+      creatorId: operator.id,
+      handledAt: new Date(now.getTime() - 20 * 60 * 60 * 1000),
       createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000 + 35 * 60 * 1000)
     }
   })
 
-  await prisma.engineeringRepair.upsert({
+  const engRepair1 = await prisma.engineeringRepair.upsert({
     where: { repairNo: 'ENG202406150001' },
     update: {},
     create: {
@@ -469,7 +507,7 @@ async function main() {
     }
   })
 
-  await prisma.engineeringRepair.upsert({
+  const engRepair2 = await prisma.engineeringRepair.upsert({
     where: { repairNo: 'ENG202406150002' },
     update: {},
     create: {
@@ -482,6 +520,27 @@ async function main() {
       location: 'B1层停车场西区',
       creatorId: operator.id,
       cost: 5000
+    }
+  })
+
+  // 增加一个已完成的工程报修用于满意度
+  const engRepair3 = await prisma.engineeringRepair.upsert({
+    where: { repairNo: 'ENG202406140003' },
+    update: {},
+    create: {
+      repairNo: 'ENG202406140003',
+      title: 'A座空调主机保养',
+      description: 'A座中央空调主机季度保养维护',
+      type: '暖通维修',
+      status: 'COMPLETED',
+      priority: 'MEDIUM',
+      location: 'A座屋顶机房',
+      creatorId: operator.id,
+      handlerId: engineer.id,
+      planDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      actualCost: 1200,
+      maintenanceHours: 4,
+      result: '已完成'
     }
   })
 
@@ -528,6 +587,209 @@ async function main() {
       isDefault: true
     }
   })
+
+  // ============ 满意度调查数据 ============
+  // 工单相关满意度
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      workOrderId: workOrder3.id,
+      tenantId: tenant3.id,
+      respondentId: tenantUser3.id,
+      overallScore: 5,
+      responseSpeed: 5,
+      serviceAttitude: 5,
+      repairQuality: 4,
+      costReasonable: 5,
+      comment: '维修速度很快，工程师很专业，门锁问题很快就解决了',
+      improvement: '希望费用可以更透明一些，能提前有报价就更好了',
+      sourceType: 'WORK_ORDER',
+      surveyDate: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
+    }
+  })
+
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      workOrderId: workOrder1.id,
+      tenantId: tenant1.id,
+      respondentId: tenantUser1.id,
+      overallScore: 4,
+      responseSpeed: 5,
+      serviceAttitude: 4,
+      repairQuality: 4,
+      costReasonable: 3,
+      comment: '响应速度很快，工程师服务态度也不错，空调问题正在处理中',
+      improvement: '感觉材料费用有点高，希望能有更多的费用明细说明',
+      sourceType: 'WORK_ORDER',
+      surveyDate: new Date(now.getTime() - 2 * 60 * 60 * 1000)
+    }
+  })
+
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 3 },
+    update: {},
+    create: {
+      workOrderId: workOrder2.id,
+      tenantId: tenant2.id,
+      respondentId: tenantUser2.id,
+      overallScore: 5,
+      responseSpeed: 5,
+      serviceAttitude: 5,
+      repairQuality: 5,
+      costReasonable: 4,
+      comment: '打印机安装调试完成得很快，工程师还顺便帮我们设置了共享打印，超赞！',
+      improvement: '',
+      sourceType: 'WORK_ORDER',
+      surveyDate: new Date(now.getTime() - 30 * 60 * 1000)
+    }
+  })
+
+  // 巡检相关满意度
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 4 },
+    update: {},
+    create: {
+      inspectionTaskId: inspection2.id,
+      tenantId: tenant1.id,
+      respondentId: tenantUser1.id,
+      overallScore: 5,
+      responseSpeed: 4,
+      serviceAttitude: 5,
+      repairQuality: 5,
+      costReasonable: 5,
+      comment: '巡检很仔细，发现了几个我们没注意到的安全隐患，非常专业',
+      improvement: '建议巡检后能提供更详细的书面报告，方便我们跟进整改',
+      sourceType: 'INSPECTION',
+      surveyDate: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
+    }
+  })
+
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 5 },
+    update: {},
+    create: {
+      inspectionTaskId: inspection2.id,
+      tenantId: tenant2.id,
+      respondentId: tenantUser2.id,
+      overallScore: 4,
+      responseSpeed: 4,
+      serviceAttitude: 5,
+      repairQuality: 4,
+      costReasonable: 4,
+      comment: '电梯检查很及时，工程师态度也很好',
+      improvement: '',
+      sourceType: 'INSPECTION',
+      surveyDate: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000)
+    }
+  })
+
+  // 访客相关满意度
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 6 },
+    update: {},
+    create: {
+      visitorAppointmentId: visitor1.id,
+      tenantId: tenant1.id,
+      respondentId: tenantUser1.id,
+      overallScore: 4,
+      responseSpeed: 5,
+      serviceAttitude: 4,
+      repairQuality: 4,
+      costReasonable: 5,
+      comment: '访客预约流程很方便，前台接待也很热情，访客体验不错',
+      improvement: '希望可以支持访客二维码自助签到，减少前台排队时间',
+      sourceType: 'VISITOR',
+      surveyDate: new Date(now.getTime() - 12 * 60 * 60 * 1000)
+    }
+  })
+
+  // 工程报修相关满意度
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 7 },
+    update: {},
+    create: {
+      engineeringRepairId: engRepair3.id,
+      tenantId: tenant1.id,
+      respondentId: tenantUser1.id,
+      overallScore: 4,
+      responseSpeed: 4,
+      serviceAttitude: 5,
+      repairQuality: 4,
+      costReasonable: 3,
+      comment: '空调主机保养做得很专业，价格感觉有点贵',
+      improvement: '希望保养套餐能更实惠一些',
+      sourceType: 'ENGINEERING',
+      surveyDate: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000)
+    }
+  })
+
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 8 },
+    update: {},
+    create: {
+      engineeringRepairId: engRepair1.id,
+      tenantId: tenant3.id,
+      respondentId: tenantUser3.id,
+      overallScore: 3,
+      responseSpeed: 3,
+      serviceAttitude: 4,
+      repairQuality: 3,
+      costReasonable: 2,
+      comment: '卫生间漏水问题处理了两次才彻底修好，工程师态度还可以但效率一般',
+      improvement: '希望第一次就能把问题彻底解决，反复维修影响正常使用',
+      sourceType: 'ENGINEERING',
+      surveyDate: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+    }
+  })
+
+  // 历史数据（近 3 个月），用于趋势图展示，分布在各租户各类型
+  const historySurveys = [
+    { days: 90, tenant: 'tenant1', user: 'tenantUser1', type: 'workorder', score: 4, speed: 4, attitude: 5, quality: 4, cost: 3, comment: '服务挺好的' },
+    { days: 82, tenant: 'tenant2', user: 'tenantUser2', type: 'workorder', score: 5, speed: 5, attitude: 5, quality: 5, cost: 4, comment: '非常满意' },
+    { days: 75, tenant: 'tenant3', user: 'tenantUser3', type: 'visitor', score: 4, speed: 5, attitude: 4, quality: 4, cost: 5, comment: '访客服务不错' },
+    { days: 68, tenant: 'tenant1', user: 'tenantUser1', type: 'inspection', score: 4, speed: 4, attitude: 4, quality: 5, cost: 4, comment: '巡检认真' },
+    { days: 60, tenant: 'tenant2', user: 'tenantUser2', type: 'engineering', score: 3, speed: 3, attitude: 4, quality: 3, cost: 3, comment: '一般般' },
+    { days: 52, tenant: 'tenant1', user: 'tenantUser1', type: 'workorder', score: 5, speed: 5, attitude: 5, quality: 5, cost: 4, comment: '维修很专业' },
+    { days: 45, tenant: 'tenant3', user: 'tenantUser3', type: 'workorder', score: 4, speed: 4, attitude: 5, quality: 4, cost: 4, comment: '' },
+    { days: 38, tenant: 'tenant2', user: 'tenantUser2', type: 'visitor', score: 5, speed: 5, attitude: 5, quality: 5, cost: 5, comment: '预约很方便' },
+    { days: 30, tenant: 'tenant1', user: 'tenantUser1', type: 'engineering', score: 4, speed: 4, attitude: 4, quality: 4, cost: 3, comment: '' },
+    { days: 25, tenant: 'tenant3', user: 'tenantUser3', type: 'inspection', score: 5, speed: 4, attitude: 5, quality: 5, cost: 5, comment: '非常专业' },
+    { days: 20, tenant: 'tenant2', user: 'tenantUser2', type: 'workorder', score: 4, speed: 5, attitude: 4, quality: 4, cost: 4, comment: '服务还可以' },
+    { days: 15, tenant: 'tenant1', user: 'tenantUser1', type: 'visitor', score: 4, speed: 4, attitude: 5, quality: 4, cost: 4, comment: '' },
+    { days: 12, tenant: 'tenant3', user: 'tenantUser3', type: 'workorder', score: 5, speed: 5, attitude: 5, quality: 5, cost: 5, comment: '非常好' },
+    { days: 8, tenant: 'tenant2', user: 'tenantUser2', type: 'inspection', score: 4, speed: 3, attitude: 4, quality: 4, cost: 4, comment: '' },
+    { days: 5, tenant: 'tenant1', user: 'tenantUser1', type: 'workorder', score: 5, speed: 5, attitude: 5, quality: 5, cost: 4, comment: '响应很快' }
+  ]
+
+  const tenantMap = { tenant1, tenant2, tenant3 }
+  const userMap = { tenantUser1, tenantUser2, tenantUser3 }
+
+  for (let i = 0; i < historySurveys.length; i++) {
+    const h = historySurveys[i]
+    const surveyDate = new Date(now.getTime() - h.days * 24 * 60 * 60 * 1000)
+    const tenant = tenantMap[h.tenant]
+    const respondent = userMap[h.user]
+
+    await prisma.satisfactionSurvey.upsert({
+      where: { id: 100 + i },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        respondentId: respondent.id,
+        overallScore: h.score,
+        responseSpeed: h.speed,
+        serviceAttitude: h.attitude,
+        repairQuality: h.quality,
+        costReasonable: h.cost,
+        comment: h.comment,
+        sourceType: h.type.toUpperCase(),
+        surveyDate: surveyDate
+      }
+    })
+  }
 
   console.log('Seeding completed!')
   console.log('Created users:')
