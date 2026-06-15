@@ -66,15 +66,49 @@ router.post('/', async (req, res) => {
   res.json(contract);
 });
 
+const REVIEW_TRANSITIONS = {
+  DRAFT: ['PENDING_REVIEW'],
+  PENDING_REVIEW: ['REVIEWING'],
+  REVIEWING: ['APPROVED', 'REJECTED'],
+  REJECTED: ['PENDING_REVIEW'],
+};
+
 router.put('/:id/review', async (req, res) => {
-  const { reviewStatus, rejectReason, operatorId, operatorName } = req.body;
+  const { action, rejectReason, operatorId, operatorName } = req.body;
   const before = await prisma.contract.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: '合同不存在' });
-  if (reviewStatus === 'REJECTED' && !rejectReason) {
+
+  let targetStatus;
+  switch (action) {
+    case 'SUBMIT_REVIEW':
+      targetStatus = 'PENDING_REVIEW';
+      break;
+    case 'START_REVIEW':
+      targetStatus = 'REVIEWING';
+      break;
+    case 'APPROVE':
+      targetStatus = 'APPROVED';
+      break;
+    case 'REJECT':
+      targetStatus = 'REJECTED';
+      break;
+    default:
+      return res.status(400).json({ error: `无效的审核操作: ${action}` });
+  }
+
+  const allowed = REVIEW_TRANSITIONS[before.reviewStatus] || [];
+  if (!allowed.includes(targetStatus)) {
+    return res.status(400).json({ error: `无法从 ${before.reviewStatus} 执行操作 ${action}` });
+  }
+
+  if (targetStatus === 'REJECTED' && !rejectReason) {
     return res.status(400).json({ error: '驳回时必须填写驳回原因' });
   }
-  const updateData = { reviewStatus };
+
+  const updateData = { reviewStatus: targetStatus };
   if (rejectReason) updateData.rejectReason = rejectReason;
+  if (targetStatus !== 'REJECTED') updateData.rejectReason = null;
+
   const contract = await prisma.contract.update({ where: { id: req.params.id }, data: updateData });
   await logChange({
     entityType: 'Contract',
@@ -84,19 +118,63 @@ router.put('/:id/review', async (req, res) => {
     after: contract,
     operatorId,
     operatorName,
-    remark: `合同审核: ${before.reviewStatus} -> ${reviewStatus}${rejectReason ? `，原因: ${rejectReason}` : ''}`,
+    remark: `合同审核: ${before.reviewStatus} -> ${targetStatus}${rejectReason ? `，原因: ${rejectReason}` : ''}`,
   });
-  if (reviewStatus === 'APPROVED' && before.signStatus === 'PENDING_SIGN') {
-    await prisma.contract.update({ where: { id: contract.id }, data: { signStatus: 'SIGNING' } });
+
+  if (targetStatus === 'APPROVED' && before.signStatus === 'PENDING_SIGN') {
+    const updated = await prisma.contract.update({
+      where: { id: contract.id },
+      data: { signStatus: 'SIGNING' },
+      include: { tenant: true, property: true, consultant: true, bills: true },
+    });
+    res.json(updated);
+    return;
   }
-  res.json(contract);
+
+  const result = await prisma.contract.findUnique({
+    where: { id: contract.id },
+    include: { tenant: true, property: true, consultant: true, bills: true },
+  });
+  res.json(result);
 });
 
+const SIGN_TRANSITIONS = {
+  PENDING_SIGN: ['SIGNING'],
+  SIGNING: ['SIGNED', 'ANOMALOUS'],
+  SIGNED: ['TERMINATED'],
+};
+
 router.put('/:id/sign', async (req, res) => {
-  const { signStatus, operatorId, operatorName } = req.body;
+  const { action, operatorId, operatorName } = req.body;
   const before = await prisma.contract.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: '合同不存在' });
-  const contract = await prisma.contract.update({ where: { id: req.params.id }, data: { signStatus } });
+
+  let targetStatus;
+  switch (action) {
+    case 'START_SIGN':
+      targetStatus = 'SIGNING';
+      break;
+    case 'COMPLETE_SIGN':
+      targetStatus = 'SIGNED';
+      break;
+    case 'MARK_ANOMALOUS':
+      targetStatus = 'ANOMALOUS';
+      break;
+    case 'TERMINATE':
+      targetStatus = 'TERMINATED';
+      break;
+    default:
+      return res.status(400).json({ error: `无效的签署操作: ${action}` });
+  }
+
+  const allowed = SIGN_TRANSITIONS[before.signStatus] || [];
+  if (!allowed.includes(targetStatus)) {
+    return res.status(400).json({ error: `无法从 ${before.signStatus} 执行操作 ${action}` });
+  }
+
+  const updateData = { signStatus: targetStatus };
+
+  const contract = await prisma.contract.update({ where: { id: req.params.id }, data: updateData });
   await logChange({
     entityType: 'Contract',
     entityId: contract.id,
@@ -105,15 +183,32 @@ router.put('/:id/sign', async (req, res) => {
     after: contract,
     operatorId,
     operatorName,
-    remark: `签约状态变更: ${before.signStatus} -> ${signStatus}`,
+    remark: `签约状态变更: ${before.signStatus} -> ${targetStatus}`,
   });
-  if (signStatus === 'SIGNED') {
+
+  if (targetStatus === 'SIGNED') {
     await prisma.property.update({ where: { id: before.propertyId }, data: { status: 'OCCUPIED' } });
-    await prisma.bill.create({
-      data: { contractId: contract.id, billType: 'DEPOSIT', amount: before.depositAmount, dueDate: new Date(), status: 'PENDING' },
+    const existingDeposit = await prisma.bill.findFirst({
+      where: { contractId: contract.id, billType: 'DEPOSIT' },
     });
+    if (!existingDeposit) {
+      await prisma.bill.create({
+        data: {
+          contractId: contract.id,
+          billType: 'DEPOSIT',
+          amount: before.depositAmount,
+          dueDate: new Date(),
+          status: 'PENDING',
+        },
+      });
+    }
   }
-  res.json(contract);
+
+  const result = await prisma.contract.findUnique({
+    where: { id: contract.id },
+    include: { tenant: true, property: true, consultant: true, bills: { orderBy: { createdAt: 'desc' } } },
+  });
+  res.json(result);
 });
 
 router.put('/:id/attachment', async (req, res) => {

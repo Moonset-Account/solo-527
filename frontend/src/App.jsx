@@ -8,6 +8,7 @@ import {
   DollarOutlined,
   CheckSquareOutlined,
   EyeOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
@@ -19,6 +20,7 @@ import Contracts from './pages/Contracts';
 import ContractDetail from './pages/ContractDetail';
 import Bills from './pages/Bills';
 import Todos from './pages/Todos';
+import Consultants from './pages/Consultants';
 
 const { Sider, Content } = Layout;
 
@@ -30,6 +32,7 @@ const menuItems = [
   { key: '/contracts', icon: <FileTextOutlined />, label: '合同签署' },
   { key: '/bills', icon: <DollarOutlined />, label: '账单管理' },
   { key: '/todos', icon: <CheckSquareOutlined />, label: '待办事项' },
+  { key: '/consultants', icon: <TeamOutlined />, label: '顾问跟进' },
 ];
 
 export default function App() {
@@ -65,6 +68,7 @@ export default function App() {
             <Route path="/contracts/:id" element={<ContractDetail />} />
             <Route path="/bills" element={<Bills />} />
             <Route path="/todos" element={<Todos />} />
+            <Route path="/consultants" element={<Consultants />} />
           </Routes>
         </Content>
       </Layout>

@@ -119,9 +119,21 @@ export default function Viewings() {
   };
 
   const columns = [
-    { title: '租客姓名', dataIndex: 'tenantName', key: 'tenantName' },
-    { title: '房源标题', dataIndex: 'propertyTitle', key: 'propertyTitle' },
-    { title: '顾问姓名', dataIndex: 'consultantName', key: 'consultantName' },
+    {
+      title: '租客',
+      key: 'tenant',
+      render: (_, record) => record.tenant?.name || '-',
+    },
+    {
+      title: '房源',
+      key: 'property',
+      render: (_, record) => record.property?.title || '-',
+    },
+    {
+      title: '顾问',
+      key: 'consultant',
+      render: (_, record) => record.consultant?.name || '-',
+    },
     {
       title: '预约时间',
       dataIndex: 'scheduledAt',

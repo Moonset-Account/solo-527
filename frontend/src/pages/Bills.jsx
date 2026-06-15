@@ -149,14 +149,14 @@ export default function Bills() {
 
   const columns = [
     {
-      title: '合同信息',
-      key: 'contractInfo',
-      render: (_, record) => (
-        <div>
-          <div>{record.tenantName}</div>
-          <div style={{ color: '#999', fontSize: 12 }}>{record.propertyTitle}</div>
-        </div>
-      ),
+      title: '租客',
+      key: 'tenant',
+      render: (_, record) => record.contract?.tenant?.name || '-',
+    },
+    {
+      title: '房源',
+      key: 'property',
+      render: (_, record) => record.contract?.property?.title || '-',
     },
     {
       title: '账单类型',
@@ -173,13 +173,13 @@ export default function Bills() {
       title: '到期日',
       dataIndex: 'dueDate',
       key: 'dueDate',
-      render: (val) => val ? dayjs(val).format('YYYY-MM-DD') : '-',
+      render: (val) => (val ? dayjs(val).format('YYYY-MM-DD') : '-'),
     },
     {
       title: '支付日',
       dataIndex: 'paidDate',
       key: 'paidDate',
-      render: (val) => val ? dayjs(val).format('YYYY-MM-DD') : '-',
+      render: (val) => (val ? dayjs(val).format('YYYY-MM-DD') : '-'),
     },
     {
       title: '状态',

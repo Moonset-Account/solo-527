@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import {
   Card,
   Descriptions,
@@ -61,25 +62,46 @@ const SIGN_STATUS_LABEL = {
 
 const REVIEW_STEPS = ['DRAFT', 'PENDING_REVIEW', 'REVIEWING', 'APPROVED'];
 
+const BILL_TYPE_LABEL = {
+  DEPOSIT: '押金',
+  RENT: '租金',
+  UTILITY: '水电',
+  MANAGEMENT_FEE: '物业费',
+  PENALTY: '违约金',
+};
+
 const BILL_STATUS_COLOR = {
   PENDING: 'default',
+  PROCESSING: 'blue',
   PAID: 'green',
   OVERDUE: 'red',
+  ANOMALOUS: 'red',
   CANCELLED: 'default',
 };
 
 const BILL_STATUS_LABEL = {
   PENDING: '待支付',
+  PROCESSING: '处理中',
   PAID: '已支付',
   OVERDUE: '已逾期',
+  ANOMALOUS: '异常',
   CANCELLED: '已取消',
 };
 
 const billColumns = (onPay) => [
-  { title: '账单编号', dataIndex: 'billNo', key: 'billNo' },
-  { title: '类型', dataIndex: 'type', key: 'type' },
+  {
+    title: '账单类型',
+    dataIndex: 'billType',
+    key: 'billType',
+    render: (type) => <Tag>{BILL_TYPE_LABEL[type] || type}</Tag>,
+  },
   { title: '金额(元)', dataIndex: 'amount', key: 'amount' },
-  { title: '到期日', dataIndex: 'dueDate', key: 'dueDate' },
+  {
+    title: '到期日',
+    dataIndex: 'dueDate',
+    key: 'dueDate',
+    render: (val) => (val ? dayjs(val).format('YYYY-MM-DD') : '-'),
+  },
   {
     title: '状态',
     dataIndex: 'status',
@@ -88,12 +110,17 @@ const billColumns = (onPay) => [
       <Tag color={BILL_STATUS_COLOR[status]}>{BILL_STATUS_LABEL[status] || status}</Tag>
     ),
   },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+  {
+    title: '逾期天数',
+    dataIndex: 'overdueDays',
+    key: 'overdueDays',
+    render: (val) => (val > 0 ? val : '-'),
+  },
   {
     title: '操作',
     key: 'actions',
     render: (_, record) =>
-      record.status === 'PENDING' ? (
+      record.status === 'PENDING' || record.status === 'OVERDUE' ? (
         <Button type="link" size="small" onClick={() => onPay(record)}>
           支付
         </Button>
@@ -289,12 +316,14 @@ export default function ContractDetail() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Card title="合同基本信息">
         <Descriptions bordered column={2}>
-          <Descriptions.Item label="租客姓名">{contract.tenantName}</Descriptions.Item>
-          <Descriptions.Item label="房源标题">{contract.propertyTitle}</Descriptions.Item>
+          <Descriptions.Item label="租客姓名">{contract.tenant?.name || '-'}</Descriptions.Item>
+          <Descriptions.Item label="房源标题">{contract.property?.title || '-'}</Descriptions.Item>
+          <Descriptions.Item label="顾问">{contract.consultant?.name || '-'}</Descriptions.Item>
           <Descriptions.Item label="月租金(元)">{contract.monthlyRent}</Descriptions.Item>
           <Descriptions.Item label="押金(元)">{contract.depositAmount}</Descriptions.Item>
-          <Descriptions.Item label="开始日期">{contract.startDate}</Descriptions.Item>
-          <Descriptions.Item label="结束日期">{contract.endDate}</Descriptions.Item>
+          <Descriptions.Item label="付款日">每月{contract.paymentDay}号</Descriptions.Item>
+          <Descriptions.Item label="开始日期">{dayjs(contract.startDate).format('YYYY-MM-DD')}</Descriptions.Item>
+          <Descriptions.Item label="结束日期">{dayjs(contract.endDate).format('YYYY-MM-DD')}</Descriptions.Item>
           <Descriptions.Item label="审核状态">
             <Tag color={REVIEW_STATUS_COLOR[contract.reviewStatus]}>
               {REVIEW_STATUS_LABEL[contract.reviewStatus] || contract.reviewStatus}
@@ -314,7 +343,7 @@ export default function ContractDetail() {
               <span style={{ color: '#999' }}>未上传</span>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="创建时间">{contract.createdAt}</Descriptions.Item>
+          <Descriptions.Item label="创建时间">{dayjs(contract.createdAt).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
           {contract.rejectReason && (
             <Descriptions.Item label="驳回原因" span={2}>
               <span style={{ color: '#f5222d' }}>{contract.rejectReason}</span>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Table, Tag, Space, Spin, message } from 'antd';
 import { HomeOutlined, FileTextOutlined, DollarOutlined, AlertOutlined, CheckSquareOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { getDashboard } from '../api';
 
 const STATUS_COLOR = {
@@ -37,28 +38,92 @@ const STATUS_LABEL = {
   overdueRent: '逾期收租',
 };
 
+const VIEWING_STATUS_LABEL = {
+  PENDING: '待确认',
+  CONFIRMED: '已确认',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  NO_SHOW: '未到场',
+};
+
+const VIEWING_STATUS_COLOR = {
+  PENDING: 'blue',
+  CONFIRMED: 'green',
+  COMPLETED: 'green',
+  CANCELLED: 'default',
+  NO_SHOW: 'orange',
+};
+
+const REVIEW_STATUS_LABEL = {
+  DRAFT: '草稿',
+  PENDING_REVIEW: '待审核',
+  REVIEWING: '审核中',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  ANOMALOUS: '异常',
+};
+
+const REVIEW_STATUS_COLOR = {
+  DRAFT: 'default',
+  PENDING_REVIEW: 'blue',
+  REVIEWING: 'blue',
+  APPROVED: 'green',
+  REJECTED: 'red',
+  ANOMALOUS: 'red',
+};
+
 const viewingColumns = [
-  { title: '房源', dataIndex: 'propertyName', key: 'propertyName' },
-  { title: '租客', dataIndex: 'tenantName', key: 'tenantName' },
+  {
+    title: '房源',
+    key: 'property',
+    render: (_, record) => record.property?.title || '-',
+  },
+  {
+    title: '租客',
+    key: 'tenant',
+    render: (_, record) => record.tenant?.name || '-',
+  },
   {
     title: '状态',
     dataIndex: 'status',
     key: 'status',
-    render: (status) => <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] || status}</Tag>,
+    render: (status) => (
+      <Tag color={VIEWING_STATUS_COLOR[status]}>{VIEWING_STATUS_LABEL[status] || status}</Tag>
+    ),
   },
-  { title: '预约时间', dataIndex: 'scheduledAt', key: 'scheduledAt' },
+  {
+    title: '预约时间',
+    dataIndex: 'scheduledAt',
+    key: 'scheduledAt',
+    render: (val) => (val ? dayjs(val).format('MM-DD HH:mm') : '-'),
+  },
 ];
 
 const contractColumns = [
-  { title: '房源', dataIndex: 'propertyName', key: 'propertyName' },
-  { title: '租客', dataIndex: 'tenantName', key: 'tenantName' },
   {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    render: (status) => <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] || status}</Tag>,
+    title: '房源',
+    key: 'property',
+    render: (_, record) => record.property?.title || '-',
   },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+  {
+    title: '租客',
+    key: 'tenant',
+    render: (_, record) => record.tenant?.name || '-',
+  },
+  {
+    title: '审核状态',
+    dataIndex: 'reviewStatus',
+    key: 'reviewStatus',
+    render: (status) => (
+      <Tag color={REVIEW_STATUS_COLOR[status]}>{REVIEW_STATUS_LABEL[status] || status}</Tag>
+    ),
+  },
+  {
+    title: '创建时间',
+    dataIndex: 'createdAt',
+    key: 'createdAt',
+    render: (val) => (val ? dayjs(val).format('MM-DD HH:mm') : '-'),
+  },
 ];
 
 export default function Dashboard() {

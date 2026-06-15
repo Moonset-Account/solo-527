@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import {
   Card,
   Row,
@@ -147,12 +148,30 @@ export default function Contracts() {
   };
 
   const columns = [
-    { title: '租客姓名', dataIndex: 'tenantName', key: 'tenantName' },
-    { title: '房源标题', dataIndex: 'propertyTitle', key: 'propertyTitle' },
+    {
+      title: '租客',
+      key: 'tenant',
+      render: (_, record) => record.tenant?.name || '-',
+    },
+    {
+      title: '房源',
+      key: 'property',
+      render: (_, record) => record.property?.title || '-',
+    },
     { title: '月租金(元)', dataIndex: 'monthlyRent', key: 'monthlyRent' },
     { title: '押金(元)', dataIndex: 'depositAmount', key: 'depositAmount' },
-    { title: '开始日期', dataIndex: 'startDate', key: 'startDate' },
-    { title: '结束日期', dataIndex: 'endDate', key: 'endDate' },
+    {
+      title: '开始日期',
+      dataIndex: 'startDate',
+      key: 'startDate',
+      render: (val) => dayjs(val).format('YYYY-MM-DD'),
+    },
+    {
+      title: '结束日期',
+      dataIndex: 'endDate',
+      key: 'endDate',
+      render: (val) => dayjs(val).format('YYYY-MM-DD'),
+    },
     {
       title: '审核状态',
       dataIndex: 'reviewStatus',
@@ -174,7 +193,7 @@ export default function Contracts() {
       key: 'actions',
       render: (_, record) => (
         <Button type="link" onClick={() => navigate(`/contracts/${record.id}`)}>
-          查看
+          详情
         </Button>
       ),
     },
@@ -182,15 +201,15 @@ export default function Contracts() {
 
   const progressCards = progress
     ? [
-        { title: '草稿', value: progress.draftCount ?? 0 },
-        { title: '待审核', value: progress.pendingReviewCount ?? 0 },
-        { title: '审核中', value: progress.reviewingCount ?? 0 },
-        { title: '已通过', value: progress.approvedCount ?? 0 },
-        { title: '待签署', value: progress.pendingSignCount ?? 0 },
-        { title: '签署中', value: progress.signingCount ?? 0 },
-        { title: '已签署', value: progress.signedCount ?? 0 },
-        { title: '已终止', value: progress.terminatedCount ?? 0 },
-        { title: '异常', value: progress.anomalousCount ?? 0 },
+        { title: '草稿', value: progress.byReviewStatus?.DRAFT ?? 0 },
+        { title: '待审核', value: progress.byReviewStatus?.PENDING_REVIEW ?? 0 },
+        { title: '审核中', value: progress.byReviewStatus?.REVIEWING ?? 0 },
+        { title: '已通过', value: progress.byReviewStatus?.APPROVED ?? 0 },
+        { title: '已驳回', value: progress.byReviewStatus?.REJECTED ?? 0 },
+        { title: '待签署', value: progress.bySignStatus?.PENDING_SIGN ?? 0 },
+        { title: '签署中', value: progress.bySignStatus?.SIGNING ?? 0 },
+        { title: '已签署', value: progress.bySignStatus?.SIGNED ?? 0 },
+        { title: '已终止', value: progress.bySignStatus?.TERMINATED ?? 0 },
       ]
     : [];
 
