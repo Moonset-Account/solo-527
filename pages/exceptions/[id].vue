@@ -192,7 +192,7 @@
         <div class="suggestion-content">
           <div class="suggestion-text">{{ exception.suggestion || '暂无建议' }}</div>
           <div class="suggestion-tips">
-            <p>📌 提示：请按照上述处理步骤依次执行，每完成一个步骤请及时更新状态。如有疑问，请联系管理员。
+            <p>📌 提示：请按照上述处理步骤依次执行，每完成一个步骤请及时更新状态。如有疑问，请联系管理员。</p>
           </div>
         </div>
       </div>

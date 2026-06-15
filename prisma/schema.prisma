@@ -102,7 +102,7 @@ model User {
 
 model Tenant {
   id           Int        @id @default(autoincrement())
-  name         String
+  name         String     @unique
   contactName  String
   contactPhone String
   address      String
@@ -145,7 +145,7 @@ model WorkOrder {
   review       WorkOrderReview?
   cost         WorkOrderCost?
   overdueReminders OverdueReminder[]
-  satisfactionSurvey SatisfactionSurvey?
+  satisfactionSurveys SatisfactionSurvey[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -236,13 +236,13 @@ model OverdueReminder {
 
 model SatisfactionSurvey {
   id                    Int                  @id @default(autoincrement())
-  workOrderId           Int?                 @unique
+  workOrderId           Int?
   workOrder             WorkOrder?           @relation(fields: [workOrderId], references: [id])
-  engineeringRepairId   Int?                 @unique
+  engineeringRepairId   Int?
   engineeringRepair     EngineeringRepair?   @relation(fields: [engineeringRepairId], references: [id])
-  inspectionTaskId      Int?                 @unique
+  inspectionTaskId      Int?
   inspectionTask        InspectionTask?      @relation(fields: [inspectionTaskId], references: [id])
-  visitorAppointmentId  Int?                 @unique
+  visitorAppointmentId  Int?
   visitorAppointment    VisitorAppointment?  @relation(fields: [visitorAppointmentId], references: [id])
   tenantId              Int
   tenant                Tenant               @relation(fields: [tenantId], references: [id])
@@ -277,8 +277,7 @@ model InspectionTask {
   remark       String?
   items        String?
   images       String?
-  satisfactionSurveyId Int?
-  satisfactionSurvey SatisfactionSurvey?
+  satisfactionSurveys SatisfactionSurvey[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -307,8 +306,7 @@ model VisitorAppointment {
   exceptionDetail String?
   checkInTime  DateTime?
   checkOutTime DateTime?
-  satisfactionSurveyId Int?
-  satisfactionSurvey SatisfactionSurvey?
+  satisfactionSurveys SatisfactionSurvey[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -339,8 +337,7 @@ model EngineeringRepair {
   maintenanceHours Decimal?
   result          String?
   remark          String?
-  satisfactionSurveyId Int?
-  satisfactionSurvey SatisfactionSurvey?
+  satisfactionSurveys SatisfactionSurvey[]
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }

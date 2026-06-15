@@ -362,6 +362,43 @@ async function main() {
     }
   })
 
+  // 额外巡检任务用于满意度关联（不冲突）
+  const inspection3 = await prisma.inspectionTask.upsert({
+    where: { taskNo: 'INSP202406140003' },
+    update: {},
+    create: {
+      taskNo: 'INSP202406140003',
+      title: 'A座消防设施季度巡检',
+      description: 'A座各楼层消防设施全面检查',
+      type: '消防检查',
+      status: 'COMPLETED',
+      location: 'A座各楼层',
+      assigneeId: engineer.id,
+      planDate: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000),
+      actualDate: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
+      result: '合格',
+      items: JSON.stringify(['灭火器', '喷淋系统', '应急照明', '疏散通道', '消防栓'])
+    }
+  })
+
+  const inspection4 = await prisma.inspectionTask.upsert({
+    where: { taskNo: 'INSP202406130004' },
+    update: {},
+    create: {
+      taskNo: 'INSP202406130004',
+      title: 'B座配电室安全检查',
+      description: 'B座配电室设备安全运行检查',
+      type: '电气检查',
+      status: 'COMPLETED',
+      location: 'B座配电室',
+      assigneeId: engineer2.id,
+      planDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      actualDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000),
+      result: '合格',
+      items: JSON.stringify(['变压器', '配电柜', '接地系统', '消防器材'])
+    }
+  })
+
   const visitor1 = await prisma.visitorAppointment.upsert({
     where: { visitNo: 'VIS202406150001' },
     update: {},
@@ -403,7 +440,7 @@ async function main() {
   })
 
   await prisma.auditException.upsert({
-    where: { id: 1 },
+    where: { exceptionNo: 'EXC202406150001' },
     update: {},
     create: {
       exceptionNo: 'EXC202406150001',
@@ -446,7 +483,7 @@ async function main() {
   })
 
   await prisma.auditException.upsert({
-    where: { id: 2 },
+    where: { exceptionNo: 'EXC202406150002' },
     update: {},
     create: {
       exceptionNo: 'EXC202406150002',
@@ -671,7 +708,7 @@ async function main() {
     where: { id: 5 },
     update: {},
     create: {
-      inspectionTaskId: inspection2.id,
+      inspectionTaskId: inspection3.id,
       tenantId: tenant2.id,
       respondentId: tenantUser2.id,
       overallScore: 4,
@@ -683,6 +720,25 @@ async function main() {
       improvement: '',
       sourceType: 'INSPECTION',
       surveyDate: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000)
+    }
+  })
+
+  await prisma.satisfactionSurvey.upsert({
+    where: { id: 9 },
+    update: {},
+    create: {
+      inspectionTaskId: inspection4.id,
+      tenantId: tenant3.id,
+      respondentId: tenantUser3.id,
+      overallScore: 4,
+      responseSpeed: 4,
+      serviceAttitude: 4,
+      repairQuality: 5,
+      costReasonable: 4,
+      comment: '配电室检查很专业，发现了一个潜在的安全隐患',
+      improvement: '',
+      sourceType: 'INSPECTION',
+      surveyDate: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000)
     }
   })
 
