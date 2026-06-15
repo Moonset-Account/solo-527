@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db/index';
 import { comments, works, customers } from '$lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
+import { addHistory } from '$lib/db/history';
 
 export const GET: RequestHandler = async ({ url }) => {
   const status = url.searchParams.get('status');
@@ -47,7 +48,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 export const PUT: RequestHandler = async ({ request }) => {
   const body = await request.json();
-  const { id, status } = body;
+  const { id, status, operatorName = '店长' } = body;
 
   if (!['approved', 'rejected'].includes(status)) {
     return json({ error: 'Status must be approved or rejected' }, { status: 400 });
@@ -61,6 +62,35 @@ export const PUT: RequestHandler = async ({ request }) => {
     })
     .where(eq(comments.id, id))
     .returning();
+
+  const [fullComment] = await db
+    .select({
+      comment: comments,
+      work: { title: works.title },
+      customer: { name: customers.name }
+    })
+    .from(comments)
+    .leftJoin(works, eq(comments.workId, works.id))
+    .leftJoin(customers, eq(comments.customerId, customers.id))
+    .where(eq(comments.id, id));
+
+  const statusText = status === 'approved' ? '审核通过' : '审核拒绝';
+  const author = fullComment?.customer?.name ?? fullComment?.comment?.authorName ?? '游客';
+
+  await addHistory({
+    operatorName,
+    action: status === 'approved' ? '审核通过' : '审核拒绝',
+    targetType: 'comment',
+    targetId: id,
+    detail: `${statusText}：${author}对《${fullComment?.work?.title ?? ''}》的评论，评分${fullComment?.comment?.rating ?? '无'}`,
+    metadata: {
+      status,
+      author,
+      workTitle: fullComment?.work?.title,
+      rating: fullComment?.comment?.rating,
+      content: fullComment?.comment?.content?.substring(0, 100)
+    }
+  });
 
   return json(result);
 };

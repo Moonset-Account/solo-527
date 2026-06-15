@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db/index';
 import { cashierRecords, customers, technicians, services, treatmentCards } from '$lib/db/schema';
 import { eq, desc, and, gte, lte } from 'drizzle-orm';
+import { addHistory } from '$lib/db/history';
 
 export const GET: RequestHandler = async ({ url }) => {
   const startDate = url.searchParams.get('startDate');
@@ -46,5 +47,41 @@ export const POST: RequestHandler = async ({ request }) => {
       remark: body.remark
     })
     .returning();
+
+  const customer = await db.select().from(customers).where(eq(customers.id, body.customerId));
+  const operatorName = body.operatorName ?? '前台';
+
+  const methodText: Record<string, string> = {
+    wechat: '微信',
+    alipay: '支付宝',
+    cash: '现金',
+    bank: '银行卡',
+    treatment_card: '疗程卡'
+  };
+
+  const typeText: Record<string, string> = {
+    service: '服务消费',
+    treatment: '疗程购买',
+    product: '产品销售'
+  };
+
+  let detail = `收银：${customer[0]?.name ?? '客户'} ¥${body.amount} ${methodText[body.paymentMethod] ?? body.paymentMethod} ${typeText[body.type] ?? body.type}`;
+  if (body.remark) detail += ` - ${body.remark}`;
+
+  await addHistory({
+    operatorName,
+    action: '创建',
+    targetType: 'cashier',
+    targetId: result.id,
+    detail,
+    metadata: {
+      amount: String(body.amount),
+      paymentMethod: body.paymentMethod,
+      type: body.type,
+      customer: customer[0]?.name,
+      remark: body.remark
+    }
+  });
+
   return json(result, { status: 201 });
 };

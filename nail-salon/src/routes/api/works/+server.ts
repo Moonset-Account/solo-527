@@ -5,6 +5,7 @@ import { works, technicians } from '$lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { addHistory } from '$lib/db/history';
 
 export const GET: RequestHandler = async ({ url }) => {
   const published = url.searchParams.get('published');
@@ -67,6 +68,23 @@ export const POST: RequestHandler = async ({ request }) => {
     })
     .returning();
 
+  const tech = await db.select().from(technicians).where(eq(technicians.id, technicianId));
+  const operatorName = (formData.get('operatorName') as string) ?? tech[0]?.name ?? '技师';
+
+  await addHistory({
+    operatorName,
+    action: '创建',
+    targetType: 'work',
+    targetId: result.id,
+    detail: `上传新作品：${title}`,
+    metadata: {
+      technician: tech[0]?.name,
+      title,
+      tags,
+      imageCount: imagePaths.length
+    }
+  });
+
   return json(result, { status: 201 });
 };
 
@@ -113,11 +131,28 @@ export const PUT: RequestHandler = async ({ request }) => {
       .where(eq(works.id, id))
       .returning();
 
+    const tech = technicianId ? await db.select().from(technicians).where(eq(technicians.id, technicianId)) : null;
+    const operatorName = (formData.get('operatorName') as string) ?? tech?.[0]?.name ?? '店长';
+
+    await addHistory({
+      operatorName,
+      action: '更新',
+      targetType: 'work',
+      targetId: id,
+      detail: `编辑作品：${title ?? result.title}`,
+      metadata: {
+        title: title ?? result.title,
+        tags: tagsRaw ? JSON.parse(tagsRaw) : null,
+        imageCount: imagePaths.length,
+        technician: tech?.[0]?.name
+      }
+    });
+
     return json(result);
   }
 
   const body = await request.json();
-  const { id, isPublished } = body;
+  const { id, isPublished, operatorName = '店长' } = body;
 
   const [result] = await db
     .update(works)
@@ -128,6 +163,18 @@ export const PUT: RequestHandler = async ({ request }) => {
     })
     .where(eq(works.id, id))
     .returning();
+
+  await addHistory({
+    operatorName,
+    action: '更新',
+    targetType: 'work',
+    targetId: id,
+    detail: `${isPublished ? '发布' : '下架'}作品：${result.title}`,
+    metadata: {
+      title: result.title,
+      action: isPublished ? 'publish' : 'unpublish'
+    }
+  });
 
   return json(result);
 };
