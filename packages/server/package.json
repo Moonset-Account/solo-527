@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json --noEmit && mkdir -p dist && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external --alias:@qinghe/shared=../shared/src/index.ts --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "start": "node dist/index.js"
   },
   "dependencies": {

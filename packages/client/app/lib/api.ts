@@ -1,11 +1,23 @@
-export const API_BASE_URL =
-  process.env.API_BASE_URL || "http://localhost:3001/api";
+function getApiBase(): string {
+  if (typeof window !== "undefined" && window.ENV?.API_BASE_URL) {
+    return window.ENV.API_BASE_URL;
+  }
+  if (typeof process !== "undefined" && process.env?.API_BASE_URL) {
+    return process.env.API_BASE_URL;
+  }
+  const port = typeof process !== "undefined" && process.env?.PORT
+    ? Number(process.env.PORT) + 1
+    : 3001;
+  return `http://127.0.0.1:${port}/api`;
+}
+
+export const API_BASE_URL = getApiBase();
 
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+  const url = `${getApiBase()}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -40,7 +52,7 @@ export const api = {
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   download: async (path: string, filename: string) => {
-    const url = `${API_BASE_URL}${path}`;
+    const url = `${getApiBase()}${path}`;
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`下载失败: ${res.status}`);

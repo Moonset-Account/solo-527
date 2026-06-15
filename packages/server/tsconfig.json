@@ -11,10 +11,10 @@
     "resolveJsonModule": true,
     "declaration": false,
     "declarationMap": false,
-    "sourceMap": true,
+    "sourceMap": false,
     "strict": true,
     "allowImportingTsExtensions": false,
-    "noEmit": false,
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
       "@qinghe/shared": ["../shared/dist/index.d.ts"]

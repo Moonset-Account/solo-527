@@ -8,11 +8,15 @@
   ],
   "scripts": {
     "build:shared": "npm run build -w @qinghe/shared",
+    "build:server": "npm run build:shared && npm run build -w @qinghe/server",
+    "build:client": "npm run build:shared && npm run build -w @qinghe/client",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm run build:shared && npm run dev -w @qinghe/server",
-    "dev:client": "npm run build:shared && npm run dev -w @qinghe/client",
+    "dev:server": "npm run build:shared && PORT=3001 CLIENT_URL=http://127.0.0.1:5173 npm run dev -w @qinghe/server",
+    "dev:client": "npm run build:shared && API_BASE_URL=http://127.0.0.1:3001/api npm run dev -w @qinghe/client",
     "build": "npm run build:shared && npm run build -w @qinghe/server && npm run build -w @qinghe/client",
-    "start": "npm run start -w @qinghe/server",
+    "start": "concurrently -n server,client -c green,blue \"npm run start:server\" \"npm run start:client\"",
+    "start:server": "PORT=3001 CLIENT_URL=http://127.0.0.1:3000 npm start -w @qinghe/server",
+    "start:client": "PORT=3000 API_BASE_URL=http://127.0.0.1:3001/api npm start -w @qinghe/client",
     "lint": "eslint packages --ext .ts,.tsx"
   },
   "devDependencies": {

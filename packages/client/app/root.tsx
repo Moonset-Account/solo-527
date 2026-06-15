@@ -1,4 +1,4 @@
-import type { LinksFunction, MetaFunction } from "@remix-run/node";
+import { json, type LinksFunction, type LoaderFunction, type MetaFunction } from "@remix-run/node";
 import {
   Links,
   LiveReload,
@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
 import { ConfigProvider, App as AntdApp } from "antd";
 import zhCN from "antd/locale/zh_CN.js";
@@ -21,7 +22,26 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+type EnvVars = {
+  API_BASE_URL: string;
+};
+
+export const loader: LoaderFunction = async () => {
+  const defaultApiBase = `http://127.0.0.1:${process.env.PORT ? Number(process.env.PORT) + 1 : 3001}/api`;
+  const env: EnvVars = {
+    API_BASE_URL: process.env.API_BASE_URL || defaultApiBase,
+  };
+  return json({ env });
+};
+
+declare global {
+  interface Window {
+    ENV: EnvVars;
+  }
+}
+
 export default function App() {
+  const { env } = useLoaderData<{ env: EnvVars }>();
   return (
     <html lang="zh-CN">
       <head>
@@ -44,6 +64,11 @@ export default function App() {
             <Outlet />
             <ScrollRestoration />
             <Scripts />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.ENV = ${JSON.stringify(env)};`,
+              }}
+            />
             <LiveReload />
           </AntdApp>
         </ConfigProvider>
