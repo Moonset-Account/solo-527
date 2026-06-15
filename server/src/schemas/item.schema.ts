@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import type { IItem } from '../common/types/index.js';
 
-const ItemSchema = new Schema<IItem>(
+const itemSchema = new Schema<IItem>(
   {
     title: {
       type: String,
@@ -31,7 +31,8 @@ const ItemSchema = new Schema<IItem>(
     assignee: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+      default: null,
       index: true,
     },
     deadline: {
@@ -51,6 +52,7 @@ const ItemSchema = new Schema<IItem>(
   },
 );
 
-ItemSchema.index({ createdAt: -1 });
+itemSchema.index({ createdAt: -1 });
 
-export const ItemModel = model<IItem>('Item', ItemSchema);
+export const ItemSchema = itemSchema;
+export const ItemModel = model<IItem>('Item', itemSchema);

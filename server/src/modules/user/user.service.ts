@@ -1,8 +1,8 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
-import { Types } from 'mongoose';
-import { UserModel } from '../../schemas/user.schema.js';
-import { DepartmentModel } from '../../schemas/department.schema.js';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import type { IUser, UserRole, UserStatus } from '../../common/types/index.js';
+import type { IDepartment } from '../../common/types/index.js';
 
 interface FindAllQuery {
   page?: number;
@@ -14,6 +14,11 @@ interface FindAllQuery {
 
 @Injectable()
 export class UserService {
+  constructor(
+    @InjectModel('User') private readonly userModel: Model<IUser>,
+    @InjectModel('Department') private readonly departmentModel: Model<IDepartment>,
+  ) {}
+
   async hashPassword(password: string): Promise<string> {
     const bcrypt = await import('bcrypt');
     const saltRounds = 10;
@@ -28,14 +33,14 @@ export class UserService {
     department: string,
     status: UserStatus = 'active',
   ): Promise<IUser> {
-    const existingUser = await UserModel.findOne({ username });
+    const existingUser = await this.userModel.findOne({ username });
     if (existingUser) {
       throw new ConflictException('用户名已存在');
     }
 
     const hashedPassword = await this.hashPassword(password);
 
-    const user = new UserModel({
+    const user = new this.userModel({
       username,
       password: hashedPassword,
       name,
@@ -70,13 +75,13 @@ export class UserService {
     }
 
     const [list, total] = await Promise.all([
-      UserModel.find(filter)
+      this.userModel.find(filter)
         .select('-password')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize)
         .populate('department', 'name'),
-      UserModel.countDocuments(filter),
+      this.userModel.countDocuments(filter),
     ]);
 
     return {
@@ -92,7 +97,7 @@ export class UserService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('用户不存在');
     }
-    const user = await UserModel.findById(id).populate('department', 'name');
+    const user = await this.userModel.findById(id).populate('department', 'name');
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
@@ -100,7 +105,7 @@ export class UserService {
   }
 
   async findByUsername(username: string) {
-    return await UserModel.findOne({ username }).populate('department', 'name');
+    return await this.userModel.findOne({ username }).populate('department', 'name');
   }
 
   async update(id: string, data: { name?: string; role?: UserRole; department?: string; status?: UserStatus }) {
@@ -114,7 +119,7 @@ export class UserService {
     if (data.department !== undefined) updateData.department = new Types.ObjectId(data.department as unknown as string);
     if (data.status !== undefined) updateData.status = data.status;
 
-    const user = await UserModel.findByIdAndUpdate(id, updateData, {
+    const user = await this.userModel.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     }).select('-password');
@@ -131,7 +136,7 @@ export class UserService {
       throw new NotFoundException('用户不存在');
     }
 
-    const user = await UserModel.findByIdAndDelete(id);
+    const user = await this.userModel.findByIdAndDelete(id);
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
@@ -140,7 +145,7 @@ export class UserService {
   }
 
   async initDefaultAdmin() {
-    const existingAdmin = await UserModel.findOne({ username: 'admin' });
+    const existingAdmin = await this.userModel.findOne({ username: 'admin' });
     if (existingAdmin) {
       console.log('默认管理员已存在，跳过初始化');
       return;
@@ -148,11 +153,11 @@ export class UserService {
 
     console.log('开始初始化默认管理员...');
 
-    let defaultDept = await DepartmentModel.findOne({ name: '默认部门' });
+    let defaultDept = await this.departmentModel.findOne({ name: '默认部门' });
 
     if (!defaultDept) {
       const tempHeadId = new Types.ObjectId();
-      defaultDept = new DepartmentModel({
+      defaultDept = new this.departmentModel({
         name: '默认部门',
         head: tempHeadId,
       });
@@ -161,7 +166,7 @@ export class UserService {
 
     const hashedPassword = await this.hashPassword('admin123');
 
-    const admin = new UserModel({
+    const admin = new this.userModel({
       username: 'admin',
       password: hashedPassword,
       name: '系统管理员',
@@ -173,7 +178,7 @@ export class UserService {
     await admin.save();
 
     if (defaultDept.head.toString() !== admin._id.toString()) {
-      defaultDept.head = admin._id;
+      defaultDept.head = new Types.ObjectId(admin._id);
       await defaultDept.save();
     }
 

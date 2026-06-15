@@ -64,7 +64,7 @@ const sortedOverdueItems = computed(() => {
 async function fetchItemsByStatus(status: ItemStatus) {
   try {
     const response = await itemStore.fetchItems({ status, pageSize: 100 })
-    return response.data.items
+    return response.list
   } catch (error) {
     console.error(`Failed to fetch ${status} items:`, error)
     return []

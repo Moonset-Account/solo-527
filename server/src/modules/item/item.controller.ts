@@ -9,7 +9,7 @@ import { UpdateItemDto } from './dto/update-item.dto.js';
 import { ProgressDto } from './dto/progress.dto.js';
 import type { IItem, IProgress, IUser, ItemStatus } from '../../common/types/index.js';
 
-@Controller('api/items')
+@Controller('items')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ItemController {
   constructor(private readonly itemService: ItemService) {}

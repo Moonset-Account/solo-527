@@ -103,7 +103,7 @@ const formPriorityOptions = [
 async function fetchDepartments() {
   try {
     const response = await configs.getDepartments()
-    departments.value = response.data
+    departments.value = response
   } catch (error) {
     console.error('获取部门列表失败', error)
   }
@@ -112,7 +112,7 @@ async function fetchDepartments() {
 async function fetchUsers() {
   try {
     const response = await (await import('@/lib/api')).users.getList({ pageSize: 100 })
-    users.value = response.data.items
+    users.value = response.list
   } catch (error) {
     console.error('获取用户列表失败', error)
   }
@@ -126,7 +126,7 @@ async function fetchLogs() {
   logsLoading.value = true
   try {
     const response = await logsApi.getList({ pageSize: 100 })
-    logs.value = response.data.items.filter(log => log.targetId === itemId)
+    logs.value = response.list.filter(log => log.targetId === itemId)
   } catch (error) {
     console.error('获取操作日志失败', error)
   } finally {
@@ -197,7 +197,7 @@ async function handleAddProgress() {
     if (selectedFiles.value.length > 0) {
       for (const file of selectedFiles.value) {
         const response = await configs.uploadAttachment(file, itemId, 'item')
-        attachmentIds.push(response.data._id)
+        attachmentIds.push(response._id)
       }
     }
     await itemStore.addProgress(itemId, progressContent.value, attachmentIds.length > 0 ? attachmentIds : undefined)

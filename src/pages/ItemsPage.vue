@@ -116,7 +116,7 @@ const formPriorityOptions = [
 async function fetchDepartments() {
   try {
     const response = await configs.getDepartments()
-    departments.value = response.data
+    departments.value = response
   } catch (error) {
     console.error('获取部门列表失败', error)
   }
@@ -125,7 +125,7 @@ async function fetchDepartments() {
 async function fetchUsers() {
   try {
     const response = await usersApi.getList({ pageSize: 100 })
-    users.value = response.data.items
+    users.value = response.list
   } catch (error) {
     console.error('获取用户列表失败', error)
   }

@@ -17,7 +17,7 @@ export type LogType = 'claim' | 'progress' | 'review' | 'config_change' | 'overd
 export type RefType = 'item' | 'config';
 
 export interface IUser {
-  _id: Types.ObjectId;
+  _id: Types.ObjectId | string;
   username: string;
   password: string;
   name: string;
@@ -35,7 +35,7 @@ export interface IItem {
   status: ItemStatus;
   priority: ItemPriority;
   department: Types.ObjectId;
-  assignee: Types.ObjectId;
+  assignee: Types.ObjectId | null;
   deadline: Date;
   claimedAt?: Date;
   completedAt?: Date;

@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import type { IReview } from '../common/types/index.js';
 
-const ReviewSchema = new Schema<IReview>(
+const reviewSchema = new Schema<IReview>(
   {
     itemId: {
       type: Schema.Types.ObjectId,
@@ -29,4 +29,5 @@ const ReviewSchema = new Schema<IReview>(
   },
 );
 
-export const ReviewModel = model<IReview>('Review', ReviewSchema);
+export const ReviewSchema = reviewSchema;
+export const ReviewModel = model<IReview>('Review', reviewSchema);

@@ -55,8 +55,8 @@ export class AuthService {
       : user;
 
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       user: userWithoutPassword as Omit<IUser, 'password'>,
     };
   }
@@ -102,8 +102,8 @@ export class AuthService {
       );
 
       return {
-        access_token: newAccessToken,
-        refresh_token: newRefreshToken,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
       };
     } catch {
       throw new UnauthorizedException('无效的刷新令牌');

@@ -39,7 +39,7 @@ async function handleLogin() {
       localStorage.removeItem('rememberedUsername')
     }
 
-    localStorage.setItem('user', JSON.stringify(response.data.user))
+    localStorage.setItem('user', JSON.stringify(response.user))
     
     router.push('/')
   } catch (err) {

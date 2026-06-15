@@ -11,7 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const login = async (username: string, password: string) => {
     const response = await authApi.login(username, password)
-    const { accessToken, refreshToken: refresh, user: userData } = response.data
+    const { accessToken, refreshToken: refresh, user: userData } = response
     token.value = accessToken
     refreshToken.value = refresh
     user.value = userData
@@ -25,8 +25,10 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('No refresh token available')
     }
     const response = await authApi.refreshToken(refreshToken.value)
-    token.value = response.data.accessToken
-    localStorage.setItem('token', response.data.accessToken)
+    token.value = response.accessToken
+    refreshToken.value = response.refreshToken
+    localStorage.setItem('token', response.accessToken)
+    localStorage.setItem('refreshToken', response.refreshToken)
     return response
   }
 
@@ -40,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const fetchProfile = async () => {
     const response = await authApi.getProfile()
-    user.value = response.data
+    user.value = response
     return response
   }
 

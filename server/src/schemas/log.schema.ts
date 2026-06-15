@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import type { ILog } from '../common/types/index.js';
 
-export const LogSchema = new Schema<ILog>(
+const logSchema = new Schema<ILog>(
   {
     type: {
       type: String,
@@ -38,6 +38,7 @@ export const LogSchema = new Schema<ILog>(
   },
 );
 
-LogSchema.index({ createdAt: -1 });
+logSchema.index({ createdAt: -1 });
 
-export const LogModel = model<ILog>('Log', LogSchema);
+export const LogSchema = logSchema;
+export const LogModel = model<ILog>('Log', logSchema);

@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import type { IUser } from '../common/types/index.js';
 
-const UserSchema = new Schema<IUser>(
+const userSchema = new Schema<IUser>(
   {
     username: {
       type: String,
@@ -37,4 +37,5 @@ const UserSchema = new Schema<IUser>(
   },
 );
 
-export const UserModel = model<IUser>('User', UserSchema);
+export const UserSchema = userSchema;
+export const UserModel = model<IUser>('User', userSchema);

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { type Types } from 'mongoose';
-import { LogModel } from '../../schemas/log.schema.js';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import type { ILog, LogType } from '../../common/types/index.js';
 
 interface LogQueryDto {
@@ -14,18 +14,22 @@ interface LogQueryDto {
 
 @Injectable()
 export class LogService {
+  constructor(
+    @InjectModel('Log') private readonly logModel: Model<ILog>,
+  ) {}
+
   async create(
     type: LogType,
-    operator: Types.ObjectId,
-    targetId: Types.ObjectId,
+    operator: Types.ObjectId | string,
+    targetId: Types.ObjectId | string,
     field: string,
     oldValue: any,
     newValue: any,
   ): Promise<ILog> {
-    const log = new LogModel({
+    const log = new this.logModel({
       type,
-      operator,
-      targetId,
+      operator: new Types.ObjectId(operator),
+      targetId: new Types.ObjectId(targetId),
       detail: {
         field,
         oldValue,
@@ -61,12 +65,12 @@ export class LogService {
     }
 
     const [list, total] = await Promise.all([
-      LogModel.find(filter)
+      this.logModel.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize)
         .populate('operator', 'name username'),
-      LogModel.countDocuments(filter),
+      this.logModel.countDocuments(filter),
     ]);
 
     return {

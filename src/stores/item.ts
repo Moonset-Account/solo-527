@@ -20,8 +20,8 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true
     try {
       const response = await itemsApi.getList(params)
-      items.value = response.data.items
-      total.value = response.data.total
+      items.value = response.list
+      total.value = response.total
       return response
     } finally {
       loading.value = false
@@ -32,7 +32,7 @@ export const useItemStore = defineStore('item', () => {
     loading.value = true
     try {
       const response = await itemsApi.getDetail(id)
-      currentItem.value = response.data
+      currentItem.value = response
       return response
     } finally {
       loading.value = false
@@ -72,7 +72,7 @@ export const useItemStore = defineStore('item', () => {
     try {
       const response = await itemsApi.update(id, data)
       if (currentItem.value && currentItem.value._id === id) {
-        currentItem.value = { ...currentItem.value, ...response.data }
+        currentItem.value = { ...currentItem.value, ...response }
       }
       return response
     } finally {
@@ -86,10 +86,10 @@ export const useItemStore = defineStore('item', () => {
       const response = await itemsApi.claim(id)
       const index = items.value.findIndex((item) => item._id === id)
       if (index !== -1) {
-        items.value[index] = response.data
+        items.value[index] = response
       }
       if (currentItem.value && currentItem.value._id === id) {
-        currentItem.value = { ...currentItem.value, ...response.data }
+        currentItem.value = { ...currentItem.value, ...response }
       }
       return response
     } finally {
@@ -102,7 +102,7 @@ export const useItemStore = defineStore('item', () => {
     try {
       const response = await itemsApi.addProgress(id, content, attachments)
       if (currentItem.value && currentItem.value._id === id) {
-        currentItem.value.progressList.push(response.data)
+        currentItem.value.progressList.push(response)
       }
       return response
     } finally {

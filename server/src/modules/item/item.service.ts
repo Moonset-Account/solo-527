@@ -1,9 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Types } from 'mongoose';
-import { ItemModel } from '../../schemas/item.schema.js';
-import { ProgressModel } from '../../schemas/progress.schema.js';
-import { AttachmentModel } from '../../schemas/attachment.schema.js';
+import { Model, Types } from 'mongoose';
 import { LogService } from '../log/log.service.js';
 import type { IItem, IProgress, IAttachment, ItemStatus } from '../../common/types/index.js';
 import type { CreateItemDto } from './dto/create-item.dto.js';
@@ -27,7 +25,12 @@ export interface PaginatedResult<T> {
 
 @Injectable()
 export class ItemService {
-  constructor(private readonly logService: LogService) {}
+  constructor(
+    @InjectModel('Item') private readonly itemModel: Model<IItem>,
+    @InjectModel('Progress') private readonly progressModel: Model<IProgress>,
+    @InjectModel('Attachment') private readonly attachmentModel: Model<IAttachment>,
+    private readonly logService: LogService,
+  ) {}
 
   async findAll(query: FindAllQuery): Promise<PaginatedResult<IItem>> {
     const { page = 1, pageSize = 10, status, department, assignee, keyword } = query;
@@ -50,14 +53,14 @@ export class ItemService {
     }
 
     const [list, total] = await Promise.all([
-      ItemModel.find(filter)
+      this.itemModel.find(filter)
         .populate('department', 'name')
         .populate('assignee', 'name')
         .sort({ createdAt: -1 })
         .skip((page - 1) * pageSize)
         .limit(pageSize)
         .exec(),
-      ItemModel.countDocuments(filter).exec(),
+      this.itemModel.countDocuments(filter).exec(),
     ]);
 
     return {
@@ -70,7 +73,7 @@ export class ItemService {
 
   async findById(id: string): Promise<IItem & { progressList: IProgress[]; attachments: IAttachment[] }> {
     const itemId = new Types.ObjectId(id);
-    const item = await ItemModel.findById(itemId)
+    const item = await this.itemModel.findById(itemId)
       .populate('department', 'name')
       .populate('assignee', 'name')
       .exec();
@@ -80,11 +83,11 @@ export class ItemService {
     }
 
     const [progressList, attachments] = await Promise.all([
-      ProgressModel.find({ itemId })
+      this.progressModel.find({ itemId })
         .populate('operator', 'name')
         .sort({ createdAt: -1 })
         .exec(),
-      AttachmentModel.find({ refId: itemId, refType: 'item' })
+      this.attachmentModel.find({ refId: itemId, refType: 'item' })
         .populate('operator', 'name')
         .sort({ createdAt: -1 })
         .exec(),
@@ -97,11 +100,11 @@ export class ItemService {
     };
   }
 
-  async create(data: CreateItemDto, creatorId: Types.ObjectId): Promise<IItem> {
-    const item = new ItemModel({
+  async create(data: CreateItemDto, creatorId: Types.ObjectId | string): Promise<IItem> {
+    const item = new this.itemModel({
       ...data,
       department: new Types.ObjectId(data.department),
-      assignee: new Types.ObjectId(data.assignee),
+      assignee: data.assignee ? new Types.ObjectId(data.assignee) : null,
       deadline: new Date(data.deadline),
     });
 
@@ -119,9 +122,9 @@ export class ItemService {
     return savedItem;
   }
 
-  async update(id: string, data: UpdateItemDto, operatorId: Types.ObjectId): Promise<IItem> {
+  async update(id: string, data: UpdateItemDto, operatorId: Types.ObjectId | string): Promise<IItem> {
     const itemId = new Types.ObjectId(id);
-    const item = await ItemModel.findById(itemId).exec();
+    const item = await this.itemModel.findById(itemId).exec();
 
     if (!item) {
       throw new NotFoundException('事项不存在');
@@ -133,8 +136,10 @@ export class ItemService {
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
         oldValues[key] = item.get(key);
-        if (key === 'department' || key === 'assignee') {
+        if (key === 'department') {
           updateData[key] = new Types.ObjectId(value as string);
+        } else if (key === 'assignee') {
+          updateData[key] = value ? new Types.ObjectId(value as string) : null;
         } else if (key === 'deadline') {
           updateData[key] = new Date(value as string);
         } else {
@@ -143,7 +148,7 @@ export class ItemService {
       }
     }
 
-    const updatedItem = await ItemModel.findByIdAndUpdate(
+    const updatedItem = await this.itemModel.findByIdAndUpdate(
       itemId,
       { $set: updateData },
       { new: true },
@@ -166,9 +171,9 @@ export class ItemService {
     return updatedItem!;
   }
 
-  async claim(id: string, userId: Types.ObjectId): Promise<IItem> {
+  async claim(id: string, userId: Types.ObjectId | string): Promise<IItem> {
     const itemId = new Types.ObjectId(id);
-    const item = await ItemModel.findById(itemId).exec();
+    const item = await this.itemModel.findById(itemId).exec();
 
     if (!item) {
       throw new NotFoundException('事项不存在');
@@ -182,7 +187,7 @@ export class ItemService {
     const oldAssignee = item.assignee;
     const oldClaimedAt = item.claimedAt;
 
-    const updatedItem = await ItemModel.findByIdAndUpdate(
+    const updatedItem = await this.itemModel.findByIdAndUpdate(
       itemId,
       {
         $set: {
@@ -228,16 +233,16 @@ export class ItemService {
     id: string,
     content: string,
     attachments: string[] = [],
-    operatorId: Types.ObjectId,
+    operatorId: Types.ObjectId | string,
   ): Promise<IProgress> {
     const itemId = new Types.ObjectId(id);
-    const item = await ItemModel.findById(itemId).exec();
+    const item = await this.itemModel.findById(itemId).exec();
 
     if (!item) {
       throw new NotFoundException('事项不存在');
     }
 
-    const progress = new ProgressModel({
+    const progress = new this.progressModel({
       itemId,
       content,
       attachments,
@@ -261,7 +266,7 @@ export class ItemService {
   @Cron(CronExpression.EVERY_HOUR)
   async checkOverdue(): Promise<void> {
     const now = new Date();
-    const items = await ItemModel.find({
+    const items = await this.itemModel.find({
       deadline: { $lt: now },
       status: { $nin: ['completed', 'overdue', 'archived'] },
     }).exec();
@@ -269,14 +274,14 @@ export class ItemService {
     for (const item of items) {
       const oldStatus = item.status;
 
-      await ItemModel.findByIdAndUpdate(
+      await this.itemModel.findByIdAndUpdate(
         item._id,
         { $set: { status: 'overdue' as ItemStatus } },
       ).exec();
 
       await this.logService.create(
         'overdue_mark',
-        item.assignee,
+        item.assignee || item._id,
         item._id,
         'status',
         oldStatus,

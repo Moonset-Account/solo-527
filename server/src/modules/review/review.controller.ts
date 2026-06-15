@@ -8,7 +8,7 @@ import { CreateReviewDto } from './dto/create-review.dto.js';
 import { UpdateReviewDto } from './dto/update-review.dto.js';
 import type { IReview, IUser, ReviewConclusion } from '../../common/types/index.js';
 
-@Controller('api/reviews')
+@Controller('reviews')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class ReviewController {

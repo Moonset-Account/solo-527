@@ -70,7 +70,7 @@ export class ConfigService implements OnModuleInit {
     };
   }
 
-  async updateSwitch(key: string, value: boolean, operatorId: Types.ObjectId) {
+  async updateSwitch(key: string, value: boolean, operatorId: Types.ObjectId | string) {
     const config = await this.configModel.findOne({ key, type: 'switch' });
     if (!config) {
       throw new NotFoundException('配置项不存在');
@@ -98,7 +98,7 @@ export class ConfigService implements OnModuleInit {
     return this.departmentModel.find().populate('head', 'name');
   }
 
-  async createDepartment(name: string, head: Types.ObjectId, operatorId: Types.ObjectId) {
+  async createDepartment(name: string, head: Types.ObjectId | string, operatorId: Types.ObjectId | string) {
     const existing = await this.departmentModel.findOne({ name });
     if (existing) {
       throw new BadRequestException('部门名称已存在');
@@ -123,8 +123,8 @@ export class ConfigService implements OnModuleInit {
   async updateDepartment(
     id: string,
     name: string | undefined,
-    head: Types.ObjectId | undefined,
-    operatorId: Types.ObjectId,
+    head: Types.ObjectId | string | undefined,
+    operatorId: Types.ObjectId | string,
   ) {
     const department = await this.departmentModel.findById(id);
     if (!department) {
@@ -145,9 +145,10 @@ export class ConfigService implements OnModuleInit {
     }
 
     if (head !== undefined && head.toString() !== department.head.toString()) {
+      const headObjectId = typeof head === 'string' ? new Types.ObjectId(head) : head;
       oldValues.head = department.head;
       newValues.head = head;
-      department.head = head;
+      department.head = headObjectId;
     }
 
     await department.save();
@@ -168,7 +169,7 @@ export class ConfigService implements OnModuleInit {
     return department.populate('head', 'name');
   }
 
-  async deleteDepartment(id: string, operatorId: Types.ObjectId) {
+  async deleteDepartment(id: string, operatorId: Types.ObjectId | string) {
     const department = await this.departmentModel.findById(id);
     if (!department) {
       throw new NotFoundException('部门不存在');
@@ -200,9 +201,9 @@ export class ConfigService implements OnModuleInit {
 
   async uploadAttachment(
     file: Express.Multer.File,
-    refId: Types.ObjectId,
+    refId: Types.ObjectId | string,
     refType: 'item' | 'config',
-    operatorId: Types.ObjectId,
+    operatorId: Types.ObjectId | string,
   ) {
     const lastAttachment = await this.attachmentModel
       .findOne({ refId, refType, filename: file.originalname })

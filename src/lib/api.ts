@@ -10,7 +10,6 @@ import type {
   Progress,
   LoginResponse,
   ReviewStatistics,
-  ApiResponse,
   PaginatedResponse,
   ItemStatus,
   ItemPriority,
@@ -51,13 +50,13 @@ axiosInstance.interceptors.response.use(
 )
 
 export const auth = {
-  login: (username: string, password: string): Promise<ApiResponse<LoginResponse>> => {
+  login: (username: string, password: string): Promise<LoginResponse> => {
     return axiosInstance.post('/auth/login', { username, password })
   },
-  refreshToken: (refreshToken: string): Promise<ApiResponse<{ accessToken: string }>> => {
+  refreshToken: (refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> => {
     return axiosInstance.post('/auth/refresh', { refreshToken })
   },
-  getProfile: (): Promise<ApiResponse<User>> => {
+  getProfile: (): Promise<User> => {
     return axiosInstance.get('/auth/profile')
   },
 }
@@ -70,11 +69,11 @@ export const items = {
     department?: string
     assignee?: string
     keyword?: string
-  }): Promise<ApiResponse<PaginatedResponse<Item>>> => {
-    return axiosInstance.get('/api/items', { params })
+  }): Promise<PaginatedResponse<Item>> => {
+    return axiosInstance.get('/items', { params })
   },
-  getDetail: (id: string): Promise<ApiResponse<Item & { progressList: Progress[]; attachments: Attachment[] }>> => {
-    return axiosInstance.get(`/api/items/${id}`)
+  getDetail: (id: string): Promise<Item & { progressList: Progress[]; attachments: Attachment[] }> => {
+    return axiosInstance.get(`/items/${id}`)
   },
   create: (data: {
     title: string
@@ -83,8 +82,8 @@ export const items = {
     department: string
     assignee: string
     deadline: string
-  }): Promise<ApiResponse<Item>> => {
-    return axiosInstance.post('/api/items', data)
+  }): Promise<Item> => {
+    return axiosInstance.post('/items', data)
   },
   update: (
     id: string,
@@ -97,18 +96,18 @@ export const items = {
       assignee?: string
       deadline?: string
     },
-  ): Promise<ApiResponse<Item>> => {
-    return axiosInstance.patch(`/api/items/${id}`, data)
+  ): Promise<Item> => {
+    return axiosInstance.patch(`/items/${id}`, data)
   },
-  claim: (id: string): Promise<ApiResponse<Item>> => {
-    return axiosInstance.post(`/api/items/${id}/claim`)
+  claim: (id: string): Promise<Item> => {
+    return axiosInstance.post(`/items/${id}/claim`)
   },
   addProgress: (
     id: string,
     content: string,
     attachments?: string[],
-  ): Promise<ApiResponse<Progress>> => {
-    return axiosInstance.post(`/api/items/${id}/progress`, { content, attachments })
+  ): Promise<Progress> => {
+    return axiosInstance.post(`/items/${id}/progress`, { content, attachments })
   },
 }
 
@@ -118,15 +117,15 @@ export const reviews = {
     pageSize?: number
     itemId?: string
     conclusion?: ReviewConclusion
-  }): Promise<ApiResponse<PaginatedResponse<Review>>> => {
-    return axiosInstance.get('/api/reviews', { params })
+  }): Promise<PaginatedResponse<Review>> => {
+    return axiosInstance.get('/reviews', { params })
   },
   create: (data: {
     itemId: string
     conclusion: ReviewConclusion
     remark: string
-  }): Promise<ApiResponse<Review>> => {
-    return axiosInstance.post('/api/reviews', data)
+  }): Promise<Review> => {
+    return axiosInstance.post('/reviews', data)
   },
   update: (
     id: string,
@@ -134,48 +133,48 @@ export const reviews = {
       conclusion?: ReviewConclusion
       remark?: string
     },
-  ): Promise<ApiResponse<Review>> => {
-    return axiosInstance.patch(`/api/reviews/${id}`, data)
+  ): Promise<Review> => {
+    return axiosInstance.patch(`/reviews/${id}`, data)
   },
   getStatistics: (params?: {
     department?: string
     startDate?: string
     endDate?: string
-  }): Promise<ApiResponse<ReviewStatistics>> => {
-    return axiosInstance.get('/api/reviews/statistics', { params })
+  }): Promise<ReviewStatistics> => {
+    return axiosInstance.get('/reviews/statistics', { params })
   },
 }
 
 export const configs = {
-  getConfig: (): Promise<ApiResponse<Config[]>> => {
+  getConfig: (): Promise<{ switches: { key: string; value: boolean }[]; reviewTemplates: string[]; departments: Department[] }> => {
     return axiosInstance.get('/configs')
   },
-  updateSwitch: (key: string, value: boolean): Promise<ApiResponse<Config>> => {
+  updateSwitch: (key: string, value: boolean): Promise<Config> => {
     return axiosInstance.patch('/configs/switches', { key, value })
   },
-  getDepartments: (): Promise<ApiResponse<Department[]>> => {
+  getDepartments: (): Promise<Department[]> => {
     return axiosInstance.get('/configs/departments')
   },
-  createDepartment: (data: { name: string; head: string }): Promise<ApiResponse<Department>> => {
+  createDepartment: (data: { name: string; head: string }): Promise<Department> => {
     return axiosInstance.post('/configs/departments', data)
   },
   updateDepartment: (
     id: string,
     data: { name?: string; head?: string },
-  ): Promise<ApiResponse<Department>> => {
+  ): Promise<Department> => {
     return axiosInstance.patch(`/configs/departments/${id}`, data)
   },
-  deleteDepartment: (id: string): Promise<ApiResponse<void>> => {
+  deleteDepartment: (id: string): Promise<{ message: string }> => {
     return axiosInstance.delete(`/configs/departments/${id}`)
   },
-  getAttachments: (params?: { refId?: string; refType?: string }): Promise<ApiResponse<Attachment[]>> => {
+  getAttachments: (params?: { refId?: string; refType?: string }): Promise<Attachment[]> => {
     return axiosInstance.get('/configs/attachments', { params })
   },
   uploadAttachment: (
     file: File,
     refId: string,
     refType?: 'item' | 'config',
-  ): Promise<ApiResponse<Attachment>> => {
+  ): Promise<Attachment> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('refId', refId)
@@ -188,7 +187,7 @@ export const configs = {
       },
     })
   },
-  getChangelog: (params?: { page?: number; limit?: number }): Promise<ApiResponse<PaginatedResponse<Log>>> => {
+  getChangelog: (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<Log>> => {
     return axiosInstance.get('/configs/changelog', { params })
   },
 }
@@ -200,7 +199,7 @@ export const users = {
     role?: 'pm' | 'admin'
     keyword?: string
     status?: 'active' | 'disabled'
-  }): Promise<ApiResponse<PaginatedResponse<User>>> => {
+  }): Promise<PaginatedResponse<User>> => {
     return axiosInstance.get('/users', { params })
   },
   create: (data: {
@@ -210,7 +209,7 @@ export const users = {
     role: 'pm' | 'admin'
     department: string
     status?: 'active' | 'disabled'
-  }): Promise<ApiResponse<User>> => {
+  }): Promise<User> => {
     return axiosInstance.post('/users', data)
   },
   update: (
@@ -222,10 +221,10 @@ export const users = {
       status?: 'active' | 'disabled'
       password?: string
     },
-  ): Promise<ApiResponse<User>> => {
+  ): Promise<User> => {
     return axiosInstance.patch(`/users/${id}`, data)
   },
-  remove: (id: string): Promise<ApiResponse<void>> => {
+  remove: (id: string): Promise<{ message?: string }> => {
     return axiosInstance.delete(`/users/${id}`)
   },
 }
@@ -238,7 +237,7 @@ export const logs = {
     operator?: string
     startDate?: string
     endDate?: string
-  }): Promise<ApiResponse<PaginatedResponse<Log>>> => {
+  }): Promise<PaginatedResponse<Log>> => {
     return axiosInstance.get('/logs', { params })
   },
 }

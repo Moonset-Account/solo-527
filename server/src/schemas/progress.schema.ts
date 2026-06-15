@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import type { IProgress } from '../common/types/index.js';
 
-const ProgressSchema = new Schema<IProgress>(
+const progressSchema = new Schema<IProgress>(
   {
     itemId: {
       type: Schema.Types.ObjectId,
@@ -28,4 +28,5 @@ const ProgressSchema = new Schema<IProgress>(
   },
 );
 
-export const ProgressModel = model<IProgress>('Progress', ProgressSchema);
+export const ProgressSchema = progressSchema;
+export const ProgressModel = model<IProgress>('Progress', progressSchema);

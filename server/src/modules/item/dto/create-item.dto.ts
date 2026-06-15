@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsDateString, IsMongoId, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsDateString, IsMongoId, IsNotEmpty, IsOptional } from 'class-validator';
 import type { ItemPriority } from '../../../common/types/index.js';
 
 export class CreateItemDto {
@@ -17,7 +17,8 @@ export class CreateItemDto {
   department: string;
 
   @IsMongoId()
-  assignee: string;
+  @IsOptional()
+  assignee?: string;
 
   @IsDateString()
   deadline: string;

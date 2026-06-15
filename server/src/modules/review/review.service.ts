@@ -1,10 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Types, type PipelineStage } from 'mongoose';
-import { ReviewModel } from '../../schemas/review.schema.js';
-import { ItemModel } from '../../schemas/item.schema.js';
-import { DepartmentModel } from '../../schemas/department.schema.js';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types, type PipelineStage } from 'mongoose';
 import { LogService } from '../log/log.service.js';
 import type { IReview, ReviewConclusion } from '../../common/types/index.js';
+import type { IItem, IDepartment } from '../../common/types/index.js';
 
 export interface FindAllQuery {
   page?: number;
@@ -43,7 +42,12 @@ export interface StatisticsResult {
 
 @Injectable()
 export class ReviewService {
-  constructor(private readonly logService: LogService) {}
+  constructor(
+    @InjectModel('Review') private readonly reviewModel: Model<IReview>,
+    @InjectModel('Item') private readonly itemModel: Model<IItem>,
+    @InjectModel('Department') private readonly departmentModel: Model<IDepartment>,
+    private readonly logService: LogService,
+  ) {}
 
   async findAll(query: FindAllQuery): Promise<PaginatedResult<IReview>> {
     const { page = 1, pageSize = 10, itemId, conclusion } = query;
@@ -57,14 +61,14 @@ export class ReviewService {
     }
 
     const [list, total] = await Promise.all([
-      ReviewModel.find(filter)
+      this.reviewModel.find(filter)
         .populate('itemId', 'title status')
         .populate('operator', 'name')
         .sort({ createdAt: -1 })
         .skip((page - 1) * pageSize)
         .limit(pageSize)
         .exec(),
-      ReviewModel.countDocuments(filter).exec(),
+      this.reviewModel.countDocuments(filter).exec(),
     ]);
 
     return {
@@ -79,21 +83,21 @@ export class ReviewService {
     itemId: string,
     conclusion: ReviewConclusion,
     remark: string,
-    operatorId: Types.ObjectId,
+    operatorId: Types.ObjectId | string,
   ): Promise<IReview> {
     const itemObjId = new Types.ObjectId(itemId);
-    const item = await ItemModel.findById(itemObjId).exec();
+    const item = await this.itemModel.findById(itemObjId).exec();
 
     if (!item) {
       throw new NotFoundException('事项不存在');
     }
 
-    const existingReview = await ReviewModel.findOne({ itemId: itemObjId }).exec();
+    const existingReview = await this.reviewModel.findOne({ itemId: itemObjId }).exec();
     if (existingReview) {
       throw new BadRequestException('该事项已存在复盘记录');
     }
 
-    const review = new ReviewModel({
+    const review = new this.reviewModel({
       itemId: itemObjId,
       conclusion,
       remark,
@@ -118,10 +122,10 @@ export class ReviewService {
     id: string,
     conclusion: ReviewConclusion | undefined,
     remark: string | undefined,
-    operatorId: Types.ObjectId,
+    operatorId: Types.ObjectId | string,
   ): Promise<IReview> {
     const reviewId = new Types.ObjectId(id);
-    const review = await ReviewModel.findById(reviewId).exec();
+    const review = await this.reviewModel.findById(reviewId).exec();
 
     if (!review) {
       throw new NotFoundException('复盘记录不存在');
@@ -138,7 +142,7 @@ export class ReviewService {
       updateData.remark = remark;
     }
 
-    const updatedReview = await ReviewModel.findByIdAndUpdate(
+    const updatedReview = await this.reviewModel.findByIdAndUpdate(
       reviewId,
       { $set: updateData },
       { new: true },
@@ -248,7 +252,7 @@ export class ReviewService {
       { $sort: { departmentName: 1 } },
     ];
 
-    const result = await ItemModel.aggregate(pipeline).exec();
+    const result = await this.itemModel.aggregate(pipeline).exec();
 
     return result as DepartmentStat[];
   }
@@ -306,7 +310,7 @@ export class ReviewService {
       { $replaceRoot: { newRoot: '$byMonth' } },
     ];
 
-    const result = await ItemModel.aggregate(pipeline).exec();
+    const result = await this.itemModel.aggregate(pipeline).exec();
 
     return result as OverdueTrendItem[];
   }

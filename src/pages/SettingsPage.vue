@@ -210,7 +210,7 @@ async function saveDepartment() {
         head: editingDepartment.value.head as string,
       })
       departments.value.push({
-        _id: result.data?._id || String(Date.now()),
+        _id: result._id || String(Date.now()),
         name: editingDepartment.value.name || '',
         head: editingDepartment.value.head || '',
         createdAt: new Date().toISOString(),
@@ -264,9 +264,9 @@ async function uploadAttachment() {
   try {
     const result = await api.configs.uploadAttachment(selectedFile.value, selectedRefId.value, 'item')
     mockAttachments.unshift({
-      _id: result.data?._id || String(Date.now()),
+      _id: result._id || String(Date.now()),
       filename: selectedFile.value.name,
-      url: result.data?.url || '',
+      url: result.url || '',
       version: 1,
       refId: selectedRefId.value,
       refType: 'item',

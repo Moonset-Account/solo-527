@@ -51,9 +51,7 @@ const formErrors = reactive({
 async function fetchDepartments() {
   try {
     const res = await configsApi.getDepartments()
-    if (res.success) {
-      departmentList.value = res.data
-    }
+    departmentList.value = res
   } catch (error) {
     console.error('获取部门列表失败:', error)
   }
@@ -78,10 +76,8 @@ async function fetchUsers() {
       params.keyword = keyword.value.trim()
     }
     const res = await usersApi.getList(params)
-    if (res.success) {
-      userList.value = res.data.items
-      totalItems.value = res.data.total
-    }
+    userList.value = res.list
+    totalItems.value = res.total
   } catch (error) {
     console.error('获取用户列表失败:', error)
   } finally {
@@ -185,23 +181,19 @@ async function handleModalConfirm() {
       if (form.password) {
         updateData.password = form.password
       }
-      const res = await usersApi.update(editingUser.value._id, updateData)
-      if (res.success) {
-        modalVisible.value = false
-        fetchUsers()
-      }
+      await usersApi.update(editingUser.value._id, updateData)
+      modalVisible.value = false
+      fetchUsers()
     } else {
-      const res = await usersApi.create({
+      await usersApi.create({
         username: form.username,
         password: form.password,
         name: form.name,
         role: form.role,
         department: form.department,
       })
-      if (res.success) {
-        modalVisible.value = false
-        fetchUsers()
-      }
+      modalVisible.value = false
+      fetchUsers()
     }
   } catch (error) {
     console.error('保存用户失败:', error)
@@ -241,10 +233,8 @@ function handleToggleStatus(user: User) {
     newStatus === 'active' ? 'primary' : 'danger',
     async () => {
       try {
-        const res = await usersApi.update(user._id, { status: newStatus })
-        if (res.success) {
-          fetchUsers()
-        }
+        await usersApi.update(user._id, { status: newStatus })
+        fetchUsers()
       } catch (error) {
         console.error(`${action}用户失败:`, error)
       }
@@ -260,10 +250,8 @@ function handleDelete(user: User) {
     'danger',
     async () => {
       try {
-        const res = await usersApi.remove(user._id)
-        if (res.success) {
-          fetchUsers()
-        }
+        await usersApi.remove(user._id)
+        fetchUsers()
       } catch (error) {
         console.error('删除用户失败:', error)
       }
