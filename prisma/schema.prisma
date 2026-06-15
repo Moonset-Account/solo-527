@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  DORM_MANAGER
+  ADMIN
+}
+
+enum RepairStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum RepairCategory {
+  PLUMBING
+  ELECTRICAL
+  FURNITURE
+  APPLIANCE
+  DOOR_LOCK
+  WINDOW
+  OTHER
+}
+
+enum ComplaintStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum TradeStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum NotificationType {
+  REPAIR_STATUS_UPDATE
+  COMPLAINT_UPDATE
+  REFUND_UPDATE
+  TRADE_UPDATE
+  SYSTEM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ExportFormat {
+  EXCEL
+  CSV
+  PDF
+}
+
+enum LogAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  UPLOAD
+  DOWNLOAD
+  EXPORT
+  APPROVE
+  REJECT
+  REFUND
+  NOTIFY
+}
+
+model User {
+  id              String          @id
+  email           String          @unique
+  name            String?
+  role            UserRole        @default(STUDENT)
+  studentId       String?         @unique
+  dormNumber      String?
+  roomNumber      String?
+  phone           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  repairRequests  RepairRequest[]
+  assignedRepairs RepairRequest[] @relation("AssignedRepairs")
+  complaints      Complaint[]
+  responses       Complaint[]     @relation("ComplaintResponses")
+  refunds         Refund[]
+  processedRefunds Refund[]       @relation("ProcessedRefunds")
+  trades          Trade[]         @relation("TradeBuyer")
+  listedTrades    Trade[]         @relation("TradeSeller")
+  notifications   Notification[]
+  activities      ActivityParticipation[]
+  auditLogs       AuditLog[]
+  exports         ExportTask[]
+
+  @@index([email])
+  @@index([studentId])
+  @@index([role])
+}
+
+model RepairRequest {
+  id              String          @id @default(cuid())
+  title           String
+  description     String
+  category        RepairCategory
+  status          RepairStatus    @default(PENDING)
+  priority        Int             @default(1)
+  dormNumber      String
+  roomNumber      String
+  reportedById    String
+  reportedBy      User            @relation(fields: [reportedById], references: [id])
+  assignedToId    String?
+  assignedTo      User?           @relation("AssignedRepairs", fields: [assignedToId], references: [id])
+  estimatedCost   Decimal?        @db.Decimal(10, 2)
+  actualCost      Decimal?        @db.Decimal(10, 2)
+  completedAt     DateTime?
+  scheduledAt     DateTime?
+  photos          RepairPhoto[]
+  comments        Comment[]
+  complaints      Complaint[]
+  refunds         Refund[]
+  relatedTradeId  String?
+  relatedTrade    Trade?          @relation(fields: [relatedTradeId], references: [id])
+  notifications   Notification[]
+  activities      ActivityParticipation[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([reportedById])
+  @@index([createdAt])
+  @@index([dormNumber, roomNumber])
+}
+
+model RepairPhoto {
+  id              String          @id @default(cuid())
+  repairRequestId String
+  repairRequest   RepairRequest   @relation(fields: [repairRequestId], references: [id], onDelete: Cascade)
+  url             String
+  key             String
+  fileName        String
+  fileSize        Int
+  mimeType        String
+  uploadedById    String
+  uploadedBy      User            @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime        @default(now())
+
+  @@index([repairRequestId])
+}
+
+model Complaint {
+  id              String          @id @default(cuid())
+  repairRequestId String?
+  repairRequest   RepairRequest?  @relation(fields: [repairRequestId], references: [id])
+  tradeId         String?
+  trade           Trade?          @relation(fields: [tradeId], references: [id])
+  title           String
+  description     String
+  status          ComplaintStatus @default(PENDING)
+  submittedById   String
+  submittedBy     User            @relation(fields: [submittedById], references: [id])
+  response        String?
+  respondedById   String?
+  respondedBy     User?           @relation("ComplaintResponses", fields: [respondedById], references: [id])
+  respondedAt     DateTime?
+  attachments     Attachment[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([submittedById])
+  @@index([createdAt])
+}
+
+model Refund {
+  id              String          @id @default(cuid())
+  repairRequestId String
+  repairRequest   RepairRequest   @relation(fields: [repairRequestId], references: [id])
+  amount          Decimal         @db.Decimal(10, 2)
+  reason          String
+  status          RefundStatus    @default(PENDING)
+  requestedById   String
+  requestedBy     User            @relation(fields: [requestedById], references: [id])
+  processedById   String?
+  processedBy     User?           @relation("ProcessedRefunds", fields: [processedById], references: [id])
+  processedAt     DateTime?
+  transactionId   String?
+  notes           String?
+  auditLogs       AuditLog[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([repairRequestId])
+  @@index([createdAt])
+}
+
+model Trade {
+  id              String          @id @default(cuid())
+  title           String
+  description     String
+  price           Decimal         @db.Decimal(10, 2)
+  status          TradeStatus     @default(PENDING)
+  sellerId        String
+  seller          User            @relation("TradeSeller", fields: [sellerId], references: [id])
+  buyerId         String?
+  buyer           User?           @relation("TradeBuyer", fields: [buyerId], references: [id])
+  category        String
+  condition       String
+  photos          Attachment[]
+  comments        Comment[]
+  repairRequests  RepairRequest[]
+  complaints      Complaint[]
+  notifications   Notification[]
+  activities      ActivityParticipation[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([sellerId])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model Notification {
+  id              String              @id @default(cuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id])
+  type            NotificationType
+  title           String
+  content         String
+  status          NotificationStatus  @default(PENDING)
+  repairRequestId String?
+  repairRequest   RepairRequest?      @relation(fields: [repairRequestId], references: [id])
+  tradeId         String?
+  trade           Trade?              @relation(fields: [tradeId], references: [id])
+  complaintId     String?
+  complaint       Complaint?          @relation(fields: [complaintId], references: [id])
+  refundId        String?
+  refund          Refund?             @relation(fields: [refundId], references: [id])
+  readAt          DateTime?
+  metadata        Json?
+  createdAt       DateTime            @default(now())
+
+  @@index([userId, status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Comment {
+  id              String          @id @default(cuid())
+  content         String
+  repairRequestId String?
+  repairRequest   RepairRequest?  @relation(fields: [repairRequestId], references: [id])
+  tradeId         String?
+  trade           Trade?          @relation(fields: [tradeId], references: [id])
+  authorId        String
+  author          User            @relation(fields: [authorId], references: [id])
+  attachments     Attachment[]
+  isInternal      Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+
+  @@index([repairRequestId])
+  @@index([tradeId])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id              String          @id @default(cuid())
+  complaintId     String?
+  complaint       Complaint?      @relation(fields: [complaintId], references: [id])
+  commentId       String?
+  comment         Comment?        @relation(fields: [commentId], references: [id])
+  tradeId         String?
+  trade           Trade?          @relation(fields: [tradeId], references: [id])
+  url             String
+  key             String
+  fileName        String
+  fileSize        Int
+  mimeType        String
+  uploadedById    String
+  uploadedBy      User            @relation(fields: [uploadedById], references: [id])
+  description     String?
+  createdAt       DateTime        @default(now())
+
+  @@index([complaintId])
+  @@index([commentId])
+  @@index([tradeId])
+}
+
+model ActivityParticipation {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  activityName    String
+  activityType    String
+  repairRequestId String?
+  repairRequest   RepairRequest?  @relation(fields: [repairRequestId], references: [id])
+  tradeId         String?
+  trade           Trade?          @relation(fields: [tradeId], references: [id])
+  points          Int             @default(0)
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+
+  @@index([userId])
+  @@index([activityType])
+  @@index([createdAt])
+  @@index([repairRequestId])
+}
+
+model ExportTask {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  type            String
+  format          ExportFormat
+  status          ExportStatus    @default(PENDING)
+  filters         Json?
+  fileUrl         String?
+  fileName        String?
+  recordCount     Int?
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@index([userId, status])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id              String          @id @default(cuid())
+  action          LogAction
+  entityType      String
+  entityId        String
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  oldValue        Json?
+  newValue        Json?
+  description     String?
+  ipAddress       String?
+  userAgent       String?
+  repairRequestId String?
+  repairRequest   RepairRequest?  @relation(fields: [repairRequestId], references: [id])
+  complaintId     String?
+  complaint       Complaint?      @relation(fields: [complaintId], references: [id])
+  refundId        String?
+  refund          Refund?         @relation(fields: [refundId], references: [id])
+  tradeId         String?
+  trade           Trade?          @relation(fields: [tradeId], references: [id])
+  createdAt       DateTime        @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([repairRequestId])
+}
