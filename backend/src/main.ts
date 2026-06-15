@@ -1,12 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
+import { AuditLogService } from './common/services/audit-log.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  const reflector = app.get(Reflector);
+  const auditLogService = app.get(AuditLogService);
 
   app.enableCors({
     origin: configService.get('CORS_ORIGIN', 'http://localhost:4200'),
@@ -23,7 +27,7 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new AuditLogInterceptor());
+  app.useGlobalInterceptors(new AuditLogInterceptor(reflector, auditLogService));
 
   const port = configService.get('PORT', 3000);
   await app.listen(port);

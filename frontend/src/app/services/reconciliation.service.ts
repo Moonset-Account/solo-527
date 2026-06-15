@@ -22,8 +22,12 @@ export class ReconciliationService {
     return this.http.post<Reconciliation>(this.apiUrl, { period });
   }
 
-  updateStatus(id: string, status: string): Observable<Reconciliation> {
-    return this.http.put<Reconciliation>(`${this.apiUrl}/${id}/status`, { status });
+  updateStatus(id: string, status: string, notes?: string): Observable<Reconciliation> {
+    const body: any = { status };
+    if (notes !== undefined) {
+      body.notes = notes;
+    }
+    return this.http.put<Reconciliation>(`${this.apiUrl}/${id}/status`, body);
   }
 
   linkRecord(id: string, data: any): Observable<Reconciliation> {

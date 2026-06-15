@@ -5,8 +5,11 @@ import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { BillService } from '../../services/bill.service';
 import { Bill } from '../../services/api.config';
+import { PaymentDialogComponent } from './payment-dialog.component';
+import { StatusDialogComponent } from './status-dialog.component';
 
 @Component({
   selector: 'app-bills',
@@ -238,6 +241,7 @@ export class BillsComponent implements OnInit, AfterViewInit {
   dataSource = new MatTableDataSource<Bill>([]);
   filterForm: FormGroup;
   totalCount = 0;
+  isLoading = false;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -246,7 +250,8 @@ export class BillsComponent implements OnInit, AfterViewInit {
     private fb: FormBuilder,
     private billService: BillService,
     private router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {
     this.filterForm = this.fb.group({
       billNumber: [''],
@@ -287,15 +292,22 @@ export class BillsComponent implements OnInit, AfterViewInit {
   }
 
   loadBills(): void {
+    this.isLoading = true;
     const filters = this.filterForm.value;
     this.billService.findAll(filters).subscribe({
       next: (response) => {
         this.dataSource.data = response.data;
         this.totalCount = response.total;
         this.paginator.length = this.totalCount;
+        this.isLoading = false;
       },
       error: (error) => {
         console.error('Failed to load bills:', error);
+        this.snackBar.open('加载账单列表失败', '关闭', {
+          duration: 3000,
+          panelClass: ['error-snackbar']
+        });
+        this.isLoading = false;
       }
     });
   }
@@ -326,10 +338,62 @@ export class BillsComponent implements OnInit, AfterViewInit {
   }
 
   recordPayment(bill: Bill): void {
-    console.log('Record payment for bill:', bill);
+    const dialogRef = this.dialog.open(PaymentDialogComponent, {
+      width: '520px',
+      data: { bill }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.isLoading = true;
+        this.billService.recordPayment(bill.id, result).subscribe({
+          next: (updatedBill) => {
+            this.snackBar.open('付款登记成功', '关闭', {
+              duration: 3000,
+              panelClass: ['success-snackbar']
+            });
+            this.loadBills();
+          },
+          error: (error) => {
+            console.error('Failed to record payment:', error);
+            this.snackBar.open('付款登记失败', '关闭', {
+              duration: 3000,
+              panelClass: ['error-snackbar']
+            });
+            this.isLoading = false;
+          }
+        });
+      }
+    });
   }
 
   updateStatus(bill: Bill): void {
-    console.log('Update status for bill:', bill);
+    const dialogRef = this.dialog.open(StatusDialogComponent, {
+      width: '520px',
+      data: { bill }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.isLoading = true;
+        this.billService.updateStatus(bill.id, result.status, result.reason).subscribe({
+          next: (updatedBill) => {
+            this.snackBar.open('状态更新成功', '关闭', {
+              duration: 3000,
+              panelClass: ['success-snackbar']
+            });
+            this.loadBills();
+          },
+          error: (error) => {
+            console.error('Failed to update status:', error);
+            this.snackBar.open('状态更新失败', '关闭', {
+              duration: 3000,
+              panelClass: ['error-snackbar']
+            });
+            this.isLoading = false;
+          }
+        });
+      }
+    });
   }
 }

@@ -1,9 +1,18 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExportService } from '../../services/export.service';
+import { ReconciliationService } from '../../services/reconciliation.service';
+import { AttachmentService } from '../../services/attachment.service';
+import { InvoiceService } from '../../services/invoice.service';
+import { BillService } from '../../services/bill.service';
+import { CollectionService } from '../../services/collection.service';
+import { CashForecastService } from '../../services/cash-forecast.service';
 import { ExportQueue } from '../../services/api.config';
+import { interval, Subscription } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 
 const typeMap: Record<string, string> = {
   bills: '账单数据',
@@ -88,12 +97,28 @@ const formatMap: Record<string, string> = {
           <ng-container matColumnDef="summary">
             <th mat-header-cell *matHeaderCellDef>摘要</th>
             <td mat-cell *matCellDef="let item">
-              <button mat-icon-button [matMenuTriggerFor]="summaryMenu" *ngIf="item.exportSummary">
+              <button mat-icon-button [matMenuTriggerFor]="summaryMenu" *ngIf="item.exportSummary" matTooltip="查看摘要">
                 <mat-icon>info</mat-icon>
               </button>
               <mat-menu #summaryMenu="matMenu" class="summary-menu">
                 <div class="summary-content">
                   <div class="summary-title">导出摘要</div>
+                  <div class="summary-item" *ngIf="item.exportSummary?.reconciliationVariance !== undefined">
+                    <span class="summary-label">对账差异:</span>
+                    <span class="summary-value" [class.negative]="item.exportSummary.reconciliationVariance > 0">
+                      {{ item.exportSummary.reconciliationVariance | formatCurrency }}
+                    </span>
+                  </div>
+                  <div class="summary-item" *ngIf="item.exportSummary?.cashGap !== undefined">
+                    <span class="summary-label">现金缺口:</span>
+                    <span class="summary-value" [class.negative]="item.exportSummary.cashGap > 0">
+                      {{ item.exportSummary.cashGap | formatCurrency }}
+                    </span>
+                  </div>
+                  <div class="summary-item" *ngIf="item.exportSummary?.lastChangeDate">
+                    <span class="summary-label">最近变更日期:</span>
+                    <span class="summary-value">{{ item.exportSummary.lastChangeDate | formatDate }}</span>
+                  </div>
                   <div class="summary-item" *ngIf="item.exportSummary?.totalAmount !== undefined">
                     <span class="summary-label">总金额:</span>
                     <span class="summary-value">{{ item.exportSummary.totalAmount | formatCurrency }}</span>
@@ -105,20 +130,6 @@ const formatMap: Record<string, string> = {
                   <div class="summary-item" *ngIf="item.exportSummary?.overdueAmount !== undefined">
                     <span class="summary-label">逾期金额:</span>
                     <span class="summary-value negative">{{ item.exportSummary.overdueAmount | formatCurrency }}</span>
-                  </div>
-                  <div class="summary-item" *ngIf="item.exportSummary?.reconciliationVariance !== undefined">
-                    <span class="summary-label">对账差异:</span>
-                    <span class="summary-value" [class.negative]="item.exportSummary.reconciliationVariance !== 0">
-                      {{ item.exportSummary.reconciliationVariance | formatCurrency }}
-                    </span>
-                  </div>
-                  <div class="summary-item" *ngIf="item.exportSummary?.cashGap !== undefined">
-                    <span class="summary-label">现金缺口:</span>
-                    <span class="summary-value negative">{{ item.exportSummary.cashGap | formatCurrency }}</span>
-                  </div>
-                  <div class="summary-item" *ngIf="item.exportSummary?.lastChangeDate">
-                    <span class="summary-label">最近变更日期:</span>
-                    <span class="summary-value">{{ item.exportSummary.lastChangeDate | formatDate }}</span>
                   </div>
                 </div>
               </mat-menu>
@@ -361,7 +372,7 @@ const formatMap: Record<string, string> = {
     }
   `]
 })
-export class ExportQueueComponent implements OnInit {
+export class ExportQueueComponent implements OnInit, OnDestroy {
   @ViewChild('createDialogTemplate') createDialogTemplate!: TemplateRef<any>;
   displayedColumns = ['type', 'format', 'status', 'fileName', 'recordCount', 'fileSize', 'createdAt', 'completedAt', 'summary', 'actions'];
   dataSource = new MatTableDataSource<ExportQueue>([]);
@@ -369,11 +380,22 @@ export class ExportQueueComponent implements OnInit {
   dialogRef: MatDialogRef<any> | null = null;
   typeMap = typeMap;
   formatMap = formatMap;
+  isLoading = false;
+  isCreating = false;
+  private refreshSubscription: Subscription | null = null;
+  private readonly REFRESH_INTERVAL = 30000;
 
   constructor(
     private exportService: ExportService,
     private fb: FormBuilder,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar,
+    private reconciliationService: ReconciliationService,
+    private attachmentService: AttachmentService,
+    private invoiceService: InvoiceService,
+    private billService: BillService,
+    private collectionService: CollectionService,
+    private cashForecastService: CashForecastService
   ) {
     this.createForm = this.fb.group({
       type: ['', Validators.required],
@@ -386,14 +408,46 @@ export class ExportQueueComponent implements OnInit {
 
   ngOnInit() {
     this.loadExports();
+    this.startAutoRefresh();
   }
 
-  loadExports() {
-    this.exportService.findAll().subscribe(response => {
-      if (response.data.length === 0) {
+  ngOnDestroy() {
+    this.stopAutoRefresh();
+  }
+
+  private startAutoRefresh() {
+    this.refreshSubscription = interval(this.REFRESH_INTERVAL).subscribe(() => {
+      this.loadExports(false);
+    });
+  }
+
+  private stopAutoRefresh() {
+    if (this.refreshSubscription) {
+      this.refreshSubscription.unsubscribe();
+      this.refreshSubscription = null;
+    }
+  }
+
+  loadExports(showError: boolean = true) {
+    this.isLoading = true;
+    this.exportService.findAll().pipe(
+      finalize(() => this.isLoading = false)
+    ).subscribe({
+      next: (response) => {
+        if (response.data.length === 0) {
+          this.dataSource.data = this.getMockExports();
+        } else {
+          this.dataSource.data = response.data;
+        }
+      },
+      error: (error) => {
+        if (showError) {
+          this.snackBar.open('加载导出队列失败: ' + (error.message || '未知错误'), '关闭', {
+            duration: 5000,
+            panelClass: ['error-snackbar']
+          });
+        }
         this.dataSource.data = this.getMockExports();
-      } else {
-        this.dataSource.data = response.data;
       }
     });
   }
@@ -408,6 +462,7 @@ export class ExportQueueComponent implements OnInit {
   createExport() {
     if (!this.createForm.valid) return;
 
+    this.isCreating = true;
     const filters: any = {};
     const formValue = this.createForm.value;
 
@@ -425,36 +480,76 @@ export class ExportQueueComponent implements OnInit {
       type: formValue.type,
       format: formValue.format,
       filters
-    }).subscribe(() => {
-      this.dialogRef?.close();
-      this.loadExports();
+    }).pipe(
+      finalize(() => this.isCreating = false)
+    ).subscribe({
+      next: () => {
+        this.dialogRef?.close();
+        this.loadExports();
+        this.snackBar.open('导出任务创建成功', '关闭', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+      },
+      error: (error) => {
+        this.snackBar.open('创建导出任务失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
     });
   }
 
   download(item: ExportQueue) {
-    this.exportService.download(item.id).subscribe(response => {
-      const blob = response.body;
-      if (!blob) return;
+    this.exportService.download(item.id).subscribe({
+      next: (response) => {
+        const blob = response.body;
+        if (!blob) return;
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = item.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = item.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.snackBar.open('文件下载成功', '关闭', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+      },
+      error: (error) => {
+        this.snackBar.open('下载失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
     });
   }
 
   retry(item: ExportQueue) {
-    this.exportService.retry(item.id).subscribe(() => {
-      this.loadExports();
+    this.exportService.retry(item.id).subscribe({
+      next: () => {
+        this.loadExports();
+        this.snackBar.open('重试任务已提交', '关闭', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+      },
+      error: (error) => {
+        this.snackBar.open('重试失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
     });
   }
 
   cancel(item: ExportQueue) {
-    this.loadExports();
+    this.snackBar.open('取消功能待实现', '关闭', {
+      duration: 3000
+    });
   }
 
   formatFileSize(bytes?: number): string {

@@ -249,7 +249,7 @@ export class BillService {
       bill.remainingAmount = Number(bill.totalAmount) - newPaidAmount;
       bill.updatedBy = userId;
 
-      let newStatus = bill.status;
+      let newStatus: BillStatus = bill.status;
       if (bill.remainingAmount === 0) {
         newStatus = 'paid';
       } else if (bill.paidAmount > 0) {

@@ -223,7 +223,7 @@ export class CollectionService {
         completedCount: parseInt(totals.completedCount || 0),
         promisedCount: parseInt(totals.promisedCount || 0),
       },
-      byStatus: statusCounts.map(s => ({ status: s.status, count: parseInt(s.count) }),
+      byStatus: statusCounts.map(s => ({ status: s.status, count: parseInt(s.count) })),
       bySeverity: severityCounts.map(s => ({ severity: s.severity, count: parseInt(s.count) })),
     };
   }

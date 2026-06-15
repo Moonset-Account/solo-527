@@ -1,9 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ReconciliationService } from '../../services/reconciliation.service';
-import { Reconciliation } from '../../services/api.config';
+import { AttachmentService } from '../../services/attachment.service';
+import { BillService } from '../../services/bill.service';
+import { CollectionService } from '../../services/collection.service';
+import { CashForecastService } from '../../services/cash-forecast.service';
+import { InvoiceService } from '../../services/invoice.service';
+import { Reconciliation, Attachment, Bill, CollectionRecord, CashForecast, Invoice } from '../../services/api.config';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-reconciliation-detail',
@@ -321,32 +328,34 @@ import { Reconciliation } from '../../services/api.config';
 
         <mat-tab label="关联记录">
           <div class="tab-content">
-            <div class="linked-records-grid">
+            <div class="linked-records-grid" *ngIf="isLoadingLinkedRecords">
+              <mat-card>
+                <mat-card-content class="loading-content">
+                  <mat-spinner diameter="40"></mat-spinner>
+                  <p>加载关联记录中...</p>
+                </mat-card-content>
+              </mat-card>
+            </div>
+
+            <div class="linked-records-grid" *ngIf="!isLoadingLinkedRecords">
               <mat-card>
                 <mat-card-header>
-                  <mat-card-title>关联现金预测</mat-card-title>
+                  <mat-card-title>关联账单 ({{ linkedBillsDataSource.data.length }})</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
                   <div class="table-container">
-                    <table mat-table [dataSource]="linkedForecasts" class="data-table">
-                      <ng-container matColumnDef="type">
-                        <th mat-header-cell *matHeaderCellDef>类型</th>
-                        <td mat-cell *matCellDef="let element">
-                          <mat-icon class="record-icon">trending_up</mat-icon>
-                          现金预测
-                        </td>
+                    <table mat-table [dataSource]="linkedBillsDataSource" class="data-table">
+                      <ng-container matColumnDef="billNumber">
+                        <th mat-header-cell *matHeaderCellDef>账单编号</th>
+                        <td mat-cell *matCellDef="let element">{{ element.billNumber }}</td>
                       </ng-container>
-                      <ng-container matColumnDef="number">
-                        <th mat-header-cell *matHeaderCellDef>编号</th>
-                        <td mat-cell *matCellDef="let element">{{ element.forecastPeriod }}</td>
+                      <ng-container matColumnDef="customerName">
+                        <th mat-header-cell *matHeaderCellDef>客户名称</th>
+                        <td mat-cell *matCellDef="let element">{{ element.customer?.name || '-' }}</td>
                       </ng-container>
                       <ng-container matColumnDef="amount">
-                        <th mat-header-cell *matHeaderCellDef>预测金额</th>
-                        <td mat-cell *matCellDef="let element">{{ element.projectedClosingBalance | formatCurrency }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="date">
-                        <th mat-header-cell *matHeaderCellDef>日期</th>
-                        <td mat-cell *matCellDef="let element">{{ element.forecastDate | formatDate }}</td>
+                        <th mat-header-cell *matHeaderCellDef>金额</th>
+                        <td mat-cell *matCellDef="let element">{{ element.totalAmount | formatCurrency }}</td>
                       </ng-container>
                       <ng-container matColumnDef="status">
                         <th mat-header-cell *matHeaderCellDef>状态</th>
@@ -356,39 +365,111 @@ import { Reconciliation } from '../../services/api.config';
                           </span>
                         </td>
                       </ng-container>
-                      <tr mat-header-row *matHeaderRowDef="linkedColumns"></tr>
-                      <tr mat-row *matRowDef="let row; columns: linkedColumns;"></tr>
+                      <ng-container matColumnDef="dueDate">
+                        <th mat-header-cell *matHeaderCellDef>到期日</th>
+                        <td mat-cell *matCellDef="let element">{{ element.dueDate | formatDate }}</td>
+                      </ng-container>
+                      <tr mat-header-row *matHeaderRowDef="linkedBillColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: linkedBillColumns;"></tr>
                     </table>
+                    <div class="empty-table" *ngIf="linkedBillsDataSource.data.length === 0">
+                      暂无关联账单
+                    </div>
                   </div>
                 </mat-card-content>
               </mat-card>
 
               <mat-card>
                 <mat-card-header>
-                  <mat-card-title>关联发票</mat-card-title>
+                  <mat-card-title>关联现金预测 ({{ linkedForecastsDataSource.data.length }})</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
                   <div class="table-container">
-                    <table mat-table [dataSource]="linkedInvoices" class="data-table">
-                      <ng-container matColumnDef="type">
-                        <th mat-header-cell *matHeaderCellDef>类型</th>
-                        <td mat-cell *matCellDef="let element">
-                          <mat-icon class="record-icon">receipt</mat-icon>
-                          发票
+                    <table mat-table [dataSource]="linkedForecastsDataSource" class="data-table">
+                      <ng-container matColumnDef="forecastPeriod">
+                        <th mat-header-cell *matHeaderCellDef>预测周期</th>
+                        <td mat-cell *matCellDef="let element">{{ element.forecastPeriod }}</td>
+                      </ng-container>
+                      <ng-container matColumnDef="projectedCashGap">
+                        <th mat-header-cell *matHeaderCellDef>预计现金缺口</th>
+                        <td mat-cell *matCellDef="let element" [class.negative]="element.projectedCashGap > 0">
+                          {{ element.projectedCashGap | formatCurrency }}
                         </td>
                       </ng-container>
-                      <ng-container matColumnDef="number">
-                        <th mat-header-cell *matHeaderCellDef>发票号</th>
+                      <ng-container matColumnDef="status">
+                        <th mat-header-cell *matHeaderCellDef>状态</th>
+                        <td mat-cell *matCellDef="let element">
+                          <span [class]="element.status | statusBadge">
+                            {{ element.status | statusDisplay }}
+                          </span>
+                        </td>
+                      </ng-container>
+                      <tr mat-header-row *matHeaderRowDef="linkedForecastColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: linkedForecastColumns;"></tr>
+                    </table>
+                    <div class="empty-table" *ngIf="linkedForecastsDataSource.data.length === 0">
+                      暂无关联现金预测
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title>关联催收记录 ({{ linkedCollectionsDataSource.data.length }})</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                  <div class="table-container">
+                    <table mat-table [dataSource]="linkedCollectionsDataSource" class="data-table">
+                      <ng-container matColumnDef="channel">
+                        <th mat-header-cell *matHeaderCellDef>催收渠道</th>
+                        <td mat-cell *matCellDef="let element">{{ element.channel }}</td>
+                      </ng-container>
+                      <ng-container matColumnDef="severity">
+                        <th mat-header-cell *matHeaderCellDef>严重程度</th>
+                        <td mat-cell *matCellDef="let element">
+                          <span [class]="'severity-' + element.severity">
+                            {{ element.severity }}
+                          </span>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="status">
+                        <th mat-header-cell *matHeaderCellDef>状态</th>
+                        <td mat-cell *matCellDef="let element">
+                          <span [class]="element.status | statusBadge">
+                            {{ element.status | statusDisplay }}
+                          </span>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="contactDate">
+                        <th mat-header-cell *matHeaderCellDef>联系日期</th>
+                        <td mat-cell *matCellDef="let element">{{ element.contactDate | formatDate }}</td>
+                      </ng-container>
+                      <tr mat-header-row *matHeaderRowDef="linkedCollectionColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: linkedCollectionColumns;"></tr>
+                    </table>
+                    <div class="empty-table" *ngIf="linkedCollectionsDataSource.data.length === 0">
+                      暂无关联催收记录
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title>关联发票 ({{ linkedInvoicesDataSource.data.length }})</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                  <div class="table-container">
+                    <table mat-table [dataSource]="linkedInvoicesDataSource" class="data-table">
+                      <ng-container matColumnDef="invoiceNumber">
+                        <th mat-header-cell *matHeaderCellDef>发票编号</th>
                         <td mat-cell *matCellDef="let element">{{ element.invoiceNumber }}</td>
                       </ng-container>
                       <ng-container matColumnDef="amount">
                         <th mat-header-cell *matHeaderCellDef>金额</th>
                         <td mat-cell *matCellDef="let element">{{ element.amount | formatCurrency }}</td>
                       </ng-container>
-                      <ng-container matColumnDef="date">
-                        <th mat-header-cell *matHeaderCellDef>开票日期</th>
-                        <td mat-cell *matCellDef="let element">{{ element.issueDate | formatDate }}</td>
-                      </ng-container>
                       <ng-container matColumnDef="status">
                         <th mat-header-cell *matHeaderCellDef>状态</th>
                         <td mat-cell *matCellDef="let element">
@@ -397,84 +478,102 @@ import { Reconciliation } from '../../services/api.config';
                           </span>
                         </td>
                       </ng-container>
-                      <tr mat-header-row *matHeaderRowDef="linkedColumns"></tr>
-                      <tr mat-row *matRowDef="let row; columns: linkedColumns;"></tr>
+                      <ng-container matColumnDef="invoiceDate">
+                        <th mat-header-cell *matHeaderCellDef>开票日期</th>
+                        <td mat-cell *matCellDef="let element">{{ element.invoiceDate | formatDate }}</td>
+                      </ng-container>
+                      <tr mat-header-row *matHeaderRowDef="linkedInvoiceColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: linkedInvoiceColumns;"></tr>
                     </table>
+                    <div class="empty-table" *ngIf="linkedInvoicesDataSource.data.length === 0">
+                      暂无关联发票
+                    </div>
                   </div>
                 </mat-card-content>
               </mat-card>
 
               <mat-card>
                 <mat-card-header>
-                  <mat-card-title>关联催收记录</mat-card-title>
+                  <mat-card-title>附件列表 ({{ linkedAttachmentsDataSource.data.length }})</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
                   <div class="table-container">
-                    <table mat-table [dataSource]="linkedCollections" class="data-table">
-                      <ng-container matColumnDef="type">
-                        <th mat-header-cell *matHeaderCellDef>类型</th>
+                    <table mat-table [dataSource]="linkedAttachmentsDataSource" class="data-table">
+                      <ng-container matColumnDef="originalName">
+                        <th mat-header-cell *matHeaderCellDef>文件名</th>
                         <td mat-cell *matCellDef="let element">
-                          <mat-icon class="record-icon">phone</mat-icon>
-                          催收记录
+                          <mat-icon class="record-icon">attach_file</mat-icon>
+                          {{ element.originalName }}
                         </td>
                       </ng-container>
-                      <ng-container matColumnDef="number">
-                        <th mat-header-cell *matHeaderCellDef>编号</th>
-                        <td mat-cell *matCellDef="let element">{{ element.id }}</td>
+                      <ng-container matColumnDef="size">
+                        <th mat-header-cell *matHeaderCellDef>大小</th>
+                        <td mat-cell *matCellDef="let element">{{ formatFileSize(element.size) }}</td>
                       </ng-container>
-                      <ng-container matColumnDef="amount">
-                        <th mat-header-cell *matHeaderCellDef>承诺金额</th>
-                        <td mat-cell *matCellDef="let element">{{ element.promisedAmount | formatCurrency }}</td>
+                      <ng-container matColumnDef="description">
+                        <th mat-header-cell *matHeaderCellDef>描述</th>
+                        <td mat-cell *matCellDef="let element">{{ element.description || '-' }}</td>
                       </ng-container>
-                      <ng-container matColumnDef="date">
-                        <th mat-header-cell *matHeaderCellDef>联系日期</th>
-                        <td mat-cell *matCellDef="let element">{{ element.contactDate | formatDate }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="status">
-                        <th mat-header-cell *matHeaderCellDef>状态</th>
+                      <ng-container matColumnDef="download">
+                        <th mat-header-cell *matHeaderCellDef>操作</th>
                         <td mat-cell *matCellDef="let element">
-                          <span [class]="element.status | statusBadge">
-                            {{ element.status | statusDisplay }}
-                          </span>
+                          <button mat-icon-button (click)="downloadAttachment(element)" matTooltip="下载">
+                            <mat-icon>download</mat-icon>
+                          </button>
                         </td>
                       </ng-container>
-                      <tr mat-header-row *matHeaderRowDef="linkedColumns"></tr>
-                      <tr mat-row *matRowDef="let row; columns: linkedColumns;"></tr>
+                      <tr mat-header-row *matHeaderRowDef="linkedAttachmentColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: linkedAttachmentColumns;"></tr>
                     </table>
+                    <div class="empty-table" *ngIf="linkedAttachmentsDataSource.data.length === 0">
+                      暂无附件
+                    </div>
+                  </div>
+
+                  <div class="upload-section">
+                    <h4>上传附件</h4>
+                    <div class="upload-form">
+                      <input type="file" #attachmentInput (change)="onAttachmentSelected($event)" style="display: none;">
+                      <mat-form-field appearance="outline" class="description-input">
+                        <mat-label>附件描述</mat-label>
+                        <input matInput [(ngModel)]="uploadDescription" placeholder="可选">
+                      </mat-form-field>
+                      <button mat-stroked-button (click)="attachmentInput.click()" [disabled]="isUploading">
+                        <mat-icon>attach_file</mat-icon>
+                        选择文件
+                      </button>
+                      <span *ngIf="selectedFile" class="file-name">{{ selectedFile.name }}</span>
+                      <button mat-raised-button color="primary" (click)="uploadAttachment()" [disabled]="!selectedFile || isUploading">
+                        <mat-icon *ngIf="!isUploading">cloud_upload</mat-icon>
+                        <mat-spinner *ngIf="isUploading" diameter="20"></mat-spinner>
+                        {{ isUploading ? '上传中...' : '上传' }}
+                      </button>
+                    </div>
                   </div>
                 </mat-card-content>
               </mat-card>
 
               <mat-card>
                 <mat-card-header>
-                  <mat-card-title>附件备注</mat-card-title>
+                  <mat-card-title>备注</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
                   <div class="notes-section">
-                    <div class="note-item" *ngFor="let note of notes">
-                      <div class="note-header">
-                        <mat-icon class="note-icon">description</mat-icon>
-                        <span class="note-title">{{ note.title }}</span>
-                        <span class="note-date">{{ note.createdAt | formatDateTime }}</span>
-                      </div>
-                      <div class="note-content">{{ note.content }}</div>
+                    <div class="current-notes" *ngIf="reconciliation.notes">
+                      <h4>当前备注</h4>
+                      <p class="notes-content">{{ reconciliation.notes }}</p>
                     </div>
 
-                    <form [formGroup]="noteForm" (ngSubmit)="addNote()" class="add-note-form">
+                    <form [formGroup]="noteForm" (ngSubmit)="saveNotes()" class="add-note-form">
                       <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>添加备注</mat-label>
-                        <textarea matInput formControlName="content" rows="3" placeholder="请输入备注内容..."></textarea>
+                        <mat-label>添加/更新备注</mat-label>
+                        <textarea matInput formControlName="content" rows="4" placeholder="请输入备注内容..."></textarea>
                       </mat-form-field>
                       <div class="form-actions">
-                        <input type="file" #fileInput (change)="onFileSelected($event)" style="display: none;">
-                        <button type="button" mat-stroked-button (click)="fileInput.click()">
-                          <mat-icon>attach_file</mat-icon>
-                          添加附件
-                        </button>
-                        <span *ngIf="selectedFile" class="file-name">{{ selectedFile.name }}</span>
-                        <button type="submit" mat-raised-button color="primary" [disabled]="!noteForm.valid">
-                          <mat-icon>send</mat-icon>
-                          提交
+                        <button type="submit" mat-raised-button color="primary" [disabled]="!noteForm.valid || isSavingNotes">
+                          <mat-icon *ngIf="!isSavingNotes">save</mat-icon>
+                          <mat-spinner *ngIf="isSavingNotes" diameter="20"></mat-spinner>
+                          {{ isSavingNotes ? '保存中...' : '保存备注' }}
                         </button>
                       </div>
                     </form>
@@ -841,6 +940,85 @@ import { Reconciliation } from '../../services/api.config';
       color: #ff9800;
     }
 
+    .loading-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      gap: 16px;
+    }
+
+    .empty-table {
+      text-align: center;
+      padding: 24px;
+      color: rgba(0, 0, 0, 0.54);
+    }
+
+    .upload-section {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .upload-section h4 {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .upload-form {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .description-input {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .current-notes {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+
+    .current-notes h4 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.54);
+    }
+
+    .notes-content {
+      margin: 0;
+      line-height: 1.6;
+      color: rgba(0, 0, 0, 0.87);
+    }
+
+    .severity-low {
+      color: #4caf50;
+      font-weight: 500;
+    }
+
+    .severity-medium {
+      color: #ff9800;
+      font-weight: 500;
+    }
+
+    .severity-high {
+      color: #f44336;
+      font-weight: 500;
+    }
+
+    .severity-critical {
+      color: #9c27b0;
+      font-weight: 500;
+    }
+
     @media (max-width: 1200px) {
       .overview-grid {
         grid-template-columns: 1fr;
@@ -866,9 +1044,13 @@ import { Reconciliation } from '../../services/api.config';
     }
   `]
 })
-export class ReconciliationDetailComponent implements OnInit {
+export class ReconciliationDetailComponent implements OnInit, OnDestroy {
   reconciliation!: Reconciliation;
   selectedFile: File | null = null;
+  isLoadingLinkedRecords = false;
+  isUploading = false;
+  isSavingNotes = false;
+  uploadDescription = '';
 
   noteForm: FormGroup;
 
@@ -876,14 +1058,20 @@ export class ReconciliationDetailComponent implements OnInit {
   unmatchedBillColumns = ['billNumber', 'customer', 'amount', 'dueDate', 'reason'];
   unmatchedBankColumns = ['reference', 'amount', 'date', 'payer', 'reason'];
   varianceColumns = ['type', 'description', 'amount', 'date', 'status'];
-  linkedColumns = ['type', 'number', 'amount', 'date', 'status'];
+  linkedBillColumns = ['billNumber', 'customerName', 'amount', 'status', 'dueDate'];
+  linkedForecastColumns = ['forecastPeriod', 'projectedCashGap', 'status'];
+  linkedCollectionColumns = ['channel', 'severity', 'status', 'contactDate'];
+  linkedInvoiceColumns = ['invoiceNumber', 'amount', 'status', 'invoiceDate'];
+  linkedAttachmentColumns = ['originalName', 'size', 'description', 'download'];
 
   matchedDataSource = new MatTableDataSource<any>([]);
   unmatchedBillsDataSource = new MatTableDataSource<any>([]);
   unmatchedBankDataSource = new MatTableDataSource<any>([]);
-  linkedForecasts = new MatTableDataSource<any>([]);
-  linkedInvoices = new MatTableDataSource<any>([]);
-  linkedCollections = new MatTableDataSource<any>([]);
+  linkedBillsDataSource = new MatTableDataSource<Bill>([]);
+  linkedForecastsDataSource = new MatTableDataSource<CashForecast>([]);
+  linkedCollectionsDataSource = new MatTableDataSource<CollectionRecord>([]);
+  linkedInvoicesDataSource = new MatTableDataSource<Invoice>([]);
+  linkedAttachmentsDataSource = new MatTableDataSource<Attachment>([]);
 
   varianceGroups: any[] = [];
   notes: any[] = [];
@@ -892,7 +1080,13 @@ export class ReconciliationDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
-    private reconciliationService: ReconciliationService
+    private reconciliationService: ReconciliationService,
+    private attachmentService: AttachmentService,
+    private billService: BillService,
+    private collectionService: CollectionService,
+    private cashForecastService: CashForecastService,
+    private invoiceService: InvoiceService,
+    private snackBar: MatSnackBar
   ) {
     this.noteForm = this.fb.group({
       content: ['', Validators.required]
@@ -907,22 +1101,52 @@ export class ReconciliationDetailComponent implements OnInit {
     }
   }
 
+  ngOnDestroy(): void {}
+
   loadReconciliation(id: string): void {
-    this.reconciliationService.findOne(id).subscribe(data => {
-      this.reconciliation = data;
-      this.matchedDataSource.data = data.matchedItems || [];
-      this.unmatchedBillsDataSource.data = this.generateUnmatchedBills();
-      this.unmatchedBankDataSource.data = this.generateUnmatchedBankRecords();
-      this.varianceGroups = this.generateVarianceGroups(data.varianceBreakdown || []);
-      this.notes = this.generateNotes();
+    this.reconciliationService.findOne(id).subscribe({
+      next: (data) => {
+        this.reconciliation = data;
+        this.matchedDataSource.data = data.matchedItems || [];
+        this.unmatchedBillsDataSource.data = this.generateUnmatchedBills();
+        this.unmatchedBankDataSource.data = this.generateUnmatchedBankRecords();
+        this.varianceGroups = this.generateVarianceGroups(data.varianceBreakdown || []);
+        if (data.notes) {
+          this.noteForm.patchValue({ content: data.notes });
+        }
+      },
+      error: (error) => {
+        this.snackBar.open('加载对账详情失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
     });
   }
 
   loadLinkedRecords(id: string): void {
-    this.reconciliationService.getLinkedRecords(id).subscribe(data => {
-      this.linkedForecasts.data = data.cashForecasts || [];
-      this.linkedInvoices.data = data.invoices || [];
-      this.linkedCollections.data = data.collectionRecords || [];
+    this.isLoadingLinkedRecords = true;
+    this.reconciliationService.getLinkedRecords(id).pipe(
+      finalize(() => this.isLoadingLinkedRecords = false)
+    ).subscribe({
+      next: (data) => {
+        this.linkedBillsDataSource.data = data.bills || [];
+        this.linkedForecastsDataSource.data = data.cashForecasts || [];
+        this.linkedCollectionsDataSource.data = data.collectionRecords || [];
+        this.linkedInvoicesDataSource.data = data.invoices || [];
+        this.linkedAttachmentsDataSource.data = data.attachments || [];
+      },
+      error: (error) => {
+        this.snackBar.open('加载关联记录失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+        this.linkedBillsDataSource.data = [];
+        this.linkedForecastsDataSource.data = [];
+        this.linkedCollectionsDataSource.data = [];
+        this.linkedInvoicesDataSource.data = [];
+        this.linkedAttachmentsDataSource.data = [];
+      }
     });
   }
 
@@ -932,30 +1156,114 @@ export class ReconciliationDetailComponent implements OnInit {
 
   confirmComplete(): void {
     if (this.reconciliation) {
-      this.reconciliationService.updateStatus(this.reconciliation.id, 'reconciled').subscribe(() => {
-        this.loadReconciliation(this.reconciliation.id);
+      this.reconciliationService.updateStatus(this.reconciliation.id, 'reconciled').subscribe({
+        next: () => {
+          this.loadReconciliation(this.reconciliation.id);
+          this.snackBar.open('对账已完成', '关闭', {
+            duration: 3000,
+            panelClass: ['success-snackbar']
+          });
+        },
+        error: (error) => {
+          this.snackBar.open('确认完成失败: ' + (error.message || '未知错误'), '关闭', {
+            duration: 5000,
+            panelClass: ['error-snackbar']
+          });
+        }
       });
     }
   }
 
-  addNote(): void {
-    if (this.noteForm.valid) {
-      const newNote = {
-        title: '手动备注',
-        content: this.noteForm.value.content,
-        createdAt: new Date().toISOString()
-      };
-      this.notes = [newNote, ...this.notes];
-      this.noteForm.reset();
-      this.selectedFile = null;
-    }
+  saveNotes(): void {
+    if (!this.noteForm.valid || !this.reconciliation) return;
+
+    this.isSavingNotes = true;
+    const notes = this.noteForm.value.content;
+    this.reconciliationService.updateStatus(this.reconciliation.id, this.reconciliation.status, notes).pipe(
+      finalize(() => this.isSavingNotes = false)
+    ).subscribe({
+      next: (data) => {
+        this.reconciliation = data;
+        this.snackBar.open('备注保存成功', '关闭', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+      },
+      error: (error) => {
+        this.snackBar.open('保存备注失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
+    });
   }
 
-  onFileSelected(event: any): void {
+  onAttachmentSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
       this.selectedFile = file;
     }
+  }
+
+  uploadAttachment(): void {
+    if (!this.selectedFile || !this.reconciliation) return;
+
+    this.isUploading = true;
+    this.attachmentService.upload(
+      this.selectedFile,
+      'reconciliation',
+      this.reconciliation.id,
+      this.uploadDescription || undefined
+    ).pipe(
+      finalize(() => this.isUploading = false)
+    ).subscribe({
+      next: () => {
+        this.snackBar.open('附件上传成功', '关闭', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+        this.selectedFile = null;
+        this.uploadDescription = '';
+        this.loadLinkedRecords(this.reconciliation.id);
+      },
+      error: (error) => {
+        this.snackBar.open('上传失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
+    });
+  }
+
+  downloadAttachment(attachment: Attachment): void {
+    this.attachmentService.download(attachment.id).subscribe({
+      next: (response) => {
+        const blob = response.body;
+        if (!blob) return;
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = attachment.originalName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error) => {
+        this.snackBar.open('下载失败: ' + (error.message || '未知错误'), '关闭', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+      }
+    });
+  }
+
+  formatFileSize(bytes?: number): string {
+    if (!bytes) return '-';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
   private generateUnmatchedBills(): any[] {

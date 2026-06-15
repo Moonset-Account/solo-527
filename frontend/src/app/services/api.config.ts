@@ -149,3 +149,61 @@ export interface ExportQueue {
   retryCount: number;
   createdAt: string;
 }
+
+export interface Invoice {
+  id: string;
+  billId: string;
+  invoiceNumber: string;
+  amount: number;
+  currency: string;
+  status: string;
+  invoiceDate: string;
+  dueDate: string;
+  sentDate?: string;
+  paidDate?: string;
+  paidAmount?: number;
+  customerAddress?: string;
+  subtotal: number;
+  tax?: number;
+  discount?: number;
+  notes?: string;
+  bill?: Bill;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Attachment {
+  id: string;
+  entityType: string;
+  entityId: string;
+  billId?: string;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  storagePath: string;
+  description?: string;
+  isPublic: boolean;
+  uploadUrl?: string;
+  downloadUrl?: string;
+  bill?: Bill;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  userId?: string;
+  username?: string;
+  description?: string;
+  oldValues?: any;
+  newValues?: any;
+  changedFields?: string[];
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: any;
+  createdAt: string;
+}

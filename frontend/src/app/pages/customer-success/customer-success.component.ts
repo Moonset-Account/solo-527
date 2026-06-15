@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { BillService } from '../../services/bill.service';
 import { CollectionService } from '../../services/collection.service';
 import { Bill, StatusHistory, CollectionRecord } from '../../services/api.config';
@@ -146,7 +147,7 @@ interface CustomerOption {
                       color="primary"
                       class="payment-btn"
                       (click)="openPaymentDialog(bill)"
-                      [disabled]="bill.status === 'paid'"
+                      [disabled]="bill.status === 'paid' || isLoading"
                     >
                       <mat-icon>payments</mat-icon>
                       登记付款
@@ -285,9 +286,10 @@ interface CustomerOption {
           </form>
         </mat-dialog-content>
         <mat-dialog-actions align="end">
-          <button mat-button (click)="closePaymentDialog()">取消</button>
-          <button mat-raised-button color="primary" (click)="submitPayment()" [disabled]="!paymentForm.valid">
-            确认登记
+          <button mat-button (click)="closePaymentDialog()" [disabled]="isSubmitting">取消</button>
+          <button mat-raised-button color="primary" (click)="submitPayment()" [disabled]="!paymentForm.valid || isSubmitting">
+            <mat-spinner *ngIf="isSubmitting" diameter="16"></mat-spinner>
+            <span *ngIf="!isSubmitting">确认登记</span>
           </button>
         </mat-dialog-actions>
       </div>
@@ -570,6 +572,13 @@ interface CustomerOption {
         grid-template-columns: 1fr;
       }
     }
+    mat-spinner {
+      display: inline-block;
+      margin-right: 8px;
+    }
+    .payment-btn {
+      position: relative;
+    }
   `]
 })
 export class CustomerSuccessComponent implements OnInit {
@@ -584,12 +593,15 @@ export class CustomerSuccessComponent implements OnInit {
   collectionRecords: CollectionRecord[] = [];
   paymentForm: FormGroup;
   paymentDialogRef: MatDialogRef<any> | null = null;
+  isLoading = false;
+  isSubmitting = false;
 
   constructor(
     private fb: FormBuilder,
     private billService: BillService,
     private collectionService: CollectionService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {
     this.customerControl = this.fb.control('');
     this.paymentForm = this.fb.group({
@@ -610,27 +622,62 @@ export class CustomerSuccessComponent implements OnInit {
   }
 
   loadCustomerOptions() {
-    this.billService.getStatistics().subscribe(data => {
-      if (data.customers) {
-        this.customerOptions = data.customers;
-      } else {
+    this.isLoading = true;
+    this.billService.getStatistics().subscribe({
+      next: (data) => {
+        if (data.customers) {
+          this.customerOptions = data.customers;
+        } else {
+          this.customerOptions = this.getMockCustomerOptions();
+        }
+        if (this.customerOptions.length > 0) {
+          this.customerControl.setValue(this.customerOptions[0].id);
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Failed to load customer options:', error);
+        this.snackBar.open('加载客户列表失败', '关闭', {
+          duration: 3000,
+          panelClass: ['error-snackbar']
+        });
         this.customerOptions = this.getMockCustomerOptions();
-      }
-      if (this.customerOptions.length > 0) {
-        this.customerControl.setValue(this.customerOptions[0].id);
+        if (this.customerOptions.length > 0) {
+          this.customerControl.setValue(this.customerOptions[0].id);
+        }
+        this.isLoading = false;
       }
     });
   }
 
   loadCustomerData(customerId: string) {
-    this.billService.findAll({ customerId }).subscribe(response => {
-      const bills = response.data.length > 0 ? response.data : this.getMockBills(customerId);
-      this.billsDataSource.data = bills;
-      this.calculateOverview(bills);
+    this.isLoading = true;
+    this.billService.findAll({ customerId }).subscribe({
+      next: (response) => {
+        const bills = response.data.length > 0 ? response.data : this.getMockBills(customerId);
+        this.billsDataSource.data = bills;
+        this.calculateOverview(bills);
 
-      if (bills.length > 0) {
-        this.loadStatusHistory(bills[0].id);
-        this.loadCollectionRecords(bills[0].id);
+        if (bills.length > 0) {
+          this.loadStatusHistory(bills[0].id);
+          this.loadCollectionRecords(bills[0].id);
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Failed to load customer data:', error);
+        this.snackBar.open('加载客户数据失败', '关闭', {
+          duration: 3000,
+          panelClass: ['error-snackbar']
+        });
+        const bills = this.getMockBills(customerId);
+        this.billsDataSource.data = bills;
+        this.calculateOverview(bills);
+        if (bills.length > 0) {
+          this.loadStatusHistory(bills[0].id);
+          this.loadCollectionRecords(bills[0].id);
+        }
+        this.isLoading = false;
       }
     });
   }
@@ -651,14 +698,26 @@ export class CustomerSuccessComponent implements OnInit {
   }
 
   loadStatusHistory(billId: string) {
-    this.billService.getStatusHistory(billId).subscribe(history => {
-      this.statusHistory = history.length > 0 ? history : this.getMockStatusHistory();
+    this.billService.getStatusHistory(billId).subscribe({
+      next: (history) => {
+        this.statusHistory = history.length > 0 ? history : this.getMockStatusHistory();
+      },
+      error: (error) => {
+        console.error('Failed to load status history:', error);
+        this.statusHistory = this.getMockStatusHistory();
+      }
     });
   }
 
   loadCollectionRecords(billId: string) {
-    this.collectionService.findAllRecords({ billId }).subscribe(response => {
-      this.collectionRecords = response.data.length > 0 ? response.data : this.getMockCollectionRecords();
+    this.collectionService.findAllRecords({ billId }).subscribe({
+      next: (response) => {
+        this.collectionRecords = response.data.length > 0 ? response.data : this.getMockCollectionRecords();
+      },
+      error: (error) => {
+        console.error('Failed to load collection records:', error);
+        this.collectionRecords = this.getMockCollectionRecords();
+      }
     });
   }
 
@@ -683,15 +742,35 @@ export class CustomerSuccessComponent implements OnInit {
   submitPayment() {
     if (!this.paymentForm.valid || !this.selectedBill) return;
 
+    this.isSubmitting = true;
     const formValue = this.paymentForm.value;
-    this.billService.recordPayment(this.selectedBill.id, {
+    const paymentData = {
       amount: formValue.amount,
-      paymentDate: formValue.paymentDate.toISOString().split('T')[0],
+      paymentDate: formValue.paymentDate instanceof Date 
+        ? formValue.paymentDate.toISOString().split('T')[0]
+        : formValue.paymentDate,
       paymentMethod: formValue.paymentMethod,
       notes: formValue.notes
-    }).subscribe(() => {
-      this.closePaymentDialog();
-      this.loadCustomerData(this.customerControl.value);
+    };
+
+    this.billService.recordPayment(this.selectedBill.id, paymentData).subscribe({
+      next: () => {
+        this.snackBar.open('付款登记成功', '关闭', {
+          duration: 3000,
+          panelClass: ['success-snackbar']
+        });
+        this.closePaymentDialog();
+        this.loadCustomerData(this.customerControl.value);
+        this.isSubmitting = false;
+      },
+      error: (error) => {
+        console.error('Failed to record payment:', error);
+        this.snackBar.open('付款登记失败', '关闭', {
+          duration: 3000,
+          panelClass: ['error-snackbar']
+        });
+        this.isSubmitting = false;
+      }
     });
   }
 

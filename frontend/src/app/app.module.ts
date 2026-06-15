@@ -28,6 +28,11 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { AppComponent } from './app.component';
 import { routes } from './app.routes';
@@ -42,6 +47,8 @@ import { ReconciliationDetailComponent } from './pages/reconciliation/reconcilia
 import { CashForecastComponent } from './pages/cash-forecast/cash-forecast.component';
 import { ExportQueueComponent } from './pages/export/export-queue.component';
 import { CustomerSuccessComponent } from './pages/customer-success/customer-success.component';
+import { PaymentDialogComponent } from './pages/bills/payment-dialog.component';
+import { StatusDialogComponent } from './pages/bills/status-dialog.component';
 
 import { BillService } from './services/bill.service';
 import { CollectionService } from './services/collection.service';
@@ -49,6 +56,9 @@ import { ReconciliationService } from './services/reconciliation.service';
 import { CashForecastService } from './services/cash-forecast.service';
 import { ExportService } from './services/export.service';
 import { DashboardService } from './services/dashboard.service';
+import { InvoiceService } from './services/invoice.service';
+import { AttachmentService } from './services/attachment.service';
+import { AuditService } from './services/audit.service';
 
 import { StatusBadgePipe, StatusDisplayPipe } from './pipes/status-badge.pipe';
 import { CurrencyPipe } from './pipes/currency.pipe';
@@ -70,6 +80,8 @@ export const MY_DATE_FORMATS = {
     DashboardComponent,
     BillsComponent,
     BillDetailComponent,
+    PaymentDialogComponent,
+    StatusDialogComponent,
     CollectionRhythmsComponent,
     CollectionRecordsComponent,
     ReconciliationComponent,
@@ -112,6 +124,11 @@ export const MY_DATE_FORMATS = {
     MatExpansionModule,
     MatCheckboxModule,
     MatTooltipModule,
+    MatSlideToggleModule,
+    MatDividerModule,
+    MatProgressBarModule,
+    MatGridListModule,
+    MatSnackBarModule,
   ],
   providers: [
     BillService,
@@ -120,6 +137,9 @@ export const MY_DATE_FORMATS = {
     CashForecastService,
     ExportService,
     DashboardService,
+    InvoiceService,
+    AttachmentService,
+    AuditService,
     { provide: MAT_DATE_LOCALE, useValue: 'zh-CN' },
     { provide: DateAdapter, useClass: DateFnsAdapter },
     { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
