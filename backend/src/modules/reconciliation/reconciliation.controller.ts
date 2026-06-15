@@ -46,7 +46,7 @@ export class ReconciliationController {
 
   @Put(':id/status')
   @AuditLog({ action: 'update_status', entityType: 'reconciliation', description: 'Update reconciliation status' })
-  updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
-    return this.reconciliationService.updateStatus(id, body.status as any);
+  updateStatus(@Param('id') id: string, @Body() body: { status: string; notes?: string }) {
+    return this.reconciliationService.updateStatus(id, body.status as any, body.notes);
   }
 }

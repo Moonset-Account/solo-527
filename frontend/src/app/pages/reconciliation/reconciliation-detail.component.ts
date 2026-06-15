@@ -1156,7 +1156,7 @@ export class ReconciliationDetailComponent implements OnInit, OnDestroy {
 
   confirmComplete(): void {
     if (this.reconciliation) {
-      this.reconciliationService.updateStatus(this.reconciliation.id, 'reconciled').subscribe({
+      this.reconciliationService.updateStatus(this.reconciliation.id, 'completed').subscribe({
         next: () => {
           this.loadReconciliation(this.reconciliation.id);
           this.snackBar.open('对账已完成', '关闭', {

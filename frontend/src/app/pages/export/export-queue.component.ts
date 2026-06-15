@@ -16,13 +16,13 @@ import { finalize } from 'rxjs/operators';
 
 const typeMap: Record<string, string> = {
   bills: '账单数据',
-  collection: '催收记录',
+  collections: '催收记录',
   reconciliation: '对账报告',
-  'cash-forecast': '现金预测'
+  cash_forecast: '现金预测'
 };
 
 const formatMap: Record<string, string> = {
-  excel: 'Excel',
+  xlsx: 'Excel',
   csv: 'CSV',
   pdf: 'PDF'
 };
@@ -187,9 +187,9 @@ const formatMap: Record<string, string> = {
               <mat-label>导出类型</mat-label>
               <mat-select formControlName="type">
                 <mat-option value="bills">账单数据</mat-option>
-                <mat-option value="collection">催收记录</mat-option>
+                <mat-option value="collections">催收记录</mat-option>
                 <mat-option value="reconciliation">对账报告</mat-option>
-                <mat-option value="cash-forecast">现金预测</mat-option>
+                <mat-option value="cash_forecast">现金预测</mat-option>
               </mat-select>
               <mat-error *ngIf="createForm.get('type')?.hasError('required')">请选择导出类型</mat-error>
             </mat-form-field>
@@ -197,7 +197,7 @@ const formatMap: Record<string, string> = {
             <mat-form-field appearance="outline">
               <mat-label>导出格式</mat-label>
               <mat-select formControlName="format">
-                <mat-option value="excel">Excel (.xlsx)</mat-option>
+                <mat-option value="xlsx">Excel (.xlsx)</mat-option>
                 <mat-option value="csv">CSV (.csv)</mat-option>
                 <mat-option value="pdf">PDF (.pdf)</mat-option>
               </mat-select>
@@ -564,7 +564,7 @@ export class ExportQueueComponent implements OnInit, OnDestroy {
       {
         id: '1',
         type: 'bills',
-        format: 'excel',
+        format: 'xlsx',
         status: 'completed',
         filters: { status: ['overdue'] },
         columns: [],
@@ -610,8 +610,8 @@ export class ExportQueueComponent implements OnInit, OnDestroy {
       },
       {
         id: '3',
-        type: 'cash-forecast',
-        format: 'excel',
+        type: 'cash_forecast',
+        format: 'xlsx',
         status: 'in_progress',
         filters: { period: '30d' },
         columns: [],
@@ -632,7 +632,7 @@ export class ExportQueueComponent implements OnInit, OnDestroy {
       },
       {
         id: '4',
-        type: 'collection',
+        type: 'collections',
         format: 'csv',
         status: 'failed',
         filters: { channel: 'email' },
@@ -652,7 +652,7 @@ export class ExportQueueComponent implements OnInit, OnDestroy {
       {
         id: '5',
         type: 'bills',
-        format: 'excel',
+        format: 'xlsx',
         status: 'pending',
         filters: {},
         columns: [],

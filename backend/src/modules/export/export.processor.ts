@@ -212,7 +212,9 @@ export class ExportProcessor {
 
   private calculateSummary(type: string, data: any[]): any {
     const summary: any = {
-      lastChangeDate: new Date(),
+      lastChangeDate: data.length > 0 
+        ? (data[data.length - 1].updatedAt || data[data.length - 1].createdAt || new Date())
+        : new Date(),
       totalRecords: data.length,
     };
 
@@ -222,19 +224,21 @@ export class ExportProcessor {
       summary.overdueAmount = data.filter(d => d.status === 'overdue').reduce((sum, d) => sum + (d.remainingAmount || 0), 0);
     }
 
-    if (type === 'cash_forecast') {
+    if (type === 'cash_forecast' && data.length > 0) {
       const lastForecast = data[data.length - 1];
-      if (lastForecast) {
-        summary.cashGap = lastForecast.actualCashGap || lastForecast.projectedCashGap;
-        summary.reconciliationVariance = lastForecast.reconciliationVariance;
-      }
+      summary.cashGap = lastForecast.actualCashGap || lastForecast.projectedCashGap;
+      summary.reconciliationVariance = lastForecast.reconciliationVariance;
     }
 
-    if (type === 'reconciliation') {
+    if (type === 'reconciliation' && data.length > 0) {
       const lastReconciliation = data[data.length - 1];
-      if (lastReconciliation) {
-        summary.reconciliationVariance = lastReconciliation.totalVariance;
-      }
+      summary.reconciliationVariance = lastReconciliation.totalVariance;
+      summary.cashGap = lastReconciliation.unreconciledVariance;
+    }
+
+    if (type === 'collections' && data.length > 0) {
+      const lastRecord = data[data.length - 1];
+      summary.lastChangeDate = lastRecord.createdAt || summary.lastChangeDate;
     }
 
     return summary;

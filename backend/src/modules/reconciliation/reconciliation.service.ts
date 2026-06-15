@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
-import { Reconciliation, Bill, CashForecast, CollectionRecord, Invoice } from '@/database/entities';
+import { Reconciliation, Bill, CashForecast, CollectionRecord, Invoice, Attachment } from '@/database/entities';
 
 @Injectable()
 export class ReconciliationService {
@@ -155,7 +155,7 @@ export class ReconciliationService {
     return this.reconciliationRepository.save(reconciliation);
   }
 
-  async updateStatus(id: string, status: 'draft' | 'in_progress' | 'completed' | 'approved', userId?: string): Promise<Reconciliation> {
+  async updateStatus(id: string, status: 'draft' | 'in_progress' | 'completed' | 'approved', notes?: string, userId?: string): Promise<Reconciliation> {
     const reconciliation = await this.findOne(id);
 
     if (reconciliation.status === 'approved' && status !== 'approved') {
@@ -164,6 +164,10 @@ export class ReconciliationService {
 
     reconciliation.status = status;
     reconciliation.updatedBy = userId;
+
+    if (notes !== undefined) {
+      reconciliation.notes = notes;
+    }
 
     if (status === 'approved') {
       reconciliation.approvedBy = userId;
@@ -210,6 +214,12 @@ export class ReconciliationService {
       })
       .getMany();
 
+    const attachments = await this.dataSource.getRepository(Attachment)
+      .createQueryBuilder('attachment')
+      .where('attachment.entityType = :entityType', { entityType: 'reconciliation' })
+      .andWhere('attachment.entityId = :entityId', { entityId: id })
+      .getMany();
+
     return {
       reconciliation,
       bills: bills.map(b => ({
@@ -224,6 +234,7 @@ export class ReconciliationService {
       cashForecasts,
       collectionRecords,
       invoices,
+      attachments,
       linkedRecords: reconciliation.linkedRecords,
     };
   }
