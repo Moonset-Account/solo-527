@@ -26,6 +26,26 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
+def enum_value(value: Any) -> Any:
+    """把枚举或原始值安全地转换为其原始值（如 UserRole.ADMIN -> 'admin'）。
+    如果 value 本身就是字符串/基础类型，原样返回。"""
+    if value is None:
+        return None
+    if isinstance(value, str) or isinstance(value, int) or isinstance(value, bool) or isinstance(value, float):
+        return value
+    return getattr(value, "value", value)
+
+
+def enum_eq(a: Any, b: Any) -> bool:
+    """比较两个可能为枚举/字符串/基础类型的值是否相等（按其底层 value 比较）。"""
+    return enum_value(a) == enum_value(b)
+
+
+def enum_in(value: Any, candidates: list | tuple) -> bool:
+    v = enum_value(value)
+    return any(v == enum_value(c) for c in candidates)
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:

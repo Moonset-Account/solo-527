@@ -7,7 +7,7 @@
       <h2 class="card-title">账号登录</h2>
     </div>
     <div class="card-body">
-      <form id="login-form" hx-post="/api/auth/login" hx-ext="json-enc" hx-swap="none">
+      <form id="login-form" hx-post="/api/auth/login" hx-swap="none" hx-encoding="application/x-www-form-urlencoded">
         <div class="form-group">
           <label class="form-label">用户名 / 邮箱</label>
           <input type="text" name="username" class="form-control" required autofocus placeholder="admin / operator / finance / test001">
@@ -16,6 +16,7 @@
           <label class="form-label">密码</label>
           <input type="password" name="password" class="form-control" required placeholder="admin123 / op123456 / fin123456 / test123456">
         </div>
+        <input type="hidden" name="grant_type" value="password">
         <button type="submit" class="btn btn-primary btn-lg w-full">登 录</button>
       </form>
       <div class="mt-3 text-sm text-gray">

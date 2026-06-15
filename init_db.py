@@ -14,7 +14,7 @@ async def init_default_data():
         if not result.scalar_one_or_none():
             admin = User(
                 username="admin",
-                email="admin@concert.local",
+                email="admin@concert-tickets.com",
                 real_name="系统管理员",
                 hashed_password=hash_password("admin123"),
                 role=UserRole.ADMIN,
@@ -22,7 +22,7 @@ async def init_default_data():
             )
             operator = User(
                 username="operator",
-                email="operator@concert.local",
+                email="operator@concert-tickets.com",
                 real_name="运营专员",
                 hashed_password=hash_password("op123456"),
                 role=UserRole.OPERATOR,
@@ -30,7 +30,7 @@ async def init_default_data():
             )
             finance = User(
                 username="finance",
-                email="finance@concert.local",
+                email="finance@concert-tickets.com",
                 real_name="财务人员",
                 hashed_password=hash_password("fin123456"),
                 role=UserRole.FINANCE,
@@ -38,7 +38,7 @@ async def init_default_data():
             )
             test = User(
                 username="test001",
-                email="test001@concert.local",
+                email="test001@concert-tickets.com",
                 real_name="测试用户",
                 phone="13800138000",
                 hashed_password=hash_password("test123456"),

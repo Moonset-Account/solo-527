@@ -13,7 +13,7 @@ from app.schemas.common import (
 )
 from app.utils import (
     verify_password, create_access_token, hash_password,
-    paginate, calc_offset,
+    paginate, calc_offset, enum_eq, enum_value,
 )
 from app.config import settings
 from app.dependencies import get_current_user, require_roles
@@ -43,7 +43,7 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已被停用")
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role.value},
+        data={"sub": str(user.id), "role": enum_value(user.role)},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     response.set_cookie(
@@ -123,7 +123,14 @@ async def list_users(
     count_q = select(func.count(User.id))
     conditions = []
     if role:
-        conditions.append(User.role == role)
+        # 防止 ORM 返回的 role 是 str 与 enum 比较失败
+        role_str = enum_value(role)
+        conditions.append(
+            or_(
+                User.role == role_str,
+                User.role == role,
+            )
+        )
     if keyword:
         conditions.append(or_(
             User.username.ilike(f"%{keyword}%"),

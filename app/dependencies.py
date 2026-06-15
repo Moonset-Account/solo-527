@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import User
 from app.enums import UserRole
-from app.utils import decode_access_token
+from app.utils import decode_access_token, enum_in, enum_eq, enum_value
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -47,8 +47,8 @@ async def get_current_user(
 
 def require_roles(*roles: UserRole):
     async def role_checker(user: User = Depends(get_current_user)) -> User:
-        if user.role not in roles and user.role != UserRole.ADMIN:
-            allowed = ", ".join([r.value for r in roles])
+        if not enum_in(user.role, roles) and not enum_eq(user.role, UserRole.ADMIN):
+            allowed = ", ".join([enum_value(r) for r in roles])
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"需要以下角色之一: {allowed}",
