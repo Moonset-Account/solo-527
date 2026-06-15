@@ -1,5 +1,3 @@
-// Prisma schema for Sales Data Portal
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,226 +11,266 @@ model User {
   id            String    @id @default(uuid())
   username      String    @unique
   name          String
-  email         String?
-  passwordHash  String
-  roleId        String
-  avatarUrl     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  email         String?   @db.VarChar(100)
+  passwordHash  String    @db.VarChar(255)
+  roleId        String    @db.VarChar(36)
+  avatarUrl     String?   @db.VarChar(255)
+  createdAt     DateTime  @default(now()) @db.DateTime
+  updatedAt     DateTime  @updatedAt @db.DateTime
 
-  role          Role      @relation(fields: [roleId], references: [id])
-  applications  PermissionApplication[]
-  assignedTodos Todo[]
-  ownedDatasets Dataset[]
-  fluctuations  Fluctuation[] @relation("Assignee")
-  approvedApps  PermissionApplication[] @relation("Approver")
-  summaryPushes SummaryPush[]
-  fluctuationLogs FluctuationLog[]
+  role                Role                  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  applications        PermissionApplication[]  @relation("Applicant")
+  approvedApps        PermissionApplication[]  @relation("Approver")
+  ownedDatasets       Dataset[]             @relation("DatasetOwner")
+  datasetPermissions  DatasetPermission[]
+  assignedTodos       Todo[]                @relation("TodoAssignee")
+  assignedFluctuations Fluctuation[]        @relation("FluctuationAssignee")
+  fluctuationLogs     FluctuationLog[]      @relation("LogOperator")
+  summaryPushes       SummaryPush[]
 }
 
 model Role {
   id          String   @id @default(uuid())
-  name        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @db.DateTime
 
   users       User[]
   permissions RolePermission[]
 }
 
 model Permission {
-  id          String   @id @default(uuid())
-  name        String
-  code        String   @unique
-  description String?
-  resourceType String?
-  createdAt   DateTime @default(now())
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(100)
+  code         String   @unique @db.VarChar(50)
+  description  String?  @db.VarChar(255)
+  resourceType String?  @db.VarChar(50)
+  createdAt    DateTime @default(now()) @db.DateTime
 
-  roles       RolePermission[]
+  roles RolePermission[]
 }
 
 model RolePermission {
   id           String     @id @default(uuid())
-  roleId       String
-  permissionId String
-  createdAt    DateTime   @default(now())
+  roleId       String     @db.VarChar(36)
+  permissionId String     @db.VarChar(36)
+  createdAt    DateTime   @default(now()) @db.DateTime
 
-  role         Role       @relation(fields: [roleId], references: [id])
-  permission   Permission @relation(fields: [permissionId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
 }
 
 model PermissionApplication {
-  id            String   @id @default(uuid())
-  applicantId   String
-  permissionType String
-  datasetId     String?
-  reason        String
-  status        String   @default("pending") // pending, approved, rejected
-  approverId    String?
-  approvalComment String?
-  createdAt     DateTime @default(now())
-  approvedAt    DateTime?
+  id              String    @id @default(uuid())
+  applicantId     String    @db.VarChar(36)
+  permissionType  String    @db.VarChar(50)
+  datasetId       String?   @db.VarChar(36)
+  reason          String    @db.VarChar(500)
+  status          String    @default("pending") @db.VarChar(20)
+  approverId      String?   @db.VarChar(36)
+  approvalComment String?   @db.VarChar(500)
+  createdAt       DateTime  @default(now()) @db.DateTime
+  approvedAt      DateTime? @db.DateTime
 
-  applicant     User     @relation("Applicant", fields: [applicantId], references: [id])
-  approver      User?    @relation("Approver", fields: [approverId], references: [id])
-  dataset       Dataset? @relation(fields: [datasetId], references: [id])
+  applicant User     @relation("Applicant", fields: [applicantId], references: [id], onDelete: Restrict)
+  approver  User?    @relation("Approver", fields: [approverId], references: [id], onDelete: SetNull)
+  dataset   Dataset? @relation(fields: [datasetId], references: [id], onDelete: SetNull)
+
+  @@index([applicantId])
+  @@index([status])
 }
 
 model Dataset {
   id           String   @id @default(uuid())
-  name         String
-  description  String?
-  businessLine String?
-  ownerId      String
-  createdAt    DateTime @default(now())
+  name         String   @db.VarChar(100)
+  description  String?  @db.VarChar(500)
+  businessLine String?  @db.VarChar(50)
+  ownerId      String   @db.VarChar(36)
+  createdAt    DateTime @default(now()) @db.DateTime
 
-  owner        User              @relation(fields: [ownerId], references: [id])
-  permissions  DatasetPermission[]
+  owner       User               @relation("DatasetOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  permissions DatasetPermission[]
   applications PermissionApplication[]
+
+  @@index([ownerId])
 }
 
 model DatasetPermission {
   id          String   @id @default(uuid())
-  userId      String
-  datasetId   String
-  accessLevel String   @default("view") // view, edit, admin
-  grantedAt   DateTime @default(now())
+  userId      String   @db.VarChar(36)
+  datasetId   String   @db.VarChar(36)
+  accessLevel String   @default("view") @db.VarChar(20)
+  grantedAt   DateTime @default(now()) @db.DateTime
 
-  user        User     @relation(fields: [userId], references: [id])
-  dataset     Dataset  @relation(fields: [datasetId], references: [id])
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
 
   @@unique([userId, datasetId])
 }
 
 model Metric {
   id          String   @id @default(uuid())
-  name        String
-  code        String   @unique
-  unit        String?
-  category    String?
-  description String?
-  createdAt   DateTime @default(now())
+  name        String   @db.VarChar(100)
+  code        String   @unique @db.VarChar(50)
+  unit        String?  @db.VarChar(20)
+  category    String?  @db.VarChar(50)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @db.DateTime
 
-  alertRules  AlertRule[]
+  alertRules   AlertRule[]
   fluctuations Fluctuation[]
-  metricData  MetricData[]
+  metricData   MetricData[]
 }
 
 model MetricData {
   id        String   @id @default(uuid())
-  metricId  String
+  metricId  String   @db.VarChar(36)
   value     Decimal  @db.Decimal(18, 4)
-  date      DateTime
-  createdAt DateTime @default(now())
+  date      DateTime @db.DateTime
+  createdAt DateTime @default(now()) @db.DateTime
 
-  metric    Metric   @relation(fields: [metricId], references: [id])
+  metric Metric @relation(fields: [metricId], references: [id], onDelete: Cascade)
 
   @@index([metricId, date])
 }
 
 model AlertRule {
-  id               String   @id @default(uuid())
-  metricId         String
-  ruleType         String   // threshold, fluctuation, trend
+  id               String @id @default(uuid())
+  metricId         String @db.VarChar(36)
+  ruleType         String @db.VarChar(30)
   thresholdConfig  Json
-  notificationType String   // email, inapp, both
-  assigneeId       String?
-  enabled          Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  notificationType String @db.VarChar(20)
+  assigneeId       String? @db.VarChar(36)
+  enabled          Boolean @default(true)
+  createdAt        DateTime @default(now()) @db.DateTime
 
-  metric           Metric   @relation(fields: [metricId], references: [id])
-  fluctuations     Fluctuation[]
+  metric       Metric        @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  fluctuations Fluctuation[]
+
+  @@index([metricId])
 }
 
 model Fluctuation {
-  id              String   @id @default(uuid())
-  title           String
-  description     String?  @db.Text
-  readableReason  String   @db.VarChar(500)
-  metricId        String?
-  currentValue    Decimal? @db.Decimal(18, 4)
-  expectedValue   Decimal? @db.Decimal(18, 4)
-  deviation       Decimal? @db.Decimal(10, 2)
-  priority        String   @default("medium") // high, medium, low
-  status          String   @default("pending") // pending, processing, closed
-  assigneeId      String?
-  deadline        DateTime?
-  source          String   // metric_monitor, api_error, manual
-  detectedAt      DateTime
-  closedAt        DateTime?
-  resolution      String?  @db.Text
+  id             String    @id @default(uuid())
+  title          String    @db.VarChar(200)
+  description    String?   @db.Text
+  readableReason String    @db.VarChar(500)
+  metricId       String?   @db.VarChar(36)
+  currentValue   Decimal?  @db.Decimal(18, 4)
+  expectedValue  Decimal?  @db.Decimal(18, 4)
+  deviation      Decimal?  @db.Decimal(10, 2)
+  priority       String    @default("medium") @db.VarChar(10)
+  status         String    @default("pending") @db.VarChar(20)
+  assigneeId     String?   @db.VarChar(36)
+  alertRuleId    String?   @db.VarChar(36)
+  deadline       DateTime? @db.DateTime
+  source         String    @db.VarChar(30)
+  detectedAt     DateTime  @db.DateTime
+  closedAt       DateTime? @db.DateTime
+  resolution     String?   @db.Text
 
-  metric          Metric?         @relation(fields: [metricId], references: [id])
-  assignee        User?           @relation("Assignee", fields: [assigneeId], references: [id])
-  logs            FluctuationLog[]
-  alertRule       AlertRule?      @relation(fields: [alertRuleId], references: [id])
-  alertRuleId     String?
+  metric     Metric?         @relation(fields: [metricId], references: [id], onDelete: SetNull)
+  assignee   User?           @relation("FluctuationAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  alertRule  AlertRule?      @relation(fields: [alertRuleId], references: [id], onDelete: SetNull)
+  logs       FluctuationLog[]
+  errorLogs  ApiErrorLog[]
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([detectedAt])
+  @@index([source])
 }
 
 model FluctuationLog {
-  id             String     @id @default(uuid())
-  fluctuationId  String
-  action         String
-  operatorId     String?
-  remark         String?
-  createdAt      DateTime   @default(now())
+  id             String   @id @default(uuid())
+  fluctuationId  String   @db.VarChar(36)
+  action         String   @db.VarChar(30)
+  operatorId     String?  @db.VarChar(36)
+  remark         String?  @db.VarChar(500)
+  createdAt      DateTime @default(now()) @db.DateTime
 
-  fluctuation    Fluctuation @relation(fields: [fluctuationId], references: [id])
-  operator       User?       @relation(fields: [operatorId], references: [id])
+  fluctuation Fluctuation @relation(fields: [fluctuationId], references: [id], onDelete: Cascade)
+  operator    User?       @relation("LogOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+
+  @@index([fluctuationId])
 }
 
 model Todo {
-  id          String   @id @default(uuid())
-  type        String   // alert, approval, summary
-  refId       String
-  title       String
-  description String?  @db.Text
-  priority    String   @default("medium") // high, medium, low
-  status      String   @default("pending") // pending, processing, done
-  assigneeId  String?
-  deadline    DateTime?
-  createdAt   DateTime @default(now())
+  id          String    @id @default(uuid())
+  type        String    @db.VarChar(20)
+  refId       String    @db.VarChar(36)
+  title       String    @db.VarChar(200)
+  description String?   @db.Text
+  priority    String    @default("medium") @db.VarChar(10)
+  status      String    @default("pending") @db.VarChar(20)
+  assigneeId  String?   @db.VarChar(36)
+  deadline    DateTime? @db.DateTime
+  createdAt   DateTime  @default(now()) @db.DateTime
 
-  assignee    User?    @relation(fields: [assigneeId], references: [id])
+  assignee User? @relation("TodoAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([assigneeId])
+  @@index([status])
+  @@index([type, refId])
 }
 
 model SummaryPush {
   id        String   @id @default(uuid())
-  name      String
-  type      String   // daily, weekly
+  name      String   @db.VarChar(100)
+  type      String   @db.VarChar(20)
   metricIds Json
-  frequency String
-  userId    String
+  frequency String   @db.VarChar(50)
+  userId    String   @db.VarChar(36)
   enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.DateTime
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model DataMasking {
   id          String   @id @default(uuid())
-  fieldName   String   @unique
-  displayName String
-  maskType    String   @default("none") // none, partial, full
+  fieldName   String   @unique @db.VarChar(100)
+  displayName String   @db.VarChar(100)
+  maskType    String   @default("none") @db.VarChar(20)
   roleConfig  Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.DateTime
+  updatedAt   DateTime @updatedAt @db.DateTime
 }
 
 model ApiErrorLog {
-  id          String   @id @default(uuid())
-  endpoint    String
-  method      String
-  statusCode  Int
-  errorMessage String  @db.Text
-  requestBody Json?
-  timestamp   DateTime @default(now())
-  notified    Boolean  @default(false)
-  fluctuationId String?
+  id            String   @id @default(uuid())
+  endpoint      String   @db.VarChar(255)
+  method        String   @db.VarChar(10)
+  statusCode    Int
+  errorMessage  String   @db.Text
+  requestBody   Json?
+  timestamp     DateTime @default(now()) @db.DateTime
+  notified      Boolean  @default(false)
+  fluctuationId String?  @db.VarChar(36)
 
-  fluctuation Fluctuation? @relation(fields: [fluctuationId], references: [id])
+  fluctuation Fluctuation? @relation(fields: [fluctuationId], references: [id], onDelete: SetNull)
 
   @@index([timestamp])
+  @@index([fluctuationId])
+}
+
+model MonthlyReportSnapshot {
+  id                       String @id @default(uuid())
+  month                    String @db.VarChar(7)
+  totalSales               Decimal @db.Decimal(18, 4)
+  totalOrders              Int
+  avgMargin                Decimal @db.Decimal(10, 4)
+  fluctuationCount         Int
+  closedFluctuationCount   Int
+  avgProcessingHours       Decimal @db.Decimal(10, 2)
+  apiErrorFluctuationCount Int    @default(0)
+  fluctuationByCategory    Json
+  processingTimeDist       Json
+  createdAt                DateTime @default(now()) @db.DateTime
+
+  @@unique([month])
 }

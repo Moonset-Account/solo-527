@@ -172,6 +172,9 @@ export interface MonthlyReport {
   fluctuationCount: number
   closedFluctuations: number
   avgProcessingHours: number
+  apiErrorFluctuationCount: number
+  apiErrorClosedCount: number
+  apiErrorByEndpoint: { endpoint: string; count: number }[]
   fluctuationByCategory: { name: string; value: number }[]
   processingTimeDistribution: { name: string; value: number }[]
 }

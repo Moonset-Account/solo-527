@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
   if (method === 'PATCH') {
     const body = await readBody(event)
     const index = fluctuationsData.findIndex(f => f.id === id)
-    
+
     if (index === -1) {
       throw createError({
         statusCode: 404,
@@ -33,41 +33,24 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (body.status === 'closed' && body.resolution) {
-      fluctuationsData[index] = {
-        ...fluctuationsData[index],
-        status: 'closed',
-        resolution: body.resolution,
-        closedAt: new Date().toISOString()
-      }
-    } else {
-      fluctuationsData[index] = {
-        ...fluctuationsData[index],
-        ...body
+    const allowedFields = ['status', 'assigneeId', 'assigneeName', 'priority', 'deadline'] as const
+    const update: Partial<Fluctuation> = {}
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        (update as any)[field] = body[field]
       }
     }
 
-    return fluctuationsData[index]
-  }
-
-  if (method === 'POST' && event.node.req.url?.includes('/close')) {
-    const body = await readBody(event)
-    const index = fluctuationsData.findIndex(f => f.id === id)
-    
-    if (index === -1) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: '异常记录不存在'
-      })
+    if (body.status === 'processing' && fluctuationsData[index].status === 'pending') {
+      update.status = 'processing'
     }
 
     fluctuationsData[index] = {
       ...fluctuationsData[index],
-      status: 'closed',
-      resolution: body.resolution,
-      closedAt: new Date().toISOString()
+      ...update
     }
 
-    return { success: true, message: '异常已关闭' }
+    return fluctuationsData[index]
   }
 })
