@@ -108,6 +108,7 @@ class Seat(Base, TimestampMixin):
     base_price: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     current_price: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     ticket_type_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("ticket_types.id"), index=True)
+    ticket_type_config_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("ticket_type_configs.id"), index=True)
     order_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("orders.id"), index=True)
     lock_key: Mapped[str | None] = mapped_column(String(128), index=True)
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -117,7 +118,8 @@ class Seat(Base, TimestampMixin):
 
     event = relationship("Event", back_populates="seats")
     order = relationship("Order", back_populates="seats")
-    ticket_type_config = relationship("TicketTypeConfig", back_populates="seats")
+    ticket_type = relationship("TicketType", foreign_keys=[ticket_type_id])
+    ticket_type_config = relationship("TicketTypeConfig", back_populates="seats", foreign_keys=[ticket_type_config_id])
 
 
 class TicketType(Base, TimestampMixin):

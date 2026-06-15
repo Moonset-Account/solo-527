@@ -143,6 +143,7 @@ class SeatBase(BaseModel):
     base_price: float = 0
     current_price: float = 0
     ticket_type_id: Optional[int] = None
+    ticket_type_config_id: Optional[int] = None
     notes: Optional[str] = None
     extra_data: Optional[dict] = None
 
@@ -156,6 +157,7 @@ class SeatUpdate(BaseModel):
     base_price: Optional[float] = None
     current_price: Optional[float] = None
     ticket_type_id: Optional[int] = None
+    ticket_type_config_id: Optional[int] = None
     notes: Optional[str] = None
     extra_data: Optional[dict] = None
 
@@ -166,6 +168,7 @@ class SeatOut(SeatBase, IDModel, TimestampModel):
     locked_at: Optional[datetime] = None
     lock_expires_at: Optional[datetime] = None
     ticket_type_name: Optional[str] = None
+    ticket_type_config_name: Optional[str] = None
 
 
 class SeatLockRequest(BaseModel):

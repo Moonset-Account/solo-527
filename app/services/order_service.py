@@ -77,7 +77,7 @@ class OrderService:
             order_item = OrderItem(
                 order_id=order.id,
                 seat_id=seat.id,
-                ticket_type_config_id=seat.ticket_type_id,
+                ticket_type_config_id=seat.ticket_type_config_id,
                 seat_code=seat.seat_code,
                 area=seat.area,
                 row=seat.row,
