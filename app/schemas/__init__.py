@@ -67,6 +67,7 @@ class ApartmentBase(BaseModel):
     description: Optional[str] = None
     facilities: Optional[str] = None
     tags: Optional[str] = None
+    remark: Optional[str] = None
 
 
 class ApartmentCreate(ApartmentBase):
@@ -135,6 +136,9 @@ class AppointmentResponse(AppointmentBase):
     cancel_reason: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    consultant: Optional[UserSimple] = None
+    tenant: Optional[UserSimple] = None
+    apartment: Optional[ApartmentResponse] = None
 
     class Config:
         from_attributes = True

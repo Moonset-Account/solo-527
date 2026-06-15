@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import date
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
 
 from app.models import Appointment, FollowUp, User
@@ -8,7 +8,16 @@ from app.schemas import AppointmentCreate, AppointmentUpdate, AppointmentAssign,
 
 
 def get_appointment(db: Session, appointment_id: int) -> Optional[Appointment]:
-    return db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    return (
+        db.query(Appointment)
+        .options(
+            joinedload(Appointment.apartment),
+            joinedload(Appointment.consultant),
+            joinedload(Appointment.tenant),
+        )
+        .filter(Appointment.id == appointment_id)
+        .first()
+    )
 
 
 def get_appointments(
@@ -23,7 +32,11 @@ def get_appointments(
     date_to: Optional[date] = None,
     keyword: Optional[str] = None,
 ) -> List[Appointment]:
-    query = db.query(Appointment)
+    query = db.query(Appointment).options(
+        joinedload(Appointment.apartment),
+        joinedload(Appointment.consultant),
+        joinedload(Appointment.tenant),
+    )
 
     if status:
         query = query.filter(Appointment.status == status)
@@ -103,7 +116,7 @@ def assign_consultant(
     consultant_id: int,
     operator_id: int = None
 ) -> Optional[Appointment]:
-    db_appointment = get_appointment(db, appointment_id)
+    db_appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not db_appointment:
         return None
 
@@ -111,7 +124,6 @@ def assign_consultant(
     if db_appointment.status == "pending":
         db_appointment.status = "confirmed"
     db.commit()
-    db.refresh(db_appointment)
 
     add_follow_up(db, FollowUpCreate(
         appointment_id=appointment_id,
@@ -119,7 +131,7 @@ def assign_consultant(
         content=f"分配顾问，顾问ID: {consultant_id}"
     ), operator_id)
 
-    return db_appointment
+    return get_appointment(db, appointment_id)
 
 
 def cancel_appointment(
