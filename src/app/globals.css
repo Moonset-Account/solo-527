@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --ring: #1e3a5f;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .glass-nav {
+    @apply bg-white/80 backdrop-blur-md border-b border-slate-200/60;
+  }
+
+  .card-base {
+    @apply bg-white rounded-lg shadow-card border border-slate-100 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-hover hover:-translate-y-0.5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-primary text-white font-medium
+      px-5 py-2 text-sm transition-all duration-200
+      hover:bg-primary-light active:scale-[0.98]
+      disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-white text-slate-700 font-medium
+      px-5 py-2 text-sm border border-slate-200 transition-all duration-200
+      hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98]
+      disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill text-slate-600 font-medium
+      px-3 py-1.5 text-sm transition-all duration-150
+      hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-danger text-white font-medium
+      px-5 py-2 text-sm transition-all duration-200
+      hover:bg-red-600 active:scale-[0.98];
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-accent text-accent-foreground font-medium
+      px-5 py-2 text-sm transition-all duration-200
+      hover:bg-amber-500 active:scale-[0.98];
+  }
+
+  .input-base {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm
+      text-slate-900 placeholder:text-slate-400
+      focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
+      transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  .label-base {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium
+      text-slate-600 hover:bg-slate-100 hover:text-primary transition-colors;
+  }
+
+  .sidebar-link-active {
+    @apply bg-primary/5 text-primary border-l-2 border-primary;
+  }
+
+  .tab-pill {
+    @apply inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium
+      transition-all duration-150 cursor-pointer select-none;
+  }
+
+  .tab-pill-active {
+    @apply bg-primary text-white shadow-soft;
+  }
+
+  .tab-pill-inactive {
+    @apply text-slate-600 hover:bg-slate-100;
+  }
+
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full mr-1.5;
+  }
+
+  .progress-track {
+    @apply h-2 rounded-full bg-slate-100 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+  }
+
+  .divider {
+    @apply h-px bg-slate-100 my-4;
+  }
+
+  .drawer-backdrop {
+    @apply fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 animate-fade-in;
+  }
+
+  .drawer-panel {
+    @apply fixed right-0 top-0 h-full w-full max-w-[640px] bg-white z-50
+      shadow-hover animate-slide-in-right flex flex-col;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .text-gradient-brand {
+    @apply bg-gradient-to-r from-primary via-primary-light to-accent bg-clip-text text-transparent;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
