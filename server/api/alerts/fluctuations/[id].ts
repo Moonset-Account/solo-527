@@ -1,14 +1,14 @@
-import { getFluctuations, getFluctuationLogs } from '~/server/utils/mockData'
+import { getFluctuationLogs } from '~/server/utils/mockData'
+import { useFluctuationsStore, findFluctuationIndex, findFluctuation, upsertFluctuation } from '~/server/utils/fluctuationsStore'
 import type { Fluctuation } from '~/types'
-
-let fluctuationsData: Fluctuation[] = getFluctuations()
 
 export default defineEventHandler(async (event) => {
   const method = event.node.req.method
   const id = event.context.params?.id as string
+  const fluctuationsData = useFluctuationsStore()
 
   if (method === 'GET') {
-    const fluctuation = fluctuationsData.find(f => f.id === id)
+    const fluctuation = findFluctuation(id)
     if (!fluctuation) {
       throw createError({
         statusCode: 404,
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
   if (method === 'PATCH') {
     const body = await readBody(event)
-    const index = fluctuationsData.findIndex(f => f.id === id)
+    const index = findFluctuationIndex(id)
 
     if (index === -1) {
       throw createError({
@@ -46,11 +46,6 @@ export default defineEventHandler(async (event) => {
       update.status = 'processing'
     }
 
-    fluctuationsData[index] = {
-      ...fluctuationsData[index],
-      ...update
-    }
-
-    return fluctuationsData[index]
+    return upsertFluctuation(id, update)
   }
 })

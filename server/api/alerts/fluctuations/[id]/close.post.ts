@@ -1,7 +1,5 @@
-import { getFluctuations } from '~/server/utils/mockData'
+import { findFluctuationIndex, findFluctuation, upsertFluctuation } from '~/server/utils/fluctuationsStore'
 import type { Fluctuation } from '~/types'
-
-const fluctuationsStore: Fluctuation[] = getFluctuations()
 
 interface ClosePayload {
   resolution: string
@@ -20,7 +18,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const index = fluctuationsStore.findIndex(f => f.id === id)
+  const index = findFluctuationIndex(id)
 
   if (index === -1) {
     throw createError({
@@ -29,7 +27,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const item = fluctuationsStore[index]
+  const item = findFluctuation(id) as Fluctuation
 
   if (item.status === 'closed') {
     throw createError({
@@ -40,16 +38,13 @@ export default defineEventHandler(async (event) => {
 
   const now = new Date().toISOString()
 
-  fluctuationsStore[index] = {
-    ...item,
+  const closedItem = upsertFluctuation(id, {
     status: 'closed',
     resolution: body.resolution.trim(),
     closedAt: now,
     assigneeId: item.assigneeId || resolveDefaultAssignee(item.source),
     assigneeName: item.assigneeName || resolveDefaultAssigneeName(item.source)
-  }
-
-  const closedItem = fluctuationsStore[index]
+  })
 
   if (item.source === 'api_error') {
     notifySupplyChainManager(closedItem)

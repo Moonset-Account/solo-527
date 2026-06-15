@@ -1,8 +1,6 @@
-import { getFluctuations } from '~/server/utils/mockData'
+import { addFluctuation } from '~/server/utils/fluctuationsStore'
 import type { Fluctuation } from '~/types'
 import dayjs from 'dayjs'
-
-const fluctuationsStore: Fluctuation[] = getFluctuations()
 
 interface ApiErrorPayload {
   endpoint: string
@@ -41,7 +39,7 @@ export default defineEventHandler(async (event) => {
     detectedAt: now.format('YYYY-MM-DD HH:mm:ss')
   }
 
-  fluctuationsStore.unshift(fluctuation)
+  addFluctuation(fluctuation)
 
   console.log(
     `[告警] 接口错误已创建异常记录并分配给供应链经理(赵供应)`,

@@ -1,11 +1,10 @@
-import { getFluctuations } from '~/server/utils/mockData'
-import type { Fluctuation, FluctuationStatus, Priority } from '~/types'
-
-let fluctuationsData: Fluctuation[] = getFluctuations()
+import { useFluctuationsStore } from '~/server/utils/fluctuationsStore'
+import type { FluctuationStatus, Priority } from '~/types'
 
 export default defineEventHandler(async (event) => {
   const method = event.node.req.method
   const query = getQuery(event)
+  const fluctuationsData = useFluctuationsStore()
 
   if (method === 'GET') {
     const status = query.status as FluctuationStatus | undefined
