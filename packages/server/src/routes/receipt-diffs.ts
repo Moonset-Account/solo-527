@@ -57,7 +57,7 @@ router.post(
   "/",
   validateRequest(ReceiptDiffCreateSchema),
   asyncHandler(async (req, res) => {
-    const body = req.body as ReceiptDiffCreateSchema["_output"];
+    const body = req.body as (typeof ReceiptDiffCreateSchema)["_output"];
     const diffQuantity = body.expectedQuantity - body.actualQuantity;
 
     let impactOnSafetyStock = false;
@@ -95,7 +95,7 @@ router.patch(
   validateRequest(StatusChangeSchema),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { toStatus, reason, operator } = req.body as StatusChangeSchema["_output"];
+    const { toStatus, reason, operator } = req.body as (typeof StatusChangeSchema)["_output"];
 
     const diff = await ReceiptDiffModel.findById(id);
     if (!diff) {

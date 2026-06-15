@@ -21,7 +21,7 @@ import {
   BarcodeOutlined,
   DatabaseOutlined,
 } from "@ant-design/icons";
-import { api } from "~/lib/api";
+import { api } from "../lib/api";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {

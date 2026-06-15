@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { config } from "./config";
+import { config } from "../config";
 
 let isConnected = false;
 
@@ -23,9 +23,17 @@ export async function connectMongoDB() {
       isConnected = false;
     });
   } catch (error) {
-    console.error("[MongoDB] Failed to connect:", error);
-    throw error;
+    console.warn(
+      "[MongoDB] Failed to connect, running in degraded mode without database:",
+      (error as Error).message
+    );
+    console.warn("[MongoDB] API endpoints requiring database will return errors");
+    isConnected = false;
   }
 }
 
-export { mongoose };
+export function isMongoConnected(): boolean {
+  return isConnected;
+}
+
+export default mongoose;

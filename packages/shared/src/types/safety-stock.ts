@@ -15,6 +15,7 @@ export interface SafetyStock {
   reviewPeriodDays: number;
   status: SafetyStockStatus;
   currentStock: number;
+  inTransitQuantity: number;
   lastRestockDate?: Date;
   nextReviewDate: Date;
   responsiblePerson: string;

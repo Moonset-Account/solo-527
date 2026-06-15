@@ -1,4 +1,3 @@
-import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
 import {
   Links,
@@ -9,12 +8,10 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 import { ConfigProvider, App as AntdApp } from "antd";
-import zhCN from "antd/locale/zh_CN";
+import zhCN from "antd/locale/zh_CN.js";
 import "antd/dist/reset.css";
 
-export const links: LinksFunction = () => [
-  ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
-];
+export const links: LinksFunction = () => [];
 
 export const meta: MetaFunction = () => {
   return [

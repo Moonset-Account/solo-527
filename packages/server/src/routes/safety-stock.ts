@@ -193,7 +193,7 @@ router.post(
   "/",
   validateRequest(SafetyStockCreateSchema),
   asyncHandler(async (req, res) => {
-    const body = req.body as SafetyStockCreateSchema["_output"];
+    const body = req.body as (typeof SafetyStockCreateSchema)["_output"];
     const existing = await SafetyStockModel.findOne({ sku: body.sku });
     if (existing) {
       throw new AppError("该 SKU 已设置安全库存", 400);
@@ -227,7 +227,7 @@ router.patch(
   "/:id",
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const updateData = req.body as Partial<SafetyStockCreateSchema["_output"]> & {
+    const updateData = req.body as Partial<(typeof SafetyStockCreateSchema)["_output"]> & {
       reason?: string;
       operator?: string;
     };

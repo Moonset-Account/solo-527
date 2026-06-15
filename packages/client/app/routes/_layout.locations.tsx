@@ -20,12 +20,12 @@ import {
 } from "antd";
 import { PlusOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { Location } from "@qinghe/shared";
-import { api, type ApiListResponse, type ApiSingleResponse } from "~/lib/api";
+import { api, type ApiListResponse, type ApiSingleResponse } from "../lib/api";
 import {
   locationTypeMap,
   locationStatusMap,
   temperatureZoneMap,
-} from "~/lib/constants";
+} from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {

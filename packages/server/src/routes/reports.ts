@@ -1,7 +1,7 @@
 import { Router } from "express";
 import ExcelJS from "exceljs";
 import { asyncHandler, AppError } from "../middleware/error";
-import { InventoryTransactionModel } from "../models/Inventory";
+import { InventoryModel, InventoryTransactionModel } from "../models/Inventory";
 import { BatchModel } from "../models/Batch";
 import { TransferModel } from "../models/Transfer";
 import { ReceiptDiffModel } from "../models/ReceiptDiff";
@@ -16,9 +16,10 @@ router.get(
 
     const filter: Record<string, unknown> = {};
     if (startDate || endDate) {
-      filter.operationTime = {};
-      if (startDate) filter.operationTime.$gte = new Date(startDate as string);
-      if (endDate) filter.operationTime.$lte = new Date(endDate as string);
+      const operationTimeFilter: Record<string, Date> = {};
+      if (startDate) operationTimeFilter.$gte = new Date(startDate as string);
+      if (endDate) operationTimeFilter.$lte = new Date(endDate as string);
+      filter.operationTime = operationTimeFilter;
     }
     if (operationType) filter.operationType = operationType;
 

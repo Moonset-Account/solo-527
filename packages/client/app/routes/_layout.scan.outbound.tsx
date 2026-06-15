@@ -19,7 +19,7 @@ import {
   QrcodeOutlined,
   CheckCircleTwoTone,
 } from "@ant-design/icons";
-import { api, type ApiSingleResponse } from "~/lib/api";
+import { api, type ApiSingleResponse } from "../lib/api";
 import type { Inventory, InventoryTransaction } from "@qinghe/shared";
 
 export const meta: MetaFunction = () => {
@@ -58,7 +58,7 @@ export default function ScanOutboundPage() {
         }>
       ).data;
       setResult(data);
-      form.resetFields(["quantity", "outboundOrderNo", "remark"]);
+      form.resetFields(["quantity", "outboundOrderNo", "remark", "reason"]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -144,6 +144,26 @@ export default function ScanOutboundPage() {
                 rules={[{ required: true, message: "请输入操作人" }]}
               >
                 <Input placeholder="操作人姓名" />
+              </Form.Item>
+
+              <Form.Item
+                label="出库原因（必填，用于状态追溯）"
+                name="reason"
+                rules={[{ required: true, message: "请填写出库原因" }]}
+              >
+                <Select
+                  placeholder="请选择出库原因"
+                  allowClear
+                  options={[
+                    { label: "销售出库", value: "销售出库" },
+                    { label: "调拨出库", value: "调拨出库" },
+                    { label: "报损出库", value: "报损出库" },
+                    { label: "过期报废", value: "过期报废" },
+                    { label: "盘亏出库", value: "盘亏出库" },
+                    { label: "退货出库", value: "退货出库" },
+                    { label: "其他出库", value: "其他出库" },
+                  ]}
+                />
               </Form.Item>
 
               <Form.Item label="备注" name="remark">

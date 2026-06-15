@@ -5,6 +5,7 @@ import { validateRequest } from "../middleware/validate";
 import { TransferCreateSchema, StatusChangeSchema } from "@qinghe/shared";
 import { TransferModel } from "../models/Transfer";
 import { SafetyStockModel } from "../models/SafetyStock";
+import { InventoryModel } from "../models/Inventory";
 import { recordStatusChange } from "../models/StatusHistory";
 
 const router = Router();
@@ -36,9 +37,10 @@ router.get(
     if (sku) filter.sku = { $regex: sku, $options: "i" };
     if (relatedSafetyStockId) filter.relatedSafetyStockId = relatedSafetyStockId;
     if (startDate || endDate) {
-      filter.expectedDate = {};
-      if (startDate) filter.expectedDate.$gte = new Date(startDate as string);
-      if (endDate) filter.expectedDate.$lte = new Date(endDate as string);
+      const expectedDateFilter: Record<string, Date> = {};
+      if (startDate) expectedDateFilter.$gte = new Date(startDate as string);
+      if (endDate) expectedDateFilter.$lte = new Date(endDate as string);
+      filter.expectedDate = expectedDateFilter;
     }
 
     const pageNum = parseInt(page as string, 10);
@@ -73,7 +75,7 @@ router.post(
   "/",
   validateRequest(TransferCreateSchema),
   asyncHandler(async (req, res) => {
-    const body = req.body as TransferCreateSchema["_output"];
+    const body = req.body as (typeof TransferCreateSchema)["_output"];
 
     const transfer = await TransferModel.create({
       ...body,
@@ -88,9 +90,32 @@ router.post(
       entityType: "TRANSFER",
       fromStatus: "",
       toStatus: "PENDING",
-      reason: "创建调拨申请",
+      reason: body.relatedSafetyStockId ? `安全库存触发紧急补货：${body.remark || "创建调拨申请"}` : "创建调拨申请",
       operator: body.applicant,
+      extraData: body.relatedSafetyStockId ? { relatedSafetyStockId: body.relatedSafetyStockId } : undefined,
     });
+
+    if (body.relatedSafetyStockId) {
+      const safetyStock = await SafetyStockModel.findById(body.relatedSafetyStockId);
+      if (safetyStock) {
+        safetyStock.inTransitQuantity = (safetyStock.inTransitQuantity || 0) + body.quantity;
+        await safetyStock.save();
+
+        await recordStatusChange({
+          entityId: safetyStock._id,
+          entityType: "SAFETY_STOCK",
+          fromStatus: safetyStock.status,
+          toStatus: safetyStock.status,
+          reason: `已创建调拨单 ${transfer.transferNo}，在途数量增加 ${body.quantity}${safetyStock.unit}`,
+          operator: body.applicant,
+          extraData: {
+            transferNo: transfer.transferNo,
+            inTransitQuantity: safetyStock.inTransitQuantity,
+            quantity: body.quantity,
+          },
+        });
+      }
+    }
 
     res.status(201).json({ success: true, data: transfer });
   })
@@ -101,7 +126,7 @@ router.patch(
   validateRequest(StatusChangeSchema),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { toStatus, reason, operator } = req.body as StatusChangeSchema["_output"];
+    const { toStatus, reason, operator } = req.body as (typeof StatusChangeSchema)["_output"];
 
     const transfer = await TransferModel.findById(id);
     if (!transfer) {
@@ -126,6 +151,11 @@ router.patch(
       transfer.actualDate = new Date();
       transfer.handler = operator;
       transfer.handlingEndTime = new Date();
+      if (transfer.handlingStartTime) {
+        const start = new Date(transfer.handlingStartTime).getTime();
+        const end = new Date(transfer.handlingEndTime).getTime();
+        transfer.handlingDurationHours = Math.round((end - start) / (1000 * 60 * 60) * 10) / 10;
+      }
     }
 
     await transfer.save();
@@ -144,8 +174,40 @@ router.patch(
         transfer.relatedSafetyStockId
       );
       if (safetyStock) {
+        const safetyStockOldStatus = safetyStock.status;
         safetyStock.lastRestockDate = new Date();
+        safetyStock.inTransitQuantity = Math.max(0, (safetyStock.inTransitQuantity || 0) - transfer.quantity);
+
+        const total = await InventoryModel.aggregate([
+          { $match: { sku: transfer.sku } },
+          { $group: { _id: null, total: { $sum: "$availableQuantity" } } },
+        ]);
+        safetyStock.currentStock = total[0]?.total || 0;
+        if (safetyStock.currentStock <= safetyStock.minQuantity) {
+          safetyStock.status = "CRITICAL";
+        } else if (safetyStock.currentStock <= safetyStock.reorderPoint) {
+          safetyStock.status = "WARNING";
+        } else {
+          safetyStock.status = "NORMAL";
+        }
         await safetyStock.save();
+
+        if (safetyStock.status !== safetyStockOldStatus) {
+          await recordStatusChange({
+            entityId: safetyStock._id,
+            entityType: "SAFETY_STOCK",
+            fromStatus: safetyStockOldStatus,
+            toStatus: safetyStock.status,
+            reason: `调拨单 ${transfer.transferNo} 完成入库 ${transfer.quantity}${transfer.unit}，当前库存 ${safetyStock.currentStock}${transfer.unit}`,
+            operator,
+            extraData: {
+              transferNo: transfer.transferNo,
+              quantity: transfer.quantity,
+              currentStock: safetyStock.currentStock,
+              inTransitQuantity: safetyStock.inTransitQuantity,
+            },
+          });
+        }
       }
     }
 

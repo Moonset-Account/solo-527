@@ -15,7 +15,7 @@ import {
   AppstoreOutlined,
 } from "@ant-design/icons";
 import { json } from "@remix-run/node";
-import type { ApiSingleResponse } from "~/lib/api";
+import type { ApiSingleResponse } from "../lib/api";
 
 const { Header, Sider, Content } = Layout;
 

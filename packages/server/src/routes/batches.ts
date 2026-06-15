@@ -67,7 +67,7 @@ router.post(
   "/",
   validateRequest(BatchCreateSchema),
   asyncHandler(async (req, res) => {
-    const body = req.body as BatchCreateSchema["_output"];
+    const body = req.body as (typeof BatchCreateSchema)["_output"];
     const existing = await BatchModel.findOne({ batchNo: body.batchNo });
     if (existing) {
       throw new AppError("批次号已存在", 400);
@@ -98,7 +98,7 @@ router.patch(
   validateRequest(StatusChangeSchema),
   asyncHandler(async (req, res) => {
     const { batchNo } = req.params;
-    const { toStatus, reason, operator } = req.body as StatusChangeSchema["_output"];
+    const { toStatus, reason, operator } = req.body as (typeof StatusChangeSchema)["_output"];
 
     const batch = await BatchModel.findOne({ batchNo });
     if (!batch) {

@@ -10,6 +10,7 @@ import { InventoryModel, InventoryTransactionModel } from "../models/Inventory";
 import { BatchModel } from "../models/Batch";
 import { LocationModel } from "../models/Location";
 import { SafetyStockModel } from "../models/SafetyStock";
+import { recordStatusChange } from "../models/StatusHistory";
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.post(
   "/inbound",
   validateRequest(ScanInboundSchema),
   asyncHandler(async (req, res) => {
-    const input = req.body as ScanInboundSchema["_output"];
+    const input = req.body as (typeof ScanInboundSchema)["_output"];
 
     const batch = await BatchModel.findOne({ batchNo: input.batchNo });
     if (!batch) {
@@ -103,12 +104,14 @@ router.post(
     }
 
     batch.receivedQuantity += input.quantity;
+    const batchOldStatus = batch.status;
     if (batch.receivedQuantity >= batch.quantity && batch.status === "RECEIVING") {
       batch.status = "QUALITY_CHECK";
     }
     await batch.save();
 
     location.currentCapacity += input.quantity;
+    const locationOldStatus = location.status;
     if (location.currentCapacity >= location.maxCapacity) {
       location.status = "FULL";
     }
@@ -125,10 +128,44 @@ router.post(
       toLocationCode: input.locationCode,
       quantity: input.quantity,
       unit: batch.unit,
+      referenceNo: input.inboundOrderNo,
+      reason: input.reason,
       operator: input.operator,
       operationTime: new Date(),
       remark: input.remark,
     });
+
+    if (batch.status !== batchOldStatus) {
+      await recordStatusChange({
+        entityId: batch._id,
+        entityType: "BATCH",
+        fromStatus: batchOldStatus,
+        toStatus: batch.status,
+        reason: `入库原因：${input.reason}。扫码入库 ${input.quantity}${batch.unit}，批次收货完成，进入质检环节`,
+        operator: input.operator,
+        extraData: {
+          locationCode: input.locationCode,
+          quantity: input.quantity,
+          transactionNo: tx.transactionNo,
+        },
+      });
+    }
+
+    if (location.status !== locationOldStatus) {
+      await recordStatusChange({
+        entityId: location._id,
+        entityType: "LOCATION",
+        fromStatus: locationOldStatus,
+        toStatus: location.status,
+        reason: `入库 ${input.quantity}${batch.unit} 后库位容量已满`,
+        operator: input.operator,
+        extraData: {
+          batchNo: input.batchNo,
+          currentCapacity: location.currentCapacity,
+          maxCapacity: location.maxCapacity,
+        },
+      });
+    }
 
     const safetyStock = await SafetyStockModel.findOne({ sku: batch.sku });
     if (safetyStock) {
@@ -136,6 +173,7 @@ router.post(
         { $match: { sku: batch.sku } },
         { $group: { _id: null, total: { $sum: "$availableQuantity" } } },
       ]);
+      const safetyStockOldStatus = safetyStock.status;
       safetyStock.currentStock = total[0]?.total || 0;
       if (safetyStock.currentStock <= safetyStock.minQuantity) {
         safetyStock.status = "CRITICAL";
@@ -145,6 +183,23 @@ router.post(
         safetyStock.status = "NORMAL";
       }
       await safetyStock.save();
+
+      if (safetyStock.status !== safetyStockOldStatus) {
+        await recordStatusChange({
+          entityId: safetyStock._id,
+          entityType: "SAFETY_STOCK",
+          fromStatus: safetyStockOldStatus,
+          toStatus: safetyStock.status,
+          reason: `扫码入库 ${input.quantity}${batch.unit} 后，当前库存 ${safetyStock.currentStock}${batch.unit}，安全库存线 ${safetyStock.minQuantity}${batch.unit}`,
+          operator: input.operator,
+          extraData: {
+            batchNo: input.batchNo,
+            currentStock: safetyStock.currentStock,
+            minQuantity: safetyStock.minQuantity,
+            reorderPoint: safetyStock.reorderPoint,
+          },
+        });
+      }
     }
 
     res.status(201).json({
@@ -159,7 +214,7 @@ router.post(
   "/outbound",
   validateRequest(ScanOutboundSchema),
   asyncHandler(async (req, res) => {
-    const input = req.body as ScanOutboundSchema["_output"];
+    const input = req.body as (typeof ScanOutboundSchema)["_output"];
 
     const batch = await BatchModel.findOne({ batchNo: input.batchNo });
     if (!batch) {
@@ -191,13 +246,16 @@ router.post(
 
     inventory.quantity -= input.quantity;
     inventory.availableQuantity -= input.quantity;
+    let inventoryDeleted = false;
     if (inventory.quantity <= 0) {
       await inventory.deleteOne();
+      inventoryDeleted = true;
     } else {
       await inventory.save();
     }
 
     batch.receivedQuantity = Math.max(0, batch.receivedQuantity - input.quantity);
+    const batchOldStatus = batch.status;
     if (batch.status === "STORED" && batch.receivedQuantity < batch.quantity) {
       batch.status = "PARTIAL_OUT";
     }
@@ -207,6 +265,7 @@ router.post(
     await batch.save();
 
     location.currentCapacity = Math.max(0, location.currentCapacity - input.quantity);
+    const locationOldStatus = location.status;
     if (location.status === "FULL" && location.currentCapacity < location.maxCapacity) {
       location.status = "ACTIVE";
     }
@@ -224,10 +283,44 @@ router.post(
       quantity: input.quantity,
       unit: batch.unit,
       referenceNo: input.outboundOrderNo,
+      reason: input.reason,
       operator: input.operator,
       operationTime: new Date(),
       remark: input.remark,
     });
+
+    if (batch.status !== batchOldStatus) {
+      await recordStatusChange({
+        entityId: batch._id,
+        entityType: "BATCH",
+        fromStatus: batchOldStatus,
+        toStatus: batch.status,
+        reason: `出库原因：${input.reason}。扫码出库 ${input.quantity}${batch.unit}${batch.status === "EMPTY" ? "，批次已清空" : ""}`,
+        operator: input.operator,
+        extraData: {
+          locationCode: input.locationCode,
+          quantity: input.quantity,
+          transactionNo: tx.transactionNo,
+          outboundOrderNo: input.outboundOrderNo,
+        },
+      });
+    }
+
+    if (location.status !== locationOldStatus) {
+      await recordStatusChange({
+        entityId: location._id,
+        entityType: "LOCATION",
+        fromStatus: locationOldStatus,
+        toStatus: location.status,
+        reason: `出库 ${input.quantity}${batch.unit} 后库位容量释放`,
+        operator: input.operator,
+        extraData: {
+          batchNo: input.batchNo,
+          currentCapacity: location.currentCapacity,
+          maxCapacity: location.maxCapacity,
+        },
+      });
+    }
 
     const safetyStock = await SafetyStockModel.findOne({ sku: batch.sku });
     if (safetyStock) {
@@ -235,6 +328,7 @@ router.post(
         { $match: { sku: batch.sku } },
         { $group: { _id: null, total: { $sum: "$availableQuantity" } } },
       ]);
+      const safetyStockOldStatus = safetyStock.status;
       safetyStock.currentStock = total[0]?.total || 0;
       if (safetyStock.currentStock <= safetyStock.minQuantity) {
         safetyStock.status = "CRITICAL";
@@ -242,6 +336,24 @@ router.post(
         safetyStock.status = "WARNING";
       }
       await safetyStock.save();
+
+      if (safetyStock.status !== safetyStockOldStatus) {
+        await recordStatusChange({
+          entityId: safetyStock._id,
+          entityType: "SAFETY_STOCK",
+          fromStatus: safetyStockOldStatus,
+          toStatus: safetyStock.status,
+          reason: `扫码出库 ${input.quantity}${batch.unit} 后，当前库存 ${safetyStock.currentStock}${batch.unit}，已${safetyStock.status === "CRITICAL" ? "低于安全库存线" : "触发预警线"}`,
+          operator: input.operator,
+          extraData: {
+            batchNo: input.batchNo,
+            currentStock: safetyStock.currentStock,
+            minQuantity: safetyStock.minQuantity,
+            reorderPoint: safetyStock.reorderPoint,
+            needReplenishment: safetyStock.status === "CRITICAL" || safetyStock.status === "WARNING",
+          },
+        });
+      }
     }
 
     res.status(201).json({
@@ -270,9 +382,10 @@ router.get(
     if (batchNo) filter.batchNo = batchNo;
     if (operationType) filter.operationType = operationType;
     if (startDate || endDate) {
-      filter.operationTime = {};
-      if (startDate) filter.operationTime.$gte = new Date(startDate as string);
-      if (endDate) filter.operationTime.$lte = new Date(endDate as string);
+      const operationTimeFilter: Record<string, Date> = {};
+      if (startDate) operationTimeFilter.$gte = new Date(startDate as string);
+      if (endDate) operationTimeFilter.$lte = new Date(endDate as string);
+      filter.operationTime = operationTimeFilter;
     }
 
     const pageNum = parseInt(page as string, 10);

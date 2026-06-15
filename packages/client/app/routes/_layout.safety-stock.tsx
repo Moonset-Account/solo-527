@@ -23,6 +23,7 @@ import {
   Statistic,
   Divider,
   Alert,
+  DatePicker,
 } from "antd";
 import {
   PlusOutlined,
@@ -34,12 +35,12 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import type { SafetyStock, SafetyStockDrilldown, Transfer } from "@qinghe/shared";
-import { api, type ApiListResponse, type ApiSingleResponse } from "~/lib/api";
+import { api, type ApiListResponse, type ApiSingleResponse } from "../lib/api";
 import {
   safetyStockStatusMap,
   delayReasonCategoryMap,
   auditStatusMap,
-} from "~/lib/constants";
+} from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {
@@ -58,12 +59,51 @@ export default function SafetyStockPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [drilldown, setDrilldown] = useState<SafetyStockDrilldown | null>(null);
+  const [quickTransferModalOpen, setQuickTransferModalOpen] = useState(false);
+  const [currentSafetyStock, setCurrentSafetyStock] = useState<SafetyStock | null>(null);
   const [createForm] = Form.useForm();
+  const [quickTransferForm] = Form.useForm();
   const [stats, setStats] = useState<{ NORMAL: number; WARNING: number; CRITICAL: number }>({
     NORMAL: 0,
     WARNING: 0,
     CRITICAL: 0,
   });
+
+  const openQuickTransfer = (item: SafetyStock) => {
+    setCurrentSafetyStock(item);
+    quickTransferForm.setFieldsValue({
+      sku: item.sku,
+      skuName: item.skuName,
+      quantity: item.reorderQuantity,
+      unit: item.unit,
+      type: "EMERGENCY",
+      fromLocation: "SUPPLIER",
+      toLocation: "A-01-01-01",
+      supplier: item.supplier || "",
+      relatedSafetyStockId: item._id,
+      plannedDate: dayjs(),
+      expectedDate: dayjs().add(item.leadTimeDays, "day"),
+      applicant: "系统管理员",
+      remark: `安全库存触发自动补货：当前库存 ${item.currentStock}${item.unit}，安全库存线 ${item.minQuantity}${item.unit}`,
+    });
+    setQuickTransferModalOpen(true);
+  };
+
+  const handleQuickTransfer = async (values: any) => {
+    try {
+      await api.post<ApiSingleResponse<Transfer>>("/transfers", {
+        ...values,
+        plannedDate: values.plannedDate.format("YYYY-MM-DD"),
+        expectedDate: values.expectedDate.format("YYYY-MM-DD"),
+      });
+      message.success("调拨申请创建成功");
+      setQuickTransferModalOpen(false);
+      quickTransferForm.resetFields();
+      fetchData();
+    } catch (err) {
+      message.error((err as Error).message);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -180,9 +220,19 @@ export default function SafetyStockPage() {
             下钻明细
           </Button>
           {record.status !== "NORMAL" && (
-            <Link to={`/transfers?relatedSafetyStockId=${record._id}`}>
-              <Button size="small">创建调拨</Button>
-            </Link>
+            <>
+              <Button
+                size="small"
+                type="primary"
+                danger
+                onClick={() => openQuickTransfer(record)}
+              >
+                一键补货
+              </Button>
+              <Link to={`/transfers?relatedSafetyStockId=${record._id}`}>
+                <Button size="small">手动创建</Button>
+              </Link>
+            </>
           )}
         </Space>
       ),
@@ -527,6 +577,126 @@ export default function SafetyStockPage() {
           </>
         )}
       </Drawer>
+
+      <Modal
+        title={
+          <Space>
+            <SafetyCertificateOutlined style={{ color: "#cf1322" }} />
+            安全库存触发紧急补货 - {currentSafetyStock?.sku}
+          </Space>
+        }
+        open={quickTransferModalOpen}
+        onCancel={() => setQuickTransferModalOpen(false)}
+        footer={null}
+        width={760}
+        destroyOnClose
+      >
+        {currentSafetyStock && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={
+              <span>
+                当前库存：<strong style={{ color: "#cf1322" }}>{currentSafetyStock.currentStock} {currentSafetyStock.unit}</strong>，
+                安全库存线：{currentSafetyStock.minQuantity} {currentSafetyStock.unit}，
+                缺口：{currentSafetyStock.minQuantity - currentSafetyStock.currentStock} {currentSafetyStock.unit}
+              </span>
+            }
+          />
+        )}
+        <Form
+          form={quickTransferForm}
+          layout="vertical"
+          onFinish={handleQuickTransfer}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="SKU" name="sku" rules={[{ required: true }]}>
+                <Input readOnly style={{ background: "#f5f5f5" }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="商品名称" name="skuName" rules={[{ required: true }]}>
+                <Input readOnly style={{ background: "#f5f5f5" }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="补货数量" name="quantity" rules={[{ required: true }]}>
+                <InputNumber min={1} style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="单位" name="unit" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="调拨类型" name="type" rules={[{ required: true }]}>
+                <Select
+                  options={[
+                    { label: "紧急补货", value: "EMERGENCY" },
+                    { label: "采购入库", value: "PURCHASE" },
+                    { label: "库位调拨", value: "ALLOCATION" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="来源" name="fromLocation" rules={[{ required: true }]}>
+                <Input placeholder="如：供应商名称" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="目标库位" name="toLocation" rules={[{ required: true }]}>
+                <Input placeholder="如：A-01-01-01" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="供应商" name="supplier">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="申请人" name="applicant" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="计划日期" name="plannedDate" rules={[{ required: true }]}>
+                <DatePicker style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="预计到货日期" name="expectedDate" rules={[{ required: true }]}>
+                <DatePicker style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="备注" name="remark">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="relatedSafetyStockId" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item style={{ textAlign: "right", marginBottom: 0 }}>
+            <Space>
+              <Button onClick={() => setQuickTransferModalOpen(false)}>取消</Button>
+              <Button type="primary" htmlType="submit" danger>
+                提交紧急补货申请
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

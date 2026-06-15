@@ -14,8 +14,8 @@ import {
 } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { Inventory, InventoryTransaction } from "@qinghe/shared";
-import { api, type ApiListResponse } from "~/lib/api";
-import { inventoryStatusMap, operationTypeMap, temperatureZoneMap } from "~/lib/constants";
+import { api, type ApiListResponse } from "../lib/api";
+import { inventoryStatusMap, operationTypeMap, temperatureZoneMap } from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {
@@ -166,6 +166,12 @@ export default function InventoryPage() {
         r.fromLocationCode ? `${r.fromLocationCode} → ${r.toLocationCode || "-"}` : r.toLocationCode || "-",
     },
     { title: "关联单号", dataIndex: "referenceNo", render: (v: string) => v || "-" },
+    {
+      title: "操作原因",
+      dataIndex: "reason",
+      render: (v: string) => v || "-",
+      ellipsis: true,
+    },
     { title: "操作人", dataIndex: "operator" },
     {
       title: "操作时间",

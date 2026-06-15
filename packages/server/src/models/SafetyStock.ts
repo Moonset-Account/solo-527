@@ -21,6 +21,7 @@ const safetyStockSchema = new mongoose.Schema<SafetyStock>(
       index: true,
     },
     currentStock: { type: Number, required: true, default: 0 },
+    inTransitQuantity: { type: Number, default: 0 },
     lastRestockDate: { type: Date },
     nextReviewDate: { type: Date, required: true, index: true },
     responsiblePerson: { type: String, required: true },

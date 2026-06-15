@@ -22,8 +22,8 @@ import {
 } from "antd";
 import { PlusOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { Batch } from "@qinghe/shared";
-import { api, type ApiListResponse, type ApiSingleResponse } from "~/lib/api";
-import { batchStatusMap, temperatureZoneMap } from "~/lib/constants";
+import { api, type ApiListResponse, type ApiSingleResponse } from "../lib/api";
+import { batchStatusMap, temperatureZoneMap } from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {

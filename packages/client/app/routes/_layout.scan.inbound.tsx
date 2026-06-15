@@ -20,7 +20,7 @@ import {
   QrcodeOutlined,
   CheckCircleTwoTone,
 } from "@ant-design/icons";
-import { api, type ApiSingleResponse } from "~/lib/api";
+import { api, type ApiSingleResponse } from "../lib/api";
 import type { Batch, Inventory, InventoryTransaction } from "@qinghe/shared";
 
 export const meta: MetaFunction = () => {
@@ -80,7 +80,7 @@ export default function ScanInboundPage() {
         }>
       ).data;
       setResult({ ...data, batch: batchInfo || undefined });
-      form.resetFields(["quantity", "remark"]);
+      form.resetFields(["quantity", "remark", "inboundOrderNo", "reason"]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -170,6 +170,29 @@ export default function ScanInboundPage() {
                 rules={[{ required: true, message: "请输入操作人" }]}
               >
                 <Input placeholder="操作人姓名" />
+              </Form.Item>
+
+              <Form.Item
+                label="入库原因（必填，用于状态追溯）"
+                name="reason"
+                rules={[{ required: true, message: "请填写入库原因" }]}
+              >
+                <Select
+                  placeholder="请选择入库原因"
+                  allowClear
+                  options={[
+                    { label: "采购入库", value: "采购入库" },
+                    { label: "调拨入库", value: "调拨入库" },
+                    { label: "退货入库", value: "退货入库" },
+                    { label: "盘盈入库", value: "盘盈入库" },
+                    { label: "生产入库", value: "生产入库" },
+                    { label: "其他入库", value: "其他入库" },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item label="关联入库单号" name="inboundOrderNo">
+                <Input placeholder="选填" />
               </Form.Item>
 
               <Form.Item label="备注" name="remark">

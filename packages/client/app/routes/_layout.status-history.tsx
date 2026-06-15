@@ -14,7 +14,7 @@ import {
 } from "antd";
 import { SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { StatusHistory } from "@qinghe/shared";
-import { api, type ApiListResponse } from "~/lib/api";
+import { api, type ApiListResponse } from "../lib/api";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {

@@ -26,6 +26,7 @@ export interface Transfer {
   handler?: string;
   handlingStartTime?: Date;
   handlingEndTime?: Date;
+  handlingDurationHours?: number;
   remark?: string;
   relatedSafetyStockId?: string;
   createdAt: Date;

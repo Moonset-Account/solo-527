@@ -23,14 +23,15 @@ import {
   PlusOutlined,
   SearchOutlined,
   HistoryOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import type { Transfer } from "@qinghe/shared";
-import { api, type ApiListResponse, type ApiSingleResponse } from "~/lib/api";
+import { api, type ApiListResponse, type ApiSingleResponse } from "../lib/api";
 import {
   auditStatusMap,
   transferTypeMap,
   delayReasonCategoryMap,
-} from "~/lib/constants";
+} from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {
@@ -73,7 +74,7 @@ export default function TransfersPage() {
       setData(list.data.data);
       setTotal(list.data.total);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -145,15 +146,19 @@ export default function TransfersPage() {
   };
 
   const statusOptionsForChange = (current: string) => {
-    const all = {
-      PENDING: [{ label: "已批准", value: "APPROVED" },
-      APPROVED: [
-        { label: "已完成", value: "COMPLETED" },
+    const all: Record<string, { label: string; value: string }[]> = {
+      PENDING: [
+        { label: "已批准", value: "APPROVED" },
         { label: "已驳回", value: "REJECTED" },
       ],
-      DELAYED: [{ label: "已完成", value: "COMPLETED" }],
+      APPROVED: [
+        { label: "已完成", value: "COMPLETED" },
+      ],
+      DELAYED: [
+        { label: "已完成", value: "COMPLETED" },
+      ],
     };
-    return all[current as keyof typeof all] || [];
+    return all[current] || [];
   };
 
   const columns = [
@@ -173,17 +178,22 @@ export default function TransfersPage() {
     { title: "商品名称", dataIndex: "skuName" },
     { title: "数量", render: (r: Transfer) => `${r.quantity} ${r.unit}` },
     { title: "来源 → 目标", render: (r: Transfer) => `${r.fromLocation} → ${r.toLocation}` },
-    { title: "预计到货", dataIndex: "expectedDate", render: (v: Date) => {
-      const days = dayjs(v).diff(dayjs(), "day");
-      const delayed = days < 0;
-      return (
-        <Tag color={delayed ? "red" : "blue"}>
-          {dayjs(v).format("YYYY-MM-DD")} {delayed ? `(延误${-days}天` : ""}
-        </Tag>
-      );
-    }},
     {
-      title: "申请人", dataIndex: "applicant" },
+      title: "预计到货",
+      dataIndex: "expectedDate",
+      render: (v: Date | string) => {
+        const d = dayjs(v);
+        const days = d.diff(dayjs(), "day");
+        const delayed = days < 0;
+        return (
+          <Tag color={delayed ? "red" : "blue"}>
+            {d.format("YYYY-MM-DD")}
+            {delayed ? ` (延误${-days}天)` : ""}
+          </Tag>
+        );
+      },
+    },
+    { title: "申请人", dataIndex: "applicant" },
     {
       title: "状态",
       dataIndex: "status",
@@ -324,13 +334,14 @@ export default function TransfersPage() {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="SKU" name="sku" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
+                <Input />
+              </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label="商品名称" name="skuName" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
+                <Input />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
             <Col span={8}>
@@ -340,8 +351,8 @@ export default function TransfersPage() {
             </Col>
             <Col span={8}>
               <Form.Item label="单位" name="unit" rules={[{ required: true }]} initialValue="件">
-              <Input />
-            </Form.Item>
+                <Input />
+              </Form.Item>
             </Col>
             <Col span={8}>
               <Form.Item label="批次号" name="batchNo">
@@ -449,8 +460,12 @@ export default function TransfersPage() {
               }))}
             />
           </Form.Item>
-          <Form.Item label="处理人" name="handler">
-            <Input />
+          <Form.Item
+            label="处理责任人（必填，延误登记后立即开始计时）"
+            name="handler"
+            rules={[{ required: true, message: "请指定处理责任人" }]}
+          >
+            <Input placeholder="例如：张三" />
           </Form.Item>
           <Form.Item style={{ textAlign: "right", marginBottom: 0 }}>
             <Space>
@@ -462,7 +477,7 @@ export default function TransfersPage() {
       </Modal>
 
       <Drawer
-        title={`调拨详情 - {currentTransfer?.transferNo || ""}
+        title={`调拨详情 - ${currentTransfer?.transferNo || ""}`}
         width={640}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
@@ -486,12 +501,42 @@ export default function TransfersPage() {
               </Descriptions.Item>
               <Descriptions.Item label="申请人">{currentTransfer.applicant}</Descriptions.Item>
               <Descriptions.Item label="审批人">{currentTransfer.approver || "-"}</Descriptions.Item>
-              <Descriptions.Item label="处理人">{currentTransfer.handler || "-"}</Descriptions.Item>
+              <Descriptions.Item label="处理人">
+                {currentTransfer.handler ? (
+                  <Tag color="purple" style={{ margin: 0 }}>
+                    <UserOutlined /> {currentTransfer.handler}
+                  </Tag>
+                ) : (
+                  <Tag>未指派</Tag>
+                )}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={auditStatusMap[currentTransfer.status as any]?.color}>
                   {auditStatusMap[currentTransfer.status as any]?.label}
                 </Tag>
               </Descriptions.Item>
+              {currentTransfer.handlingStartTime && (
+                <Descriptions.Item label="处理开始时间">
+                  {dayjs(currentTransfer.handlingStartTime).format("YYYY-MM-DD HH:mm")}
+                </Descriptions.Item>
+              )}
+              {currentTransfer.handlingEndTime && (
+                <Descriptions.Item label="处理结束时间">
+                  {dayjs(currentTransfer.handlingEndTime).format("YYYY-MM-DD HH:mm")}
+                </Descriptions.Item>
+              )}
+              {currentTransfer.handlingStartTime && currentTransfer.handlingEndTime && (
+                <Descriptions.Item label="处理效率">
+                  <Tag color="blue">
+                    {Math.round(
+                      (new Date(currentTransfer.handlingEndTime).getTime() -
+                        new Date(currentTransfer.handlingStartTime).getTime()) /
+                        3600000
+                    )}{" "}
+                    小时
+                  </Tag>
+                </Descriptions.Item>
+              )}
               {currentTransfer.delayReason && (
                 <Descriptions.Item label="延误原因" span={2}>
                   {currentTransfer.delayReason}

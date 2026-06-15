@@ -35,6 +35,7 @@ const transferSchema = new mongoose.Schema<Transfer>(
     handler: { type: String },
     handlingStartTime: { type: Date },
     handlingEndTime: { type: Date },
+    handlingDurationHours: { type: Number },
     remark: { type: String },
     relatedSafetyStockId: { type: String, index: true },
   },

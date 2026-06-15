@@ -23,12 +23,12 @@ import {
   AlertOutlined,
   FieldTimeOutlined,
 } from "@ant-design/icons";
-import { api, type ApiSingleResponse } from "~/lib/api";
+import { api, type ApiSingleResponse } from "../lib/api";
 import {
   safetyStockStatusMap,
   auditStatusMap,
   batchStatusMap,
-} from "~/lib/constants";
+} from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {

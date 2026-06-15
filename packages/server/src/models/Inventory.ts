@@ -59,6 +59,7 @@ const transactionSchema = new mongoose.Schema<InventoryTransaction>(
     quantity: { type: Number, required: true },
     unit: { type: String, required: true },
     referenceNo: { type: String },
+    reason: { type: String, required: true },
     operator: { type: String, required: true },
     operationTime: { type: Date, required: true, default: Date.now, index: true },
     remark: { type: String },

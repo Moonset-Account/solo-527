@@ -20,8 +20,8 @@ import {
 } from "antd";
 import { PlusOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { ReceiptDiff } from "@qinghe/shared";
-import { api, type ApiListResponse, type ApiSingleResponse } from "~/lib/api";
-import { auditStatusMap, diffTypeMap } from "~/lib/constants";
+import { api, type ApiListResponse, type ApiSingleResponse } from "../lib/api";
+import { auditStatusMap, diffTypeMap } from "../lib/constants";
 import dayjs from "dayjs";
 
 export const meta: MetaFunction = () => {

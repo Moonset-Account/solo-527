@@ -62,7 +62,7 @@ router.post(
   "/",
   validateRequest(LocationCreateSchema),
   asyncHandler(async (req, res) => {
-    const body = req.body as LocationCreateSchema["_output"];
+    const body = req.body as (typeof LocationCreateSchema)["_output"];
     const existing = await LocationModel.findOne({ code: body.code });
     if (existing) {
       throw new AppError("库位编码已存在", 400);
@@ -83,7 +83,7 @@ router.patch(
   validateRequest(StatusChangeSchema),
   asyncHandler(async (req, res) => {
     const { code } = req.params;
-    const { toStatus, reason, operator } = req.body as StatusChangeSchema["_output"];
+    const { toStatus, reason, operator } = req.body as (typeof StatusChangeSchema)["_output"];
 
     const location = await LocationModel.findOne({ code });
     if (!location) {

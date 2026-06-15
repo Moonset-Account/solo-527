@@ -24,6 +24,8 @@ export const ScanInboundSchema = z.object({
   locationCode: z.string().min(1, "库位编码不能为空"),
   quantity: z.number().positive("入库数量必须大于0"),
   operator: z.string().min(1, "操作人不能为空"),
+  reason: z.string().min(1, "入库原因不能为空"),
+  inboundOrderNo: z.string().optional(),
   remark: z.string().optional(),
 });
 
@@ -33,6 +35,7 @@ export const ScanOutboundSchema = z.object({
   locationCode: z.string().min(1, "库位编码不能为空"),
   quantity: z.number().positive("出库数量必须大于0"),
   operator: z.string().min(1, "操作人不能为空"),
+  reason: z.string().min(1, "出库原因不能为空"),
   outboundOrderNo: z.string().optional(),
   remark: z.string().optional(),
 });

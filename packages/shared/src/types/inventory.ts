@@ -38,6 +38,7 @@ export interface InventoryTransaction {
   quantity: number;
   unit: string;
   referenceNo?: string;
+  reason: string;
   operator: string;
   operationTime: Date;
   remark?: string;
@@ -49,6 +50,8 @@ export interface ScanInboundInput {
   locationCode: string;
   quantity: number;
   operator: string;
+  reason: string;
+  inboundOrderNo?: string;
   remark?: string;
 }
 
@@ -58,6 +61,7 @@ export interface ScanOutboundInput {
   locationCode: string;
   quantity: number;
   operator: string;
+  reason: string;
   outboundOrderNo?: string;
   remark?: string;
 }
