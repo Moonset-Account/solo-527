@@ -32,6 +32,8 @@ public class SessionService : ISessionService
             .Include(s => s.Agent)
             .Include(s => s.Inspector)
             .Include(s => s.Rating)
+            .Include(s => s.Messages)
+            .Include(s => s.Attachments)
             .AsQueryable();
 
         if (query.AgentId.HasValue)
@@ -193,6 +195,13 @@ public class SessionService : ISessionService
 
         var today = DateTime.Today;
 
+        var avgResponseTime = await queryable.Where(s => s.ResponseTimeSeconds.HasValue).AverageAsync(s => (double?)s.ResponseTimeSeconds);
+        var avgResolutionTime = await queryable.Where(s => s.ResolutionTimeSeconds.HasValue).AverageAsync(s => (double?)s.ResolutionTimeSeconds);
+        var avgInspectionScore = await queryable.Where(s => s.InspectionScore.HasValue).AverageAsync(s => (decimal?)s.InspectionScore);
+        var avgRating = await _context.ServiceRatings
+            .Where(r => queryable.Select(s => s.Id).Contains(r.SessionId))
+            .AverageAsync(r => (double?)r.OverallRating);
+
         var stats = new SessionStatisticsDTO
         {
             TotalSessions = await queryable.CountAsync(),
@@ -202,12 +211,10 @@ public class SessionService : ISessionService
             InspectedSessions = await queryable.Where(s => s.IsInspected).CountAsync(),
             UninspectedSessions = await queryable.Where(s => !s.IsInspected && s.Status == SessionStatus.Closed).CountAsync(),
             TodaySessions = await queryable.Where(s => s.CreatedAt >= today).CountAsync(),
-            AverageResponseTime = await queryable.Where(s => s.ResponseTimeSeconds.HasValue).AverageAsync(s => s.ResponseTimeSeconds ?? 0),
-            AverageResolutionTime = await queryable.Where(s => s.ResolutionTimeSeconds.HasValue).AverageAsync(s => s.ResolutionTimeSeconds ?? 0),
-            AverageInspectionScore = await queryable.Where(s => s.InspectionScore.HasValue).AverageAsync(s => s.InspectionScore ?? 0),
-            CustomerSatisfactionRate = await _context.ServiceRatings
-                .Where(r => queryable.Select(s => s.Id).Contains(r.SessionId))
-                .AverageAsync(r => r.OverallRating) / 5 * 100
+            AverageResponseTime = avgResponseTime ?? 0,
+            AverageResolutionTime = avgResolutionTime ?? 0,
+            AverageInspectionScore = avgInspectionScore ?? 0m,
+            CustomerSatisfactionRate = avgRating.HasValue ? avgRating.Value / 5 * 100 : 0
         };
 
         return stats;
@@ -364,7 +371,9 @@ public class SessionService : ISessionService
             InspectorName = session.Inspector?.FullName,
             InspectionScore = session.InspectionScore,
             HasRating = session.Rating != null,
-            RatingScore = session.Rating?.OverallRating
+            RatingScore = session.Rating?.OverallRating,
+            MessageCount = session.Messages?.Count ?? 0,
+            AttachmentCount = session.Attachments?.Count ?? 0
         };
     }
 

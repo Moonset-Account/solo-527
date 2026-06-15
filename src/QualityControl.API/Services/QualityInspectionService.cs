@@ -206,13 +206,17 @@ public class QualityInspectionService : IQualityInspectionService
 
         var completedQuery = queryable.Where(qi => qi.Status == InspectionStatus.Completed);
 
+        var completedCount = await completedQuery.CountAsync();
+        var passCount = completedCount > 0 ? await completedQuery.CountAsync(qi => qi.ScorePercentage >= 60) : 0;
+        var averageScore = completedCount > 0 ? await completedQuery.AverageAsync(qi => (decimal?)qi.ScorePercentage) : null;
+
         var stats = new InspectionStatisticsDTO
         {
             TotalInspections = await queryable.CountAsync(),
-            CompletedInspections = await completedQuery.CountAsync(),
+            CompletedInspections = completedCount,
             PendingInspections = await queryable.Where(qi => qi.Status == InspectionStatus.Draft || qi.Status == InspectionStatus.InProgress).CountAsync(),
-            AverageScore = completedQuery.Any() ? await completedQuery.AverageAsync(qi => qi.ScorePercentage) : 0,
-            PassRate = completedQuery.Any() ? (double)await completedQuery.CountAsync(qi => qi.ScorePercentage >= 60) / await completedQuery.CountAsync() * 100 : 0,
+            AverageScore = averageScore ?? 0m,
+            PassRate = completedCount > 0 ? (decimal)passCount / completedCount * 100 : 0m,
             RequiresRetrainCount = await completedQuery.CountAsync(qi => qi.IsRequiresRetrain),
         };
 
@@ -222,8 +226,8 @@ public class QualityInspectionService : IQualityInspectionService
             .Select(g => new CategoryScoreDTO
             {
                 Category = g.Key,
-                AverageScore = g.Average(ii => ii.Score),
-                MaxScore = g.Average(ii => ii.MaxScore)
+                AverageScore = g.Average(ii => (decimal?)ii.Score) ?? 0m,
+                MaxScore = g.Average(ii => (decimal?)ii.MaxScore) ?? 0m
             })
             .ToListAsync();
 
