@@ -1,6 +1,6 @@
 import Env from '@ioc:Adonis/Core/Env'
 import { DriveConfig } from '@ioc:Adonis/Core/Drive'
-import Application from '@ioc:Adonis/Core/Application'
+const path = require('path')
 
 const driveConfig: DriveConfig = {
   disk: Env.get('DRIVE_DISK', 'local'),
@@ -8,7 +8,8 @@ const driveConfig: DriveConfig = {
     local: {
       driver: 'local',
       visibility: 'private',
-      root: Application.tmpPath('uploads'),
+      root: path.join(process.cwd(), 'tmp', 'uploads'),
+      basePath: path.join(process.cwd(), 'tmp', 'uploads'),
       serveFiles: true,
       routesBase: '/uploads',
     },

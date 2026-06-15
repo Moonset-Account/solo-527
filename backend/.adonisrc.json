@@ -1,11 +1,9 @@
 {
   "typescript": true,
   "commands": [
-    "./commands",
-    "@adonisjs/core/commands",
-    "@adonisjs/repl/commands",
-    "@adonisjs/lucid/commands",
-    "@adonisjs/mail/commands"
+    "@adonisjs/core/build/commands",
+    "@adonisjs/lucid/build/commands",
+    "@adonisjs/mail/build/commands"
   ],
   "exceptionHandlerNamespace": "App/Exceptions/Handler",
   "aliases": {
@@ -28,9 +26,7 @@
     "@adonisjs/mail",
     "@adonisjs/bouncer"
   ],
-  "aceProviders": [
-    "@adonisjs/repl"
-  ],
+  "aceProviders": [],
   "tests": {
     "suites": []
   }

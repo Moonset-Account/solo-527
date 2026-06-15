@@ -39,10 +39,13 @@ Route.group(() => {
 }).prefix('api').middleware('auth')
 
 Route.group(() => {
+  Route.get('subscriptions/public/active', 'SubscriptionsController.getActivePlans')
+}).prefix('api')
+
+Route.group(() => {
   Route.resource('subscriptions', 'SubscriptionsController').apiOnly()
   Route.post('subscriptions/checkout', 'SubscriptionsController.checkout')
-  Route.get('subscriptions/public/active', 'SubscriptionsController.getActivePlans')
-})
+}).prefix('api').middleware('auth')
 
 Route.group(() => {
   Route.get('refunds', 'RefundExceptionsController.index')
