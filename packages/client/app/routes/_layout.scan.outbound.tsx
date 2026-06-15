@@ -13,6 +13,9 @@ import {
   Row,
   Col,
   Tag,
+  Select,
+  Descriptions,
+  Divider,
 } from "antd";
 import {
   ExportOutlined,
@@ -41,6 +44,7 @@ export default function ScanOutboundPage() {
     locationCode: string;
     quantity: number;
     operator: string;
+    reason: string;
     outboundOrderNo?: string;
     remark?: string;
   }) => {
@@ -216,15 +220,65 @@ export default function ScanOutboundPage() {
 
           {result && (
             <>
-              <div style={{ height: 24 }} />
+              <Divider />
               <Result
                 icon={<CheckCircleTwoTone twoToneColor="#52c41a" />}
                 status="success"
                 title="出库成功"
-                subTitle={`流水号：${result.transaction.transactionNo}，剩余库存：${
-                  result.inventory?.availableQuantity ?? 0
-                }`}
+                subTitle={`流水号：${result.transaction.transactionNo} · 出库原因：${result.transaction.reason}`}
               />
+              <Card size="small" title="交易详情" style={{ marginTop: 16 }}>
+                <Descriptions column={1} size="small" bordered>
+                  <Descriptions.Item label="交易流水号">
+                    <Tag color="volcano">{result.transaction.transactionNo}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="操作类型">
+                    <Tag color="orange">
+                      {result.transaction.operationType}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="批次号">
+                    {result.transaction.batchNo}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="商品">
+                    {result.transaction.sku} — {result.transaction.skuName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="出库库位">
+                    {result.transaction.fromLocationCode}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="出库数量">
+                    <Typography.Text strong type="danger">
+                      -{result.transaction.quantity} {result.transaction.unit}
+                    </Typography.Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="出库原因">
+                    {result.transaction.reason || "-"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="关联单号">
+                    {result.transaction.referenceNo || "-"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="操作人">
+                    {result.transaction.operator}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="操作时间">
+                    {new Date(result.transaction.operationTime).toLocaleString("zh-CN")}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="剩余可用库存">
+                    {result.inventory ? (
+                      <Typography.Text strong>
+                        {result.inventory.availableQuantity} {result.inventory.unit}
+                      </Typography.Text>
+                    ) : (
+                      <Tag color="red">批次已清空</Tag>
+                    )}
+                  </Descriptions.Item>
+                  {result.transaction.remark && (
+                    <Descriptions.Item label="备注">
+                      {result.transaction.remark}
+                    </Descriptions.Item>
+                  )}
+                </Descriptions>
+              </Card>
             </>
           )}
         </Col>

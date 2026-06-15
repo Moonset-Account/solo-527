@@ -14,6 +14,8 @@ import {
   Tag,
   Row,
   Col,
+  Select,
+  Descriptions,
 } from "antd";
 import {
   InboxOutlined,
@@ -61,6 +63,8 @@ export default function ScanInboundPage() {
     locationCode: string;
     quantity: number;
     operator: string;
+    reason: string;
+    inboundOrderNo?: string;
     remark?: string;
   }) => {
     setLoading(true);
@@ -286,8 +290,57 @@ export default function ScanInboundPage() {
                 icon={<CheckCircleTwoTone twoToneColor="#52c41a" />}
                 status="success"
                 title="入库成功"
-                subTitle={`流水号：${result.transaction.transactionNo}`}
+                subTitle={`流水号：${result.transaction.transactionNo} · 入库原因：${result.transaction.reason}`}
               />
+              <Card size="small" title="交易详情" style={{ marginTop: 16 }}>
+                <Descriptions column={1} size="small" bordered>
+                  <Descriptions.Item label="交易流水号">
+                    <Tag color="green">{result.transaction.transactionNo}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="操作类型">
+                    <Tag color="blue">
+                      {result.transaction.operationType}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="批次号">
+                    {result.transaction.batchNo}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="商品">
+                    {result.transaction.sku} — {result.transaction.skuName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="入库库位">
+                    {result.transaction.toLocationCode}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="入库数量">
+                    <Typography.Text strong type="success">
+                      +{result.transaction.quantity} {result.transaction.unit}
+                    </Typography.Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="入库原因">
+                    {result.transaction.reason || "-"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="关联单号">
+                    {result.transaction.referenceNo || "-"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="操作人">
+                    {result.transaction.operator}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="操作时间">
+                    {new Date(result.transaction.operationTime).toLocaleString("zh-CN")}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="当前可用库存">
+                    <Typography.Text strong>
+                      {result.inventory.availableQuantity} {result.inventory.unit}
+                    </Typography.Text>
+                    （合计：{result.inventory.totalQuantity}）
+                  </Descriptions.Item>
+                  {result.transaction.remark && (
+                    <Descriptions.Item label="备注">
+                      {result.transaction.remark}
+                    </Descriptions.Item>
+                  )}
+                </Descriptions>
+              </Card>
             </>
           )}
         </Col>
