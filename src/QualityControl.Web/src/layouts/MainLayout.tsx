@@ -12,7 +12,7 @@ import {
   LogoutOutlined,
   SettingOutlined
 } from '@ant-design/icons'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, Outlet } from 'react-router-dom'
 
 const { Header, Sider, Content } = Layout
 
@@ -70,7 +70,7 @@ const userMenuItems = [
   },
 ]
 
-export default function MainLayout({ children }: { children?: React.ReactNode }) {
+export default function MainLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
@@ -143,7 +143,7 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
           </div>
         </Header>
         <Content style={{ padding: 0 }}>
-          {children}
+          <Outlet />
         </Content>
       </Layout>
     </Layout>

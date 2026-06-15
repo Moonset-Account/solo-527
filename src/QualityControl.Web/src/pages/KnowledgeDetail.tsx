@@ -17,7 +17,8 @@ import {
   message,
   Rate,
   Alert,
-  Progress
+  Progress,
+  Divider
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -612,4 +613,3 @@ export default function KnowledgeDetail() {
   )
 }
 
-import { Divider } from 'antd'

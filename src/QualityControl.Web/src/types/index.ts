@@ -189,6 +189,17 @@ export interface CategoryScore {
   maxScore: number
 }
 
+export interface InspectionQuery extends PagedQuery {
+  sessionId?: number
+  inspectorId?: number
+  status?: number
+  minScore?: number
+  maxScore?: number
+  isRequiresRetrain?: boolean
+  startTime?: string
+  endTime?: string
+}
+
 export interface AgentRank {
   agentId: number
   agentName?: string

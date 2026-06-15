@@ -25,8 +25,12 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      return response.data
+    }
+    
     const data = response.data as ApiResponse<any>
-    if (data && !data.success) {
+    if (data && data.success !== undefined && !data.success) {
       showError(data.error)
       return Promise.reject(data)
     }

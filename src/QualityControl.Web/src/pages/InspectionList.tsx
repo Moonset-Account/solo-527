@@ -11,7 +11,9 @@ import {
   Progress,
   Statistic,
   Row,
-  Col
+  Col,
+  Form,
+  InputNumber
 } from 'antd'
 import {
   SearchOutlined,
@@ -386,4 +388,3 @@ export default function InspectionList() {
   )
 }
 
-import { Form, InputNumber } from 'antd'

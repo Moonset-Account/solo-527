@@ -13,7 +13,8 @@ import {
   Statistic,
   Row,
   Col,
-  Tooltip
+  Tooltip,
+  message
 } from 'antd'
 import {
   SearchOutlined,
@@ -553,4 +554,3 @@ export default function TicketList() {
   )
 }
 
-import { message } from 'antd'

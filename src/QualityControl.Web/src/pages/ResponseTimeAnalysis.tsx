@@ -13,6 +13,7 @@ import {
   Tag,
   Progress,
   message,
+  Input,
   InputNumber
 } from 'antd'
 import {
@@ -78,12 +79,13 @@ export default function ResponseTimeAnalysis() {
   }
 
   const handleSearch = (values: any) => {
+    const { timeRange, ...restValues } = values
     setQuery({
       ...query,
       pageIndex: 1,
-      ...values,
-      startTime: values.timeRange?.[0]?.toISOString(),
-      endTime: values.timeRange?.[1]?.toISOString(),
+      ...restValues,
+      startTime: timeRange?.[0]?.toISOString(),
+      endTime: timeRange?.[1]?.toISOString(),
     })
   }
 

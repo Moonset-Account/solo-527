@@ -161,9 +161,9 @@ public class QualityInspectionService : IQualityInspectionService
 
         await _context.SaveChangesAsync();
 
-        if (inspection.SessionId.HasValue)
+        if (inspection.SessionId > 0)
         {
-            var session = await _context.Sessions.FindAsync(inspection.SessionId.Value);
+            var session = await _context.Sessions.FindAsync(inspection.SessionId);
             if (session != null)
             {
                 session.InspectionScore = inspection.ScorePercentage;
@@ -316,7 +316,7 @@ public class QualityInspectionService : IQualityInspectionService
         {
             Id = inspection.Id,
             InspectionNumber = inspection.InspectionNumber,
-            SessionId = inspection.SessionId ?? 0,
+            SessionId = inspection.SessionId,
             SessionNumber = inspection.Session?.SessionNumber,
             SessionTitle = inspection.Session?.Title,
             InspectorId = inspection.InspectorId,

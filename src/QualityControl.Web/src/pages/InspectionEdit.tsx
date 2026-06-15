@@ -405,7 +405,7 @@ export default function InspectionEdit() {
               <Progress
                 percent={Math.round(percentage)}
                 strokeColor={getScoreColor(percentage)}
-                size="large"
+                size={[10, 400]}
                 showInfo={false}
                 style={{ marginTop: 16 }}
               />
