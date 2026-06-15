@@ -33,6 +33,7 @@ export const getFollowUps = (id, params) => api.get(`/consultants/${id}/follow-u
 export const getViewings = (params) => api.get('/viewings', { params });
 export const createViewing = (data) => api.post('/viewings', data);
 export const updateViewing = (id, data) => api.put(`/viewings/${id}`, data);
+export const getViewingHistory = (id) => api.get(`/viewings/${id}/history`);
 
 export const getContracts = (params) => api.get('/contracts', { params });
 export const getContract = (id) => api.get(`/contracts/${id}`);

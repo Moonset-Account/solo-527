@@ -10,13 +10,17 @@ import {
   Space,
   DatePicker,
   message,
+  Timeline,
+  Collapse,
+  Spin,
 } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, HistoryOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   getViewings,
   createViewing,
   updateViewing,
+  getViewingHistory,
   getTenants,
   getProperties,
   getConsultants,
@@ -38,6 +42,34 @@ const STATUS_LABEL = {
   NO_SHOW: '未到场',
 };
 
+function JsonDiff({ before, after }) {
+  const allKeys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})]));
+  const diffs = allKeys
+    .filter((key) => JSON.stringify(before?.[key]) !== JSON.stringify(after?.[key]))
+    .map((key) => ({
+      key,
+      before: before?.[key] ?? '-',
+      after: after?.[key] ?? '-',
+    }));
+
+  if (diffs.length === 0) return <span style={{ color: '#999' }}>无变化</span>;
+
+  return (
+    <div style={{ fontSize: 12 }}>
+      {diffs.map((d) => (
+        <div key={d.key} style={{ marginBottom: 4 }}>
+          <strong>{d.key}</strong>：{' '}
+          <span style={{ color: '#f5222d', textDecoration: 'line-through' }}>
+            {JSON.stringify(d.before)}
+          </span>{' '}
+          →{' '}
+          <span style={{ color: '#52c41a' }}>{JSON.stringify(d.after)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Viewings() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +81,9 @@ export default function Viewings() {
   const [tenants, setTenants] = useState([]);
   const [properties, setProperties] = useState([]);
   const [consultants, setConsultants] = useState([]);
+  const [expandedRowKeys, setExpandedRowKeys] = useState([]);
+  const [historyMap, setHistoryMap] = useState({});
+  const [loadingHistory, setLoadingHistory] = useState({});
 
   const fetchData = (params = {}) => {
     setLoading(true);
@@ -118,6 +153,79 @@ export default function Viewings() {
     fetchData(params);
   };
 
+  const handleExpand = async (expanded, record) => {
+    const newExpandedKeys = expanded
+      ? [...expandedRowKeys, record.id]
+      : expandedRowKeys.filter((k) => k !== record.id);
+    setExpandedRowKeys(newExpandedKeys);
+
+    if (expanded && !historyMap[record.id] && !loadingHistory[record.id]) {
+      setLoadingHistory((prev) => ({ ...prev, [record.id]: true }));
+      try {
+        const hist = await getViewingHistory(record.id);
+        setHistoryMap((prev) => ({ ...prev, [record.id]: hist }));
+      } catch (err) {
+        message.error(err.message || '加载历史记录失败');
+      } finally {
+        setLoadingHistory((prev) => ({ ...prev, [record.id]: false }));
+      }
+    }
+  };
+
+  const expandedRowRender = (record) => {
+    const hist = historyMap[record.id];
+    const isLoading = loadingHistory[record.id];
+
+    if (isLoading) {
+      return (
+        <div style={{ textAlign: 'center', padding: 20 }}>
+          <Spin size="small" />
+        </div>
+      );
+    }
+
+    if (!hist || hist.length === 0) {
+      return <span style={{ color: '#999' }}>暂无变更记录</span>;
+    }
+
+    const timelineItems = hist.map((log, idx) => ({
+      key: log.id || idx,
+      children: (
+        <div>
+          <div style={{ marginBottom: 4 }}>
+            <Tag color="blue">{log.action}</Tag>
+            <span style={{ margin: '0 8px', fontWeight: 500 }}>
+              {log.operatorName || '系统'}
+            </span>
+            {log.remark && <span style={{ color: '#666' }}>{log.remark}</span>}
+          </div>
+          <div style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>
+            {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+          </div>
+          {(log.beforeSnapshot || log.afterSnapshot) && (
+            <Collapse
+              size="small"
+              items={[
+                {
+                  key: 'diff',
+                  label: '变更详情（前后快照）',
+                  children: (
+                    <JsonDiff
+                      before={log.beforeSnapshot}
+                      after={log.afterSnapshot}
+                    />
+                  ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      ),
+    }));
+
+    return <Timeline items={timelineItems} />;
+  };
+
   const columns = [
     {
       title: '租客',
@@ -154,6 +262,14 @@ export default function Viewings() {
       key: 'actions',
       render: (_, record) => (
         <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<HistoryOutlined />}
+            onClick={() => handleExpand(!expandedRowKeys.includes(record.id), record)}
+          >
+            {expandedRowKeys.includes(record.id) ? '收起' : '历史'}
+          </Button>
           {record.status === 'PENDING' && (
             <Button type="link" size="small" onClick={() => handleStatusUpdate(record.id, 'CONFIRMED')}>
               确认
@@ -206,6 +322,12 @@ export default function Viewings() {
         dataSource={data}
         columns={columns}
         pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条` }}
+        expandable={{
+          expandedRowKeys,
+          onExpand: handleExpand,
+          expandedRowRender,
+          showExpandColumn: false,
+        }}
       />
 
       <Modal

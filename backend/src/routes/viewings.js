@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const data = req.body;
+  const { operatorId, operatorName, ...data } = req.body;
   const viewing = await prisma.viewing.create({
     data,
     include: { tenant: true, property: true, consultant: true },
@@ -29,8 +29,8 @@ router.post('/', async (req, res) => {
     entityId: viewing.id,
     action: 'CREATE',
     after: viewing,
-    operatorId: data.operatorId,
-    operatorName: data.operatorName,
+    operatorId,
+    operatorName,
     remark: '创建看房预约',
   });
   res.json(viewing);
@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const before = await prisma.viewing.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: '看房记录不存在' });
-  const data = req.body;
+  const { operatorId, operatorName, ...data } = req.body;
   const viewing = await prisma.viewing.update({
     where: { id: req.params.id },
     data,
@@ -51,8 +51,8 @@ router.put('/:id', async (req, res) => {
     action: 'UPDATE',
     before,
     after: viewing,
-    operatorId: data.operatorId,
-    operatorName: data.operatorName,
+    operatorId,
+    operatorName,
     remark: `看房状态变更: ${before.status} -> ${viewing.status}`,
   });
   res.json(viewing);

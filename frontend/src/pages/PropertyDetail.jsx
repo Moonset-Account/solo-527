@@ -16,7 +16,8 @@ import {
   Spin,
   Collapse,
 } from 'antd';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { getProperty, updateProperty, getPropertyHistory } from '../api';
 
 const STATUS_COLOR = {
@@ -42,32 +43,140 @@ const STATUS_OPTIONS = Object.keys(STATUS_LABEL).map((key) => ({
   value: key,
 }));
 
-const contractColumns = [
-  { title: '合同编号', dataIndex: 'contractNo', key: 'contractNo' },
-  { title: '租客', dataIndex: 'tenantName', key: 'tenantName' },
+const REVIEW_STATUS_COLOR = {
+  DRAFT: 'default',
+  PENDING_REVIEW: 'blue',
+  REVIEWING: 'blue',
+  APPROVED: 'green',
+  REJECTED: 'red',
+  ANOMALOUS: 'red',
+};
+
+const REVIEW_STATUS_LABEL = {
+  DRAFT: '草稿',
+  PENDING_REVIEW: '待审核',
+  REVIEWING: '审核中',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  ANOMALOUS: '异常',
+};
+
+const SIGN_STATUS_COLOR = {
+  PENDING_SIGN: 'default',
+  SIGNING: 'blue',
+  SIGNED: 'green',
+  TERMINATED: 'red',
+  ANOMALOUS: 'red',
+};
+
+const SIGN_STATUS_LABEL = {
+  PENDING_SIGN: '待签署',
+  SIGNING: '签署中',
+  SIGNED: '已签署',
+  TERMINATED: '已终止',
+  ANOMALOUS: '异常',
+};
+
+const VIEWING_STATUS_COLOR = {
+  PENDING: 'blue',
+  CONFIRMED: 'green',
+  COMPLETED: 'green',
+  CANCELLED: 'default',
+  NO_SHOW: 'orange',
+};
+
+const VIEWING_STATUS_LABEL = {
+  PENDING: '待确认',
+  CONFIRMED: '已确认',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  NO_SHOW: '未到场',
+};
+
+const contractColumns = (navigate) => [
   {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    render: (status) => <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] || status}</Tag>,
+    title: '租客',
+    key: 'tenant',
+    render: (_, record) => record.tenant?.name || '-',
   },
-  { title: '开始日期', dataIndex: 'startDate', key: 'startDate' },
-  { title: '结束日期', dataIndex: 'endDate', key: 'endDate' },
+  {
+    title: '审核状态',
+    dataIndex: 'reviewStatus',
+    key: 'reviewStatus',
+    render: (status) => (
+      <Tag color={REVIEW_STATUS_COLOR[status]}>
+        {REVIEW_STATUS_LABEL[status] || status}
+      </Tag>
+    ),
+  },
+  {
+    title: '签署状态',
+    dataIndex: 'signStatus',
+    key: 'signStatus',
+    render: (status) => (
+      <Tag color={SIGN_STATUS_COLOR[status]}>
+        {SIGN_STATUS_LABEL[status] || status}
+      </Tag>
+    ),
+  },
+  {
+    title: '开始日期',
+    dataIndex: 'startDate',
+    key: 'startDate',
+    render: (val) => (val ? dayjs(val).format('YYYY-MM-DD') : '-'),
+  },
+  {
+    title: '结束日期',
+    dataIndex: 'endDate',
+    key: 'endDate',
+    render: (val) => (val ? dayjs(val).format('YYYY-MM-DD') : '-'),
+  },
   { title: '月租金(元)', dataIndex: 'monthlyRent', key: 'monthlyRent' },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+  {
+    title: '操作',
+    key: 'actions',
+    render: (_, record) => (
+      <Button type="link" size="small" onClick={() => navigate(`/contracts/${record.id}`)}>
+        详情
+      </Button>
+    ),
+  },
 ];
 
 const viewingColumns = [
-  { title: '租客', dataIndex: 'tenantName', key: 'tenantName' },
+  {
+    title: '租客',
+    key: 'tenant',
+    render: (_, record) => record.tenant?.name || '-',
+  },
+  {
+    title: '顾问',
+    key: 'consultant',
+    render: (_, record) => record.consultant?.name || '-',
+  },
   {
     title: '状态',
     dataIndex: 'status',
     key: 'status',
-    render: (status) => <Tag color={STATUS_COLOR[status]}>{STATUS_LABEL[status] || status}</Tag>,
+    render: (status) => (
+      <Tag color={VIEWING_STATUS_COLOR[status]}>
+        {VIEWING_STATUS_LABEL[status] || status}
+      </Tag>
+    ),
   },
-  { title: '预约时间', dataIndex: 'scheduledAt', key: 'scheduledAt' },
-  { title: '备注', dataIndex: 'remark', key: 'remark' },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+  {
+    title: '预约时间',
+    dataIndex: 'scheduledAt',
+    key: 'scheduledAt',
+    render: (val) => (val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-'),
+  },
+  {
+    title: '备注',
+    dataIndex: 'notes',
+    key: 'notes',
+    ellipsis: true,
+    render: (val) => val || '-',
+  },
 ];
 
 function JsonDiff({ before, after }) {
@@ -100,6 +209,7 @@ function JsonDiff({ before, after }) {
 
 export default function PropertyDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [property, setProperty] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -189,7 +299,9 @@ export default function PropertyDetail() {
           <span style={{ margin: '0 8px', fontWeight: 500 }}>{log.operatorName || '系统'}</span>
           {log.remark && <span style={{ color: '#666' }}>{log.remark}</span>}
         </div>
-        <div style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>{log.createdAt}</div>
+        <div style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>
+          {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+        </div>
         {(log.beforeSnapshot || log.afterSnapshot) && (
           <Collapse
             size="small"
@@ -255,7 +367,7 @@ export default function PropertyDetail() {
         <Table
           rowKey="id"
           dataSource={property.contracts || []}
-          columns={contractColumns}
+          columns={contractColumns(navigate)}
           pagination={false}
           size="small"
         />
