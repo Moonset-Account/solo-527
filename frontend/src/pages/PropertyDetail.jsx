@@ -216,6 +216,7 @@ export default function PropertyDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [form] = Form.useForm();
+  const escrowManagerIdValue = Form.useWatch('escrowManagerId', form);
 
   const fetchData = () => {
     setLoading(true);
@@ -287,8 +288,6 @@ export default function PropertyDetail() {
       })
       .finally(() => setConfirmLoading(false));
   };
-
-  const escrowManagerIdValue = Form.useWatch('escrowManagerId', form);
 
   const timelineItems = history.map((log, index) => ({
     key: log.id || index,
