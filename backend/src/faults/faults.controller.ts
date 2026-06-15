@@ -41,7 +41,7 @@ export class FaultsController {
   }
 
   @Post(':id/resolve')
-  async resolve(@Param('id') id: string, @Body('resolution') resolution: string, @CurrentUser() user: any) {
-    return this.faultsService.resolve(id, resolution, user);
+  async resolve(@Param('id') id: string, @Body() body: { resolution: string }, @CurrentUser() user: any) {
+    return this.faultsService.resolve(id, body.resolution, user);
   }
 }

@@ -10,10 +10,16 @@ export class ProcessingRecordsService {
   constructor(private http: HttpClient) {}
 
   getByEntity(entityType: string, entityId: string): Observable<ProcessingRecord[]> {
-    return this.http.get<ProcessingRecord[]>(`${this.apiUrl}/entity/${entityType}/${entityId}`);
+    return this.http.get<ProcessingRecord[]>(`${this.apiUrl}/entity/${entityType.toUpperCase()}/${entityId}`);
   }
 
   create(data: Partial<ProcessingRecord>): Observable<ProcessingRecord> {
-    return this.http.post<ProcessingRecord>(this.apiUrl, data);
+    return this.http.post<ProcessingRecord>(this.apiUrl, {
+      ...data,
+      entityType: data.entityType ? String(data.entityType).toUpperCase() : undefined,
+      previousValue: typeof data.previousValue === 'string' ? data.previousValue : JSON.stringify(data.previousValue),
+      newValue: typeof data.newValue === 'string' ? data.newValue : JSON.stringify(data.newValue),
+      details: typeof data.details === 'string' ? { reason: data.details } : data.details,
+    });
   }
 }

@@ -13,20 +13,20 @@ export class CreateRecordDto {
   @IsNotEmpty()
   action: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  operator: string;
+  operator?: string;
 
   @IsString()
   @IsNotEmpty()
   operatorName: string;
 
   @IsOptional()
-  details: Record<string, any>;
+  details?: any;
 
   @IsOptional()
-  previousValue: Record<string, any>;
+  previousValue?: any;
 
   @IsOptional()
-  newValue: Record<string, any>;
+  newValue?: any;
 }

@@ -16,7 +16,11 @@ export class InspectionTasksController {
     @Query() pagination: PaginationDto,
     @Query('status') status?: string,
     @Query('assignee') assignee?: string,
+    @Query('all') all?: string,
   ) {
+    if (all === 'true') {
+      return this.tasksService.findAllNoPagination(status, assignee);
+    }
     return this.tasksService.findAll(pagination, status, assignee);
   }
 
@@ -33,10 +37,10 @@ export class InspectionTasksController {
   @Post('generate/:templateId')
   async generateFromTemplate(
     @Param('templateId') templateId: string,
-    @Body('assignee') assignee: string,
+    @Body() body: { assignee: string },
     @CurrentUser() user: any,
   ) {
-    return this.tasksService.generateFromTemplate(templateId, assignee, user);
+    return this.tasksService.generateFromTemplate(templateId, body.assignee, user);
   }
 
   @Patch(':id')
@@ -47,10 +51,9 @@ export class InspectionTasksController {
   @Patch(':id/complete')
   async complete(
     @Param('id') id: string,
-    @Body('results') results: Record<string, any>,
-    @Body('notes') notes: string,
+    @Body() body: { results: Record<string, any>; notes: string },
     @CurrentUser() user: any,
   ) {
-    return this.tasksService.complete(id, results, notes, user);
+    return this.tasksService.complete(id, body.results, body.notes, user);
   }
 }

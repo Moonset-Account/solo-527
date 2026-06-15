@@ -218,9 +218,12 @@ export class FaultDetailComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
+        const previousResponsible = this.fault?.responsiblePerson || '';
         this.faultsService.update(this.id, {
           ...this.form.value,
-          responsiblePerson: newResponsible,
+          responsiblePerson: result.newResponsible || newResponsible,
+          reason: result.reason,
+          operatorName: result.operatorName,
         }).subscribe({
           next: (updated) => {
             this.fault = updated;
@@ -232,8 +235,8 @@ export class FaultDetailComponent implements OnInit {
               operator: '',
               operatorName: result.operatorName,
               details: result.reason,
-              previousValue: this.fault?.responsiblePerson || '',
-              newValue: newResponsible,
+              previousValue: previousResponsible,
+              newValue: result.newResponsible || newResponsible,
             }).subscribe();
             this.snackBar.open('保存成功', '关闭', { duration: 3000 });
             this.loadProcessingRecords();

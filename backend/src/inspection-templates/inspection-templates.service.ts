@@ -40,7 +40,11 @@ export class InspectionTemplatesService {
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
     });
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    return { data: items, total, page: pagination.page, limit: pagination.limit };
+  }
+
+  async findAllNoPagination() {
+    return this.templateRepository.find({ order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string) {

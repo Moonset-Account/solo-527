@@ -31,7 +31,11 @@
             </mat-form-field>
             <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
               <mat-label>账号类型</mat-label>
-              <input matInput formControlName="accountType" [readonly]="!editMode" />
+              <mat-select formControlName="accountType" [disabled]="!editMode">
+                @for (opt of accountTypeOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline" [class.readonly-field]="!editMode">
               <mat-label>状态</mat-label>
@@ -177,7 +181,7 @@
           <div class="info-grid">
             <div class="info-item">
               <label>账号类型</label>
-              <span>{{ application?.accountType || '-' }}</span>
+              <span>{{ getAccountTypeLabel(application?.accountType) }}</span>
             </div>
             <div class="info-item">
               <label>系统名称</label>

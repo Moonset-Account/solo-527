@@ -23,10 +23,13 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent },
       { path: 'applications', component: ApplicationsComponent },
+      { path: 'applications/new', redirectTo: 'applications' },
       { path: 'applications/:id', component: ApplicationDetailComponent },
       { path: 'faults', component: FaultsComponent },
+      { path: 'faults/new', redirectTo: 'faults' },
       { path: 'faults/:id', component: FaultDetailComponent },
       { path: 'inspection-templates', component: InspectionTemplatesComponent },
+      { path: 'inspection-templates/new', redirectTo: 'inspection-templates' },
       { path: 'inspection-templates/:id', component: TemplateDetailComponent },
       { path: 'inspection-tasks', component: InspectionTasksComponent },
       {

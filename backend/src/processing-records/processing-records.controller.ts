@@ -10,7 +10,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class ProcessingRecordsController {
   constructor(private processingRecordsService: ProcessingRecordsService) {}
 
-  @Get(':entityType/:entityId')
+  @Get('entity/:entityType/:entityId')
   async findByEntity(
     @Param('entityType') entityType: RecordEntityType,
     @Param('entityId') entityId: string,

@@ -10,7 +10,7 @@ export class InspectionTemplatesService {
   constructor(private http: HttpClient) {}
 
   getAll(): Observable<InspectionTemplate[]> {
-    return this.http.get<InspectionTemplate[]>(this.apiUrl);
+    return this.http.get<InspectionTemplate[]>(`${this.apiUrl}?all=true`);
   }
 
   getById(id: string): Observable<InspectionTemplate> {

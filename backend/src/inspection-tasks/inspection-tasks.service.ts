@@ -71,7 +71,21 @@ export class InspectionTasksService {
     query.take(pagination.limit);
 
     const [items, total] = await query.getManyAndCount();
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    return { data: items, total, page: pagination.page, limit: pagination.limit };
+  }
+
+  async findAllNoPagination(status?: string, assignee?: string) {
+    const query = this.taskRepository.createQueryBuilder('task');
+
+    if (status) {
+      query.andWhere('task.status = :status', { status });
+    }
+    if (assignee) {
+      query.andWhere('task.assignee = :assignee', { assignee });
+    }
+
+    query.orderBy('task.createdAt', 'DESC');
+    return query.getMany();
   }
 
   async findOne(id: string) {

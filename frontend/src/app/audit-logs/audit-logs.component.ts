@@ -50,12 +50,13 @@ export class AuditLogsComponent implements OnInit {
 
   entityTypeOptions = [
     { value: '', label: '全部类型' },
-    { value: 'application', label: '账号申请' },
-    { value: 'fault', label: '故障报告' },
-    { value: 'inspection_template', label: '巡检模板' },
-    { value: 'inspection_task', label: '巡检任务' },
-    { value: 'change_window', label: '变更窗口' },
-    { value: 'user', label: '用户' },
+    { value: 'APPLICATION', label: '账号申请' },
+    { value: 'FAULT', label: '故障报告' },
+    { value: 'INSPECTION_TEMPLATE', label: '巡检模板' },
+    { value: 'INSPECTION_TASK', label: '巡检任务' },
+    { value: 'CHANGE_WINDOW', label: '变更窗口' },
+    { value: 'PROCESSING_RECORD', label: '处理记录' },
+    { value: 'USER', label: '用户' },
   ];
 
   actionOptions = [
@@ -114,12 +115,13 @@ export class AuditLogsComponent implements OnInit {
 
   getEntityTypeLabel(type: string): string {
     const map: Record<string, string> = {
-      application: '账号申请',
-      fault: '故障报告',
-      inspection_template: '巡检模板',
-      inspection_task: '巡检任务',
-      change_window: '变更窗口',
-      user: '用户',
+      APPLICATION: '账号申请',
+      FAULT: '故障报告',
+      INSPECTION_TEMPLATE: '巡检模板',
+      INSPECTION_TASK: '巡检任务',
+      CHANGE_WINDOW: '变更窗口',
+      PROCESSING_RECORD: '处理记录',
+      USER: '用户',
     };
     return map[type] || type;
   }

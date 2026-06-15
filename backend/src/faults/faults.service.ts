@@ -46,7 +46,7 @@ export class FaultsService {
     query.take(pagination.limit);
 
     const [items, total] = await query.getManyAndCount();
-    return { items, total, page: pagination.page, limit: pagination.limit };
+    return { data: items, total, page: pagination.page, limit: pagination.limit };
   }
 
   async findOne(id: string) {

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Application, ApplicationStatus } from '../applications/entities/application.entity';
-import { Fault, FaultStatus } from '../faults/entities/fault.entity';
+import { Fault, FaultStatus, AlertStatus, FaultSeverity } from '../faults/entities/fault.entity';
 import { InspectionTask, TaskStatus } from '../inspection-tasks/entities/inspection-task.entity';
 
 @Injectable()
@@ -22,6 +22,7 @@ export class DashboardService {
       pendingApplications,
       totalFaults,
       openFaults,
+      activeAlerts,
       totalTasks,
       pendingTasks,
       completedTasks,
@@ -30,25 +31,21 @@ export class DashboardService {
       this.applicationRepository.count({ where: { status: ApplicationStatus.PENDING } }),
       this.faultRepository.count(),
       this.faultRepository.count({ where: { status: FaultStatus.OPEN } }),
+      this.faultRepository.count({ where: { alertStatus: AlertStatus.ACTIVE } }),
       this.taskRepository.count(),
       this.taskRepository.count({ where: { status: TaskStatus.PENDING } }),
       this.taskRepository.count({ where: { status: TaskStatus.COMPLETED } }),
     ]);
 
     return {
-      applications: {
-        total: totalApplications,
-        pending: pendingApplications,
-      },
-      faults: {
-        total: totalFaults,
-        open: openFaults,
-      },
-      inspectionTasks: {
-        total: totalTasks,
-        pending: pendingTasks,
-        completed: completedTasks,
-      },
+      totalApplications,
+      pendingApplications,
+      totalFaults,
+      openFaults,
+      activeAlerts,
+      totalTasks,
+      pendingTasks,
+      completedTasks,
     };
   }
 
@@ -97,15 +94,9 @@ export class DashboardService {
         : 1;
 
     return {
-      applications: {
-        avgProcessingTimeHours: Math.round(avgAppTime * 100) / 100,
-        slaCompliance: Math.round(appSlaCompliance * 100),
-      },
-      faults: {
-        avgProcessingTimeHours: Math.round(avgFaultTime * 100) / 100,
-        slaCompliance: Math.round(faultSlaCompliance * 100),
-      },
-      slaThresholdHours: slaHours,
+      labels: ['账号申请', '故障处理'],
+      avgProcessingTimes: [Math.round(avgAppTime * 100) / 100, Math.round(avgFaultTime * 100) / 100],
+      slaComplianceRates: [Math.round(appSlaCompliance * 100), Math.round(faultSlaCompliance * 100)],
     };
   }
 
@@ -134,11 +125,48 @@ export class DashboardService {
       where: { assignee: displayName, status: TaskStatus.IN_PROGRESS },
     });
 
-    return {
-      applications: [...pendingApps, ...processingApps],
-      faults: [...openFaults, ...inProgressFaults],
-      inspectionTasks: [...pendingTasks, ...inProgressTasks],
-      totalPending: pendingApps.length + openFaults.length + pendingTasks.length,
+    const severityToPriority: Record<string, string> = {
+      [FaultSeverity.CRITICAL]: 'HIGH',
+      [FaultSeverity.HIGH]: 'HIGH',
+      [FaultSeverity.MEDIUM]: 'MEDIUM',
+      [FaultSeverity.LOW]: 'LOW',
     };
+
+    const appItems = [...pendingApps, ...processingApps].map((app) => ({
+      id: app.id,
+      type: 'application',
+      title: app.title,
+      status: app.status,
+      priority: app.priority,
+      createdAt: app.createdAt,
+    }));
+
+    const faultItems = [...openFaults, ...inProgressFaults].map((fault) => ({
+      id: fault.id,
+      type: 'fault',
+      title: fault.title,
+      status: fault.status,
+      priority: severityToPriority[fault.severity] || 'MEDIUM',
+      createdAt: fault.createdAt,
+    }));
+
+    const taskItems = [...pendingTasks, ...inProgressTasks].map((task) => ({
+      id: task.id,
+      type: 'task',
+      title: task.templateName,
+      status: task.status,
+      priority: 'MEDIUM',
+      createdAt: task.createdAt,
+    }));
+
+    const allItems = [...appItems, ...faultItems, ...taskItems];
+
+    allItems.sort((a: any, b: any) => {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    });
+
+    return allItems;
   }
 }

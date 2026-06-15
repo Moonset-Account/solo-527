@@ -15,15 +15,19 @@ export class ChangeWindowsService {
 
   getByEntity(entityType: string, entityId: string): Observable<ChangeWindow[]> {
     return this.http.get<ChangeWindow[]>(this.apiUrl, {
-      params: { entityType, entityId },
+      params: { entityType: entityType.toUpperCase(), entityId },
     });
   }
 
   create(data: Partial<ChangeWindow>): Observable<ChangeWindow> {
-    return this.http.post<ChangeWindow>(this.apiUrl, data);
+    return this.http.post<ChangeWindow>(this.apiUrl, {
+      ...data,
+      entityType: data.entityType ? String(data.entityType).toUpperCase() : undefined,
+      status: data.status || 'SCHEDULED',
+    });
   }
 
   update(id: string, data: Partial<ChangeWindow>): Observable<ChangeWindow> {
-    return this.http.put<ChangeWindow>(`${this.apiUrl}/${id}`, data);
+    return this.http.patch<ChangeWindow>(`${this.apiUrl}/${id}`, data);
   }
 }

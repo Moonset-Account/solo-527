@@ -11,8 +11,6 @@ import { MatOptionModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatDialogModule, MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
@@ -40,8 +38,6 @@ import { ProcessingRecord } from '../../models/processing-record.model';
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
     MatDialogModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
@@ -68,6 +64,13 @@ export class ApplicationDetailComponent implements OnInit {
     { value: 'IN_PROGRESS', label: '进行中' },
     { value: 'COMPLETED', label: '已完成' },
     { value: 'REJECTED', label: '已拒绝' },
+  ];
+
+  accountTypeOptions = [
+    { value: 'NEW_ACCOUNT', label: '新建账号' },
+    { value: 'MODIFY_ACCOUNT', label: '修改账号' },
+    { value: 'DISABLE_ACCOUNT', label: '禁用账号' },
+    { value: 'ENABLE_ACCOUNT', label: '启用账号' },
   ];
 
   priorityOptions = [
@@ -183,9 +186,12 @@ export class ApplicationDetailComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
+        const previousResponsible = this.application?.responsiblePerson || '';
         this.applicationsService.update(this.id, {
           ...this.form.value,
-          responsiblePerson: newResponsible,
+          responsiblePerson: result.newResponsible || newResponsible,
+          reason: result.reason,
+          operatorName: result.operatorName,
         }).subscribe({
           next: (updated) => {
             this.application = updated;
@@ -197,8 +203,8 @@ export class ApplicationDetailComponent implements OnInit {
               operator: '',
               operatorName: result.operatorName,
               details: result.reason,
-              previousValue: this.application?.responsiblePerson || '',
-              newValue: newResponsible,
+              previousValue: previousResponsible,
+              newValue: result.newResponsible || newResponsible,
             }).subscribe();
             this.snackBar.open('保存成功', '关闭', { duration: 3000 });
             this.loadProcessingRecords();
@@ -260,6 +266,17 @@ export class ApplicationDetailComponent implements OnInit {
   getPriorityLabel(priority: string): string {
     const map: Record<string, string> = { HIGH: '高', MEDIUM: '中', LOW: '低' };
     return map[priority] || priority;
+  }
+
+  getAccountTypeLabel(accountType: string | undefined | null): string {
+    if (!accountType) return '-';
+    const map: Record<string, string> = {
+      NEW_ACCOUNT: '新建账号',
+      MODIFY_ACCOUNT: '修改账号',
+      DISABLE_ACCOUNT: '禁用账号',
+      ENABLE_ACCOUNT: '启用账号',
+    };
+    return map[accountType] || accountType;
   }
 
   goBack(): void {

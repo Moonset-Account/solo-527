@@ -9,9 +9,11 @@ export class InspectionTasksService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(params?: { status?: string }): Observable<InspectionTask[]> {
+  getAll(params?: { status?: string; assignee?: string }): Observable<InspectionTask[]> {
     let httpParams = new HttpParams();
+    httpParams = httpParams.set('all', 'true');
     if (params?.status) httpParams = httpParams.set('status', params.status);
+    if (params?.assignee) httpParams = httpParams.set('assignee', params.assignee);
     return this.http.get<InspectionTask[]>(this.apiUrl, { params: httpParams });
   }
 

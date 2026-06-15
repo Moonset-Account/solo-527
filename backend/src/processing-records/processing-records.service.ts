@@ -14,7 +14,11 @@ export class ProcessingRecordsService {
   ) {}
 
   async create(createDto: CreateRecordDto, user: any) {
-    const record = this.recordRepository.create(createDto);
+    const record = this.recordRepository.create({
+      ...createDto,
+      operator: createDto.operator || user.id,
+      operatorName: createDto.operatorName || user.displayName || user.username,
+    });
     const saved = await this.recordRepository.save(record);
 
     await this.auditLogsService.createLog({

@@ -1,15 +1,15 @@
 import {
-  BidiModule
-} from "./chunk-HOQIF2JK.js";
-import {
   _CdkPrivateStyleLoader,
   _bindEventWithOptions
 } from "./chunk-AOA7O3EU.js";
 import {
+  BidiModule
+} from "./chunk-HOQIF2JK.js";
+import {
   Platform,
   coerceElement,
   coerceNumberProperty
-} from "./chunk-63VEXHW2.js";
+} from "./chunk-2L5B6HOS.js";
 import {
   DOCUMENT
 } from "./chunk-4XBP7B3J.js";
@@ -3140,10 +3140,6 @@ export {
   ENTER,
   ESCAPE,
   SPACE,
-  PAGE_UP,
-  PAGE_DOWN,
-  END,
-  HOME,
   LEFT_ARROW,
   UP_ARROW,
   RIGHT_ARROW,
@@ -3162,7 +3158,6 @@ export {
   ObserversModule,
   InteractivityChecker,
   FocusTrapFactory,
-  CdkTrapFocus,
   LiveAnnouncer,
   A11yModule,
   _IdGenerator,
@@ -3175,4 +3170,4 @@ export {
   MATERIAL_SANITY_CHECKS,
   MatCommonModule
 };
-//# sourceMappingURL=chunk-WQXERPTS.js.map
+//# sourceMappingURL=chunk-P7UVUJDR.js.map

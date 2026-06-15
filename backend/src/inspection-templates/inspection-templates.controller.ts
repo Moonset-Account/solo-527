@@ -15,7 +15,10 @@ export class InspectionTemplatesController {
   constructor(private templatesService: InspectionTemplatesService) {}
 
   @Get()
-  async findAll(@Query() pagination: PaginationDto) {
+  async findAll(@Query() pagination: PaginationDto, @Query('all') all?: string) {
+    if (all === 'true') {
+      return this.templatesService.findAllNoPagination();
+    }
     return this.templatesService.findAll(pagination);
   }
 
