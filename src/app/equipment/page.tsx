@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition, useMemo } from 'react'
-import { Cpu, AlertTriangle, Clock, TrendingUp, Info, Calendar, AlertCircle } from 'lucide-react'
+import { Cpu, AlertTriangle, Clock, TrendingUp, Info, Calendar, AlertCircle, RefreshCw } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import StatCard from '@/components/ui/StatCard'
 import { cn } from '@/lib/utils'
@@ -68,6 +68,7 @@ export default function EquipmentDashboard() {
   const [dailyData, setDailyData] = useState<MockDaily[]>([])
   const [isPending, startTransition] = useTransition()
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const instrumentNames = useMemo(() => {
     if (instruments.length > 0) {
@@ -79,7 +80,7 @@ export default function EquipmentDashboard() {
   const mockHeatmap = useMemo(() => generateMockHeatmap(instrumentNames), [instrumentNames])
   const mockDaily = useMemo(() => generateMockDaily(instrumentNames), [instrumentNames])
 
-  useEffect(() => {
+  const loadData = () => {
     startTransition(async () => {
       try {
         const date_from = LAST_30_DAYS[0]
@@ -163,7 +164,15 @@ export default function EquipmentDashboard() {
         setDailyData(mockDaily)
       }
     })
-  }, [mockHeatmap, mockDaily])
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [refreshKey])
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+  }
 
   const totalInstruments = instruments.length > 0 ? instruments.length : instrumentNames.length
   const disabledCount = instruments.length > 0
@@ -182,15 +191,25 @@ export default function EquipmentDashboard() {
 
   return (
     <AppShell>
-      <div className="mb-6">
-        <h1 className="page-title mb-2">设备管理</h1>
-        {loadError && (
-          <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>Supabase 未配置，当前显示示例数据：{loadError}</span>
-          </div>
-        )}
-        <p className="text-sm text-slate-500">设备状态监控与利用率统计分析</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="page-title mb-2">设备管理</h1>
+          {loadError && (
+            <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>Supabase 未配置，当前显示示例数据：{loadError}</span>
+            </div>
+          )}
+          <p className="text-sm text-slate-500">设备状态监控与利用率统计分析</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isPending}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={cn('w-4 h-4', isPending && 'animate-spin')} />
+          刷新数据
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

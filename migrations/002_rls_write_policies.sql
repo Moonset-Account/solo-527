@@ -105,16 +105,37 @@ CREATE POLICY "Only admins can delete alerts" ON deactivation_alerts
 -- ============================================================
 SELECT pg_temp.enable_rls_if_not_exists('utilization_logs');
 
-CREATE POLICY "Admins and equipment teachers can create logs" ON utilization_logs
+CREATE POLICY "Admins, equipment teachers and booking owners can create logs" ON utilization_logs
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'equipment_teacher'))
+    OR EXISTS (
+      SELECT 1 FROM bookings
+      WHERE bookings.instrument_id = utilization_logs.instrument_id
+      AND bookings.user_id = auth.uid()
+      AND bookings.status IN ('confirmed', 'completed')
+      AND DATE(bookings.start_time) = utilization_logs.log_date
+    )
   );
 
-CREATE POLICY "Admins and equipment teachers can update logs" ON utilization_logs
+CREATE POLICY "Admins, equipment teachers and booking owners can update logs" ON utilization_logs
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'equipment_teacher'))
+    OR EXISTS (
+      SELECT 1 FROM bookings
+      WHERE bookings.instrument_id = utilization_logs.instrument_id
+      AND bookings.user_id = auth.uid()
+      AND bookings.status = 'completed'
+      AND DATE(bookings.start_time) = utilization_logs.log_date
+    )
   ) WITH CHECK (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'equipment_teacher'))
+    OR EXISTS (
+      SELECT 1 FROM bookings
+      WHERE bookings.instrument_id = utilization_logs.instrument_id
+      AND bookings.user_id = auth.uid()
+      AND bookings.status = 'completed'
+      AND DATE(bookings.start_time) = utilization_logs.log_date
+    )
   );
 
 CREATE POLICY "Only admins can delete logs" ON utilization_logs
@@ -159,6 +180,9 @@ CREATE POLICY "Admins can create users" ON users
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
   );
+
+CREATE POLICY "Users can create own profile" ON users
+  FOR INSERT WITH CHECK (id = auth.uid());
 
 CREATE POLICY "Admins can update roles, users can update own display_name" ON users
   FOR UPDATE USING (

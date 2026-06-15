@@ -48,23 +48,22 @@ export async function signInWithPassword(
     }
 
     if (data.user) {
-      try {
-        const { error: upsertError } = await supabase.from('users').upsert(
-          {
-            id: data.user.id,
-            email: data.user.email ?? email,
-            display_name: data.user.user_metadata?.display_name ?? data.user.email ?? email,
-            role: (data.user.user_metadata?.role as UserRole) ?? 'researcher',
-            lab_id: data.user.user_metadata?.lab_id ?? null,
-          },
-          { onConflict: 'id' }
-        )
+      const { error: upsertError } = await supabase.from('users').upsert(
+        {
+          id: data.user.id,
+          email: data.user.email ?? email,
+          display_name: data.user.user_metadata?.display_name ?? data.user.email ?? email,
+          role: (data.user.user_metadata?.role as UserRole) ?? 'researcher',
+          lab_id: data.user.user_metadata?.lab_id ?? null,
+        },
+        { onConflict: 'id' }
+      )
 
-        if (upsertError) {
-          console.error('Upsert user failed:', upsertError)
+      if (upsertError) {
+        return {
+          success: false,
+          error: '用户档案写入失败，请稍后重试',
         }
-      } catch (e) {
-        console.error('Upsert user exception:', e)
       }
     }
 
@@ -111,20 +110,19 @@ export async function signUp(
     }
 
     if (data.user) {
-      try {
-        const { error: insertError } = await supabase.from('users').insert({
-          id: data.user.id,
-          email: data.user.email ?? email,
-          display_name,
-          role,
-          lab_id: null,
-        })
+      const { error: insertError } = await supabase.from('users').insert({
+        id: data.user.id,
+        email: data.user.email ?? email,
+        display_name,
+        role,
+        lab_id: null,
+      })
 
-        if (insertError) {
-          console.error('Insert user failed:', insertError)
+      if (insertError) {
+        return {
+          success: false,
+          error: '用户档案创建失败，请稍后重试',
         }
-      } catch (e) {
-        console.error('Insert user exception:', e)
       }
     }
 

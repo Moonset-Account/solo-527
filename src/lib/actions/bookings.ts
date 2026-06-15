@@ -186,10 +186,11 @@ export async function completeBooking(bookingId: string): Promise<{
       .single()
 
     const userId = userData?.id || user.id
+    const userRole = userData?.role || 'researcher'
 
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, instrument_id, start_time, end_time')
+      .select('id, user_id, instrument_id, start_time, end_time')
       .eq('id', bookingId)
       .single()
 
@@ -197,13 +198,8 @@ export async function completeBooking(bookingId: string): Promise<{
       return { error: '预约不存在' }
     }
 
-    const { error: updateError } = await supabase
-      .from('bookings')
-      .update({ status: 'completed' as BookingStatus })
-      .eq('id', bookingId)
-
-    if (updateError) {
-      return { error: updateError.message }
+    if (booking.user_id !== userId && userRole !== 'admin') {
+      return { error: '无权限完成此预约' }
     }
 
     const start = new Date(booking.start_time)
@@ -219,20 +215,37 @@ export async function completeBooking(bookingId: string): Promise<{
       .maybeSingle()
 
     if (existingLog) {
-      await supabase
+      const { error: logUpdateError } = await supabase
         .from('utilization_logs')
         .update({
           used_hours: (existingLog.used_hours as number) + usedHours,
         })
         .eq('id', existingLog.id)
+
+      if (logUpdateError) {
+        return { error: `设备利用率更新失败：${logUpdateError.message}` }
+      }
     } else {
-      await supabase.from('utilization_logs').insert({
+      const { error: logInsertError } = await supabase.from('utilization_logs').insert({
         instrument_id: booking.instrument_id,
         log_date: logDate,
         total_hours: 24,
         used_hours: usedHours,
         disabled_hours: 0,
       })
+
+      if (logInsertError) {
+        return { error: `设备利用率记录失败：${logInsertError.message}` }
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'completed' as BookingStatus })
+      .eq('id', bookingId)
+
+    if (updateError) {
+      return { error: updateError.message }
     }
 
     await supabase.from('audit_logs').insert({
@@ -240,7 +253,7 @@ export async function completeBooking(bookingId: string): Promise<{
       action: 'complete_booking',
       resource_type: 'booking',
       resource_id: bookingId,
-      details: { used_hours: usedHours },
+      details: { used_hours: usedHours, operated_by: userId },
     })
 
     return { success: true }
