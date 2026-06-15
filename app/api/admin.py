@@ -2,6 +2,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, update
+from sqlalchemy.orm import joinedload
 
 from app.database import get_db
 from app.models import (
@@ -339,8 +340,10 @@ async def list_event_ticket_configs(
 ):
     result = await db.execute(select(TicketTypeConfig).where(
         TicketTypeConfig.event_id == event_id
+    ).options(
+        joinedload(TicketTypeConfig.ticket_type)
     ).order_by(TicketTypeConfig.sort_order))
-    configs = list(result.scalars().all())
+    configs = list(result.scalars().unique().all())
     items = []
     for cfg in configs:
         tto = TicketTypeConfigOut.model_validate(cfg)
@@ -515,10 +518,14 @@ async def list_repeat_alerts(
     out_items = []
     for alert in items:
         ao = RepeatSeatAlertOut.model_validate(alert)
-        if alert.seat:
-            ao.seat_code = alert.seat.seat_code
-        if alert.event:
-            ao.event_name = alert.event.name
+        seat_result = await db.execute(select(Seat).where(Seat.id == alert.seat_id))
+        seat_obj = seat_result.scalar_one_or_none()
+        if seat_obj:
+            ao.seat_code = seat_obj.seat_code
+        event_result = await db.execute(select(Event).where(Event.id == alert.event_id))
+        event_obj = event_result.scalar_one_or_none()
+        if event_obj:
+            ao.event_name = event_obj.name
         out_items.append(ao)
     return ResponseModel(data=PageResult(
         items=out_items, total=total, page=page, page_size=page_size,
@@ -535,8 +542,12 @@ async def resolve_repeat_alert(
 ):
     obj = await ReportService.resolve_alert(db, alert_id, data.resolution_note, user.id)
     ao = RepeatSeatAlertOut.model_validate(obj)
-    if obj.seat:
-        ao.seat_code = obj.seat.seat_code
-    if obj.event:
-        ao.event_name = obj.event.name
+    seat_result = await db.execute(select(Seat).where(Seat.id == obj.seat_id))
+    seat_obj = seat_result.scalar_one_or_none()
+    if seat_obj:
+        ao.seat_code = seat_obj.seat_code
+    event_result = await db.execute(select(Event).where(Event.id == obj.event_id))
+    event_obj = event_result.scalar_one_or_none()
+    if event_obj:
+        ao.event_name = event_obj.name
     return ResponseModel(data=ao)

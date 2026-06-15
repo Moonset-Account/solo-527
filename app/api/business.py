@@ -1,6 +1,7 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select as sel
 
 from app.database import get_db
 from app.enums import RegistrationStatus, UserRole, RefundStatus
@@ -164,26 +165,28 @@ async def review_refund(
 
 async def build_registration_out(reg, db):
     out = RegistrationOut.model_validate(reg)
-    if reg.event:
-        out.event_name = reg.event.name
-    if reg.user:
-        out.user_name = reg.user.real_name or reg.user.username
-        out.user_email = reg.user.email
-        out.user_phone = reg.user.phone
+    ev = (await db.execute(sel(Event).where(Event.id == reg.event_id))).scalar_one_or_none()
+    if ev:
+        out.event_name = ev.name
+    u = (await db.execute(sel(User).where(User.id == reg.user_id))).scalar_one_or_none()
+    if u:
+        out.user_name = u.real_name or u.username
+        out.user_email = u.email
+        out.user_phone = u.phone
     return out
 
 
 async def build_refund_out(req, db):
     out = RefundRequestOut.model_validate(req)
-    if req.order:
-        out.order_no = req.order.order_no
-        out.event_id = req.order.event_id
-        if req.order.event:
-            out.event_name = req.order.event.name
+    order = (await db.execute(sel(Order).where(Order.id == req.order_id))).scalar_one_or_none()
+    if order:
+        out.order_no = order.order_no
+        out.event_id = order.event_id
+        ev = (await db.execute(sel(Event).where(Event.id == order.event_id))).scalar_one_or_none()
+        if ev:
+            out.event_name = ev.name
     if req.user_id:
-        from sqlalchemy import select as sel
-        ur = await db.execute(sel(User).where(User.id == req.user_id))
-        u = ur.scalar_one_or_none()
+        u = (await db.execute(sel(User).where(User.id == req.user_id))).scalar_one_or_none()
         if u:
             out.user_name = u.real_name or u.username
     return out

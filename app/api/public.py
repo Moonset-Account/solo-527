@@ -2,6 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
+from sqlalchemy.orm import joinedload
 
 from app.database import get_db
 from app.models import Event, Seat, TicketTypeConfig, TicketType, Order, OrderItem
@@ -82,11 +83,13 @@ async def get_event_ticket_types(
 ):
     result = await db.execute(select(TicketTypeConfig).join(
         TicketType, TicketType.id == TicketTypeConfig.ticket_type_id
+    ).options(
+        joinedload(TicketTypeConfig.ticket_type)
     ).where(and_(
         TicketTypeConfig.event_id == event_id,
         TicketTypeConfig.is_active == True,
     )).order_by(TicketTypeConfig.sort_order))
-    configs = list(result.scalars().all())
+    configs = list(result.scalars().unique().all())
     items = []
     for cfg in configs:
         tto = TicketTypeConfigOut.model_validate(cfg)
@@ -106,14 +109,17 @@ async def get_event_seats(
     status: Optional[SeatStatus] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Seat).where(Seat.event_id == event_id)
+    query = select(Seat).where(Seat.event_id == event_id).options(
+        joinedload(Seat.ticket_type),
+        joinedload(Seat.ticket_type_config),
+    )
     if area:
         query = query.where(Seat.area == area)
     if status:
         query = query.where(Seat.status == status)
     query = query.order_by(Seat.area, Seat.row, Seat.col)
     result = await db.execute(query)
-    seats = list(result.scalars().all())
+    seats = list(result.scalars().unique().all())
     items = [SeatOut.model_validate(s) for s in seats]
     return ResponseModel(data=items)
 
@@ -338,8 +344,10 @@ async def build_order_out(order: Order, db: AsyncSession) -> OrderOut:
     items = list(items_result.scalars().all())
     out = OrderOut.model_validate(order)
     out.items = items
-    if order.event:
-        out.event_name = order.event.name
+    event_result = await db.execute(select(Event).where(Event.id == order.event_id))
+    event = event_result.scalar_one_or_none()
+    if event:
+        out.event_name = event.name
     return out
 
 

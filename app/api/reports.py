@@ -1,6 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select as sel
 
 from app.database import get_db
 from app.enums import UserRole, EventStatus, OrderStatus
@@ -8,6 +9,7 @@ from app.schemas.common import ResponseModel, DashboardStats, OrderOut, PageResu
 from app.dependencies import require_roles
 from app.utils import paginate
 from app.services.report_service import ReportService
+from app.models import Event, Seat
 from app.api.public import build_order_out
 from datetime import datetime
 
@@ -135,13 +137,15 @@ async def get_repeat_seat_alerts_report(
     items, total = await ReportService.get_repeat_alert_report(db, is_resolved, event_id, page, page_size)
     out_items = []
     for alert in items:
+        ev = (await db.execute(sel(Event).where(Event.id == alert.event_id))).scalar_one_or_none()
+        seat_obj = (await db.execute(sel(Seat).where(Seat.id == alert.seat_id))).scalar_one_or_none()
         d = {
             "id": alert.id,
             "alert_key": alert.alert_key,
             "event_id": alert.event_id,
-            "event_name": alert.event.name if alert.event else None,
+            "event_name": ev.name if ev else None,
             "seat_id": alert.seat_id,
-            "seat_code": alert.seat.seat_code if alert.seat else None,
+            "seat_code": seat_obj.seat_code if seat_obj else None,
             "user_identifier": alert.user_identifier,
             "attempt_count": alert.attempt_count,
             "first_attempt_at": alert.first_attempt_at,
