@@ -1,0 +1,42 @@
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">通知中心</h1>
+  <%= button_to "全部标记为已读", mark_all_as_read_admin_notifications_path, method: :post, class: "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300" %>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+  <div class="divide-y">
+    <% @notifications.each do |notification| %>
+      <%= link_to admin_notification_path(notification), class: "block p-4 hover:bg-gray-50 #{notification.is_read? ? 'bg-white' : 'bg-indigo-50'}" do %>
+        <div class="flex items-start">
+          <div class="flex-shrink-0 mr-3 text-2xl">
+            <%= case notification.notification_type
+                when "health" then "❤️"
+                when "training" then "🏋️"
+                when "safety" then "⚠️"
+                when "reservation" then "📅"
+                when "system" then "🔔"
+                else "🔔"
+                end %>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <p class="font-medium text-gray-900 <%= 'font-bold' unless notification.is_read? %>">
+                <%= notification.title %>
+                <% unless notification.is_read? %>
+                  <span class="ml-2 w-2 h-2 inline-block bg-red-500 rounded-full"></span>
+                <% end %>
+              </p>
+              <span class="text-xs text-gray-500"><%= notification.created_at.strftime("%m-%d %H:%M") %></span>
+            </div>
+            <p class="text-sm text-gray-600 mt-1 line-clamp-2"><%= notification.content %></p>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+  <% if @pagy&.pages&.>1 %>
+    <div class="px-4 py-3 border-t flex justify-center">
+      <%= pagy_nav(@pagy) %>
+    </div>
+  <% end %>
+</div>

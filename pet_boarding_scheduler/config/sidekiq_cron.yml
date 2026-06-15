@@ -1,0 +1,14 @@
+default: &default
+  daily_digest:
+    cron: "0 8 * * *"
+    class: "DailyDigestJob"
+    description: "每日数据汇总通知"
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

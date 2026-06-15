@@ -1,0 +1,144 @@
+<div class="mb-6">
+  <div class="flex flex-wrap justify-between items-start gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">📈 服务质量分析</h1>
+      <p class="text-gray-500">寄养主理人、日期维度的服务质量分析</p>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+  <%= form_with url: admin_analytics_service_quality_path, method: :get, local: true, class: "flex flex-wrap gap-4 items-end" do |f| %>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">开始日期</label>
+      <%= date_field_tag :start_date, @start_date, class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">结束日期</label>
+      <%= date_field_tag :end_date, @end_date, class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">寄养主理人</label>
+      <%= select_tag :caretaker_id, options_from_collection_for_select(@caretakers, :id, :name, @caretaker_id), { include_blank: "全部", class: "rounded border-gray-300 text-sm" } %>
+    </div>
+    <div>
+      <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm">筛选</button>
+    </div>
+  <% end %>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">寄养总数</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1"><%= @total_boarding %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">总收入（元）</p>
+    <p class="text-3xl font-bold text-green-600 mt-1">¥<%= sprintf("%.2f", @total_revenue) %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">平均入住天数</p>
+    <p class="text-3xl font-bold text-blue-600 mt-1"><%= @avg_stay_days %> 天</p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">训练延期率</p>
+    <p class="text-3xl font-bold mt-1 <%= @delay_rate > 20 ? 'text-red-600' : @delay_rate > 10 ? 'text-yellow-600' : 'text-green-600' %>">
+      <%= @delay_rate %>%
+    </p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b">
+      <h2 class="text-lg font-semibold text-gray-900">👤 按主理人分析</h2>
+    </div>
+    <div class="p-4 max-h-96 overflow-y-auto">
+      <% if @by_caretaker.any? %>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="text-left px-3 py-2 font-medium text-gray-600">主理人</th>
+              <th class="text-center px-3 py-2 font-medium text-gray-600">寄养数</th>
+              <th class="text-right px-3 py-2 font-medium text-gray-600">平均价格</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <% max_count = @by_caretaker.map(&:total).max.to_i %>
+            <% @by_caretaker.each do |row| %>
+              <tr class="hover:bg-gray-50">
+                <td class="px-3 py-3">
+                  <div class="flex items-center">
+                    <span class="mr-2">👤</span>
+                    <span class="font-medium text-gray-900"><%= row.caretaker_name %></span>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <div class="flex items-center justify-center gap-2">
+                    <div class="w-24 bg-gray-200 rounded-full h-2">
+                      <div class="bg-indigo-500 h-2 rounded-full" style="width: <%= max_count > 0 ? (row.total.to_f / max_count * 100) : 0 %>%"></div>
+                    </div>
+                    <span class="text-gray-900 font-medium"><%= row.total %></span>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-right font-medium text-gray-900">
+                  ¥<%= sprintf("%.2f", row.avg_price.to_f) %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p class="text-gray-500 text-center py-8">暂无数据</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b">
+      <h2 class="text-lg font-semibold text-gray-900">📅 按日期分析</h2>
+    </div>
+    <div class="p-4 max-h-96 overflow-y-auto">
+      <% if @by_date.any? %>
+        <% max_count = @by_date.values.max.to_i %>
+        <div class="space-y-2">
+          <% @by_date.each do |date, count| %>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-gray-500 w-24 flex-shrink-0"><%= date %></span>
+              <div class="flex-1 bg-gray-200 rounded-full h-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-400 to-indigo-600 h-6 flex items-center justify-end pr-2"
+                     style="width: <%= max_count > 0 ? (count.to_f / max_count * 100) : 0 %>%; min-width: <%= count > 0 ? '20%' : '0' %>">
+                  <span class="text-xs text-white font-medium"><%= count %></span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-center py-8">暂无数据</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border">
+  <div class="p-4 border-b">
+    <h2 class="text-lg font-semibold text-gray-900">🏋️ 训练记录统计</h2>
+  </div>
+  <div class="p-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-blue-50 rounded-lg p-4 text-center">
+        <p class="text-sm text-blue-600 mb-1">训练总数</p>
+        <p class="text-3xl font-bold text-blue-700"><%= @total_training %></p>
+      </div>
+      <div class="bg-yellow-50 rounded-lg p-4 text-center">
+        <p class="text-sm text-yellow-600 mb-1">延期数量</p>
+        <p class="text-3xl font-bold text-yellow-700"><%= @delayed_training %></p>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-4 text-center">
+        <p class="text-sm text-gray-600 mb-1">完成数量</p>
+        <p class="text-3xl font-bold text-gray-700"><%= @total_training - @delayed_training %></p>
+      </div>
+    </div>
+  </div>
+</div>

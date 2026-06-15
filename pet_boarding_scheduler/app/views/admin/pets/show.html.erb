@@ -1,0 +1,203 @@
+<%= turbo_stream_from [:admin, @pet] %>
+
+<div class="flex flex-wrap justify-between items-start mb-6 gap-4">
+  <div class="flex items-center gap-4">
+    <%= link_to "← 返回列表", admin_pets_path, class: "text-gray-500 hover:text-gray-700" %>
+    <div class="text-gray-300">|</div>
+    <h1 class="text-2xl font-bold text-gray-900">🐾 宠物详情</h1>
+  </div>
+  <div class="flex gap-2">
+    <%= link_to "新增健康记录", new_admin_health_record_path(pet_id: @pet.id), class: "bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-pink-700" %>
+    <%= link_to "新增训练记录", new_admin_training_record_path(pet_id: @pet.id), class: "bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700" %>
+    <%= link_to "新增寄养预约", new_admin_boarding_reservation_path(pet_id: @pet.id), class: "bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700" %>
+    <%= link_to "编辑", edit_admin_pet_path(@pet), class: "bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200" %>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border overflow-hidden mb-6">
+  <div class="bg-gradient-to-r <%= @pet.species == '狗' ? 'from-blue-500 to-indigo-600' : 'from-pink-500 to-rose-500' %> text-white p-6">
+    <div class="flex items-start justify-between">
+      <div class="flex items-center">
+        <div class="text-7xl mr-6 drop-shadow"><%= @pet.species == "狗" ? "🐕" : "🐱" %></div>
+        <div>
+          <h2 class="text-3xl font-bold"><%= @pet.name %></h2>
+          <p class="text-white/80 mt-1 text-lg"><%= @pet.breed || @pet.species %></p>
+          <div class="flex gap-3 mt-3 text-sm">
+            <span class="bg-white/20 px-3 py-1 rounded-full"><%= @pet.gender || "未填性别" %></span>
+            <span class="bg-white/20 px-3 py-1 rounded-full"><%= @pet.age ? "#{@pet.age}岁" : "年龄未填" %></span>
+            <span class="bg-white/20 px-3 py-1 rounded-full"><%= @pet.weight ? "#{@pet.weight}kg" : "体重未填" %></span>
+          </div>
+        </div>
+      </div>
+      <% if @current_reservation %>
+        <div class="bg-white/20 backdrop-blur-sm px-5 py-4 rounded-xl border border-white/30 text-right">
+          <p class="font-bold text-lg">🏠 寄养中</p>
+          <p class="text-sm text-white/90">笼位：<%= @current_reservation.kennel_name %></p>
+          <p class="text-sm text-white/90">主理人：<%= @current_reservation.caretaker_name %></p>
+          <p class="text-sm text-white/90">入住：<%= @current_reservation.check_in_at.strftime("%m-%d") %></p>
+          <p class="text-sm text-white/90">离店：<%= @current_reservation.check_out_at&.strftime("%m-%d") || "待定" %></p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+    <div class="bg-gray-50 rounded-xl p-4">
+      <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        <span>👤</span> 主人信息
+      </h3>
+      <div class="space-y-2 text-sm">
+        <p class="flex justify-between"><span class="text-gray-500">姓名</span><b><%= @pet.owner_name %></b></p>
+        <p class="flex justify-between"><span class="text-gray-500">电话</span><b><%= @pet.owner_phone %></b></p>
+        <p class="flex justify-between"><span class="text-gray-500">邮箱</span><b><%= @pet.owner_email || "未填" %></b></p>
+      </div>
+    </div>
+    <div class="bg-gray-50 rounded-xl p-4">
+      <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        <span>🏥</span> 医疗信息
+      </h3>
+      <p class="text-sm text-gray-500 mb-1">医疗记录</p>
+      <p class="text-sm text-gray-700 mb-2"><%= @pet.medical_notes.presence || "无" %></p>
+      <p class="text-sm">
+        <span class="text-gray-500">过敏：</span>
+        <% if @pet.allergies.present? %>
+          <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs"><%= @pet.allergies %></span>
+        <% else %>
+          <span class="text-green-600 text-sm">无</span>
+        <% end %>
+      </p>
+    </div>
+    <div class="bg-gray-50 rounded-xl p-4">
+      <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        <span>⭐</span> 特殊需求
+      </h3>
+      <p class="text-sm text-gray-700 leading-relaxed"><%= @pet.special_needs.presence || "无" %></p>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="p-4 border-b bg-gradient-to-r from-pink-50 to-red-50 flex justify-between items-center">
+      <h3 class="font-bold text-gray-900 flex items-center gap-2">❤️ 健康记录 (<%= @health_records.size %>)</h3>
+      <%= link_to "全部", admin_health_records_path("q[pet_id_eq]" => @pet.id), class: "text-sm text-indigo-600 hover:text-indigo-700" %>
+    </div>
+    <div class="divide-y max-h-96 overflow-y-auto">
+      <% if @health_records.any? %>
+        <% @health_records.each do |r| %>
+          <div class="p-4 hover:bg-gray-50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-sm font-medium">📅 <%= r.recorded_at.strftime("%Y-%m-%d %H:%M") %></span>
+              <span class="text-xs px-2 py-1 rounded-full font-medium
+                <%= r.health_status == "良好" ? "bg-green-100 text-green-700" :
+                   r.health_status == "一般" ? "bg-yellow-100 text-yellow-700" :
+                   r.health_status == "较差" ? "bg-orange-100 text-orange-700" :
+                   "bg-red-100 text-red-700" %>">
+                <%= r.health_status %>
+              </span>
+            </div>
+            <div class="grid grid-cols-4 gap-2 text-xs">
+              <div class="bg-gray-50 rounded p-2 text-center">
+                <p class="text-gray-500">🌡️ 体温</p><p class="font-semibold"><%= r.temperature || "-" %></p>
+              </div>
+              <div class="bg-gray-50 rounded p-2 text-center">
+                <p class="text-gray-500">⚖️ 体重</p><p class="font-semibold"><%= r.weight || "-" %></p>
+              </div>
+              <div class="bg-gray-50 rounded p-2 text-center">
+                <p class="text-gray-500">🍽️ 食欲</p><p class="font-semibold"><%= r.appetite_display || "-" %></p>
+              </div>
+              <div class="bg-gray-50 rounded p-2 text-center">
+                <p class="text-gray-500">🏃 活动</p><p class="font-semibold"><%= r.activity_display || "-" %></p>
+              </div>
+            </div>
+            <% if r.symptoms.present? %>
+              <p class="text-xs text-red-600 bg-red-50 rounded p-2 mt-2">⚠️ <%= r.symptoms %></p>
+            <% end %>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-gray-500 text-center py-12">暂无健康记录</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <div class="p-4 border-b bg-gradient-to-r from-orange-50 to-yellow-50 flex justify-between items-center">
+      <h3 class="font-bold text-gray-900 flex items-center gap-2">🏋️ 训练记录 (<%= @training_records.size %>)</h3>
+      <%= link_to "全部", admin_training_records_path("q[pet_id_eq]" => @pet.id), class: "text-sm text-indigo-600 hover:text-indigo-700" %>
+    </div>
+    <div class="divide-y max-h-96 overflow-y-auto">
+      <% if @training_records.any? %>
+        <% @training_records.each do |r| %>
+          <div class="p-4 hover:bg-gray-50 transition">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <p class="font-semibold"><%= r.service_name || "训练" %></p>
+                <p class="text-xs text-gray-500">📅 <%= r.training_date %> · 👤 <%= r.caretaker_name %></p>
+              </div>
+              <span class="text-xs px-2 py-1 rounded-full font-medium
+                <%= r.status == "completed" ? "bg-green-100 text-green-700" :
+                   r.status == "scheduled" ? "bg-blue-100 text-blue-700" :
+                   r.status == "delayed" ? "bg-yellow-100 text-yellow-700" :
+                   "bg-gray-100 text-gray-700" %>">
+                <%= { "scheduled" => "已安排", "completed" => "已完成", "delayed" => "延期", "cancelled" => "已取消" }[r.status] %>
+              </span>
+            </div>
+            <% if r.content.present? %>
+              <p class="text-sm text-gray-700 bg-gray-50 rounded p-2"><%= r.content %></p>
+            <% end %>
+            <% if r.delayed? && r.delay_reason.present? %>
+              <p class="text-xs text-yellow-700 bg-yellow-50 rounded p-2 mt-1">⏰ 延期：<%= r.delay_reason %></p>
+            <% end %>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-gray-500 text-center py-12">暂无训练记录</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 bg-white rounded-xl shadow-sm border overflow-hidden">
+  <div class="p-4 border-b bg-gradient-to-r from-green-50 to-teal-50 flex justify-between items-center">
+    <h3 class="font-bold text-gray-900 flex items-center gap-2">📅 寄养历史</h3>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">入住时间</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">离店时间</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">主理人</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">笼位</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">状态</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">价格</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% if @boarding_history.any? %>
+          <% @boarding_history.each do |r| %>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 whitespace-nowrap text-sm"><%= r.check_in_at.strftime("%Y-%m-%d") %></td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm"><%= r.check_out_at&.strftime("%Y-%m-%d") || "待定" %></td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm"><%= r.caretaker_name %></td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm"><%= r.kennel_name %></td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="px-2 py-1 text-xs rounded-full
+                  <%= r.status == "checked_in" ? "bg-green-100 text-green-700" :
+                     r.status == "scheduled" ? "bg-blue-100 text-blue-700" :
+                     r.status == "completed" ? "bg-gray-100 text-gray-700" :
+                     "bg-red-100 text-red-700" %>">
+                  <%= { "scheduled" => "预约中", "checked_in" => "寄养中", "completed" => "已完成", "cancelled" => "已取消" }[r.status] %>
+                </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold">¥<%= sprintf("%.2f", r.total_price) %></td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr><td colspan="6" class="px-4 py-12 text-center text-gray-500">暂无寄养记录</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

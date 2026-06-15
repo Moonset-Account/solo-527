@@ -1,0 +1,199 @@
+<div class="mb-6">
+  <div class="flex flex-wrap justify-between items-start gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">⏰ 训练延期分析</h1>
+      <p class="text-gray-500">按延期原因、主理人维度的训练延期分析</p>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+  <%= form_with url: admin_analytics_training_delays_path, method: :get, local: true, class: "flex flex-wrap gap-4 items-end" do |f| %>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">开始日期</label>
+      <%= date_field_tag :start_date, @start_date, class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">结束日期</label>
+      <%= date_field_tag :end_date, @end_date, class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">寄养主理人</label>
+      <%= select_tag :caretaker_id, options_from_collection_for_select(@caretakers, :id, :name, @caretaker_id), { include_blank: "全部", class: "rounded border-gray-300 text-sm" } %>
+    </div>
+    <div>
+      <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm">筛选</button>
+    </div>
+  <% end %>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">训练总数</p>
+    <p class="text-3xl font-bold text-blue-600 mt-1"><%= @total_training %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">延期数量</p>
+    <p class="text-3xl font-bold text-yellow-600 mt-1"><%= @total_delayed %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">延期率</p>
+    <p class="text-3xl font-bold mt-1 <%= @delay_rate > 20 ? 'text-red-600' : @delay_rate > 10 ? 'text-yellow-600' : 'text-green-600' %>">
+      <%= @delay_rate %>%
+    </p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">准时完成率</p>
+    <p class="text-3xl font-bold text-green-600 mt-1">
+      <%= @total_training > 0 ? (100 - @delay_rate).round(1) : 0 %>%
+    </p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b">
+      <h2 class="text-lg font-semibold text-gray-900">📋 延期原因分布</h2>
+    </div>
+    <div class="p-4">
+      <% if @by_reason.any? %>
+        <% max_count = @by_reason.values.max.to_i %>
+        <div class="space-y-3">
+          <% reason_icons = {
+            "宠物状态不佳" => "😷",
+            "天气原因" => "🌧️",
+            "主理人临时安排" => "📋",
+            "宠物不配合" => "🐾",
+            "设备故障" => "🔧",
+            "其他" => "📌"
+          } %>
+          <% @by_reason.each do |reason, count| %>
+            <% next if reason.blank? %>
+            <div class="flex items-center gap-3">
+              <span class="text-lg w-8 flex-shrink-0 text-center"><%= reason_icons[reason] || "📌" %></span>
+              <span class="text-sm font-medium text-gray-700 w-32 flex-shrink-0 truncate" title="<%= reason %>"><%= reason %></span>
+              <div class="flex-1 bg-gray-200 rounded-full h-7 overflow-hidden">
+                <div class="bg-gradient-to-r from-yellow-400 to-orange-500 h-7 flex items-center px-3"
+                     style="width: <%= max_count > 0 ? [count.to_f / max_count * 100, 15].max : 0 %>%">
+                  <span class="text-white font-bold text-sm"><%= count %> 次</span>
+                </div>
+              </div>
+              <span class="text-sm font-bold text-gray-900 w-14 text-right">
+                <%= @total_delayed > 0 ? (count.to_f / @total_delayed * 100).round(1) : 0 %>%
+              </span>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-center py-8">暂无延期记录</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b">
+      <h2 class="text-lg font-semibold text-gray-900">👤 按主理人延期统计</h2>
+    </div>
+    <div class="p-4 max-h-80 overflow-y-auto">
+      <% if @by_caretaker.any? %>
+        <% max_count = @by_caretaker.map { |r| r.attributes['count'] }.max.to_i %>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 sticky top-0">
+            <tr>
+              <th class="text-left px-3 py-2 font-medium text-gray-600">主理人</th>
+              <th class="text-center px-3 py-2 font-medium text-gray-600">延期次数</th>
+              <th class="text-right px-3 py-2 font-medium text-gray-600">占比</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <% @by_caretaker.each do |row| %>
+              <% count = row.attributes['count'] %>
+              <tr class="hover:bg-gray-50">
+                <td class="px-3 py-3">
+                  <div class="flex items-center">
+                    <span class="mr-2">👤</span>
+                    <span class="font-medium text-gray-900"><%= row.caretaker_name %></span>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <div class="flex items-center justify-center gap-2">
+                    <div class="w-20 bg-gray-200 rounded-full h-2">
+                      <div class="bg-yellow-500 h-2 rounded-full" style="width: <%= max_count > 0 ? (count.to_f / max_count * 100) : 0 %>%"></div>
+                    </div>
+                    <span class="text-gray-900 font-bold"><%= count %></span>
+                  </div>
+                </td>
+                <td class="px-3 py-3 text-right font-medium text-gray-900">
+                  <%= @total_delayed > 0 ? (count.to_f / @total_delayed * 100).round(1) : 0 %>%
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p class="text-gray-500 text-center py-8">暂无延期数据</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border">
+  <div class="p-4 border-b flex justify-between items-center">
+    <h2 class="text-lg font-semibold text-gray-900">📝 延期记录明细</h2>
+    <span class="text-sm text-gray-500">共 <%= @pagy_delayed&.count %> 条记录</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-yellow-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">训练日期</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">宠物</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">主理人</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">服务</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">延期原因</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% if @delayed_records.any? %>
+          <% @delayed_records.each do |record| %>
+            <tr class="hover:bg-yellow-50">
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                <%= record.training_date %>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex items-center">
+                  <span class="text-xl mr-2"><%= record.pet.species == "狗" ? "🐕" : "🐱" %></span>
+                  <span class="font-medium text-gray-900"><%= record.pet_name %></span>
+                </div>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                <%= record.caretaker_name %>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                <%= record.service_name || "-" %>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                  <%= record.delay_reason || "未填写" %>
+                </span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                <%= link_to "查看", [:admin, record], class: "text-indigo-600 hover:text-indigo-900" %>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-gray-500">暂无延期记录</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <% if @pagy_delayed&.pages&.>1 %>
+    <div class="px-4 py-3 border-t">
+      <%= pagy_nav(@pagy_delayed) %>
+    </div>
+  <% end %>
+</div>

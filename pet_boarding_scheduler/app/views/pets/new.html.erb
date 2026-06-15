@@ -1,0 +1,11 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+    <span>📝</span> 新建宠物档案
+  </h1>
+
+  <%= render "pets/form", pet: @pet %>
+
+  <div class="mt-4 text-center">
+    <%= link_to "取消返回", pets_path, class: "text-gray-500 hover:text-gray-700" %>
+  </div>
+</div>

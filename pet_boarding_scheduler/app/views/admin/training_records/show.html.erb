@@ -1,0 +1,93 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">训练记录详情</h1>
+  <div class="flex gap-2">
+    <%= link_to "返回列表", admin_training_records_path, class: "border text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" %>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2">
+    <div class="bg-white rounded-lg shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">训练详情</h2>
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <p class="text-sm text-gray-500">训练日期</p>
+          <p class="font-medium text-gray-900"><%= @training_record.training_date %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">状态</p>
+          <span class="px-2 py-1 text-xs rounded-full
+            <%= @training_record.status == "completed" ? "bg-green-100 text-green-700" :
+               @training_record.status == "scheduled" ? "bg-blue-100 text-blue-700" :
+               @training_record.status == "delayed" ? "bg-yellow-100 text-yellow-700" :
+               "bg-gray-100 text-gray-700" %>">
+            <%= { "scheduled" => "已安排", "completed" => "已完成", "delayed" => "延期", "cancelled" => "已取消" }[@training_record.status] %>
+          </span>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">服务项目</p>
+          <p class="font-medium text-gray-900"><%= @training_record.service_name || "自定义训练" %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">训练时长</p>
+          <p class="font-medium text-gray-900"><%= @training_record.duration_minutes ? "#{@training_record.duration_minutes}分钟" : "未设置" %></p>
+        </div>
+      </div>
+
+      <% if @training_record.content.present? %>
+        <div class="mb-4">
+          <h3 class="font-medium text-gray-900 mb-1">训练内容</h3>
+          <p class="text-gray-600"><%= @training_record.content %></p>
+        </div>
+      <% end %>
+
+      <% if @training_record.progress.present? %>
+        <div class="mb-4">
+          <h3 class="font-medium text-gray-900 mb-1">训练进度</h3>
+          <p class="text-gray-600"><%= @training_record.progress %></p>
+        </div>
+      <% end %>
+
+      <% if @training_record.delayed? && @training_record.delay_reason.present? %>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+          <h3 class="font-medium text-yellow-800 mb-1">⚠️ 延期原因</h3>
+          <p class="text-yellow-700"><%= @training_record.delay_reason %></p>
+        </div>
+      <% end %>
+
+      <% if @training_record.notes.present? %>
+        <div class="mt-4">
+          <h3 class="font-medium text-gray-900 mb-1">备注</h3>
+          <p class="text-gray-600"><%= @training_record.notes %></p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="bg-white rounded-lg shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">宠物信息</h2>
+      <div class="flex items-center mb-4">
+        <span class="text-4xl mr-3"><%= @training_record.pet.species == "狗" ? "🐕" : "🐱" %></span>
+        <div>
+          <p class="font-semibold text-gray-900"><%= @training_record.pet_name %></p>
+          <p class="text-sm text-gray-500"><%= @training_record.pet.breed %></p>
+        </div>
+      </div>
+      <%= link_to "查看档案", admin_pet_path(@training_record.pet), class: "text-indigo-600 hover:text-indigo-700 text-sm" %>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">主理人</h2>
+      <div class="flex items-center">
+        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg mr-3">
+          <%= @training_record.caretaker.name.first %>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-900"><%= @training_record.caretaker_name %></p>
+          <p class="text-sm text-gray-500"><%= @training_record.caretaker.phone %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

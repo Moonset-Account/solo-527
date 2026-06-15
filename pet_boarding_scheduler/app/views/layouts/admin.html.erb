@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>管理后台 - 宠物寄养服务排班系统</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+  </head>
+  <body class="bg-gray-100">
+    <%= turbo_stream_from "notifications" %>
+    <%= turbo_stream_from "dashboard_updates" %>
+
+    <div id="flashes"></div>
+
+    <div class="flex h-screen">
+      <aside class="w-64 bg-white shadow-md flex-shrink-0 overflow-y-auto">
+        <div class="p-5 border-b sticky top-0 bg-white z-10">
+          <%= link_to admin_root_path, class: "text-xl font-bold text-indigo-600" do %>
+            🐾 管理后台
+          <% end %>
+        </div>
+
+        <nav class="p-4 pb-20">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">主要功能</p>
+          <div class="space-y-1">
+            <%= link_to admin_root_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg #{current_page?(admin_root_path) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50'}" do %>
+              <span class="mr-3">📊</span> 日常看板
+            <% end %>
+            <%= link_to admin_boarding_reservations_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">📅</span> 寄养排班
+            <% end %>
+            <%= link_to admin_pets_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">🐕</span> 宠物管理
+            <% end %>
+            <%= link_to admin_kennels_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">🏠</span> 笼位管理
+            <% end %>
+          </div>
+
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">服务与人员</p>
+          <div class="space-y-1">
+            <%= link_to admin_services_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">🛎️</span> 服务项目
+            <% end %>
+            <%= link_to admin_caretakers_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">👤</span> 主理人管理
+            <% end %>
+          </div>
+
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">健康与训练</p>
+          <div class="space-y-1">
+            <%= link_to admin_health_records_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">❤️</span> 健康记录
+            <% end %>
+            <%= link_to admin_training_records_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">🏋️</span> 训练记录
+            <% end %>
+          </div>
+
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">数据分析</p>
+          <div class="space-y-1">
+            <%= link_to admin_analytics_service_quality_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">📈</span> 服务质量
+            <% end %>
+            <%= link_to admin_analytics_safety_trends_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">⚠️</span> 安全趋势
+            <% end %>
+            <%= link_to admin_analytics_training_delays_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">⏰</span> 训练延期分析
+            <% end %>
+          </div>
+
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">其他</p>
+          <div class="space-y-1">
+            <%= link_to admin_safety_incidents_path, class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">🚨</span> 安全事件
+            <% end %>
+            <%= link_to admin_notifications_path do %>
+              <span class="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50">
+                <span class="mr-3">🔔</span> 通知中心
+                <div id="unread-count-wrapper" class="ml-auto">
+                  <% if Notification.unread.count > 0 %>
+                    <span id="unread-count" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      <%= Notification.unread.count %>
+                    </span>
+                  <% end %>
+                </div>
+              </span>
+            <% end %>
+          </div>
+
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">导出</p>
+          <div class="space-y-1">
+            <%= link_to admin_exports_boarding_path(format: :csv, async: true), class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">📄</span> 导出寄养
+            <% end %>
+            <%= link_to admin_exports_training_path(format: :csv, async: true), class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">📄</span> 导出训练
+            <% end %>
+            <%= link_to admin_exports_health_path(format: :csv, async: true), class: "flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-50" do %>
+              <span class="mr-3">📄</span> 导出健康
+            <% end %>
+          </div>
+        </nav>
+      </aside>
+
+      <main class="flex-1 overflow-auto">
+        <div class="p-6 max-w-7xl mx-auto">
+          <% if notice %>
+            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span>✅</span>
+                <span><%= notice %></span>
+              </div>
+              <button onclick="this.parentElement.remove()" class="text-green-600 hover:text-green-800 text-lg">×</button>
+            </div>
+          <% end %>
+          <% if alert %>
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span>⚠️</span>
+                <span><%= alert %></span>
+              </div>
+              <button onclick="this.parentElement.remove()" class="text-red-600 hover:text-red-800 text-lg">×</button>
+            </div>
+          <% end %>
+
+          <%= yield %>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

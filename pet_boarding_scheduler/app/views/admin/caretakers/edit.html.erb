@@ -1,0 +1,54 @@
+<h1 class="text-2xl font-bold text-gray-900 mb-6">编辑主理人</h1>
+
+<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-sm border p-6">
+  <%= form_with model: [:admin, @caretaker], local: true do |form| %>
+    <% if @caretaker.errors.any? %>
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <p class="font-medium"><%= pluralize(@caretaker.errors.count, "个错误") %> 导致保存失败：</p>
+        <ul class="mt-2 text-sm list-disc list-inside">
+          <% @caretaker.errors.each do |error| %>
+            <li><%= error.full_message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="space-y-4">
+      <div>
+        <%= form.label :name, "姓名", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= form.text_field :name, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <%= form.label :phone, "电话", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :phone, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+        <div>
+          <%= form.label :email, "邮箱", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.email_field :email, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+      </div>
+
+      <div>
+        <%= form.label :max_pets_capacity, "最大寄养容量（只）", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= form.number_field :max_pets_capacity, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+      </div>
+
+      <div>
+        <%= form.label :bio, "个人简介", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= form.text_area :bio, rows: 3, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+      </div>
+
+      <div class="flex items-center">
+        <%= form.check_box :active, class: "rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
+        <%= form.label :active, "在岗状态", class: "ml-2 text-sm text-gray-700" %>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4 border-t">
+        <%= link_to "取消", admin_caretaker_path(@caretaker), class: "px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50" %>
+        <%= form.submit "保存", class: "bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700" %>
+      </div>
+    </div>
+  <% end %>
+</div>

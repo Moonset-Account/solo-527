@@ -1,0 +1,37 @@
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">主理人管理</h1>
+  <%= link_to "新增主理人", new_admin_caretaker_path, class: "bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700" %>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+    <% @caretakers.each do |caretaker| %>
+      <div class="border rounded-lg p-4 hover:shadow-md transition">
+        <div class="flex items-center mb-3">
+          <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg mr-3">
+            <%= caretaker.name.first %>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-gray-900"><%= caretaker.name %></h3>
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded-full <%= caretaker.active? ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' %>">
+                <%= caretaker.active? ? "在岗" : "离岗" %>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-1 text-sm text-gray-600 mb-3">
+          <p>当前寄养：<%= caretaker.current_pets_count %> / <%= caretaker.max_pets_capacity %> 只</p>
+          <p>本周训练：<%= caretaker.weekly_training_count %> 次</p>
+        </div>
+        <% if caretaker.bio.present? %>
+          <p class="text-sm text-gray-500 mb-3 line-clamp-2"><%= caretaker.bio %></p>
+        <% end %>
+        <div class="flex gap-2">
+          <%= link_to "详情", admin_caretaker_path(caretaker), class: "flex-1 text-center text-sm text-indigo-600 hover:text-indigo-700" %>
+          <%= link_to "编辑", edit_admin_caretaker_path(caretaker), class: "flex-1 text-center text-sm text-gray-600 hover:text-gray-900" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

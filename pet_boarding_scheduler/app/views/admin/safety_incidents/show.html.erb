@@ -1,0 +1,90 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">安全事件详情</h1>
+  <%= link_to "返回列表", admin_safety_incidents_path, class: "border text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" %>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2">
+    <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+      <div class="flex items-start justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">事件信息</h2>
+        <div class="flex gap-2">
+          <span class="px-2 py-1 text-xs rounded-full <%= @safety_incident.severity_color %>">
+            <%= @safety_incident.severity_label %>级
+          </span>
+          <span class="px-2 py-1 text-xs rounded-full <%= @safety_incident.resolved? ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' %>">
+            <%= @safety_incident.resolved? ? "已解决" : "未解决" %>
+          </span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <p class="text-sm text-gray-500">事件类型</p>
+          <p class="font-medium text-gray-900"><%= @safety_incident.incident_type %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">发生时间</p>
+          <p class="font-medium text-gray-900"><%= @safety_incident.occurred_at.strftime("%Y年%m月%d日 %H:%M") %></p>
+        </div>
+        <% if @safety_incident.resolved_at %>
+          <div>
+            <p class="text-sm text-gray-500">解决时间</p>
+            <p class="font-medium text-gray-900"><%= @safety_incident.resolved_at.strftime("%Y年%m月%d日 %H:%M") %></p>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="mb-4">
+        <h3 class="font-medium text-gray-900 mb-1">事件描述</h3>
+        <p class="text-gray-600"><%= @safety_incident.description %></p>
+      </div>
+
+      <% if @safety_incident.action_taken.present? %>
+        <div class="mt-4 pt-4 border-t">
+          <h3 class="font-medium text-gray-900 mb-1">处理措施</h3>
+          <p class="text-gray-600"><%= @safety_incident.action_taken %></p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="bg-white rounded-lg shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">涉事宠物</h2>
+      <div class="flex items-center mb-4">
+        <span class="text-4xl mr-3"><%= @safety_incident.pet.species == "狗" ? "🐕" : "🐱" %></span>
+        <div>
+          <p class="font-semibold text-gray-900"><%= @safety_incident.pet_name %></p>
+          <p class="text-sm text-gray-500"><%= @safety_incident.pet.breed %></p>
+        </div>
+      </div>
+      <%= link_to "查看档案", admin_pet_path(@safety_incident.pet), class: "text-indigo-600 hover:text-indigo-700 text-sm" %>
+    </div>
+
+    <% if @safety_incident.caretaker %>
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">负责主理人</h2>
+        <div class="flex items-center">
+          <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg mr-3">
+            <%= @safety_incident.caretaker.name.first %>
+          </div>
+          <div>
+            <p class="font-semibold text-gray-900"><%= @safety_incident.caretaker_name %></p>
+            <p class="text-sm text-gray-500"><%= @safety_incident.caretaker.phone %></p>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @safety_incident.kennel %>
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">涉事笼位</h2>
+        <div class="text-center">
+          <p class="font-bold text-2xl text-gray-900"><%= @safety_incident.kennel.name %></p>
+          <p class="text-sm text-gray-500"><%= @safety_incident.kennel.size_category %></p>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

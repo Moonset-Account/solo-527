@@ -1,0 +1,132 @@
+<div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+  <h1 class="text-2xl font-bold text-gray-900">❤️ 健康记录</h1>
+  <div class="flex gap-2">
+    <%= link_to admin_exports_health_path(params.permit(:q).merge(format: :csv, async: true)),
+                class: "bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700" do %>
+      📄 导出
+    <% end %>
+    <%= link_to "新增记录", new_admin_health_record_path, class: "bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700" %>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+  <%= form_with url: admin_health_records_path, method: :get, local: true, class: "flex flex-wrap gap-3 items-end" do |f| %>
+    <div class="flex-1 min-w-40">
+      <label class="block text-xs text-gray-500 mb-1">宠物名称</label>
+      <input type="text" name="q[pet_name_cont]" value="<%= params.dig(:q, :pet_name_cont) %>"
+             class="w-full rounded-lg border-gray-300 text-sm" placeholder="宠物名称搜索...">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">主理人</label>
+      <%= select_tag "q[caretaker_id_eq]",
+                     options_from_collection_for_select(Caretaker.active.order(:name), :id, :name, params.dig(:q, :caretaker_id_eq)),
+                     { include_blank: "全部", class: "rounded-lg border-gray-300 text-sm" } %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">有症状</label>
+      <%= select_tag "q[symptoms_present]",
+                     options_for_select([["是", 1], ["否", 0]], params.dig(:q, :symptoms_present)),
+                     { include_blank: "全部", class: "rounded-lg border-gray-300 text-sm" } %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">日期从</label>
+      <input type="date" name="q[recorded_at_gteq]" value="<%= params.dig(:q, :recorded_at_gteq) %>" class="rounded-lg border-gray-300 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">到</label>
+      <input type="date" name="q[recorded_at_lteq]" value="<%= params.dig(:q, :recorded_at_lteq) %>" class="rounded-lg border-gray-300 text-sm">
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">筛选</button>
+      <%= link_to "重置", admin_health_records_path, class: "bg-gray-50 hover:bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">宠物</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">记录时间</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">主理人</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">体温</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">体重</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">食欲/活动</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">状态</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">症状</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% @health_records.each do |r| %>
+          <tr class="hover:bg-gray-50 <%= r.symptoms.present? ? 'bg-red-50/30' : '' %>">
+            <td class="px-4 py-3 whitespace-nowrap">
+              <div class="flex items-center">
+                <span class="text-2xl mr-2"><%= r.pet.species == "狗" ? "🐕" : "🐱" %></span>
+                <div>
+                  <span class="font-medium text-gray-900"><%= r.pet_name %></span>
+                  <p class="text-xs text-gray-400"><%= r.pet.breed %></p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+              <%= r.recorded_at.strftime("%Y-%m-%d %H:%M") %>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+              <%= r.caretaker&.name || "-" %>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm">
+              <% if r.temperature %>
+                <% if r.temperature > 39.0 %>
+                  <span class="text-red-600 font-semibold"><%= r.temperature %>°C</span>
+                <% elsif r.temperature < 37.5 %>
+                  <span class="text-blue-600 font-semibold"><%= r.temperature %>°C</span>
+                <% else %>
+                  <span class="text-gray-700"><%= r.temperature %>°C</span>
+                <% end %>
+              <% else %>
+                <span class="text-gray-400">-</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+              <%= r.weight ? "#{r.weight}kg" : "-" %>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+              <span>🍽️ <%= r.appetite_display || "-" %></span>
+              <span class="mx-1">/</span>
+              <span>🏃 <%= r.activity_display || "-" %></span>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <span class="px-2 py-1 text-xs rounded-full font-medium
+                <%= r.health_status == "良好" ? "bg-green-100 text-green-700" :
+                   r.health_status == "一般" ? "bg-yellow-100 text-yellow-700" :
+                   r.health_status == "较差" ? "bg-orange-100 text-orange-700" :
+                   "bg-red-100 text-red-700" %>">
+                <%= r.health_status %>
+              </span>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <% if r.symptoms.present? %>
+                <span class="text-xs text-red-600 bg-red-50 px-2 py-1 rounded"><%= r.symptoms %></span>
+              <% else %>
+                <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">无</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+              <%= link_to "查看", admin_health_record_path(r), class: "text-indigo-600 hover:text-indigo-900" %>
+              <%= link_to "编辑", edit_admin_health_record_path(r), class: "text-gray-600 hover:text-gray-900 ml-2" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if @pagy&.pages&.>1 %>
+  <div class="mt-6 flex justify-center">
+    <%= pagy_nav(@pagy) %>
+  </div>
+<% end %>

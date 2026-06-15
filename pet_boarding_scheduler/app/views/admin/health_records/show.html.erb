@@ -1,0 +1,81 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">健康记录详情</h1>
+  <div class="flex gap-2">
+    <%= link_to "返回列表", admin_health_records_path, class: "border text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" %>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2">
+    <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">健康状况</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+          <p class="text-2xl font-bold <%= @health_record.health_status == '良好' ? 'text-green-600' : 'text-yellow-600' %>">
+            <%= @health_record.health_status %>
+          </p>
+          <p class="text-sm text-gray-500">整体状态</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+          <p class="text-2xl font-bold text-gray-900"><%= @health_record.temperature || "-" %></p>
+          <p class="text-sm text-gray-500">体温 (°C)</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+          <p class="text-2xl font-bold text-gray-900"><%= @health_record.weight || "-" %></p>
+          <p class="text-sm text-gray-500">体重 (kg)</p>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+          <p class="text-lg font-bold text-gray-900"><%= @health_record.appetite_display || "-" %></p>
+          <p class="text-sm text-gray-500">食欲</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-medium text-gray-900 mb-1">活动量</h3>
+          <p class="text-gray-600"><%= @health_record.activity_display || "未记录" %></p>
+        </div>
+        <% if @health_record.symptoms.present? %>
+          <div>
+            <h3 class="font-medium text-red-600 mb-1">⚠️ 症状</h3>
+            <p class="text-gray-600"><%= @health_record.symptoms %></p>
+          </div>
+        <% end %>
+        <% if @health_record.notes.present? %>
+          <div>
+            <h3 class="font-medium text-gray-900 mb-1">备注</h3>
+            <p class="text-gray-600"><%= @health_record.notes %></p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="bg-white rounded-lg shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">记录信息</h2>
+      <div class="space-y-3 text-sm">
+        <div class="flex justify-between">
+          <span class="text-gray-500">记录时间</span>
+          <span class="font-medium text-gray-900"><%= @health_record.recorded_at.strftime("%Y-%m-%d %H:%M") %></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">记录人</span>
+          <span class="font-medium text-gray-900"><%= @health_record.caretaker&.name || "未指定" %></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">宠物信息</h2>
+      <div class="flex items-center mb-4">
+        <span class="text-4xl mr-3"><%= @health_record.pet.species == "狗" ? "🐕" : "🐱" %></span>
+        <div>
+          <p class="font-semibold text-gray-900"><%= @health_record.pet_name %></p>
+          <p class="text-sm text-gray-500"><%= @health_record.pet.breed %></p>
+        </div>
+      </div>
+      <%= link_to "查看档案", admin_pet_path(@health_record.pet), class: "text-indigo-600 hover:text-indigo-700 text-sm" %>
+    </div>
+  </div>
+</div>

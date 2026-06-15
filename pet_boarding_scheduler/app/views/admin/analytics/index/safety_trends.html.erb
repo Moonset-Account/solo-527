@@ -1,0 +1,206 @@
+<div class="mb-6">
+  <div class="flex flex-wrap justify-between items-start gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">⚠️ 寄养安全趋势</h1>
+      <p class="text-gray-500">安全事件统计、类型分布和严重程度分析</p>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+  <%= form_with url: admin_analytics_safety_trends_path, method: :get, local: true, class: "flex flex-wrap gap-4 items-end" do |f| %>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">开始日期</label>
+      <%= date_field_tag :start_date, @start_date, class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">结束日期</label>
+      <%= date_field_tag :end_date, @end_date, class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">严重程度</label>
+      <%= select_tag :severity,
+        options_for_select([["全部", ""], ["低", "low"], ["中", "medium"], ["高", "high"], ["严重", "critical"]], params[:severity]),
+        class: "rounded border-gray-300 text-sm" %>
+    </div>
+    <div>
+      <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm">筛选</button>
+    </div>
+  <% end %>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">安全事件总数</p>
+    <p class="text-3xl font-bold text-red-600 mt-1"><%= @total_incidents %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">未解决事件</p>
+    <p class="text-3xl font-bold text-yellow-600 mt-1"><%= @unresolved %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">已解决事件</p>
+    <p class="text-3xl font-bold text-green-600 mt-1"><%= @total_incidents - @unresolved %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm border p-4">
+    <p class="text-sm text-gray-500">解决率</p>
+    <p class="text-3xl font-bold text-blue-600 mt-1">
+      <%= @total_incidents > 0 ? ((@total_incidents - @unresolved).to_f / @total_incidents * 100).round(1) : 0 %>%
+    </p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b">
+      <h2 class="text-lg font-semibold text-gray-900">📊 事件类型分布</h2>
+    </div>
+    <div class="p-4">
+      <% if @by_type.any? %>
+        <% max_count = @by_type.values.max.to_i %>
+        <div class="space-y-3">
+          <% @by_type.each do |type, count| %>
+            <% color = case type
+                      when "逃跑" then "bg-orange-500"
+                      when "受伤" then "bg-red-500"
+                      when "疾病" then "bg-yellow-500"
+                      when "打架" then "bg-purple-500"
+                      when "误食" then "bg-pink-500"
+                      else "bg-gray-500"
+                      end %>
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-medium text-gray-700 w-16 flex-shrink-0"><%= type %></span>
+              <div class="flex-1 bg-gray-200 rounded-full h-8 overflow-hidden">
+                <div class="<%= color %> h-8 flex items-center justify-between px-3"
+                     style="width: <%= max_count > 0 ? [count.to_f / max_count * 100, 10].max : 0 %>%">
+                  <span class="text-white font-medium text-sm"><%= count %> 件</span>
+                </div>
+              </div>
+              <span class="text-sm font-bold text-gray-900 w-12 text-right">
+                <%= @total_incidents > 0 ? (count.to_f / @total_incidents * 100).round(1) : 0 %>%
+              </span>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-center py-8">暂无安全事件</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b">
+      <h2 class="text-lg font-semibold text-gray-900">🚨 严重程度分布</h2>
+    </div>
+    <div class="p-4">
+      <% if @by_severity.any? %>
+        <div class="grid grid-cols-2 gap-3">
+          <% severity_labels = { "low" => "低", "medium" => "中", "high" => "高", "critical" => "严重" } %>
+          <% severity_colors = {
+            "low" => "border-green-200 bg-green-50 text-green-700",
+            "medium" => "border-yellow-200 bg-yellow-50 text-yellow-700",
+            "high" => "border-orange-200 bg-orange-50 text-orange-700",
+            "critical" => "border-red-200 bg-red-50 text-red-700"
+          } %>
+          <% %w[low medium high critical].each do |sev| %>
+            <% count = @by_severity[sev] || 0 %>
+            <div class="border-2 rounded-lg p-4 text-center <%= severity_colors[sev] %>">
+              <p class="text-sm mb-1"><%= severity_labels[sev] %></p>
+              <p class="text-3xl font-bold"><%= count %></p>
+              <p class="text-xs mt-1 opacity-80">
+                <%= @total_incidents > 0 ? (count.to_f / @total_incidents * 100).round(1) : 0 %>%
+              </p>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-center py-8">暂无数据</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border mb-6">
+  <div class="p-4 border-b">
+    <h2 class="text-lg font-semibold text-gray-900">📅 按日期趋势</h2>
+  </div>
+  <div class="p-4 max-h-80 overflow-y-auto">
+    <% if @by_date.any? %>
+      <% max_count = @by_date.values.max.to_i %>
+      <div class="space-y-2">
+        <% @by_date.each do |date, count| %>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-28 flex-shrink-0"><%= date %></span>
+            <div class="flex-1 bg-gray-200 rounded-full h-5 overflow-hidden">
+              <div class="bg-gradient-to-r from-red-300 to-red-500 h-5 flex items-center"
+                   style="width: <%= max_count > 0 ? (count.to_f / max_count * 100) : 0 %>%; min-width: <%= count > 0 ? '3%' : '0' %>">
+                <span class="text-xs text-white ml-2 font-medium"><%= count %></span>
+              </div>
+            </div>
+            <span class="text-xs font-medium text-gray-700 w-10 text-right">
+              <%= { 0 => "🔵", 1 => "🟢", 2 => "🟡", 3 => "🟠" }[[count, 3].min] %>
+            </span>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-gray-500 text-center py-8">暂无数据</p>
+    <% end %>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border">
+  <div class="p-4 border-b">
+    <h2 class="text-lg font-semibold text-gray-900">📝 最近安全事件</h2>
+  </div>
+  <div class="divide-y">
+    <% if @recent_incidents.any? %>
+      <% @recent_incidents.each do |incident| %>
+        <div class="p-4 hover:bg-gray-50">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center">
+              <span class="text-2xl mr-3">
+                <%= case incident.incident_type
+                    when "逃跑" then "🏃"
+                    when "受伤" then "🩹"
+                    when "疾病" then "🤒"
+                    when "打架" then "⚔️"
+                    when "误食" then "🍽️"
+                    else "⚠️"
+                    end %>
+              </span>
+              <div>
+                <p class="font-semibold text-gray-900">
+                  <%= incident.incident_type %> - <%= incident.pet_name %>
+                </p>
+                <p class="text-sm text-gray-500">
+                  <%= incident.occurred_at.strftime("%Y-%m-%d %H:%M") %> · 主理人: <%= incident.caretaker_name || "未指派" %>
+                </p>
+              </div>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-medium <%= incident.severity_color %>">
+              <%= incident.severity_label %>级
+            </span>
+          </div>
+          <p class="text-sm text-gray-700 mb-2"><%= incident.description %></p>
+          <% if incident.action_taken.present? %>
+            <div class="bg-gray-50 rounded p-2">
+              <p class="text-xs text-gray-500 mb-1">✅ 处理措施</p>
+              <p class="text-sm text-gray-700"><%= incident.action_taken %></p>
+            </div>
+          <% end %>
+          <div class="mt-2 flex gap-2">
+            <% if incident.resolved? %>
+              <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">已解决</span>
+            <% else %>
+              <span class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded animate-pulse">待处理</span>
+            <% end %>
+            <%= link_to "查看详情", [:admin, incident], class: "text-xs text-indigo-600 hover:text-indigo-700" %>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="text-gray-500 text-center py-8">暂无安全事件记录</p>
+    <% end %>
+  </div>
+</div>

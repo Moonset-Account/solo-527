@@ -1,0 +1,425 @@
+<%= turbo_stream_from "notifications" %>
+<%= turbo_stream_from "dashboard_updates" %>
+
+<div class="mb-6">
+  <div class="flex flex-wrap justify-between items-center gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">📊 日常看板</h1>
+      <p class="text-gray-500"><%= Date.today.strftime("%Y年%m月%d日 %A") %></p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <%= link_to "新建健康记录", new_admin_health_record_path, class: "bg-pink-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-pink-700" %>
+      <%= link_to "新建训练记录", new_admin_training_record_path, class: "bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-orange-700" %>
+      <%= link_to "新增预约", new_admin_boarding_reservation_path, class: "bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700" %>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+  <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+    <p class="text-xs text-gray-500">当前寄养</p>
+    <p class="text-2xl font-bold text-gray-900"><%= @stats[:current_boardings] %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+    <p class="text-xs text-gray-500">可用笼位</p>
+    <p class="text-2xl font-bold text-gray-900"><%= @stats[:available_kennels] %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-pink-500">
+    <p class="text-xs text-gray-500">今日体检</p>
+    <p class="text-2xl font-bold text-gray-900"><%= @stats[:today_health_checks] %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-orange-500">
+    <p class="text-xs text-gray-500">今日训练</p>
+    <p class="text-2xl font-bold text-gray-900"><%= @stats[:today_trainings] %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 <%= @stats[:unresolved_incidents] > 0 ? 'border-red-500' : 'border-purple-500' %>">
+    <p class="text-xs text-gray-500">未处理事件</p>
+    <p class="text-2xl font-bold <%= @stats[:unresolved_incidents] > 0 ? 'text-red-600' : 'text-gray-900' %>"><%= @stats[:unresolved_incidents] %></p>
+  </div>
+  <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 <%= @stats[:unread_notifications] > 0 ? 'border-yellow-500' : 'border-gray-300' %>">
+    <p class="text-xs text-gray-500">未读通知</p>
+    <p class="text-2xl font-bold <%= @stats[:unread_notifications] > 0 ? 'text-yellow-600' : 'text-gray-900' %>"><%= @stats[:unread_notifications] %></p>
+  </div>
+</div>
+
+<% if @health_changes.any? %>
+  <div class="bg-gradient-to-r <%= @health_changes.first[:status][:color].include?('red') ? 'from-red-50 to-orange-50' : 'from-yellow-50 to-green-50' %> rounded-lg shadow-sm border-2 mb-6"
+       id="health-changes-card">
+    <div class="p-4 border-b flex justify-between items-center">
+      <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <span class="text-2xl animate-pulse">⚡</span>
+        健康变化提醒 - 需优先关注
+      </h2>
+      <span class="text-xs px-2 py-1 rounded-full bg-white text-gray-600 border">
+        <%= @health_changes.count %> 只宠物出现变化
+      </span>
+    </div>
+    <div class="p-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <% @health_changes.each do |change| %>
+          <div class="bg-white rounded-lg border-2 <%= change[:status][:color] %> p-3 hover:shadow-md transition cursor-pointer"
+               onclick="window.location.href='<%= admin_pet_path(change[:pet]) %>'">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex items-center">
+                <span class="text-3xl mr-2"><%= change[:pet].species == "狗" ? "🐕" : "🐱" %></span>
+                <div>
+                  <p class="font-bold text-gray-900"><%= change[:pet].name %></p>
+                  <p class="text-xs text-gray-500"><%= change[:latest_record].recorded_at.strftime("%m-%d %H:%M") %></p>
+                </div>
+              </div>
+              <span class="text-lg"><%= change[:status][:icon] %></span>
+            </div>
+            <div class="space-y-1 text-xs">
+              <% if change[:appetite_change] != 0 %>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">食欲变化</span>
+                  <span class="font-medium <%= change[:appetite_change] > 0 ? 'text-green-600' : 'text-red-600' %>">
+                    <%= change[:appetite_change] > 0 ? '↑' : '↓' %> <%= change[:appetite_change].abs %> 级
+                  </span>
+                </div>
+              <% end %>
+              <% if change[:activity_change] != 0 %>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">活动量变化</span>
+                  <span class="font-medium <%= change[:activity_change] > 0 ? 'text-green-600' : 'text-red-600' %>">
+                    <%= change[:activity_change] > 0 ? '↑' : '↓' %> <%= change[:activity_change].abs %> 级
+                  </span>
+                </div>
+              <% end %>
+              <% if change[:weight_change] %>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">体重变化</span>
+                  <span class="font-medium <%= change[:weight_change] > 0 ? 'text-green-600' : 'text-red-600' %>">
+                    <%= change[:weight_change] > 0 ? '+' : '' %><%= sprintf("%.2f", change[:weight_change]) %> kg
+                  </span>
+                </div>
+              <% end %>
+            </div>
+            <div class="mt-2 pt-2 border-t">
+              <span class="text-xs font-bold <%= change[:status][:color] %> rounded px-2 py-0.5">
+                <%= change[:status][:label] %>
+              </span>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-orange-50 to-pink-50">
+      <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <span class="text-xl">🏋️</span> 训练看板
+      </h2>
+      <div class="flex gap-4 text-sm">
+        <span class="text-gray-600">已安排：<b class="text-blue-600"><%= @stats[:scheduled_trainings_count] %></b></span>
+        <span class="text-gray-600">延期：<b class="text-yellow-600"><%= @stats[:delayed_trainings_count] %></b></span>
+        <%= link_to "全部", admin_training_records_path, class: "text-indigo-600 hover:text-indigo-700 font-medium" %>
+      </div>
+    </div>
+    <div class="divide-y max-h-96 overflow-y-auto">
+      <% if @today_training_records.any? || @delayed_trainings.any? %>
+        <% @delayed_trainings.each do |record| %>
+          <div class="p-3 hover:bg-yellow-50 transition bg-yellow-50/50 border-l-4 border-yellow-400">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-medium">⏰ 延期</span>
+                  <span class="font-semibold text-gray-900"><%= record.service_name || "训练" %></span>
+                </div>
+                <p class="text-sm text-gray-600">
+                  <%= record.pet.species == "狗" ? "🐕" : "🐱" %> <b><%= record.pet_name %></b>
+                  · 👤 <%= record.caretaker_name %>
+                  · 📅 <%= record.training_date %>
+                </p>
+                <% if record.delay_reason.present? %>
+                  <p class="text-xs text-yellow-700 mt-1">原因：<%= record.delay_reason %></p>
+                <% end %>
+              </div>
+              <%= link_to "处理", [:admin, record], class: "text-xs text-indigo-600 hover:text-indigo-700 font-medium" %>
+            </div>
+          </div>
+        <% end %>
+
+        <% @scheduled_trainings.each do |record| %>
+          <div class="p-3 hover:bg-blue-50 transition border-l-4 border-blue-300">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">📋 待执行</span>
+                  <span class="font-semibold text-gray-900"><%= record.service_name || "训练" %></span>
+                </div>
+                <p class="text-sm text-gray-600">
+                  <%= record.pet.species == "狗" ? "🐕" : "🐱" %> <b><%= record.pet_name %></b>
+                  · 👤 <%= record.caretaker_name %>
+                  <% if record.duration_minutes.present? %>
+                    · ⏱ <%= record.duration_minutes %>分钟
+                  <% end %>
+                </p>
+              </div>
+              <%= link_to "开始", [:admin, record], class: "text-xs text-green-600 hover:text-green-700 font-medium" %>
+            </div>
+          </div>
+        <% end %>
+
+        <% today_completed = @today_training_records.completed %>
+        <% today_completed.each do |record| %>
+          <div class="p-3 hover:bg-gray-50 transition border-l-4 border-green-300 opacity-75">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">✅ 已完成</span>
+                  <span class="font-medium text-gray-700"><%= record.service_name || "训练" %></span>
+                </div>
+                <p class="text-sm text-gray-500">
+                  <%= record.pet.species == "狗" ? "🐕" : "🐱" %> <b><%= record.pet_name %></b>
+                  · 👤 <%= record.caretaker_name %>
+                </p>
+                <% if record.progress.present? %>
+                  <p class="text-xs text-gray-500 mt-1 line-clamp-1">📝 <%= record.progress %></p>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-gray-500 text-center py-12">今日暂无训练安排</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+      <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <span class="text-xl">🏠</span> 笼位状态
+      </h2>
+      <%= link_to "管理", admin_kennels_path, class: "text-sm text-indigo-600 hover:text-indigo-700 font-medium" %>
+    </div>
+    <div class="p-4 max-h-96 overflow-y-auto">
+      <div class="grid grid-cols-3 gap-2">
+        <% @kennels.each do |kennel| %>
+          <div class="border-2 rounded-lg p-2 text-center transition hover:shadow-md
+            <%= kennel.status == "available" ? "border-green-300 bg-green-50 hover:border-green-500" :
+               kennel.status == "occupied" ? "border-blue-400 bg-blue-50 hover:border-blue-600" :
+               "border-gray-300 bg-gray-100 hover:border-gray-400" %>">
+            <p class="font-bold text-sm text-gray-900"><%= kennel.name %></p>
+            <p class="text-xs text-gray-500 mb-1"><%= kennel.size_category %></p>
+            <% if kennel.occupied? && kennel.current_pet %>
+              <div class="text-2xl mb-0.5"><%= kennel.current_pet.species == "狗" ? "🐕" : "🐱" %></div>
+              <p class="text-xs font-semibold text-blue-700 truncate" title="<%= kennel.current_pet.name %>">
+                <%= kennel.current_pet.name %>
+              </p>
+            <% else %>
+              <div class="text-2xl mb-0.5">
+                <%= kennel.status == "available" ? "✅" : "🔧" %>
+              </div>
+              <p class="text-xs text-gray-600 font-medium">
+                <%= kennel.status == "available" ? "可用" : "维修" %>
+              </p>
+            <% end %>
+            <p class="text-xs text-gray-400 mt-1">¥<%= kennel.daily_rate.to_i %></p>
+          </div>
+        <% end %>
+      </div>
+      <div class="mt-4 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
+        <div class="flex items-center justify-center gap-1">
+          <span class="w-3 h-3 rounded bg-green-200 border border-green-400"></span>
+          可用 <b><%= Kennel.available.count %></b>
+        </div>
+        <div class="flex items-center justify-center gap-1">
+          <span class="w-3 h-3 rounded bg-blue-200 border border-blue-400"></span>
+          使用 <b><%= Kennel.occupied.count %></b>
+        </div>
+        <div class="flex items-center justify-center gap-1">
+          <span class="w-3 h-3 rounded bg-gray-200 border border-gray-400"></span>
+          维修 <b><%= Kennel.maintenance.count %></b>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-pink-50 to-red-50">
+      <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <span class="text-xl">🏥</span> 健康记录
+      </h2>
+      <%= link_to "新建", new_admin_health_record_path, class: "text-sm text-pink-600 hover:text-pink-700 font-medium" %>
+    </div>
+    <div class="divide-y max-h-80 overflow-y-auto">
+      <% if @today_health_records.any? %>
+        <% @today_health_records.each do |record| %>
+          <% change_info = @health_changes.find { |c| c[:pet].id == record.pet_id } %>
+          <div class="p-3 hover:bg-gray-50 transition <%= change_info ? 'bg-red-50/50' : '' %>">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center">
+                <span class="text-2xl mr-2"><%= record.pet.species == "狗" ? "🐕" : "🐱" %></span>
+                <div>
+                  <p class="font-semibold text-gray-900"><%= record.pet.name %></p>
+                  <p class="text-xs text-gray-500">
+                    <%= record.recorded_at.strftime("%H:%M") %>
+                    · 👤 <%= record.caretaker&.name || "未指派" %>
+                  </p>
+                </div>
+              </div>
+              <span class="text-xs px-2 py-1 rounded font-medium
+                <%= record.health_status == "良好" ? "bg-green-100 text-green-700" :
+                   record.health_status == "一般" ? "bg-yellow-100 text-yellow-700" :
+                   record.health_status == "较差" ? "bg-orange-100 text-orange-700" :
+                   "bg-red-100 text-red-700" %>">
+                <%= record.health_status %>
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-600 mt-1">
+              <% if record.temperature.present? %>
+                <span>🌡️ <%= record.temperature %>°C</span>
+              <% end %>
+              <% if record.weight.present? %>
+                <span>⚖️ <%= record.weight %>kg</span>
+              <% end %>
+              <span>🍽️ <%= record.appetite_display || "-" %></span>
+              <span>🏃 <%= record.activity_display || "-" %></span>
+            </div>
+            <% if record.symptoms.present? %>
+              <p class="text-xs text-red-600 mt-1">⚠️ <%= record.symptoms %></p>
+            <% end %>
+            <% if record.notes.present? %>
+              <p class="text-xs text-gray-500 mt-1 line-clamp-1">📝 <%= record.notes %></p>
+            <% end %>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-gray-500 text-center py-12">今日暂无健康记录，建议尽快检查</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-yellow-50 to-orange-50">
+      <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <span class="text-xl">🔔</span> 通知中心
+      </h2>
+      <% if @stats[:unread_notifications] > 0 %>
+        <%= button_to "全部已读", mark_all_as_read_admin_notifications_path,
+                      method: :post, class: "text-xs text-gray-600 hover:text-gray-800 font-medium" %>
+      <% end %>
+    </div>
+    <div class="divide-y max-h-80 overflow-y-auto" id="notifications-list">
+      <% if @notifications.any? %>
+        <% @notifications.each do |notification| %>
+          <%= link_to admin_notification_path(notification), class: "block p-3 hover:bg-indigo-50 transition #{notification.is_read? ? 'bg-white' : 'bg-indigo-50/70'}" do %>
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mr-3 text-2xl">
+                <%= case notification.notification_type
+                    when "health" then "❤️"
+                    when "training" then "🏋️"
+                    when "safety" then "⚠️"
+                    when "reservation" then "📅"
+                    when "system" then "🔔"
+                    else "🔔"
+                    end %>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <p class="font-semibold text-gray-900 text-sm <%= 'font-bold' unless notification.is_read? %>">
+                    <%= notification.title %>
+                    <% unless notification.is_read? %>
+                      <span class="ml-1 w-2 h-2 inline-block bg-red-500 rounded-full align-middle"></span>
+                    <% end %>
+                  </p>
+                  <span class="text-xs text-gray-400 flex-shrink-0 ml-2">
+                    <%= notification.created_at.strftime("%H:%M") %>
+                  </span>
+                </div>
+                <p class="text-sm text-gray-600 mt-0.5 line-clamp-2"><%= notification.content %></p>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      <% else %>
+        <p class="text-gray-500 text-center py-12">暂无通知</p>
+      <% end %>
+    </div>
+    <div class="p-2 border-t text-center">
+      <%= link_to "查看全部通知", admin_notifications_path, class: "text-sm text-indigo-600 hover:text-indigo-700 font-medium" %>
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 bg-white rounded-lg shadow-sm border">
+  <div class="p-4 border-b flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
+    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+      <span class="text-xl">🐾</span> 当前寄养宠物
+      <% if @stats[:upcoming_checkouts_count] > 0 %>
+        <span class="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+          即将离店 <%= @stats[:upcoming_checkouts_count] %> 只
+        </span>
+      <% end %>
+    </h2>
+    <%= link_to "排班管理", admin_boarding_reservations_path, class: "text-sm text-indigo-600 hover:text-indigo-700 font-medium" %>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">宠物</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">主理人</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">笼位</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">入住</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">预计离店</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">天数</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% if @current_boardings.any? %>
+          <% @current_boardings.each do |r| %>
+            <% is_soon_checkout = r.check_out_at && r.check_out_at <= 2.days.from_now %>
+            <tr class="<%= is_soon_checkout ? 'bg-orange-50/50' : '' %> hover:bg-gray-50">
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex items-center">
+                  <span class="text-2xl mr-2"><%= r.pet.species == "狗" ? "🐕" : "🐱" %></span>
+                  <div>
+                    <div class="font-semibold text-gray-900"><%= r.pet_name %></div>
+                    <div class="text-xs text-gray-500"><%= r.pet.breed %></div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">👤 <%= r.caretaker_name %></td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">🏠 <%= r.kennel_name %></td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                <%= r.check_in_at.strftime("%m-%d") %>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm">
+                <% if is_soon_checkout %>
+                  <span class="font-bold text-orange-600 flex items-center gap-1">
+                    ⏰ <%= r.check_out_at&.strftime("%m-%d %H:%M") || "待定" %>
+                  </span>
+                <% else %>
+                  <span class="text-gray-600"><%= r.check_out_at&.strftime("%m-%d") || "待定" %></span>
+                <% end %>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                <%= r.duration_days %> 天
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                <%= link_to "详情", admin_boarding_reservation_path(r), class: "text-indigo-600 hover:text-indigo-900" %>
+                <%= link_to "离店", check_out_admin_boarding_reservation_path(r),
+                            method: :post,
+                            data: { confirm: "确认宠物已离店？" },
+                            class: "text-green-600 hover:text-green-900 ml-2" %>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="7" class="px-4 py-12 text-center text-gray-500">当前没有寄养中的宠物</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

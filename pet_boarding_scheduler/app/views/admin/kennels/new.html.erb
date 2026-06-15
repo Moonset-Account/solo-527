@@ -1,0 +1,56 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-gray-900 mb-6"><%= @kennel.new_record? ? "新增笼位" : "编辑笼位" %></h1>
+
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <%= form_with model: [:admin, @kennel], local: true do |form| %>
+      <% if @kennel.errors.any? %>
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <p class="font-medium"><%= pluralize(@kennel.errors.count, "个错误") %> 导致保存失败：</p>
+          <ul class="mt-2 text-sm list-disc list-inside">
+            <% @kennel.errors.each do |error| %>
+              <li><%= error.full_message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <div class="space-y-4">
+        <div>
+          <%= form.label :name, "笼位名称", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :name, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= form.label :size_category, "尺寸类型", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.select :size_category, ["小型", "中型", "大型", "超大型"], { include_blank: true }, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+          </div>
+          <div>
+            <%= form.label :daily_rate, "每日费用（元）", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.number_field :daily_rate, step: "0.01", class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+          </div>
+        </div>
+
+        <div>
+          <%= form.label :location, "位置", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :location, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <div>
+          <%= form.label :status, "状态", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.select :status, [["可用", "available"], ["占用", "occupied"], ["维修中", "maintenance"]], {}, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <div>
+          <%= form.label :notes, "备注", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_area :notes, rows: 3, class: "w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t">
+          <%= link_to "取消", admin_kennels_path, class: "px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50" %>
+          <%= form.submit @kennel.new_record? ? "创建" : "保存", class: "bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

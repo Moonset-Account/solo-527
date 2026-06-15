@@ -1,0 +1,68 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">笼位详情</h1>
+  <div class="flex gap-2">
+    <%= link_to "编辑", edit_admin_kennel_path(@kennel), class: "bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700" %>
+    <%= link_to "返回列表", admin_kennels_path, class: "border text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" %>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">基本信息</h2>
+    <div class="space-y-3">
+      <div class="flex justify-between">
+        <span class="text-gray-500">笼位名称</span>
+        <span class="font-medium text-gray-900"><%= @kennel.name %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500">尺寸类型</span>
+        <span class="font-medium text-gray-900"><%= @kennel.size_category %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500">位置</span>
+        <span class="font-medium text-gray-900"><%= @kennel.location || "未填写" %></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500">状态</span>
+        <span class="px-2 py-1 text-xs rounded-full
+          <%= @kennel.status == "available" ? "bg-green-100 text-green-700" :
+             @kennel.status == "occupied" ? "bg-blue-100 text-blue-700" :
+             "bg-gray-100 text-gray-700" %>">
+          <%= { "available" => "可用", "occupied" => "占用", "maintenance" => "维修中" }[@kennel.status] %>
+        </span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500">每日费用</span>
+        <span class="font-bold text-indigo-600">¥<%= sprintf("%.2f", @kennel.daily_rate) %></span>
+      </div>
+    </div>
+
+    <% if @kennel.notes.present? %>
+      <div class="mt-6 pt-6 border-t">
+        <h3 class="font-medium text-gray-900 mb-2">备注</h3>
+        <p class="text-sm text-gray-600"><%= @kennel.notes %></p>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">当前状态</h2>
+    <% if @current_pet %>
+      <div class="text-center py-4">
+        <div class="text-5xl mb-3"><%= @current_pet.species == "狗" ? "🐕" : "🐱" %></div>
+        <p class="font-semibold text-gray-900 text-lg"><%= @current_pet.name %></p>
+        <p class="text-sm text-gray-500"><%= @current_pet.breed || @current_pet.species %></p>
+        <%= link_to "查看宠物", admin_pet_path(@current_pet), class: "text-sm text-indigo-600 hover:text-indigo-700 mt-2 inline-block" %>
+      </div>
+    <% else %>
+      <div class="text-center py-8">
+        <div class="text-5xl mb-3">
+          <%= @kennel.status == "available" ? "✅" : "🔧" %>
+        </div>
+        <p class="text-gray-500">
+          <%= @kennel.status == "available" ? "笼位当前可用" : "笼位正在维修中" %>
+        </p>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<div class="max-w-3xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">通知详情</h1>
+    <%= link_to "返回列表", admin_notifications_path, class: "border text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <div class="flex items-start mb-4">
+      <div class="text-4xl mr-4">
+        <%= case @notification.notification_type
+            when "health" then "❤️"
+            when "training" then "🏋️"
+            when "safety" then "⚠️"
+            when "reservation" then "📅"
+            when "system" then "🔔"
+            else "🔔"
+            end %>
+      </div>
+      <div class="flex-1">
+        <h2 class="text-xl font-semibold text-gray-900 mb-1"><%= @notification.title %></h2>
+        <div class="flex gap-4 text-sm text-gray-500">
+          <span><%= @notification.created_at.strftime("%Y年%m月%d日 %H:%M") %></span>
+          <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs">
+            <%= { "health" => "健康", "training" => "训练", "safety" => "安全", "reservation" => "预约", "system" => "系统" }[@notification.notification_type] || @notification.notification_type %>
+          </span>
+          <% if @notification.is_read? %>
+            <span class="text-gray-400">已读</span>
+          <% else %>
+            <span class="text-indigo-600">未读</span>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-4 border-t">
+      <p class="text-gray-700 whitespace-pre-wrap"><%= @notification.content %></p>
+    </div>
+
+    <% if @notification.notifiable %>
+      <div class="mt-6 pt-6 border-t">
+        <p class="text-sm text-gray-500 mb-2">相关内容</p>
+        <%= link_to "查看详情", [:admin, @notification.notifiable], class: "text-indigo-600 hover:text-indigo-700 text-sm" %>
+      </div>
+    <% end %>
+  </div>
+</div>
