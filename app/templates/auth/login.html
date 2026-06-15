@@ -1,0 +1,80 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}登录 - {{ site_name }}{% endblock %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">🏠</div>
+            <h1>青禾租赁服务台</h1>
+            <p>欢迎回来，请登录您的账户</p>
+        </div>
+        <form class="auth-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" name="username" required placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" name="password" required placeholder="请输入密码">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">登录</button>
+        </form>
+        <div class="auth-footer">
+            <p>还没有账号？<a href="/register">立即注册</a></p>
+        </div>
+        <div class="demo-accounts">
+            <p class="demo-title">演示账号：</p>
+            <div class="demo-item" onclick="fillDemo('admin', 'admin123')">
+                <span>管理员：admin / admin123</span>
+            </div>
+            <div class="demo-item" onclick="fillDemo('consultant', '123456')">
+                <span>顾问：consultant / 123456</span>
+            </div>
+            <div class="demo-item" onclick="fillDemo('cs01', '123456')">
+                <span>客服：cs01 / 123456</span>
+            </div>
+            <div class="demo-item" onclick="fillDemo('tenant01', '123456')">
+                <span>租客：tenant01 / 123456</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('登录失败，请检查用户名和密码');
+    })
+    .then(data => {
+        window.location.href = '/dashboard';
+    })
+    .catch(error => {
+        alert(error.message);
+    });
+}
+
+function fillDemo(username, password) {
+    document.getElementById('username').value = username;
+    document.getElementById('password').value = password;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,427 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}房源详情{% endblock %}
+
+{% block header_actions %}
+{% if current_user.role in ['admin', 'consultant'] %}
+<button class="btn btn-secondary" onclick="showEditModal()">编辑</button>
+{% endif %}
+<button class="btn btn-primary" onclick="showBookModal()">预约看房</button>
+{% endblock %}
+
+{% block page_content %}
+<div class="detail-layout">
+    <div class="detail-main">
+        <div class="detail-header">
+            <div class="detail-title-row">
+                <h2 id="apt-no">加载中...</h2>
+                <span id="apt-status" class="status-badge"></span>
+            </div>
+            <div class="detail-price">
+                <span class="price-value" id="apt-price">-</span>
+                <span class="price-unit">元/月</span>
+            </div>
+        </div>
+
+        <div class="detail-tabs">
+            <button class="detail-tab active" data-tab="info" onclick="switchTab('info')">基本信息</button>
+            <button class="detail-tab" data-tab="history" onclick="switchTab('history')">修改历史</button>
+            <button class="detail-tab" data-tab="vacancy" onclick="switchTab('vacancy')">空置记录</button>
+        </div>
+
+        <div class="detail-tab-content" id="tab-info">
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>楼栋</label>
+                    <span id="info-building">-</span>
+                </div>
+                <div class="info-item">
+                    <label>楼层</label>
+                    <span id="info-floor">-</span>
+                </div>
+                <div class="info-item">
+                    <label>房号</label>
+                    <span id="info-room">-</span>
+                </div>
+                <div class="info-item">
+                    <label>面积</label>
+                    <span id="info-area">-</span>
+                </div>
+                <div class="info-item">
+                    <label>户型</label>
+                    <span id="info-layout">-</span>
+                </div>
+                <div class="info-item">
+                    <label>朝向</label>
+                    <span id="info-orientation">-</span>
+                </div>
+                <div class="info-item">
+                    <label>装修</label>
+                    <span id="info-decoration">-</span>
+                </div>
+                <div class="info-item">
+                    <label>押金月数</label>
+                    <span id="info-deposit">-</span>
+                </div>
+            </div>
+            <div class="info-section">
+                <h4>地址</h4>
+                <p id="info-address">-</p>
+            </div>
+            <div class="info-section">
+                <h4>房源描述</h4>
+                <p id="info-description">-</p>
+            </div>
+            <div class="info-section">
+                <h4>配套设施</h4>
+                <p id="info-facilities">-</p>
+            </div>
+            <div class="info-section">
+                <h4>标签</h4>
+                <div id="info-tags" class="tag-list"></div>
+            </div>
+        </div>
+
+        <div class="detail-tab-content" id="tab-history" style="display:none;">
+            <div class="history-list" id="history-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+
+        <div class="detail-tab-content" id="tab-vacancy" style="display:none;">
+            <div class="history-list" id="vacancy-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-sidebar">
+        <div class="side-card">
+            <h3>快速操作</h3>
+            <div class="side-actions">
+                <button class="btn btn-primary btn-block" onclick="showBookModal()">预约看房</button>
+                {% if current_user.role in ['admin', 'consultant'] %}
+                <button class="btn btn-secondary btn-block" onclick="showStatusModal()">修改状态</button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="side-card">
+            <h3>近期预约</h3>
+            <div id="recent-appointments" class="side-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+const apartmentId = {{ apartment_id }};
+const statusLabels = {{ status_labels | tojson }};
+const isAdminOrConsultant = {{ 'true' if current_user.role in ['admin', 'consultant'] else 'false' }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadApartmentDetail();
+    loadChangeLogs();
+    loadVacancyHistory();
+    loadRecentAppointments();
+});
+
+function switchTab(tabName) {
+    document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.detail-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelector(`.detail-tab[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).style.display = 'block';
+}
+
+function loadApartmentDetail() {
+    fetch(`/api/apartments/${apartmentId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(apt => {
+            document.getElementById('apt-no').textContent = apt.apartment_no;
+            document.title = apt.apartment_no + ' - 房源详情 | 青禾租赁服务台';
+
+            const statusEl = document.getElementById('apt-status');
+            const statusInfo = statusLabels[apt.status] || { text: apt.status, class: '' };
+            statusEl.textContent = statusInfo.text;
+            statusEl.className = `status-badge ${statusInfo.class}`;
+
+            document.getElementById('apt-price').textContent = '¥' + apt.monthly_rent;
+            document.getElementById('info-building').textContent = apt.building || '-';
+            document.getElementById('info-floor').textContent = (apt.floor || '-') + '层';
+            document.getElementById('info-room').textContent = apt.room_no || '-';
+            document.getElementById('info-area').textContent = (apt.area || '-') + '㎡';
+            document.getElementById('info-layout').textContent = `${apt.bedrooms || 1}室${apt.living_rooms || 1}厅${apt.bathrooms || 1}卫`;
+            document.getElementById('info-orientation').textContent = apt.orientation || '-';
+            document.getElementById('info-decoration').textContent = apt.decoration || '-';
+            document.getElementById('info-deposit').textContent = apt.deposit_months + '个月';
+            document.getElementById('info-address').textContent = apt.address || '-';
+            document.getElementById('info-description').textContent = apt.description || '暂无描述';
+            document.getElementById('info-facilities').textContent = apt.facilities || '暂无信息';
+
+            const tagsEl = document.getElementById('info-tags');
+            if (apt.tags) {
+                tagsEl.innerHTML = apt.tags.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('');
+            } else {
+                tagsEl.innerHTML = '<span class="muted">暂无标签</span>';
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+function loadChangeLogs() {
+    fetch(`/api/apartments/${apartmentId}/change-logs`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(logs => {
+            const container = document.getElementById('history-list');
+            if (logs.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无修改记录</div>';
+                return;
+            }
+            container.innerHTML = logs.map(log => `
+                <div class="history-item">
+                    <div class="history-time">${formatDate(log.created_at)}</div>
+                    <div class="history-content">
+                        ${log.change_type === 'create' ? '创建房源' : log.remark || `修改 ${log.field_name}: ${log.old_value || '-'} → ${log.new_value || '-'}`}
+                    </div>
+                </div>
+            `).join('');
+        });
+}
+
+function loadVacancyHistory() {
+    fetch(`/api/apartments/${apartmentId}/vacancy-history`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(records => {
+            const container = document.getElementById('vacancy-list');
+            if (records.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无空置记录</div>';
+                return;
+            }
+            container.innerHTML = records.map(r => {
+                const toStatus = statusLabels[r.to_status] || { text: r.to_status, class: '' };
+                return `
+                    <div class="history-item">
+                        <div class="history-time">${r.change_date}</div>
+                        <div class="history-content">
+                            变更为 <span class="status-badge-small ${toStatus.class}">${toStatus.text}</span>
+                            ${r.remark ? `<span class="muted">（${r.remark}）</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        });
+}
+
+function loadRecentAppointments() {
+    fetch(`/api/appointments/?apartment_id=${apartmentId}&limit=5`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(appts => {
+            const container = document.getElementById('recent-appointments');
+            if (appts.length === 0) {
+                container.innerHTML = '<div class="empty-state small">暂无预约记录</div>';
+                return;
+            }
+            container.innerHTML = appts.map(a => {
+                const statusInfo = statusLabels[a.status] || { text: a.status, class: '' };
+                return `
+                    <div class="side-list-item">
+                        <div class="side-item-main">
+                            <span>${a.tenant_name || '匿名客户'}</span>
+                            <span class="status-badge-small ${statusInfo.class}">${statusInfo.text}</span>
+                        </div>
+                        <div class="side-item-sub muted">${a.appointment_date} ${a.appointment_time}</div>
+                    </div>
+                `;
+            }).join('');
+        });
+}
+
+function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleString('zh-CN');
+}
+
+function showBookModal() {
+    const content = `
+        <form id="book-form" onsubmit="event.preventDefault(); submitAppointment();">
+            <div class="form-group">
+                <label>预约日期 *</label>
+                <input type="date" name="appointment_date" required>
+            </div>
+            <div class="form-group">
+                <label>预约时间 *</label>
+                <select name="appointment_time" required>
+                    <option value="">请选择</option>
+                    <option value="09:00">09:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="14:00">14:00</option>
+                    <option value="15:00">15:00</option>
+                    <option value="16:00">16:00</option>
+                    <option value="17:00">17:00</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>您的姓名</label>
+                <input type="text" name="tenant_name">
+            </div>
+            <div class="form-group">
+                <label>联系电话</label>
+                <input type="tel" name="tenant_phone">
+            </div>
+            <div class="form-group">
+                <label>需求描述</label>
+                <textarea name="demand_description" rows="3"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('预约看房', content, submitAppointment);
+}
+
+function submitAppointment() {
+    const form = document.getElementById('book-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    data.apartment_id = apartmentId;
+
+    fetch('/api/appointments/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        return res.json().then(err => { throw new Error(err.detail || '预约失败'); });
+    })
+    .then(() => {
+        closeModal();
+        showToast('预约成功，等待顾问确认');
+        loadRecentAppointments();
+    })
+    .catch(err => {
+        showToast(err.message, 'error');
+    });
+}
+
+function showEditModal() {
+    fetch(`/api/apartments/${apartmentId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(apt => {
+            const content = `
+                <form id="edit-form" onsubmit="event.preventDefault(); saveEdit();">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>楼栋</label>
+                            <input type="text" name="building" value="${apt.building || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>楼层</label>
+                            <input type="number" name="floor" value="${apt.floor || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>面积(㎡)</label>
+                            <input type="number" step="0.1" name="area" value="${apt.area || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>月租金</label>
+                            <input type="number" name="monthly_rent" value="${apt.monthly_rent}">
+                        </div>
+                        <div class="form-group">
+                            <label>卧室数</label>
+                            <input type="number" name="bedrooms" value="${apt.bedrooms || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>朝向</label>
+                            <input type="text" name="orientation" value="${apt.orientation || ''}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea name="description" rows="3">${apt.description || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>配套设施</label>
+                        <textarea name="facilities" rows="2">${apt.facilities || ''}</textarea>
+                    </div>
+                </form>
+            `;
+            openModal('编辑房源', content, saveEdit);
+        });
+}
+
+function saveEdit() {
+    const form = document.getElementById('edit-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    Object.keys(data).forEach(k => {
+        if (data[k] === '' || data[k] === null) delete data[k];
+    });
+
+    fetch(`/api/apartments/${apartmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('保存失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('保存成功');
+        loadApartmentDetail();
+        loadChangeLogs();
+    })
+    .catch(err => {
+        showToast(err.message, 'error');
+    });
+}
+
+function showStatusModal() {
+    const content = `
+        <form id="status-form" onsubmit="event.preventDefault(); saveStatus();">
+            <div class="form-group">
+                <label>状态</label>
+                <select name="status">
+                    <option value="vacant">空置</option>
+                    <option value="occupied">已租</option>
+                    <option value="reserved">已订</option>
+                    <option value="maintenance">维护中</option>
+                    <option value="decorating">装修中</option>
+                </select>
+            </div>
+        </form>
+    `;
+    openModal('修改状态', content, saveStatus);
+}
+
+function saveStatus() {
+    const form = document.getElementById('status-form');
+    const status = form.status.value;
+
+    fetch(`/api/apartments/${apartmentId}/status?status=${status}`, {
+        method: 'PATCH',
+        credentials: 'same-origin'
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('修改失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('状态修改成功');
+        loadApartmentDetail();
+        loadChangeLogs();
+        loadVacancyHistory();
+    })
+    .catch(err => {
+        showToast(err.message, 'error');
+    });
+}
+</script>
+{% endblock %}

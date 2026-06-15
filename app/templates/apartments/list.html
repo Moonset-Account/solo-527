@@ -1,0 +1,279 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}房源管理{% endblock %}
+
+{% block header_actions %}
+{% if current_user.role == 'admin' %}
+<button class="btn btn-primary" onclick="openCreateModal()">+ 新增房源</button>
+{% endif %}
+{% endblock %}
+
+{% block page_content %}
+<div class="filter-bar">
+    <div class="filter-tabs">
+        <button class="tab-btn active" data-status="" onclick="filterByStatus(this, '')">全部</button>
+        <button class="tab-btn" data-status="vacant" onclick="filterByStatus(this, 'vacant')">空置</button>
+        <button class="tab-btn" data-status="occupied" onclick="filterByStatus(this, 'occupied')">已租</button>
+        <button class="tab-btn" data-status="reserved" onclick="filterByStatus(this, 'reserved')">已订</button>
+    </div>
+    <div class="filter-right">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索房号/地址..." onkeyup="if(event.key==='Enter')searchApartments()">
+            <button class="btn-search" onclick="searchApartments()">🔍</button>
+        </div>
+        <select id="price-filter" onchange="applyFilters()">
+            <option value="">价格不限</option>
+            <option value="0-2000">2000元以下</option>
+            <option value="2000-4000">2000-4000元</option>
+            <option value="4000-6000">4000-6000元</option>
+            <option value="6000+">6000元以上</option>
+        </select>
+    </div>
+</div>
+
+<div class="apartment-grid" id="apartment-list">
+    <div class="loading">加载中...</div>
+</div>
+
+<div class="pagination" id="pagination">
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentPage = 1;
+let pageSize = 12;
+let currentStatus = '';
+let currentKeyword = '';
+let currentMinPrice = null;
+let currentMaxPrice = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status')) {
+        currentStatus = params.get('status');
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.status === currentStatus);
+        });
+    }
+    loadApartments();
+});
+
+function filterByStatus(btn, status) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStatus = status;
+    currentPage = 1;
+    loadApartments();
+}
+
+function searchApartments() {
+    currentKeyword = document.getElementById('search-input').value;
+    currentPage = 1;
+    loadApartments();
+}
+
+function applyFilters() {
+    const priceVal = document.getElementById('price-filter').value;
+    if (priceVal) {
+        const parts = priceVal.split('-');
+        if (parts.length === 2) {
+            currentMinPrice = parseFloat(parts[0]) || null;
+            currentMaxPrice = parseFloat(parts[1]) || null;
+        } else if (priceVal.endsWith('+')) {
+            currentMinPrice = parseFloat(priceVal);
+            currentMaxPrice = null;
+        }
+    } else {
+        currentMinPrice = null;
+        currentMaxPrice = null;
+    }
+    currentPage = 1;
+    loadApartments();
+}
+
+function loadApartments() {
+    let url = `/api/apartments/?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (currentStatus) url += `&status=${currentStatus}`;
+    if (currentKeyword) url += `&keyword=${encodeURIComponent(currentKeyword)}`;
+    if (currentMinPrice) url += `&min_price=${currentMinPrice}`;
+    if (currentMaxPrice) url += `&max_price=${currentMaxPrice}`;
+
+    fetch(url, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            renderApartments(data);
+            loadTotalCount();
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('apartment-list').innerHTML = '<div class="empty-state">加载失败</div>';
+        });
+}
+
+function loadTotalCount() {
+    let url = '/api/apartments/stats';
+    fetch(url, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            let total = data.total;
+            if (currentStatus === 'vacant') total = data.vacant;
+            else if (currentStatus === 'occupied') total = data.occupied;
+            else if (currentStatus === 'reserved') total = data.reserved;
+            renderPagination(total);
+        });
+}
+
+function renderApartments(apartments) {
+    const container = document.getElementById('apartment-list');
+    if (apartments.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无房源数据</div>';
+        return;
+    }
+
+    const statusLabels = {{ status_labels | tojson }};
+
+    container.innerHTML = apartments.map(apt => `
+        <div class="apartment-card" onclick="window.location.href='/apartments/${apt.id}'">
+            <div class="apt-image">
+                <span class="apt-no">${apt.apartment_no}</span>
+                <span class="apt-status ${statusLabels[apt.status]?.class || ''}">${statusLabels[apt.status]?.text || apt.status}</span>
+            </div>
+            <div class="apt-info">
+                <div class="apt-title">${apt.bedrooms || 1}室${apt.living_rooms || 1}厅 · ${apt.area || '--'}㎡</div>
+                <div class="apt-price">
+                    <span class="price-num">¥${apt.monthly_rent}</span>
+                    <span class="price-unit">/月</span>
+                </div>
+                <div class="apt-meta">
+                    <span>${apt.building || '--'}栋</span>
+                    <span>${apt.floor || '--'}层</span>
+                    <span>${apt.orientation || '--'}朝向</span>
+                </div>
+                {% if current_user.role != 'tenant' %}
+                <div class="apt-actions">
+                    <button class="btn btn-small" onclick="event.stopPropagation(); bookAppointment(${apt.id})">预约看房</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `<span class="page-info">共 ${total} 条</span>`;
+    html += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>上一页</button>`;
+    for (let i = 1; i <= totalPages && i <= 5; i++) {
+        html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>下一页</button>`;
+    container.innerHTML = html;
+}
+
+function goPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadApartments();
+}
+
+function openCreateModal() {
+    const content = `
+        <form id="create-form" onsubmit="event.preventDefault(); createApartment();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>房间编号 *</label>
+                    <input type="text" name="apartment_no" required>
+                </div>
+                <div class="form-group">
+                    <label>楼栋</label>
+                    <input type="text" name="building">
+                </div>
+                <div class="form-group">
+                    <label>楼层</label>
+                    <input type="number" name="floor">
+                </div>
+                <div class="form-group">
+                    <label>房号</label>
+                    <input type="text" name="room_no">
+                </div>
+                <div class="form-group">
+                    <label>面积(㎡)</label>
+                    <input type="number" step="0.1" name="area">
+                </div>
+                <div class="form-group">
+                    <label>卧室数</label>
+                    <input type="number" name="bedrooms" value="1">
+                </div>
+                <div class="form-group">
+                    <label>月租金 *</label>
+                    <input type="number" name="monthly_rent" required>
+                </div>
+                <div class="form-group">
+                    <label>押金月数</label>
+                    <input type="number" step="0.5" name="deposit_months" value="1">
+                </div>
+                <div class="form-group">
+                    <label>朝向</label>
+                    <input type="text" name="orientation">
+                </div>
+                <div class="form-group">
+                    <label>装修</label>
+                    <input type="text" name="decoration">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>地址</label>
+                    <input type="text" name="address">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>描述</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+            </div>
+        </form>
+    `;
+    openModal('新增房源', content, createApartment);
+}
+
+function createApartment() {
+    const form = document.getElementById('create-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    data.floor = data.floor ? parseInt(data.floor) : null;
+    data.area = data.area ? parseFloat(data.area) : null;
+    data.bedrooms = data.bedrooms ? parseInt(data.bedrooms) : null;
+    data.monthly_rent = parseFloat(data.monthly_rent);
+    data.deposit_months = parseFloat(data.deposit_months);
+
+    fetch('/api/apartments/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('创建失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('房源创建成功');
+        loadApartments();
+    })
+    .catch(err => {
+        showToast(err.message, 'error');
+    });
+}
+
+function bookAppointment(apartmentId) {
+    window.location.href = `/appointments?apartment_id=${apartmentId}`;
+}
+</script>
+{% endblock %}

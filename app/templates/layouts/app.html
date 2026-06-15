@@ -1,0 +1,138 @@
+{% extends "layouts/base.html" %}
+
+{% block body_class %}app-layout{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">青禾租赁</h1>
+            <p class="logo-sub">服务台</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item {% if active_menu == 'dashboard' %}active{% endif %}">
+                <span class="nav-icon">📊</span>
+                <span>仪表盘</span>
+            </a>
+
+            <div class="nav-section">
+                <span class="nav-section-title">业务管理</span>
+                <a href="/apartments" class="nav-item {% if active_menu == 'apartments' %}active{% endif %}">
+                    <span class="nav-icon">🏠</span>
+                    <span>房源管理</span>
+                </a>
+                <a href="/appointments" class="nav-item {% if active_menu == 'appointments' %}active{% endif %}">
+                    <span class="nav-icon">📅</span>
+                    <span>看房预约</span>
+                </a>
+                <a href="/deposits" class="nav-item {% if active_menu == 'deposits' %}active{% endif %}">
+                    <span class="nav-icon">💰</span>
+                    <span>押金记录</span>
+                </a>
+                {% if current_user.role in ['admin', 'customer_service'] %}
+                <a href="/risks" class="nav-item {% if active_menu == 'risks' %}active{% endif %}">
+                    <span class="nav-icon">⚠️</span>
+                    <span>合同风险</span>
+                    <span class="nav-badge" id="risk-badge" style="display:none;">0</span>
+                </a>
+                {% endif %}
+            </div>
+
+            {% if current_user.role == 'admin' %}
+            <div class="nav-section">
+                <span class="nav-section-title">系统管理</span>
+                <a href="/admin/dict" class="nav-item {% if active_menu == 'admin_dict' %}active{% endif %}">
+                    <span class="nav-icon">📋</span>
+                    <span>字典管理</span>
+                </a>
+                <a href="/admin/config" class="nav-item {% if active_menu == 'admin_config' %}active{% endif %}">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统配置</span>
+                </a>
+            </div>
+            {% endif %}
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">{{ current_user.full_name[0] if current_user.full_name else current_user.username[0] }}</div>
+                <div class="user-detail">
+                    <div class="user-name">{{ current_user.full_name or current_user.username }}</div>
+                    <div class="user-role">{{ role_names.get(current_user.role, current_user.role) }}</div>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="logout()">退出登录</button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <h2 class="page-title">{% block page_title %}{% endblock %}</h2>
+            </div>
+            <div class="header-right">
+                {% block header_actions %}{% endblock %}
+            </div>
+        </header>
+        <div class="content-body">
+            {% block page_content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<div id="modal-container"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function logout() {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+        .then(() => { window.location.href = '/login'; });
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function openModal(title, content, onConfirm) {
+    const container = document.getElementById('modal-container');
+    container.innerHTML = `
+        <div class="modal-overlay" onclick="closeModal()">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">${content}</div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" id="modal-confirm-btn">确定</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById('modal-confirm-btn').onclick = function() {
+        if (onConfirm) onConfirm();
+    };
+}
+
+function closeModal() {
+    document.getElementById('modal-container').innerHTML = '';
+}
+
+document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr && evt.detail.xhr.status === 401) {
+        window.location.href = '/login';
+    }
+});
+</script>
+{% endblock %}

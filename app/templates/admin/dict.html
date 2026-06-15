@@ -1,0 +1,244 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}字典管理{% endblock %}
+
+{% block page_content %}
+<div class="admin-layout">
+    <div class="admin-sidebar">
+        <div class="admin-side-header">
+            <h3>字典分类</h3>
+            <button class="btn btn-small btn-primary" onclick="showAddTypeModal()">+ 新增</button>
+        </div>
+        <div class="dict-type-list" id="dict-type-list">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <div class="admin-content">
+        <div class="admin-content-header">
+            <h3 id="current-type-name">字典项</h3>
+            <button class="btn btn-primary" id="add-item-btn" onclick="showAddItemModal()" style="display:none;">+ 新增字典项</button>
+        </div>
+        <div class="table-container">
+            <table class="data-table" id="dict-items-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>标签</th>
+                        <th>值</th>
+                        <th>排序</th>
+                        <th>默认</th>
+                        <th>状态</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="dict-item-list"></tbody>
+            </table>
+            <div id="dict-empty" class="empty-state">请选择左侧字典分类</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentTypeId = null;
+let currentTypeCode = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDictTypes();
+});
+
+function loadDictTypes() {
+    fetch('/api/dict-types', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(types => {
+            const container = document.getElementById('dict-type-list');
+            if (types.length === 0) {
+                container.innerHTML = '<div class="empty-state small">暂无字典分类</div>';
+                return;
+            }
+            container.innerHTML = types.map(t => `
+                <div class="dict-type-item" onclick="selectType(${t.id}, '${t.dict_code}', '${t.dict_name}')" data-id="${t.id}">
+                    <div class="dict-type-name">${t.dict_name}</div>
+                    <div class="dict-type-code muted small">${t.dict_code}</div>
+                </div>
+            `).join('');
+        });
+}
+
+function selectType(id, code, name) {
+    currentTypeId = id;
+    currentTypeCode = code;
+
+    document.querySelectorAll('.dict-type-item').forEach(item => {
+        item.classList.toggle('active', parseInt(item.dataset.id) === id);
+    });
+
+    document.getElementById('current-type-name').textContent = name + ' - 字典项';
+    document.getElementById('add-item-btn').style.display = 'inline-block';
+    document.getElementById('dict-items-table').style.display = 'table';
+    document.getElementById('dict-empty').style.display = 'none';
+
+    loadDictItems(id);
+}
+
+function loadDictItems(typeId) {
+    fetch(`/api/dict-types/${currentTypeCode}/items`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(items => {
+            const tbody = document.getElementById('dict-item-list');
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无字典项</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.item_label}</td>
+                    <td><code>${item.item_value}</code></td>
+                    <td>${item.sort_order}</td>
+                    <td>${item.is_default ? '是' : '否'}</td>
+                    <td><span class="status-badge-small ${item.status === 'active' ? 'status-confirmed' : 'status-cancelled'}">${item.status === 'active' ? '启用' : '停用'}</span></td>
+                    <td>${item.remark || '-'}</td>
+                    <td class="actions-col">
+                        <button class="btn-link" onclick="editItem(${item.id})">编辑</button>
+                        <button class="btn-link btn-danger-text" onclick="deleteItem(${item.id})">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        });
+}
+
+function showAddTypeModal() {
+    const content = `
+        <form id="type-form" onsubmit="event.preventDefault(); addType();">
+            <div class="form-group">
+                <label>字典编码 *</label>
+                <input type="text" name="dict_code" required placeholder="例如: appointment_status">
+            </div>
+            <div class="form-group">
+                <label>字典名称 *</label>
+                <input type="text" name="dict_name" required placeholder="例如: 预约状态">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea name="description" rows="2"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('新增字典分类', content, addType);
+}
+
+function addType() {
+    const form = document.getElementById('type-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch('/api/dict-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('创建失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('创建成功');
+        loadDictTypes();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showAddItemModal() {
+    if (!currentTypeId) {
+        showToast('请先选择字典分类', 'error');
+        return;
+    }
+    const content = `
+        <form id="item-form" onsubmit="event.preventDefault(); addItem();">
+            <div class="form-group">
+                <label>标签 *</label>
+                <input type="text" name="item_label" required>
+            </div>
+            <div class="form-group">
+                <label>值 *</label>
+                <input type="text" name="item_value" required>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>排序</label>
+                    <input type="number" name="sort_order" value="0">
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <select name="status">
+                        <option value="active">启用</option>
+                        <option value="inactive">停用</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="is_default"> 是否默认
+                </label>
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea name="remark" rows="2"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('新增字典项', content, addItem);
+}
+
+function addItem() {
+    const form = document.getElementById('item-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    data.dict_type_id = currentTypeId;
+    data.sort_order = parseInt(data.sort_order) || 0;
+    data.is_default = form.querySelector('[name=is_default]').checked;
+
+    fetch('/api/dict-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('创建失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('创建成功');
+        loadDictItems(currentTypeId);
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function editItem(itemId) {
+    showToast('编辑功能请使用 API 操作', 'info');
+}
+
+function deleteItem(itemId) {
+    if (!confirm('确认删除该字典项？')) return;
+    fetch(`/api/dict-items/${itemId}`, {
+        method: 'DELETE',
+        credentials: 'same-origin'
+    })
+    .then(res => {
+        if (res.ok) {
+            showToast('删除成功');
+            loadDictItems(currentTypeId);
+        } else {
+            showToast('删除失败', 'error');
+        }
+    });
+}
+</script>
+{% endblock %}

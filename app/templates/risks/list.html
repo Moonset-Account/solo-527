@@ -1,0 +1,360 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}合同风险{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary" onclick="showCreateModal()">+ 上报风险</button>
+{% endblock %}
+
+{% block page_content %}
+<div class="filter-bar">
+    <div class="filter-tabs">
+        <button class="tab-btn active" data-status="" onclick="filterByStatus(this, '')">全部</button>
+        <button class="tab-btn" data-status="pending" onclick="filterByStatus(this, 'pending')">待处理</button>
+        <button class="tab-btn" data-status="processing" onclick="filterByStatus(this, 'processing')">处理中</button>
+        <button class="tab-btn" data-status="resolved" onclick="filterByStatus(this, 'resolved')">已解决</button>
+        <button class="tab-btn" data-status="closed" onclick="filterByStatus(this, 'closed')">已关闭</button>
+    </div>
+    <div class="filter-right">
+        <select id="level-filter" onchange="applyFilters()">
+            <option value="">全部等级</option>
+            <option value="low">低</option>
+            <option value="medium">中</option>
+            <option value="high">高</option>
+            <option value="critical">严重</option>
+        </select>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索..." onkeyup="if(event.key==='Enter')searchRisks()">
+            <button class="btn-search" onclick="searchRisks()">🔍</button>
+        </div>
+    </div>
+</div>
+
+<div class="stats-row" style="margin-bottom: 20px;">
+    <div class="card stat-mini">
+        <div class="stat-label">待处理</div>
+        <div class="stat-value red" id="stat-pending">0</div>
+    </div>
+    <div class="card stat-mini">
+        <div class="stat-label">处理中</div>
+        <div class="stat-value orange" id="stat-processing">0</div>
+    </div>
+    <div class="card stat-mini">
+        <div class="stat-label">高风险</div>
+        <div class="stat-value danger" id="stat-high">0</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>风险编号</th>
+                <th>类型</th>
+                <th>等级</th>
+                <th>租客</th>
+                <th>描述</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="risk-list">
+            <tr><td colspan="8" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination" id="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentPage = 1;
+let pageSize = 15;
+let currentStatus = '';
+let currentLevel = '';
+let currentKeyword = '';
+const statusLabels = {{ status_labels | tojson }};
+const riskLevels = {{ risk_levels | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status')) {
+        currentStatus = params.get('status');
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.status === currentStatus);
+        });
+    }
+    loadStats();
+    loadRisks();
+});
+
+function filterByStatus(btn, status) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStatus = status;
+    currentPage = 1;
+    loadRisks();
+}
+
+function applyFilters() {
+    currentLevel = document.getElementById('level-filter').value;
+    currentPage = 1;
+    loadRisks();
+}
+
+function searchRisks() {
+    currentKeyword = document.getElementById('search-input').value;
+    currentPage = 1;
+    loadRisks();
+}
+
+function loadStats() {
+    fetch('/api/risks/stats', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-pending').textContent = data.pending;
+            document.getElementById('stat-processing').textContent = data.processing;
+            document.getElementById('stat-high').textContent = data.high_risk;
+        });
+}
+
+function loadRisks() {
+    let url = `/api/risks/?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (currentStatus) url += `&status=${currentStatus}`;
+    if (currentLevel) url += `&risk_level=${currentLevel}`;
+    if (currentKeyword) url += `&keyword=${encodeURIComponent(currentKeyword)}`;
+
+    fetch(url, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            renderRisks(data);
+            renderPagination(20);
+        });
+}
+
+function renderRisks(risks) {
+    const tbody = document.getElementById('risk-list');
+    if (risks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无风险记录</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = risks.map(r => {
+        const statusInfo = statusLabels[r.status] || { text: r.status, class: '' };
+        const levelInfo = riskLevels[r.risk_level] || { text: r.risk_level, class: '' };
+        return `
+            <tr>
+                <td><a href="#" class="link" onclick="showDetail(${r.id}); return false;">${r.risk_no}</a></td>
+                <td>${r.risk_type}</td>
+                <td><span class="risk-level ${levelInfo.class}">${levelInfo.text}</span></td>
+                <td>${r.tenant_name || '-'}</td>
+                <td class="desc-col">${r.description || '-'}</td>
+                <td><span class="status-badge-small ${statusInfo.class}">${statusInfo.text}</span></td>
+                <td class="muted small">${r.created_at?.substring(0, 16) || ''}</td>
+                <td class="actions-col">
+                    ${r.status === 'pending' || r.status === 'processing' ? `
+                        <button class="btn-link btn-primary-text" onclick="showHandleModal(${r.id})">处理</button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = `<span class="page-info">共 ${total} 条</span>`;
+    html += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>上一页</button>`;
+    for (let i = 1; i <= totalPages && i <= 5; i++) {
+        html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>下一页</button>`;
+    container.innerHTML = html;
+}
+
+function goPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadRisks();
+}
+
+function showCreateModal() {
+    const content = `
+        <form id="create-form" onsubmit="event.preventDefault(); createRisk();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>风险类型 *</label>
+                    <select name="risk_type" required>
+                        <option value="">请选择</option>
+                        <option value="payment_delay">租金逾期</option>
+                        <option value="contract_violation">合同违约</option>
+                        <option value="damage">物品损坏</option>
+                        <option value="noise">噪音扰民</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>风险等级</label>
+                    <select name="risk_level">
+                        <option value="low">低</option>
+                        <option value="medium" selected>中</option>
+                        <option value="high">高</option>
+                        <option value="critical">严重</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>租客姓名</label>
+                    <input type="text" name="tenant_name">
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="tel" name="tenant_phone">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>风险描述 *</label>
+                <textarea name="description" rows="4" required></textarea>
+            </div>
+        </form>
+    `;
+    openModal('上报风险', content, createRisk);
+}
+
+function createRisk() {
+    const form = document.getElementById('create-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch('/api/risks/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('上报失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('风险已上报');
+        loadRisks();
+        loadStats();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showHandleModal(riskId) {
+    const content = `
+        <form id="handle-form" onsubmit="event.preventDefault(); doHandle(${riskId});">
+            <div class="form-group">
+                <label>处理结果状态</label>
+                <select name="status">
+                    <option value="processing">处理中</option>
+                    <option value="resolved">已解决</option>
+                    <option value="closed">已关闭</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>处理结果 *</label>
+                <textarea name="handle_result" rows="4" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>处理原因/说明</label>
+                <textarea name="handle_reason" rows="2"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('处理风险', content, () => doHandle(riskId));
+}
+
+function doHandle(riskId) {
+    const form = document.getElementById('handle-form');
+    const data = {
+        handle_result: form.handle_result.value,
+        handle_reason: form.handle_reason.value,
+        status: form.status.value
+    };
+
+    fetch(`/api/risks/${riskId}/handle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('处理失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('处理成功');
+        loadRisks();
+        loadStats();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showDetail(riskId) {
+    fetch(`/api/risks/${riskId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(r => {
+            const statusInfo = statusLabels[r.status] || { text: r.status, class: '' };
+            const levelInfo = riskLevels[r.risk_level] || { text: r.risk_level, class: '' };
+            const content = `
+                <div class="detail-view">
+                    <div class="detail-row">
+                        <span class="label">风险编号：</span>
+                        <span>${r.risk_no || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">类型：</span>
+                        <span>${r.risk_type}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">等级：</span>
+                        <span class="risk-level ${levelInfo.class}">${levelInfo.text}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">租客：</span>
+                        <span>${r.tenant_name || '-'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">状态：</span>
+                        <span class="status-badge-small ${statusInfo.class}">${statusInfo.text}</span>
+                    </div>
+                    <div class="detail-section">
+                        <div class="label">风险描述：</div>
+                        <p>${r.description || '-'}</p>
+                    </div>
+                    ${r.handle_result ? `
+                    <div class="detail-section">
+                        <div class="label">处理结果：</div>
+                        <p>${r.handle_result}</p>
+                    </div>
+                    ` : ''}
+                    ${r.handle_reason ? `
+                    <div class="detail-section">
+                        <div class="label">原因说明：</div>
+                        <p>${r.handle_reason}</p>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row">
+                        <span class="label">创建时间：</span>
+                        <span class="muted">${r.created_at?.substring(0, 19) || ''}</span>
+                    </div>
+                </div>
+            `;
+            openModal('风险详情', content, null);
+        });
+}
+</script>
+{% endblock %}

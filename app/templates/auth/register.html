@@ -1,0 +1,84 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}注册 - {{ site_name }}{% endblock %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">🏠</div>
+            <h1>注册账号</h1>
+            <p>欢迎加入青禾租赁</p>
+        </div>
+        <form class="auth-form" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label>用户名 *</label>
+                <input type="text" id="username" name="username" required placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="full_name" name="full_name" placeholder="请输入真实姓名">
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" id="phone" name="phone" placeholder="请输入手机号">
+            </div>
+            <div class="form-group">
+                <label>邮箱</label>
+                <input type="email" id="email" name="email" placeholder="请输入邮箱">
+            </div>
+            <div class="form-group">
+                <label>密码 *</label>
+                <input type="password" id="password" name="password" required placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <select id="role" name="role">
+                    <option value="tenant">租客</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">注册</button>
+        </form>
+        <div class="auth-footer">
+            <p>已有账号？<a href="/login">立即登录</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleRegister(event) {
+    event.preventDefault();
+    const data = {
+        username: document.getElementById('username').value,
+        full_name: document.getElementById('full_name').value,
+        phone: document.getElementById('phone').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        role: document.getElementById('role').value
+    };
+
+    fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        return response.json().then(err => { throw new Error(err.detail || '注册失败'); });
+    })
+    .then(data => {
+        alert('注册成功！请登录');
+        window.location.href = '/login';
+    })
+    .catch(error => {
+        alert(error.message);
+    });
+}
+</script>
+{% endblock %}

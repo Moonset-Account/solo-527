@@ -1,0 +1,234 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}预约详情{% endblock %}
+
+{% block page_content %}
+<div class="detail-layout">
+    <div class="detail-main">
+        <div class="detail-header">
+            <div class="detail-title-row">
+                <h2>预约 #{{ appointment_id }}</h2>
+                <span id="appt-status" class="status-badge"></span>
+            </div>
+        </div>
+
+        <div class="detail-tabs">
+            <button class="detail-tab active" data-tab="info" onclick="switchTab('info')">基本信息</button>
+            <button class="detail-tab" data-tab="follow" onclick="switchTab('follow')">跟进记录</button>
+        </div>
+
+        <div class="detail-tab-content" id="tab-info">
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>房源</label>
+                    <span id="info-apartment">-</span>
+                </div>
+                <div class="info-item">
+                    <label>预约日期</label>
+                    <span id="info-date">-</span>
+                </div>
+                <div class="info-item">
+                    <label>预约时间</label>
+                    <span id="info-time">-</span>
+                </div>
+                <div class="info-item">
+                    <label>顾问</label>
+                    <span id="info-consultant">-</span>
+                </div>
+                <div class="info-item">
+                    <label>客户姓名</label>
+                    <span id="info-name">-</span>
+                </div>
+                <div class="info-item">
+                    <label>联系电话</label>
+                    <span id="info-phone">-</span>
+                </div>
+            </div>
+            <div class="info-section">
+                <h4>来源渠道</h4>
+                <p id="info-source">-</p>
+            </div>
+            <div class="info-section">
+                <h4>需求描述</h4>
+                <p id="info-demand">-</p>
+            </div>
+            <div class="info-section">
+                <h4>备注</h4>
+                <p id="info-remark">-</p>
+            </div>
+        </div>
+
+        <div class="detail-tab-content" id="tab-follow" style="display:none;">
+            {% if current_user.role in ['admin', 'consultant', 'customer_service'] %}
+            <div class="follow-input">
+                <textarea id="follow-content" placeholder="输入跟进内容..." rows="3"></textarea>
+                <div class="follow-actions">
+                    <input type="date" id="follow-date" style="margin-right: 10px;">
+                    <button class="btn btn-primary" onclick="addFollowUp()">添加跟进</button>
+                </div>
+            </div>
+            {% endif %}
+            <div class="history-list" id="follow-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-sidebar">
+        <div class="side-card">
+            <h3>操作</h3>
+            <div class="side-actions">
+                {% if current_user.role in ['admin', 'consultant'] %}
+                <button class="btn btn-primary btn-block" onclick="showAssignModal()">分配顾问</button>
+                {% endif %}
+                <button class="btn btn-secondary btn-block" onclick="backToList()">返回列表</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+const apptId = {{ appointment_id }};
+const statusLabels = {{ status_labels | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAppointmentDetail();
+    loadFollowUps();
+});
+
+function switchTab(tabName) {
+    document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.detail-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelector(`.detail-tab[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).style.display = 'block';
+}
+
+function loadAppointmentDetail() {
+    fetch(`/api/appointments/${apptId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(apt => {
+            const statusInfo = statusLabels[apt.status] || { text: apt.status, class: '' };
+            document.getElementById('appt-status').textContent = statusInfo.text;
+            document.getElementById('appt-status').className = `status-badge ${statusInfo.class}`;
+
+            document.getElementById('info-apartment').textContent = apt.apartment?.apartment_no || '-';
+            document.getElementById('info-date').textContent = apt.appointment_date;
+            document.getElementById('info-time').textContent = apt.appointment_time;
+            document.getElementById('info-consultant').textContent = apt.consultant?.full_name || '未分配';
+            document.getElementById('info-name').textContent = apt.tenant_name || '-';
+            document.getElementById('info-phone').textContent = apt.tenant_phone || '-';
+            document.getElementById('info-source').textContent = apt.source_channel || '-';
+            document.getElementById('info-demand').textContent = apt.demand_description || '暂无';
+            document.getElementById('info-remark').textContent = apt.remark || '暂无';
+        });
+}
+
+function loadFollowUps() {
+    fetch(`/api/appointments/${apptId}/follow-ups`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(follows => {
+            const container = document.getElementById('follow-list');
+            if (follows.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无跟进记录</div>';
+                return;
+            }
+            container.innerHTML = follows.map(f => `
+                <div class="history-item">
+                    <div class="history-time">${formatDate(f.created_at)}</div>
+                    <div class="history-meta">${f.follow_type || '跟进'} · 操作人: ${f.operator?.full_name || '-'}</div>
+                    <div class="history-content">${f.content}</div>
+                    ${f.next_follow_date ? `<div class="history-meta">下次跟进: ${f.next_follow_date}</div>` : ''}
+                </div>
+            `).join('');
+        });
+}
+
+function addFollowUp() {
+    const content = document.getElementById('follow-content').value;
+    if (!content.trim()) {
+        showToast('请输入跟进内容', 'error');
+        return;
+    }
+    const nextDate = document.getElementById('follow-date').value;
+
+    fetch(`/api/appointments/${apptId}/follow-ups`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            appointment_id: apptId,
+            content: content,
+            next_follow_date: nextDate || null,
+            follow_type: 'normal'
+        })
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('添加失败');
+    })
+    .then(() => {
+        document.getElementById('follow-content').value = '';
+        document.getElementById('follow-date').value = '';
+        showToast('跟进记录已添加');
+        loadFollowUps();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showAssignModal() {
+    fetch('/api/appointments/consultants/available', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(consultants => {
+            const options = consultants.map(c =>
+                `<option value="${c.id}">${c.full_name || c.username}</option>`
+            ).join('');
+            const content = `
+                <form id="assign-form" onsubmit="event.preventDefault(); doAssign();">
+                    <div class="form-group">
+                        <label>选择顾问</label>
+                        <select name="consultant_id" required>
+                            <option value="">请选择</option>
+                            ${options}
+                        </select>
+                    </div>
+                </form>
+            `;
+            openModal('分配顾问', content, doAssign);
+        });
+}
+
+function doAssign() {
+    const form = document.getElementById('assign-form');
+    const consultantId = parseInt(form.consultant_id.value);
+
+    fetch(`/api/appointments/${apptId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ consultant_id: consultantId })
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('分配失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('分配成功');
+        loadAppointmentDetail();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleString('zh-CN');
+}
+
+function backToList() {
+    window.location.href = '/appointments';
+}
+</script>
+{% endblock %}

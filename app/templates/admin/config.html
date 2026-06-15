@@ -1,0 +1,179 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}系统配置{% endblock %}
+
+{% block page_content %}
+<div class="config-page">
+    <div class="config-header">
+        <h3>系统参数配置</h3>
+        <button class="btn btn-primary" onclick="showAddConfigModal()">+ 新增配置</button>
+    </div>
+
+    <div class="config-groups" id="config-groups">
+        <div class="loading">加载中...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadConfigs();
+});
+
+function loadConfigs() {
+    fetch('/api/configs', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(configs => {
+            renderConfigs(configs);
+        });
+}
+
+function renderConfigs(configs) {
+    const groups = {};
+    configs.forEach(c => {
+        const group = c.config_group || '其他';
+        if (!groups[group]) groups[group] = [];
+        groups[group].push(c);
+    });
+
+    const container = document.getElementById('config-groups');
+    const groupNames = {
+        'appointment': '预约设置',
+        'reminder': '提醒设置',
+        'threshold': '阈值设置',
+        'display': '显示设置',
+        '其他': '其他配置'
+    };
+
+    container.innerHTML = Object.keys(groups).map(group => `
+        <div class="config-group">
+            <h4 class="config-group-title">${groupNames[group] || group}</h4>
+            <div class="config-list">
+                ${groups[group].map(c => `
+                    <div class="config-item">
+                        <div class="config-info">
+                            <div class="config-name">${c.config_name}</div>
+                            <div class="config-key muted small">${c.config_key}</div>
+                            ${c.remark ? `<div class="config-remark small">${c.remark}</div>` : ''}
+                        </div>
+                        <div class="config-value">
+                            ${renderConfigInput(c)}
+                        </div>
+                        <div class="config-actions">
+                            <button class="btn btn-small" onclick="saveConfig(${c.id})">保存</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderConfigInput(config) {
+    const value = config.config_value || '';
+    const id = `config-val-${config.id}`;
+
+    switch (config.value_type) {
+        case 'number':
+            return `<input type="number" id="${id}" value="${value}" class="config-input">`;
+        case 'boolean':
+            return `<select id="${id}" class="config-input">
+                <option value="true" ${value === 'true' ? 'selected' : ''}>是</option>
+                <option value="false" ${value === 'false' ? 'selected' : ''}>否</option>
+            </select>`;
+        case 'text':
+            return `<textarea id="${id}" rows="2" class="config-input">${value}</textarea>`;
+        default:
+            return `<input type="text" id="${id}" value="${value}" class="config-input">`;
+    }
+}
+
+function saveConfig(configId) {
+    const valueEl = document.getElementById(`config-val-${configId}`);
+    const value = valueEl.value;
+
+    fetch(`/api/configs/${configId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ config_value: value })
+    })
+    .then(res => {
+        if (res.ok) {
+            showToast('保存成功');
+        } else {
+            showToast('保存失败', 'error');
+        }
+    });
+}
+
+function showAddConfigModal() {
+    const content = `
+        <form id="config-form" onsubmit="event.preventDefault(); addConfig();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>配置键名 *</label>
+                    <input type="text" name="config_key" required placeholder="例如: appointment_reminder_hours">
+                </div>
+                <div class="form-group">
+                    <label>配置名称 *</label>
+                    <input type="text" name="config_name" required placeholder="例如: 预约提醒提前小时数">
+                </div>
+                <div class="form-group">
+                    <label>配置分组</label>
+                    <select name="config_group">
+                        <option value="appointment">预约设置</option>
+                        <option value="reminder">提醒设置</option>
+                        <option value="threshold">阈值设置</option>
+                        <option value="display">显示设置</option>
+                        <option value="">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>值类型</label>
+                    <select name="value_type">
+                        <option value="string">字符串</option>
+                        <option value="number">数字</option>
+                        <option value="boolean">布尔值</option>
+                        <option value="text">长文本</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>配置值</label>
+                <input type="text" name="config_value">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea name="remark" rows="2"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('新增配置', content, addConfig);
+}
+
+function addConfig() {
+    const form = document.getElementById('config-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch('/api/configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) {
+            closeModal();
+            showToast('创建成功');
+            loadConfigs();
+        } else {
+            showToast('创建失败', 'error');
+        }
+    });
+}
+</script>
+{% endblock %}

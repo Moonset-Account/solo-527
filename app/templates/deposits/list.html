@@ -1,0 +1,272 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}押金记录{% endblock %}
+
+{% block header_actions %}
+{% if current_user.role in ['admin', 'customer_service'] %}
+<button class="btn btn-primary" onclick="showCreateModal()">+ 新增押金</button>
+{% endif %}
+{% endblock %}
+
+{% block page_content %}
+<div class="filter-bar">
+    <div class="filter-tabs">
+        <button class="tab-btn active" data-status="" onclick="filterByStatus(this, '')">全部</button>
+        <button class="tab-btn" data-status="paid" onclick="filterByStatus(this, 'paid')">已缴纳</button>
+        <button class="tab-btn" data-status="refunded" onclick="filterByStatus(this, 'refunded')">已退还</button>
+        <button class="tab-btn" data-status="partial_refunded" onclick="filterByStatus(this, 'partial_refunded')">部分退还</button>
+    </div>
+    <div class="filter-right">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索租客/合同号..." onkeyup="if(event.key==='Enter')searchDeposits()">
+            <button class="btn-search" onclick="searchDeposits()">🔍</button>
+        </div>
+    </div>
+</div>
+
+<div class="stats-row" style="margin-bottom: 20px;">
+    <div class="card stat-mini">
+        <div class="stat-label">在管押金</div>
+        <div class="stat-value green" id="stat-total-amount">¥0</div>
+    </div>
+    <div class="card stat-mini">
+        <div class="stat-label">已缴纳笔数</div>
+        <div class="stat-value blue" id="stat-paid-count">0</div>
+    </div>
+    <div class="card stat-mini">
+        <div class="stat-label">已退还笔数</div>
+        <div class="stat-value orange" id="stat-refunded-count">0</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>房源</th>
+                <th>租客</th>
+                <th>合同号</th>
+                <th>金额</th>
+                <th>状态</th>
+                <th>缴纳日期</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="deposit-list">
+            <tr><td colspan="8" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination" id="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentPage = 1;
+let pageSize = 15;
+let currentStatus = '';
+let currentKeyword = '';
+const statusLabels = {{ status_labels | tojson }};
+const isCSorAdmin = {{ 'true' if current_user.role in ['admin', 'customer_service'] else 'false' }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    loadDeposits();
+});
+
+function filterByStatus(btn, status) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStatus = status;
+    currentPage = 1;
+    loadDeposits();
+}
+
+function searchDeposits() {
+    currentKeyword = document.getElementById('search-input').value;
+    currentPage = 1;
+    loadDeposits();
+}
+
+function loadStats() {
+    fetch('/api/deposits/stats', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-total-amount').textContent = '¥' + data.total_amount.toLocaleString();
+            document.getElementById('stat-paid-count').textContent = data.paid_count;
+            document.getElementById('stat-refunded-count').textContent = data.refunded_count;
+        });
+}
+
+function loadDeposits() {
+    let url = `/api/deposits/?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (currentStatus) url += `&status=${currentStatus}`;
+    if (currentKeyword) url += `&keyword=${encodeURIComponent(currentKeyword)}`;
+
+    fetch(url, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            renderDeposits(data);
+            renderPagination(20);
+        });
+}
+
+function renderDeposits(deposits) {
+    const tbody = document.getElementById('deposit-list');
+    if (deposits.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无押金记录</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = deposits.map(d => {
+        const statusInfo = statusLabels[d.status] || { text: d.status, class: '' };
+        return `
+            <tr>
+                <td>${d.id}</td>
+                <td>${d.apartment?.apartment_no || '-'}</td>
+                <td>
+                    <div>${d.tenant_name}</div>
+                    <div class="muted small">${d.tenant_phone || ''}</div>
+                </td>
+                <td>${d.contract_no || '-'}</td>
+                <td class="amount-col">¥${d.amount.toLocaleString()}</td>
+                <td><span class="status-badge-small ${statusInfo.class}">${statusInfo.text}</span></td>
+                <td>${d.pay_date}</td>
+                <td class="actions-col">
+                    ${d.status === 'paid' && isCSorAdmin ? `
+                        <button class="btn-link btn-primary-text" onclick="showRefundModal(${d.id}, ${d.amount})">退款</button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = `<span class="page-info">共 ${total} 条</span>`;
+    html += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>上一页</button>`;
+    for (let i = 1; i <= totalPages && i <= 5; i++) {
+        html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>下一页</button>`;
+    container.innerHTML = html;
+}
+
+function goPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadDeposits();
+}
+
+function showCreateModal() {
+    const content = `
+        <form id="create-form" onsubmit="event.preventDefault(); createDeposit();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>房源ID *</label>
+                    <input type="number" name="apartment_id" required>
+                </div>
+                <div class="form-group">
+                    <label>租客姓名 *</label>
+                    <input type="text" name="tenant_name" required>
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="tel" name="tenant_phone">
+                </div>
+                <div class="form-group">
+                    <label>合同号</label>
+                    <input type="text" name="contract_no">
+                </div>
+                <div class="form-group">
+                    <label>金额(元) *</label>
+                    <input type="number" name="amount" required>
+                </div>
+                <div class="form-group">
+                    <label>缴纳日期 *</label>
+                    <input type="date" name="pay_date" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea name="remark" rows="2"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('新增押金', content, createDeposit);
+}
+
+function createDeposit() {
+    const form = document.getElementById('create-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    data.apartment_id = parseInt(data.apartment_id);
+    data.amount = parseFloat(data.amount);
+
+    fetch('/api/deposits/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('创建失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('押金记录创建成功');
+        loadDeposits();
+        loadStats();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showRefundModal(id, amount) {
+    const content = `
+        <form id="refund-form" onsubmit="event.preventDefault(); doRefund(${id});">
+            <div class="form-group">
+                <label>退款金额(元)</label>
+                <input type="number" name="refund_amount" value="${amount}" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea name="remark" rows="2"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('押金退款', content, () => doRefund(id));
+}
+
+function doRefund(id) {
+    const form = document.getElementById('refund-form');
+    const refundAmount = parseFloat(form.refund_amount.value);
+    const remark = form.remark.value;
+
+    fetch(`/api/deposits/${id}/refund?refund_amount=${refundAmount}&remark=${encodeURIComponent(remark || '')}`, {
+        method: 'POST',
+        credentials: 'same-origin'
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('退款失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('退款成功');
+        loadDeposits();
+        loadStats();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+</script>
+{% endblock %}

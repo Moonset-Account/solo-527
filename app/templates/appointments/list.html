@@ -1,0 +1,297 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}看房预约{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary" onclick="showCreateModal()">+ 新建预约</button>
+{% endblock %}
+
+{% block page_content %}
+<div class="filter-bar">
+    <div class="filter-tabs">
+        <button class="tab-btn active" data-status="" onclick="filterByStatus(this, '')">全部</button>
+        <button class="tab-btn" data-status="pending" onclick="filterByStatus(this, 'pending')">待分配</button>
+        <button class="tab-btn" data-status="confirmed" onclick="filterByStatus(this, 'confirmed')">已确认</button>
+        <button class="tab-btn" data-status="completed" onclick="filterByStatus(this, 'completed')">已完成</button>
+        <button class="tab-btn" data-status="cancelled" onclick="filterByStatus(this, 'cancelled')">已取消</button>
+    </div>
+    <div class="filter-right">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索客户姓名/电话..." onkeyup="if(event.key==='Enter')searchAppointments()">
+            <button class="btn-search" onclick="searchAppointments()">🔍</button>
+        </div>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>预约编号</th>
+                <th>房源</th>
+                <th>客户</th>
+                <th>预约时间</th>
+                <th>顾问</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="appointment-list">
+            <tr><td colspan="7" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination" id="pagination"></div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let currentPage = 1;
+let pageSize = 15;
+let currentStatus = '';
+let currentKeyword = '';
+const statusLabels = {{ status_labels | tojson }};
+const isAdmin = "{{ current_user.role }}" === "admin";
+const isConsultant = "{{ current_user.role }}" === "consultant";
+
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status')) {
+        currentStatus = params.get('status');
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.status === currentStatus);
+        });
+    }
+    loadAppointments();
+});
+
+function filterByStatus(btn, status) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStatus = status;
+    currentPage = 1;
+    loadAppointments();
+}
+
+function searchAppointments() {
+    currentKeyword = document.getElementById('search-input').value;
+    currentPage = 1;
+    loadAppointments();
+}
+
+function loadAppointments() {
+    let url = `/api/appointments/?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (currentStatus) url += `&status=${currentStatus}`;
+    if (currentKeyword) url += `&keyword=${encodeURIComponent(currentKeyword)}`;
+
+    fetch(url, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            renderAppointments(data);
+            renderPagination(20);
+        });
+}
+
+function renderAppointments(appointments) {
+    const tbody = document.getElementById('appointment-list');
+    if (appointments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无预约记录</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = appointments.map(a => {
+        const statusInfo = statusLabels[a.status] || { text: a.status, class: '' };
+        return `
+            <tr>
+                <td><a href="/appointments/${a.id}" class="link">${a.id}</a></td>
+                <td>${a.apartment?.apartment_no || '-'}</td>
+                <td>
+                    <div>${a.tenant_name || '-'}</div>
+                    <div class="muted small">${a.tenant_phone || ''}</div>
+                </td>
+                <td>
+                    <div>${a.appointment_date}</div>
+                    <div class="muted small">${a.appointment_time}</div>
+                </td>
+                <td>${a.consultant?.full_name || '<span class="muted">未分配</span>'}</td>
+                <td><span class="status-badge-small ${statusInfo.class}">${statusInfo.text}</span></td>
+                <td class="actions-col">
+                    <button class="btn-link" onclick="window.location.href='/appointments/${a.id}'">详情</button>
+                    ${a.status === 'pending' && (isAdmin || isConsultant) ? `
+                        <button class="btn-link btn-primary-text" onclick="assignConsultant(${a.id})">分配</button>
+                    ` : ''}
+                    ${a.status === 'confirmed' ? `
+                        <button class="btn-link" onclick="completeAppt(${a.id})">完成</button>
+                    ` : ''}
+                    ${a.status !== 'cancelled' && a.status !== 'completed' ? `
+                        <button class="btn-link btn-danger-text" onclick="cancelAppt(${a.id})">取消</button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `<span class="page-info">共 ${total} 条</span>`;
+    html += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>上一页</button>`;
+    for (let i = 1; i <= totalPages && i <= 5; i++) {
+        html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>下一页</button>`;
+    container.innerHTML = html;
+}
+
+function goPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadAppointments();
+}
+
+function showCreateModal() {
+    const content = `
+        <form id="create-form" onsubmit="event.preventDefault(); createAppointment();">
+            <div class="form-group">
+                <label>房源ID *</label>
+                <input type="number" name="apartment_id" required>
+            </div>
+            <div class="form-group">
+                <label>预约日期 *</label>
+                <input type="date" name="appointment_date" required>
+            </div>
+            <div class="form-group">
+                <label>预约时间 *</label>
+                <select name="appointment_time" required>
+                    <option value="">请选择</option>
+                    <option value="09:00">09:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="14:00">14:00</option>
+                    <option value="15:00">15:00</option>
+                    <option value="16:00">16:00</option>
+                    <option value="17:00">17:00</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>客户姓名</label>
+                <input type="text" name="tenant_name">
+            </div>
+            <div class="form-group">
+                <label>联系电话</label>
+                <input type="tel" name="tenant_phone">
+            </div>
+            <div class="form-group">
+                <label>需求描述</label>
+                <textarea name="demand_description" rows="3"></textarea>
+            </div>
+        </form>
+    `;
+    openModal('新建预约', content, createAppointment);
+}
+
+function createAppointment() {
+    const form = document.getElementById('create-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    data.apartment_id = parseInt(data.apartment_id);
+
+    fetch('/api/appointments/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('创建失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('预约创建成功');
+        loadAppointments();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function assignConsultant(apptId) {
+    fetch('/api/appointments/consultants/available', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(consultants => {
+            const options = consultants.map(c =>
+                `<option value="${c.id}">${c.full_name || c.username}</option>`
+            ).join('');
+            const content = `
+                <form id="assign-form" onsubmit="event.preventDefault(); doAssign(${apptId});">
+                    <div class="form-group">
+                        <label>选择顾问</label>
+                        <select name="consultant_id" required>
+                            <option value="">请选择</option>
+                            ${options}
+                        </select>
+                    </div>
+                </form>
+            `;
+            openModal('分配顾问', content, () => doAssign(apptId));
+        });
+}
+
+function doAssign(apptId) {
+    const form = document.getElementById('assign-form');
+    const consultantId = parseInt(form.consultant_id.value);
+
+    fetch(`/api/appointments/${apptId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ consultant_id: consultantId })
+    })
+    .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('分配失败');
+    })
+    .then(() => {
+        closeModal();
+        showToast('分配成功');
+        loadAppointments();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function completeAppt(apptId) {
+    if (!confirm('确认完成该预约？')) return;
+    fetch(`/api/appointments/${apptId}/complete`, {
+        method: 'POST',
+        credentials: 'same-origin'
+    })
+    .then(res => res.json())
+    .then(() => {
+        showToast('预约已完成');
+        loadAppointments();
+    });
+}
+
+function cancelAppt(apptId) {
+    const reason = prompt('请输入取消原因：');
+    if (reason === null) return;
+
+    fetch(`/api/appointments/${apptId}/cancel?cancel_reason=${encodeURIComponent(reason || '用户取消')}`, {
+        method: 'POST',
+        credentials: 'same-origin'
+    })
+    .then(res => res.json())
+    .then(() => {
+        showToast('已取消预约');
+        loadAppointments();
+    });
+}
+</script>
+{% endblock %}

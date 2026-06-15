@@ -1,0 +1,154 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}仪表盘{% endblock %}
+
+{% block page_content %}
+<div class="stats-grid">
+    <div class="stat-card stat-blue">
+        <div class="stat-icon">🏠</div>
+        <div class="stat-content">
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">总房源数</div>
+        </div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value" id="stat-vacant">-</div>
+            <div class="stat-label">空置房源</div>
+        </div>
+    </div>
+    <div class="stat-card stat-orange">
+        <div class="stat-icon">📅</div>
+        <div class="stat-content">
+            <div class="stat-value" id="stat-today-appt">-</div>
+            <div class="stat-label">今日预约</div>
+        </div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-content">
+            <div class="stat-value" id="stat-pending-appt">-</div>
+            <div class="stat-label">待处理预约</div>
+        </div>
+    </div>
+    <div class="stat-card stat-red" id="stat-risk-card" style="display:none;">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-content">
+            <div class="stat-value" id="stat-risks">-</div>
+            <div class="stat-label">待处理风险</div>
+        </div>
+    </div>
+    <div class="stat-card stat-yellow">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+            <div class="stat-value" id="stat-deposits">-</div>
+            <div class="stat-label">在管押金(元)</div>
+        </div>
+    </div>
+</div>
+
+<div class="stats-row">
+    <div class="card vacancy-rate-card">
+        <h3 class="card-title">空置率</h3>
+        <div class="vacancy-rate-circle">
+            <svg viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+                <circle id="vacancy-circle" cx="60" cy="60" r="50" fill="none" stroke="#10b981" stroke-width="10"
+                    stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+            </svg>
+            <div class="vacancy-rate-text">
+                <span id="vacancy-rate-text">0%</span>
+            </div>
+        </div>
+        <div class="vacancy-detail">
+            <div class="vacancy-item">
+                <span class="dot dot-vacant"></span>
+                <span>空置</span>
+                <span id="vacant-count" class="count">0</span>
+            </div>
+            <div class="vacancy-item">
+                <span class="dot dot-occupied"></span>
+                <span>已租</span>
+                <span id="occupied-count" class="count">0</span>
+            </div>
+            <div class="vacancy-item">
+                <span class="dot dot-reserved"></span>
+                <span>已订</span>
+                <span id="reserved-count" class="count">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 class="card-title">快捷操作</h3>
+        <div class="quick-actions">
+            <a href="/apartments?status=vacant" class="quick-action">
+                <span class="qa-icon">🏠</span>
+                <span>空置房源</span>
+            </a>
+            <a href="/appointments?status=pending" class="quick-action">
+                <span class="qa-icon">📋</span>
+                <span>待分配预约</span>
+            </a>
+            <a href="/deposits?status=paid" class="quick-action">
+                <span class="qa-icon">💳</span>
+                <span>在管押金</span>
+            </a>
+            {% if current_user.role in ['admin', 'customer_service'] %}
+            <a href="/risks?status=pending" class="quick-action">
+                <span class="qa-icon">🚨</span>
+                <span>待处理风险</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardStats();
+
+    const isCS = "{{ current_user.role }}" === "admin" || "{{ current_user.role }}" === "customer_service";
+    if (isCS) {
+        document.getElementById('stat-risk-card').style.display = 'flex';
+    }
+});
+
+function loadDashboardStats() {
+    fetch('/api/dashboard/stats', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-total').textContent = data.total_apartments;
+            document.getElementById('stat-vacant').textContent = data.vacant_apartments;
+            document.getElementById('stat-today-appt').textContent = data.today_appointments;
+            document.getElementById('stat-pending-appt').textContent = data.pending_appointments;
+            document.getElementById('stat-risks').textContent = data.pending_risks;
+            document.getElementById('stat-deposits').textContent = data.total_deposits.toLocaleString();
+
+            document.getElementById('vacant-count').textContent = data.vacant_apartments;
+            document.getElementById('occupied-count').textContent = data.occupied_apartments;
+
+            const rate = data.vacancy_rate;
+            document.getElementById('vacancy-rate-text').textContent = rate + '%';
+
+            const circle = document.getElementById('vacancy-circle');
+            const circumference = 2 * Math.PI * 50;
+            const offset = circumference - (rate / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+
+            if (data.pending_risks > 0) {
+                const badge = document.getElementById('risk-badge');
+                if (badge) {
+                    badge.textContent = data.pending_risks;
+                    badge.style.display = 'inline';
+                }
+            }
+        })
+        .catch(err => console.error('加载统计数据失败', err));
+}
+</script>
+{% endblock %}
