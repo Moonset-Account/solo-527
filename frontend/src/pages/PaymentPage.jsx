@@ -82,13 +82,11 @@ const PaymentPage = () => {
 
   const payMutation = useMutation({
     mutationFn: ({ id, ...data }) =>
-      request.patch(PAYMENTS.ORDER_DETAIL(id), {
-        status: PAYMENT_STATUS.PAID,
-        ...data,
-      }),
+      request.post(PAYMENTS.PROCESS_PAYMENT(id), data),
     onSuccess: () => {
       message.success('支付处理成功');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion'] });
       setPayModalOpen(false);
       payForm.resetFields();
       setCurrentOrder(null);
@@ -97,9 +95,7 @@ const PaymentPage = () => {
 
   const cancelMutation = useMutation({
     mutationFn: (id) =>
-      request.patch(PAYMENTS.ORDER_DETAIL(id), {
-        status: PAYMENT_STATUS.CANCELLED,
-      }),
+      request.post(PAYMENTS.CANCEL_ORDER(id)),
     onSuccess: () => {
       message.success('订单已取消');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
@@ -108,11 +104,7 @@ const PaymentPage = () => {
 
   const discrepancyMutation = useMutation({
     mutationFn: ({ id, ...data }) =>
-      request.patch(PAYMENTS.ORDER_DETAIL(id), {
-        has_discrepancy: true,
-        discrepancy_resolved: false,
-        ...data,
-      }),
+      request.post(PAYMENTS.MARK_DISCREPANCY(id), data),
     onSuccess: () => {
       message.success('差异已标记');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
@@ -124,13 +116,12 @@ const PaymentPage = () => {
 
   const resolveMutation = useMutation({
     mutationFn: ({ id, ...data }) =>
-      request.patch(PAYMENTS.ORDER_DETAIL(id), {
-        discrepancy_resolved: true,
-        ...data,
-      }),
+      request.post(PAYMENTS.RESOLVE_DISCREPANCY(id), data),
     onSuccess: () => {
-      message.success('差异已处理');
+      message.success('差异已处理，转化报表将自动刷新');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setResolveModalOpen(false);
       resolveForm.resetFields();
       setCurrentOrder(null);
@@ -139,10 +130,7 @@ const PaymentPage = () => {
 
   const refundMutation = useMutation({
     mutationFn: ({ id, ...data }) =>
-      request.patch(PAYMENTS.ORDER_DETAIL(id), {
-        status: PAYMENT_STATUS.REFUNDED,
-        ...data,
-      }),
+      request.post(PAYMENTS.REFUND(id), data),
     onSuccess: () => {
       message.success('退款已处理');
       queryClient.invalidateQueries({ queryKey: ['payments'] });

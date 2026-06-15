@@ -51,15 +51,12 @@ const OpenShiftTab = () => {
 
   const { data: currentShift, isLoading } = useQuery({
     queryKey: ['current-shift'],
-    queryFn: () => request.get(PAYMENTS.SHIFTS, { status: CASHIER_SHIFT_STATUS.OPEN, limit: 1 }),
-    select: (data) => {
-      const results = data?.results || data || [];
-      return results.length > 0 ? results[0] : null;
-    },
+    queryFn: () => request.get(PAYMENTS.SHIFT_CURRENT),
+    select: (data) => data?.detail ? null : data,
   });
 
   const openMutation = useMutation({
-    mutationFn: (values) => request.post(PAYMENTS.SHIFTS, { action: 'open-shift', ...values }),
+    mutationFn: (values) => request.post(PAYMENTS.SHIFT_OPEN, values),
     onSuccess: () => {
       message.success('开班成功');
       queryClient.invalidateQueries({ queryKey: ['current-shift'] });
@@ -70,7 +67,7 @@ const OpenShiftTab = () => {
   });
 
   const closeMutation = useMutation({
-    mutationFn: ({ id, ...data }) => request.post(`${PAYMENTS.SHIFT_DETAIL(id)}close-shift/`, data),
+    mutationFn: ({ id, ...data }) => request.post(PAYMENTS.SHIFT_CLOSE(id), data),
     onSuccess: () => {
       message.success('交班成功');
       queryClient.invalidateQueries({ queryKey: ['current-shift'] });
@@ -81,7 +78,7 @@ const OpenShiftTab = () => {
   });
 
   const reconcileMutation = useMutation({
-    mutationFn: ({ id, ...data }) => request.post(PAYMENTS.RECONCILE_SHIFT(id), data),
+    mutationFn: ({ id, ...data }) => request.post(PAYMENTS.SHIFT_RECONCILE(id), data),
     onSuccess: () => {
       message.success('对账成功，转换报告已触发重新生成');
       queryClient.invalidateQueries({ queryKey: ['current-shift'] });
@@ -92,7 +89,7 @@ const OpenShiftTab = () => {
   });
 
   const summaryMutation = useMutation({
-    mutationFn: (id) => request.get(`${PAYMENTS.SHIFT_DETAIL(id)}shift-summary/`),
+    mutationFn: (id) => request.get(PAYMENTS.SHIFT_SUMMARY(id)),
     onSuccess: (data) => {
       setSummaryData(data);
       setSummaryModalOpen(true);
@@ -326,7 +323,7 @@ const ShiftListTab = () => {
   const shifts = shiftsData?.results || shiftsData || [];
 
   const reconcileMutation = useMutation({
-    mutationFn: ({ id, ...data }) => request.post(PAYMENTS.RECONCILE_SHIFT(id), data),
+    mutationFn: ({ id, ...data }) => request.post(PAYMENTS.SHIFT_RECONCILE(id), data),
     onSuccess: () => {
       message.success('对账成功，转换报告已触发重新生成');
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
@@ -338,7 +335,7 @@ const ShiftListTab = () => {
   });
 
   const summaryMutation = useMutation({
-    mutationFn: (id) => request.get(`${PAYMENTS.SHIFT_DETAIL(id)}shift-summary/`),
+    mutationFn: (id) => request.get(PAYMENTS.SHIFT_SUMMARY(id)),
     onSuccess: (data) => {
       setSummaryData(data);
       setSummaryModalOpen(true);
@@ -540,10 +537,12 @@ const DiscrepancyTab = () => {
   const unresolvedCount = orders.filter((o) => !o.discrepancy_resolved).length;
 
   const resolveMutation = useMutation({
-    mutationFn: ({ id, ...data }) => request.post(`${PAYMENTS.ORDER_DETAIL(id)}resolve-discrepancy/`, data),
+    mutationFn: ({ id, ...data }) => request.post(PAYMENTS.RESOLVE_DISCREPANCY(id), data),
     onSuccess: () => {
-      message.success('差异已处理');
+      message.success('差异已处理，转化报表将自动刷新');
       queryClient.invalidateQueries({ queryKey: ['discrepancy-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setResolveModalOpen(false);
       resolveForm.resetFields();
       setCurrentOrder(null);
@@ -661,7 +660,7 @@ const CashierPage = () => {
   const queryClient = useQueryClient();
 
   const openMutation = useMutation({
-    mutationFn: (values) => request.post(PAYMENTS.SHIFTS, { action: 'open-shift', ...values }),
+    mutationFn: (values) => request.post(PAYMENTS.SHIFT_OPEN, values),
     onSuccess: () => {
       message.success('开班成功');
       queryClient.invalidateQueries({ queryKey: ['current-shift'] });

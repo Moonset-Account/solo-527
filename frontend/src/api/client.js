@@ -5,7 +5,6 @@ const TOKEN_KEY = 'carwash_token';
 const USER_KEY = 'carwash_user';
 
 const apiClient = axios.create({
-  baseURL: '/api/',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

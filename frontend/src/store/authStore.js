@@ -19,6 +19,9 @@ const useAuthStore = create(
           const response = await request.post(AUTH.LOGIN, credentials);
           const { access, refresh, user } = response;
           
+          localStorage.setItem('carwash_token', access);
+          localStorage.setItem('carwash_user', JSON.stringify(user));
+
           set({
             token: access,
             refreshToken: refresh,
@@ -75,6 +78,7 @@ const useAuthStore = create(
           const response = await request.post(AUTH.REFRESH_TOKEN, {
             refresh: refreshToken,
           });
+          localStorage.setItem('carwash_token', response.access);
           set({ token: response.access });
           return true;
         } catch (error) {

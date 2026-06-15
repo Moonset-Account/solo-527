@@ -51,12 +51,21 @@ export const BOOKINGS = {
 export const PAYMENTS = {
   ORDERS: `${API_BASE}/payments/orders/`,
   ORDER_DETAIL: (id) => `${API_BASE}/payments/orders/${id}/`,
+  PROCESS_PAYMENT: (id) => `${API_BASE}/payments/orders/${id}/process-payment/`,
+  CANCEL_ORDER: (id) => `${API_BASE}/payments/orders/${id}/cancel/`,
+  MARK_DISCREPANCY: (id) => `${API_BASE}/payments/orders/${id}/mark-discrepancy/`,
+  RESOLVE_DISCREPANCY: (id) => `${API_BASE}/payments/orders/${id}/resolve-discrepancy/`,
+  REFUND: (id) => `${API_BASE}/payments/orders/${id}/refund/`,
   TRANSACTIONS: `${API_BASE}/payments/transactions/`,
   TRANSACTION_DETAIL: (id) => `${API_BASE}/payments/transactions/${id}/`,
   SHIFTS: `${API_BASE}/payments/shifts/`,
   SHIFT_DETAIL: (id) => `${API_BASE}/payments/shifts/${id}/`,
-  CASHIER_DISCREPANCY: `${API_BASE}/payments/shifts/discrepancy/`,
-  RECONCILE_SHIFT: (id) => `${API_BASE}/payments/shifts/${id}/reconcile/`,
+  SHIFT_OPEN: `${API_BASE}/payments/shifts/open-shift/`,
+  SHIFT_CURRENT: `${API_BASE}/payments/shifts/current-shift/`,
+  SHIFT_CLOSE: (id) => `${API_BASE}/payments/shifts/${id}/close-shift/`,
+  SHIFT_RECONCILE: (id) => `${API_BASE}/payments/shifts/${id}/reconcile/`,
+  SHIFT_SUMMARY: (id) => `${API_BASE}/payments/shifts/${id}/shift-summary/`,
+  CASHIER_DISCREPANCY: `${API_BASE}/payments/orders/`,
 };
 
 export const CONVERSION = {
