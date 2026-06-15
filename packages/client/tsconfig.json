@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["@remix-run/node", "node"],
+    "outDir": "./build",
+    "rootDir": "./app",
+    "jsx": "react-jsx",
+    "moduleResolution": "Bundler"
+  },
+  "include": ["app/**/*.ts", "app/**/*.tsx", ".env"],
+  "exclude": ["node_modules"]
+}
