@@ -6,6 +6,7 @@ import com.qinghe.topic.common.PageResult;
 import com.qinghe.topic.dto.TopicQueryDTO;
 import com.qinghe.topic.dto.TopicSaveDTO;
 import com.qinghe.topic.entity.Topic;
+import com.qinghe.topic.enums.ReviewType;
 import com.qinghe.topic.mapper.TopicMapper;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.Map;
 public class TopicService {
 
     private final TopicMapper topicMapper;
+    private final ReviewService reviewService;
 
     public PageResult<Topic> page(TopicQueryDTO query) {
         LambdaQueryWrapper<Topic> wrapper = new LambdaQueryWrapper<>();
@@ -64,22 +66,67 @@ public class TopicService {
         }
         if (dto.getId() == null) {
             topicMapper.insert(topic);
+            reviewService.recordChange(
+                    topic.getId(),
+                    ReviewType.TOPIC.getCode(),
+                    null,
+                    topic,
+                    dto.getReviewOpinion(),
+                    dto.getReviewResult(),
+                    dto.getReviewerId(),
+                    dto.getReviewerName()
+            );
         } else {
+            Topic before = topicMapper.selectById(dto.getId());
             topicMapper.updateById(topic);
+            Topic after = topicMapper.selectById(dto.getId());
+            reviewService.recordChange(
+                    dto.getId(),
+                    ReviewType.TOPIC.getCode(),
+                    before,
+                    after,
+                    dto.getReviewOpinion(),
+                    dto.getReviewResult(),
+                    dto.getReviewerId(),
+                    dto.getReviewerName()
+            );
         }
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Long id, Integer status) {
+        Topic before = topicMapper.selectById(id);
         Topic topic = new Topic();
         topic.setId(id);
         topic.setStatus(status);
         topicMapper.updateById(topic);
+        Topic after = topicMapper.selectById(id);
+        reviewService.recordChange(
+                id,
+                ReviewType.TOPIC.getCode(),
+                before,
+                after,
+                "状态变更",
+                null,
+                null,
+                null
+        );
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
+        Topic before = topicMapper.selectById(id);
         topicMapper.deleteById(id);
+        reviewService.recordChange(
+                id,
+                ReviewType.TOPIC.getCode(),
+                before,
+                null,
+                "选题已删除",
+                null,
+                null,
+                null
+        );
     }
 
     public Map<String, Object> getOverview() {

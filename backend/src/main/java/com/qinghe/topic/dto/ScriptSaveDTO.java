@@ -20,4 +20,9 @@ public class ScriptSaveDTO {
     private String creatorName;
     private Integer status;
     private String remark;
+
+    private String reviewOpinion;
+    private Long reviewerId;
+    private String reviewerName;
+    private Integer reviewResult;
 }

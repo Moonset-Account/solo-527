@@ -15,4 +15,13 @@ public enum ReviewType {
         this.code = code;
         this.desc = desc;
     }
+
+    public static ReviewType getByCode(Integer code) {
+        for (ReviewType t : values()) {
+            if (t.code.equals(code)) {
+                return t;
+            }
+        }
+        return null;
+    }
 }

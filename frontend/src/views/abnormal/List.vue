@@ -97,8 +97,13 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item v-for="s in statusOptions" :key="s.value" :command="s.value">
+                  <el-dropdown-item v-for="s in statusOptionsWithoutCompleted" :key="s.value" :command="s.value">
                     <el-tag :type="s.type" size="small">{{ s.label }}</el-tag>
+                  </el-dropdown-item>
+                  <el-dropdown-item disabled>
+                    <el-tooltip effect="dark" content="必须通过「处理结论」功能填写完整处理意见后由系统自动标记完成" placement="right">
+                      <el-tag type="success" size="small" effect="plain">已完成（不可直接选择）</el-tag>
+                    </el-tooltip>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -252,6 +257,10 @@ const handleForm = reactive({
   _title: ''
 })
 
+const statusOptionsWithoutCompleted = computed(() =>
+  statusOptions.filter(s => s.value !== 3)
+)
+
 const abnormalTodo = computed(() =>
   (overview.value.pending || 0) + (overview.value.processing || 0)
 )
@@ -369,6 +378,10 @@ function openHandleDialog(row) {
 }
 
 async function handleChangeStatus(row, status) {
+  if (status === 3) {
+    ElMessage.warning('不能直接将状态改为已完成，必须通过「处理结论」功能填写完整处理意见后由系统自动标记完成')
+    return
+  }
   try {
     await ElMessageBox.confirm(`确定将异常状态改为"${getStatusTag(status).label}"吗？`, '提示', { type: 'warning' })
     await updateAbnormalStatus(row.id, status)
