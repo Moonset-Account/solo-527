@@ -42,8 +42,8 @@ public class SessionQueryDTO : PagedQuery
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public bool? IsInspected { get; set; }
-    public double? MinResponseTime { get; set; }
-    public double? MaxResponseTime { get; set; }
+    public long? MinResponseTime { get; set; }
+    public long? MaxResponseTime { get; set; }
     public string? Tag { get; set; }
 }
 
@@ -126,7 +126,7 @@ public class ExportSessionDTO
     public int? Status { get; set; }
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
-    public double? MinResponseTime { get; set; }
-    public double? MaxResponseTime { get; set; }
+    public long? MinResponseTime { get; set; }
+    public long? MaxResponseTime { get; set; }
     public string ExportFormat { get; set; } = "csv";
 }

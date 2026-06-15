@@ -3,6 +3,7 @@ using QualityControl.API.Data;
 using QualityControl.API.Middleware;
 using QualityControl.API.Models;
 using QualityControl.API.Services;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -121,8 +122,12 @@ static async Task SeedSampleDataAsync(AppDbContext context)
             ? firstResponseAt.AddSeconds(random.Next(60, 3600 * 3))
             : (DateTime?)null;
 
-        var responseTime = (firstResponseAt - createdAt)?.TotalSeconds;
-        var resolutionTime = resolvedAt.HasValue ? (resolvedAt - createdAt)?.TotalSeconds : null;
+        var responseTime = status >= SessionStatus.InProgress
+            ? (long?)Convert.ToInt64((firstResponseAt - createdAt).TotalSeconds)
+            : null;
+        var resolutionTime = resolvedAt.HasValue
+            ? (long?)Convert.ToInt64((resolvedAt.Value - createdAt).TotalSeconds)
+            : null;
         var isInspected = random.Next(2) == 0;
         var inspectionScore = isInspected ? (decimal?)Math.Round(60m + (decimal)(random.NextDouble() * 40), 2) : null;
 
@@ -136,7 +141,7 @@ static async Task SeedSampleDataAsync(AppDbContext context)
             Status = status,
             ProblemDescription = $"用户反馈{titles[random.Next(titles.Length)]}，需要客服协助处理。",
             CreatedAt = createdAt,
-            FirstResponseAt = status >= SessionStatus.InProgress ? firstResponseAt : null,
+            FirstResponseAt = status >= SessionStatus.InProgress ? firstResponseAt : (DateTime?)null,
             ResolvedAt = resolvedAt,
             ClosedAt = status == SessionStatus.Closed ? resolvedAt?.AddMinutes(random.Next(5, 30)) : null,
             ResponseTimeSeconds = responseTime,
@@ -230,18 +235,21 @@ static async Task SeedSampleDataAsync(AppDbContext context)
     await context.ServiceRatings.AddRangeAsync(ratings);
 
     var tickets = new List<Ticket>();
+    var ticketTypeValues = Enum.GetValues(typeof(TicketType)).Cast<TicketType>().ToArray();
+    var ticketPriorityValues = Enum.GetValues(typeof(TicketPriority)).Cast<TicketPriority>().ToArray();
+    var ticketStatusValues = Enum.GetValues(typeof(TicketStatus)).Cast<TicketStatus>().ToArray();
     for (int i = 1; i <= 15; i++)
     {
         var ticketCreatedAt = now.AddDays(-random.Next(0, 20));
-        var ticketStatus = random.Next(0, 6);
+        var ticketStatus = ticketStatusValues[random.Next(ticketStatusValues.Length)];
         tickets.Add(new Ticket
         {
             Id = i,
             TicketNumber = $"TK{ticketCreatedAt:yyyyMMdd}{i:D4}",
-            Type = random.Next(0, 4),
+            Type = ticketTypeValues[random.Next(ticketTypeValues.Length)],
             Title = $"[工单] {titles[random.Next(titles.Length)]}",
             Description = "由客服会话升级创建的协同工单，需要跨部门协助处理。",
-            Priority = random.Next(0, 4),
+            Priority = ticketPriorityValues[random.Next(ticketPriorityValues.Length)],
             Status = ticketStatus,
             AssigneeDepartmentId = random.Next(1, 5),
             AssigneeId = random.Next(1, 6),
@@ -250,9 +258,9 @@ static async Task SeedSampleDataAsync(AppDbContext context)
             RelatedSessionId = random.Next(1, 31),
             CreatedAt = ticketCreatedAt,
             DueDate = ticketCreatedAt.AddDays(random.Next(1, 7)),
-            ResolvedAt = ticketStatus >= 3 ? ticketCreatedAt.AddHours(random.Next(2, 72)) : null,
-            ClosedAt = ticketStatus >= 5 ? ticketCreatedAt.AddHours(random.Next(24, 96)) : null,
-            Resolution = ticketStatus >= 3 ? "问题已解决，客户确认满意。" : null
+            ResolvedAt = ticketStatus >= TicketStatus.Resolved ? ticketCreatedAt.AddHours(random.Next(2, 72)) : null,
+            ClosedAt = ticketStatus == TicketStatus.Closed ? ticketCreatedAt.AddHours(random.Next(24, 96)) : null,
+            Resolution = ticketStatus >= TicketStatus.Resolved ? "问题已解决，客户确认满意。" : null
         });
     }
     await context.Tickets.AddRangeAsync(tickets);
@@ -266,10 +274,11 @@ static async Task SeedSampleDataAsync(AppDbContext context)
         "发票开具流程说明"
     };
     var kbCategories = new[] { "产品使用", "故障排查", "开发文档", "服务规范", "操作指南" };
+    var kbStatusValues = Enum.GetValues(typeof(KnowledgeStatus)).Cast<KnowledgeStatus>().ToArray();
     for (int i = 1; i <= 15; i++)
     {
         var kbCreatedAt = now.AddDays(-random.Next(30, 365));
-        var status = random.Next(0, 6);
+        var kbStatus = kbStatusValues[random.Next(kbStatusValues.Length)];
         knowledgeItems.Add(new KnowledgeBase
         {
             Id = i,
@@ -277,23 +286,22 @@ static async Task SeedSampleDataAsync(AppDbContext context)
             Content = $"# {kbTitles[i % kbTitles.Length]}\n\n本文档详细介绍{kbTitles[i % kbTitles.Length]}的相关内容和操作步骤...",
             Summary = $"简要说明{kbTitles[i % kbTitles.Length]}的核心要点。",
             Category = kbCategories[random.Next(kbCategories.Length)],
-            Status = status,
-            IsExpired = status == 4 || random.Next(5) == 0,
+            Status = kbStatus,
+            IsExpired = kbStatus == KnowledgeStatus.Expired || kbStatus == KnowledgeStatus.Archived || random.Next(5) == 0,
             ExpiryDate = kbCreatedAt.AddMonths(random.Next(6, 24)),
             ViewCount = random.Next(10, 1000),
             UseCount = random.Next(5, 500),
             HelpfulCount = random.Next(3, 400),
             NotHelpfulCount = random.Next(0, 50),
             Remark = random.Next(3) == 0 ? "需要定期更新内容" : null,
-            ProcessingResult = status >= 2 ? "已完成审核并发布" : null,
+            ProcessingResult = kbStatus >= KnowledgeStatus.Published ? "已完成审核并发布" : null,
             AuthorId = random.Next(1, 6),
             ReviewerId = random.Next(1, 3),
             CreatedAt = kbCreatedAt,
             UpdatedAt = kbCreatedAt.AddDays(random.Next(1, 60)),
             LastUsedAt = now.AddDays(-random.Next(0, 30)),
-            LastReviewAt = status >= 2 ? kbCreatedAt.AddDays(random.Next(1, 30)) : null,
-            Tags = random.Next(3) == 0 ? "热门" : null,
-            DaysUntilExpiry = random.Next(-30, 365)
+            LastReviewAt = kbStatus >= KnowledgeStatus.Published ? kbCreatedAt.AddDays(random.Next(1, 30)) : null,
+            Tags = random.Next(3) == 0 ? "热门" : null
         });
     }
     await context.KnowledgeBases.AddRangeAsync(knowledgeItems);
