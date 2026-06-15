@@ -5,6 +5,11 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ['*'],
     },
+    serverComponentsExternalPackages: [
+      '@prisma/client',
+      'ioredis',
+      'bcryptjs',
+    ],
   },
 };
 

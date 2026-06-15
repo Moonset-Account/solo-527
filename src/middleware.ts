@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { SESSION_COOKIE } from '@/server/lib/auth';
+
+const SESSION_COOKIE = 'wmc_session';
 
 const PUBLIC_PATHS = [
   '/login',
-  '/api/auth/login',
+  '/api/auth',
   '/api/auth/me',
   '/_next',
   '/favicon.ico',
