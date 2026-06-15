@@ -13,7 +13,10 @@ router = APIRouter()
 def get_waitlist(
     doctor_id: Optional[int] = None,
     target_date: Optional[date] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
     status: Optional[str] = None,
+    processed_by: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(Waitlist)
@@ -21,8 +24,14 @@ def get_waitlist(
         query = query.filter(Waitlist.doctor_id == doctor_id)
     if target_date:
         query = query.filter(Waitlist.target_date == target_date)
+    if start_date:
+        query = query.filter(Waitlist.created_at >= start_date)
+    if end_date:
+        query = query.filter(Waitlist.created_at <= datetime.combine(end_date, datetime.max.time()))
     if status:
         query = query.filter(Waitlist.status == status)
+    if processed_by:
+        query = query.filter(Waitlist.processed_by == processed_by)
     return query.order_by(Waitlist.priority.desc(), Waitlist.created_at).all()
 
 

@@ -143,6 +143,7 @@ function renderAppointments(appointments) {
         html += `<td>¥${apt.price}</td>`;
         html += `<td>${getStatusBadge(apt.status)}</td>`;
         html += '<td>';
+        html += `<button class="btn btn-sm btn-info" onclick="viewProcessLogs(${apt.id})" style="margin-right:4px;">处理记录</button> `;
         if (apt.status === 'pending') {
             html += `<button class="btn btn-sm btn-success" onclick="checkIn(${apt.id})">核销</button> `;
             html += `<button class="btn btn-sm btn-warning" onclick="markNoShow(${apt.id})">爽约</button> `;
@@ -383,6 +384,40 @@ async function submitAppointment() {
         }
     } catch(e) {
         showToast('预约失败', 'error');
+    }
+}
+
+async function viewProcessLogs(appointmentId) {
+    try {
+        const response = await fetch(`/api/appointment/${appointmentId}/process-logs`);
+        const logs = await response.json();
+        
+        let html = '';
+        if (logs.length === 0) {
+            html = '<p>暂无处理记录</p>';
+        } else {
+            html = '<table><thead><tr><th>操作</th><th>处理人</th><th>详情</th><th>时间</th></tr></thead><tbody>';
+            logs.forEach(log => {
+                html += '<tr>';
+                html += `<td>${log.action}</td>`;
+                html += `<td>${log.operator || '-'}</td>`;
+                html += `<td>${log.detail || '-'}</td>`;
+                html += `<td>${log.created_at ? log.created_at.slice(0, 16) : '-'}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        }
+        
+        const content = `
+            <div class="modal-header">
+                <h3>预约处理记录</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            ${html}
+        `;
+        showModal(content);
+    } catch(e) {
+        showToast('加载处理记录失败', 'error');
     }
 }
 

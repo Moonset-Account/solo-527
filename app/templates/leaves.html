@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}技师请假 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📅 技师请假管理</h1>
+</div>
+
+<div class="card">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" id="filter-start" onchange="loadLeaves()">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end" onchange="loadLeaves()">
+        </div>
+        <div class="filter-group">
+            <label>医生</label>
+            <select id="filter-doctor" onchange="loadLeaves()">
+                <option value="">全部</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>状态</label>
+            <select id="filter-status" onchange="loadLeaves()">
+                <option value="">全部</option>
+                <option value="approved">已批准</option>
+                <option value="cancelled">已取消</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>处理人</label>
+            <input type="text" id="filter-operator" placeholder="输入处理人" oninput="loadLeaves()">
+        </div>
+        <div class="filter-group">
+            <label>请假类型</label>
+            <select id="filter-type" onchange="loadLeaves()">
+                <option value="">全部</option>
+                <option value="年假">年假</option>
+                <option value="病假">病假</option>
+                <option value="事假">事假</option>
+                <option value="调休">调休</option>
+            </select>
+        </div>
+    </div>
+    <button class="btn btn-primary" onclick="showAddLeaveModal()">+ 新增请假</button>
+</div>
+
+<div class="card">
+    <div id="leaves-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+async function loadDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('filter-doctor');
+        doctors.forEach(doctor => {
+            const option = document.createElement('option');
+            option.value = doctor.id;
+            option.textContent = doctor.name;
+            select.appendChild(option);
+        });
+    } catch(e) {}
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'approved': '<span class="badge badge-success">已批准</span>',
+        'cancelled': '<span class="badge badge-secondary">已取消</span>'
+    };
+    return badges[status] || status;
+}
+
+function getLeaveType(type) {
+    const types = {
+        '年假': '年假',
+        '病假': '病假',
+        '事假': '事假',
+        '调休': '调休'
+    };
+    return types[type] || type;
+}
+
+async function loadLeaves() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+    const doctorId = document.getElementById('filter-doctor').value;
+    const status = document.getElementById('filter-status').value;
+    const operator = document.getElementById('filter-operator').value;
+    const leaveType = document.getElementById('filter-type').value;
+
+    let url = '/api/schedule/leaves?';
+    if (start) url += `start_date=${start}&`;
+    if (end) url += `end_date=${end}&`;
+    if (doctorId) url += `doctor_id=${doctorId}&`;
+    if (status) url += `status=${status}&`;
+    if (operator) url += `operator=${operator}&`;
+    if (leaveType) url += `leave_type=${leaveType}&`;
+
+    try {
+        const response = await fetch(url);
+        const leaves = await response.json();
+        renderLeaves(leaves);
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+function renderLeaves(leaves) {
+    const container = document.getElementById('leaves-list');
+    if (leaves.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无请假记录</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>医生</th><th>请假日期</th><th>类型</th><th>原因</th>';
+    html += '<th>状态</th><th>处理人</th><th>创建时间</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    leaves.forEach(leave => {
+        const doctorName = leave.doctor ? leave.doctor.name : '-';
+        html += '<tr>';
+        html += `<td>${doctorName}</td>`;
+        html += `<td>${leave.leave_date}</td>`;
+        html += `<td>${getLeaveType(leave.leave_type)}</td>`;
+        html += `<td>${leave.reason || '-'}</td>`;
+        html += `<td>${getStatusBadge(leave.status)}</td>`;
+        html += `<td>${leave.operator || '-'}</td>`;
+        html += `<td>${leave.created_at ? leave.created_at.slice(0, 16) : '-'}</td>`;
+        html += '<td>';
+        if (leave.status === 'approved') {
+            html += `<button class="btn btn-sm btn-danger" onclick="cancelLeave(${leave.id})">取消请假</button>`;
+        }
+        html += '</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function showAddLeaveModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>新增请假</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>医生</label>
+            <select id="leave-doctor">
+                <option value="">请选择医生</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>请假日期</label>
+            <input type="date" id="leave-date">
+        </div>
+        <div class="form-group">
+            <label>请假类型</label>
+            <select id="leave-type">
+                <option value="年假">年假</option>
+                <option value="病假">病假</option>
+                <option value="事假">事假</option>
+                <option value="调休">调休</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>原因</label>
+            <textarea id="leave-reason" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label>处理人</label>
+            <input type="text" id="leave-operator" value="前台">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitLeave()">确认提交</button>
+        </div>
+    `;
+    showModal(content);
+    loadLeaveDoctors();
+}
+
+async function loadLeaveDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('leave-doctor');
+        if (select) {
+            doctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = doctor.name + ' - ' + (doctor.title || '医师');
+                select.appendChild(option);
+            });
+        }
+    } catch(e) {}
+}
+
+async function submitLeave() {
+    const doctorId = document.getElementById('leave-doctor').value;
+    const leaveDate = document.getElementById('leave-date').value;
+    const leaveType = document.getElementById('leave-type').value;
+    const reason = document.getElementById('leave-reason').value;
+    const operator = document.getElementById('leave-operator').value;
+
+    if (!doctorId || !leaveDate) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/schedule/leaves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                doctor_id: parseInt(doctorId),
+                leave_date: leaveDate,
+                leave_type: leaveType,
+                reason: reason,
+                operator: operator
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadLeaves();
+            showToast('请假已提交，相关排班已自动停诊', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '提交失败', 'error');
+        }
+    } catch(e) {
+        showToast('提交失败', 'error');
+    }
+}
+
+async function cancelLeave(leaveId) {
+    if (!confirm('确认取消该请假？取消后相关排班将恢复。')) return;
+    try {
+        const response = await fetch(`/api/schedule/leaves/${leaveId}/cancel`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已取消请假，相关排班已恢复', 'success');
+            loadLeaves();
+        }
+    } catch(e) {}
+}
+
+loadDoctors();
+loadLeaves();
+</script>
+{% endblock %}

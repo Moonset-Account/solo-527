@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Appointment, Doctor, Schedule, TimeSlot, ProcessLog
-from app.schemas import AppointmentCreate, Appointment as AppointmentSchema
+from app.schemas import AppointmentCreate, Appointment as AppointmentSchema, ProcessLog as ProcessLogSchema
 from app.redis_client import get_redis
 
 router = APIRouter()
@@ -195,3 +195,34 @@ def reschedule_appointment(
 
     db.commit()
     return {"status": "success", "message": "改期成功"}
+
+
+@router.get("/{appointment_id}/process-logs", response_model=List[ProcessLogSchema])
+def get_appointment_process_logs(
+    appointment_id: int,
+    db: Session = Depends(get_db)
+):
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="预约不存在")
+    
+    logs = db.query(ProcessLog).filter(
+        ProcessLog.appointment_id == appointment_id
+    ).order_by(ProcessLog.created_at.desc()).all()
+    return logs
+
+
+@router.get("/{appointment_id}/last-process-log")
+def get_appointment_last_log(
+    appointment_id: int,
+    db: Session = Depends(get_db)
+):
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="预约不存在")
+    
+    last_log = db.query(ProcessLog).filter(
+        ProcessLog.appointment_id == appointment_id
+    ).order_by(ProcessLog.created_at.desc()).first()
+    
+    return last_log if last_log else None

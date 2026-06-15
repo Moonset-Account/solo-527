@@ -13,6 +13,22 @@ def get_all_configs(db: Session = Depends(get_db)):
     return db.query(SystemConfig).order_by(SystemConfig.id).all()
 
 
+@router.get("/logs/all", response_model=List[ChangeLogSchema])
+def get_all_change_logs(db: Session = Depends(get_db)):
+    return db.query(ConfigChangeLog).order_by(ConfigChangeLog.created_at.desc()).all()
+
+
+@router.get("/logs/{config_key}", response_model=List[ChangeLogSchema])
+def get_config_change_logs(
+    config_key: str,
+    db: Session = Depends(get_db)
+):
+    logs = db.query(ConfigChangeLog).filter(
+        ConfigChangeLog.config_key == config_key
+    ).order_by(ConfigChangeLog.created_at.desc()).all()
+    return logs
+
+
 @router.get("/{config_key}")
 def get_config(config_key: str, db: Session = Depends(get_db)):
     config = db.query(SystemConfig).filter(SystemConfig.config_key == config_key).first()
@@ -89,19 +105,3 @@ def delete_config(config_key: str, db: Session = Depends(get_db)):
 
     db.commit()
     return {"status": "success", "message": "配置已删除"}
-
-
-@router.get("/logs/{config_key}", response_model=List[ChangeLogSchema])
-def get_config_change_logs(
-    config_key: str,
-    db: Session = Depends(get_db)
-):
-    logs = db.query(ConfigChangeLog).filter(
-        ConfigChangeLog.config_key == config_key
-    ).order_by(ConfigChangeLog.created_at.desc()).all()
-    return logs
-
-
-@router.get("/logs/all", response_model=List[ChangeLogSchema])
-def get_all_change_logs(db: Session = Depends(get_db)):
-    return db.query(ConfigChangeLog).order_by(ConfigChangeLog.created_at.desc()).all()

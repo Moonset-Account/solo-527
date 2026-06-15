@@ -1,10 +1,15 @@
-from datetime import date, timedelta, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Schedule, Doctor, TimeSlot
-from app.schemas import ScheduleCreate, Schedule as ScheduleSchema, Doctor as DoctorSchema, DoctorCreate, TimeSlot as TimeSlotSchema
+from app.models import Schedule, Doctor, TimeSlot, TechnicianLeave
+from app.schemas import (
+    ScheduleCreate, Schedule as ScheduleSchema,
+    Doctor as DoctorSchema, DoctorCreate,
+    TimeSlot as TimeSlotSchema,
+    TechnicianLeaveCreate, TechnicianLeave as TechnicianLeaveSchema
+)
 
 router = APIRouter()
 
@@ -27,6 +32,85 @@ def create_doctor(doctor: DoctorCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_doctor)
     return db_doctor
+
+
+@router.get("/leaves", response_model=List[TechnicianLeaveSchema])
+def get_leaves(
+    doctor_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    status: Optional[str] = None,
+    operator: Optional[str] = None,
+    leave_type: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(TechnicianLeave)
+    if doctor_id:
+        query = query.filter(TechnicianLeave.doctor_id == doctor_id)
+    if start_date:
+        query = query.filter(TechnicianLeave.leave_date >= start_date)
+    if end_date:
+        query = query.filter(TechnicianLeave.leave_date <= end_date)
+    if status:
+        query = query.filter(TechnicianLeave.status == status)
+    if operator:
+        query = query.filter(TechnicianLeave.operator == operator)
+    if leave_type:
+        query = query.filter(TechnicianLeave.leave_type == leave_type)
+    return query.order_by(TechnicianLeave.leave_date.desc()).all()
+
+
+@router.post("/leaves", response_model=TechnicianLeaveSchema])
+def create_leave(leave: TechnicianLeaveCreate, db: Session = Depends(get_db)):
+    doctor = db.query(Doctor).filter(Doctor.id == leave.doctor_id).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="医生不存在")
+
+    existing = db.query(TechnicianLeave).filter(
+        TechnicianLeave.doctor_id == leave.doctor_id,
+        TechnicianLeave.leave_date == leave.leave_date
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="该医生当日已有请假记录")
+
+    db_leave = TechnicianLeave(**leave.model_dump())
+    db.add(db_leave)
+
+    schedules = db.query(Schedule).filter(
+        Schedule.doctor_id == leave.doctor_id,
+        Schedule.schedule_date == leave.leave_date
+    ).all()
+    for schedule in schedules:
+        schedule.status = "inactive"
+
+    db.commit()
+    db.refresh(db_leave)
+    return db_leave
+
+
+@router.post("/leaves/{leave_id}/cancel")
+def cancel_leave(
+    leave_id: int,
+    operator: Optional[str] = "前台",
+    db: Session = Depends(get_db)
+):
+    leave = db.query(TechnicianLeave).filter(TechnicianLeave.id == leave_id).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="请假记录不存在")
+    if leave.status != "approved":
+        raise HTTPException(status_code=400, detail="该请假已取消")
+
+    leave.status = "cancelled"
+
+    schedules = db.query(Schedule).filter(
+        Schedule.doctor_id == leave.doctor_id,
+        Schedule.schedule_date == leave.leave_date
+    ).all()
+    for schedule in schedules:
+        schedule.status = "active"
+
+    db.commit()
+    return {"status": "success", "message": "请假已取消"}
 
 
 @router.get("", response_model=List[ScheduleSchema])
@@ -61,6 +145,14 @@ def create_schedule(schedule: ScheduleCreate, db: Session = Depends(get_db)):
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="该医生当日已有排班")
+
+    leave = db.query(TechnicianLeave).filter(
+        TechnicianLeave.doctor_id == schedule.doctor_id,
+        TechnicianLeave.leave_date == schedule.schedule_date,
+        TechnicianLeave.status == "approved"
+    ).first()
+    if leave:
+        raise HTTPException(status_code=400, detail="该医生当日已请假")
 
     db_schedule = Schedule(**schedule.model_dump())
     db.add(db_schedule)

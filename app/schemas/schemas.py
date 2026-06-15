@@ -171,6 +171,7 @@ class PricingRuleBase(BaseModel):
     source: Optional[str] = "all"
     is_active: Optional[bool] = True
     description: Optional[str] = None
+    operator: Optional[str] = None
 
 
 class PricingRuleCreate(PricingRuleBase):
@@ -243,6 +244,7 @@ class TechnicianLeave(TechnicianLeaveBase):
     id: int
     status: str
     created_at: datetime
+    doctor: Optional["Doctor"] = None
 
     class Config:
         from_attributes = True

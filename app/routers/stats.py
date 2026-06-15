@@ -2,9 +2,9 @@ from datetime import date, datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from sqlalchemy import func, case
 from app.database import get_db
-from app.models import Appointment, CheckIn, Schedule, Doctor
+from app.models import Appointment, Schedule, Doctor
 
 router = APIRouter()
 
@@ -20,24 +20,32 @@ def get_conversion_stats(
     if not end_date:
         end_date = date.today()
 
-    total_appointments = db.query(Appointment).join(Schedule).filter(
+    total_appointments = db.query(Appointment).join(
+        Schedule, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date
     ).count()
 
-    checked_in = db.query(Appointment).join(Schedule).filter(
+    checked_in = db.query(Appointment).join(
+        Schedule, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date,
         Appointment.status == "checked_in"
     ).count()
 
-    no_show = db.query(Appointment).join(Schedule).filter(
+    no_show = db.query(Appointment).join(
+        Schedule, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date,
         Appointment.status == "no_show"
     ).count()
 
-    cancelled = db.query(Appointment).join(Schedule).filter(
+    cancelled = db.query(Appointment).join(
+        Schedule, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date,
         Appointment.status == "cancelled"
@@ -71,10 +79,12 @@ def get_stats_by_source(
     results = db.query(
         Appointment.source,
         func.count(Appointment.id).label("total"),
-        func.sum(func.case((Appointment.status == "checked_in", 1), else_=0)).label("checked_in"),
-        func.sum(func.case((Appointment.status == "no_show", 1), else_=0)).label("no_show"),
-        func.sum(func.case((Appointment.status == "cancelled", 1), else_=0)).label("cancelled")
-    ).join(Schedule).filter(
+        func.sum(case([(Appointment.status == "checked_in", 1)], else_=0)).label("checked_in"),
+        func.sum(case([(Appointment.status == "no_show", 1)], else_=0)).label("no_show"),
+        func.sum(case([(Appointment.status == "cancelled", 1)], else_=0)).label("cancelled")
+    ).join(
+        Schedule, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date
     ).group_by(Appointment.source).all()
@@ -107,16 +117,29 @@ def get_stats_by_doctor(
     if not end_date:
         end_date = date.today()
 
-    results = db.query(
-        Doctor.name.label("doctor_name"),
-        Doctor.id.label("doctor_id"),
+    subquery = db.query(
+        Appointment.doctor_id,
         func.count(Appointment.id).label("total"),
-        func.sum(func.case((Appointment.status == "checked_in", 1), else_=0)).label("checked_in"),
-        func.sum(func.case((Appointment.status == "no_show", 1), else_=0)).label("no_show")
-    ).join(Appointment, Appointment.doctor_id == Doctor.id).join(Schedule).filter(
+        func.sum(case([(Appointment.status == "checked_in", 1)], else_=0)).label("checked_in"),
+        func.sum(case([(Appointment.status == "no_show", 1)], else_=0)).label("no_show")
+    ).join(
+        Schedule, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date
-    ).group_by(Doctor.id, Doctor.name).all()
+    ).group_by(Appointment.doctor_id).subquery()
+
+    results = db.query(
+        Doctor.id.label("doctor_id"),
+        Doctor.name.label("doctor_name"),
+        func.coalesce(subquery.c.total, 0).label("total"),
+        func.coalesce(subquery.c.checked_in, 0).label("checked_in"),
+        func.coalesce(subquery.c.no_show, 0).label("no_show")
+    ).outerjoin(
+        subquery, Doctor.id == subquery.c.doctor_id
+    ).filter(
+        Doctor.is_active == True
+    ).all()
 
     doctor_stats = []
     for row in results:
@@ -149,9 +172,11 @@ def get_daily_stats(
     results = db.query(
         Schedule.schedule_date,
         func.count(Appointment.id).label("total"),
-        func.sum(func.case((Appointment.status == "checked_in", 1), else_=0)).label("checked_in"),
-        func.sum(func.case((Appointment.status == "no_show", 1), else_=0)).label("no_show")
-    ).outerjoin(Appointment, Appointment.schedule_id == Schedule.id).filter(
+        func.sum(case([(Appointment.status == "checked_in", 1)], else_=0)).label("checked_in"),
+        func.sum(case([(Appointment.status == "no_show", 1)], else_=0)).label("no_show")
+    ).outerjoin(
+        Appointment, Appointment.schedule_id == Schedule.id
+    ).filter(
         Schedule.schedule_date >= start_date,
         Schedule.schedule_date <= end_date
     ).group_by(Schedule.schedule_date).order_by(Schedule.schedule_date).all()

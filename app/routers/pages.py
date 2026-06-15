@@ -49,3 +49,8 @@ async def config_page(request: Request):
 @router.get("/stats", response_class=HTMLResponse)
 async def stats_page(request: Request):
     return templates.TemplateResponse("stats.html", {"request": request})
+
+
+@router.get("/leaves", response_class=HTMLResponse)
+async def leaves_page(request: Request):
+    return templates.TemplateResponse("leaves.html", {"request": request})

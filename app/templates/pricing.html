@@ -8,6 +8,14 @@
 <div class="card">
     <div class="filter-bar">
         <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" id="filter-start" onchange="loadRules()">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end" onchange="loadRules()">
+        </div>
+        <div class="filter-group">
             <label>服务类型</label>
             <select id="filter-service" onchange="loadRules()">
                 <option value="">全部</option>
@@ -27,12 +35,16 @@
             </select>
         </div>
         <div class="filter-group">
-            <label>状态</label>
+            <label>处理状态</label>
             <select id="filter-active" onchange="loadRules()">
                 <option value="">全部</option>
                 <option value="true">启用</option>
                 <option value="false">禁用</option>
             </select>
+        </div>
+        <div class="filter-group">
+            <label>责任人</label>
+            <input type="text" id="filter-operator" placeholder="责任人" oninput="loadRules()">
         </div>
     </div>
     <button class="btn btn-primary" onclick="showAddRuleModal()">+ 新增规则</button>
@@ -46,14 +58,20 @@
 
 <script>
 async function loadRules() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
     const service = document.getElementById('filter-service').value;
     const source = document.getElementById('filter-source').value;
     const isActive = document.getElementById('filter-active').value;
+    const operator = document.getElementById('filter-operator').value;
 
     let url = '/api/pricing?';
+    if (start) url += `start_date=${start}&`;
+    if (end) url += `end_date=${end}&`;
     if (service) url += `service_type=${service}&`;
     if (source) url += `source=${source}&`;
     if (isActive !== '') url += `is_active=${isActive}&`;
+    if (operator) url += `operator=${operator}&`;
 
     try {
         const response = await fetch(url);

@@ -8,6 +8,14 @@
 <div class="card">
     <div class="filter-bar">
         <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" id="filter-start" onchange="loadWaitlist()">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end" onchange="loadWaitlist()">
+        </div>
+        <div class="filter-group">
             <label>目标日期</label>
             <input type="date" id="filter-date" onchange="loadWaitlist()">
         </div>
@@ -18,12 +26,17 @@
             </select>
         </div>
         <div class="filter-group">
-            <label>状态</label>
+            <label>处理状态</label>
             <select id="filter-status" onchange="loadWaitlist()">
+                <option value="">全部</option>
                 <option value="waiting">等待中</option>
                 <option value="allocated">已分配</option>
                 <option value="cancelled">已取消</option>
             </select>
+        </div>
+        <div class="filter-group">
+            <label>责任人</label>
+            <input type="text" id="filter-operator" placeholder="处理人" oninput="loadWaitlist()">
         </div>
     </div>
     <button class="btn btn-primary" onclick="showAddWaitlistModal()">+ 添加候补</button>
@@ -60,14 +73,20 @@ function getStatusBadge(status) {
 }
 
 async function loadWaitlist() {
+    const startDate = document.getElementById('filter-start').value;
+    const endDate = document.getElementById('filter-end').value;
     const date = document.getElementById('filter-date').value;
     const doctorId = document.getElementById('filter-doctor').value;
     const status = document.getElementById('filter-status').value;
+    const operator = document.getElementById('filter-operator').value;
 
     let url = '/api/waitlist?';
+    if (startDate) url += `start_date=${startDate}&`;
+    if (endDate) url += `end_date=${endDate}&`;
     if (date) url += `target_date=${date}&`;
     if (doctorId) url += `doctor_id=${doctorId}&`;
-    if (status && status !== '') url += `status=${status}&`;
+    if (status) url += `status=${status}&`;
+    if (operator) url += `processed_by=${operator}&`;
 
     try {
         const response = await fetch(url);

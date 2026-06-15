@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import SessionLocal, engine, Base
 from app.models import (
     Doctor, Schedule, TimeSlot, Appointment,
-    PricingRule, SystemConfig, Waitlist
+    PricingRule, SystemConfig, Waitlist,
+    TechnicianLeave, ProcessLog
 )
 
 
@@ -64,7 +65,8 @@ def init_db():
                 discount=0,
                 source="all",
                 is_active=True,
-                description="标准洁牙服务"
+                description="标准洁牙服务",
+                operator="张院长"
             ),
             PricingRule(
                 name="线上特惠洁牙",
@@ -73,7 +75,8 @@ def init_db():
                 discount=20,
                 source="online",
                 is_active=True,
-                description="线上预约专享8折"
+                description="线上预约专享8折",
+                operator="李前台"
             ),
             PricingRule(
                 name="舒适洁牙",
@@ -82,7 +85,8 @@ def init_db():
                 discount=0,
                 source="all",
                 is_active=True,
-                description="舒适化洁牙服务"
+                description="舒适化洁牙服务",
+                operator="张院长"
             ),
             PricingRule(
                 name="基础补牙",
@@ -91,7 +95,8 @@ def init_db():
                 discount=0,
                 source="all",
                 is_active=True,
-                description="树脂补牙"
+                description="树脂补牙",
+                operator="王助理"
             ),
             PricingRule(
                 name="普通拔牙",
@@ -100,7 +105,8 @@ def init_db():
                 discount=0,
                 source="all",
                 is_active=True,
-                description="普通牙齿拔除"
+                description="普通牙齿拔除",
+                operator="张院长"
             ),
         ]
         db.add_all(pricing_rules)
@@ -170,15 +176,45 @@ def init_db():
                     target_date=first_schedule.schedule_date,
                     source="phone",
                     status="waiting",
-                    priority=1
+                    priority=1,
+                    processed_by="李前台"
                 )
                 db.add(waitlist)
+
+                process_log = ProcessLog(
+                    appointment_id=appointment.id,
+                    action="创建预约",
+                    operator="李前台",
+                    detail="患者通过线上预约洁牙服务"
+                )
+                db.add(process_log)
+
+        leaves = [
+            TechnicianLeave(
+                doctor_id=doctors[0].id,
+                leave_date=today + timedelta(days=3),
+                leave_type="年假",
+                reason="休假",
+                status="approved",
+                operator="张院长"
+            ),
+            TechnicianLeave(
+                doctor_id=doctors[1].id,
+                leave_date=today + timedelta(days=5),
+                leave_type="调休",
+                reason="补休",
+                status="approved",
+                operator="李前台"
+            ),
+        ]
+        db.add_all(leaves)
 
         db.commit()
         print("数据库初始化完成！")
         print(f"  - 医生: {len(doctors)} 人")
         print(f"  - 价格规则: {len(pricing_rules)} 条")
         print(f"  - 系统配置: {len(configs)} 项")
+        print(f"  - 技师请假: {len(leaves)} 条")
 
     except Exception as e:
         db.rollback()

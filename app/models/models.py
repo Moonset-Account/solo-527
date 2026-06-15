@@ -138,6 +138,7 @@ class PricingRule(Base):
     source = Column(String(30), default="all")
     is_active = Column(Boolean, default=True)
     description = Column(Text)
+    operator = Column(String(50))
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
