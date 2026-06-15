@@ -33,7 +33,7 @@
 
     <section class="plans-section">
       <div class="section-title">选择适合你的计划</div>
-      <el-row :gutter="24" class="plans-row">
+      <el-row v-loading="loading" :gutter="24" class="plans-row">
         <el-col :xs="24" :md="8" v-for="plan in plans" :key="plan.id">
           <div class="plan-card" :class="{ featured: plan.level === 'vip' }">
             <div v-if="plan.level === 'vip'" class="badge">最受欢迎</div>
@@ -131,6 +131,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { subscriptionApi } from '@/api/modules'
 import { useUserStore } from '@/stores/user'
+import { toCamelCase } from '@/utils'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -147,6 +148,8 @@ const selectedPlan = ref<any>(null)
 const subscribingPlanId = ref<number | null>(null)
 const paying = ref(false)
 const payMethod = ref('alipay')
+
+const loading = ref(true)
 
 const parseFeatures = (features: string) => {
   try {
@@ -177,12 +180,13 @@ const confirmPay = async () => {
   paying.value = true
   try {
     const cycle = selectedPlan.value.billingCycle === 'yearly' ? 'yearly' : 'monthly'
-    await subscriptionApi.checkout({
+    const result: any = await subscriptionApi.checkout({
       planId: selectedPlan.value.id,
       billingCycle: cycle,
       paymentMethod: payMethod.value
     })
-    ElMessage.success('订阅成功！感谢您的支持')
+    const data = toCamelCase(result)
+    ElMessage.success(data?.message || '订阅成功！感谢您的支持')
     payDialogVisible.value = false
   } finally {
     paying.value = false
@@ -191,20 +195,13 @@ const confirmPay = async () => {
 
 onMounted(async () => {
   try {
-    const res: any = await subscriptionApi.getActivePlans()
-    plans.value = res.data || []
+    const data: any = await subscriptionApi.getActivePlans()
+    const plansData = Array.isArray(data) ? data : data?.data || []
+    plans.value = toCamelCase(plansData)
   } catch (e) {
-    plans.value = [
-      { id: 1, planCode: 'BASIC_MONTHLY', name: '基础会员', description: '适合个人用户，收听会员专属播客内容',
-        features: JSON.stringify(['会员专属播客', '无广告收听', '高清音质', '基础数据看板']),
-        monthlyPrice: 29, yearlyPrice: 290, billingCycle: 'monthly', level: 'basic' },
-      { id: 2, planCode: 'PRO_MONTHLY', name: '专业会员', description: '适合重度用户，解锁全部会员权益',
-        features: JSON.stringify(['全部基础会员权益', '专属社群', '嘉宾互动', '每月1张品牌优惠券']),
-        monthlyPrice: 99, yearlyPrice: 990, billingCycle: 'monthly', level: 'pro' },
-      { id: 3, planCode: 'VIP_YEARLY', name: 'VIP年度会员', description: '年度超值套餐，赠送2个月',
-        features: JSON.stringify(['全部专业会员权益', '独家深度报告', '品牌合作优先权', '专属客服', '年度专属礼盒']),
-        monthlyPrice: 0, yearlyPrice: 999, billingCycle: 'yearly', level: 'vip' }
-    ]
+    ElMessage.error('套餐加载失败，请刷新页面重试')
+  } finally {
+    loading.value = false
   }
 })
 </script>

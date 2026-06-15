@@ -48,3 +48,20 @@ export const getRoleLabel = (role: string) => {
   }
   return map[role] || role
 }
+
+const camelCase = (str: string): string =>
+  str.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+
+export const toCamelCase = (data: any): any => {
+  if (Array.isArray(data)) {
+    return data.map(toCamelCase)
+  }
+  if (data && typeof data === 'object' && data.constructor === Object) {
+    const result: Record<string, any> = {}
+    for (const key of Object.keys(data)) {
+      result[camelCase(key)] = toCamelCase(data[key])
+    }
+    return result
+  }
+  return data
+}
