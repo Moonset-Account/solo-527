@@ -10,6 +10,7 @@ class ChecklistRecordItem extends Model
     protected $fillable = [
         'checklist_record_id',
         'checklist_item_id',
+        'gap_id',
         'result',
         'evidence',
         'remark',

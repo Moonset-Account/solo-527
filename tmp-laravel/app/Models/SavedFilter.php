@@ -13,14 +13,14 @@ class SavedFilter extends Model
     protected $fillable = [
         'name',
         'page',
-        'filters',
+        'filter_criteria',
         'is_public',
         'user_id',
         'sort_order',
     ];
 
     protected $casts = [
-        'filters' => 'array',
+        'filter_criteria' => 'array',
         'is_public' => 'boolean',
     ];
 

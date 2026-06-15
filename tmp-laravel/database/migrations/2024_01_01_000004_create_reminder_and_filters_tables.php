@@ -32,15 +32,15 @@ return new class extends Migration
         Schema::create('reminder_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('reminder_rule_id')->nullable()->constrained();
-            $table->string('type');
-            $table->morphs('notifiable'); // 关联的对象（gap, checklist等）
+            $table->string('type')->nullable();
+            $table->morphs('notifiable');
             $table->foreignId('recipient_id')->constrained('users');
             $table->string('channel');
             $table->string('title');
             $table->text('content')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->timestamp('sent_at')->nullable();
-            $table->string('status')->default('pending'); // pending, sent, failed, read
+            $table->string('status')->default('pending');
             $table->timestamps();
             $table->index(['recipient_id', 'read_at']);
             $table->index(['type', 'status']);
@@ -49,8 +49,8 @@ return new class extends Migration
         Schema::create('saved_filters', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('page'); // 适用页面: gaps, checklists, records
-            $table->json('filters');
+            $table->string('page');
+            $table->json('filter_criteria');
             $table->boolean('is_public')->default(false);
             $table->foreignId('user_id')->constrained('users');
             $table->integer('sort_order')->default(0);
@@ -63,10 +63,11 @@ return new class extends Migration
         Schema::create('download_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users');
-            $table->string('download_type'); // gap_report, checklist, evidence, compliance_summary
+            $table->string('download_type')->nullable();
             $table->morphs('downloadable');
             $table->string('file_name');
-            $table->string('file_format')->default('pdf'); // pdf, excel, csv
+            $table->string('file_path');
+            $table->string('file_format')->default('pdf');
             $table->bigInteger('file_size')->default(0);
             $table->json('filter_criteria')->nullable();
             $table->string('ip_address')->nullable();

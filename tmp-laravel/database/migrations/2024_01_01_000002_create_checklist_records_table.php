@@ -13,13 +13,16 @@ return new class extends Migration
             $table->foreignId('checklist_id')->constrained();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->string('status')->default('draft'); // draft, submitted, reviewed, closed
+            $table->string('status')->default('draft');
             $table->foreignId('submitted_by')->nullable()->constrained('users');
             $table->foreignId('reviewed_by')->nullable()->constrained('users');
-            $table->foreignId('responsible_user_id')->nullable()->constrained('users'); // 责任人
+            $table->foreignId('reviewer_user_id')->nullable()->constrained('users');
+            $table->foreignId('responsible_user_id')->nullable()->constrained('users');
+            $table->foreignId('created_by')->nullable()->constrained('users');
             $table->string('department')->nullable();
             $table->date('check_date')->nullable();
-            $table->date('due_date')->nullable(); // 整改期限
+            $table->date('due_date')->nullable();
+            $table->integer('gap_count')->default(0);
             $table->timestamp('submitted_at')->nullable();
             $table->timestamp('reviewed_at')->nullable();
             $table->timestamps();
@@ -33,7 +36,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('checklist_record_id')->constrained()->onDelete('cascade');
             $table->foreignId('checklist_item_id')->constrained();
-            $table->string('result')->default('pending'); // pass, fail, partial, pending, na
+            $table->foreignId('gap_id')->nullable()->constrained('compliance_gaps')->nullOnDelete();
+            $table->string('result')->default('pending');
             $table->text('evidence')->nullable();
             $table->text('remark')->nullable();
             $table->boolean('has_gap')->default(false);

@@ -14,6 +14,7 @@ class DownloadLog extends Model
         'downloadable_id',
         'downloadable_type',
         'file_name',
+        'file_path',
         'file_format',
         'file_size',
         'filter_criteria',

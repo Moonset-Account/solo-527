@@ -10,39 +10,41 @@ return new class extends Migration
     {
         Schema::create('compliance_gaps', function (Blueprint $table) {
             $table->id();
-            $table->string('gap_no')->unique(); // 缺口编号
-            $table->foreignId('checklist_record_id')->constrained()->onDelete('cascade');
+            $table->string('gap_no')->unique();
+            $table->foreignId('checklist_record_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('checklist_item_id')->nullable()->constrained();
+            $table->string('source_type')->default('manual'); // manual, checklist, audit, external, incident
             $table->string('title');
             $table->text('description')->nullable();
-            $table->string('severity')->default('medium'); // low, medium, high, critical
-            $table->string('status')->default('open'); // open, in_progress, pending_review, resolved, closed
-            $table->string('category')->nullable(); // 分类
+            $table->string('severity')->default('medium');
+            $table->string('status')->default('open');
+            $table->string('category')->nullable();
             $table->foreignId('responsible_user_id')->nullable()->constrained('users');
             $table->foreignId('created_by')->constrained('users');
             $table->foreignId('closed_by')->nullable()->constrained('users');
             $table->date('discovered_date');
-            $table->date('due_date')->nullable(); // 整改期限
+            $table->date('due_date')->nullable();
             $table->date('closed_date')->nullable();
             $table->text('root_cause')->nullable();
-            $table->text('corrective_action')->nullable(); // 整改措施
-            $table->text('preventive_action')->nullable(); // 预防措施
+            $table->text('corrective_action')->nullable();
+            $table->text('preventive_action')->nullable();
             $table->text('resolution_summary')->nullable();
-            $table->integer('review_duration_hours')->default(0); // 审阅时长（小时）
-            $table->integer('handling_duration_hours')->default(0); // 处理时长（小时）
+            $table->integer('review_duration_hours')->default(0);
+            $table->integer('handling_duration_hours')->default(0);
             $table->timestamps();
             $table->softDeletes();
             $table->index(['status', 'severity']);
             $table->index(['responsible_user_id', 'status']);
             $table->index(['due_date', 'status']);
             $table->index(['category', 'status']);
+            $table->index(['source_type', 'status']);
         });
 
         Schema::create('gap_handling_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('compliance_gap_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users');
-            $table->string('action_type'); // created, status_changed, comment, evidence_added, assignee_changed, due_date_changed
+            $table->string('action_type');
             $table->text('old_value')->nullable();
             $table->text('new_value')->nullable();
             $table->text('comment')->nullable();

@@ -18,10 +18,13 @@ class ChecklistRecord extends Model
         'status',
         'submitted_by',
         'reviewed_by',
+        'reviewer_user_id',
         'responsible_user_id',
+        'created_by',
         'department',
         'check_date',
         'due_date',
+        'gap_count',
         'submitted_at',
         'reviewed_at',
     ];

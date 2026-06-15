@@ -10,6 +10,8 @@ class GapEvidence extends Model
 {
     use SoftDeletes;
 
+    protected $table = 'gap_evidences';
+
     protected $fillable = [
         'compliance_gap_id',
         'uploaded_by',

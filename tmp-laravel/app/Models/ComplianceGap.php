@@ -16,6 +16,7 @@ class ComplianceGap extends Model
         'gap_no',
         'checklist_record_id',
         'checklist_item_id',
+        'source_type',
         'title',
         'description',
         'severity',
