@@ -1,0 +1,43 @@
+{
+  "name": "park-workorder-center",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.0",
+    "ioredis": "^5.4.1",
+    "nuxt": "^3.13.0",
+    "vue": "^3.4.38",
+    "vue-router": "^4.4.3",
+    "@pinia/nuxt": "^0.5.4",
+    "pinia": "^2.2.2",
+    "dayjs": "^1.11.13",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "prisma": "^5.19.0",
+    "typescript": "^5.5.4",
+    "vue-tsc": "^2.1.4",
+    "@nuxtjs/eslint-config-typescript": "^12.1.0",
+    "eslint": "^9.9.1",
+    "sass": "^1.77.8"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

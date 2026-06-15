@@ -1,0 +1,403 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TENANT
+  OPERATOR
+  ENGINEER
+  ADMIN
+}
+
+enum WorkOrderStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  MATERIAL_NEEDED
+  COMPLETED
+  REVIEWED
+  CLOSED
+  OVERDUE
+}
+
+enum WorkOrderType {
+  REPAIR
+  MAINTENANCE
+  INSTALLATION
+  CONSULTING
+  OTHER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum VisitorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  CHECKED_IN
+  CHECKED_OUT
+  EXCEPTION
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum RepairStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  password     String
+  name         String
+  role         UserRole
+  tenantId     Int?
+  tenant       Tenant?    @relation(fields: [tenantId], references: [id])
+  phone        String?
+  email        String?
+  avatar       String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  workOrders   WorkOrder[] @relation("creator")
+  assignments  WorkOrderAssignment[] @relation("assignee")
+  createdVisitors VisitorAppointment[] @relation("creator")
+  handledVisitors VisitorAppointment[] @relation("handler")
+  inspectionTasks InspectionTask[] @relation("assignee")
+  createdRepairs EngineeringRepair[] @relation("creator")
+  handledRepairs EngineeringRepair[] @relation("handler")
+  satisfactionSurveys SatisfactionSurvey[]
+  filterPresets FilterPreset[]
+  createdExceptions AuditException[] @relation("exceptionCreator")
+  handledExceptions AuditException[] @relation("exceptionHandler")
+}
+
+model Tenant {
+  id           Int        @id @default(autoincrement())
+  name         String
+  contactName  String
+  contactPhone String
+  address      String
+  floor        String
+  roomNumber   String
+  businessType String?
+  contractStart DateTime?
+  contractEnd  DateTime?
+  status       String     @default("active")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  users        User[]
+  workOrders   WorkOrder[]
+  satisfactionSurveys SatisfactionSurvey[]
+  visitors     VisitorAppointment[]
+}
+
+model WorkOrder {
+  id           Int        @id @default(autoincrement())
+  orderNo      String     @unique
+  title        String
+  description  String
+  type         WorkOrderType
+  status       WorkOrderStatus @default(PENDING)
+  priority     Priority   @default(MEDIUM)
+  creatorId    Int
+  creator      User       @relation("creator", fields: [creatorId], references: [id])
+  tenantId     Int
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  location     String
+  contactName  String
+  contactPhone String
+  expectedDate DateTime?
+  deadline     DateTime?
+  actualStart  DateTime?
+  actualEnd    DateTime?
+  assignments  WorkOrderAssignment[]
+  materials    WorkOrderMaterial[]
+  progressLogs WorkOrderProgress[]
+  review       WorkOrderReview?
+  cost         WorkOrderCost?
+  overdueReminders OverdueReminder[]
+  satisfactionSurvey SatisfactionSurvey?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model WorkOrderAssignment {
+  id           Int        @id @default(autoincrement())
+  workOrderId  Int
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  assigneeId   Int
+  assignee     User       @relation("assignee", fields: [assigneeId], references: [id])
+  status       AssignmentStatus @default(PENDING)
+  assignedAt   DateTime   @default(now())
+  acceptedAt   DateTime?
+  completedAt  DateTime?
+  rejectReason String?
+  remark       String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model WorkOrderMaterial {
+  id           Int        @id @default(autoincrement())
+  workOrderId  Int
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  name         String
+  specification String
+  quantity     Int
+  unit         String
+  unitPrice    Decimal
+  totalPrice   Decimal
+  usedAt       DateTime   @default(now())
+  operatorId   Int?
+  remark       String?
+  createdAt    DateTime   @default(now())
+}
+
+model WorkOrderProgress {
+  id           Int        @id @default(autoincrement())
+  workOrderId  Int
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  status       String
+  description  String
+  operatorId   Int?
+  operatorName String?
+  progressPercent Int @default(0)
+  images       String?
+  createdAt    DateTime   @default(now())
+}
+
+model WorkOrderReview {
+  id           Int        @id @default(autoincrement())
+  workOrderId  Int        @unique
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  reviewerId   Int
+  reviewDate   DateTime   @default(now())
+  result       String
+  content      String
+  suggestion   String?
+  createdAt    DateTime   @default(now())
+}
+
+model WorkOrderCost {
+  id           Int        @id @default(autoincrement())
+  workOrderId  Int        @unique
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  materialCost Decimal    @default(0)
+  laborCost    Decimal    @default(0)
+  otherCost    Decimal    @default(0)
+  totalCost    Decimal    @default(0)
+  costDetails  String?
+  operatorId   Int?
+  confirmedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model OverdueReminder {
+  id           Int        @id @default(autoincrement())
+  workOrderId  Int
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  reminderType String
+  reminderTime DateTime   @default(now())
+  remindedUserIds String
+  content      String
+  isRead       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+}
+
+model SatisfactionSurvey {
+  id                    Int                  @id @default(autoincrement())
+  workOrderId           Int?                 @unique
+  workOrder             WorkOrder?           @relation(fields: [workOrderId], references: [id])
+  engineeringRepairId   Int?                 @unique
+  engineeringRepair     EngineeringRepair?   @relation(fields: [engineeringRepairId], references: [id])
+  inspectionTaskId      Int?                 @unique
+  inspectionTask        InspectionTask?      @relation(fields: [inspectionTaskId], references: [id])
+  visitorAppointmentId  Int?                 @unique
+  visitorAppointment    VisitorAppointment?  @relation(fields: [visitorAppointmentId], references: [id])
+  tenantId              Int
+  tenant                Tenant               @relation(fields: [tenantId], references: [id])
+  respondentId          Int
+  respondent            User                 @relation(fields: [respondentId], references: [id])
+  overallScore          Int
+  responseSpeed         Int
+  serviceAttitude       Int
+  repairQuality         Int
+  costReasonable        Int
+  comment               String?
+  improvement           String?
+  surveyDate            DateTime             @default(now())
+  sourceType            String
+  sourceId              Int?
+  createdAt             DateTime             @default(now())
+}
+
+model InspectionTask {
+  id           Int        @id @default(autoincrement())
+  taskNo       String     @unique
+  title        String
+  description  String
+  type         String
+  status       InspectionStatus @default(PENDING)
+  location     String
+  assigneeId   Int?
+  assignee     User?      @relation("assignee", fields: [assigneeId], references: [id])
+  planDate     DateTime
+  actualDate   DateTime?
+  result       String?
+  remark       String?
+  items        String?
+  images       String?
+  satisfactionSurveyId Int?
+  satisfactionSurvey SatisfactionSurvey?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model VisitorAppointment {
+  id           Int        @id @default(autoincrement())
+  visitNo      String     @unique
+  visitorName  String
+  visitorPhone String
+  visitorIdCard String?
+  visitorCompany String?
+  visitDate    DateTime
+  visitEndDate DateTime?
+  purpose      String
+  status       VisitorStatus @default(PENDING)
+  visitorCount Int        @default(1)
+  tenantId     Int
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  hostName     String
+  hostPhone    String
+  creatorId    Int
+  creator      User       @relation("creator", fields: [creatorId], references: [id])
+  handlerId    Int?
+  handler      User?      @relation("handler", fields: [handlerId], references: [id])
+  rejectReason String?
+  exceptionDetail String?
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  satisfactionSurveyId Int?
+  satisfactionSurvey SatisfactionSurvey?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model EngineeringRepair {
+  id              Int        @id @default(autoincrement())
+  repairNo        String     @unique
+  title           String
+  description     String
+  equipmentName   String?
+  equipmentModel  String?
+  faultDescription String?
+  type            String
+  status          RepairStatus @default(PENDING)
+  priority        Priority   @default(MEDIUM)
+  location        String
+  reporterName    String?
+  reporterPhone   String?
+  creatorId       Int
+  creator         User       @relation("creator", fields: [creatorId], references: [id])
+  handlerId       Int?
+  handler         User?      @relation("handler", fields: [handlerId], references: [id])
+  planDate        DateTime?
+  actualDate      DateTime?
+  deadline        DateTime?
+  cost            Decimal    @default(0)
+  actualCost      Decimal?
+  maintenanceHours Decimal?
+  result          String?
+  remark          String?
+  satisfactionSurveyId Int?
+  satisfactionSurvey SatisfactionSurvey?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model FilterPreset {
+  id           Int        @id @default(autoincrement())
+  name         String
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  pageKey      String
+  filters      String
+  sortBy       String?
+  sortOrder    String?
+  isDefault    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  @@unique([userId, pageKey, name])
+}
+
+enum ExceptionStatus {
+  PENDING
+  ASSIGNED
+  PROCESSING
+  RESOLVED
+  CLOSED
+}
+
+enum ExceptionType {
+  VISITOR_REJECT
+  WORKORDER_OVERDUE
+  INSPECTION_ISSUE
+  SYSTEM_ERROR
+}
+
+model AuditException {
+  id           Int              @id @default(autoincrement())
+  exceptionNo  String           @unique
+  type         ExceptionType
+  status       ExceptionStatus  @default(PENDING)
+  sourceType   String
+  sourceId     Int
+  relatedNo    String?
+  title        String
+  detail       String
+  impactScope  String
+  impactLevel  String
+  priority     Priority         @default(MEDIUM)
+  processOrder String
+  suggestion   String
+  creatorId    Int
+  creator      User             @relation("exceptionCreator", fields: [creatorId], references: [id])
+  handlerId    Int?
+  handler      User?            @relation("exceptionHandler", fields: [handlerId], references: [id])
+  handledAt    DateTime?
+  history      String?
+  remarks      String?
+  isHandled    Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
