@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qinghe.topic.mapper.VideoDataMapper">
+
+    <resultMap id="statsMap" type="java.util.Map"/>
+
+    <select id="statsByPlatform" resultMap="statsMap">
+        SELECT
+            platform AS name,
+            COUNT(*) AS videoCount,
+            SUM(views) AS totalViews,
+            SUM(likes) AS totalLikes,
+            SUM(conversions) AS totalConversions,
+            SUM(amount) AS totalAmount
+        FROM video_data
+        WHERE deleted = 0
+        GROUP BY platform
+    </select>
+
+    <select id="statsByCreator" resultMap="statsMap">
+        SELECT
+            creator_id AS creatorId,
+            creator_name AS creatorName,
+            COUNT(*) AS videoCount,
+            SUM(views) AS totalViews,
+            SUM(likes) AS totalLikes,
+            SUM(conversions) AS totalConversions,
+            SUM(amount) AS totalAmount
+        FROM video_data
+        WHERE deleted = 0
+        <if test="startDate != null">
+            AND publish_date >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND publish_date <= #{endDate}
+        </if>
+        GROUP BY creator_id, creator_name
+        ORDER BY totalViews DESC
+    </select>
+
+    <select id="statsByDate" resultMap="statsMap">
+        SELECT
+            DATE_FORMAT(publish_date, '%Y-%m-%d') AS statDate,
+            COUNT(*) AS videoCount,
+            SUM(views) AS totalViews,
+            SUM(likes) AS totalLikes,
+            SUM(conversions) AS totalConversions
+        FROM video_data
+        WHERE deleted = 0
+        <if test="startDate != null">
+            AND publish_date >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND publish_date <= #{endDate}
+        </if>
+        GROUP BY DATE_FORMAT(publish_date, '%Y-%m-%d')
+        ORDER BY statDate
+    </select>
+
+    <select id="statsTopicPerformance" resultMap="statsMap">
+        SELECT
+            t.id AS topicId,
+            t.title AS topicTitle,
+            COUNT(v.id) AS videoCount,
+            SUM(v.views) AS totalViews,
+            SUM(v.likes) AS totalLikes,
+            SUM(v.conversions) AS totalConversions,
+            SUM(v.amount) AS totalAmount,
+            AVG(v.conversion_rate) AS avgConversionRate
+        FROM topic t
+        LEFT JOIN video_data v ON t.id = v.topic_id AND v.deleted = 0
+        WHERE t.deleted = 0
+        <if test="startDate != null">
+            AND v.publish_date >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND v.publish_date <= #{endDate}
+        </if>
+        GROUP BY t.id, t.title
+        HAVING videoCount > 0
+        ORDER BY totalViews DESC
+    </select>
+</mapper>
