@@ -28,8 +28,8 @@ def generate_daily_report(report_date=None):
         demo_filter = Q(is_demo=False)
     
     bookings = Booking.objects.filter(
+        demo_filter,
         booking_date__range=(start_date, end_date),
-        demo_filter
     )
     
     total_bookings = bookings.count()
@@ -37,8 +37,8 @@ def generate_daily_report(report_date=None):
     arrival_rate = (total_arrivals / total_bookings * 100) if total_bookings > 0 else 0
     
     service_records = ServiceRecord.objects.filter(
+        demo_filter,
         created_at__date__range=(start_date, end_date),
-        demo_filter
     )
     
     total_services = service_records.count()
@@ -46,17 +46,17 @@ def generate_daily_report(report_date=None):
     service_completion_rate = (completed_services / total_services * 100) if total_services > 0 else 0
     
     payment_orders = PaymentOrder.objects.filter(
+        demo_filter,
         paid_at__date__range=(start_date, end_date),
         status='paid',
-        demo_filter
     )
     
     total_payments = payment_orders.count()
     payment_rate = (total_payments / total_arrivals * 100) if total_arrivals > 0 else 0
     
     new_memberships = MemberMembership.objects.filter(
+        demo_filter,
         created_at__date__range=(start_date, end_date),
-        demo_filter
     )
     new_memberships_count = new_memberships.count()
     membership_conversion_rate = (new_memberships_count / total_arrivals * 100) if total_arrivals > 0 else 0
@@ -74,9 +74,9 @@ def generate_daily_report(report_date=None):
     average_order_value = (total_revenue / total_payments) if total_payments > 0 else 0
     
     discrepancies = PaymentOrder.objects.filter(
+        demo_filter,
         created_at__date__range=(start_date, end_date),
         has_discrepancy=True,
-        demo_filter
     )
     
     cashier_discrepancies = discrepancies.count()
@@ -139,8 +139,8 @@ def generate_period_report(report_type, report_date, start_date, end_date):
         demo_filter = Q(is_demo=False)
     
     bookings = Booking.objects.filter(
+        demo_filter,
         booking_date__range=(start_date, end_date),
-        demo_filter
     )
     
     total_bookings = bookings.count()
@@ -148,8 +148,8 @@ def generate_period_report(report_type, report_date, start_date, end_date):
     arrival_rate = (total_arrivals / total_bookings * 100) if total_bookings > 0 else 0
     
     service_records = ServiceRecord.objects.filter(
+        demo_filter,
         created_at__date__range=(start_date, end_date),
-        demo_filter
     )
     
     total_services = service_records.count()
@@ -157,17 +157,17 @@ def generate_period_report(report_type, report_date, start_date, end_date):
     service_completion_rate = (completed_services / total_services * 100) if total_services > 0 else 0
     
     payment_orders = PaymentOrder.objects.filter(
+        demo_filter,
         paid_at__date__range=(start_date, end_date),
         status='paid',
-        demo_filter
     )
     
     total_payments = payment_orders.count()
     payment_rate = (total_payments / total_arrivals * 100) if total_arrivals > 0 else 0
     
     new_memberships = MemberMembership.objects.filter(
+        demo_filter,
         created_at__date__range=(start_date, end_date),
-        demo_filter
     )
     new_memberships_count = new_memberships.count()
     membership_conversion_rate = (new_memberships_count / total_arrivals * 100) if total_arrivals > 0 else 0
@@ -185,9 +185,9 @@ def generate_period_report(report_type, report_date, start_date, end_date):
     average_order_value = (total_revenue / total_payments) if total_payments > 0 else 0
     
     discrepancies = PaymentOrder.objects.filter(
+        demo_filter,
         created_at__date__range=(start_date, end_date),
         has_discrepancy=True,
-        demo_filter
     )
     
     cashier_discrepancies = discrepancies.count()
@@ -232,22 +232,22 @@ def update_store_performance(date=None):
         demo_filter = Q(is_demo=False)
     
     bookings = Booking.objects.filter(
+        demo_filter,
         booking_date=date,
-        demo_filter
     )
     
     total_visitors = bookings.filter(arrival_time__isnull=False).count()
     
     new_members = User.objects.filter(
+        demo_filter,
         date_joined__date=date,
         role='member',
-        demo_filter
     ).count()
     
     payment_orders = PaymentOrder.objects.filter(
+        demo_filter,
         paid_at__date=date,
         status='paid',
-        demo_filter
     )
     
     total_orders = payment_orders.count()

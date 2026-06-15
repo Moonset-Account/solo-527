@@ -86,7 +86,9 @@ const PaymentPage = () => {
     onSuccess: () => {
       message.success('支付处理成功');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['conversion'] });
+      queryClient.invalidateQueries({ queryKey: ['funnels'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setPayModalOpen(false);
       payForm.resetFields();
       setCurrentOrder(null);
@@ -99,6 +101,7 @@ const PaymentPage = () => {
     onSuccess: () => {
       message.success('订单已取消');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion-reports'] });
     },
   });
 
@@ -106,8 +109,10 @@ const PaymentPage = () => {
     mutationFn: ({ id, ...data }) =>
       request.post(PAYMENTS.MARK_DISCREPANCY(id), data),
     onSuccess: () => {
-      message.success('差异已标记');
+      message.success('差异已标记，进入未处理差异列表');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['discrepancy-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion-reports'] });
       setDiscrepancyModalOpen(false);
       discrepancyForm.resetFields();
       setCurrentOrder(null);
@@ -118,9 +123,11 @@ const PaymentPage = () => {
     mutationFn: ({ id, ...data }) =>
       request.post(PAYMENTS.RESOLVE_DISCREPANCY(id), data),
     onSuccess: () => {
-      message.success('差异已处理，转化报表将自动刷新');
+      message.success('差异已处理，转化报表已刷新');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
-      queryClient.invalidateQueries({ queryKey: ['conversion'] });
+      queryClient.invalidateQueries({ queryKey: ['discrepancy-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['funnels'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setResolveModalOpen(false);
       resolveForm.resetFields();
@@ -134,6 +141,8 @@ const PaymentPage = () => {
     onSuccess: () => {
       message.success('退款已处理');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setRefundModalOpen(false);
       refundForm.resetFields();
       setCurrentOrder(null);
@@ -201,11 +210,26 @@ const PaymentPage = () => {
     }
 
     if (status === PAYMENT_STATUS.PAID) {
-      if (has_discrepancy && !discrepancy_resolved) {
+      if (!has_discrepancy) {
         buttons.push(
           <Button
-            key="discrepancy"
+            key="mark-discrepancy"
             size="small"
+            icon={<WarningOutlined />}
+            onClick={() => {
+              setCurrentOrder(record);
+              setDiscrepancyModalOpen(true);
+            }}
+          >
+            标记差异
+          </Button>
+        );
+      } else if (!discrepancy_resolved) {
+        buttons.push(
+          <Button
+            key="resolve-discrepancy"
+            size="small"
+            type="primary"
             icon={<WarningOutlined />}
             onClick={() => {
               setCurrentOrder(record);

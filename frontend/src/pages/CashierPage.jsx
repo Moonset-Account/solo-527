@@ -539,10 +539,12 @@ const DiscrepancyTab = () => {
   const resolveMutation = useMutation({
     mutationFn: ({ id, ...data }) => request.post(PAYMENTS.RESOLVE_DISCREPANCY(id), data),
     onSuccess: () => {
-      message.success('差异已处理，转化报表将自动刷新');
+      message.success('差异已处理，转化报表已刷新');
       queryClient.invalidateQueries({ queryKey: ['discrepancy-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['conversion'] });
+      queryClient.invalidateQueries({ queryKey: ['conversion-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['funnels'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
       setResolveModalOpen(false);
       resolveForm.resetFields();
       setCurrentOrder(null);
