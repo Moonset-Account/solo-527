@@ -81,6 +81,7 @@ class Apartment(Base):
     description = Column(Text)
     facilities = Column(Text)
     tags = Column(String(255))
+    remark = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

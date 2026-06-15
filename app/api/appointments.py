@@ -31,6 +31,14 @@ from app.models import User
 router = APIRouter(prefix="/appointments", tags=["看房预约"])
 
 
+@router.get("/consultants/available", response_model=List[UserResponse])
+def list_available_consultants(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(RoleChecker(["admin", "consultant"]))
+):
+    return get_available_consultants(db)
+
+
 @router.get("/", response_model=List[AppointmentResponse])
 def list_appointments(
     request: Request,
@@ -62,6 +70,16 @@ def list_appointments(
     return appointments
 
 
+@router.post("/", response_model=AppointmentResponse)
+def create_new_appointment(
+    appointment: AppointmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    tenant_id = current_user.id if current_user.role == "tenant" else None
+    return create_appointment(db, appointment, tenant_id)
+
+
 @router.get("/{appointment_id}", response_model=AppointmentResponse)
 def get_appointment_detail(
     appointment_id: int,
@@ -76,16 +94,6 @@ def get_appointment_detail(
         raise HTTPException(status_code=403, detail="Access denied")
 
     return appointment
-
-
-@router.post("/", response_model=AppointmentResponse)
-def create_new_appointment(
-    appointment: AppointmentCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    tenant_id = current_user.id if current_user.role == "tenant" else None
-    return create_appointment(db, appointment, tenant_id)
 
 
 @router.put("/{appointment_id}", response_model=AppointmentResponse)
@@ -168,11 +176,3 @@ def create_follow_up(
 ):
     follow_up.appointment_id = appointment_id
     return add_follow_up(db, follow_up, current_user.id)
-
-
-@router.get("/consultants/available", response_model=List[UserResponse])
-def list_available_consultants(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(RoleChecker(["admin", "consultant"]))
-):
-    return get_available_consultants(db)

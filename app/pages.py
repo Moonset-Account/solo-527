@@ -140,6 +140,9 @@ async def deposits_page(request: Request, db: Session = Depends(get_db)):
     except HTTPException:
         return RedirectResponse(url="/login")
 
+    if current_user.role not in ["admin", "customer_service", "consultant"]:
+        return RedirectResponse(url="/dashboard")
+
     ctx = get_template_context(request, current_user)
     ctx["active_menu"] = "deposits"
     return templates.TemplateResponse("deposits/list.html", ctx)
@@ -151,6 +154,9 @@ async def risks_page(request: Request, db: Session = Depends(get_db)):
         current_user = await get_current_user(request, db)
     except HTTPException:
         return RedirectResponse(url="/login")
+
+    if current_user.role not in ["admin", "customer_service"]:
+        return RedirectResponse(url="/dashboard")
 
     ctx = get_template_context(request, current_user)
     ctx["active_menu"] = "risks"

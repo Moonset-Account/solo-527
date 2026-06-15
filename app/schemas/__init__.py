@@ -75,6 +75,11 @@ class ApartmentUpdate(BaseModel):
     description: Optional[str] = None
     facilities: Optional[str] = None
     tags: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class ApartmentRemarkUpdate(BaseModel):
+    remark: str
 
 
 class ApartmentResponse(ApartmentBase):
@@ -284,6 +289,15 @@ class SystemConfigResponse(SystemConfigBase):
         from_attributes = True
 
 
+class UserSimple(BaseModel):
+    id: int
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ChangeLogResponse(BaseModel):
     id: int
     table_name: str
@@ -295,6 +309,7 @@ class ChangeLogResponse(BaseModel):
     change_type: Optional[str] = None
     remark: Optional[str] = None
     created_at: datetime
+    operator: Optional[UserSimple] = None
 
     class Config:
         from_attributes = True

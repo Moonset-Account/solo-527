@@ -1,5 +1,5 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.models import Apartment, ChangeLog, Attachment, VacancyHistory
@@ -143,6 +143,7 @@ def delete_apartment(db: Session, apartment_id: int, operator_id: int = None) ->
 def get_change_logs(db: Session, table_name: str, record_id: int, limit: int = 50) -> List[ChangeLog]:
     return (
         db.query(ChangeLog)
+        .options(joinedload(ChangeLog.operator))
         .filter(ChangeLog.table_name == table_name, ChangeLog.record_id == record_id)
         .order_by(ChangeLog.created_at.desc())
         .limit(limit)
@@ -152,6 +153,61 @@ def get_change_logs(db: Session, table_name: str, record_id: int, limit: int = 5
 
 def get_attachments(db: Session, apartment_id: int) -> List[Attachment]:
     return db.query(Attachment).filter(Attachment.apartment_id == apartment_id).all()
+
+
+def add_attachment(
+    db: Session,
+    apartment_id: int,
+    file_name: str,
+    file_path: str,
+    file_size: int = None,
+    file_type: str = None,
+    category: str = None,
+    operator_id: int = None
+) -> Attachment:
+    attachment = Attachment(
+        apartment_id=apartment_id,
+        file_name=file_name,
+        file_path=file_path,
+        file_size=file_size,
+        file_type=file_type,
+        category=category,
+        uploaded_by=operator_id
+    )
+    db.add(attachment)
+    _add_change_log(db, "apartments", apartment_id, "attachments", None, file_name, "update", operator_id, f"上传附件: {file_name}")
+    db.commit()
+    db.refresh(attachment)
+    return attachment
+
+
+def delete_attachment(db: Session, attachment_id: int, operator_id: int = None) -> bool:
+    attachment = db.query(Attachment).filter(Attachment.id == attachment_id).first()
+    if not attachment:
+        return False
+    apartment_id = attachment.apartment_id
+    file_name = attachment.file_name
+    db.delete(attachment)
+    _add_change_log(db, "apartments", apartment_id, "attachments", file_name, None, "update", operator_id, f"删除附件: {file_name}")
+    db.commit()
+    return True
+
+
+def update_apartment_remark(
+    db: Session,
+    apartment_id: int,
+    remark: str,
+    operator_id: int = None
+) -> Optional[Apartment]:
+    apartment = get_apartment(db, apartment_id)
+    if not apartment:
+        return None
+    old_remark = apartment.remark or ""
+    apartment.remark = remark
+    _add_change_log(db, "apartments", apartment_id, "remark", old_remark, remark, "update", operator_id, "更新备注")
+    db.commit()
+    db.refresh(apartment)
+    return apartment
 
 
 def _add_change_log(
