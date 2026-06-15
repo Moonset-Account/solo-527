@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% block title %}预约列表 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📋 预约列表</h1>
+</div>
+
+<div class="card">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" id="filter-start-date" onchange="loadAppointments()">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end-date" onchange="loadAppointments()">
+        </div>
+        <div class="filter-group">
+            <label>医生</label>
+            <select id="filter-doctor" onchange="loadAppointments()">
+                <option value="">全部</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>状态</label>
+            <select id="filter-status" onchange="loadAppointments()">
+                <option value="">全部</option>
+                <option value="pending">待核销</option>
+                <option value="checked_in">已到店</option>
+                <option value="no_show">爽约</option>
+                <option value="cancelled">已取消</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>预约来源</label>
+            <select id="filter-source" onchange="loadAppointments()">
+                <option value="">全部</option>
+                <option value="direct">到店预约</option>
+                <option value="phone">电话预约</option>
+                <option value="online">线上预约</option>
+                <option value="referral">转介绍</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>患者姓名</label>
+            <input type="text" id="filter-patient" placeholder="搜索患者" oninput="loadAppointments()">
+        </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="showAddAppointmentModal()">+ 新增预约</button>
+</div>
+
+<div class="card">
+    <div id="appointments-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+async function loadDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('filter-doctor');
+        doctors.forEach(doctor => {
+            const option = document.createElement('option');
+            option.value = doctor.id;
+            option.textContent = doctor.name;
+            select.appendChild(option);
+        });
+    } catch(e) {}
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge badge-warning">待核销</span>',
+        'checked_in': '<span class="badge badge-success">已到店</span>',
+        'no_show': '<span class="badge badge-danger">爽约</span>',
+        'cancelled': '<span class="badge badge-secondary">已取消</span>'
+    };
+    return badges[status] || status;
+}
+
+function getSourceText(source) {
+    const sources = {
+        'direct': '到店预约',
+        'phone': '电话预约',
+        'online': '线上预约',
+        'referral': '转介绍'
+    };
+    return sources[source] || source;
+}
+
+async function loadAppointments() {
+    const startDate = document.getElementById('filter-start-date').value;
+    const endDate = document.getElementById('filter-end-date').value;
+    const doctorId = document.getElementById('filter-doctor').value;
+    const status = document.getElementById('filter-status').value;
+    const source = document.getElementById('filter-source').value;
+    const patientName = document.getElementById('filter-patient').value;
+
+    let url = '/api/appointment?';
+    if (startDate) url += `start_date=${startDate}&`;
+    if (endDate) url += `end_date=${endDate}&`;
+    if (doctorId) url += `doctor_id=${doctorId}&`;
+    if (status) url += `status=${status}&`;
+    if (source) url += `source=${source}&`;
+    if (patientName) url += `patient_name=${patientName}&`;
+
+    try {
+        const response = await fetch(url);
+        const appointments = await response.json();
+        renderAppointments(appointments);
+    } catch(e) {
+        console.error('加载预约列表失败', e);
+    }
+}
+
+function renderAppointments(appointments) {
+    const container = document.getElementById('appointments-list');
+    if (appointments.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无预约记录</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>预约号</th><th>患者姓名</th><th>电话</th><th>医生</th>';
+    html += '<th>预约日期</th><th>时段</th><th>来源</th><th>金额</th><th>状态</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    appointments.forEach(apt => {
+        const date = apt.schedule ? apt.schedule.schedule_date : '-';
+        const time = apt.time_slot ? `${apt.time_slot.start_time.slice(0,5)}-${apt.time_slot.end_time.slice(0,5)}` : '-';
+        const doctorName = apt.doctor ? apt.doctor.name : '-';
+        html += '<tr>';
+        html += `<td>${apt.appointment_no}</td>`;
+        html += `<td>${apt.patient_name}</td>`;
+        html += `<td>${apt.patient_phone}</td>`;
+        html += `<td>${doctorName}</td>`;
+        html += `<td>${date}</td>`;
+        html += `<td>${time}</td>`;
+        html += `<td>${getSourceText(apt.source)}</td>`;
+        html += `<td>¥${apt.price}</td>`;
+        html += `<td>${getStatusBadge(apt.status)}</td>`;
+        html += '<td>';
+        if (apt.status === 'pending') {
+            html += `<button class="btn btn-sm btn-success" onclick="checkIn(${apt.id})">核销</button> `;
+            html += `<button class="btn btn-sm btn-warning" onclick="markNoShow(${apt.id})">爽约</button> `;
+            html += `<button class="btn btn-sm btn-danger" onclick="cancelAppointment(${apt.id})">取消</button>`;
+        }
+        html += '</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function checkIn(appointmentId) {
+    if (!confirm('确认核销该预约？')) return;
+    try {
+        const response = await fetch(`/api/checkin/checkin?appointment_id=${appointmentId}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('核销成功', 'success');
+            loadAppointments();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '核销失败', 'error');
+        }
+    } catch(e) {
+        showToast('操作失败', 'error');
+    }
+}
+
+async function markNoShow(appointmentId) {
+    if (!confirm('确认标记为爽约？')) return;
+    try {
+        const response = await fetch(`/api/checkin/noshow?appointment_id=${appointmentId}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已标记爽约', 'success');
+            loadAppointments();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '操作失败', 'error');
+        }
+    } catch(e) {
+        showToast('操作失败', 'error');
+    }
+}
+
+async function cancelAppointment(appointmentId) {
+    if (!confirm('确认取消该预约？')) return;
+    try {
+        const response = await fetch(`/api/appointment/${appointmentId}/cancel`, {
+            method: 'PUT'
+        });
+        if (response.ok) {
+            showToast('已取消预约', 'success');
+            loadAppointments();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '操作失败', 'error');
+        }
+    } catch(e) {
+        showToast('操作失败', 'error');
+    }
+}
+
+function showAddAppointmentModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>新增预约</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>患者姓名</label>
+            <input type="text" id="apt-patient-name" placeholder="请输入患者姓名">
+        </div>
+        <div class="form-group">
+            <label>联系电话</label>
+            <input type="text" id="apt-patient-phone" placeholder="请输入联系电话">
+        </div>
+        <div class="form-group">
+            <label>选择医生</label>
+            <select id="apt-doctor" onchange="loadAvailableDates()">
+                <option value="">请选择医生</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>选择日期</label>
+            <select id="apt-date" onchange="loadAvailableSlots()">
+                <option value="">请先选择医生</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>选择时段</label>
+            <select id="apt-slot">
+                <option value="">请先选择日期</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>预约来源</label>
+            <select id="apt-source">
+                <option value="direct">到店预约</option>
+                <option value="phone">电话预约</option>
+                <option value="online">线上预约</option>
+                <option value="referral">转介绍</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>服务类型</label>
+            <input type="text" id="apt-service" value="洁牙">
+        </div>
+        <div class="form-group">
+            <label>金额</label>
+            <input type="number" id="apt-price" value="0" min="0">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitAppointment()">确认预约</button>
+        </div>
+    `;
+    showModal(content);
+    loadAppointmentDoctors();
+}
+
+async function loadAppointmentDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('apt-doctor');
+        if (select) {
+            doctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = doctor.name + ' - ' + (doctor.title || '医师');
+                select.appendChild(option);
+            });
+        }
+    } catch(e) {}
+}
+
+async function loadAvailableDates() {
+    const doctorId = document.getElementById('apt-doctor').value;
+    const dateSelect = document.getElementById('apt-date');
+    dateSelect.innerHTML = '<option value="">加载中...</option>';
+
+    if (!doctorId) {
+        dateSelect.innerHTML = '<option value="">请先选择医生</option>';
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+
+    try {
+        const response = await fetch(
+            `/api/schedule?doctor_id=${doctorId}&start_date=${today}&end_date=${endDate.toISOString().split('T')[0]}&status=active`
+        );
+        const schedules = await response.json();
+        dateSelect.innerHTML = '<option value="">请选择日期</option>';
+        schedules.forEach(schedule => {
+            if (schedule.booked_slots < schedule.total_slots) {
+                const option = document.createElement('option');
+                option.value = schedule.id;
+                option.textContent = `${schedule.schedule_date} (剩余${schedule.total_slots - schedule.booked_slots}个号)`;
+                dateSelect.appendChild(option);
+            }
+        });
+    } catch(e) {
+        dateSelect.innerHTML = '<option value="">加载失败</option>';
+    }
+}
+
+async function loadAvailableSlots() {
+    const scheduleId = document.getElementById('apt-date').value;
+    const slotSelect = document.getElementById('apt-slot');
+    slotSelect.innerHTML = '<option value="">加载中...</option>';
+
+    if (!scheduleId) {
+        slotSelect.innerHTML = '<option value="">请先选择日期</option>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/schedule/${scheduleId}/slots`);
+        const slots = await response.json();
+        slotSelect.innerHTML = '<option value="">请选择时段</option>';
+        slots.forEach(slot => {
+            if (!slot.is_booked && !slot.is_locked) {
+                const option = document.createElement('option');
+                option.value = slot.id;
+                option.textContent = `${slot.start_time.slice(0,5)} - ${slot.end_time.slice(0,5)}`;
+                slotSelect.appendChild(option);
+            }
+        });
+    } catch(e) {
+        slotSelect.innerHTML = '<option value="">加载失败</option>';
+    }
+}
+
+async function submitAppointment() {
+    const patientName = document.getElementById('apt-patient-name').value;
+    const patientPhone = document.getElementById('apt-patient-phone').value;
+    const doctorId = document.getElementById('apt-doctor').value;
+    const scheduleId = document.getElementById('apt-date').value;
+    const slotId = document.getElementById('apt-slot').value;
+    const source = document.getElementById('apt-source').value;
+    const service = document.getElementById('apt-service').value;
+    const price = document.getElementById('apt-price').value;
+
+    if (!patientName || !patientPhone || !doctorId || !scheduleId || !slotId) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/appointment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patient_name: patientName,
+                patient_phone: patientPhone,
+                doctor_id: parseInt(doctorId),
+                schedule_id: parseInt(scheduleId),
+                time_slot_id: parseInt(slotId),
+                source: source,
+                service_type: service,
+                price: parseFloat(price)
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadAppointments();
+            showToast('预约成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '预约失败', 'error');
+        }
+    } catch(e) {
+        showToast('预约失败', 'error');
+    }
+}
+
+loadDoctors();
+loadAppointments();
+</script>
+{% endblock %}

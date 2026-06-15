@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}到店核销 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>✅ 到店核销</h1>
+</div>
+
+<div class="card">
+    <h3>快速核销</h3>
+    <div class="filter-bar">
+        <div class="filter-group">
+        <label>预约号</label>
+        <input type="text" id="checkin-no" placeholder="输入预约号">
+    </div>
+    <button class="btn btn-primary" onclick="searchAppointment()">查询</button>
+    </div>
+</div>
+
+<div id="appointment-detail" class="card" style="display: none;">
+</div>
+
+<div class="card">
+    <h3>今日待核销</h3>
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>日期</label>
+            <input type="date" id="today-date" onchange="loadTodayAppointments()">
+        </div>
+        <div class="filter-group">
+            <label>医生</label>
+            <select id="today-doctor" onchange="loadTodayAppointments()">
+                <option value="">全部</option>
+            </select>
+        </div>
+    </div>
+    <div id="today-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+function initDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('today-date').value = today;
+}
+
+async function loadDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('today-doctor');
+        doctors.forEach(doctor => {
+            const option = document.createElement('option');
+            option.value = doctor.id;
+            option.textContent = doctor.name;
+            select.appendChild(option);
+        });
+    } catch(e) {}
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge badge-warning">待核销</span>',
+        'checked_in': '<span class="badge badge-success">已到店</span>',
+        'no_show': '<span class="badge badge-danger">爽约</span>',
+        'cancelled': '<span class="badge badge-secondary">已取消</span>'
+    };
+    return badges[status] || status;
+}
+
+async function searchAppointment() {
+    const no = document.getElementById('checkin-no').value.trim();
+    if (!no) {
+        showToast('请输入预约号', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/appointment/no/${no}`);
+        if (response.ok) {
+            const apt = await response.json();
+            showAppointmentDetail(apt);
+        } else {
+            showToast('未找到该预约', 'error');
+        }
+    } catch(e) {
+        showToast('查询失败', 'error');
+    }
+}
+
+function showAppointmentDetail(apt) {
+    const container = document.getElementById('appointment-detail');
+    const doctorName = apt.doctor ? apt.doctor.name : '-';
+    const date = apt.schedule ? apt.schedule.schedule_date : '-';
+    const time = apt.time_slot ? `${apt.time_slot.start_time.slice(0,5)}-${apt.time_slot.end_time.slice(0,5)}` : '-';
+
+    let actions = '';
+    if (apt.status === 'pending') {
+        actions = `
+            <button class="btn btn-success" onclick="doCheckIn(${apt.id})">确认到店</button>
+            <button class="btn btn-warning" onclick="doMarkNoShow(${apt.id})">标记爽约</button>
+        `;
+    }
+
+    container.innerHTML = `
+        <h3>预约详情</h3>
+        <table>
+            <tr><th>预约号</th><td>${apt.appointment_no}</td></tr>
+            <tr><th>患者姓名</th><td>${apt.patient_name}</td></tr>
+            <tr><th>联系电话</th><td>${apt.patient_phone}</td></tr>
+            <tr><th>医生</th><td>${doctorName}</td></tr>
+            <tr><th>预约日期</th><td>${date}</td></tr>
+            <tr><th>时段</th><td>${time}</td></tr>
+            <tr><th>服务类型</th><td>${apt.service_type}</td></tr>
+            <tr><th>金额</th><td>¥${apt.price}</td></tr>
+            <tr><th>状态</th><td>${getStatusBadge(apt.status)}</td></tr>
+            <tr><th>预约来源</th><td>${apt.source}</td></tr>
+        </table>
+        <div style="margin-top: 16px;">
+            ${actions}
+        </div>
+    `;
+    container.style.display = 'block';
+}
+
+async function doCheckIn(appointmentId) {
+    if (!confirm('确认该患者已到店？')) return;
+    try {
+        const response = await fetch(`/api/checkin/checkin?appointment_id=${appointmentId}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('核销成功', 'success');
+            searchAppointment();
+            loadTodayAppointments();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '核销失败', 'error');
+        }
+    } catch(e) {
+        showToast('操作失败', 'error');
+    }
+}
+
+async function doMarkNoShow(appointmentId) {
+    if (!confirm('确认标记为爽约？')) return;
+    try {
+        const response = await fetch(`/api/checkin/noshow?appointment_id=${appointmentId}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已标记爽约', 'success');
+            searchAppointment();
+            loadTodayAppointments();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '操作失败', 'error');
+        }
+    } catch(e) {
+        showToast('操作失败', 'error');
+    }
+}
+
+async function loadTodayAppointments() {
+    const date = document.getElementById('today-date').value;
+    const doctorId = document.getElementById('today-doctor').value;
+
+    let url = '/api/appointment?status=pending';
+    if (date) {
+        url += `&start_date=${date}&end_date=${date}`;
+    }
+    if (doctorId) {
+        url += `&doctor_id=${doctorId}`;
+    }
+
+    try {
+        const response = await fetch(url);
+        const appointments = await response.json();
+        renderTodayList(appointments);
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+function renderTodayList(appointments) {
+    const container = document.getElementById('today-list');
+    if (appointments.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无待核销预约</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>预约号</th><th>患者</th><th>医生</th><th>时段</th><th>来源</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    appointments.forEach(apt => {
+        const doctorName = apt.doctor ? apt.doctor.name : '-';
+        const time = apt.time_slot ? `${apt.time_slot.start_time.slice(0,5)}-${apt.time_slot.end_time.slice(0,5)}` : '-';
+        html += '<tr>';
+        html += `<td>${apt.appointment_no}</td>`;
+        html += `<td>${apt.patient_name}</td>`;
+        html += `<td>${doctorName}</td>`;
+        html += `<td>${time}</td>`;
+        html += `<td>${apt.source}</td>`;
+        html += `<td>
+            <button class="btn btn-sm btn-success" onclick="quickCheckIn(${apt.id})">核销</button>
+            <button class="btn btn-sm btn-warning" onclick="quickNoShow(${apt.id})">爽约</button>
+        </td>`;
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function quickCheckIn(id) {
+    if (!confirm('确认核销？')) return;
+    try {
+        const response = await fetch(`/api/checkin/checkin?appointment_id=${id}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('核销成功', 'success');
+            loadTodayAppointments();
+        }
+    } catch(e) {}
+}
+
+async function quickNoShow(id) {
+    if (!confirm('确认标记爽约？')) return;
+    try {
+        const response = await fetch(`/api/checkin/noshow?appointment_id=${id}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已标记爽约', 'success');
+            loadTodayAppointments();
+        }
+    } catch(e) {}
+}
+
+initDate();
+loadDoctors();
+loadTodayAppointments();
+</script>
+{% endblock %}

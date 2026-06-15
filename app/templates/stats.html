@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}转化分析 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📈 转化分析</h1>
+</div>
+
+<div class="card">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" id="filter-start" onchange="loadAllStats()">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end" onchange="loadAllStats()">
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">总预约数</div>
+        <div class="stat-value primary" id="stat-total">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">已到店</div>
+        <div class="stat-value success" id="stat-checked">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">爽约数</div>
+        <div class="stat-value danger" id="stat-noshow">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">到店转化率</div>
+        <div class="stat-value warning" id="stat-rate">0%</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>按预约来源</h3>
+    <div id="source-stats">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>按医生统计</h3>
+    <div id="doctor-stats">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>每日趋势</h3>
+    <div id="daily-stats">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+function initDates() {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    document.getElementById('filter-start').value = start.toISOString().split('T')[0];
+    document.getElementById('filter-end').value = end.toISOString().split('T')[0];
+}
+
+async function loadAllStats() {
+    await Promise.all([
+        loadConversionStats(),
+        loadSourceStats(),
+        loadDoctorStats(),
+        loadDailyStats()
+    ]);
+}
+
+async function loadConversionStats() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+
+    try {
+        const response = await fetch(`/api/stats/conversion?start_date=${start}&end_date=${end}`);
+        const data = await response.json();
+        document.getElementById('stat-total').textContent = data.total_appointments;
+        document.getElementById('stat-checked').textContent = data.checked_in;
+        document.getElementById('stat-noshow').textContent = data.no_show;
+        document.getElementById('stat-rate').textContent = data.conversion_rate + '%';
+    } catch(e) {
+        console.error('加载统计失败', e);
+    }
+}
+
+async function loadSourceStats() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+
+    try {
+        const response = await fetch(`/api/stats/by-source?start_date=${start}&end_date=${end}`);
+        const data = await response.json();
+        const container = document.getElementById('source-stats');
+
+        if (data.length === 0) {
+            container.innerHTML = '<div class="empty-state">暂无数据</div>';
+            return;
+        }
+
+        let html = '<table><thead><tr>';
+        html += '<th>来源</th><th>预约数</th><th>到店数</th><th>爽约数</th><th>取消数</th><th>转化率</th>';
+        html += '</tr></thead><tbody>';
+
+        const sourceNames = {
+            'direct': '到店预约',
+            'phone': '电话预约',
+            'online': '线上预约',
+            'referral': '转介绍',
+            'unknown': '未知'
+        };
+
+        data.forEach(item => {
+            html += '<tr>';
+            html += `<td>${sourceNames[item.source] || item.source}</td>`;
+            html += `<td>${item.total}</td>`;
+            html += `<td>${item.checked_in}</td>`;
+            html += `<td>${item.no_show}</td>`;
+            html += `<td>${item.cancelled}</td>`;
+            html += `<td><span class="badge badge-success">${item.conversion_rate}%</span></td>`;
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+async function loadDoctorStats() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+
+    try {
+        const response = await fetch(`/api/stats/by-doctor?start_date=${start}&end_date=${end}`);
+        const data = await response.json();
+        const container = document.getElementById('doctor-stats');
+
+        if (data.length === 0) {
+            container.innerHTML = '<div class="empty-state">暂无数据</div>';
+            return;
+        }
+
+        let html = '<table><thead><tr>';
+        html += '<th>医生</th><th>预约数</th><th>到店数</th><th>爽约数</th><th>转化率</th>';
+        html += '</tr></thead><tbody>';
+
+        data.forEach(item => {
+            html += '<tr>';
+            html += `<td>${item.doctor_name}</td>`;
+            html += `<td>${item.total}</td>`;
+            html += `<td>${item.checked_in}</td>`;
+            html += `<td>${item.no_show}</td>`;
+            html += `<td><span class="badge badge-success">${item.conversion_rate}%</span></td>`;
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+async function loadDailyStats() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+
+    try {
+        const response = await fetch(`/api/stats/daily?start_date=${start}&end_date=${end}`);
+        const data = await response.json();
+        const container = document.getElementById('daily-stats');
+
+        if (data.length === 0) {
+            container.innerHTML = '<div class="empty-state">暂无数据</div>';
+            return;
+        }
+
+        let html = '<table><thead><tr>';
+        html += '<th>日期</th><th>预约数</th><th>到店数</th><th>爽约数</th><th>转化率</th>';
+        html += '</tr></thead><tbody>';
+
+        data.forEach(item => {
+            html += '<tr>';
+            html += `<td>${item.date}</td>`;
+            html += `<td>${item.total}</td>`;
+            html += `<td>${item.checked_in}</td>`;
+            html += `<td>${item.no_show}</td>`;
+            html += `<td><span class="badge badge-success">${item.conversion_rate}%</span></td>`;
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+initDates();
+loadAllStats();
+</script>
+{% endblock %}

@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}系统配置 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>⚙️ 系统配置</h1>
+</div>
+
+<div class="card">
+    <button class="btn btn-primary" onclick="showAddConfigModal()">+ 新增配置</button>
+</div>
+
+<div class="card">
+    <h3>配置列表</h3>
+    <div id="config-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>配置变更历史</h3>
+    <div id="config-logs">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+async function loadConfigs() {
+    try {
+        const response = await fetch('/api/config');
+        const configs = await response.json();
+        renderConfigs(configs);
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+function renderConfigs(configs) {
+    const container = document.getElementById('config-list');
+    if (configs.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无配置项</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>配置键</th><th>配置值</th><th>类型</th><th>描述</th><th>更新时间</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    configs.forEach(config => {
+        html += '<tr>';
+        html += `<td><code>${config.config_key}</code></td>`;
+        html += `<td>${config.config_value || '-'}</td>`;
+        html += `<td>${config.config_type}</td>`;
+        html += `<td>${config.description || '-'}</td>`;
+        html += `<td>${config.updated_at ? config.updated_at.slice(0, 16) : '-'}</td>`;
+        html += `<td>
+            <button class="btn btn-sm btn-primary" onclick="editConfig('${config.config_key}')">编辑</button>
+            <button class="btn btn-sm btn-info" onclick="viewLogs('${config.config_key}')">历史</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteConfig('${config.config_key}')">删除</button>
+        </td>`;
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function showAddConfigModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>新增配置</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>配置键</label>
+            <input type="text" id="cfg-key" placeholder="如: clinic_name">
+        </div>
+        <div class="form-group">
+            <label>配置值</label>
+            <input type="text" id="cfg-value" placeholder="配置值">
+        </div>
+        <div class="form-group">
+            <label>类型</label>
+            <select id="cfg-type">
+                <option value="string">字符串</option>
+                <option value="number">数字</option>
+                <option value="boolean">布尔值</option>
+                <option value="json">JSON</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>描述</label>
+            <input type="text" id="cfg-desc" placeholder="配置说明">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitConfig()">确认添加</button>
+        </div>
+    `;
+    showModal(content);
+}
+
+async function submitConfig() {
+    const key = document.getElementById('cfg-key').value;
+    const value = document.getElementById('cfg-value').value;
+    const type = document.getElementById('cfg-type').value;
+    const desc = document.getElementById('cfg-desc').value;
+
+    if (!key) {
+        showToast('请填写配置键', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config_key: key,
+                config_value: value,
+                config_type: type,
+                description: desc
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadConfigs();
+            loadLogs();
+            showToast('添加成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '添加失败', 'error');
+        }
+    } catch(e) {
+        showToast('添加失败', 'error');
+    }
+}
+
+async function editConfig(configKey) {
+    try {
+        const response = await fetch(`/api/config/${configKey}`);
+        const config = await response.json();
+        const content = `
+            <div class="modal-header">
+                <h3>编辑配置</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>配置键</label>
+                <input type="text" value="${config.config_key}" readonly style="background: #f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label>配置值</label>
+                <input type="text" id="cfg-value" value="${config.config_value || ''}">
+            </div>
+            <div class="form-group">
+                <label>类型</label>
+                <select id="cfg-type">
+                    <option value="string" ${config.config_type === 'string' ? 'selected' : ''}>字符串</option>
+                    <option value="number" ${config.config_type === 'number' ? 'selected' : ''}>数字</option>
+                    <option value="boolean" ${config.config_type === 'boolean' ? 'selected' : ''}>布尔值</option>
+                    <option value="json" ${config.config_type === 'json' ? 'selected' : ''}>JSON</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <input type="text" id="cfg-desc" value="${config.description || ''}">
+            </div>
+            <div class="form-group">
+                <label>操作人</label>
+                <input type="text" id="cfg-operator" value="管理员">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="updateConfig('${configKey}')">保存修改</button>
+            </div>
+        `;
+        showModal(content);
+    } catch(e) {}
+}
+
+async function updateConfig(configKey) {
+    const value = document.getElementById('cfg-value').value;
+    const operator = document.getElementById('cfg-operator').value;
+
+    try {
+        const response = await fetch(`/api/config/${configKey}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config_value: value,
+                operator: operator
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadConfigs();
+            loadLogs();
+            showToast('修改成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '修改失败', 'error');
+        }
+    } catch(e) {
+        showToast('修改失败', 'error');
+    }
+}
+
+async function deleteConfig(configKey) {
+    if (!confirm('确认删除该配置？')) return;
+    try {
+        const response = await fetch(`/api/config/${configKey}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            showToast('已删除', 'success');
+            loadConfigs();
+            loadLogs();
+        }
+    } catch(e) {}
+}
+
+async function viewLogs(configKey) {
+    try {
+        const response = await fetch(`/api/config/logs/${configKey}`);
+        const logs = await response.json();
+        let html = '';
+        if (logs.length === 0) {
+            html = '<p>暂无变更记录</p>';
+        } else {
+            html = '<table><thead><tr><th>操作类型</th><th>原值</th><th>新值</th><th>操作人</th><th>时间</th></tr></thead><tbody>';
+            logs.forEach(log => {
+                html += '<tr>';
+                html += `<td>${log.change_type}</td>`;
+                html += `<td>${log.old_value ? '<span class="diff-old">' + log.old_value + '</span>' : '-'}</td>`;
+                html += `<td>${log.new_value ? '<span class="diff-new">' + log.new_value + '</span>' : '-'}</td>`;
+                html += `<td>${log.operator || '-'}</td>`;
+                html += `<td>${log.created_at ? log.created_at.slice(0, 16) : '-'}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        }
+        const content = `
+            <div class="modal-header">
+                <h3>${configKey} - 变更历史</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            ${html}
+        `;
+        showModal(content);
+    } catch(e) {}
+}
+
+async function loadLogs() {
+    try {
+        const response = await fetch('/api/config/logs/all');
+        const logs = await response.json();
+        renderLogs(logs);
+    } catch(e) {}
+}
+
+function renderLogs(logs) {
+    const container = document.getElementById('config-logs');
+    if (logs.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无变更记录</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>配置键</th><th>操作类型</th><th>原值</th><th>新值</th><th>操作人</th><th>时间</th>';
+    html += '</tr></thead><tbody>';
+
+    logs.slice(0, 20).forEach(log => {
+        html += '<tr>';
+        html += `<td><code>${log.config_key}</code></td>`;
+        html += `<td>${log.change_type}</td>`;
+        html += `<td>${log.old_value ? '<span class="diff-old">' + log.old_value + '</span>' : '-'}</td>`;
+        html += `<td>${log.new_value ? '<span class="diff-new">' + log.new_value + '</span>' : '-'}</td>`;
+        html += `<td>${log.operator || '-'}</td>`;
+        html += `<td>${log.created_at ? log.created_at.slice(0, 16) : '-'}</td>`;
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+loadConfigs();
+loadLogs();
+</script>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}退款记录 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>💰 退款记录</h1>
+</div>
+
+<div class="card">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" id="filter-start" onchange="loadRefunds()">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end" onchange="loadRefunds()">
+        </div>
+        <div class="filter-group">
+            <label>状态</label>
+            <select id="filter-status" onchange="loadRefunds()">
+                <option value="">全部</option>
+                <option value="pending">待处理</option>
+                <option value="approved">已通过</option>
+                <option value="rejected">已驳回</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>处理人</label>
+            <input type="text" id="filter-operator" placeholder="输入处理人" oninput="loadRefunds()">
+        </div>
+    </div>
+    <button class="btn btn-primary" onclick="showAddRefundModal()">+ 申请退款</button>
+</div>
+
+<div class="card">
+    <div id="refunds-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge badge-warning">待处理</span>',
+        'approved': '<span class="badge badge-success">已通过</span>',
+        'rejected': '<span class="badge badge-danger">已驳回</span>'
+    };
+    return badges[status] || status;
+}
+
+async function loadRefunds() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+    const status = document.getElementById('filter-status').value;
+    const operator = document.getElementById('filter-operator').value;
+
+    let url = '/api/refund?';
+    if (start) url += `start_date=${start}&`;
+    if (end) url += `end_date=${end}&`;
+    if (status) url += `status=${status}&`;
+    if (operator) url += `operator=${operator}&`;
+
+    try {
+        const response = await fetch(url);
+        const refunds = await response.json();
+        renderRefunds(refunds);
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+function renderRefunds(refunds) {
+    const container = document.getElementById('refunds-list');
+    if (refunds.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无退款记录</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>退款单号</th><th>关联预约</th><th>金额</th><th>原因</th>';
+    html += '<th>状态</th><th>处理人</th><th>申请时间</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    refunds.forEach(refund => {
+        html += '<tr>';
+        html += `<td>${refund.refund_no}</td>`;
+        html += `<td>${refund.appointment_id}</td>`;
+        html += `<td>¥${refund.amount}</td>`;
+        html += `<td>${refund.reason || '-'}</td>`;
+        html += `<td>${getStatusBadge(refund.status)}</td>`;
+        html += `<td>${refund.operator || '-'}</td>`;
+        html += `<td>${refund.created_at ? refund.created_at.slice(0, 16) : '-'}</td>`;
+        html += '<td>';
+        if (refund.status === 'pending') {
+            html += `<button class="btn btn-sm btn-success" onclick="approveRefund(${refund.id})">通过</button> `;
+            html += `<button class="btn btn-sm btn-danger" onclick="rejectRefund(${refund.id})">驳回</button>`;
+        }
+        html += '</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function showAddRefundModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>申请退款</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>预约ID</label>
+            <input type="number" id="rf-appointment-id" placeholder="请输入预约ID">
+        </div>
+        <div class="form-group">
+            <label>退款金额</label>
+            <input type="number" id="rf-amount" placeholder="请输入退款金额" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>退款原因</label>
+            <textarea id="rf-reason" rows="3" placeholder="请输入退款原因"></textarea>
+        </div>
+        <div class="form-group">
+            <label>操作人</label>
+            <input type="text" id="rf-operator" value="前台">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitRefund()">提交申请</button>
+        </div>
+    `;
+    showModal(content);
+}
+
+async function submitRefund() {
+    const appointmentId = document.getElementById('rf-appointment-id').value;
+    const amount = document.getElementById('rf-amount').value;
+    const reason = document.getElementById('rf-reason').value;
+    const operator = document.getElementById('rf-operator').value;
+
+    if (!appointmentId || !amount) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/refund', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                appointment_id: parseInt(appointmentId),
+                amount: parseFloat(amount),
+                reason: reason,
+                operator: operator
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadRefunds();
+            showToast('申请已提交', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '提交失败', 'error');
+        }
+    } catch(e) {
+        showToast('提交失败', 'error');
+    }
+}
+
+async function approveRefund(refundId) {
+    if (!confirm('确认通过该退款？')) return;
+    try {
+        const response = await fetch(`/api/refund/${refundId}/approve`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已通过', 'success');
+            loadRefunds();
+        }
+    } catch(e) {}
+}
+
+async function rejectRefund(refundId) {
+    const reason = prompt('请输入驳回原因:');
+    if (!reason) return;
+
+    try {
+        const response = await fetch(`/api/refund/${refundId}/reject?reason=${encodeURIComponent(reason)}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已驳回', 'success');
+            loadRefunds();
+        }
+    } catch(e) {}
+}
+
+loadRefunds();
+</script>
+{% endblock %}

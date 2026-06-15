@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}候补队列 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>⏳ 候补队列</h1>
+</div>
+
+<div class="card">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>目标日期</label>
+            <input type="date" id="filter-date" onchange="loadWaitlist()">
+        </div>
+        <div class="filter-group">
+            <label>医生</label>
+            <select id="filter-doctor" onchange="loadWaitlist()">
+                <option value="">全部</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>状态</label>
+            <select id="filter-status" onchange="loadWaitlist()">
+                <option value="waiting">等待中</option>
+                <option value="allocated">已分配</option>
+                <option value="cancelled">已取消</option>
+            </select>
+        </div>
+    </div>
+    <button class="btn btn-primary" onclick="showAddWaitlistModal()">+ 添加候补</button>
+</div>
+
+<div class="card">
+    <div id="waitlist-container">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+async function loadDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('filter-doctor');
+        doctors.forEach(doctor => {
+            const option = document.createElement('option');
+            option.value = doctor.id;
+            option.textContent = doctor.name;
+            select.appendChild(option);
+        });
+    } catch(e) {}
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'waiting': '<span class="badge badge-warning">等待中</span>',
+        'allocated': '<span class="badge badge-success">已分配</span>',
+        'cancelled': '<span class="badge badge-secondary">已取消</span>'
+    };
+    return badges[status] || status;
+}
+
+async function loadWaitlist() {
+    const date = document.getElementById('filter-date').value;
+    const doctorId = document.getElementById('filter-doctor').value;
+    const status = document.getElementById('filter-status').value;
+
+    let url = '/api/waitlist?';
+    if (date) url += `target_date=${date}&`;
+    if (doctorId) url += `doctor_id=${doctorId}&`;
+    if (status && status !== '') url += `status=${status}&`;
+
+    try {
+        const response = await fetch(url);
+        const waitlist = await response.json();
+        renderWaitlist(waitlist);
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+function renderWaitlist(waitlist) {
+    const container = document.getElementById('waitlist-container');
+    if (waitlist.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无候补记录</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>优先级</th><th>患者姓名</th><th>电话</th><th>医生</th>';
+    html += '<th>目标日期</th><th>来源</th><th>状态</th><th>申请时间</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    waitlist.forEach((item, index) => {
+        const doctorName = item.doctor ? item.doctor.name : '-';
+        html += '<tr>';
+        html += `<td>${index + 1}</td>`;
+        html += `<td>${item.patient_name}</td>`;
+        html += `<td>${item.patient_phone}</td>`;
+        html += `<td>${doctorName}</td>`;
+        html += `<td>${item.target_date}</td>`;
+        html += `<td>${item.source}</td>`;
+        html += `<td>${getStatusBadge(item.status)}</td>`;
+        html += `<td>${item.created_at ? item.created_at.slice(0, 16) : '-'}</td>`;
+        html += '<td>';
+        if (item.status === 'waiting') {
+            html += `<button class="btn btn-sm btn-success" onclick="allocateWaitlist(${item.id})">分配号源</button> `;
+            html += `<button class="btn btn-sm btn-danger" onclick="cancelWaitlist(${item.id})">取消</button>`;
+        }
+        html += '</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function showAddWaitlistModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>添加候补</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>患者姓名</label>
+            <input type="text" id="wl-patient-name" placeholder="请输入患者姓名">
+        </div>
+        <div class="form-group">
+            <label>联系电话</label>
+            <input type="text" id="wl-patient-phone" placeholder="请输入联系电话">
+        </div>
+        <div class="form-group">
+            <label>选择医生</label>
+            <select id="wl-doctor">
+                <option value="">请选择医生</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>目标日期</label>
+            <input type="date" id="wl-date">
+        </div>
+        <div class="form-group">
+            <label>来源</label>
+            <select id="wl-source">
+                <option value="direct">到店</option>
+                <option value="phone">电话</option>
+                <option value="online">线上</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>优先级</label>
+            <input type="number" id="wl-priority" value="0">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitWaitlist()">确认添加</button>
+        </div>
+    `;
+    showModal(content);
+    loadWaitlistDoctors();
+}
+
+async function loadWaitlistDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('wl-doctor');
+        if (select) {
+            doctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = doctor.name;
+                select.appendChild(option);
+            });
+        }
+    } catch(e) {}
+}
+
+async function submitWaitlist() {
+    const name = document.getElementById('wl-patient-name').value;
+    const phone = document.getElementById('wl-patient-phone').value;
+    const doctorId = document.getElementById('wl-doctor').value;
+    const date = document.getElementById('wl-date').value;
+    const source = document.getElementById('wl-source').value;
+    const priority = document.getElementById('wl-priority').value;
+
+    if (!name || !phone || !doctorId || !date) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patient_name: name,
+                patient_phone: phone,
+                doctor_id: parseInt(doctorId),
+                target_date: date,
+                source: source,
+                priority: parseInt(priority)
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadWaitlist();
+            showToast('添加成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '添加失败', 'error');
+        }
+    } catch(e) {
+        showToast('添加失败', 'error');
+    }
+}
+
+async function allocateWaitlist(waitlistId) {
+    const scheduleId = prompt('请输入排班ID:');
+    const slotId = prompt('请输入时段ID:');
+    if (!scheduleId || !slotId) return;
+
+    try {
+        const response = await fetch(
+            `/api/waitlist/${waitlistId}/allocate?schedule_id=${scheduleId}&slot_id=${slotId}`,
+            { method: 'POST' }
+        );
+        if (response.ok) {
+            showToast('分配成功', 'success');
+            loadWaitlist();
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '分配失败', 'error');
+        }
+    } catch(e) {
+        showToast('分配失败', 'error');
+    }
+}
+
+async function cancelWaitlist(waitlistId) {
+    if (!confirm('确认取消该候补？')) return;
+    try {
+        const response = await fetch(`/api/waitlist/${waitlistId}/cancel`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('已取消', 'success');
+            loadWaitlist();
+        }
+    } catch(e) {}
+}
+
+loadDoctors();
+loadWaitlist();
+</script>
+{% endblock %}

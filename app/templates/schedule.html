@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}排班管理 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📅 排班管理</h1>
+</div>
+
+<div class="card">
+    <div class="week-nav">
+        <button onclick="changeWeek(-1)">← 上周</button>
+        <span id="week-label">本周</span>
+        <button onclick="changeWeek(1)">下周 →</button>
+        <button class="btn btn-primary" onclick="showAddScheduleModal()">+ 新增排班</button>
+    </div>
+
+    <div class="doctor-tabs" id="doctor-tabs">
+        <span>加载医生列表...</span>
+    </div>
+
+    <div id="schedule-calendar" class="schedule-calendar">
+        <p>选择医生后查看排班</p>
+    </div>
+</div>
+
+<script>
+let currentDate = new Date();
+let selectedDoctorId = null;
+
+function getMonday(d) {
+    d = new Date(d);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+}
+
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function changeWeek(offset) {
+    currentDate.setDate(currentDate.getDate() + offset * 7);
+    loadSchedules();
+}
+
+function updateWeekLabel() {
+    const monday = getMonday(currentDate);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    document.getElementById('week-label').textContent =
+        `${formatDate(monday)} 至 ${formatDate(sunday)}`;
+}
+
+async function loadDoctors() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const tabs = document.getElementById('doctor-tabs');
+        tabs.innerHTML = '';
+        doctors.forEach((doctor, index) => {
+            const tab = document.createElement('div');
+            tab.className = 'doctor-tab' + (index === 0 ? ' active' : '');
+            tab.textContent = doctor.name + ' - ' + (doctor.title || '医师');
+            tab.onclick = () => selectDoctor(doctor.id, tab);
+            tabs.appendChild(tab);
+            if (index === 0) selectedDoctorId = doctor.id;
+        });
+        if (doctors.length > 0) {
+            updateWeekLabel();
+            loadSchedules();
+        }
+    } catch(e) {
+        console.error('加载医生列表失败', e);
+    }
+}
+
+function selectDoctor(doctorId, tabEl) {
+    selectedDoctorId = doctorId;
+    document.querySelectorAll('.doctor-tab').forEach(t => t.classList.remove('active'));
+    tabEl.classList.add('active');
+    loadSchedules();
+}
+
+async function loadSchedules() {
+    if (!selectedDoctorId) return;
+    const monday = getMonday(currentDate);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+
+    try {
+        const response = await fetch(
+            `/api/schedule?doctor_id=${selectedDoctorId}&start_date=${formatDate(monday)}&end_date=${formatDate(sunday)}`
+        );
+        const schedules = await response.json();
+        renderSchedule(schedules, monday);
+    } catch(e) {
+        console.error('加载排班失败', e);
+    }
+}
+
+function renderSchedule(schedules, monday) {
+    const calendar = document.getElementById('schedule-calendar');
+    calendar.innerHTML = '';
+
+    for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(monday);
+        dayDate.setDate(dayDate.getDate() + i);
+        const dateStr = formatDate(dayDate);
+        const daySchedule = schedules.find(s => s.schedule_date === dateStr);
+
+        const dayEl = document.createElement('div');
+        dayEl.className = 'schedule-day';
+
+        const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        const header = document.createElement('div');
+        header.className = 'schedule-day-header';
+        header.textContent = `${weekdays[i]} ${dateStr}`;
+        dayEl.appendChild(header);
+
+        if (daySchedule) {
+            const slotsContainer = document.createElement('div');
+            slotsContainer.className = 'time-slots';
+            slotsContainer.id = `slots-${daySchedule.id}`;
+            dayEl.appendChild(slotsContainer);
+            loadTimeSlots(daySchedule.id);
+        } else {
+            dayEl.innerHTML += '<p style="color: #95a5a6;">无排班</p>';
+        }
+
+        calendar.appendChild(dayEl);
+    }
+}
+
+async function loadTimeSlots(scheduleId) {
+    try {
+        const response = await fetch(`/api/schedule/${scheduleId}/slots`);
+        const slots = await response.json();
+        const container = document.getElementById(`slots-${scheduleId}`);
+        if (container) {
+            container.innerHTML = '';
+            slots.forEach(slot => {
+                const slotEl = document.createElement('div');
+                let className = 'time-slot';
+                if (slot.is_booked) className += ' booked';
+                else if (slot.is_locked) className += ' locked';
+                else className += ' available';
+                slotEl.className = className;
+                slotEl.textContent = `${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}`;
+                if (!slot.is_booked) {
+                    slotEl.title = slot.is_locked ? '点击解锁' : '点击锁定/预约';
+                    slotEl.onclick = () => toggleSlotLock(scheduleId, slot.id);
+                }
+                container.appendChild(slotEl);
+            });
+        }
+    } catch(e) {
+        console.error('加载时段失败', e);
+    }
+}
+
+async function toggleSlotLock(scheduleId, slotId) {
+    try {
+        const response = await fetch(`/api/schedule/${scheduleId}/slots/${slotId}/lock`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            loadTimeSlots(scheduleId);
+        }
+    } catch(e) {
+        console.error('操作失败', e);
+    }
+}
+
+function showAddScheduleModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>新增排班</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>医生</label>
+            <select id="add-doctor">
+                <option value="">请选择医生</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>日期</label>
+            <input type="date" id="add-date">
+        </div>
+        <div class="form-group">
+            <label>开始时间</label>
+            <input type="time" id="add-start" value="09:00">
+        </div>
+        <div class="form-group">
+            <label>结束时间</label>
+            <input type="time" id="add-end" value="12:00">
+        </div>
+        <div class="form-group">
+            <label>号源数量</label>
+            <input type="number" id="add-slots" value="5" min="1">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitSchedule()">确认添加</button>
+        </div>
+    `;
+    showModal(content);
+    loadDoctorSelect();
+}
+
+async function loadDoctorSelect() {
+    try {
+        const response = await fetch('/api/schedule/doctors?is_active=true');
+        const doctors = await response.json();
+        const select = document.getElementById('add-doctor');
+        if (select) {
+            doctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = doctor.name + ' - ' + (doctor.title || '医师');
+                select.appendChild(option);
+            });
+        }
+    } catch(e) {}
+}
+
+async function submitSchedule() {
+    const doctorId = document.getElementById('add-doctor').value;
+    const date = document.getElementById('add-date').value;
+    const startTime = document.getElementById('add-start').value;
+    const endTime = document.getElementById('add-end').value;
+    const slots = document.getElementById('add-slots').value;
+
+    if (!doctorId || !date || !startTime || !endTime) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                doctor_id: parseInt(doctorId),
+                schedule_date: date,
+                start_time: startTime,
+                end_time: endTime,
+                total_slots: parseInt(slots)
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadSchedules();
+            showToast('排班添加成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '添加失败', 'error');
+        }
+    } catch(e) {
+        showToast('添加失败', 'error');
+    }
+}
+
+loadDoctors();
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}口腔诊所排班核销系统{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.8"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🦷 口腔诊所系统</h2>
+        <nav>
+            <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">📊 数据概览</a>
+            <a href="/schedule" class="{% if '/schedule' in request.url.path %}active{% endif %}">📅 排班管理</a>
+            <a href="/appointments" class="{% if '/appointments' in request.url.path %}active{% endif %}">📋 预约列表</a>
+            <a href="/checkin" class="{% if '/checkin' in request.url.path %}active{% endif %}">✅ 到店核销</a>
+            <a href="/waitlist" class="{% if '/waitlist' in request.url.path %}active{% endif %}">⏳ 候补队列</a>
+            <a href="/refunds" class="{% if '/refunds' in request.url.path %}active{% endif %}">💰 退款记录</a>
+            <a href="/pricing" class="{% if '/pricing' in request.url.path %}active{% endif %}">🏷️ 价格规则</a>
+            <a href="/stats" class="{% if '/stats' in request.url.path %}active{% endif %}">📈 转化分析</a>
+            <a href="/config" class="{% if '/config' in request.url.path %}active{% endif %}">⚙️ 系统配置</a>
+        </nav>
+    </div>
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content" id="modal-content">
+        </div>
+    </div>
+
+    <script>
+        function showModal(content) {
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type}`;
+            toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 200px;';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        document.addEventListener('htmx:afterRequest', function(evt) {
+            const response = evt.detail.xhr;
+            if (response.status === 200) {
+                try {
+                    const data = JSON.parse(response.responseText);
+                    if (data.status === 'success' && data.message) {
+                        showToast(data.message, 'success');
+                    } else if (data.detail) {
+                        showToast(data.detail, 'error');
+                    }
+                } catch(e) {}
+            }
+        });
+    </script>
+</body>
+</html>

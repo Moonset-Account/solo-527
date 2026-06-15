@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}数据概览 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📊 数据概览</h1>
+</div>
+
+<div id="dashboard-content" hx-get="/api/stats/conversion" hx-trigger="load" hx-target="#dashboard-content">
+    <p>加载中...</p>
+</div>
+
+<div class="card">
+    <h3>快速操作</h3>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="/schedule" class="btn btn-primary">📅 查看排班</a>
+        <a href="/appointments" class="btn btn-success">📋 预约列表</a>
+        <a href="/checkin" class="btn btn-warning">✅ 到店核销</a>
+        <a href="/waitlist" class="btn btn-secondary">⏳ 候补队列</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>按预约来源转化</h3>
+    <div id="source-stats" hx-get="/api/stats/by-source" hx-trigger="load" hx-target="#source-stats">
+        <p>加载中...</p>
+    </div>
+</div>
+{% endblock %}

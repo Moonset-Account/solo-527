@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}价格规则 - 口腔诊所系统{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>🏷️ 价格规则</h1>
+</div>
+
+<div class="card">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>服务类型</label>
+            <select id="filter-service" onchange="loadRules()">
+                <option value="">全部</option>
+                <option value="洁牙">洁牙</option>
+                <option value="补牙">补牙</option>
+                <option value="拔牙">拔牙</option>
+                <option value="正畸">正畸</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>来源</label>
+            <select id="filter-source" onchange="loadRules()">
+                <option value="">全部</option>
+                <option value="all">全部来源</option>
+                <option value="direct">到店</option>
+                <option value="online">线上</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>状态</label>
+            <select id="filter-active" onchange="loadRules()">
+                <option value="">全部</option>
+                <option value="true">启用</option>
+                <option value="false">禁用</option>
+            </select>
+        </div>
+    </div>
+    <button class="btn btn-primary" onclick="showAddRuleModal()">+ 新增规则</button>
+</div>
+
+<div class="card">
+    <div id="rules-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<script>
+async function loadRules() {
+    const service = document.getElementById('filter-service').value;
+    const source = document.getElementById('filter-source').value;
+    const isActive = document.getElementById('filter-active').value;
+
+    let url = '/api/pricing?';
+    if (service) url += `service_type=${service}&`;
+    if (source) url += `source=${source}&`;
+    if (isActive !== '') url += `is_active=${isActive}&`;
+
+    try {
+        const response = await fetch(url);
+        const rules = await response.json();
+        renderRules(rules);
+    } catch(e) {
+        console.error('加载失败', e);
+    }
+}
+
+function renderRules(rules) {
+    const container = document.getElementById('rules-list');
+    if (rules.length === 0) {
+        container.innerHTML = '<div class="empty-state">暂无价格规则</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr>';
+    html += '<th>规则名称</th><th>服务类型</th><th>基础价格</th><th>折扣</th>';
+    html += '<th>适用来源</th><th>状态</th><th>创建时间</th><th>操作</th>';
+    html += '</tr></thead><tbody>';
+
+    rules.forEach(rule => {
+        const finalPrice = rule.discount > 0 ? rule.base_price * (1 - rule.discount / 100) : rule.base_price;
+        html += '<tr>';
+        html += `<td>${rule.name}</td>`;
+        html += `<td>${rule.service_type}</td>`;
+        html += `<td>¥${rule.base_price}</td>`;
+        html += `<td>${rule.discount}% <small>(折后¥${finalPrice.toFixed(2)})</small></td>`;
+        html += `<td>${rule.source === 'all' ? '全部来源' : rule.source}</td>`;
+        html += `<td>${rule.is_active ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-secondary">禁用</span>'}</td>`;
+        html += `<td>${rule.created_at ? rule.created_at.slice(0, 10) : '-'}</td>`;
+        html += `<td>
+            <button class="btn btn-sm btn-primary" onclick="editRule(${rule.id})">编辑</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteRule(${rule.id})">删除</button>
+        </td>`;
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function showAddRuleModal() {
+    const content = `
+        <div class="modal-header">
+            <h3>新增价格规则</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>规则名称</label>
+            <input type="text" id="pr-name" placeholder="请输入规则名称">
+        </div>
+        <div class="form-group">
+            <label>服务类型</label>
+            <select id="pr-service">
+                <option value="洁牙">洁牙</option>
+                <option value="补牙">补牙</option>
+                <option value="拔牙">拔牙</option>
+                <option value="正畸">正畸</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>基础价格</label>
+            <input type="number" id="pr-price" placeholder="请输入基础价格" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>折扣(%)</label>
+            <input type="number" id="pr-discount" value="0" min="0" max="100" step="0.1">
+            <small>0表示不打折</small>
+        </div>
+        <div class="form-group">
+            <label>适用来源</label>
+            <select id="pr-source">
+                <option value="all">全部来源</option>
+                <option value="direct">到店</option>
+                <option value="phone">电话</option>
+                <option value="online">线上</option>
+                <option value="referral">转介绍</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>描述</label>
+            <textarea id="pr-desc" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+            <label><input type="checkbox" id="pr-active" checked> 启用</label>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitRule()">确认添加</button>
+        </div>
+    `;
+    showModal(content);
+}
+
+async function submitRule() {
+    const name = document.getElementById('pr-name').value;
+    const service = document.getElementById('pr-service').value;
+    const price = document.getElementById('pr-price').value;
+    const discount = document.getElementById('pr-discount').value;
+    const source = document.getElementById('pr-source').value;
+    const desc = document.getElementById('pr-desc').value;
+    const active = document.getElementById('pr-active').checked;
+
+    if (!name || !price) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/pricing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                service_type: service,
+                base_price: parseFloat(price),
+                discount: parseFloat(discount),
+                source: source,
+                description: desc,
+                is_active: active
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadRules();
+            showToast('添加成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '添加失败', 'error');
+        }
+    } catch(e) {
+        showToast('添加失败', 'error');
+    }
+}
+
+async function editRule(ruleId) {
+    try {
+        const response = await fetch(`/api/pricing/${ruleId}`);
+        const rule = await response.json();
+        const content = `
+            <div class="modal-header">
+                <h3>编辑价格规则</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>规则名称</label>
+                <input type="text" id="pr-name" value="${rule.name}">
+            </div>
+            <div class="form-group">
+                <label>服务类型</label>
+                <select id="pr-service">
+                    <option value="洁牙" ${rule.service_type === '洁牙' ? 'selected' : ''}>洁牙</option>
+                    <option value="补牙" ${rule.service_type === '补牙' ? 'selected' : ''}>补牙</option>
+                    <option value="拔牙" ${rule.service_type === '拔牙' ? 'selected' : ''}>拔牙</option>
+                    <option value="正畸" ${rule.service_type === '正畸' ? 'selected' : ''}>正畸</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>基础价格</label>
+                <input type="number" id="pr-price" value="${rule.base_price}" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>折扣(%)</label>
+                <input type="number" id="pr-discount" value="${rule.discount}" min="0" max="100" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>适用来源</label>
+                <select id="pr-source">
+                    <option value="all" ${rule.source === 'all' ? 'selected' : ''}>全部来源</option>
+                    <option value="direct" ${rule.source === 'direct' ? 'selected' : ''}>到店</option>
+                    <option value="phone" ${rule.source === 'phone' ? 'selected' : ''}>电话</option>
+                    <option value="online" ${rule.source === 'online' ? 'selected' : ''}>线上</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="pr-desc" rows="2">${rule.description || ''}</textarea>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="pr-active" ${rule.is_active ? 'checked' : ''}> 启用</label>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="updateRule(${ruleId})">保存修改</button>
+            </div>
+        `;
+        showModal(content);
+    } catch(e) {}
+}
+
+async function updateRule(ruleId) {
+    const name = document.getElementById('pr-name').value;
+    const service = document.getElementById('pr-service').value;
+    const price = document.getElementById('pr-price').value;
+    const discount = document.getElementById('pr-discount').value;
+    const source = document.getElementById('pr-source').value;
+    const desc = document.getElementById('pr-desc').value;
+    const active = document.getElementById('pr-active').checked;
+
+    try {
+        const response = await fetch(`/api/pricing/${ruleId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                service_type: service,
+                base_price: parseFloat(price),
+                discount: parseFloat(discount),
+                source: source,
+                description: desc,
+                is_active: active
+            })
+        });
+        if (response.ok) {
+            closeModal();
+            loadRules();
+            showToast('修改成功', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.detail || '修改失败', 'error');
+        }
+    } catch(e) {
+        showToast('修改失败', 'error');
+    }
+}
+
+async function deleteRule(ruleId) {
+    if (!confirm('确认删除该规则？')) return;
+    try {
+        const response = await fetch(`/api/pricing/${ruleId}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            showToast('已删除', 'success');
+            loadRules();
+        }
+    } catch(e) {}
+}
+
+loadRules();
+</script>
+{% endblock %}
