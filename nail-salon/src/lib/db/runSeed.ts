@@ -1,12 +1,13 @@
 import * as dotenv from 'dotenv';
-import { seed } from './seed';
-
 dotenv.config();
 
 async function main() {
+  const { seed } = await import('./seed');
+  const { closeDb } = await import('./index');
   console.log('Seeding database...');
   await seed();
   console.log('Database seeded successfully');
+  await closeDb();
   process.exit(0);
 }
 
