@@ -25,7 +25,7 @@
             <option value="ENGINEERING">工程报修</option>
           </select>
         </div>
-        <div v-if="user?.role !== 'tenant'" class="filter-item">
+        <div v-if="user?.role !== 'TENANT'" class="filter-item">
           <label>租户：</label>
           <select v-model="filters.tenantId" @change="loadData">
             <option value="">全部</option>
@@ -515,7 +515,7 @@ onMounted(async () => {
 })
 
 async function loadTenants() {
-  if (user.value?.role === 'tenant') return
+  if (user.value?.role === 'TENANT') return
   try {
     const res: any = await useApiFetch('/tenants')
     if (res.code === 200) {

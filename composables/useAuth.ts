@@ -4,11 +4,12 @@ export interface User {
   id: number
   username: string
   name: string
-  role: 'tenant' | 'operator' | 'engineer' | 'admin'
+  role: 'TENANT' | 'OPERATOR' | 'ENGINEER' | 'ADMIN'
   tenantId?: number
   avatar?: string
   phone?: string
   email?: string
+  tenant?: any
 }
 
 const user = ref<User | null>(null)
@@ -16,17 +17,21 @@ const token = ref<string | null>(null)
 
 export function useAuth() {
   const isLoggedIn = computed(() => !!user.value)
-  const isTenant = computed(() => user.value?.role === 'tenant')
-  const isOperator = computed(() => user.value?.role === 'operator')
-  const isEngineer = computed(() => user.value?.role === 'engineer')
-  const isAdmin = computed(() => user.value?.role === 'admin')
+  const isTenant = computed(() => user.value?.role === 'TENANT')
+  const isOperator = computed(() => user.value?.role === 'OPERATOR')
+  const isEngineer = computed(() => user.value?.role === 'ENGINEER')
+  const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
   async function login(username: string, password: string) {
     try {
-      const data = await $fetch<{ user: User; token: string }>('/api/auth/login', {
+      const res = await $fetch<{ code: number; data: { user: User; token: string }; message: string }>('/api/auth/login', {
         method: 'POST',
         body: { username, password }
       })
+      if (res.code !== 200 || !res.data) {
+        throw new Error(res.message || '登录失败')
+      }
+      const data = res.data
       user.value = data.user
       token.value = data.token
       if (process.client) {
@@ -34,8 +39,8 @@ export function useAuth() {
         localStorage.setItem('user', JSON.stringify(data.user))
       }
       return data
-    } catch (error) {
-      throw error
+    } catch (error: any) {
+      throw error?.data || error
     }
   }
 

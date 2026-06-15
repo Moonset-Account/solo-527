@@ -107,7 +107,7 @@ onMounted(async () => {
   }
   await loadTenants()
   
-  if (user.value?.role === 'tenant' && user.value.tenantId) {
+  if (user.value?.role === 'TENANT' && user.value.tenantId) {
     form.tenantId = user.value.tenantId.toString()
   }
 })

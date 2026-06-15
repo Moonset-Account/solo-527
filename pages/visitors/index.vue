@@ -303,12 +303,12 @@ async function deletePreset(id: number) {
 }
 
 function canApprove(item: any) {
-  return user.value && ['operator', 'admin'].includes(user.value.role) &&
+  return user.value && ['OPERATOR', 'ADMIN'].includes(user.value.role) &&
     item.status === 'PENDING'
 }
 
 function canReject(item: any) {
-  return user.value && ['operator', 'admin'].includes(user.value.role) &&
+  return user.value && ['OPERATOR', 'ADMIN'].includes(user.value.role) &&
     item.status === 'PENDING'
 }
 

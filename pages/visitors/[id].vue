@@ -174,9 +174,12 @@
             <label class="form-label">处理顺序 (handlingOrder)</label>
             <div class="handling-order">
               <div v-for="(step, stepIndex) in getHandlingSteps(exception)" :key="stepIndex" class="order-step">
-                <div class="step-number">{{ stepIndex + 1 }}</div>
+                <div :class="['step-number', getStepStatusClass(step.status)]">{{ step.step || stepIndex + 1 }}</div>
                 <div class="step-content">
-                  <div class="step-title">{{ step.action }}</div>
+                  <div class="flex-between mb-4">
+                    <div class="step-title">{{ step.action }}</div>
+                    <span :class="['tag', getStepTagClass(step.status)]">{{ getStepStatusLabel(step.status) }}</span>
+                  </div>
                   <div class="step-desc">{{ step.description }}</div>
                   <div class="step-responsible">责任方：{{ step.responsible }}</div>
                 </div>
@@ -347,7 +350,7 @@ const tabs = computed(() => {
 })
 
 const canAudit = computed(() => {
-  return user.value && ['operator', 'admin'].includes(user.value.role)
+  return user.value && ['OPERATOR', 'ADMIN'].includes(user.value.role)
 })
 
 onMounted(async () => {
@@ -412,39 +415,100 @@ function parseImpactScope(impactScope: string) {
   if (!impactScope) return defaultScope
   try {
     const parsed = JSON.parse(impactScope)
-    return { ...defaultScope, ...parsed }
+    const formatValue = (val: any) => {
+      if (Array.isArray(val)) return val.join('；')
+      return typeof val === 'string' ? val : JSON.stringify(val)
+    }
+    return {
+      direct: formatValue(parsed.direct || defaultScope.direct),
+      indirect: formatValue(parsed.indirect || defaultScope.indirect),
+      related: formatValue(parsed.related || defaultScope.related)
+    }
   } catch (e) {
     return defaultScope
   }
 }
 
 function getHandlingSteps(exception: any) {
-  return [
+  const defaultSteps = [
     {
       action: '通知被访租户',
       description: '第一时间联系被访租户，告知访客预约被拒情况，协商是否需要重新预约或其他安排',
-      responsible: '前台接待'
+      responsible: '前台接待',
+      status: 'PENDING'
     },
     {
       action: '联系访客说明原因',
       description: '向访客详细说明拒绝原因，提供后续申请的指导和建议',
-      responsible: '运营人员'
+      responsible: '运营人员',
+      status: 'PENDING'
     },
     {
       action: '更新系统记录',
       description: '确保异常记录完整，包括原因、影响范围和处理措施',
-      responsible: '运营人员'
+      responsible: '运营人员',
+      status: 'PENDING'
     },
     {
       action: '跟进后续处理',
       description: '如访客需要重新申请，提供协助；如租户有异议，进行协调处理',
-      responsible: '运营主管'
+      responsible: '运营主管',
+      status: 'PENDING'
     }
   ]
+  if (!exception.processOrder) return defaultSteps
+  try {
+    const parsed = JSON.parse(exception.processOrder)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((p: any) => ({
+        action: p.action || p.title || '未命名步骤',
+        description: p.description || p.desc || '',
+        responsible: p.responsible || p.handler || '未指定',
+        status: p.status || 'PENDING',
+        step: p.step
+      }))
+    }
+    return defaultSteps
+  } catch (e) {
+    return defaultSteps
+  }
 }
 
 function getSuggestedActions(exception: any) {
-  return '请联系租户核实情况，如访客需要重新申请，指导其补充完整材料后再次提交。如有特殊紧急情况，可联系上级主管进行特殊审批。'
+  return exception.suggestion || '请联系租户核实情况，如访客需要重新申请，指导其补充完整材料后再次提交。如有特殊紧急情况，可联系上级主管进行特殊审批。'
+}
+
+function getStepStatusClass(status: string) {
+  const map: any = {
+    DONE: 'step-done',
+    COMPLETED: 'step-done',
+    IN_PROGRESS: 'step-progress',
+    PROCESSING: 'step-progress',
+    PENDING: ''
+  }
+  return map[status] || ''
+}
+
+function getStepTagClass(status: string) {
+  const map: any = {
+    DONE: 'tag-green',
+    COMPLETED: 'tag-green',
+    IN_PROGRESS: 'tag-blue',
+    PROCESSING: 'tag-blue',
+    PENDING: 'tag-orange'
+  }
+  return map[status] || 'tag-orange'
+}
+
+function getStepStatusLabel(status: string) {
+  const map: any = {
+    DONE: '已完成',
+    COMPLETED: '已完成',
+    IN_PROGRESS: '进行中',
+    PROCESSING: '进行中',
+    PENDING: '待处理'
+  }
+  return map[status] || '待处理'
 }
 
 function getStatusLabel(status: string) {
@@ -575,6 +639,21 @@ function formatTime(date: string) {
   font-weight: 600;
   margin-right: 12px;
   flex-shrink: 0;
+}
+.step-done {
+  background: #52c41a;
+}
+.step-progress {
+  background: #1890ff;
+  animation: pulse-blue 2s infinite;
+}
+@keyframes pulse-blue {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.6); }
+  50% { box-shadow: 0 0 0 6px rgba(24, 144, 255, 0); }
+}
+
+.mb-4 {
+  margin-bottom: 4px;
 }
 
 .step-content {
