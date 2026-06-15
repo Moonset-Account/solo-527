@@ -45,7 +45,7 @@
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
         <% @boarding_reservations.each do |reservation| %>
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-gray-50" id="<%= dom_id(reservation) %>">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <span class="text-2xl mr-2"><%= reservation.pet.species == "狗" ? "🐕" : "🐱" %></span>
@@ -82,10 +82,16 @@
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <%= link_to "查看", admin_boarding_reservation_path(reservation), class: "text-indigo-600 hover:text-indigo-900" %>
               <% if reservation.scheduled? %>
-                <%= link_to "入住", check_in_admin_boarding_reservation_path(reservation), method: :post, class: "text-green-600 hover:text-green-900 ml-2" %>
+                <%= button_to "入住", check_in_admin_boarding_reservation_path(reservation),
+                              method: :post,
+                              class: "text-green-600 hover:text-green-900 ml-2 bg-transparent border-none p-0 cursor-pointer inline",
+                              data: { turbo: true } %>
               <% end %>
               <% if reservation.checked_in? %>
-                <%= link_to "离店", check_out_admin_boarding_reservation_path(reservation), method: :post, class: "text-orange-600 hover:text-orange-900 ml-2" %>
+                <%= button_to "离店", check_out_admin_boarding_reservation_path(reservation),
+                              method: :post,
+                              data: { turbo: true, confirm: "确认宠物已离店？" },
+                              class: "text-orange-600 hover:text-orange-900 ml-2 bg-transparent border-none p-0 cursor-pointer inline" %>
               <% end %>
             </td>
           </tr>

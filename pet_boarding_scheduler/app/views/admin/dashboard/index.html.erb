@@ -18,11 +18,11 @@
 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
   <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
     <p class="text-xs text-gray-500">当前寄养</p>
-    <p class="text-2xl font-bold text-gray-900"><%= @stats[:current_boardings] %></p>
+    <p class="text-2xl font-bold text-gray-900" id="current-boardings-stat"><%= @stats[:current_boardings] %></p>
   </div>
   <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
     <p class="text-xs text-gray-500">可用笼位</p>
-    <p class="text-2xl font-bold text-gray-900"><%= @stats[:available_kennels] %></p>
+    <p class="text-2xl font-bold text-gray-900" id="available-kennels-stat"><%= @stats[:available_kennels] %></p>
   </div>
   <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-pink-500">
     <p class="text-xs text-gray-500">今日体检</p>
@@ -310,7 +310,8 @@
     <div class="divide-y max-h-80 overflow-y-auto" id="notifications-list">
       <% if @notifications.any? %>
         <% @notifications.each do |notification| %>
-          <%= link_to admin_notification_path(notification), class: "block p-3 hover:bg-indigo-50 transition #{notification.is_read? ? 'bg-white' : 'bg-indigo-50/70'}" do %>
+          <div id="<%= dom_id(notification) %>">
+            <%= link_to admin_notification_path(notification), class: "block p-3 hover:bg-indigo-50 transition #{notification.is_read? ? 'bg-white' : 'bg-indigo-50/70'}" do %>
             <div class="flex items-start">
               <div class="flex-shrink-0 mr-3 text-2xl">
                 <%= case notification.notification_type
@@ -338,6 +339,7 @@
               </div>
             </div>
           <% end %>
+          </div>
         <% end %>
       <% else %>
         <p class="text-gray-500 text-center py-12">暂无通知</p>
@@ -378,7 +380,7 @@
         <% if @current_boardings.any? %>
           <% @current_boardings.each do |r| %>
             <% is_soon_checkout = r.check_out_at && r.check_out_at <= 2.days.from_now %>
-            <tr class="<%= is_soon_checkout ? 'bg-orange-50/50' : '' %> hover:bg-gray-50">
+            <tr class="<%= is_soon_checkout ? 'bg-orange-50/50' : '' %> hover:bg-gray-50" id="<%= dom_id(r) %>">
               <td class="px-4 py-3 whitespace-nowrap">
                 <div class="flex items-center">
                   <span class="text-2xl mr-2"><%= r.pet.species == "狗" ? "🐕" : "🐱" %></span>
@@ -407,10 +409,10 @@
               </td>
               <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                 <%= link_to "详情", admin_boarding_reservation_path(r), class: "text-indigo-600 hover:text-indigo-900" %>
-                <%= link_to "离店", check_out_admin_boarding_reservation_path(r),
-                            method: :post,
-                            data: { confirm: "确认宠物已离店？" },
-                            class: "text-green-600 hover:text-green-900 ml-2" %>
+                <%= button_to "离店", check_out_admin_boarding_reservation_path(r),
+                              method: :post,
+                              data: { turbo: true, confirm: "确认宠物已离店？" },
+                              class: "text-green-600 hover:text-green-900 ml-2 bg-transparent border-none p-0 cursor-pointer inline" %>
               </td>
             </tr>
           <% end %>

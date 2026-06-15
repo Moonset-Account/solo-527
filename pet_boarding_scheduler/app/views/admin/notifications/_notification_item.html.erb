@@ -1,6 +1,7 @@
-<%= link_to admin_notification_path(notification),
-            class: "block p-3 hover:bg-indigo-50 transition #{notification.is_read? ? 'bg-white' : 'bg-indigo-50/70'} border-b last:border-b-0",
-            data: { turbo_frame: "_top" } do %>
+<div id="<%= dom_id(notification) %>">
+  <%= link_to admin_notification_path(notification),
+              class: "block p-3 hover:bg-indigo-50 transition #{notification.is_read? ? 'bg-white' : 'bg-indigo-50/70'} border-b last:border-b-0",
+              data: { turbo_frame: "_top" } do %>
   <div class="flex items-start">
     <div class="flex-shrink-0 mr-3 text-2xl">
       <%= case notification.notification_type
@@ -28,3 +29,4 @@
     </div>
   </div>
 <% end %>
+</div>

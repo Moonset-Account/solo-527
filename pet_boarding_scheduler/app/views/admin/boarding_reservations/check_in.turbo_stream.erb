@@ -1,0 +1,2 @@
+<%= turbo_stream.replace dom_id(@boarding_reservation), partial: "admin/boarding_reservations/row", locals: { reservation: @boarding_reservation } %>
+<%= turbo_stream.append "flashes", partial: "shared/flash", locals: { notice: "宠物已入住！" } %>

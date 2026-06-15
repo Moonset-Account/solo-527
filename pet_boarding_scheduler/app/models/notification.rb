@@ -1,4 +1,6 @@
 class Notification < ApplicationRecord
+  include ActionView::RecordIdentifier
+
   belongs_to :notifiable, polymorphic: true, optional: true
 
   validates :title, :notification_type, presence: true

@@ -1,5 +1,7 @@
 module Admin
   class BoardingReservationsController < ApplicationController
+    include ActionView::RecordIdentifier
+
     before_action :set_boarding_reservation, only: [:show, :edit, :update, :destroy, :check_in, :check_out]
 
     def index
@@ -58,18 +60,32 @@ module Admin
     def check_in
       if @boarding_reservation.update(status: :checked_in, check_in_at: Time.current)
         @boarding_reservation.kennel&.occupied!
-        redirect_to [:admin, @boarding_reservation], notice: "宠物已入住！"
+        broadcast_reservation_update(@boarding_reservation)
+        respond_to do |format|
+          format.turbo_stream
+          format.html { redirect_to [:admin, @boarding_reservation], notice: "宠物已入住！" }
+        end
       else
-        redirect_to [:admin, @boarding_reservation], alert: "入住失败。"
+        respond_to do |format|
+          format.turbo_stream { render turbo_stream: turbo_stream.replace(dom_id(@boarding_reservation), partial: "admin/boarding_reservations/row", locals: { reservation: @boarding_reservation }) }
+          format.html { redirect_to [:admin, @boarding_reservation], alert: "入住失败。" }
+        end
       end
     end
 
     def check_out
       if @boarding_reservation.update(status: :completed, check_out_at: Time.current)
         @boarding_reservation.kennel&.available!
-        redirect_to [:admin, @boarding_reservation], notice: "宠物已离店！"
+        broadcast_reservation_update(@boarding_reservation)
+        respond_to do |format|
+          format.turbo_stream
+          format.html { redirect_to [:admin, @boarding_reservation], notice: "宠物已离店！" }
+        end
       else
-        redirect_to [:admin, @boarding_reservation], alert: "离店失败。"
+        respond_to do |format|
+          format.turbo_stream { render turbo_stream: turbo_stream.replace(dom_id(@boarding_reservation), partial: "admin/boarding_reservations/row", locals: { reservation: @boarding_reservation }) }
+          format.html { redirect_to [:admin, @boarding_reservation], alert: "离店失败。" }
+        end
       end
     end
 
@@ -100,6 +116,25 @@ module Admin
       elsif reservation.completed? || reservation.cancelled?
         reservation.kennel.available! if BoardingReservation.where(kennel: reservation.kennel, status: :checked_in).where.not(id: reservation.id).none?
       end
+    end
+
+    def broadcast_reservation_update(reservation)
+      Turbo::StreamsChannel.broadcast_replace_to(
+        "dashboard_updates",
+        target: dom_id(reservation),
+        partial: "admin/boarding_reservations/row",
+        locals: { reservation: }
+      )
+      Turbo::StreamsChannel.broadcast_replace_to(
+        "dashboard_updates",
+        target: "current-boardings-stat",
+        html: BoardingReservation.where(status: :checked_in).count
+      )
+      Turbo::StreamsChannel.broadcast_replace_to(
+        "dashboard_updates",
+        target: "available-kennels-stat",
+        html: Kennel.available.count
+      )
     end
   end
 end
