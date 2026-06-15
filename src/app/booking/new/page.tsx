@@ -1,18 +1,20 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   CalendarPlus,
   AlertTriangle,
   CheckCircle2,
   Clock,
+  XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AppShell from '@/components/layout/AppShell'
 import StatusBadge from '@/components/ui/StatusBadge'
 import type { Instrument, Station, Project, Sample, Booking } from '@/types'
 import { INSTRUMENT_STATUS_LABELS } from '@/types'
+import { createBooking } from '@/lib/actions/bookings'
 
 const MOCK_INSTRUMENTS: Instrument[] = [
   { id: 'inst-1', name: 'ICP-OES 电感耦合等离子体发射光谱仪', category: '光谱分析', status: 'available', teacher_id: 't-1', location: 'A栋302室', specifications: {}, created_at: '2024-01-01' },
@@ -120,6 +122,10 @@ export default function NewBookingPage() {
   const [selectedSampleIds, setSelectedSampleIds] = useState<string[]>([])
   const [notes, setNotes] = useState('')
   const [showToast, setShowToast] = useState(false)
+  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+  const [toastMessage, setToastMessage] = useState('')
+  const [isPending, startTransition] = useTransition()
+  const [serverConflicts, setServerConflicts] = useState<Booking[]>([])
 
   const filteredStations = MOCK_STATIONS.filter(
     (s) => s.instrument_id === instrumentId && s.status !== 'disabled'
@@ -134,7 +140,7 @@ export default function NewBookingPage() {
     }
   }, [instrumentId])
 
-  const conflicts = useMemo(() => {
+  const mockConflicts = useMemo(() => {
     if (!stationId || !startTime || !endTime) return []
     return MOCK_EXISTING_BOOKINGS.filter((b) => {
       if (b.station_id !== stationId) return false
@@ -142,6 +148,8 @@ export default function NewBookingPage() {
       return b.start_time < endTime && b.end_time > startTime
     })
   }, [stationId, startTime, endTime])
+
+  const conflicts = serverConflicts.length > 0 ? serverConflicts : mockConflicts
 
   const weekDates = useMemo(() => getWeekDates(new Date()), [])
 
@@ -166,12 +174,49 @@ export default function NewBookingPage() {
     )
   }
 
+  const showToastMessage = (type: 'success' | 'error', message: string, duration = 3000) => {
+    setToastType(type)
+    setToastMessage(message)
+    setShowToast(true)
+    setTimeout(() => setShowToast(false), duration)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setShowToast(true)
-    setTimeout(() => {
-      router.push('/booking/mine')
-    }, 1500)
+    if (hasConflict || !instrumentId || !stationId || !startTime || !endTime || !projectId) {
+      return
+    }
+
+    setServerConflicts([])
+    startTransition(async () => {
+      const result = await createBooking({
+        instrument_id: instrumentId,
+        station_id: stationId,
+        start_time: startTime,
+        end_time: endTime,
+        sample_ids: selectedSampleIds,
+        project_id: projectId,
+        notes: notes || undefined,
+      })
+
+      if (result.error) {
+        showToastMessage('error', result.error)
+        return
+      }
+
+      if (result.has_conflict && result.conflicting_bookings) {
+        setServerConflicts(result.conflicting_bookings)
+        showToastMessage('error', '所选时间段与已有预约存在冲突，请调整时间或台位')
+        return
+      }
+
+      if (result.booking) {
+        showToastMessage('success', '预约提交成功！正在跳转...', 1500)
+        setTimeout(() => {
+          router.push('/booking/mine')
+        }, 1500)
+      }
+    })
   }
 
   return (
@@ -181,9 +226,18 @@ export default function NewBookingPage() {
 
         {showToast && (
           <div className="fixed top-4 right-4 z-50 animate-slide-in">
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg shadow-lg">
-              <CheckCircle2 className="w-5 h-5" />
-              <span className="font-medium">预约提交成功！正在跳转...</span>
+            <div className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border',
+              toastType === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-700'
+            )}>
+              {toastType === 'success' ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (
+                <XCircle className="w-5 h-5" />
+              )}
+              <span className="font-medium">{toastMessage}</span>
             </div>
           </div>
         )}
@@ -329,11 +383,11 @@ export default function NewBookingPage() {
 
             <button
               type="submit"
-              disabled={hasConflict || !instrumentId || !stationId || !startTime || !endTime || !projectId}
-              className="btn-primary w-full justify-center py-3"
+              disabled={hasConflict || !instrumentId || !stationId || !startTime || !endTime || !projectId || isPending}
+              className="btn-primary w-full justify-center py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CalendarPlus className="w-4 h-4" />
-              提交预约
+              {isPending ? '提交中...' : '提交预约'}
             </button>
           </div>
 

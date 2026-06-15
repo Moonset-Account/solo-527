@@ -119,12 +119,22 @@ export interface DeactivationAlert {
 export interface UtilizationLog {
   id: string
   instrument_id: string
+  instrument_name?: string
   log_date: string
   total_hours: number
   used_hours: number
   disabled_hours: number
   created_at: string
   instrument?: Instrument
+}
+
+export interface DailyUtilization {
+  instrument_id: string
+  instrument_name: string
+  date: string
+  used_hours: number
+  disabled_hours: number
+  utilization_rate: number
 }
 
 export interface PermissionRequest {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import Link from 'next/link'
 import {
   CalendarDays,
@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   Clock,
   Search,
+  CheckCircle,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import AppShell from '@/components/layout/AppShell'
@@ -15,6 +17,7 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import type { Booking, BookingStatus } from '@/types'
 import { STATUS_LABELS } from '@/types'
+import { getMyBookings, cancelBooking, completeBooking } from '@/lib/actions/bookings'
 
 const MOCK_BOOKINGS: Booking[] = [
   {
@@ -124,7 +127,30 @@ function formatTime(t: string) {
 export default function MyBookingsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS)
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [isPending, startTransition] = useTransition()
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    id: string
+    action: 'cancel' | 'complete'
+  } | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  useEffect(() => {
+    startTransition(async () => {
+      const result = await getMyBookings()
+      if (result.bookings && result.bookings.length > 0) {
+        setBookings(result.bookings)
+      } else {
+        setBookings(MOCK_BOOKINGS)
+      }
+    })
+  }, [])
 
   const filtered = bookings.filter((b) => {
     const matchesSearch =
@@ -136,20 +162,105 @@ export default function MyBookingsPage() {
   })
 
   const handleCancel = (id: string) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' as BookingStatus } : b))
-    )
+    setConfirmDialog({ id, action: 'cancel' })
   }
 
   const handleComplete = (id: string) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: 'completed' as BookingStatus } : b))
-    )
+    setConfirmDialog({ id, action: 'complete' })
+  }
+
+  const confirmAction = () => {
+    if (!confirmDialog) return
+    const { id, action } = confirmDialog
+    setActionLoading(`${action}-${id}`)
+
+    startTransition(async () => {
+      if (action === 'cancel') {
+        const result = await cancelBooking(id)
+        if (result.success) {
+          setBookings((prev) =>
+            prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' as BookingStatus } : b))
+          )
+          showToast('success', '预约已取消')
+        } else {
+          showToast('error', result.error || '取消失败')
+        }
+      } else {
+        const result = await completeBooking(id)
+        if (result.success) {
+          setBookings((prev) =>
+            prev.map((b) => (b.id === id ? { ...b, status: 'completed' as BookingStatus } : b))
+          )
+          showToast('success', '预约已完成')
+        } else {
+          showToast('error', result.error || '操作失败')
+        }
+      }
+      setActionLoading(null)
+      setConfirmDialog(null)
+    })
   }
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        {toast && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in">
+            <div className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border',
+              toast.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-700'
+            )}>
+              {toast.type === 'success' ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <XCircle className="w-5 h-5" />
+              )}
+              <span className="font-medium">{toast.message}</span>
+            </div>
+          </div>
+        )}
+
+        {confirmDialog && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setConfirmDialog(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-900">
+                  {confirmDialog.action === 'cancel' ? '确认取消预约' : '确认完成预约'}
+                </h3>
+                <button onClick={() => setConfirmDialog(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-slate-500 mb-6">
+                {confirmDialog.action === 'cancel'
+                  ? '确定取消该预约吗？取消后将无法恢复。'
+                  : '确认该预约已完成？此操作将更新设备利用率统计。'}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  disabled={!!actionLoading}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmAction}
+                  disabled={!!actionLoading}
+                  className={cn(
+                    confirmDialog.action === 'cancel' ? 'btn-danger' : 'btn-primary',
+                    'disabled:opacity-50'
+                  )}
+                >
+                  {actionLoading ? '处理中...' : confirmDialog.action === 'cancel' ? '确认取消' : '确认完成'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <h1 className="page-title">我的预约</h1>
           <Link href="/booking/new" className="btn-primary">
@@ -239,7 +350,8 @@ export default function MyBookingsPage() {
                           {(booking.status === 'pending' || booking.status === 'confirmed') && (
                             <button
                               onClick={() => handleCancel(booking.id)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                              disabled={actionLoading === `cancel-${booking.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                             >
                               <XCircle className="w-3.5 h-3.5" />
                               取消预约
@@ -248,7 +360,8 @@ export default function MyBookingsPage() {
                           {booking.status === 'confirmed' && (
                             <button
                               onClick={() => handleComplete(booking.id)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              disabled={actionLoading === `complete-${booking.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               完成预约

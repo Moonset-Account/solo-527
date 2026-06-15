@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useTransition } from 'react'
 import Link from 'next/link'
-import { Upload, Download, Eye, Pencil } from 'lucide-react'
+import { Upload, Download, Eye, Pencil, CheckCircle, XCircle, X } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import StatusBadge from '@/components/ui/StatusBadge'
 import FilterBar from '@/components/ui/FilterBar'
@@ -10,6 +10,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import type { ArchiveRecord, ProcessingStatus } from '@/types'
 import { PROCESSING_STATUS_LABELS } from '@/types'
 import { cn } from '@/lib/utils'
+import { listArchives, updateArchiveStatus } from '@/lib/actions/archives'
 
 const MOCK_RECORDS: ArchiveRecord[] = [
   {
@@ -160,21 +161,60 @@ const STATUS_VARIANT: Record<ProcessingStatus, 'success' | 'info' | 'warning'> =
   completed: 'success',
 }
 
+const NEXT_STATUS: Record<ProcessingStatus, ProcessingStatus> = {
+  pending: 'in_progress',
+  in_progress: 'completed',
+  completed: 'completed',
+}
+
 export default function ArchivePage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [statusFilter, setStatusFilter] = useState<ProcessingStatus | ''>('')
   const [personFilter, setPersonFilter] = useState('')
+  const [records, setRecords] = useState<ArchiveRecord[]>([])
+  const [isPending, startTransition] = useTransition()
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [statusDialog, setStatusDialog] = useState<{ id: string; current: ProcessingStatus } | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
-  const filtered = useMemo(() => {
-    return MOCK_RECORDS.filter((r) => {
-      if (dateFrom && r.archived_at < dateFrom) return false
-      if (dateTo && r.archived_at > dateTo + 'T23:59:59Z') return false
-      if (statusFilter && r.processing_status !== statusFilter) return false
-      if (personFilter && r.responsible_person && !r.responsible_person.includes(personFilter)) return false
-      return true
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  useEffect(() => {
+    loadRecords()
+  }, [])
+
+  const loadRecords = () => {
+    startTransition(async () => {
+      const filters: {
+        date_from?: string
+        date_to?: string
+        processing_status?: ProcessingStatus
+        responsible_person?: string
+      } = {}
+      if (dateFrom) filters.date_from = dateFrom
+      if (dateTo) filters.date_to = dateTo
+      if (statusFilter) filters.processing_status = statusFilter
+      if (personFilter) filters.responsible_person = personFilter
+
+      const result = await listArchives(filters)
+      if (result.archives && result.archives.length > 0) {
+        setRecords(result.archives)
+      } else {
+        const filtered = MOCK_RECORDS.filter((r) => {
+          if (dateFrom && r.archived_at < dateFrom) return false
+          if (dateTo && r.archived_at > dateTo + 'T23:59:59Z') return false
+          if (statusFilter && r.processing_status !== statusFilter) return false
+          if (personFilter && r.responsible_person && !r.responsible_person.includes(personFilter)) return false
+          return true
+        })
+        setRecords(filtered)
+      }
     })
-  }, [dateFrom, dateTo, statusFilter, personFilter])
+  }
 
   const handleReset = () => {
     setDateFrom('')
@@ -183,9 +223,99 @@ export default function ArchivePage() {
     setPersonFilter('')
   }
 
+  const handleStatusEdit = (id: string, current: ProcessingStatus) => {
+    setStatusDialog({ id, current })
+  }
+
+  const confirmStatusChange = () => {
+    if (!statusDialog) return
+    const { id, current } = statusDialog
+    const nextStatus = NEXT_STATUS[current]
+    if (nextStatus === current) {
+      setStatusDialog(null)
+      return
+    }
+
+    setActionLoading(true)
+    startTransition(async () => {
+      const result = await updateArchiveStatus(id, nextStatus)
+      if (result.success) {
+        setRecords((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, processing_status: nextStatus } : r))
+        )
+        showToast('success', `状态已更新为「${PROCESSING_STATUS_LABELS[nextStatus]}」`)
+      } else {
+        showToast('error', result.error || '更新失败')
+      }
+      setActionLoading(false)
+      setStatusDialog(null)
+    })
+  }
+
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 relative">
+        {toast && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in">
+            <div className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border',
+              toast.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-700'
+            )}>
+              {toast.type === 'success' ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <XCircle className="w-5 h-5" />
+              )}
+              <span className="font-medium">{toast.message}</span>
+            </div>
+          </div>
+        )}
+
+        {statusDialog && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setStatusDialog(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-900">更新处理状态</h3>
+                <button onClick={() => setStatusDialog(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                  <span className="text-sm text-slate-500">当前状态</span>
+                  <StatusBadge variant={STATUS_VARIANT[statusDialog.current]}>
+                    {PROCESSING_STATUS_LABELS[statusDialog.current]}
+                  </StatusBadge>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-teal-50 rounded-lg border border-teal-100">
+                  <span className="text-sm text-slate-600">更新为</span>
+                  <StatusBadge variant={STATUS_VARIANT[NEXT_STATUS[statusDialog.current]]}>
+                    {PROCESSING_STATUS_LABELS[NEXT_STATUS[statusDialog.current]]}
+                  </StatusBadge>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setStatusDialog(null)}
+                  disabled={actionLoading}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmStatusChange}
+                  disabled={actionLoading || statusDialog.current === 'completed'}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  {actionLoading ? '更新中...' : '确认更新'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <h1 className="page-title">数据归档</h1>
           <Link href="/archive/upload" className="btn-primary">
@@ -206,7 +336,7 @@ export default function ArchivePage() {
           onReset={handleReset}
         />
 
-        {filtered.length === 0 ? (
+        {records.length === 0 ? (
           <EmptyState
             title="暂无匹配的归档记录"
             description="尝试调整筛选条件或上传新数据"
@@ -233,7 +363,7 @@ export default function ArchivePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((record) => (
+                  {records.map((record) => (
                     <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{record.file_name}</td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{record.project?.code}</td>
@@ -255,7 +385,17 @@ export default function ArchivePage() {
                           <button className="p-1.5 rounded-md hover:bg-teal-50 text-teal-700 transition-colors" title="预览">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-1.5 rounded-md hover:bg-amber-50 text-amber-700 transition-colors" title="编辑状态">
+                          <button
+                            onClick={() => handleStatusEdit(record.id, record.processing_status)}
+                            className={cn(
+                              'p-1.5 rounded-md transition-colors',
+                              record.processing_status === 'completed'
+                                ? 'hover:bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'hover:bg-amber-50 text-amber-700'
+                            )}
+                            title="编辑状态"
+                            disabled={record.processing_status === 'completed'}
+                          >
                             <Pencil className="w-4 h-4" />
                           </button>
                         </div>
@@ -266,7 +406,7 @@ export default function ArchivePage() {
               </table>
             </div>
             <div className="px-4 py-3 bg-slate-50 text-xs text-slate-500 border-t border-slate-200">
-              共 {filtered.length} 条记录
+              共 {records.length} 条记录
             </div>
           </div>
         )}

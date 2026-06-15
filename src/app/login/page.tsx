@@ -1,53 +1,172 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppStore } from '@/store'
-import { ROLE_LABELS, type AuthUser } from '@/types'
-import { Cpu, FlaskConical, Microscope, Shield, BookOpen, ChevronRight } from 'lucide-react'
+import { ROLE_LABELS, type AuthUser, type UserRole } from '@/types'
+import { signInWithPassword, signUp } from './actions'
+import {
+  Cpu,
+  FlaskConical,
+  Microscope,
+  Shield,
+  BookOpen,
+  ChevronRight,
+} from 'lucide-react'
 
-const mockUsers: AuthUser[] = [
-  { id: '1', email: 'researcher@lab.cn', role: 'researcher', display_name: '张明远', lab_id: 'lab-1' },
-  { id: '2', email: 'archivist@lab.cn', role: 'archivist', display_name: '李文静', lab_id: 'lab-1' },
-  { id: '3', email: 'admin@lab.cn', role: 'admin', display_name: '王管理', lab_id: 'lab-1' },
-  { id: '4', email: 'teacher@lab.cn', role: 'equipment_teacher', display_name: '陈老师', lab_id: 'lab-1' },
+const testAccounts: Array<{
+  id: string
+  email: string
+  role: UserRole
+  display_name: string
+  lab_id: string
+  password: string
+}> = [
+  {
+    id: '1',
+    email: 'researcher@lab.cn',
+    role: 'researcher',
+    display_name: '张明远',
+    lab_id: 'lab-1',
+    password: '123456',
+  },
+  {
+    id: '2',
+    email: 'archivist@lab.cn',
+    role: 'archivist',
+    display_name: '李文静',
+    lab_id: 'lab-1',
+    password: '123456',
+  },
+  {
+    id: '3',
+    email: 'admin@lab.cn',
+    role: 'admin',
+    display_name: '王管理',
+    lab_id: 'lab-1',
+    password: '123456',
+  },
+  {
+    id: '4',
+    email: 'teacher@lab.cn',
+    role: 'equipment_teacher',
+    display_name: '陈老师',
+    lab_id: 'lab-1',
+    password: '123456',
+  },
 ]
 
-const roleIcons: Record<string, React.ReactNode> = {
+const roleIcons: Record<UserRole, React.ReactNode> = {
   researcher: <FlaskConical className="w-4 h-4" />,
   archivist: <BookOpen className="w-4 h-4" />,
   admin: <Shield className="w-4 h-4" />,
   equipment_teacher: <Microscope className="w-4 h-4" />,
 }
 
+type TabMode = 'login' | 'signup'
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect')
   const setUser = useAppStore((s) => s.setUser)
+
+  const [mode, setMode] = useState<TabMode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [signupRole, setSignupRole] = useState<UserRole>('researcher')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [loggedIn, setLoggedIn] = useState(false)
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    await new Promise((r) => setTimeout(r, 800))
+    try {
+      const result = await signInWithPassword({ email, password }, redirectTo)
 
-    const user = mockUsers.find((u) => u.email === email)
-    if (!user) {
-      setError('邮箱或密码错误')
+      if (result && !result.success) {
+        setError(result.error || '操作失败，请稍后重试')
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/auth/session', { cache: 'no-store' })
+      if (res.ok) {
+        const userData = (await res.json()) as AuthUser
+        setUser(userData)
+        setCurrentUser(userData)
+        setLoggedIn(true)
+        setTimeout(() => {
+          const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
+          router.push(target)
+        }, 1500)
+      } else {
+        const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
+        router.push(target)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '登录失败，请稍后重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    if (!displayName.trim()) {
+      setError('请输入显示名称')
       setLoading(false)
       return
     }
 
-    setUser(user)
-    setCurrentUser(user)
-    setLoggedIn(true)
-    setTimeout(() => router.push('/'), 1500)
+    try {
+      const result = await signUp(
+        {
+          email,
+          password,
+          display_name: displayName.trim(),
+          role: signupRole,
+        },
+        redirectTo
+      )
+
+      if (result && !result.success) {
+        setError(result.error || '操作失败，请稍后重试')
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/auth/session', { cache: 'no-store' })
+      if (res.ok) {
+        const userData = (await res.json()) as AuthUser
+        setUser(userData)
+        setCurrentUser(userData)
+        setLoggedIn(true)
+      }
+      setTimeout(() => {
+        const target = redirectTo && redirectTo !== '/login' ? redirectTo : '/'
+        router.push(target)
+      }, 1500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '注册失败，请稍后重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fillTestAccount = (account: (typeof testAccounts)[number]) => {
+    setEmail(account.email)
+    setPassword(account.password)
+    setMode('login')
+    setError('')
   }
 
   return (
@@ -68,7 +187,9 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-4xl font-black leading-tight mb-4">
-            科研实验室<br />综合管理平台
+            科研实验室
+            <br />
+            综合管理平台
           </h1>
           <p className="text-teal-200 text-lg leading-relaxed max-w-md">
             仪器预约、数据归档、权限审批、设备看板 — 一站式闭环管理
@@ -119,8 +240,50 @@ export default function LoginPage() {
                 <span className="text-xl font-bold text-slate-900">实验预约登记站</span>
               </div>
 
-              <h2 className="text-3xl font-black text-slate-900 mb-2">登录</h2>
-              <p className="text-slate-500 mb-8">请使用邮箱和密码登录您的账号</p>
+              <div className="flex mb-6 p-1 bg-slate-200/60 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login')
+                    setError('')
+                  }}
+                  className={
+                    'flex-1 py-2 rounded-lg text-sm font-medium transition-all ' +
+                    (mode === 'login'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700')
+                  }
+                >
+                  登录
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup')
+                    setError('')
+                  }}
+                  className={
+                    'flex-1 py-2 rounded-lg text-sm font-medium transition-all ' +
+                    (mode === 'signup'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700')
+                  }
+                >
+                  注册
+                </button>
+              </div>
+
+              {mode === 'login' ? (
+                <>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2">登录</h2>
+                  <p className="text-slate-500 mb-8">请使用邮箱和密码登录您的账号</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2">注册</h2>
+                  <p className="text-slate-500 mb-8">创建一个新的实验室账号</p>
+                </>
+              )}
 
               {error && (
                 <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -128,78 +291,179 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label className="label">邮箱地址</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="请输入邮箱"
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label">密码</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="请输入密码"
-                    className="input-field"
-                    required
-                  />
-                </div>
+              {mode === 'login' ? (
+                <form onSubmit={handleLoginSubmit} className="space-y-5">
+                  <div>
+                    <label className="label">邮箱地址</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="请输入邮箱"
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">密码</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="请输入密码"
+                      className="input-field"
+                      required
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary w-full justify-center py-3 text-base"
-                >
-                  {loading ? (
-                    <span className="inline-flex items-center gap-2">
-                      <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      登录中...
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-2">
-                      登录
-                      <ChevronRight className="w-4 h-4" />
-                    </span>
-                  )}
-                </button>
-              </form>
-
-              <div className="mt-6 text-center">
-                <a href="#" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
-                  注册账号
-                </a>
-              </div>
-
-              <div className="mt-8 p-4 rounded-xl bg-slate-100 border border-slate-200">
-                <p className="text-xs text-slate-500 mb-3 font-medium">测试账号（任意密码登录）</p>
-                <div className="space-y-1.5">
-                  {mockUsers.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => {
-                        setEmail(u.email)
-                        setPassword('123456')
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-white hover:text-teal-700 transition-colors text-left"
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary w-full justify-center py-3 text-base"
+                  >
+                    {loading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <svg
+                          className="animate-spin w-5 h-5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        登录中...
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2">
+                        登录
+                        <ChevronRight className="w-4 h-4" />
+                      </span>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSignupSubmit} className="space-y-5">
+                  <div>
+                    <label className="label">显示名称</label>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="请输入您的姓名"
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">邮箱地址</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="请输入邮箱"
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">密码</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="请输入密码（至少 6 位）"
+                      className="input-field"
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">账号角色</label>
+                    <select
+                      value={signupRole}
+                      onChange={(e) => setSignupRole(e.target.value as UserRole)}
+                      className="input-field"
                     >
-                      {roleIcons[u.role]}
-                      <span className="font-medium">{u.display_name}</span>
-                      <span className="text-slate-400">· {u.email}</span>
-                    </button>
-                  ))}
+                      {(['researcher', 'archivist', 'equipment_teacher'] as UserRole[]).map(
+                        (r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABELS[r]}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary w-full justify-center py-3 text-base"
+                  >
+                    {loading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <svg
+                          className="animate-spin w-5 h-5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        注册中...
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2">
+                        注册账号
+                        <ChevronRight className="w-4 h-4" />
+                      </span>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {mode === 'login' && (
+                <div className="mt-8 p-4 rounded-xl bg-slate-100 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-3 font-medium">
+                    测试账号（点击快捷填充）
+                  </p>
+                  <div className="space-y-1.5">
+                    {testAccounts.map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => fillTestAccount(u)}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-white hover:text-teal-700 transition-colors text-left"
+                      >
+                        {roleIcons[u.role]}
+                        <span className="font-medium">{u.display_name}</span>
+                        <span className="text-slate-400">· {u.email}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>

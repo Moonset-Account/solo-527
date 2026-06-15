@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { SessionProvider } from '@/components/auth/SessionProvider'
 
 export const metadata: Metadata = {
   title: '实验预约数据登记站',
@@ -20,7 +21,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased bg-slate-50 text-slate-900">
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   )

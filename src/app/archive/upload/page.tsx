@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Upload,
   FileUp,
@@ -11,11 +12,13 @@ import {
   Plus,
   X,
   ArrowLeft,
+  AlertCircle,
 } from 'lucide-react'
 import AppShell from '@/components/layout/AppShell'
 import type { ProcessingStatus } from '@/types'
 import { PROCESSING_STATUS_LABELS } from '@/types'
 import { cn } from '@/lib/utils'
+import { uploadAndCreateArchive } from '@/lib/actions/archives'
 
 const MOCK_PROJECTS = [
   { id: 'p1', code: 'PRJ-2024-001', name: '新型蛋白质结构研究' },
@@ -43,6 +46,7 @@ interface CustomMeta {
 }
 
 export default function ArchiveUploadPage() {
+  const router = useRouter()
   const [step, setStep] = useState<Step>(1)
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -54,9 +58,9 @@ export default function ArchiveUploadPage() {
   const [responsiblePerson, setResponsiblePerson] = useState('')
   const [notes, setNotes] = useState('')
   const [customMetas, setCustomMetas] = useState<CustomMeta[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isPending, startTransition] = useTransition()
   const [uploadDone, setUploadDone] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const filteredSamples = MOCK_SAMPLES.filter(
@@ -78,19 +82,44 @@ export default function ArchiveUploadPage() {
   const canProceedStep2 = !!projectId && !!sampleId && !!responsiblePerson
 
   const handleSubmit = () => {
-    setUploading(true)
-    setUploadProgress(0)
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setUploading(false)
-          setUploadDone(true)
-          return 100
+    setErrorMsg('')
+    startTransition(async () => {
+      try {
+        const formData = new FormData()
+        if (file) {
+          formData.append('file', file)
+        } else {
+          formData.append('file_name', `archive_${Date.now()}`)
         }
-        return prev + Math.random() * 15 + 5
-      })
-    }, 300)
+        formData.append('project_id', projectId)
+        formData.append('sample_id', sampleId)
+        formData.append('processing_status', processingStatus)
+        formData.append('responsible_person', responsiblePerson)
+
+        const metadataObj: Record<string, string> = {}
+        customMetas.filter((m) => m.key).forEach((m) => {
+          metadataObj[m.key] = m.value
+        })
+        if (notes) {
+          metadataObj['notes'] = notes
+        }
+        formData.append('metadata', JSON.stringify(metadataObj))
+
+        const result = await uploadAndCreateArchive(formData)
+
+        if (result.error) {
+          setErrorMsg(result.error)
+          return
+        }
+
+        setUploadDone(true)
+        setTimeout(() => {
+          router.push('/archive')
+        }, 2000)
+      } catch (err) {
+        setErrorMsg(err instanceof Error ? err.message : '上传失败')
+      }
+    })
   }
 
   const STEPS = [
@@ -108,6 +137,16 @@ export default function ArchiveUploadPage() {
           </Link>
           <h1 className="page-title">上传实验数据</h1>
         </div>
+
+        {errorMsg && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">上传失败</p>
+              <p className="mt-0.5">{errorMsg}</p>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="flex items-center justify-between mb-8">
@@ -153,27 +192,22 @@ export default function ArchiveUploadPage() {
                 <Check className="w-8 h-8 text-emerald-600" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 mb-2">上传成功</h2>
-              <p className="text-sm text-slate-500 mb-6">文件已成功归档至系统</p>
+              <p className="text-sm text-slate-500 mb-6">文件已成功归档至系统，即将跳转...</p>
               <Link href="/archive" className="btn-primary">
                 返回归档列表
               </Link>
             </div>
-          ) : uploading ? (
+          ) : isPending ? (
             <div className="py-12">
               <div className="text-center mb-4">
-                <FileUp className="w-12 h-12 text-teal-600 mx-auto mb-3" />
+                <FileUp className="w-12 h-12 text-teal-600 mx-auto mb-3 animate-bounce" />
                 <h2 className="text-lg font-bold text-slate-900">正在上传</h2>
                 <p className="text-sm text-slate-500 mt-1">{file?.name}</p>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-teal-600 h-full rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min(uploadProgress, 100)}%` }}
-                />
+                <div className="bg-teal-600 h-full rounded-full animate-pulse w-3/4" />
               </div>
-              <p className="text-center text-sm text-slate-500 mt-2">
-                {Math.min(Math.round(uploadProgress), 100)}%
-              </p>
+              <p className="text-center text-sm text-slate-500 mt-2">处理中...</p>
             </div>
           ) : (
             <>
@@ -445,9 +479,13 @@ export default function ArchiveUploadPage() {
                       <ChevronLeft className="w-4 h-4" />
                       上一步
                     </button>
-                    <button onClick={handleSubmit} className="btn-primary">
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isPending}
+                      className="btn-primary disabled:opacity-50"
+                    >
                       <Upload className="w-4 h-4" />
-                      确认上传
+                      {isPending ? '上传中...' : '确认上传'}
                     </button>
                   </div>
                 </div>

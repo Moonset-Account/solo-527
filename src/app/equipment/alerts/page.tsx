@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Clock, Cpu, RotateCcw } from 'lucide-react'
+import { useState, useEffect, useTransition } from 'react'
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Clock, Cpu, RotateCcw, X, Check } from 'lucide-react'
 import type { DeactivationAlert } from '@/types'
 import AppShell from '@/components/layout/AppShell'
+import { cn } from '@/lib/utils'
+import { listDeactivationAlerts, resolveDeactivationAlert } from '@/lib/actions/equipment'
 
 const MOCK_ACTIVE: DeactivationAlert[] = [
   { id: 'a1', instrument_id: 'ins5', reason: '校准维护，预计3个工作日恢复', resolved: false, deactivated_at: '2024-03-16T08:00:00Z', resolved_at: null, resolved_by: null, instrument: { id: 'ins5', name: 'DSC差示扫描量热仪', category: '热分析', status: 'disabled', teacher_id: 't3', location: 'B202', specifications: {}, created_at: '' } },
@@ -22,16 +24,111 @@ const MOCK_RESOLVED: DeactivationAlert[] = [
 const AFFECTED_BOOKINGS: Record<string, number> = { a1: 3, a2: 7, a3: 2 }
 
 export default function AlertsPage() {
-  const [active, setActive] = useState(MOCK_ACTIVE)
+  const [active, setActive] = useState<DeactivationAlert[]>([])
+  const [resolved, setResolved] = useState<DeactivationAlert[]>([])
   const [showResolved, setShowResolved] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ id: string; name: string } | null>(null)
 
-  const handleRecover = (id: string) => {
-    setActive(prev => prev.filter(a => a.id !== id))
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message })
+    setTimeout(() => setToast(null), 3000)
   }
+
+  useEffect(() => {
+    startTransition(async () => {
+      const result = await listDeactivationAlerts({ includeResolved: true })
+      if (result.alerts && result.alerts.length > 0) {
+        const activeList = result.alerts.filter(a => !a.resolved)
+        const resolvedList = result.alerts.filter(a => a.resolved)
+        setActive(activeList)
+        setResolved(resolvedList)
+      } else {
+        setActive(MOCK_ACTIVE)
+        setResolved(MOCK_RESOLVED)
+      }
+    })
+  }, [])
+
+  const handleRecover = (id: string, name: string) => {
+    setConfirmDialog({ id, name })
+  }
+
+  const confirmRecover = () => {
+    if (!confirmDialog) return
+    const { id } = confirmDialog
+    setActionLoading(id)
+
+    startTransition(async () => {
+      const result = await resolveDeactivationAlert(id, 'admin-user')
+      if (result.success) {
+        setActive(prev => prev.filter(a => a.id !== id))
+        showToast('success', '设备已恢复可用')
+      } else {
+        showToast('error', result.error || '恢复失败')
+      }
+      setActionLoading(null)
+      setConfirmDialog(null)
+    })
+  }
+
+  const resolvedList = resolved.length > 0 ? resolved : MOCK_RESOLVED
 
   return (
     <AppShell>
-      <div className="mb-6">
+      <div className="mb-6 relative">
+        {toast && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in">
+            <div className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border',
+              toast.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-700'
+            )}>
+              {toast.type === 'success' ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <X className="w-5 h-5" />
+              )}
+              <span className="font-medium">{toast.message}</span>
+            </div>
+          </div>
+        )}
+
+        {confirmDialog && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setConfirmDialog(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold text-slate-900">确认恢复设备</h3>
+                <button onClick={() => setConfirmDialog(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                确定将「{confirmDialog.name}」标记为恢复可用？此操作将更新设备状态并记录停用时长。
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  disabled={!!actionLoading}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmRecover}
+                  disabled={!!actionLoading}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  {actionLoading ? '处理中...' : '确认恢复'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <h1 className="page-title mb-4">停用警报</h1>
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -75,11 +172,12 @@ export default function AlertsPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleRecover(alert.id)}
-                  className="btn-primary text-sm shrink-0 ml-4"
+                  onClick={() => handleRecover(alert.id, alert.instrument?.name || '该设备')}
+                  disabled={actionLoading === alert.id}
+                  className="btn-primary text-sm shrink-0 ml-4 disabled:opacity-50"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  确认恢复
+                  <RotateCcw className={cn('w-4 h-4', actionLoading === alert.id && 'animate-spin')} />
+                  {actionLoading === alert.id ? '恢复中...' : '确认恢复'}
                 </button>
               </div>
             </div>
@@ -93,12 +191,12 @@ export default function AlertsPage() {
           className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors mb-3"
         >
           {showResolved ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          已解决警报 ({MOCK_RESOLVED.length})
+          已解决警报 ({resolvedList.length})
         </button>
 
         {showResolved && (
           <div className="space-y-3">
-            {MOCK_RESOLVED.map(alert => (
+            {resolvedList.map(alert => (
               <div key={alert.id} className="card border-l-4 border-l-emerald-500 opacity-75">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
@@ -111,7 +209,7 @@ export default function AlertsPage() {
                     <p className="text-sm text-slate-500 mb-1">{alert.reason}</p>
                     <div className="flex items-center gap-4 text-xs text-slate-400">
                       <span>停用: {new Date(alert.deactivated_at).toLocaleDateString('zh-CN')}</span>
-                      <span>恢复: {new Date(alert.resolved_at!).toLocaleDateString('zh-CN')}</span>
+                      <span>恢复: {alert.resolved_at && new Date(alert.resolved_at).toLocaleDateString('zh-CN')}</span>
                     </div>
                   </div>
                 </div>
