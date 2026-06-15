@@ -56,7 +56,7 @@ export class ApplicationDetailComponent implements OnInit {
   form!: FormGroup;
 
   displayedChangeWindowColumns: string[] = ['startTime', 'endTime', 'status', 'approvedBy', 'description'];
-  displayedRecordColumns: string[] = ['action', 'operatorName', 'previousValue', 'newValue', 'details', 'createdAt'];
+  displayedRecordColumns: string[] = ['action', 'operatorName', 'changeContent', 'details', 'createdAt'];
 
   statusOptions = [
     { value: 'PENDING', label: '待处理' },
@@ -223,7 +223,7 @@ export class ApplicationDetailComponent implements OnInit {
       entityId: this.id,
       startTime: new Date().toISOString(),
       endTime: new Date().toISOString(),
-      status: 'PENDING',
+      status: 'SCHEDULED',
       description: '',
     }).subscribe({
       next: () => {
@@ -279,8 +279,63 @@ export class ApplicationDetailComponent implements OnInit {
     return map[accountType] || accountType;
   }
 
+  formatDetails(row: ProcessingRecord): string {
+    let details: any = row.details;
+    if (typeof details === 'string') {
+      try {
+        details = JSON.parse(details);
+      } catch {
+        return details || '-';
+      }
+    }
+    if (details && typeof details === 'object' && details.reason) {
+      return `变更原因: ${details.reason}`;
+    }
+    return details ? JSON.stringify(details) : '-';
+  }
+
+  formatValueChange(row: ProcessingRecord): string {
+    let prev: any = row.previousValue;
+    let newVal: any = row.newValue;
+
+    if (typeof prev === 'string') {
+      try {
+        prev = JSON.parse(prev);
+      } catch {}
+    }
+    if (typeof newVal === 'string') {
+      try {
+        newVal = JSON.parse(newVal);
+      } catch {}
+    }
+
+    if (typeof prev === 'string' && typeof newVal === 'string') {
+      return `${prev || '-'} → ${newVal || '-'}`;
+    }
+
+    if (prev && typeof prev === 'object' && prev.responsiblePerson &&
+        newVal && typeof newVal === 'object' && newVal.responsiblePerson) {
+      return `负责人变更: ${prev.responsiblePerson} → ${newVal.responsiblePerson}`;
+    }
+
+    const prevStr = typeof prev === 'object' ? JSON.stringify(prev) : (prev || '-');
+    const newStr = typeof newVal === 'object' ? JSON.stringify(newVal) : (newVal || '-');
+    return `${prevStr} → ${newStr}`;
+  }
+
   goBack(): void {
     this.router.navigate(['/applications']);
+  }
+
+  getChangeWindowStatusLabel(status: string | undefined): string {
+    if (!status) return '-';
+    const map: Record<string, string> = {
+      SCHEDULED: '已排期',
+      IN_PROGRESS: '进行中',
+      COMPLETED: '已完成',
+      CANCELLED: '已取消',
+    };
+    return map[status] || status;
   }
 }
 

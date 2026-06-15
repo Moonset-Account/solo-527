@@ -3,6 +3,7 @@ import { RecordEntityType } from '../entities/processing-record.entity';
 
 export class CreateRecordDto {
   @IsEnum(RecordEntityType)
+  @IsNotEmpty()
   entityType: RecordEntityType;
 
   @IsString()

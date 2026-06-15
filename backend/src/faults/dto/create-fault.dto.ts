@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { FaultSeverity } from '../entities/fault.entity';
+import { FaultSeverity, AlertStatus } from '../entities/fault.entity';
 
 export class CreateFaultDto {
   @IsString()
@@ -29,4 +29,8 @@ export class CreateFaultDto {
   @IsString()
   @IsOptional()
   systemName: string;
+
+  @IsEnum(AlertStatus)
+  @IsOptional()
+  alertStatus?: AlertStatus;
 }
