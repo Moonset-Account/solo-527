@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadQuality {
+  A
+  B
+  C
+  D
+}
+
+enum Gender {
+  M
+  F
+  UNKNOWN
+}
+
+enum ReturnPlanType {
+  FOLLOW_UP
+  REVISIT
+  QUOTATION
+}
+
+enum ReturnPlanStatus {
+  PENDING
+  DONE
+  CANCELLED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+  REJECTED
+}
+
+enum ApprovalType {
+  LEVEL_UPGRADE
+  TAG_ADD
+  ADVISOR_TRANSFER
+  QUOTATION_APPROVE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PARTIAL
+}
+
+enum ApprovalItemResult {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum Role {
+  FRONT_DESK
+  ADVISOR
+  MANAGER
+  DIRECTOR
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  password     String
+  name         String
+  role         Role
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  Advisor      Advisor?
+}
+
+model Advisor {
+  id         Int      @id @default(autoincrement())
+  name       String
+  userId     Int?     @unique
+  user       User?    @relation(fields: [userId], references: [id])
+  role       String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  customers  Customer[]
+  quotations Quotation[]
+  returnPlans ReturnPlan[]
+  responseNodes ResponseNode[]
+}
+
+model Tag {
+  id         Int       @id @default(autoincrement())
+  name       String
+  color      String    @default("#0EA5A9")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  customers  CustomerTag[]
+}
+
+model CustomerLevel {
+  id         Int       @id @default(autoincrement())
+  name       String
+  threshold  Decimal   @default(0) @db.Decimal(12, 2)
+  benefits   String?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  customers  Customer[]
+}
+
+model SourceChannel {
+  id         Int       @id @default(autoincrement())
+  name       String
+  category   String
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  customers  Customer[]
+}
+
+model Customer {
+  id                Int            @id @default(autoincrement())
+  name              String
+  phone             String         @unique
+  gender            Gender         @default(UNKNOWN)
+  age               Int?
+  leadQuality       LeadQuality    @default(B)
+  consultIntent     String
+  returnPreference  String?
+  totalConsumption  Decimal        @default(0) @db.Decimal(12, 2)
+  visitCount        Int            @default(0)
+  levelId           Int?
+  level             CustomerLevel? @relation(fields: [levelId], references: [id])
+  advisorId         Int?
+  advisor           Advisor?       @relation(fields: [advisorId], references: [id])
+  sourceChannelId   Int
+  sourceChannel     SourceChannel  @relation(fields: [sourceChannelId], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  tags              CustomerTag[]
+  consultRecords    ConsultRecord[]
+  consumptions      Consumption[]
+  quotations        Quotation[]
+  returnPlans       ReturnPlan[]
+  churnRecord       ChurnRecord?
+}
+
+model CustomerTag {
+  customerId Int
+  tagId      Int
+  assignedAt DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([customerId, tagId])
+}
+
+model ConsultRecord {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  content     String   @db.Text
+  consultDate DateTime
+  operatorId  Int?
+  createdAt   DateTime @default(now())
+}
+
+model Consumption {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount      Decimal  @db.Decimal(12, 2)
+  project     String
+  consumeDate DateTime
+  operatorId  Int?
+  createdAt   DateTime @default(now())
+}
+
+model Quotation {
+  id            Int              @id @default(autoincrement())
+  customerId    Int
+  customer      Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  advisorId     Int
+  advisor       Advisor          @relation(fields: [advisorId], references: [id])
+  version       String
+  totalAmount   Decimal          @db.Decimal(12, 2)
+  expireAt      DateTime
+  status        QuotationStatus  @default(DRAFT)
+  expireReason  String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  items         QuotationItem[]
+  responseNodes ResponseNode[]
+}
+
+model QuotationItem {
+  id          Int       @id @default(autoincrement())
+  quotationId Int
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  itemName    String
+  price       Decimal   @db.Decimal(12, 2)
+  quantity    Int       @default(1)
+}
+
+model ResponseNode {
+  id          Int       @id @default(autoincrement())
+  quotationId Int
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  nodeName    String
+  ownerId     Int
+  owner       Advisor   @relation(fields: [ownerId], references: [id])
+  dueAt       DateTime
+  doneAt      DateTime?
+  remark      String?   @db.Text
+  createdAt   DateTime  @default(now())
+}
+
+model ReturnPlan {
+  id         Int              @id @default(autoincrement())
+  customerId Int
+  customer   Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assigneeId Int
+  assignee   Advisor          @relation(fields: [assigneeId], references: [id])
+  planDate   DateTime
+  planType   ReturnPlanType
+  content    String           @db.Text
+  status     ReturnPlanStatus @default(PENDING)
+  resultNote String?          @db.Text
+  createdAt  DateTime         @default(now())
+}
+
+model ChurnRecord {
+  id           Int       @id @default(autoincrement())
+  customerId   Int       @unique
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reasonCode   String
+  reasonDetail String?   @db.Text
+  quotationId  Int?
+  churnDate    DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+}
+
+model BatchApproval {
+  id          Int              @id @default(autoincrement())
+  type        ApprovalType
+  submitterId Int
+  status      ApprovalStatus   @default(PENDING)
+  payload     Json
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  items       ApprovalItem[]
+}
+
+model ApprovalItem {
+  id             Int                 @id @default(autoincrement())
+  approvalId     Int
+  approval       BatchApproval       @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  targetId       Int
+  targetName     String
+  result         ApprovalItemResult  @default(PENDING)
+  originalValue  String?
+  newValue       String?
+  failReason     String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model ReturnTemplate {
+  id         Int      @id @default(autoincrement())
+  name       String
+  planType   ReturnPlanType
+  content    String   @db.Text
+  daysOffset Int      @default(7)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
