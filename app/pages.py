@@ -148,6 +148,22 @@ async def deposits_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("deposits/list.html", ctx)
 
 
+@router.get("/deposits/{deposit_id}", response_class=HTMLResponse)
+async def deposit_detail_page(request: Request, deposit_id: int, db: Session = Depends(get_db)):
+    try:
+        current_user = await get_current_user(request, db)
+    except HTTPException:
+        return RedirectResponse(url="/login")
+
+    if current_user.role not in ["admin", "customer_service", "consultant"]:
+        return RedirectResponse(url="/dashboard")
+
+    ctx = get_template_context(request, current_user)
+    ctx["active_menu"] = "deposits"
+    ctx["deposit_id"] = deposit_id
+    return templates.TemplateResponse("deposits/detail.html", ctx)
+
+
 @router.get("/risks", response_class=HTMLResponse)
 async def risks_page(request: Request, db: Session = Depends(get_db)):
     try:
@@ -161,6 +177,22 @@ async def risks_page(request: Request, db: Session = Depends(get_db)):
     ctx = get_template_context(request, current_user)
     ctx["active_menu"] = "risks"
     return templates.TemplateResponse("risks/list.html", ctx)
+
+
+@router.get("/risks/{risk_id}", response_class=HTMLResponse)
+async def risk_detail_page(request: Request, risk_id: int, db: Session = Depends(get_db)):
+    try:
+        current_user = await get_current_user(request, db)
+    except HTTPException:
+        return RedirectResponse(url="/login")
+
+    if current_user.role not in ["admin", "customer_service"]:
+        return RedirectResponse(url="/dashboard")
+
+    ctx = get_template_context(request, current_user)
+    ctx["active_menu"] = "risks"
+    ctx["risk_id"] = risk_id
+    return templates.TemplateResponse("risks/detail.html", ctx)
 
 
 @router.get("/admin/dict", response_class=HTMLResponse)

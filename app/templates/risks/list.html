@@ -147,7 +147,7 @@ function renderRisks(risks) {
         const levelInfo = riskLevels[r.risk_level] || { text: r.risk_level, class: '' };
         return `
             <tr>
-                <td><a href="#" class="link" onclick="showDetail(${r.id}); return false;">${r.risk_no}</a></td>
+                <td><a href="/risks/${r.id}" class="link">${r.risk_no}</a></td>
                 <td>${r.risk_type}</td>
                 <td><span class="risk-level ${levelInfo.class}">${levelInfo.text}</span></td>
                 <td>${r.tenant_name || '-'}</td>

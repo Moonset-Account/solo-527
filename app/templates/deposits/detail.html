@@ -1,0 +1,327 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}押金详情{% endblock %}
+
+{% block header_actions %}
+<nav class="breadcrumb">
+    <a href="/deposits">押金记录</a>
+    <span>/</span>
+    <span>详情</span>
+</nav>
+{% endblock %}
+
+{% block page_content %}
+<div class="detail-layout">
+    <div class="detail-main">
+        <div class="detail-header">
+            <div class="detail-title-row">
+                <h2 id="deposit-title">加载中...</h2>
+                <span id="deposit-status" class="status-badge"></span>
+            </div>
+            <div class="detail-price">
+                <span class="price-value" id="deposit-amount">-</span>
+                <span class="price-unit">元</span>
+            </div>
+        </div>
+
+        <div class="detail-tabs">
+            <button class="detail-tab active" data-tab="info" onclick="switchTab('info')">基本信息</button>
+            <button class="detail-tab" data-tab="attachments" onclick="switchTab('attachments')">附件</button>
+            <button class="detail-tab" data-tab="history" onclick="switchTab('history')">修改历史</button>
+        </div>
+
+        <div class="detail-tab-content" id="tab-info">
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>房源</label>
+                    <span id="info-apartment">-</span>
+                </div>
+                <div class="info-item">
+                    <label>租客姓名</label>
+                    <span id="info-tenant">-</span>
+                </div>
+                <div class="info-item">
+                    <label>联系电话</label>
+                    <span id="info-phone">-</span>
+                </div>
+                <div class="info-item">
+                    <label>身份证号</label>
+                    <span id="info-idcard">-</span>
+                </div>
+                <div class="info-item">
+                    <label>合同号</label>
+                    <span id="info-contract">-</span>
+                </div>
+                <div class="info-item">
+                    <label>缴纳日期</label>
+                    <span id="info-paydate">-</span>
+                </div>
+                <div class="info-item">
+                    <label>退款金额</label>
+                    <span id="info-refund">-</span>
+                </div>
+                <div class="info-item">
+                    <label>退款日期</label>
+                    <span id="info-refunddate">-</span>
+                </div>
+            </div>
+            <div class="info-section">
+                <div class="section-header">
+                    <h4>备注</h4>
+                    {% if current_user.role in ['admin', 'customer_service'] %}
+                    <button class="btn-link" onclick="showRemarkModal()">编辑</button>
+                    {% endif %}
+                </div>
+                <p id="info-remark" class="remark-content">暂无备注</p>
+            </div>
+        </div>
+
+        <div class="detail-tab-content" id="tab-attachments" style="display:none;">
+            {% if current_user.role in ['admin', 'customer_service'] %}
+            <div class="card mb-16">
+                <h4 class="mb-12">上传附件</h4>
+                <form id="upload-form" onsubmit="event.preventDefault(); uploadAttachment();">
+                    <div class="form-row">
+                        <input type="file" id="file-input" name="file" required>
+                        <select name="category" class="mr-12">
+                            <option value="">选择分类</option>
+                            <option value="receipt">收据</option>
+                            <option value="contract">合同附件</option>
+                            <option value="other">其他</option>
+                        </select>
+                        <button class="btn btn-primary" type="submit">上传</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+            <div id="attachment-list" class="attachment-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+
+        <div class="detail-tab-content" id="tab-history" style="display:none;">
+            <div class="history-list" id="history-list">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-sidebar">
+        <div class="side-card">
+            <h3>快速操作</h3>
+            <div class="side-actions">
+                {% if current_user.role in ['admin', 'customer_service'] %}
+                <button class="btn btn-secondary btn-block" onclick="showRefundModal()">退款</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+const depositId = {{ deposit_id }};
+const statusLabels = {{ status_labels | tojson }};
+const canWrite = {{ 'true' if current_user.role in ['admin', 'customer_service'] else 'false' }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDetail();
+    loadAttachments();
+    loadChangeLogs();
+});
+
+function switchTab(tabName) {
+    document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.detail-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelector(`.detail-tab[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).style.display = 'block';
+}
+
+function loadDetail() {
+    fetch(`/api/deposits/${depositId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(d => {
+            document.title = `押金 #${d.id} - 青禾租赁服务台`;
+            document.getElementById('deposit-title').textContent = `押金记录 #${d.id}`;
+
+            const statusInfo = statusLabels[d.status] || { text: d.status, class: '' };
+            const statusEl = document.getElementById('deposit-status');
+            statusEl.textContent = statusInfo.text;
+            statusEl.className = `status-badge ${statusInfo.class}`;
+
+            document.getElementById('deposit-amount').textContent = '¥' + d.amount.toLocaleString();
+            document.getElementById('info-apartment').textContent = d.apartment?.apartment_no || '-';
+            document.getElementById('info-tenant').textContent = d.tenant_name || '-';
+            document.getElementById('info-phone').textContent = d.tenant_phone || '-';
+            document.getElementById('info-idcard').textContent = d.id_card || '-';
+            document.getElementById('info-contract').textContent = d.contract_no || '-';
+            document.getElementById('info-paydate').textContent = d.pay_date || '-';
+            document.getElementById('info-refund').textContent = d.refund_amount ? '¥' + d.refund_amount.toLocaleString() : '-';
+            document.getElementById('info-refunddate').textContent = d.refund_date || '-';
+            document.getElementById('info-remark').textContent = d.remark || '暂无备注';
+        });
+}
+
+function loadAttachments() {
+    fetch(`/api/deposits/${depositId}/attachments`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(attachments => {
+            const container = document.getElementById('attachment-list');
+            if (attachments.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无附件</div>';
+                return;
+            }
+            const categoryLabels = { receipt: '收据', contract: '合同附件', other: '其他' };
+            container.innerHTML = attachments.map(a => {
+                const size = a.file_size ? formatFileSize(a.file_size) : '-';
+                const catLabel = a.category ? (categoryLabels[a.category] || a.category) : '未分类';
+                const deleteBtn = canWrite ? `<button class="btn-link btn-danger-text ml-8" onclick="deleteAttachment(${a.id})">删除</button>` : '';
+                return `
+                    <div class="attachment-item">
+                        <div class="attachment-icon">📎</div>
+                        <div class="attachment-info">
+                            <div class="attachment-name">${a.file_name}</div>
+                            <div class="attachment-meta">
+                                <span class="tag small">${catLabel}</span>
+                                <span class="muted">${size}</span>
+                                <span class="muted">${formatDate(a.created_at)}</span>
+                            </div>
+                        </div>
+                        <div class="attachment-actions">${deleteBtn}</div>
+                    </div>
+                `;
+            }).join('');
+        });
+}
+
+function loadChangeLogs() {
+    fetch(`/api/deposits/${depositId}/change-logs`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(logs => {
+            const container = document.getElementById('history-list');
+            if (logs.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无修改记录</div>';
+                return;
+            }
+            container.innerHTML = logs.map(log => {
+                const operatorName = log.operator ? (log.operator.full_name || log.operator.username) : '系统';
+                let content;
+                if (log.change_type === 'create') content = log.remark || '创建记录';
+                else if (log.remark) content = log.remark;
+                else if (log.field_name) content = `修改 ${log.field_name}: ${log.old_value || '-'} → ${log.new_value || '-'}`;
+                else content = '更新记录';
+                return `
+                    <div class="history-item">
+                        <div class="history-meta">
+                            <span class="history-operator">${operatorName}</span>
+                            <span class="history-time">${formatDate(log.created_at)}</span>
+                        </div>
+                        <div class="history-content">${content}</div>
+                    </div>
+                `;
+            }).join('');
+        });
+}
+
+function uploadAttachment() {
+    const form = document.getElementById('upload-form');
+    const formData = new FormData(form);
+    const fileInput = document.getElementById('file-input');
+    if (!fileInput.files.length) { showToast('请选择文件', 'error'); return; }
+
+    fetch(`/api/deposits/${depositId}/attachments`, {
+        method: 'POST', credentials: 'same-origin', body: formData
+    })
+    .then(res => { if (res.ok) return res.json(); throw new Error('上传失败'); })
+    .then(() => {
+        form.reset();
+        showToast('上传成功');
+        loadAttachments();
+        loadChangeLogs();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function deleteAttachment(id) {
+    if (!confirm('确认删除该附件？')) return;
+    fetch(`/api/deposits/attachments/${id}`, { method: 'DELETE', credentials: 'same-origin' })
+    .then(res => { if (res.ok) return res.json(); throw new Error('删除失败'); })
+    .then(() => { showToast('删除成功'); loadAttachments(); loadChangeLogs(); })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showRemarkModal() {
+    fetch(`/api/deposits/${depositId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(d => {
+            const content = `
+                <form id="remark-form" onsubmit="event.preventDefault(); saveRemark();">
+                    <div class="form-group">
+                        <label>备注信息</label>
+                        <textarea name="remark" rows="5" placeholder="填写备注信息...">${d.remark || ''}</textarea>
+                    </div>
+                </form>
+            `;
+            openModal('编辑备注', content, saveRemark);
+        });
+}
+
+function saveRemark() {
+    const remark = document.getElementById('remark-form').remark.value;
+    fetch(`/api/deposits/${depositId}/remark`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ remark })
+    })
+    .then(res => { if (res.ok) return res.json(); throw new Error('保存失败'); })
+    .then(() => {
+        closeModal(); showToast('备注保存成功'); loadDetail(); loadChangeLogs();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function showRefundModal() {
+    fetch(`/api/deposits/${depositId}`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(d => {
+            const content = `
+                <form id="refund-form" onsubmit="event.preventDefault(); doRefund();">
+                    <div class="form-group">
+                        <label>退款金额(元)</label>
+                        <input type="number" name="refund_amount" value="${d.amount}" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <textarea name="remark" rows="2"></textarea>
+                    </div>
+                </form>
+            `;
+            openModal('押金退款', content, doRefund);
+        });
+}
+
+function doRefund() {
+    const form = document.getElementById('refund-form');
+    const refundAmount = parseFloat(form.refund_amount.value);
+    const remark = form.remark.value;
+    fetch(`/api/deposits/${depositId}/refund?refund_amount=${refundAmount}&remark=${encodeURIComponent(remark || '')}`, {
+        method: 'POST', credentials: 'same-origin'
+    })
+    .then(res => { if (res.ok) return res.json(); throw new Error('退款失败'); })
+    .then(() => {
+        closeModal(); showToast('退款成功'); loadDetail(); loadChangeLogs();
+    })
+    .catch(err => showToast(err.message, 'error'));
+}
+
+function formatDate(s) { return new Date(s).toLocaleString('zh-CN'); }
+function formatFileSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+</script>
+{% endblock %}

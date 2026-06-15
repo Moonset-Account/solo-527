@@ -39,6 +39,15 @@ class TokenData(BaseModel):
     role: Optional[str] = None
 
 
+class UserSimple(BaseModel):
+    id: int
+    username: str
+    full_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ApartmentBase(BaseModel):
     apartment_no: str
     building: Optional[str] = None
@@ -180,6 +189,7 @@ class DepositResponse(DepositBase):
     refund_amount: float = 0
     created_at: datetime
     updated_at: datetime
+    apartment: Optional[ApartmentResponse] = None
 
     class Config:
         from_attributes = True
@@ -192,6 +202,7 @@ class ContractRiskBase(BaseModel):
     risk_type: str
     risk_level: str = "medium"
     description: str
+    remark: Optional[str] = None
 
 
 class ContractRiskCreate(ContractRiskBase):
@@ -215,6 +226,9 @@ class ContractRiskResponse(ContractRiskBase):
     closed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    apartment: Optional[ApartmentResponse] = None
+    created_by: Optional[UserSimple] = None
+    handled_by: Optional[UserSimple] = None
 
     class Config:
         from_attributes = True

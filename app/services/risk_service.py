@@ -1,14 +1,24 @@
 from typing import List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.models import ContractRisk
 from app.schemas import ContractRiskCreate, ContractRiskHandle
+from app.services.common import _add_change_log, update_entity_remark, get_change_logs, get_attachments
 
 
 def get_risk(db: Session, risk_id: int) -> Optional[ContractRisk]:
-    return db.query(ContractRisk).filter(ContractRisk.id == risk_id).first()
+    return (
+        db.query(ContractRisk)
+        .options(
+            joinedload(ContractRisk.apartment),
+            joinedload(ContractRisk.created_by),
+            joinedload(ContractRisk.handled_by),
+        )
+        .filter(ContractRisk.id == risk_id)
+        .first()
+    )
 
 
 def get_risks(
@@ -62,6 +72,8 @@ def create_risk(
         created_by_id=created_by_id
     )
     db.add(db_risk)
+    db.flush()
+    _add_change_log(db, "risks", db_risk.id, None, None, None, "create", created_by_id, f"创建风险记录: {risk_no}")
     db.commit()
     db.refresh(db_risk)
     return db_risk
@@ -77,6 +89,7 @@ def handle_risk(
     if not db_risk:
         return None
 
+    old_status = db_risk.status
     db_risk.handle_result = handle_data.handle_result
     db_risk.handle_reason = handle_data.handle_reason
     db_risk.status = handle_data.status
@@ -85,6 +98,7 @@ def handle_risk(
     if handle_data.status in ["resolved", "closed"]:
         db_risk.closed_at = datetime.utcnow()
 
+    _add_change_log(db, "risks", risk_id, "status", old_status, handle_data.status, "update", handled_by_id, f"处理风险: {handle_data.handle_reason or ''}")
     db.commit()
     db.refresh(db_risk)
     return db_risk
@@ -100,13 +114,31 @@ def update_risk_status(
     if not db_risk:
         return None
 
+    old_status = db_risk.status
     db_risk.status = status
     if status in ["resolved", "closed"]:
         db_risk.closed_at = datetime.utcnow()
 
+    _add_change_log(db, "risks", risk_id, "status", old_status, status, "update", operator_id)
     db.commit()
     db.refresh(db_risk)
     return db_risk
+
+
+def update_risk_remark(db: Session, risk_id: int, remark: str, operator_id: int = None) -> Optional[ContractRisk]:
+    risk = get_risk(db, risk_id)
+    if not risk:
+        return None
+    update_entity_remark(db, risk, "risks", remark, operator_id)
+    return risk
+
+
+def get_risk_change_logs(db: Session, risk_id: int):
+    return get_change_logs(db, "risks", risk_id)
+
+
+def get_risk_attachments(db: Session, risk_id: int):
+    return get_attachments(db, "risk", risk_id)
 
 
 def _generate_risk_no(db: Session) -> str:

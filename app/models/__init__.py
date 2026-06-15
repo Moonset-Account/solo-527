@@ -88,6 +88,7 @@ class Apartment(Base):
     appointments = relationship("Appointment", back_populates="apartment")
     attachments = relationship("Attachment", back_populates="apartment")
     deposits = relationship("Deposit", back_populates="apartment")
+    risks = relationship("ContractRisk", back_populates="apartment")
     vacancy_history = relationship("VacancyHistory", back_populates="apartment")
     change_logs = relationship("ChangeLog", primaryjoin="and_(ChangeLog.table_name=='apartments', foreign(ChangeLog.record_id)==Apartment.id)")
 
@@ -191,12 +192,14 @@ class ContractRisk(Base):
     handled_by_id = Column(Integer, ForeignKey("users.id"))
     handle_result = Column(Text)
     handle_reason = Column(Text)
+    remark = Column(Text)
     closed_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     created_by = relationship("User", foreign_keys=[created_by_id], back_populates="created_risks")
     handled_by = relationship("User", foreign_keys=[handled_by_id], back_populates="handled_risks")
+    apartment = relationship("Apartment", back_populates="risks")
 
 
 class DictType(Base):
@@ -247,6 +250,8 @@ class Attachment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     apartment_id = Column(Integer, ForeignKey("apartments.id"))
+    entity_type = Column(String(50))
+    entity_id = Column(Integer)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(255), nullable=False)
     file_size = Column(Integer)

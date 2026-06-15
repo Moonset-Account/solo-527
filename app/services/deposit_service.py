@@ -1,13 +1,19 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.models import Deposit
 from app.schemas import DepositCreate, DepositUpdate
+from app.services.common import _add_change_log, update_entity_remark, get_change_logs, get_attachments
 
 
 def get_deposit(db: Session, deposit_id: int) -> Optional[Deposit]:
-    return db.query(Deposit).filter(Deposit.id == deposit_id).first()
+    return (
+        db.query(Deposit)
+        .options(joinedload(Deposit.apartment))
+        .filter(Deposit.id == deposit_id)
+        .first()
+    )
 
 
 def get_deposits(
@@ -18,7 +24,7 @@ def get_deposits(
     apartment_id: Optional[int] = None,
     keyword: Optional[str] = None,
 ) -> List[Deposit]:
-    query = db.query(Deposit)
+    query = db.query(Deposit).options(joinedload(Deposit.apartment))
 
     if status:
         query = query.filter(Deposit.status == status)
@@ -47,6 +53,8 @@ def count_deposits(
 def create_deposit(db: Session, deposit: DepositCreate, operator_id: int = None) -> Deposit:
     db_deposit = Deposit(**deposit.model_dump())
     db.add(db_deposit)
+    db.flush()
+    _add_change_log(db, "deposits", db_deposit.id, None, None, None, "create", operator_id, "创建押金记录")
     db.commit()
     db.refresh(db_deposit)
     return db_deposit
@@ -64,6 +72,9 @@ def update_deposit(
 
     update_data = deposit_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        old = getattr(db_deposit, field, None)
+        if old != value:
+            _add_change_log(db, "deposits", deposit_id, field, old, value, "update", operator_id)
         setattr(db_deposit, field, value)
 
     db.commit()
@@ -83,15 +94,34 @@ def refund_deposit(
         return None
 
     from datetime import date
-    db_deposit.status = "refunded" if refund_amount >= db_deposit.amount else "partial_refunded"
+    old_status = db_deposit.status
+    new_status = "refunded" if refund_amount >= db_deposit.amount else "partial_refunded"
+    db_deposit.status = new_status
     db_deposit.refund_amount = refund_amount
     db_deposit.refund_date = date.today()
     if remark:
         db_deposit.remark = remark
 
+    _add_change_log(db, "deposits", deposit_id, "status", old_status, new_status, "update", operator_id, f"退款: {refund_amount}")
     db.commit()
     db.refresh(db_deposit)
     return db_deposit
+
+
+def update_deposit_remark(db: Session, deposit_id: int, remark: str, operator_id: int = None) -> Optional[Deposit]:
+    deposit = get_deposit(db, deposit_id)
+    if not deposit:
+        return None
+    update_entity_remark(db, deposit, "deposits", remark, operator_id)
+    return deposit
+
+
+def get_deposit_change_logs(db: Session, deposit_id: int):
+    return get_change_logs(db, "deposits", deposit_id)
+
+
+def get_deposit_attachments(db: Session, deposit_id: int):
+    return get_attachments(db, "deposit", deposit_id)
 
 
 def get_total_deposit_amount(db: Session, status: Optional[str] = None) -> float:
