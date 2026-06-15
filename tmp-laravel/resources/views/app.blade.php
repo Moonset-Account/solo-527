@@ -4,7 +4,9 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>数据合规节点提醒器</title>
-        @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
+        @routes
+        @viteReactRefresh
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
         @inertiaHead
     </head>
     <body class="font-sans antialiased bg-gray-50">

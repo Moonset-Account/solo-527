@@ -113,12 +113,66 @@ class ReminderRuleController extends Controller
 
     public function show(ReminderRule $reminderRule)
     {
-        $reminderRule->load(['createdBy', 'reminderLogs' => function ($q) {
-            $q->orderBy('created_at', 'desc')->limit(20);
-        }]);
+        $reminderRule->load(['createdBy']);
+
+        $reminderLogs = $reminderRule->reminderLogs()
+            ->with('recipient')
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($log) {
+                $log->recipient_name = $log->recipient->name ?? null;
+                return $log;
+            });
+
+        $baseQuery = $reminderRule->reminderLogs();
+        $stats = [
+            'total_sent' => (clone $baseQuery)->count(),
+            'month_count' => (clone $baseQuery)->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)->count(),
+            'read_count' => (clone $baseQuery)->whereNotNull('read_at')->count(),
+            'unread_count' => (clone $baseQuery)->whereNull('read_at')->count(),
+        ];
 
         return Inertia::render('ReminderRules/Show', [
             'rule' => $reminderRule,
+            'reminderLogs' => $reminderLogs,
+            'stats' => $stats,
+            'types' => [
+                'gap_due' => '缺口到期提醒',
+                'gap_overdue' => '缺口逾期提醒',
+                'checklist_due' => '检查清单到期提醒',
+                'review_pending' => '待审核提醒',
+            ],
+            'triggerConditions' => [
+                'before_due' => '到期前',
+                'after_due' => '到期后',
+                'immediate' => '立即',
+                'daily' => '每日',
+            ],
+            'timeUnits' => [
+                'minute' => '分钟',
+                'hour' => '小时',
+                'day' => '天',
+                'week' => '周',
+            ],
+            'channels' => [
+                'email' => '邮件',
+                'in_app' => '站内通知',
+                'sms' => '短信',
+            ],
+            'priorities' => [
+                'low' => '低',
+                'normal' => '普通',
+                'high' => '高',
+                'urgent' => '紧急',
+            ],
+            'roles' => [
+                'admin' => '管理员',
+                'compliance_manager' => '合规经理',
+                'project_secretary' => '项目秘书',
+                'user' => '普通用户',
+            ],
         ]);
     }
 

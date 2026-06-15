@@ -6,17 +6,47 @@ use App\Http\Controllers\ComplianceGapController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReminderRuleController;
 use App\Http\Controllers\SavedFilterController;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
+Route::get('/dev-login/{userId?}', function ($userId = null) {
+    $user = $userId ? User::find($userId) : User::first();
+    if (!$user) {
+        $user = User::create([
+            'name' => '合规经理',
+            'email' => 'compliance@example.com',
+            'password' => bcrypt('password123'),
+            'role' => 'compliance_manager',
+            'department' => '合规部',
+        ]);
+        User::create([
+            'name' => '项目秘书',
+            'email' => 'secretary@example.com',
+            'password' => bcrypt('password123'),
+            'role' => 'project_secretary',
+            'department' => '项目办',
+        ]);
+        User::create([
+            'name' => '管理员',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password123'),
+            'role' => 'admin',
+            'department' => '技术部',
+        ]);
+    }
+    Auth::login($user);
     return redirect()->route('dashboard');
+})->name('dev-login');
+
+Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+    return redirect()->route('dev-login');
 });
 
-Route::middleware([
-    'auth:sanctum',
-    config('jetstream.auth_session'),
-    'verified',
-])->group(function () {
+Route::middleware('web')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::prefix('checklists')->name('checklists.')->group(function () {

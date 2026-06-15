@@ -2,6 +2,7 @@ import { createApp, h } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import Layout from './Layouts/AppLayout.vue'
+import { ZiggyVue } from '../../vendor/tightenco/ziggy/dist/vue.m'
 
 createInertiaApp({
     resolve: (name) => {
@@ -17,7 +18,7 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)
-            .mixin({ methods: { route: window.route } })
+            .use(ZiggyVue)
             .mount(el)
     },
     title: (title) => `${title} - 数据合规节点提醒器`,
