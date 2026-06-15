@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from app.database import Base
 from app.enums import (
-    SeatStatus, SeatArea, TicketType, OrderStatus, RefundStatus,
+    SeatStatus, SeatArea, TicketType as TicketTypeEnum, OrderStatus, RefundStatus,
     RegistrationStatus, EventStatus, ConfigStatus, PaymentMethod, UserRole
 )
 from app.utils import now
@@ -62,9 +62,9 @@ class Event(Base, TimestampMixin):
     requires_registration: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     registration_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     registration_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
-    creator = relationship("User", back_populates="events", foreign_keys=[created_by])
+    creator = relationship("User", back_populates="events", foreign_keys="Event.created_by")
     seats = relationship("Seat", back_populates="event", cascade="all, delete-orphan")
     ticket_types = relationship("TicketTypeConfig", back_populates="event", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="event")
@@ -113,7 +113,7 @@ class Seat(Base, TimestampMixin):
     locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(String(512))
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     event = relationship("Event", back_populates="seats")
     order = relationship("Order", back_populates="seats")
@@ -126,7 +126,7 @@ class TicketType(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    type: Mapped[TicketType] = mapped_column(String(32), nullable=False, index=True)
+    type: Mapped[TicketTypeEnum] = mapped_column(String(32), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     color: Mapped[str | None] = mapped_column(String(16))
     icon: Mapped[str | None] = mapped_column(String(64))
@@ -156,7 +156,7 @@ class TicketTypeConfig(Base, TimestampMixin):
     sales_end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     event = relationship("Event", back_populates="ticket_types")
     ticket_type = relationship("TicketType", back_populates="event_configs")
@@ -186,7 +186,7 @@ class Order(Base, TimestampMixin):
     contact_email: Mapped[str | None] = mapped_column(String(128))
     remark: Mapped[str | None] = mapped_column(Text)
     cancel_reason: Mapped[str | None] = mapped_column(Text)
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     user = relationship("User", back_populates="orders", foreign_keys=[user_id])
     event = relationship("Event", back_populates="orders")
@@ -288,7 +288,7 @@ class Registration(Base, TimestampMixin):
     review_remark: Mapped[str | None] = mapped_column(Text)
 
     event = relationship("Event", back_populates="registrations")
-    user = relationship("User", back_populates="registrations")
+    user = relationship("User", back_populates="registrations", foreign_keys=[user_id])
 
 
 class SystemConfig(Base, TimestampMixin):
@@ -329,7 +329,7 @@ class RepeatSeatAlert(Base):
     resolved_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"))
     resolution_note: Mapped[str | None] = mapped_column(Text)
     window_seconds: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
-    metadata: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    extra_data: Mapped[dict | None] = mapped_column(JSON, default=dict)
 
     __table_args__ = (
         Index("idx_alert_event_resolved", "event_id", "is_resolved"),

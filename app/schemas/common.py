@@ -98,7 +98,7 @@ class EventBase(BaseModel):
     requires_registration: bool = False
     registration_start: Optional[datetime] = None
     registration_end: Optional[datetime] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class EventCreate(EventBase):
@@ -123,7 +123,7 @@ class EventUpdate(BaseModel):
     requires_registration: Optional[bool] = None
     registration_start: Optional[datetime] = None
     registration_end: Optional[datetime] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class EventOut(EventBase, IDModel, TimestampModel):
@@ -144,7 +144,7 @@ class SeatBase(BaseModel):
     current_price: float = 0
     ticket_type_id: Optional[int] = None
     notes: Optional[str] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class SeatCreate(SeatBase):
@@ -157,7 +157,7 @@ class SeatUpdate(BaseModel):
     current_price: Optional[float] = None
     ticket_type_id: Optional[int] = None
     notes: Optional[str] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class SeatOut(SeatBase, IDModel, TimestampModel):
@@ -219,7 +219,7 @@ class TicketTypeConfigBase(BaseModel):
     sales_end_time: Optional[datetime] = None
     is_active: bool = True
     sort_order: int = 0
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class TicketTypeConfigCreate(TicketTypeConfigBase):
@@ -236,7 +236,7 @@ class TicketTypeConfigUpdate(BaseModel):
     sales_end_time: Optional[datetime] = None
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
-    metadata: Optional[dict] = None
+    extra_data: Optional[dict] = None
 
 
 class TicketTypeConfigOut(TicketTypeConfigBase, IDModel, TimestampModel):
