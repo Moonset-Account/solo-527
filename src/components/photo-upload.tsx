@@ -19,6 +19,7 @@ interface UploadingFile {
   progress: number;
   error?: string;
   uploadedPhotoId?: string;
+  uploadedUrl?: string;
 }
 
 export function PhotoUpload({
@@ -34,13 +35,16 @@ export function PhotoUpload({
   const uploadPhoto = api.repair.uploadPhoto.useMutation({
     onSuccess: (data, variables) => {
       const uploadingFile = uploading.find(
-        (u) => u.file.name === variables.fileName && u.file.size === variables.fileSize
+        (u) =>
+          u.file.name === variables.fileName &&
+          u.file.size === variables.fileSize &&
+          u.progress === 75
       );
       if (uploadingFile) {
         setUploading((prev) =>
           prev.map((u) =>
             u.id === uploadingFile.id
-              ? { ...u, progress: 100, uploadedPhotoId: data.id }
+              ? { ...u, progress: 100, uploadedPhotoId: data.id, uploadedUrl: data.url }
               : u
           )
         );
@@ -49,7 +53,10 @@ export function PhotoUpload({
     },
     onError: (error, variables) => {
       const uploadingFile = uploading.find(
-        (u) => u.file.name === variables.fileName && u.file.size === variables.fileSize
+        (u) =>
+          u.file.name === variables.fileName &&
+          u.file.size === variables.fileSize &&
+          u.progress === 75
       );
       if (uploadingFile) {
         setUploading((prev) =>
@@ -60,6 +67,46 @@ export function PhotoUpload({
       }
     },
   });
+
+  const uploadFileToServer = async (file: File, uploadingId: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`上传失败: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      setUploading((prev) =>
+        prev.map((u) =>
+          u.id === uploadingId ? { ...u, progress: 75 } : u
+        )
+      );
+
+      uploadPhoto.mutate({
+        url: result.url,
+        key: result.key,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      });
+    } catch (error) {
+      setUploading((prev) =>
+        prev.map((u) =>
+          u.id === uploadingId
+            ? { ...u, error: error instanceof Error ? error.message : "上传失败" }
+            : u
+        )
+      );
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -76,33 +123,13 @@ export function PhotoUpload({
         continue;
       }
 
-      const uploadingId = Math.random().toString(36).substr(2, 9);
+      const uploadingId = Math.random().toString(36).slice(2, 9);
       setUploading((prev) => [
         ...prev,
-        { id: uploadingId, file, progress: 50 },
+        { id: uploadingId, file, progress: 25 },
       ]);
 
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result as string;
-        const storageKey = `photos/${uploadingId}/${file.name}`;
-        const storageUrl = `/api/files/${uploadingId}/${encodeURIComponent(file.name)}`;
-
-        setUploading((prev) =>
-          prev.map((u) =>
-            u.id === uploadingId ? { ...u, progress: 75 } : u
-          )
-        );
-
-        uploadPhoto.mutate({
-          url: storageUrl,
-          key: storageKey,
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-        });
-      };
-      reader.readAsDataURL(file);
+      uploadFileToServer(file, uploadingId);
     }
 
     if (fileInputRef.current) {
@@ -142,7 +169,16 @@ export function PhotoUpload({
               key={item.id}
               className="flex items-center gap-3 p-3 bg-zinc-50 rounded-lg"
             >
-              <ImageIcon className="h-8 w-8 text-zinc-400" />
+              {item.uploadedUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.uploadedUrl}
+                  alt={item.file.name}
+                  className="h-12 w-12 object-cover rounded"
+                />
+              ) : (
+                <ImageIcon className="h-12 w-12 text-zinc-400" />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-zinc-700 truncate">
                   {item.file.name}

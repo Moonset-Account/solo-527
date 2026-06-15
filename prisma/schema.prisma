@@ -166,8 +166,8 @@ model RepairRequest {
 
 model RepairPhoto {
   id              String          @id @default(cuid())
-  repairRequestId String
-  repairRequest   RepairRequest   @relation(fields: [repairRequestId], references: [id], onDelete: Cascade)
+  repairRequestId String?
+  repairRequest   RepairRequest?  @relation(fields: [repairRequestId], references: [id], onDelete: Cascade)
   url             String
   key             String
   fileName        String

@@ -333,12 +333,14 @@ export const repairRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { repairRequestId, ...photoData } = input;
-
       const photo = await ctx.prisma.repairPhoto.create({
         data: {
-          ...photoData,
-          repairRequestId: repairRequestId || "",
+          url: input.url,
+          key: input.key,
+          fileName: input.fileName,
+          fileSize: input.fileSize,
+          mimeType: input.mimeType,
+          repairRequestId: input.repairRequestId || null,
           uploadedById: ctx.userId,
         },
       });
@@ -349,7 +351,7 @@ export const repairRouter = createTRPCRouter({
         entityId: photo.id,
         userId: ctx.userId,
         description: `${ctx.user.name} 上传了照片: ${input.fileName}`,
-        repairRequestId,
+        repairRequestId: input.repairRequestId,
       });
 
       return photo;

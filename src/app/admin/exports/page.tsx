@@ -84,6 +84,15 @@ export default function AdminExportsPage() {
     return labels[type] || type;
   };
 
+  const handleDownload = (taskId: string) => {
+    const link = document.createElement("a");
+    link.href = `/api/download?taskId=${taskId}`;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -201,6 +210,7 @@ export default function AdminExportsPage() {
                         <td className="px-6 py-4 text-right">
                           {task.status === "COMPLETED" && (
                             <button
+                              onClick={() => handleDownload(task.id)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors ml-auto"
                             >
                               <Download className="h-4 w-4" />
