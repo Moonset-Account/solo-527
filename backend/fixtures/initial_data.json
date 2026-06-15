@@ -1,0 +1,375 @@
+# 系统初始化数据
+# 运行: python manage.py loaddata fixtures/initial_data.json
+
+[
+  {
+    "model": "users.role",
+    "pk": 1,
+    "fields": {
+      "name": "admin",
+      "display_name": "管理员",
+      "description": "系统管理员，拥有全部权限"
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 2,
+    "fields": {
+      "name": "sales",
+      "display_name": "销售",
+      "description": "销售顾问，负责线索跟进和合同签订"
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 3,
+    "fields": {
+      "name": "doctor",
+      "display_name": "医生",
+      "description": "牙科医生，负责诊疗"
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 4,
+    "fields": {
+      "name": "consultant",
+      "display_name": "咨询师",
+      "description": "咨询顾问，负责客户咨询"
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 5,
+    "fields": {
+      "name": "finance",
+      "display_name": "财务",
+      "description": "财务人员，负责收款和对账"
+    }
+  },
+  {
+    "model": "leads.leadsource",
+    "pk": 1,
+    "fields": {
+      "name": "线上咨询",
+      "description": "网站、公众号等线上渠道",
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "leads.leadsource",
+    "pk": 2,
+    "fields": {
+      "name": "电话咨询",
+      "description": "电话进线咨询",
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "leads.leadsource",
+    "pk": 3,
+    "fields": {
+      "name": "到店咨询",
+      "description": "客户直接到店咨询",
+      "is_active": true,
+      "sort_order": 3
+    }
+  },
+  {
+    "model": "leads.leadsource",
+    "pk": 4,
+    "fields": {
+      "name": "老客户转介绍",
+      "description": "老客户推荐的新客户",
+      "is_active": true,
+      "sort_order": 4
+    }
+  },
+  {
+    "model": "leads.leadsource",
+    "pk": 5,
+    "fields": {
+      "name": "美团/大众点评",
+      "description": "第三方生活服务平台",
+      "is_active": true,
+      "sort_order": 5
+    }
+  },
+  {
+    "model": "leads.leadsource",
+    "pk": 6,
+    "fields": {
+      "name": "抖音/小红书",
+      "description": "短视频和社交平台",
+      "is_active": true,
+      "sort_order": 6
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 1,
+    "fields": {
+      "name": "新线索",
+      "stage": "new",
+      "description": "刚录入的新线索",
+      "sort_order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 2,
+    "fields": {
+      "name": "已联系",
+      "stage": "contacted",
+      "description": "已与客户取得联系",
+      "sort_order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 3,
+    "fields": {
+      "name": "咨询中",
+      "stage": "consulting",
+      "description": "客户正在咨询中",
+      "sort_order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 4,
+    "fields": {
+      "name": "报价中",
+      "stage": "quoting",
+      "description": "已提供报价方案",
+      "sort_order": 4,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 5,
+    "fields": {
+      "name": "谈判中",
+      "stage": "negotiating",
+      "description": "价格或方案谈判中",
+      "sort_order": 5,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 6,
+    "fields": {
+      "name": "签约中",
+      "stage": "contracting",
+      "description": "待签合同",
+      "sort_order": 6,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 7,
+    "fields": {
+      "name": "已成交",
+      "stage": "won",
+      "description": "已签订合同",
+      "sort_order": 7,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 8,
+    "fields": {
+      "name": "已流失",
+      "stage": "lost",
+      "description": "客户流失",
+      "sort_order": 8,
+      "is_active": true
+    }
+  },
+  {
+    "model": "leads.leadstatus",
+    "pk": 9,
+    "fields": {
+      "name": "公海",
+      "stage": "public_sea",
+      "description": "进入公海的线索",
+      "sort_order": 9,
+      "is_active": true
+    }
+  },
+  {
+    "model": "contracts.contractstatus",
+    "pk": 1,
+    "fields": {
+      "name": "草稿",
+      "description": "合同草稿",
+      "sort_order": 1,
+      "is_active": true
+    }
+  },
+  {
+    "model": "contracts.contractstatus",
+    "pk": 2,
+    "fields": {
+      "name": "审批中",
+      "description": "等待折扣审批",
+      "sort_order": 2,
+      "is_active": true
+    }
+  },
+  {
+    "model": "contracts.contractstatus",
+    "pk": 3,
+    "fields": {
+      "name": "待签署",
+      "description": "已通过审批，等待客户签署",
+      "sort_order": 3,
+      "is_active": true
+    }
+  },
+  {
+    "model": "contracts.contractstatus",
+    "pk": 4,
+    "fields": {
+      "name": "执行中",
+      "description": "治疗执行中",
+      "sort_order": 4,
+      "is_active": true
+    }
+  },
+  {
+    "model": "contracts.contractstatus",
+    "pk": 5,
+    "fields": {
+      "name": "已完成",
+      "description": "治疗已完成",
+      "sort_order": 5,
+      "is_active": true
+    }
+  },
+  {
+    "model": "contracts.contractstatus",
+    "pk": 6,
+    "fields": {
+      "name": "已取消",
+      "description": "合同已取消",
+      "sort_order": 6,
+      "is_active": true
+    }
+  },
+  {
+    "model": "common.publicsearule",
+    "pk": 1,
+    "fields": {
+      "name": "默认公海规则",
+      "description": "7天未跟进自动进入公海",
+      "timeout_days": 7,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 1,
+    "fields": {
+      "name": "口腔检查",
+      "category": "examination",
+      "price": 200,
+      "description": "全面口腔检查",
+      "duration_minutes": 30,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 2,
+    "fields": {
+      "name": "超声波洁牙",
+      "category": "cleaning",
+      "price": 380,
+      "description": "超声波洁牙+抛光",
+      "duration_minutes": 45,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 3,
+    "fields": {
+      "name": "树脂补牙",
+      "category": "filling",
+      "price": 580,
+      "description": "3M树脂补牙",
+      "duration_minutes": 60,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 4,
+    "fields": {
+      "name": "根管治疗",
+      "category": "endodontic",
+      "price": 1500,
+      "description": "前牙根管治疗",
+      "duration_minutes": 90,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 5,
+    "fields": {
+      "name": "全瓷牙冠",
+      "category": "crown",
+      "price": 3500,
+      "description": "二氧化锆全瓷冠",
+      "duration_minutes": 120,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 6,
+    "fields": {
+      "name": "种植牙（韩国）",
+      "category": "implant",
+      "price": 6800,
+      "description": "韩国奥齿泰种植系统",
+      "duration_minutes": 180,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 7,
+    "fields": {
+      "name": "隐形矫正",
+      "category": "orthodontics",
+      "price": 35000,
+      "description": "时代天使隐形矫正",
+      "duration_minutes": 60,
+      "is_active": true
+    }
+  },
+  {
+    "model": "consultations.treatmentitem",
+    "pk": 8,
+    "fields": {
+      "name": "牙齿美白",
+      "category": "cosmetic",
+      "price": 2800,
+      "description": "冷光美白",
+      "duration_minutes": 90,
+      "is_active": true
+    }
+  }
+]
