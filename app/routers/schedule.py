@@ -60,7 +60,7 @@ def get_leaves(
     return query.order_by(TechnicianLeave.leave_date.desc()).all()
 
 
-@router.post("/leaves", response_model=TechnicianLeaveSchema])
+@router.post("/leaves", response_model=TechnicianLeaveSchema)
 def create_leave(leave: TechnicianLeaveCreate, db: Session = Depends(get_db)):
     doctor = db.query(Doctor).filter(Doctor.id == leave.doctor_id).first()
     if not doctor:

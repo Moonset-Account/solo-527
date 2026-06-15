@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func, case, Integer, literal
 from app.database import get_db
 from app.models import Appointment, Schedule, Doctor
 
@@ -79,9 +79,9 @@ def get_stats_by_source(
     results = db.query(
         Appointment.source,
         func.count(Appointment.id).label("total"),
-        func.sum(case([(Appointment.status == "checked_in", 1)], else_=0)).label("checked_in"),
-        func.sum(case([(Appointment.status == "no_show", 1)], else_=0)).label("no_show"),
-        func.sum(case([(Appointment.status == "cancelled", 1)], else_=0)).label("cancelled")
+        func.sum(case((Appointment.status == "checked_in", 1), else_=0)).label("checked_in"),
+        func.sum(case((Appointment.status == "no_show", 1), else_=0)).label("no_show"),
+        func.sum(case((Appointment.status == "cancelled", 1), else_=0)).label("cancelled")
     ).join(
         Schedule, Appointment.schedule_id == Schedule.id
     ).filter(
@@ -120,8 +120,8 @@ def get_stats_by_doctor(
     subquery = db.query(
         Appointment.doctor_id,
         func.count(Appointment.id).label("total"),
-        func.sum(case([(Appointment.status == "checked_in", 1)], else_=0)).label("checked_in"),
-        func.sum(case([(Appointment.status == "no_show", 1)], else_=0)).label("no_show")
+        func.sum(case((Appointment.status == "checked_in", 1), else_=0)).label("checked_in"),
+        func.sum(case((Appointment.status == "no_show", 1), else_=0)).label("no_show")
     ).join(
         Schedule, Appointment.schedule_id == Schedule.id
     ).filter(
@@ -172,8 +172,8 @@ def get_daily_stats(
     results = db.query(
         Schedule.schedule_date,
         func.count(Appointment.id).label("total"),
-        func.sum(case([(Appointment.status == "checked_in", 1)], else_=0)).label("checked_in"),
-        func.sum(case([(Appointment.status == "no_show", 1)], else_=0)).label("no_show")
+        func.sum(case((Appointment.status == "checked_in", 1), else_=0)).label("checked_in"),
+        func.sum(case((Appointment.status == "no_show", 1), else_=0)).label("no_show")
     ).outerjoin(
         Appointment, Appointment.schedule_id == Schedule.id
     ).filter(
