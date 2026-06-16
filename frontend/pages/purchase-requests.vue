@@ -73,6 +73,57 @@
         </n-space>
       </template>
     </n-modal>
+
+    <n-modal v-model:show="showView" preset="card" title="采购需求详情" style="width: 720px;">
+      <n-descriptions :column="2" bordered v-if="viewData">
+        <n-descriptions-item label="需求单号">{{ viewData.pr_no }}</n-descriptions-item>
+        <n-descriptions-item label="状态">
+          <n-tag :type="getStatusTag(viewData.status).type">{{ getStatusTag(viewData.status).label }}</n-tag>
+        </n-descriptions-item>
+        <n-descriptions-item label="标题" :span="2">{{ viewData.title }}</n-descriptions-item>
+        <n-descriptions-item label="部门">{{ viewData.department }}</n-descriptions-item>
+        <n-descriptions-item label="项目">{{ viewData.project_name }}</n-descriptions-item>
+        <n-descriptions-item label="紧急程度">{{ viewData.urgency }}</n-descriptions-item>
+        <n-descriptions-item label="期望到货">{{ viewData.expected_date || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="预估金额" :span="2">¥{{ viewData.total_estimated_amount?.toLocaleString() }}</n-descriptions-item>
+        <n-descriptions-item label="备注" :span="2">{{ viewData.remarks || '-' }}</n-descriptions-item>
+      </n-descriptions>
+      <n-divider>采购明细</n-divider>
+      <n-data-table
+        :columns="viewItemColumns"
+        :data="viewData?.items || []"
+        :bordered="true"
+        size="small"
+      />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showView = false">关闭</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal v-model:show="showApprove" preset="card" title="审批采购需求" style="width: 500px;">
+      <n-form :model="approveForm" label-placement="left" label-width="100px">
+        <n-form-item label="需求单号">
+          <n-input :value="viewData?.pr_no" disabled />
+        </n-form-item>
+        <n-form-item label="审批结果">
+          <n-select v-model:value="approveForm.status" :options="[
+            { label: '通过', value: 'approved' },
+            { label: '拒绝', value: 'rejected' }
+          ]" />
+        </n-form-item>
+        <n-form-item label="审批意见">
+          <n-input v-model:value="approveForm.comment" type="textarea" :rows="3" placeholder="请输入审批意见" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showApprove = false">取消</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleApproveSubmit">确定</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -80,13 +131,17 @@
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, type DataTableColumns } from 'naive-ui'
 import { AddOutline, TrashOutline } from '@vicons/ionicons5'
-import { listPurchaseRequests, createPurchaseRequest } from '~/api'
+import { listPurchaseRequests, createPurchaseRequest, getPurchaseRequest, updatePurchaseRequest } from '~/api'
 import dayjs from 'dayjs'
 
 const message = useMessage()
 const loading = ref(false)
 const submitting = ref(false)
 const showCreate = ref(false)
+const showView = ref(false)
+const showApprove = ref(false)
+const viewData = ref<any>(null)
+const approveForm = reactive({ status: 'approved', comment: '' })
 const formRef = ref()
 const searchKeyword = ref('')
 const filterStatus = ref<string | null>(null)
@@ -169,6 +224,13 @@ const itemColumns: DataTableColumns = [
   }
 ]
 
+const viewItemColumns: DataTableColumns = [
+  { title: '耗材ID', key: 'material_id', width: 100 },
+  { title: '数量', key: 'quantity', width: 100 },
+  { title: '单价(元)', key: 'unit_price', width: 120, render: (row: any) => `¥${row.unit_price?.toFixed(2)}` },
+  { title: '小计(元)', key: 'subtotal', width: 120, render: (row: any) => `¥${(row.quantity * row.unit_price)?.toFixed(2)}` }
+]
+
 const formData = reactive({
   title: '',
   department: '',
@@ -230,12 +292,47 @@ function resetFilters() {
   loadData()
 }
 
-function handleView(row: any) {
-  message.info(`查看需求 ${row.pr_no}`)
+async function handleView(row: any) {
+  try {
+    const res = await getPurchaseRequest(row.id)
+    if (res.code === 200) {
+      viewData.value = res.data
+      showView.value = true
+    }
+  } catch (e: any) {
+    message.error(e.message || '加载失败')
+  }
 }
 
-function handleApprove(row: any) {
-  message.info(`审批需求 ${row.pr_no}`)
+async function handleApprove(row: any) {
+  try {
+    const res = await getPurchaseRequest(row.id)
+    if (res.code === 200) {
+      viewData.value = res.data
+      approveForm.status = 'approved'
+      approveForm.comment = ''
+      showApprove.value = true
+    }
+  } catch (e: any) {
+    message.error(e.message || '加载失败')
+  }
+}
+
+async function handleApproveSubmit() {
+  try {
+    submitting.value = true
+    await updatePurchaseRequest(viewData.value.id, {
+      status: approveForm.status,
+      approval_comment: approveForm.comment
+    })
+    message.success('审批完成')
+    showApprove.value = false
+    loadData()
+  } catch (e: any) {
+    message.error(e.message || '审批失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function handleSubmit() {

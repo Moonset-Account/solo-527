@@ -75,6 +75,23 @@
         </n-list>
       </n-drawer-content>
     </n-drawer>
+
+    <n-modal v-model:show="showProfile" preset="card" title="个人信息" style="width: 480px;">
+      <n-descriptions :column="1" bordered v-if="userStore.userInfo">
+        <n-descriptions-item label="用户名">{{ userStore.userInfo.username }}</n-descriptions-item>
+        <n-descriptions-item label="姓名">{{ userStore.userInfo.full_name }}</n-descriptions-item>
+        <n-descriptions-item label="角色">{{ getRoleLabel(userStore.userInfo.role) }}</n-descriptions-item>
+        <n-descriptions-item label="邮箱">{{ userStore.userInfo.email || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="电话">{{ userStore.userInfo.phone || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="部门">{{ userStore.userInfo.department || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="创建时间">{{ dayjs(userStore.userInfo.created_at).format('YYYY-MM-DD HH:mm') }}</n-descriptions-item>
+      </n-descriptions>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showProfile = false">关闭</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </n-layout>
 </template>
 
@@ -98,6 +115,7 @@ const userStore = useUserStore()
 
 const collapsed = ref(false)
 const showNotifications = ref(false)
+const showProfile = ref(false)
 const notifications = ref<any[]>([])
 const unreadCount = ref(0)
 
@@ -152,8 +170,19 @@ function handleUserAction(key: string) {
     message.success('已退出登录')
     router.push('/login')
   } else if (key === 'profile') {
-    message.info('个人信息功能开发中')
+    showProfile.value = true
   }
+}
+
+function getRoleLabel(role: string) {
+  const map: Record<string, string> = {
+    frontline: '行政专员',
+    procurement: '采购专员',
+    manager: '采购经理',
+    admin: '系统管理员',
+    project_owner: '项目负责人'
+  }
+  return map[role] || role
 }
 
 function formatDate(date: string) {

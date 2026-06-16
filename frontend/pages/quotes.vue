@@ -124,8 +124,12 @@ function getStatusTag(type: string) {
 
 const columns: DataTableColumns = [
   { title: '报价单号', key: 'quote_no', width: 130 },
-  { title: '耗材', key: 'material_name', width: 160, render: () => '-' },
-  { title: '供应商', key: 'supplier', width: 140, render: () => '-' },
+  { title: '耗材', key: 'material_name', width: 180, render: (row: any) =>
+    row.material ? `${row.material.code} - ${row.material.name}` : '-'
+  },
+  { title: '供应商', key: 'supplier', width: 160, render: (row: any) =>
+    row.supplier ? row.supplier.name : '-'
+  },
   { title: '单价(元)', key: 'unit_price', width: 100, render: (row: any) => h('n-strong', null, () => `¥${row.unit_price.toFixed(2)}`) },
   { title: '税率', key: 'tax_rate', width: 80, render: (row: any) => `${row.tax_rate}%` },
   { title: '最小起订', key: 'min_order_qty', width: 90 },

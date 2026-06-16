@@ -32,7 +32,8 @@ def list_quotes(
     if status: filters["status"] = status
     items, total = crud.quote.get_multi(
         db, page=page, page_size=page_size, keyword=keyword,
-        keyword_fields=["quote_no", "remarks"], filters=filters, order_by="id"
+        keyword_fields=["quote_no", "remarks"], filters=filters, order_by="id",
+        includes=["material", "supplier"]
     )
     return ResponseModel(data=PageResult(items=items, total=total, page=page, page_size=page_size))
 
@@ -54,7 +55,7 @@ def create_quote(
 
 @router.get("/{quote_id}", response_model=ResponseModel[schemas.QuoteInDB])
 def get_quote(quote_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    quote = crud.quote.get(db, quote_id)
+    quote = crud.quote.get(db, quote_id, includes=["material", "supplier"])
     if not quote:
         raise HTTPException(status_code=404, detail="报价单不存在")
     return ResponseModel(data=quote)
@@ -86,7 +87,7 @@ def compare_quotes(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    material = crud.material.get(db, material_id)
+    material = crud.material.get(db, material_id, includes=["category"])
     if not material:
         raise HTTPException(status_code=404, detail="耗材不存在")
 

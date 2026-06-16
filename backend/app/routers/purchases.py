@@ -37,7 +37,8 @@ def list_purchase_requests(
     if department: filters["department"] = department
     items, total = crud.purchase_request.get_multi(
         db, page=page, page_size=page_size, keyword=keyword,
-        keyword_fields=["pr_no", "title", "project_name"], filters=filters, order_by="id"
+        keyword_fields=["pr_no", "title", "project_name"], filters=filters, order_by="id",
+        includes=["items"]
     )
     return ResponseModel(data=PageResult(items=items, total=total, page=page, page_size=page_size))
 
@@ -74,7 +75,7 @@ def create_purchase_request(
 
 @router.get("/requests/{pr_id}", response_model=ResponseModel[schemas.PurchaseRequestInDB])
 def get_purchase_request(pr_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    pr = crud.purchase_request.get(db, pr_id)
+    pr = crud.purchase_request.get(db, pr_id, includes=["items"])
     if not pr:
         raise HTTPException(status_code=404, detail="采购需求不存在")
     return ResponseModel(data=pr)
@@ -111,7 +112,8 @@ def list_purchase_orders(
     if supplier_id: filters["supplier_id"] = supplier_id
     items, total = crud.purchase_order.get_multi(
         db, page=page, page_size=page_size, keyword=keyword,
-        keyword_fields=["po_no"], filters=filters, order_by="id"
+        keyword_fields=["po_no"], filters=filters, order_by="id",
+        includes=["items", "purchase_request", "supplier"]
     )
     return ResponseModel(data=PageResult(items=items, total=total, page=page, page_size=page_size))
 
@@ -161,7 +163,7 @@ def create_purchase_order(
 
 @router.get("/orders/{po_id}", response_model=ResponseModel[schemas.PurchaseOrderInDB])
 def get_purchase_order(po_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    po = crud.purchase_order.get(db, po_id)
+    po = crud.purchase_order.get(db, po_id, includes=["items", "purchase_request", "supplier"])
     if not po:
         raise HTTPException(status_code=404, detail="采购订单不存在")
     return ResponseModel(data=po)

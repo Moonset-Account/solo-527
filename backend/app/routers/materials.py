@@ -46,7 +46,7 @@ def list_materials(
     items, total = crud.material.get_multi(
         db, page=page, page_size=page_size, keyword=keyword,
         keyword_fields=["name", "code", "specification", "brand", "model"],
-        filters=filters, order_by="id"
+        filters=filters, order_by="id", includes=["category"]
     )
     return ResponseModel(data=PageResult(items=items, total=total, page=page, page_size=page_size))
 
@@ -67,7 +67,7 @@ def create_material(
 
 @router.get("/{material_id}", response_model=ResponseModel[schemas.MaterialInDB])
 def get_material(material_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    mat = crud.material.get(db, material_id)
+    mat = crud.material.get(db, material_id, includes=["category"])
     if not mat:
         raise HTTPException(status_code=404, detail="耗材不存在")
     return ResponseModel(data=mat)
@@ -100,7 +100,8 @@ def list_monthly_usages(
     if year: filters["year"] = year
     if month: filters["month"] = month
     items, total = crud.monthly_usage.get_multi(
-        db, page=page, page_size=page_size, filters=filters, order_by="id"
+        db, page=page, page_size=page_size, filters=filters, order_by="id",
+        includes=["material"]
     )
     return ResponseModel(data=PageResult(items=items, total=total, page=page, page_size=page_size))
 

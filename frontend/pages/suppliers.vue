@@ -29,7 +29,7 @@
       </n-space>
     </n-card>
 
-    <n-modal v-model:show="showCreate" preset="card" title="新增供应商" style="width: 640px;">
+    <n-modal v-model:show="showCreate" preset="card" :title="editId ? '编辑供应商' : '新增供应商'" style="width: 640px;">
       <n-form ref="formRef" :model="formData" :rules="rules" label-placement="left" label-width="100px">
         <n-grid :cols="2" :x-gap="12">
           <n-form-item label="供应商名称" path="name" :span="2">
@@ -66,8 +66,28 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showCreate = false">取消</n-button>
+          <n-button @click="handleCancel">取消</n-button>
           <n-button type="primary" :loading="submitting" @click="handleSubmit">确定</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal v-model:show="showRisk" preset="card" title="风险评估" style="width: 500px;">
+      <n-form :model="riskFormData" label-placement="left" label-width="100px">
+        <n-form-item label="供应商">
+          <n-input :value="riskSupplier?.name" disabled />
+        </n-form-item>
+        <n-form-item label="风险等级">
+          <n-select v-model:value="riskFormData.risk_level" :options="riskOptions" />
+        </n-form-item>
+        <n-form-item label="风险说明">
+          <n-input v-model:value="riskFormData.risk_reason" type="textarea" :rows="4" placeholder="请说明风险原因" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showRisk = false">取消</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleRiskSubmit">确定</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -78,13 +98,17 @@
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, type DataTableColumns } from 'naive-ui'
 import { PersonAddOutline, AlertTriangleOutline } from '@vicons/ionicons5'
-import { listSuppliers, createSupplier } from '~/api'
+import { listSuppliers, createSupplier, updateSupplier } from '~/api'
 import dayjs from 'dayjs'
 
 const message = useMessage()
 const loading = ref(false)
 const submitting = ref(false)
 const showCreate = ref(false)
+const showRisk = ref(false)
+const editId = ref<number | null>(null)
+const riskSupplier = ref<any>(null)
+const riskFormData = reactive({ risk_level: 'low', risk_reason: '' })
 const formRef = ref()
 const searchKeyword = ref('')
 const filterRisk = ref<string | null>(null)
@@ -205,24 +229,66 @@ function resetFilters() {
 }
 
 function handleEdit(row: any) {
-  message.info('编辑功能开发中')
+  Object.assign(formData, {
+    name: row.name,
+    code: row.code,
+    contact_person: row.contact_person,
+    phone: row.phone,
+    email: row.email,
+    address: row.address,
+    tax_number: row.tax_number,
+    bank_account: row.bank_account,
+    bank_name: row.bank_name,
+    remarks: row.remarks
+  })
+  editId.value = row.id
+  showCreate.value = true
 }
 
 function handleRisk(row: any) {
-  message.info(`对 ${row.name} 进行风险评估`)
+  riskSupplier.value = row
+  riskFormData.risk_level = row.risk_level
+  riskFormData.risk_reason = ''
+  showRisk.value = true
+}
+
+function handleCancel() {
+  showCreate.value = false
+  editId.value = null
+  Object.assign(formData, { name: '', code: '', contact_person: '', phone: '', email: '', address: '', tax_number: '', bank_account: '', bank_name: '', remarks: '' })
 }
 
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
     submitting.value = true
-    await createSupplier(formData)
-    message.success('创建成功')
+    if (editId.value) {
+      await updateSupplier(editId.value, formData)
+      message.success('更新成功')
+    } else {
+      await createSupplier(formData)
+      message.success('创建成功')
+    }
     showCreate.value = false
+    editId.value = null
     Object.assign(formData, { name: '', code: '', contact_person: '', phone: '', email: '', address: '', tax_number: '', bank_account: '', bank_name: '', remarks: '' })
     loadData()
   } catch (e: any) {
-    message.error(e.message || '创建失败')
+    message.error(e.message || '操作失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleRiskSubmit() {
+  try {
+    submitting.value = true
+    await updateSupplier(riskSupplier.value.id, { risk_level: riskFormData.risk_level, risk_reason: riskFormData.risk_reason })
+    message.success('风险评估完成')
+    showRisk.value = false
+    loadData()
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
   } finally {
     submitting.value = false
   }

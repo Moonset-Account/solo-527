@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date
 from ..models.quote import QuoteStatus
+from .material import MaterialInDB
+from .supplier import SupplierInDB
 
 
 class QuoteBase(BaseModel):
@@ -45,6 +47,8 @@ class QuoteInDB(QuoteBase):
     evaluated_by: Optional[int] = None
     evaluation_notes: Optional[str] = None
     created_at: datetime
+    material: Optional[MaterialInDB] = None
+    supplier: Optional[SupplierInDB] = None
 
     class Config:
         from_attributes = True

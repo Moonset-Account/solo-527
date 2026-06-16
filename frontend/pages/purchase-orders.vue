@@ -73,6 +73,66 @@
         </n-space>
       </template>
     </n-modal>
+
+    <n-modal v-model:show="showView" preset="card" title="采购订单详情" style="width: 760px;">
+      <n-descriptions :column="2" bordered v-if="viewData">
+        <n-descriptions-item label="订单号">{{ viewData.po_no }}</n-descriptions-item>
+        <n-descriptions-item label="状态">
+          <n-tag :type="getStatusTag(viewData.status).type">{{ getStatusTag(viewData.status).label }}</n-tag>
+        </n-descriptions-item>
+        <n-descriptions-item label="需求单号" :span="2">{{ viewData.purchase_request?.pr_no || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="供应商" :span="2">{{ viewData.supplier?.name || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="预计交货">{{ viewData.expected_delivery_date ? dayjs(viewData.expected_delivery_date).format('YYYY-MM-DD') : '-' }}</n-descriptions-item>
+        <n-descriptions-item label="实际交货">{{ viewData.actual_delivery_date ? dayjs(viewData.actual_delivery_date).format('YYYY-MM-DD') : '-' }}</n-descriptions-item>
+        <n-descriptions-item label="付款条款">{{ viewData.payment_terms || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="订单总额">¥{{ viewData.grand_total?.toLocaleString() }}</n-descriptions-item>
+        <n-descriptions-item label="送货地址" :span="2">{{ viewData.delivery_address || '-' }}</n-descriptions-item>
+        <n-descriptions-item label="备注" :span="2">{{ viewData.remarks || '-' }}</n-descriptions-item>
+      </n-descriptions>
+      <n-divider>订单明细</n-divider>
+      <n-data-table
+        :columns="viewItemColumns"
+        :data="viewData?.items || []"
+        :bordered="true"
+        size="small"
+      />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showView = false">关闭</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal v-model:show="showDelivery" preset="card" title="更新交货信息" style="width: 520px;">
+      <n-form :model="deliveryForm" label-placement="left" label-width="120px">
+        <n-form-item label="订单号">
+          <n-input :value="viewData?.po_no" disabled />
+        </n-form-item>
+        <n-form-item label="预计交货日期">
+          <n-date-picker v-model:value="deliveryForm.expected_delivery_date" type="date" style="width: 100%;" />
+        </n-form-item>
+        <n-form-item label="实际交货日期">
+          <n-date-picker v-model:value="deliveryForm.actual_delivery_date" type="date" style="width: 100%;" />
+        </n-form-item>
+        <n-form-item label="订单状态">
+          <n-select v-model:value="deliveryForm.status" :options="[
+            { label: '已确认', value: 'confirmed' },
+            { label: '部分交货', value: 'partial_delivered' },
+            { label: '已交货', value: 'delivered' },
+            { label: '已完成', value: 'completed' }
+          ]" />
+        </n-form-item>
+        <n-form-item label="变更原因">
+          <n-input v-model:value="deliveryForm.change_reason" type="textarea" :rows="3" placeholder="如交期有变化请说明原因" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showDelivery = false">取消</n-button>
+          <n-button type="primary" :loading="submitting" @click="handleDeliverySubmit">确定</n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -80,13 +140,22 @@
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, type DataTableColumns } from 'naive-ui'
 import { CartOutline, AddOutline } from '@vicons/ionicons5'
-import { listPurchaseOrders, createPurchaseOrder, listSuppliers, listPurchaseRequests } from '~/api'
+import { listPurchaseOrders, createPurchaseOrder, listSuppliers, listPurchaseRequests, getPurchaseOrder, updatePurchaseOrder } from '~/api'
 import dayjs from 'dayjs'
 
 const message = useMessage()
 const loading = ref(false)
 const submitting = ref(false)
 const showCreate = ref(false)
+const showView = ref(false)
+const showDelivery = ref(false)
+const viewData = ref<any>(null)
+const deliveryForm = reactive({
+  expected_delivery_date: null as number | null,
+  actual_delivery_date: null as number | null,
+  status: 'confirmed',
+  change_reason: ''
+})
 const formRef = ref()
 const searchKeyword = ref('')
 const filterStatus = ref<string | null>(null)
@@ -127,13 +196,21 @@ function getStatusTag(type: string) {
 
 const columns: DataTableColumns = [
   { title: '订单号', key: 'po_no', width: 140 },
-  { title: '需求单号', key: 'pr_id', width: 100, render: (row: any) => `PR${row.pr_id}` },
-  { title: '供应商', key: 'supplier_id', width: 140 },
+  { title: '需求单号', key: 'purchase_request', width: 120, render: (row: any) =>
+    row.purchase_request?.pr_no || `PR${row.pr_id}`
+  },
+  { title: '供应商', key: 'supplier_id', width: 140, render: (row: any) =>
+    row.supplier?.name || '-'
+  },
   { title: '订单总额', key: 'grand_total', width: 130, render: (row: any) =>
     h('n-strong', null, () => `¥${row.grand_total.toLocaleString()}`)
   },
-  { title: '预计交货', key: 'expected_delivery_date', width: 110 },
-  { title: '实际交货', key: 'actual_delivery_date', width: 110, render: (row: any) => row.actual_delivery_date || '-' },
+  { title: '预计交货', key: 'expected_delivery_date', width: 110, render: (row: any) =>
+    row.expected_delivery_date ? dayjs(row.expected_delivery_date).format('YYYY-MM-DD') : '-'
+  },
+  { title: '实际交货', key: 'actual_delivery_date', width: 110, render: (row: any) =>
+    row.actual_delivery_date ? dayjs(row.actual_delivery_date).format('YYYY-MM-DD') : '-'
+  },
   { title: '交货天数', key: 'delivery_days_actual', width: 90, render: (row: any) => row.delivery_days_actual != null ? `${row.delivery_days_actual}天` : '-' },
   { title: '状态', key: 'status', width: 90, render: (row: any) => {
       const s = getStatusTag(row.status)
@@ -164,6 +241,13 @@ const itemColumns: DataTableColumns = [
   { title: '操作', key: 'actions', width: 70, render: (_: any, index: number) =>
     h('n-button', { size: 'small', type: 'error', quaternary: true, onClick: () => removeItem(index) }, () => '删除')
   }
+]
+
+const viewItemColumns: DataTableColumns = [
+  { title: '耗材ID', key: 'material_id', width: 100 },
+  { title: '数量', key: 'quantity', width: 100 },
+  { title: '单价(元)', key: 'unit_price', width: 120, render: (row: any) => `¥${row.unit_price?.toFixed(2)}` },
+  { title: '小计(元)', key: 'subtotal', width: 120, render: (row: any) => `¥${(row.quantity * row.unit_price)?.toFixed(2)}` }
 ]
 
 const formData = reactive({
@@ -234,12 +318,58 @@ function resetFilters() {
   loadData()
 }
 
-function handleView(row: any) {
-  message.info(`查看订单 ${row.po_no}`)
+async function handleView(row: any) {
+  try {
+    const res = await getPurchaseOrder(row.id)
+    if (res.code === 200) {
+      viewData.value = res.data
+      showView.value = true
+    }
+  } catch (e: any) {
+    message.error(e.message || '加载失败')
+  }
 }
 
-function handleUpdateDelivery(row: any) {
-  message.info(`更新订单 ${row.po_no} 交期`)
+async function handleUpdateDelivery(row: any) {
+  try {
+    const res = await getPurchaseOrder(row.id)
+    if (res.code === 200) {
+      viewData.value = res.data
+      deliveryForm.expected_delivery_date = res.data.expected_delivery_date ? dayjs(res.data.expected_delivery_date).valueOf() : null
+      deliveryForm.actual_delivery_date = res.data.actual_delivery_date ? dayjs(res.data.actual_delivery_date).valueOf() : null
+      deliveryForm.status = res.data.status
+      deliveryForm.change_reason = ''
+      showDelivery.value = true
+    }
+  } catch (e: any) {
+    message.error(e.message || '加载失败')
+  }
+}
+
+async function handleDeliverySubmit() {
+  try {
+    submitting.value = true
+    const updateData: any = {
+      status: deliveryForm.status
+    }
+    if (deliveryForm.expected_delivery_date) {
+      updateData.expected_delivery_date = dayjs(deliveryForm.expected_delivery_date).toDate()
+    }
+    if (deliveryForm.actual_delivery_date) {
+      updateData.actual_delivery_date = dayjs(deliveryForm.actual_delivery_date).toDate()
+    }
+    if (deliveryForm.change_reason) {
+      updateData.delivery_change_reason = deliveryForm.change_reason
+    }
+    await updatePurchaseOrder(viewData.value.id, updateData)
+    message.success('交货信息更新成功')
+    showDelivery.value = false
+    loadData()
+  } catch (e: any) {
+    message.error(e.message || '更新失败')
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function handleSubmit() {

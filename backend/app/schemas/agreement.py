@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date
 from ..models.agreement import AgreementStatus
+from .supplier import SupplierInDB
 
 
 class AgreementItemBase(BaseModel):
@@ -68,6 +69,7 @@ class FrameworkAgreementInDB(FrameworkAgreementBase):
     approved_at: Optional[datetime] = None
     created_at: datetime
     items: List[AgreementItemInDB] = []
+    supplier: Optional[SupplierInDB] = None
 
     class Config:
         from_attributes = True

@@ -3,10 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import engine, Base
 from . import models
+from .schemas.common import ResponseModel
 
 from .routers import auth, materials, suppliers, quotes, purchases, agreements, dashboard
+from .init_data import init_database
 
 Base.metadata.create_all(bind=engine)
+init_database()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -31,11 +34,11 @@ app.include_router(agreements.router)
 app.include_router(dashboard.router)
 
 
-@app.get("/api/health")
+@app.get("/api/health", response_model=ResponseModel[dict])
 async def health_check():
-    return {"status": "healthy", "app": settings.APP_NAME}
+    return ResponseModel(data={"status": "healthy", "app": settings.APP_NAME})
 
 
-@app.get("/")
+@app.get("/", response_model=ResponseModel[dict])
 async def root():
-    return {"message": "办公耗材询价比价平台 API", "docs": "/docs"}
+    return ResponseModel(data={"message": "办公耗材询价比价平台 API", "docs": "/docs"})

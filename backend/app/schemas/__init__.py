@@ -1,3 +1,4 @@
+from .common import *
 from .user import *
 from .material import *
 from .supplier import *

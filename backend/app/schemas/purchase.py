@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date
 from ..models.purchase import PurchaseRequestStatus, PurchaseOrderStatus
+from .supplier import SupplierInDB
 
 
 class PurchaseOrderItemBase(BaseModel):
@@ -125,6 +126,8 @@ class PurchaseOrderInDB(BaseModel):
     completed_at: Optional[datetime] = None
     created_at: datetime
     items: List[PurchaseOrderItemInDB] = []
+    purchase_request: Optional["PurchaseRequestInDB"] = None
+    supplier: Optional[SupplierInDB] = None
 
     class Config:
         from_attributes = True

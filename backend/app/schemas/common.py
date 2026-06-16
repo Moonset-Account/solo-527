@@ -11,14 +11,14 @@ class PageParams(BaseModel):
     keyword: Optional[str] = None
 
 
-class PageResult(Generic[T], BaseModel):
+class PageResult(BaseModel, Generic[T]):
     items: List[T]
     total: int
     page: int
     page_size: int
 
 
-class ResponseModel(Generic[T], BaseModel):
+class ResponseModel(BaseModel, Generic[T]):
     code: int = 200
     message: str = "success"
     data: Optional[T] = None

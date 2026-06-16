@@ -32,7 +32,8 @@ def list_agreements(
     if supplier_id: filters["supplier_id"] = supplier_id
     items, total = crud.framework_agreement.get_multi(
         db, page=page, page_size=page_size, keyword=keyword,
-        keyword_fields=["agreement_no", "title"], filters=filters, order_by="id"
+        keyword_fields=["agreement_no", "title"], filters=filters, order_by="id",
+        includes=["items", "supplier"]
     )
     return ResponseModel(data=PageResult(items=items, total=total, page=page, page_size=page_size))
 
@@ -62,7 +63,7 @@ def create_agreement(
 
 @router.get("/{agreement_id}", response_model=ResponseModel[schemas.FrameworkAgreementInDB])
 def get_agreement(agreement_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    agree = crud.framework_agreement.get(db, agreement_id)
+    agree = crud.framework_agreement.get(db, agreement_id, includes=["items", "supplier"])
     if not agree:
         raise HTTPException(status_code=404, detail="框架协议不存在")
     return ResponseModel(data=agree)

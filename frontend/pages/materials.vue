@@ -29,7 +29,7 @@
       </n-space>
     </n-card>
 
-    <n-modal v-model:show="showCreate" preset="card" title="新增耗材" style="width: 600px;">
+    <n-modal v-model:show="showCreate" preset="card" :title="editId ? '编辑耗材' : '新增耗材'" style="width: 600px;">
       <n-form ref="formRef" :model="formData" :rules="rules" label-placement="left" label-width="100px">
         <n-grid :cols="2" :x-gap="12">
           <n-form-item label="耗材名称" path="name" :span="2">
@@ -63,7 +63,7 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showCreate = false">取消</n-button>
+          <n-button @click="handleCancel">取消</n-button>
           <n-button type="primary" :loading="submitting" @click="handleSubmit">确定</n-button>
         </n-space>
       </template>
@@ -75,13 +75,17 @@
 import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, type DataTableColumns } from 'naive-ui'
 import { AddOutline } from '@vicons/ionicons5'
-import { listMaterials, createMaterial, listCategories } from '~/api'
+import { listMaterials, createMaterial, updateMaterial, listCategories } from '~/api'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 
+const router = useRouter()
+const { navigateTo } = router
 const message = useMessage()
 const loading = ref(false)
 const submitting = ref(false)
 const showCreate = ref(false)
+const editId = ref<number | null>(null)
 const formRef = ref()
 const searchKeyword = ref('')
 const filterCategory = ref<number | null>(null)
@@ -185,24 +189,50 @@ function resetFilters() {
 }
 
 function handleEdit(row: any) {
-  message.info('编辑功能开发中')
+  Object.assign(formData, {
+    name: row.name,
+    code: row.code,
+    specification: row.specification,
+    unit: row.unit,
+    category_id: row.category_id,
+    brand: row.brand,
+    model: row.model,
+    description: row.description,
+    min_stock: row.min_stock
+  })
+  editId.value = row.id
+  showCreate.value = true
 }
 
 function handleQuote(row: any) {
-  message.info(`查看 ${row.name} 的报价`)
+  if (row.id) {
+    navigateTo(`/quote-comparison?material_id=${row.id}`)
+  }
+}
+
+function handleCancel() {
+  showCreate.value = false
+  editId.value = null
+  Object.assign(formData, { name: '', code: '', specification: '', unit: '', category_id: null, brand: '', model: '', description: '', min_stock: 0 })
 }
 
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
     submitting.value = true
-    await createMaterial(formData)
-    message.success('创建成功')
+    if (editId.value) {
+      await updateMaterial(editId.value, formData)
+      message.success('更新成功')
+    } else {
+      await createMaterial(formData)
+      message.success('创建成功')
+    }
     showCreate.value = false
+    editId.value = null
     Object.assign(formData, { name: '', code: '', specification: '', unit: '', category_id: null, brand: '', model: '', description: '', min_stock: 0 })
     loadData()
   } catch (e: any) {
-    message.error(e.message || '创建失败')
+    message.error(e.message || '操作失败')
   } finally {
     submitting.value = false
   }

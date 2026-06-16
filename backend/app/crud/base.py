@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from typing import Optional, List, Type, TypeVar, Generic
+from sqlalchemy.orm import Session, joinedload
+from typing import Optional, List, Type, TypeVar, Generic, Any
 from sqlalchemy import func, and_, or_, desc, asc
 
 ModelType = TypeVar("ModelType")
@@ -9,8 +9,13 @@ class CRUDBase(Generic[ModelType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
 
-    def get(self, db: Session, id: int) -> Optional[ModelType]:
-        return db.query(self.model).filter(self.model.id == id).first()
+    def get(self, db: Session, id: int, includes: Optional[List[str]] = None) -> Optional[ModelType]:
+        query = db.query(self.model)
+        if includes:
+            for inc in includes:
+                if hasattr(self.model, inc):
+                    query = query.options(joinedload(getattr(self.model, inc)))
+        return query.filter(self.model.id == id).first()
 
     def get_multi(
         self,
@@ -22,9 +27,14 @@ class CRUDBase(Generic[ModelType]):
         keyword_fields: Optional[List[str]] = None,
         filters: Optional[dict] = None,
         order_by: Optional[str] = None,
-        order_dir: str = "desc"
+        order_dir: str = "desc",
+        includes: Optional[List[str]] = None
     ):
         query = db.query(self.model)
+        if includes:
+            for inc in includes:
+                if hasattr(self.model, inc):
+                    query = query.options(joinedload(getattr(self.model, inc)))
         if filters:
             for key, value in filters.items():
                 if value is not None and hasattr(self.model, key):
