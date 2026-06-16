@@ -232,7 +232,13 @@ public class ReportService : IReportService
             avgHours = Math.Round(totalHours / closedEvents.Count, 2);
         }
 
-        var pendingVisitCount = await queryable.CountAsync(e => e.Status == EventStatus.FollowingUp);
+        var todoQuery = _context.TodoItems.AsQueryable();
+        if (query.GridId.HasValue)
+            todoQuery = todoQuery.Where(t => t.User.GridId == query.GridId.Value);
+
+        var pendingVisitCount = await todoQuery
+            .Where(t => t.Type == TodoType.FollowUp && !t.IsCompleted)
+            .CountAsync();
 
         return new ClosureReportDto
         {

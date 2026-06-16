@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GridEventManagement.Web.DTOs;
-using GridEventManagement.Web.Enums;
 using GridEventManagement.Web.Services;
 
 namespace GridEventManagement.Web.Controllers;
@@ -38,7 +37,7 @@ public class ResidentsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<ResidentDto>> CreateResident([FromBody] CreateResidentDto request)
     {
         var result = await _residentService.CreateResidentAsync(request);
@@ -46,7 +45,7 @@ public class ResidentsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<ResidentDto>> UpdateResident(int id, [FromBody] UpdateResidentDto request)
     {
         var result = await _residentService.UpdateResidentAsync(id, request);
@@ -58,7 +57,7 @@ public class ResidentsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<IActionResult> DeleteResident(int id)
     {
         var result = await _residentService.DeleteResidentAsync(id);
@@ -70,10 +69,24 @@ public class ResidentsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<IActionResult> ExportResidents([FromQuery] ResidentQueryDto query)
     {
         var csvBytes = await _residentService.ExportResidentsToCsvAsync(query);
         return File(csvBytes, "text/csv; charset=utf-8", $"residents_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+    }
+
+    [HttpPost("import")]
+    [Authorize(Roles = "admin,manager")]
+    public async Task<IActionResult> ImportResidents(IFormFile file, [FromQuery] int? gridId = null)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("请上传有效的CSV文件。");
+        }
+
+        using var stream = file.OpenReadStream();
+        var successCount = await _residentService.ImportResidentsFromCsvAsync(stream, gridId);
+        return Ok(new { successCount });
     }
 }

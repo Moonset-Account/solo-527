@@ -3,7 +3,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GridEventManagement.Web.DTOs;
-using GridEventManagement.Web.Enums;
 using GridEventManagement.Web.Services;
 
 namespace GridEventManagement.Web.Controllers;
@@ -39,7 +38,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPost("patrol")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<PatrolTaskDto>> CreatePatrolTask([FromBody] CreatePatrolTaskDto request)
     {
         var result = await _taskService.CreatePatrolTaskAsync(request);
@@ -47,7 +46,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("patrol/{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<PatrolTaskDto>> UpdatePatrolTask(int id, [FromBody] UpdatePatrolTaskDto request)
     {
         var result = await _taskService.UpdatePatrolTaskAsync(id, request);
@@ -59,7 +58,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpDelete("patrol/{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<IActionResult> DeletePatrolTask(int id)
     {
         var result = await _taskService.DeletePatrolTaskAsync(id);
@@ -89,7 +88,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPost("reviews")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<ReviewDto>> CreateReview([FromBody] CreateReviewDto request)
     {
         var reviewerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -120,7 +119,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPost("visits")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<VisitDto>> CreateVisit([FromBody] CreateVisitDto request)
     {
         var result = await _taskService.CreateVisitAsync(request);
@@ -132,7 +131,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("visits/{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<VisitDto>> UpdateVisit(int id, [FromBody] UpdateVisitDto request)
     {
         var result = await _taskService.UpdateVisitAsync(id, request);

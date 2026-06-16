@@ -20,7 +20,7 @@ public class UserDto
 {
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
-    public UserRole Role { get; set; }
+    public string Role { get; set; } = string.Empty;
     public int? GridId { get; set; }
     public string? RealName { get; set; }
     public string? Phone { get; set; }

@@ -128,6 +128,92 @@ public class ResidentService : IResidentService
         return output;
     }
 
+    public async Task<int> ImportResidentsFromCsvAsync(Stream csvStream, int? gridId = null)
+    {
+        var residents = new List<Resident>();
+        using var reader = new StreamReader(csvStream, Encoding.UTF8);
+
+        string? headerLine = await reader.ReadLineAsync();
+        if (headerLine == null) return 0;
+
+        string? line;
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Length < 7) continue;
+
+            var name = fields[0].Trim();
+            var idCard = fields[1].Trim();
+            var phone = fields[2].Trim();
+            var address = fields[3].Trim();
+            var householdType = fields[4].Trim();
+            var tags = fields[5].Trim();
+            var remark = fields[6].Trim();
+
+            if (string.IsNullOrWhiteSpace(idCard)) continue;
+
+            var resident = new Resident
+            {
+                Name = name,
+                IdCard = idCard,
+                Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
+                Address = string.IsNullOrWhiteSpace(address) ? null : address,
+                GridId = gridId ?? 0,
+                HouseholdType = string.IsNullOrWhiteSpace(householdType) ? null : householdType,
+                Tags = string.IsNullOrWhiteSpace(tags) ? null : tags,
+                Remark = string.IsNullOrWhiteSpace(remark) ? null : remark
+            };
+
+            residents.Add(resident);
+        }
+
+        if (residents.Count > 0)
+        {
+            _context.Residents.AddRange(residents);
+            await _context.SaveChangesAsync();
+        }
+
+        return residents.Count;
+    }
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var result = new List<string>();
+        var current = new System.Text.StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        result.Add(current.ToString());
+        return result.ToArray();
+    }
+
     private static string EscapeCsv(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;

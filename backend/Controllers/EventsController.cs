@@ -3,7 +3,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GridEventManagement.Web.DTOs;
-using GridEventManagement.Web.Enums;
 using GridEventManagement.Web.Services;
 
 namespace GridEventManagement.Web.Controllers;
@@ -39,7 +38,7 @@ public class EventsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<EventDto>> CreateEvent([FromBody] CreateEventDto request)
     {
         var reporterId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -48,7 +47,7 @@ public class EventsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<EventDto>> UpdateEvent(int id, [FromBody] UpdateEventDto request)
     {
         var result = await _eventService.UpdateEventAsync(id, request);
@@ -60,7 +59,7 @@ public class EventsController : ControllerBase
     }
 
     [HttpPut("{id:int}/status")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager) + "," + nameof(UserRole.GridWorker))]
+    [Authorize(Roles = "admin,manager,worker")]
     public async Task<ActionResult<EventDto>> ChangeEventStatus(int id, [FromBody] ChangeEventStatusDto request)
     {
         var operatorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -73,7 +72,7 @@ public class EventsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteEvent(int id)
     {
         var result = await _eventService.DeleteEventAsync(id);

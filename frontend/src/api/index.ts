@@ -69,12 +69,19 @@ export const deleteResident = (id: number) => {
   return request.delete(`/residents/${id}`)
 }
 
-export const importResidents = (file: File) => {
+export const importResidents = (file: File, gridId?: number) => {
   const formData = new FormData()
   formData.append('file', file)
-  return request.post('/residents/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
+  if (gridId !== undefined) {
+    formData.append('gridId', gridId.toString())
+  }
+  return request.post<{ successCount: number; failCount?: number; errors?: string[] }>(
+    '/residents/import',
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }
+  )
 }
 
 export const exportResidents = (params?: Record<string, any>) => {

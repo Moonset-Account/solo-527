@@ -139,11 +139,19 @@ public class AuthService : IAuthService
         var audience = _configuration["Jwt:Audience"];
         var expiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresInMinutes", 60);
 
+        var roleString = user.Role switch
+        {
+            UserRole.Admin => "admin",
+            UserRole.Manager => "manager",
+            UserRole.GridWorker => "worker",
+            _ => user.Role.ToString().ToLower()
+        };
+
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim(ClaimTypes.Role, roleString),
             new Claim("RealName", user.RealName ?? string.Empty),
             new Claim("GridId", user.GridId?.ToString() ?? string.Empty)
         };
@@ -164,11 +172,19 @@ public class AuthService : IAuthService
 
     private static UserDto MapToUserDto(User user)
     {
+        var roleString = user.Role switch
+        {
+            UserRole.Admin => "admin",
+            UserRole.Manager => "manager",
+            UserRole.GridWorker => "worker",
+            _ => user.Role.ToString().ToLower()
+        };
+
         return new UserDto
         {
             Id = user.Id,
             Username = user.Username,
-            Role = user.Role,
+            Role = roleString,
             GridId = user.GridId,
             RealName = user.RealName,
             Phone = user.Phone

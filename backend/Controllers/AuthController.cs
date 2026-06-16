@@ -3,7 +3,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GridEventManagement.Web.DTOs;
-using GridEventManagement.Web.Enums;
 using GridEventManagement.Web.Services;
 
 namespace GridEventManagement.Web.Controllers;
@@ -33,7 +32,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<UserDto>> Register([FromBody] CreateUserDto request)
     {
         var result = await _authService.RegisterAsync(request);
@@ -45,7 +44,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("users")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<List<UserDto>>> GetAllUsers()
     {
         var users = await _authService.GetAllUsersAsync();
@@ -59,7 +58,7 @@ public class AuthController : ControllerBase
         var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-        if (currentUserRole != nameof(UserRole.Admin) && currentUserRole != nameof(UserRole.Manager) && currentUserId != id)
+        if (currentUserRole != "admin" && currentUserRole != "manager" && currentUserId != id)
         {
             return Forbid();
         }
@@ -86,7 +85,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPut("users/{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<UserDto>> UpdateUser(int id, [FromBody] UpdateUserDto request)
     {
         var result = await _authService.UpdateUserAsync(id, request);
@@ -98,7 +97,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpDelete("users/{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteUser(int id)
     {
         var result = await _authService.DeleteUserAsync(id);

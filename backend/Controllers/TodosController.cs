@@ -3,7 +3,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GridEventManagement.Web.DTOs;
-using GridEventManagement.Web.Enums;
 using GridEventManagement.Web.Services;
 
 namespace GridEventManagement.Web.Controllers;
@@ -26,7 +25,7 @@ public class TodosController : ControllerBase
         var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-        if (currentUserRole != nameof(UserRole.Admin) && currentUserRole != nameof(UserRole.Manager))
+        if (currentUserRole != "admin" && currentUserRole != "manager")
         {
             query.UserId = currentUserId;
         }
@@ -46,7 +45,7 @@ public class TodosController : ControllerBase
 
         var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (currentUserRole != nameof(UserRole.Admin) && currentUserRole != nameof(UserRole.Manager) && todo.UserId != currentUserId)
+        if (currentUserRole != "admin" && currentUserRole != "manager" && todo.UserId != currentUserId)
         {
             return Forbid();
         }
@@ -55,7 +54,7 @@ public class TodosController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<TodoDto>> CreateTodo([FromBody] CreateTodoDto request)
     {
         var result = await _taskService.CreateTodoAsync(request);
@@ -73,7 +72,7 @@ public class TodosController : ControllerBase
 
         var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (currentUserRole != nameof(UserRole.Admin) && currentUserRole != nameof(UserRole.Manager) && todo.UserId != currentUserId)
+        if (currentUserRole != "admin" && currentUserRole != "manager" && todo.UserId != currentUserId)
         {
             return Forbid();
         }
@@ -93,7 +92,7 @@ public class TodosController : ControllerBase
 
         var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        if (currentUserRole != nameof(UserRole.Admin) && currentUserRole != nameof(UserRole.Manager) && todo.UserId != currentUserId)
+        if (currentUserRole != "admin" && currentUserRole != "manager" && todo.UserId != currentUserId)
         {
             return Forbid();
         }
@@ -103,7 +102,7 @@ public class TodosController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<IActionResult> DeleteTodo(int id)
     {
         var result = await _taskService.DeleteTodoAsync(id);

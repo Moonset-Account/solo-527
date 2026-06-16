@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { importResidents } from '@/api'
 import type { UploadFile, UploadProps } from 'antd'
+import { getUserInfo } from '@/utils/auth'
 
 const ResidentImport = () => {
   const navigate = useNavigate()
@@ -16,8 +17,21 @@ const ResidentImport = () => {
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<{ success: number; fail: number; errors?: string[] } | null>(null)
 
+  const userInfo = getUserInfo()
+  const gridId = userInfo?.gridId
+
   const handleDownloadTemplate = () => {
-    message.info('模板下载功能')
+    const headers = '姓名,身份证号,手机号,地址,户别,标签,备注'
+    const blob = new Blob(['\ufeff' + headers], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = '居民导入模板.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    message.success('模板下载成功')
   }
 
   const props: UploadProps = {
@@ -64,10 +78,14 @@ const ResidentImport = () => {
     }, 200)
 
     try {
-      await importResidents(fileList[0].originFileObj as File)
+      const res = await importResidents(fileList[0].originFileObj as File, gridId)
       clearInterval(timer)
       setProgress(100)
-      setResult({ success: Math.floor(Math.random() * 10) + 10, fail: Math.floor(Math.random() * 3) })
+      setResult({
+        success: res.successCount || 0,
+        fail: res.failCount || 0,
+        errors: res.errors
+      })
       message.success('导入完成')
     } catch {
       clearInterval(timer)
@@ -94,7 +112,7 @@ const ResidentImport = () => {
           <div>
             <p>1. 请先下载导入模板，按模板格式填写居民信息</p>
             <p>2. 支持 .xlsx、.xls、.csv 格式，文件大小不超过 10MB</p>
-            <p>3. 必填字段：姓名、性别、身份证号、联系电话、出生日期、户籍类型、楼栋、单元、房号、详细地址</p>
+            <p>3. 必填字段：姓名、身份证号、手机号、地址、户别、标签、备注</p>
           </div>
         }
         type="info"

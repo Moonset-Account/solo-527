@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GridEventManagement.Web.DTOs;
-using GridEventManagement.Web.Enums;
 using GridEventManagement.Web.Services;
 
 namespace GridEventManagement.Web.Controllers;
@@ -27,7 +26,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("event-status")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<List<EventStatusReportDto>>> GetEventStatusReport([FromQuery] ReportQueryDto query)
     {
         var result = await _reportService.GetEventStatusReportAsync(query);
@@ -35,7 +34,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("event-type")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<List<EventTypeReportDto>>> GetEventTypeReport([FromQuery] ReportQueryDto query)
     {
         var result = await _reportService.GetEventTypeReportAsync(query);
@@ -43,7 +42,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("grid")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<List<GridReportDto>>> GetGridReport([FromQuery] ReportQueryDto query)
     {
         var result = await _reportService.GetGridReportAsync(query);
@@ -51,7 +50,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("monthly-trend")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<List<MonthlyTrendDto>>> GetMonthlyTrend([FromQuery] ReportQueryDto query)
     {
         var result = await _reportService.GetMonthlyTrendAsync(query);
@@ -59,7 +58,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("closure")]
-    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Manager))]
+    [Authorize(Roles = "admin,manager")]
     public async Task<ActionResult<ClosureReportDto>> GetClosureReport([FromQuery] ReportQueryDto query)
     {
         var result = await _reportService.GetClosureReportAsync(query);

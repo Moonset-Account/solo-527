@@ -11,4 +11,5 @@ public interface IResidentService
     Task<ResidentDto?> UpdateResidentAsync(int id, UpdateResidentDto request);
     Task<bool> DeleteResidentAsync(int id);
     Task<byte[]> ExportResidentsToCsvAsync(ResidentQueryDto query);
+    Task<int> ImportResidentsFromCsvAsync(Stream csvStream, int? gridId = null);
 }
