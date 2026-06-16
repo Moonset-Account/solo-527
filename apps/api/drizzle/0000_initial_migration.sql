@@ -127,6 +127,7 @@ CREATE TABLE "checkin_records" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "member_id" uuid NOT NULL REFERENCES "members"("id") ON DELETE CASCADE,
   "chapter_id" uuid NOT NULL REFERENCES "chapters"("id") ON DELETE CASCADE,
+  "camp_id" uuid NOT NULL REFERENCES "training_camps"("id") ON DELETE CASCADE,
   "content" text,
   "image_urls" text[],
   "checked_in_at" timestamp with time zone NOT NULL DEFAULT now(),
@@ -191,6 +192,8 @@ CREATE TABLE "todos" (
   "assignee_id" uuid REFERENCES "users"("id") ON DELETE SET NULL,
   "due_date" timestamp with time zone,
   "completed_at" timestamp with time zone,
+  "completed_by" uuid REFERENCES "users"("id"),
+  "created_by" uuid REFERENCES "users"("id"),
   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at" timestamp with time zone NOT NULL DEFAULT now()
 );
@@ -216,6 +219,7 @@ CREATE INDEX "progress_chapter_idx" ON "member_progress"("chapter_id");
 CREATE UNIQUE INDEX "progress_unique_idx" ON "member_progress"("member_id", "chapter_id");
 CREATE INDEX "checkins_member_idx" ON "checkin_records"("member_id");
 CREATE INDEX "checkins_chapter_idx" ON "checkin_records"("chapter_id");
+CREATE INDEX "checkins_camp_idx" ON "checkin_records"("camp_id");
 CREATE INDEX "checkins_status_idx" ON "checkin_records"("status");
 CREATE INDEX "checkins_date_idx" ON "checkin_records"("checked_in_at");
 CREATE INDEX "checkins_reviewer_idx" ON "checkin_records"("reviewed_by");

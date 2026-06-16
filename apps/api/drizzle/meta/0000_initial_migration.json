@@ -720,6 +720,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "camp_id": {
+          "name": "camp_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "content": {
           "name": "content",
           "type": "text",
@@ -790,6 +796,11 @@
           "columns": ["chapter_id"],
           "isUnique": false
         },
+        "checkins_camp_idx": {
+          "name": "checkins_camp_idx",
+          "columns": ["camp_id"],
+          "isUnique": false
+        },
         "checkins_status_idx": {
           "name": "checkins_status_idx",
           "columns": ["status"],
@@ -821,6 +832,15 @@
           "tableFrom": "checkin_records",
           "tableTo": "chapters",
           "columnsFrom": ["chapter_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "checkin_records_camp_id_training_camps_id_fk": {
+          "name": "checkin_records_camp_id_training_camps_id_fk",
+          "tableFrom": "checkin_records",
+          "tableTo": "training_camps",
+          "columnsFrom": ["camp_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -1242,6 +1262,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "completed_by": {
+          "name": "completed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1318,6 +1350,24 @@
           "tableFrom": "todos",
           "tableTo": "users",
           "columnsFrom": ["assignee_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "todos_completed_by_users_id_fk": {
+          "name": "todos_completed_by_users_id_fk",
+          "tableFrom": "todos",
+          "tableTo": "users",
+          "columnsFrom": ["completed_by"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "todos_created_by_users_id_fk": {
+          "name": "todos_created_by_users_id_fk",
+          "tableFrom": "todos",
+          "tableTo": "users",
+          "columnsFrom": ["created_by"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
