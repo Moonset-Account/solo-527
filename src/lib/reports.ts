@@ -1,5 +1,4 @@
 import prisma from './prisma'
-import type { DailyReport } from '@prisma/client'
 
 export interface DailyStats {
   date: string
@@ -15,10 +14,10 @@ export interface DailyStats {
 export const generateDailyReport = async (
   date: Date,
   userId: string
-): Promise<DailyReport> => {
+) => {
   const startOfDay = new Date(date)
   startOfDay.setHours(0, 0, 0, 0)
-  
+
   const endOfDay = new Date(date)
   endOfDay.setHours(23, 59, 59, 999)
 
@@ -37,21 +36,21 @@ export const generateDailyReport = async (
 
   const totalConversations = conversations.length
 
-  const conversationsWithRetrieval = conversations.filter(c => c.retrievalRecords.length > 0)
-  const hitConversations = conversationsWithRetrieval.filter(c => 
-    c.retrievalRecords.some(r => r.isHit)
+  const conversationsWithRetrieval = conversations.filter((c: typeof conversations[number]) => c.retrievalRecords.length > 0)
+  const hitConversations = conversationsWithRetrieval.filter((c: typeof conversationsWithRetrieval[number]) =>
+    c.retrievalRecords.some((r: { isHit: boolean }) => r.isHit)
   )
-  const hitRate = conversationsWithRetrieval.length > 0 
-    ? hitConversations.length / conversationsWithRetrieval.length 
+  const hitRate = conversationsWithRetrieval.length > 0
+    ? hitConversations.length / conversationsWithRetrieval.length
     : 0
 
-  const conversationsWithAccuracy = conversations.filter(c => c.accuracyScore !== null)
+  const conversationsWithAccuracy = conversations.filter((c: typeof conversations[number]) => c.accuracyScore !== null)
   const accuracyRate = conversationsWithAccuracy.length > 0
-    ? conversationsWithAccuracy.reduce((sum, c) => sum + (c.accuracyScore || 0), 0) / conversationsWithAccuracy.length
+    ? conversationsWithAccuracy.reduce((sum: number, c: typeof conversationsWithAccuracy[number]) => sum + (c.accuracyScore || 0), 0) / conversationsWithAccuracy.length
     : 0
 
   const uniqueKnowledgeUsed = new Set(
-    conversations.flatMap(c => c.retrievalRecords.map(r => r.knowledgeId))
+    conversations.flatMap((c: typeof conversations[number]) => c.retrievalRecords.map((r: { knowledgeId: string }) => r.knowledgeId))
   ).size
 
   const expiredKnowledge = await prisma.knowledgeBase.count({
@@ -60,7 +59,7 @@ export const generateDailyReport = async (
     },
   })
 
-  const riskCount = conversations.filter(c => c.riskSample !== null).length
+  const riskCount = conversations.filter((c: typeof conversations[number]) => c.riskSample !== null).length
 
   const report = await prisma.dailyReport.upsert({
     where: {
@@ -99,8 +98,8 @@ export const getReportTrend = async (days = 7): Promise<DailyStats[]> => {
   })
 
   return reports
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .map(report => ({
+    .sort((a: { date: { getTime: () => number } }, b: { date: { getTime: () => number } }) => a.date.getTime() - b.date.getTime())
+    .map((report: { date: { toISOString: () => string }; totalConversations: number; hitRate: number; accuracyRate: number; avgResponseTime: number; knowledgeUsed: number; expiredKnowledge: number; riskCount: number }) => ({
       date: report.date.toISOString().split('T')[0],
       totalConversations: report.totalConversations,
       hitRate: report.hitRate,
@@ -134,7 +133,7 @@ export const getCoverageByOwner = async (): Promise<Array<{
     },
   })
 
-  const ownerMap = new Map(owners.map(o => [o.id, o.name]))
+  const ownerMap = new Map(owners.map((o: { id: string; name: string }) => [o.id, o.name]))
 
   const result = new Map<string, {
     ownerName: string
@@ -145,7 +144,7 @@ export const getCoverageByOwner = async (): Promise<Array<{
   }>()
 
   for (const item of knowledgeByOwner) {
-    const ownerName = ownerMap.get(item.ownerId) || '未知负责人'
+    const ownerName: string = ownerMap.get(item.ownerId) || '未知负责人'
     if (!result.has(item.ownerId)) {
       result.set(item.ownerId, {
         ownerName,
@@ -182,7 +181,7 @@ export const getExpireReasonStats = async (): Promise<Array<{
   })
 
   const reasonMap = new Map<string, number>()
-  
+
   for (const item of expiredKnowledge) {
     const reason = item.expireReason || 'OTHER'
     reasonMap.set(reason, (reasonMap.get(reason) || 0) + 1)
@@ -224,7 +223,7 @@ export const getKnowledgeByDate = async (): Promise<Array<{
   })
 
   const dateMap = new Map<string, number>()
-  
+
   for (const item of knowledgeByDate) {
     const date = item.createdAt.toISOString().split('T')[0]
     dateMap.set(date, (dateMap.get(date) || 0) + item._count)

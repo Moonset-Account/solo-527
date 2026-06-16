@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, BookOpen, BarChart3, AlertTriangle, Settings, Bell } from 'lucide-react'
+import { MessageSquare, BookOpen, BarChart3, AlertTriangle, Settings } from 'lucide-react'
+import NotificationCenter from './NotificationCenter'
 
 interface NavItem {
   href: string
@@ -10,7 +11,22 @@ interface NavItem {
   icon: React.ReactNode
 }
 
-export default function Navbar({ unreadCount = 0 }: { unreadCount?: number }) {
+interface NotificationItem {
+  id: string
+  type: string
+  title: string
+  message: string
+  status: string
+  createdAt: string
+}
+
+export default function Navbar({
+  unreadCount = 0,
+  notifications = [],
+}: {
+  unreadCount?: number
+  notifications?: NotificationItem[]
+}) {
   const pathname = usePathname()
 
   const navItems: NavItem[] = [
@@ -65,7 +81,7 @@ export default function Navbar({ unreadCount = 0 }: { unreadCount?: number }) {
               </span>
             </Link>
           </div>
-          
+
           <div className="flex items-center space-x-1">
             {navItems.map((item) => (
               <Link
@@ -79,24 +95,9 @@ export default function Navbar({ unreadCount = 0 }: { unreadCount?: number }) {
               >
                 {item.icon}
                 <span>{item.label}</span>
-                {item.href === '/' && unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
               </Link>
             ))}
-            <Link
-              href="/notifications"
-              className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </Link>
+            <NotificationCenter initialNotifications={notifications} />
           </div>
         </div>
       </div>

@@ -81,7 +81,8 @@ model User {
   createdKnowledge KnowledgeBase[] @relation("KnowledgeCreator")
   responsibleKnowledge KnowledgeBase[] @relation("KnowledgeOwner")
   notifications Notification[]
-  reports       DailyReport[]
+  reports       DailyReport[]  @relation("ReportGenerator")
+  promptVersions PromptVersion[]
 }
 
 model KnowledgeBase {
@@ -107,7 +108,7 @@ model KnowledgeBase {
 
 model PromptVersion {
   id             String   @id @default(cuid())
-  version        String
+  version        String   @unique
   content        String
   description    String?
   isActive       Boolean  @default(false)
@@ -220,5 +221,5 @@ model DailyReport {
   riskCount        Int      @default(0)
   createdAt        DateTime @default(now())
   generatedById    String
-  generatedBy      User     @relation(fields: [generatedById], references: [id])
+  generatedBy      User     @relation("ReportGenerator", fields: [generatedById], references: [id])
 }

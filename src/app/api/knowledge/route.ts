@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     console.error('Create knowledge error:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: error.errors[0].message },
+        { success: false, error: error.issues[0].message },
         { status: 400 }
       )
     }
@@ -147,7 +147,8 @@ export async function PUT(request: Request) {
   try {
     await requireRole('ADMIN', 'TRAINER')
     const body = await request.json()
-    const { id, ...data } = updateKnowledgeSchema.parse(body)
+    const id = (body as Record<string, unknown>).id as string | undefined
+    const data = updateKnowledgeSchema.parse(body)
     const user = await getCurrentUser()
 
     if (!id) {
@@ -198,7 +199,7 @@ export async function PUT(request: Request) {
     console.error('Update knowledge error:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: error.errors[0].message },
+        { success: false, error: error.issues[0].message },
         { status: 400 }
       )
     }

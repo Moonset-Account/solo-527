@@ -1,5 +1,5 @@
 import prisma from './prisma'
-import type { NotificationType, Notification } from '@prisma/client'
+import type { NotificationType, Prisma } from '@prisma/client'
 
 interface CreateNotificationParams {
   userId: string
@@ -11,23 +11,23 @@ interface CreateNotificationParams {
 
 export const createNotification = async (
   params: CreateNotificationParams
-): Promise<Notification> => {
+) => {
   const { userId, type, title, message, metadata } = params
 
   const notification = await prisma.notification.create({
     data: {
-      userId,
       type,
       title,
       message,
-      metadata: metadata as Prisma.JsonValue | undefined,
+      metadata: metadata as Prisma.InputJsonValue,
+      user: { connect: { id: userId } },
     },
   })
 
   return notification
 }
 
-export const getUnreadNotifications = async (userId: string): Promise<Notification[]> => {
+export const getUnreadNotifications = async (userId: string) => {
   return prisma.notification.findMany({
     where: {
       userId,
@@ -43,7 +43,7 @@ export const getUnreadNotifications = async (userId: string): Promise<Notificati
 export const markNotificationAsRead = async (
   notificationId: string,
   userId: string
-): Promise<Notification | null> => {
+) => {
   return prisma.notification.updateMany({
     where: {
       id: notificationId,
@@ -89,7 +89,7 @@ export const checkAccuracyThreshold = async (): Promise<void> => {
 
   if (conversations.length < 10) return
 
-  const avgAccuracy = conversations.reduce((sum, c) => sum + (c.accuracyScore || 0), 0) / conversations.length
+  const avgAccuracy = conversations.reduce((sum: number, c: { accuracyScore: number | null }) => sum + (c.accuracyScore || 0), 0) / conversations.length
 
   if (avgAccuracy < 0.7) {
     const supervisors = await prisma.user.findMany({
@@ -141,10 +141,8 @@ export const checkKnowledgeExpiring = async (): Promise<void> => {
       message: `知识库条目"${knowledge.title}"将于${knowledge.expireDate?.toLocaleDateString('zh-CN')}过期，请及时处理。`,
       metadata: {
         knowledgeId: knowledge.id,
-        expireDate: knowledge.expireDate,
+        expireDate: knowledge.expireDate?.toISOString(),
       },
     })
   }
 }
-
-import type { JsonValue, Prisma } from '@prisma/client'

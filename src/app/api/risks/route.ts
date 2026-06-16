@@ -65,7 +65,8 @@ export async function PUT(request: Request) {
   try {
     await requireRole('ADMIN', 'SUPERVISOR')
     const body = await request.json()
-    const { id, resolutionNote } = resolveRiskSchema.parse(body)
+    const id = (body as Record<string, unknown>).id as string | undefined
+    const { resolutionNote } = resolveRiskSchema.parse(body)
     const user = await getCurrentUser()
 
     if (!id) {
@@ -104,7 +105,7 @@ export async function PUT(request: Request) {
     console.error('Resolve risk error:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: error.errors[0].message },
+        { success: false, error: error.issues[0].message },
         { status: 400 }
       )
     }

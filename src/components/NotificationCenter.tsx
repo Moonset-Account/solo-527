@@ -21,7 +21,7 @@ export default function NotificationCenter({ initialNotifications }: { initialNo
 
   const unreadCount = notifications.filter(n => n.status === 'UNREAD').length
 
-  const [, markReadAction] = useActionState(markNotificationRead, { success: false })
+  const [, markReadAction] = useActionState(markNotificationRead, { success: false, error: '' })
 
   const handleMarkAllRead = async () => {
     const formData = new FormData()

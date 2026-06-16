@@ -91,7 +91,8 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, ...data } = updateConversationSchema.parse(body)
+    const id = (body as Record<string, unknown>).id as string | undefined
+    const data = updateConversationSchema.parse(body)
     const user = await getCurrentUser()
 
     if (!id) {
@@ -144,7 +145,7 @@ export async function PUT(request: Request) {
     console.error('Update conversation error:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: error.errors[0].message },
+        { success: false, error: error.issues[0].message },
         { status: 400 }
       )
     }

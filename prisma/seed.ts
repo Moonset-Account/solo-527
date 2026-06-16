@@ -125,11 +125,10 @@ async function main() {
   ]
 
   for (const data of knowledgeData) {
-    await prisma.knowledgeBase.upsert({
-      where: { title: data.title },
-      update: {},
-      create: data,
-    })
+    const existing = await prisma.knowledgeBase.findFirst({ where: { title: data.title } })
+    if (!existing) {
+      await prisma.knowledgeBase.create({ data })
+    }
   }
 
   console.log(`创建了 ${knowledgeData.length} 条知识库数据`)
@@ -196,12 +195,12 @@ async function main() {
     },
   ]
 
-  const returnPolicy = await prisma.knowledgeBase.findUnique({ where: { title: '产品退换货政策' } })
-  const pointsPolicy = await prisma.knowledgeBase.findUnique({ where: { title: '会员积分规则说明' } })
-  const shippingPolicy = await prisma.knowledgeBase.findUnique({ where: { title: '配送时间及运费标准' } })
-  const warrantyPolicy = await prisma.knowledgeBase.findUnique({ where: { title: '产品保修政策' } })
-  const couponPolicy = await prisma.knowledgeBase.findUnique({ where: { title: '优惠券使用规则' } })
-  const securityGuide = await prisma.knowledgeBase.findUnique({ where: { title: '账户安全保护指南' } })
+  const returnPolicy = await prisma.knowledgeBase.findFirst({ where: { title: '产品退换货政策' } })
+  const pointsPolicy = await prisma.knowledgeBase.findFirst({ where: { title: '会员积分规则说明' } })
+  const shippingPolicy = await prisma.knowledgeBase.findFirst({ where: { title: '配送时间及运费标准' } })
+  const warrantyPolicy = await prisma.knowledgeBase.findFirst({ where: { title: '产品保修政策' } })
+  const couponPolicy = await prisma.knowledgeBase.findFirst({ where: { title: '优惠券使用规则' } })
+  const securityGuide = await prisma.knowledgeBase.findFirst({ where: { title: '账户安全保护指南' } })
 
   const conversationKnowledgeMap = [
     returnPolicy,

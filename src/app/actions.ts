@@ -13,7 +13,7 @@ const chatSchema = z.object({
   question: z.string().min(1, '问题不能为空').max(1000, '问题不能超过1000个字符'),
 })
 
-export async function submitQuestion(prevState: any, formData: FormData) {
+export async function submitQuestion(prevState: { success: boolean; error: string; data: unknown }, formData: FormData) {
   try {
     const question = formData.get('question') as string
     const validated = chatSchema.parse({ question })
@@ -50,6 +50,7 @@ export async function submitQuestion(prevState: any, formData: FormData) {
 
     return {
       success: true,
+      error: '',
       data: {
         conversationId: conversation.id,
         question: validated.question,
@@ -67,9 +68,9 @@ export async function submitQuestion(prevState: any, formData: FormData) {
   } catch (error) {
     console.error('Submit question error:', error)
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message, data: null }
     }
-    return { success: false, error: '服务器内部错误' }
+    return { success: false, error: '服务器内部错误', data: null }
   }
 }
 

@@ -62,8 +62,8 @@ function ReportCharts() {
   const [loading, setLoading] = useState(true)
 
   const [state, formAction] = useActionState(generateReport, {
-    success: false,
-    error: null,
+    success: false as const,
+    error: '' as string,
   })
 
   useEffect(() => {
@@ -260,7 +260,8 @@ function ReportCharts() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ reason, percent }) => `${reason} ${(percent * 100).toFixed(0)}%`}
+                nameKey="reason"
+                label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''} ${((percent || 0) * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="count"
@@ -323,7 +324,7 @@ function ReportCharts() {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${item.total > 0 ? (item.active / item.total * 100 : 0}%` }}
+                      style={{ width: `${item.total > 0 ? (item.active / item.total * 100) : 0}%` }}
                     />
                   </div>
                   <span className="text-xs text-gray-500 mt-1">

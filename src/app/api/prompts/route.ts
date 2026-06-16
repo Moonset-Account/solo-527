@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const validated = createPromptSchema.parse(body)
     const user = await getCurrentUser()
 
-    const existing = await prisma.promptVersion.findUnique({
+    const existing = await prisma.promptVersion.findFirst({
       where: { version: validated.version },
     })
 
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     console.error('Create prompt error:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, error: error.errors[0].message },
+        { success: false, error: error.issues[0].message },
         { status: 400 }
       )
     }

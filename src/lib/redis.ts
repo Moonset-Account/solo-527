@@ -11,7 +11,6 @@ export const getRedisClient = (): Redis => {
     redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      retryDelayOnFailover: 100,
     })
 
     redis.on('error', (error) => {
