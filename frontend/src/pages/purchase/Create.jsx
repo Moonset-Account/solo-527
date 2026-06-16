@@ -93,7 +93,7 @@ export default function Create() {
       unitPrice: 0,
       subtotal: 0,
       remark: '',
-      expectedDeliveryDate: null,
+      expectedDate: null,
     };
     setItems([...items, newItem]);
   };
@@ -145,8 +145,8 @@ export default function Create() {
       setSubmitting(true);
       const payload = {
         ...values,
-        expectedDeliveryDate: values.expectedDeliveryDate ? values.expectedDeliveryDate.format('YYYY-MM-DD') : null,
-        needQc: values.needQc || false,
+        expectedDate: values.expectedDate ? values.expectedDate.format('YYYY-MM-DD') : null,
+        requireQc: values.requireQc !== undefined ? Boolean(values.requireQc) : false,
         urgentLevel: Number(values.urgentLevel) || 1,
         items: items.map((item) => ({
           productId: item.productId,
@@ -157,7 +157,7 @@ export default function Create() {
           unitPrice: Number(item.unitPrice),
           subtotal: Number(item.subtotal),
           remark: item.remark,
-          expectedDeliveryDate: item.expectedDeliveryDate ? dayjs(item.expectedDeliveryDate).format('YYYY-MM-DD') : null,
+          expectedDate: item.expectedDate ? dayjs(item.expectedDate).format('YYYY-MM-DD') : null,
         })),
       };
       const res = await purchaseApi.create(payload);
@@ -260,14 +260,14 @@ export default function Create() {
     },
     {
       title: '预期到货日',
-      dataIndex: 'expectedDeliveryDate',
-      key: 'expectedDeliveryDate',
+      dataIndex: 'expectedDate',
+      key: 'expectedDate',
       width: 160,
       render: (_, record) => (
         <DatePicker
           style={{ width: '100%' }}
-          value={record.expectedDeliveryDate ? dayjs(record.expectedDeliveryDate) : null}
-          onChange={(d) => handleItemChange(record.key, 'expectedDeliveryDate', d)}
+          value={record.expectedDate ? dayjs(record.expectedDate) : null}
+          onChange={(d) => handleItemChange(record.key, 'expectedDate', d)}
         />
       ),
     },
@@ -364,7 +364,7 @@ export default function Create() {
             <Col span={8}>
               <Form.Item
                 label="要求到货日期"
-                name="expectedDeliveryDate"
+                name="expectedDate"
                 rules={[{ required: true, message: '请选择要求到货日期' }]}
               >
                 <DatePicker style={{ width: '100%' }} />
@@ -391,7 +391,7 @@ export default function Create() {
             <Col span={8}>
               <Form.Item
                 label="是否需质检"
-                name="needQc"
+                name="requireQc"
                 valuePropName="checked"
                 initialValue={false}
               >

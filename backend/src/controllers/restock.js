@@ -262,7 +262,7 @@ export async function handleSuggestionAction(req, res) {
       const updatedSuggestion = await tx.restockSuggestion.update({
         where: { id: Number(id) },
         data: {
-          status: 'PO_CREATED',
+          status: 'PURCHASED',
           handledAt: new Date(),
           purchaseOrderId: po.id,
           remark: remark || suggestion.remark,

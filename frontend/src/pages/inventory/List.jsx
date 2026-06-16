@@ -249,19 +249,37 @@ export default function List() {
     }
   };
 
-  const handleStocktake = () => {
+  const handleStocktake = async () => {
     modal.confirm({
       title: '确认盘点',
-      content: '确定要开始盘点吗？',
+      content: '确定要开始盘点吗？系统会生成所有正常状态批次的盘点确认单。',
       onOk: async () => {
         try {
-          await batchOpApi.preview({
+          const preview = await batchOpApi.preview({
             opType: 'BATCH_UPDATE_BATCH_STATUS',
             filters: { status: 'NORMAL' },
           });
-          message.success('已生成盘点预单，请在批量操作中确认');
+          const items = preview.data?.items || [];
+          const itemIds = items.map((it) => it.id);
+          if (itemIds.length === 0) {
+            message.warning('没有需要盘点的正常批次');
+            return;
+          }
+          const res = await batchOpApi.create({
+            opType: 'BATCH_UPDATE_BATCH_STATUS',
+            title: `库存盘点-${new Date().toLocaleDateString('zh-CN')}`,
+            itemIds,
+            params: { newStatus: 'NORMAL', reason: '库存盘点核对' },
+          });
+          message.success('已生成盘点确认单');
+          const opId = res.data?.id;
+          if (opId) {
+            navigate(`/batch-ops/${opId}/confirm`);
+          } else {
+            navigate('/batch-ops');
+          }
         } catch (e) {
-          message.error('操作失败');
+          message.error(e?.message || '操作失败');
         }
       },
     });

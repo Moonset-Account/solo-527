@@ -233,10 +233,12 @@ export default function List() {
       const values = await purchaseForm.validateFields();
       setSubmittingPurchase(true);
       await restockApi.action(purchaseRecord.id, {
-        action: 'PURCHASE',
+        action: 'CREATE_PO',
         supplierId: values.supplierId,
         quantity: values.quantity,
-        mergeSame: values.mergeSame,
+        unitPrice: values.unitPrice,
+        expectedDate: values.expectedDate ? values.expectedDate.format('YYYY-MM-DD') : undefined,
+        remark: values.remark,
       });
       message.success('采购单生成成功');
       setPurchaseModalOpen(false);
@@ -266,7 +268,7 @@ export default function List() {
         try {
           await Promise.all(
             pendingItems.map((item) =>
-              restockApi.action(item.id, { action: 'PURCHASE', quantity: item.suggestedQty })
+              restockApi.action(item.id, { action: 'CREATE_PO', quantity: item.suggestedQty })
             )
           );
           message.success('批量生成成功');
