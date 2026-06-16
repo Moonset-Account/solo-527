@@ -46,16 +46,26 @@ refundsRouter.get('/rules', async (c) => {
 
 refundsRouter.post('/rules', zValidator('json', createRuleSchema), async (c) => {
   const data = c.req.valid('json');
-  const result = await db.insert(refundRules).values(data).returning();
+  const result = await db
+    .insert(refundRules)
+    .values({
+      ...data,
+      refundRate: data.refundRate !== undefined ? String(data.refundRate) : undefined,
+    })
+    .returning();
   return c.json(result[0], 201);
 });
 
 refundsRouter.put('/rules/:id', zValidator('json', createRuleSchema.partial()), async (c) => {
   const id = c.req.param('id');
   const data = c.req.valid('json');
+  const updateData: any = { ...data, updatedAt: new Date() };
+  if (data.refundRate !== undefined) {
+    updateData.refundRate = String(data.refundRate);
+  }
   const result = await db
     .update(refundRules)
-    .set({ ...data, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(refundRules.id, id))
     .returning();
   if (result.length === 0) {
@@ -172,6 +182,7 @@ refundsRouter.post('/requests', zValidator('json', createRequestSchema), async (
     .insert(refundRequests)
     .values({
       ...data,
+      amount: String(data.amount),
       status: 'pending',
       requestedAt: new Date(),
     })

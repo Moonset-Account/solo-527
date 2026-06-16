@@ -107,6 +107,7 @@ campsRouter.post('/', zValidator('json', createCampSchema), async (c) => {
     .insert(trainingCamps)
     .values({
       ...data,
+      price: data.price !== undefined ? String(data.price) : undefined,
       status: data.status || 'draft',
     })
     .returning();
@@ -116,12 +117,13 @@ campsRouter.post('/', zValidator('json', createCampSchema), async (c) => {
 campsRouter.put('/:id', zValidator('json', updateCampSchema), async (c) => {
   const id = c.req.param('id');
   const data = c.req.valid('json');
+  const updateData: any = { ...data, updatedAt: new Date() };
+  if (data.price !== undefined) {
+    updateData.price = String(data.price);
+  }
   const result = await db
     .update(trainingCamps)
-    .set({
-      ...data,
-      updatedAt: new Date(),
-    })
+    .set(updateData)
     .where(eq(trainingCamps.id, id))
     .returning();
   if (result.length === 0) {

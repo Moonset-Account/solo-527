@@ -107,7 +107,13 @@ benefitsRouter.get('/:id', async (c) => {
 
 benefitsRouter.post('/', zValidator('json', createBenefitSchema), async (c) => {
   const data = c.req.valid('json');
-  const result = await db.insert(memberBenefits).values(data).returning();
+  const result = await db
+    .insert(memberBenefits)
+    .values({
+      ...data,
+      value: data.value !== undefined ? String(data.value) : undefined,
+    })
+    .returning();
   return c.json(result[0], 201);
 });
 

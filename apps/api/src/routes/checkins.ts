@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { eq, and, desc, gte, lte, asc } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, asc, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { checkinRecords, members, users, chapters, trainingCamps } from '../db/schema';
 import { paginate, parsePagination } from '../lib/utils';

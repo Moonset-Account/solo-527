@@ -234,25 +234,28 @@ statsRouter.get('/conversion-sources', async (c) => {
     .groupBy(members.conversionSource)
     .orderBy(desc(sql`count(*)`));
 
+  const salesWhere = where
+    ? and(where, sql`${members.salesPerson} is not null`)
+    : sql`${members.salesPerson} is not null`;
+
   const bySalesPerson = await db
     .select({
       salesPerson: members.salesPerson,
       count: sql<number>`count(*)`,
     })
     .from(members)
-    .where(where)
-    .where(sql`${members.salesPerson} is not null`)
+    .where(salesWhere)
     .groupBy(members.salesPerson)
     .orderBy(desc(sql`count(*)`))
     .limit(10);
 
   return c.json({
-    bySource: bySource.map((s) => ({
+    bySource: bySource.map((s: any) => ({
       source: s.source,
       count: Number(s.count),
       totalAmount: Number(s.total || 0),
     })),
-    bySalesPerson: bySalesPerson.map((s) => ({
+    bySalesPerson: bySalesPerson.map((s: any) => ({
       salesPerson: s.salesPerson!,
       count: Number(s.count),
     })),

@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet, createRoute, createLazyRoute } from '@tanstack/react-router';
+import { createRootRoute, Outlet, createRoute } from '@tanstack/react-router';
 import RootLayout from '../components/layout/RootLayout';
 import DashboardPage from '../pages/DashboardPage';
 import CampsPage from '../pages/CampsPage';

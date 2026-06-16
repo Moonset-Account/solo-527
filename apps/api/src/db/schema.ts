@@ -9,6 +9,7 @@ import {
   uuid,
   pgEnum,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -145,7 +146,7 @@ export const memberProgress = pgTable('member_progress', {
 }, (t) => ({
   memberIdx: index('progress_member_idx').on(t.memberId),
   chapterIdx: index('progress_chapter_idx').on(t.chapterId),
-  uniqueIdx: index('progress_unique_idx').on(t.memberId, t.chapterId).unique(),
+  uniqueIdx: uniqueIndex('progress_unique_idx').on(t.memberId, t.chapterId),
 }));
 
 export const checkinRecords = pgTable('checkin_records', {
