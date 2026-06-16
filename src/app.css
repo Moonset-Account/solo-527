@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+	--color-ink: #1a2332;
+	--color-ink-light: #2a3a52;
+	--color-ink-lighter: #3d5173;
+	--color-copper: #e07a3a;
+	--color-copper-light: #f09a5e;
+	--color-copper-dark: #c46528;
+	--color-warm-gray: #f5f3ef;
+	--color-warm-gray-dark: #e8e4dd;
+	--color-card: #ffffff;
+	--color-success: #2d9a6f;
+	--color-success-light: #e8f5ee;
+	--color-danger: #d94f4f;
+	--color-danger-light: #fde8e8;
+	--color-warning: #e6a817;
+	--color-warning-light: #fef7e0;
+	--font-serif: "Noto Serif SC", serif;
+	--font-sans: "Noto Sans SC", sans-serif;
+	--font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+	font-family: var(--font-sans);
+	background-color: var(--color-warm-gray);
+	color: var(--color-ink);
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: var(--font-serif);
+}
+
+.font-mono {
+	font-family: var(--font-mono);
+}
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--color-warm-gray);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--color-warm-gray-dark);
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--color-ink-lighter);
+}

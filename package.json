@@ -1,0 +1,36 @@
+{
+  "name": "news-planning-desk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:generate": "drizzle-kit generate",
+    "db:seed": "tsx src/lib/server/seed.ts"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^6.0.0",
+    "@sveltejs/kit": "^2.21.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "drizzle-kit": "^0.30.0",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.0.0",
+    "tailwindcss": "^4.1.0",
+    "tslib": "^2.8.0",
+    "typescript": "^6.0.3",
+    "vite": "^6.3.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.40.0",
+    "lucide-svelte": "^0.511.0",
+    "postgres": "^3.4.0",
+    "tsx": "^4.19.0"
+  },
+  "type": "module"
+}
