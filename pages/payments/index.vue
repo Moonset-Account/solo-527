@@ -1,5 +1,13 @@
 <template>
   <div class="p-6 space-y-6">
+    <ErrorToast
+      :visible="apiError.errorVisible.value"
+      :message="apiError.errorMessage.value"
+      :contact-person="apiError.errorContact.value"
+      :record-reference="apiError.errorRecordRef.value"
+      @close="apiError.hideError"
+    />
+
     <PageHeader title="支付管理" description="管理所有支付记录" />
 
     <div class="card">
@@ -154,6 +162,8 @@
 import { ref, computed, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 
+const apiError = useApiError()
+
 interface PaymentItem {
   id: string
   appointmentId: string
@@ -241,10 +251,14 @@ async function fetchPayments() {
   if (filterValues.value.dateFrom) query.dateFrom = filterValues.value.dateFrom
   if (filterValues.value.dateTo) query.dateTo = filterValues.value.dateTo
 
-  const res = await useFetch('/api/payments', { query })
-  if (res.data.value?.success) {
-    payments.value = res.data.value.data.items
-    total.value = res.data.value.data.total
+  try {
+    const res = await $fetch('/api/payments', { query })
+    if ((res as any)?.success) {
+      payments.value = (res as any).data.items
+      total.value = (res as any).data.total
+    }
+  } catch (error) {
+    apiError.showError(error, '获取支付列表失败')
   }
   loading.value = false
 }
@@ -264,6 +278,8 @@ async function confirmPayment(id: string) {
     if ((res as any)?.success) {
       await fetchPayments()
     }
+  } catch (error) {
+    apiError.showError(error, '确认支付失败')
   } finally {
     confirming.value = null
   }

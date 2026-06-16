@@ -1,5 +1,13 @@
 <template>
   <div class="p-6 space-y-6">
+    <ErrorToast
+      :visible="apiError.errorVisible.value"
+      :message="apiError.errorMessage.value"
+      :contact-person="apiError.errorContact.value"
+      :record-reference="apiError.errorRecordRef.value"
+      @close="apiError.hideError"
+    />
+
     <PageHeader title="经营看板" description="今日门店运营概览" />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -25,7 +33,7 @@
         title="转化率"
         :value="dashboard?.conversionRate != null ? `${dashboard.conversionRate}%` : '-'"
         :icon="TrendingUp"
-        :color="dashboard?.hasAlert ? 'danger' : 'warning'"
+        :color="dashboard?.hasAlert ? (dashboard.alertLevel === 'CRITICAL' ? 'danger' : 'warning') : 'success'"
       />
     </div>
 
@@ -34,10 +42,17 @@
         <h2 class="text-lg font-semibold text-gray-900 mb-4">到店转化预警</h2>
         <div v-if="dashboard?.hasAlert" class="space-y-3">
           <AlertCard
+            v-if="dashboard.alertLevel"
+            :level="dashboard.alertLevel === 'CRITICAL' ? 'critical' : 'warning'"
+            title="实时转化率预警"
+            :message="dashboard.alertMessage || ''"
+            timestamp="实时数据"
+          />
+          <AlertCard
             v-for="alert in dashboard.alerts"
             :key="alert.id"
             :level="alert.alertLevel === 'CRITICAL' ? 'critical' : 'warning'"
-            title="转化率预警"
+            title="历史转化率预警"
             :message="alert.message || `当前转化率 ${alert.conversionRate}%，低于阈值 ${alert.threshold}%`"
             :timestamp="new Date(alert.createdAt).toLocaleString('zh-CN')"
           />
@@ -46,7 +61,10 @@
           <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
             <CheckCircle class="w-5 h-5 text-success" />
           </div>
-          <span class="text-sm font-medium text-gray-700">转化率正常</span>
+          <div>
+            <span class="text-sm font-medium text-gray-700">转化率正常</span>
+            <p class="text-xs text-gray-500 mt-0.5">当前转化率 {{ dashboard?.conversionRate ?? 0 }}%，阈值 60%</p>
+          </div>
         </div>
       </div>
 
@@ -112,6 +130,8 @@
 import { ref, onMounted } from 'vue'
 import { CalendarCheck, Banknote, Users, TrendingUp, CheckCircle, ChevronRight, Inbox } from 'lucide-vue-next'
 
+const apiError = useApiError()
+
 interface DashboardAlert {
   id: string
   storeId: string
@@ -128,7 +148,10 @@ interface DashboardData {
   todayRevenue: number
   todayFootTraffic: number
   conversionRate: number
+  conversionThreshold: number
   hasAlert: boolean
+  alertLevel: string | null
+  alertMessage: string | null
   alerts: DashboardAlert[]
   pendingTasks: number
 }
@@ -173,20 +196,24 @@ function formatDateTime(dateStr: string): string {
 }
 
 onMounted(async () => {
-  const [dashRes, tasksRes, aptRes] = await Promise.all([
-    useFetch('/api/statistics/dashboard'),
-    useFetch('/api/tasks', { query: { status: 'PENDING', pageSize: 5 } }),
-    useFetch('/api/appointments', { query: { pageSize: 5 } }),
-  ])
+  try {
+    const [dashRes, tasksRes, aptRes] = await Promise.all([
+      $fetch('/api/statistics/dashboard'),
+      $fetch('/api/tasks', { query: { status: 'PENDING', pageSize: 5 } }),
+      $fetch('/api/appointments', { query: { pageSize: 5 } }),
+    ])
 
-  if (dashRes.data.value?.success) {
-    dashboard.value = dashRes.data.value.data
-  }
-  if (tasksRes.data.value?.success) {
-    pendingTasks.value = tasksRes.data.value.data.items
-  }
-  if (aptRes.data.value?.success) {
-    recentAppointments.value = aptRes.data.value.data.items
+    if ((dashRes as any)?.success) {
+      dashboard.value = (dashRes as any).data
+    }
+    if ((tasksRes as any)?.success) {
+      pendingTasks.value = (tasksRes as any).data.items
+    }
+    if ((aptRes as any)?.success) {
+      recentAppointments.value = (aptRes as any).data.items
+    }
+  } catch (error) {
+    apiError.showError(error, '加载看板数据失败')
   }
 })
 </script>

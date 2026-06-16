@@ -1,5 +1,13 @@
 <template>
   <div class="p-6 space-y-6">
+    <ErrorToast
+      :visible="apiError.errorVisible.value"
+      :message="apiError.errorMessage.value"
+      :contact-person="apiError.errorContact.value"
+      :record-reference="apiError.errorRecordRef.value"
+      @close="apiError.hideError"
+    />
+
     <PageHeader title="预约管理" description="管理所有客户预约">
       <button class="btn-primary" @click="showForm = true">
         <Plus class="w-4 h-4 mr-1" />
@@ -76,6 +84,7 @@
       :visible="showForm"
       :vehicles="vehicles"
       :users="users"
+      :store-id="storeId"
       @close="showForm = false"
       @saved="onFormSaved"
     />
@@ -141,6 +150,8 @@
 import { ref, computed, watch } from 'vue'
 import { Plus, X } from 'lucide-vue-next'
 
+const apiError = useApiError()
+
 interface AppointmentItem {
   id: string
   customerName: string
@@ -161,7 +172,10 @@ interface VehicleItem {
 interface UserItem {
   id: string
   name: string
+  storeId: string
 }
+
+const storeId = computed(() => users.value[0]?.storeId || '')
 
 const serviceTypeMap: Record<string, string> = {
   WASH: '洗车',
@@ -236,19 +250,27 @@ async function fetchAppointments() {
   if (filterValues.value.dateTo) query.dateTo = filterValues.value.dateTo
   if (filterValues.value.assigneeId) query.assigneeId = filterValues.value.assigneeId
 
-  const res = await useFetch('/api/appointments', { query })
-  if (res.data.value?.success) {
-    appointments.value = res.data.value.data.items
-    total.value = res.data.value.data.total
+  try {
+    const res = await $fetch('/api/appointments', { query })
+    if ((res as any)?.success) {
+      appointments.value = (res as any).data.items
+      total.value = (res as any).data.total
+    }
+  } catch (error) {
+    apiError.showError(error, '获取预约列表失败')
   }
   loading.value = false
 }
 
 async function openDetail(id: string) {
-  const res = await useFetch(`/api/appointments/${id}`)
-  if (res.data.value?.success) {
-    detailData.value = res.data.value.data
-    detailOpen.value = true
+  try {
+    const res = await $fetch(`/api/appointments/${id}`)
+    if ((res as any)?.success) {
+      detailData.value = (res as any).data
+      detailOpen.value = true
+    }
+  } catch (error) {
+    apiError.showError(error, '获取预约详情失败')
   }
 }
 
@@ -260,12 +282,16 @@ async function onFormSaved() {
 watch([filterValues, page], fetchAppointments, { deep: true })
 
 onMounted(async () => {
-  const [vehiclesRes, usersRes] = await Promise.all([
-    useFetch('/api/vehicles'),
-    useFetch('/api/users'),
-  ])
-  if (vehiclesRes.data.value?.success) vehicles.value = vehiclesRes.data.value.data
-  if (usersRes.data.value?.success) users.value = usersRes.data.value.data
+  try {
+    const [vehiclesRes, usersRes] = await Promise.all([
+      $fetch('/api/vehicles'),
+      $fetch('/api/users'),
+    ])
+    if ((vehiclesRes as any)?.success) vehicles.value = (vehiclesRes as any).data
+    if ((usersRes as any)?.success) users.value = (usersRes as any).data
+  } catch (error) {
+    apiError.showError(error, '加载基础数据失败')
+  }
   await fetchAppointments()
 })
 </script>

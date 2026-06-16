@@ -1,5 +1,31 @@
 <template>
   <div class="p-6 space-y-6">
+    <ErrorToast
+      :visible="apiError.errorVisible.value"
+      :message="apiError.errorMessage.value"
+      :contact-person="apiError.errorContact.value"
+      :record-reference="apiError.errorRecordRef.value"
+      @close="apiError.hideError"
+    />
+
+    <div
+      v-if="activeTab === 'conversion' && hasConversionAlert"
+      class="p-4 rounded-lg border-2"
+      :class="conversionAlertLevel === 'CRITICAL' ? 'bg-red-50 border-red-300' : 'bg-amber-50 border-amber-300'"
+    >
+      <div class="flex items-center gap-3">
+        <AlertTriangle :class="['w-6 h-6 shrink-0', conversionAlertLevel === 'CRITICAL' ? 'text-red-500' : 'text-amber-500']" />
+        <div class="flex-1">
+          <p :class="['font-semibold', conversionAlertLevel === 'CRITICAL' ? 'text-red-800' : 'text-amber-800']">
+            {{ conversionAlertLevel === 'CRITICAL' ? '高危预警' : '预警' }}：到店转化率低于 60% 阈值
+          </p>
+          <p :class="['text-sm mt-0.5', conversionAlertLevel === 'CRITICAL' ? 'text-red-700' : 'text-amber-700']">
+            当前周期内平均转化率 {{ averageConversionRate.toFixed(1) }}%，请及时分析原因并采取措施
+          </p>
+        </div>
+      </div>
+    </div>
+
     <PageHeader title="运营统计" description="查看运营数据及统计报表" />
 
     <div class="flex gap-2 border-b border-gray-200 pb-px">
@@ -123,15 +149,15 @@
             v-for="alert in alerts"
             :key="alert.id"
             class="flex items-center gap-3 p-3 rounded-lg border"
-            :class="alert.alertLevel === 'HIGH' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'"
+            :class="alert.alertLevel === 'CRITICAL' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'"
           >
-            <AlertTriangle :class="['w-5 h-5 shrink-0', alert.alertLevel === 'HIGH' ? 'text-red-500' : 'text-amber-500']" />
+            <AlertTriangle :class="['w-5 h-5 shrink-0', alert.alertLevel === 'CRITICAL' ? 'text-red-500' : 'text-amber-500']" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900">{{ alert.message || `转化率 ${Number(alert.conversionRate).toFixed(1)}% 低于阈值 ${Number(alert.threshold).toFixed(0)}%` }}</p>
               <p class="text-xs text-gray-500 mt-0.5">{{ alert.store?.name ?? '' }} · {{ formatDateTime(alert.createdAt) }}</p>
             </div>
-            <span :class="['badge text-xs', alert.alertLevel === 'HIGH' ? 'badge-refunded' : 'badge-pending']">
-              {{ alert.alertLevel === 'HIGH' ? '高危' : '警告' }}
+            <span :class="['badge text-xs', alert.alertLevel === 'CRITICAL' ? 'badge-refunded' : 'badge-pending']">
+              {{ alert.alertLevel === 'CRITICAL' ? '高危' : '警告' }}
             </span>
           </div>
         </div>
@@ -182,6 +208,8 @@ import { Line, Bar } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
+
+const apiError = useApiError()
 
 const tabs = [
   { key: 'revenue', label: '收入统计' },
@@ -254,9 +282,13 @@ async function fetchRevenue() {
   if (revenueFilters.value.dateTo) query.dateTo = revenueFilters.value.dateTo
   if (revenueFilters.value.period) query.period = revenueFilters.value.period
 
-  const res = await useFetch('/api/statistics/revenue', { query })
-  if (res.data.value?.success) {
-    revenueItems.value = res.data.value.data.items
+  try {
+    const res = await $fetch('/api/statistics/revenue', { query })
+    if ((res as any)?.success) {
+      revenueItems.value = (res as any).data.items
+    }
+  } catch (error) {
+    apiError.showError(error, '获取收入统计失败')
   }
 }
 
@@ -296,9 +328,13 @@ async function fetchTraffic() {
   if (trafficFilters.value.dateTo) query.dateTo = trafficFilters.value.dateTo
   if (trafficFilters.value.period) query.period = trafficFilters.value.period
 
-  const res = await useFetch('/api/statistics/traffic', { query })
-  if (res.data.value?.success) {
-    trafficItems.value = res.data.value.data.items
+  try {
+    const res = await $fetch('/api/statistics/traffic', { query })
+    if ((res as any)?.success) {
+      trafficItems.value = (res as any).data.items
+    }
+  } catch (error) {
+    apiError.showError(error, '获取客流统计失败')
   }
 }
 
@@ -349,15 +385,36 @@ const conversionChartOptions = {
   },
 }
 
+const averageConversionRate = computed(() => {
+  if (!conversionItems.value.length) return 0
+  const sum = conversionItems.value.reduce((s, i) => s + i.conversionRate, 0)
+  return sum / conversionItems.value.length
+})
+
+const hasConversionAlert = computed(() => {
+  return averageConversionRate.value < conversionThreshold.value
+})
+
+const conversionAlertLevel = computed(() => {
+  const avg = averageConversionRate.value
+  if (avg < 40) return 'CRITICAL'
+  if (avg < conversionThreshold.value) return 'WARNING'
+  return 'NORMAL'
+})
+
 async function fetchConversion() {
   const query: Record<string, string> = {}
   if (conversionFilters.value.dateFrom) query.dateFrom = conversionFilters.value.dateFrom
   if (conversionFilters.value.dateTo) query.dateTo = conversionFilters.value.dateTo
 
-  const res = await useFetch('/api/statistics/conversion', { query })
-  if (res.data.value?.success) {
-    conversionItems.value = res.data.value.data.items
-    conversionThreshold.value = res.data.value.data.threshold ?? 60
+  try {
+    const res = await $fetch('/api/statistics/conversion', { query })
+    if ((res as any)?.success) {
+      conversionItems.value = (res as any).data.items
+      conversionThreshold.value = (res as any).data.threshold ?? 60
+    }
+  } catch (error) {
+    apiError.showError(error, '获取转化率统计失败')
   }
 }
 
@@ -370,16 +427,24 @@ function turnoverClass(rate: number) {
 }
 
 async function fetchParts() {
-  const res = await useFetch('/api/statistics/parts-turnover')
-  if (res.data.value?.success) {
-    partsData.value = res.data.value.data
+  try {
+    const res = await $fetch('/api/statistics/parts-turnover')
+    if ((res as any)?.success) {
+      partsData.value = (res as any).data
+    }
+  } catch (error) {
+    apiError.showError(error, '获取配件周转报表失败')
   }
 }
 
 async function fetchAlerts() {
-  const res = await useFetch('/api/conversion-alerts')
-  if (res.data.value?.success) {
-    alerts.value = res.data.value.data
+  try {
+    const res = await $fetch('/api/conversion-alerts')
+    if ((res as any)?.success) {
+      alerts.value = (res as any).data
+    }
+  } catch (error) {
+    apiError.showError(error, '获取预警列表失败')
   }
 }
 

@@ -1,5 +1,13 @@
 <template>
   <div class="p-6 space-y-6">
+    <ErrorToast
+      :visible="apiError.errorVisible.value"
+      :message="apiError.errorMessage.value"
+      :contact-person="apiError.errorContact.value"
+      :record-reference="apiError.errorRecordRef.value"
+      @close="apiError.hideError"
+    />
+
     <PageHeader title="待办处理" description="处理待办任务及查看处理时间线" />
 
     <div class="card">
@@ -192,6 +200,8 @@
 import { ref, computed, watch } from 'vue'
 import { Calendar, User, Car, ListTodo, AlertTriangle } from 'lucide-vue-next'
 
+const apiError = useApiError()
+
 interface TaskItem {
   id: string
   title: string
@@ -306,10 +316,14 @@ async function fetchTasks() {
   if (filterValues.value.dateTo) query.dateTo = filterValues.value.dateTo
   if (filterValues.value.assigneeId) query.assigneeId = filterValues.value.assigneeId
 
-  const res = await useFetch('/api/tasks', { query })
-  if (res.data.value?.success) {
-    tasks.value = res.data.value.data.items
-    total.value = res.data.value.data.total
+  try {
+    const res = await $fetch('/api/tasks', { query })
+    if ((res as any)?.success) {
+      tasks.value = (res as any).data.items
+      total.value = (res as any).data.total
+    }
+  } catch (error) {
+    apiError.showError(error, '获取待办列表失败')
   }
   loading.value = false
 }
@@ -321,9 +335,13 @@ async function selectTask(task: TaskItem) {
 }
 
 async function fetchTimeline(taskId: string) {
-  const res = await useFetch(`/api/tasks/${taskId}/timeline`)
-  if (res.data.value?.success) {
-    timeline.value = res.data.value.data
+  try {
+    const res = await $fetch(`/api/tasks/${taskId}/timeline`)
+    if ((res as any)?.success) {
+      timeline.value = (res as any).data
+    }
+  } catch (error) {
+    apiError.showError(error, '获取待办时间线失败')
   }
 }
 
@@ -349,6 +367,8 @@ async function submitProcess() {
       await fetchTimeline(selectedTaskId.value)
       await fetchTasks()
     }
+  } catch (error) {
+    apiError.showError(error, '处理待办失败')
   } finally {
     submitting.value = false
   }
@@ -357,16 +377,20 @@ async function submitProcess() {
 watch([filterValues, page], fetchTasks, { deep: true })
 
 onMounted(async () => {
-  const [usersRes, templatesRes, paymentsRes, vehiclesRes] = await Promise.all([
-    useFetch('/api/users'),
-    useFetch('/api/templates'),
-    useFetch('/api/payments', { query: { status: 'PAID', pageSize: 100 } }),
-    useFetch('/api/vehicles'),
-  ])
-  if (usersRes.data.value?.success) users.value = usersRes.data.value.data
-  if (templatesRes.data.value?.success) templates.value = templatesRes.data.value.data
-  if (paymentsRes.data.value?.success) paidPayments.value = paymentsRes.data.value.data.items ?? paymentsRes.data.value.data
-  if (vehiclesRes.data.value?.success) vehicles.value = vehiclesRes.data.value.data
+  try {
+    const [usersRes, templatesRes, paymentsRes, vehiclesRes] = await Promise.all([
+      $fetch('/api/users'),
+      $fetch('/api/templates'),
+      $fetch('/api/payments', { query: { status: 'PAID', pageSize: 100 } }),
+      $fetch('/api/vehicles'),
+    ])
+    if ((usersRes as any)?.success) users.value = (usersRes as any).data
+    if ((templatesRes as any)?.success) templates.value = (templatesRes as any).data
+    if ((paymentsRes as any)?.success) paidPayments.value = (paymentsRes as any).data.items ?? (paymentsRes as any).data
+    if ((vehiclesRes as any)?.success) vehicles.value = (vehiclesRes as any).data
+  } catch (error) {
+    apiError.showError(error, '加载基础数据失败')
+  }
   await fetchTasks()
 })
 </script>

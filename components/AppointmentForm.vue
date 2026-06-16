@@ -87,17 +87,19 @@ interface VehicleItem {
 interface UserItem {
   id: string
   name: string
+  storeId?: string
 }
 
 const props = defineProps<{
   visible: boolean
   vehicles: VehicleItem[]
   users: UserItem[]
+  storeId: string
 }>()
 
 const emit = defineEmits<{
   close: []
-  saved: []
+  saved: [appointment?: any]
 }>()
 
 const defaultForm = () => ({
@@ -125,11 +127,11 @@ async function submit() {
       method: 'POST',
       body: {
         ...form.value,
-        storeId: 'default-store',
+        storeId: props.storeId,
       },
     })
     if ((res as any)?.success) {
-      emit('saved')
+      emit('saved', (res as any).data)
     }
   } finally {
     submitting.value = false

@@ -41,13 +41,23 @@ export default defineEventHandler(async (event) => {
     const totalToday = todayAppointments || 0
     const completedToday = completedAppointments || 0
     const conversionRate = totalToday > 0 ? Number(((completedToday / totalToday) * 100).toFixed(2)) : 0
+    const threshold = 60
+    const hasConversionAlert = conversionRate < threshold
+
+    const alertLevel = conversionRate < 40 ? 'CRITICAL' : conversionRate < threshold ? 'WARNING' : null
+    const alertMessage = alertLevel
+      ? `当前到店转化率 ${conversionRate}%，低于 ${threshold}% 阈值${alertLevel === 'CRITICAL' ? '，请立即关注' : ''}`
+      : null
 
     const data = {
       todayAppointments: totalToday,
       todayRevenue: Number(todayPayments._sum.amount || 0),
       todayFootTraffic: totalToday,
       conversionRate,
-      hasAlert: alerts.length > 0,
+      conversionThreshold: threshold,
+      hasAlert: hasConversionAlert || alerts.length > 0,
+      alertLevel,
+      alertMessage,
       alerts,
       pendingTasks,
     }
