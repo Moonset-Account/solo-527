@@ -1,0 +1,17 @@
+
+&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+  &lt;PropertyGroup&gt;
+    &lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;RootNamespace&gt;DentalClinic.Application&lt;/RootNamespace&gt;
+  &lt;/PropertyGroup&gt;
+  &lt;ItemGroup&gt;
+    &lt;ProjectReference Include="..\DentalClinic.Domain\DentalClinic.Domain.csproj" /&gt;
+  &lt;/ItemGroup&gt;
+  &lt;ItemGroup&gt;
+    &lt;PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" /&gt;
+    &lt;PackageReference Include="FluentValidation" Version="11.9.0" /&gt;
+    &lt;PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.0" /&gt;
+  &lt;/ItemGroup&gt;
+&lt;/Project&gt;
