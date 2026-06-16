@@ -52,6 +52,9 @@ export const BATCH_STATUS = {
   EXPIRED: { label: '已过期', color: 'red' },
   LOCKED: { label: '已锁定', color: 'blue' },
   DAMAGED: { label: '已报损', color: 'purple' },
+  CONSUMED: { label: '已出库', color: 'default' },
+  DESTROYED: { label: '已销毁', color: 'default' },
+  TRANSFERRED: { label: '已调拨', color: 'cyan' },
 };
 
 export const QC_STATUS = {

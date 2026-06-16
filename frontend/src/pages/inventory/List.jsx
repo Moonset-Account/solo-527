@@ -25,7 +25,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { inventoryApi, batchApi, categoryApi, exportApi } from '@/api/index.js';
+import { inventoryApi, batchApi, categoryApi, exportApi, batchOpApi } from '@/api/index.js';
 import StatusTag from '@/components/StatusTag.jsx';
 import {
   fmtNum,
@@ -254,7 +254,15 @@ export default function List() {
       title: '确认盘点',
       content: '确定要开始盘点吗？',
       onOk: async () => {
-        message.info('盘点功能开发中...');
+        try {
+          await batchOpApi.preview({
+            opType: 'BATCH_UPDATE_BATCH_STATUS',
+            filters: { status: 'NORMAL' },
+          });
+          message.success('已生成盘点预单，请在批量操作中确认');
+        } catch (e) {
+          message.error('操作失败');
+        }
       },
     });
   };

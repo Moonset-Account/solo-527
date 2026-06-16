@@ -83,6 +83,7 @@ export default function List() {
   const [status, setStatus] = useState();
   const [onlyPending, setOnlyPending] = useState(false);
   const [categoryId, setCategoryId] = useState();
+  const [supplierId, setSupplierId] = useState();
   const [dateRange, setDateRange] = useState(null);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -165,6 +166,7 @@ export default function List() {
     setStatus(undefined);
     setOnlyPending(false);
     setCategoryId(undefined);
+    setSupplierId(undefined);
     setDateRange(null);
     setPagination((p) => ({ ...p, current: 1 }));
   };
@@ -348,7 +350,8 @@ export default function List() {
 
   const handleExport = async () => {
     try {
-      message.info('导出功能开发中...');
+      await exportApi.restock({ status, categoryId, keyword, supplierId }, `补货建议_${Date.now()}.xlsx`);
+      message.success('导出成功');
     } catch (e) {
       message.error('导出失败');
     }

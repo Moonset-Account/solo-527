@@ -256,7 +256,23 @@ export default function NearExpiry() {
   };
 
   const handleTransfer = (record) => {
-    message.info('调拨功能开发中...');
+    modal.confirm({
+      title: '确认调拨',
+      content: `确定要将批次「${record.batchNo}」标记为调拨吗？`,
+      onOk: async () => {
+        try {
+          await batchApi.adjustStatus(record.id, {
+            status: 'TRANSFERRED',
+            reason: '效期调拨',
+          });
+          message.success('调拨成功');
+          fetchData(pagination.current, pagination.pageSize);
+          fetchStats();
+        } catch (e) {
+          message.error('操作失败');
+        }
+      },
+    });
   };
 
   const handleExport = async () => {

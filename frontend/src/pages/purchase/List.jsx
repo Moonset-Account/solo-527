@@ -242,7 +242,8 @@ export default function PurchaseList() {
   };
 
   const handleGenerateFromRestock = () => {
-    message.info('从补货建议生成功能开发中');
+    navigate('/restock');
+    message.success('请在补货建议页面选择条目后生成采购单');
   };
 
   const columns = [
@@ -448,7 +449,7 @@ export default function PurchaseList() {
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => message.info('新建采购单功能开发中')}
+                onClick={() => navigate('/purchase-orders/new')}
               >
                 新增采购单
               </Button>

@@ -14,6 +14,7 @@ import InventoryBatches from '../pages/inventory/Batches.jsx';
 import InventoryNearExpiry from '../pages/inventory/NearExpiry.jsx';
 import PurchaseList from '../pages/purchase/List.jsx';
 import PurchaseDetail from '../pages/purchase/Detail.jsx';
+import PurchaseCreate from '../pages/purchase/Create.jsx';
 import InboundList from '../pages/inbound/List.jsx';
 import InboundDetail from '../pages/inbound/Detail.jsx';
 import InboundScan from '../pages/inbound/Scan.jsx';
@@ -132,6 +133,8 @@ function RouterView() {
             <Route path="/inventory/batches" element={<InventoryBatches />} />
             <Route path="/inventory/near-expiry" element={<InventoryNearExpiry />} />
             <Route path="/purchase-orders" element={<PurchaseList />} />
+            <Route path="/purchase-orders/new" element={<PurchaseCreate />} />
+            <Route path="/purchase-orders/:id/edit" element={<PurchaseCreate />} />
             <Route path="/purchase-orders/:id" element={<PurchaseDetail />} />
             <Route path="/inbound-orders" element={<InboundList />} />
             <Route path="/inbound-orders/:id" element={<InboundDetail />} />

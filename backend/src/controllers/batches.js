@@ -346,7 +346,7 @@ export async function adjustBatchStatus(req, res) {
       return fail(res, '至少需要指定 status 或 qcStatus');
     }
 
-    const validStatuses = ['NORMAL', 'NEAR_EXPIRY', 'EXPIRED', 'LOCKED', 'CONSUMED', 'DAMAGED', 'DESTROYED'];
+    const validStatuses = ['NORMAL', 'NEAR_EXPIRY', 'EXPIRED', 'LOCKED', 'CONSUMED', 'DAMAGED', 'DESTROYED', 'TRANSFERRED'];
     const validQcStatuses = ['PENDING', 'QC_PASSED', 'QC_REJECTED', 'QC_PARTIAL'];
 
     if (status && !validStatuses.includes(status)) {

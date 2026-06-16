@@ -152,4 +152,5 @@ export const exportApi = {
   purchase: (d, name) => apiDownload('/export/purchase', d, 'post', name),
   inbound: (d, name) => apiDownload('/export/inbound', d, 'post', name),
   exception: (d, name) => apiDownload('/export/exception', d, 'post', name),
+  restock: (d, name) => apiDownload('/export/restock', d, 'post', name),
 };

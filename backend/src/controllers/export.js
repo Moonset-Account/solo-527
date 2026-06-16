@@ -569,3 +569,103 @@ export async function exportException(req, res) {
     return fail(res, '导出异常记录失败: ' + err.message);
   }
 }
+
+export async function exportRestock(req, res) {
+  try {
+    const { status, categoryId, keyword, supplierId, startDate, endDate } = req.query;
+
+    const where = {};
+    if (status) where.status = status;
+    if (supplierId) where.supplierId = Number(supplierId);
+    if (startDate || endDate) {
+      where.generatedAt = {};
+      if (startDate) where.generatedAt.gte = new Date(startDate);
+      if (endDate) where.generatedAt.lte = new Date(endDate);
+    }
+
+    const productWhere = {};
+    if (categoryId) productWhere.categoryId = Number(categoryId);
+    if (keyword) {
+      productWhere.OR = [
+        { sku: { contains: keyword } },
+        { name: { contains: keyword } },
+      ];
+    }
+
+    const productFilter = Object.keys(productWhere).length ? productWhere : undefined;
+
+    const suggestions = await prisma.restockSuggestion.findMany({
+      where: {
+        ...where,
+        product: productFilter,
+      },
+      orderBy: { generatedAt: 'desc' },
+      include: {
+        product: {
+          include: {
+            category: { select: { id: true, name: true } },
+            preferredSupplier: { select: { id: true, code: true, name: true } },
+          },
+        },
+      },
+    });
+
+    const supplierIds = [...new Set(suggestions.map((s) => s.supplierId).filter(Boolean))];
+    const suppliers = supplierIds.length
+      ? await prisma.supplier.findMany({
+          where: { id: { in: supplierIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const supplierMap = {};
+    suppliers.forEach((s) => (supplierMap[s.id] = s.name));
+
+    const statusMap = {
+      PENDING: '待处理',
+      PURCHASED: '已生成采购',
+      IGNORED: '已忽略',
+    };
+
+    const wb = createWorkbook();
+    const ws = wb.addWorksheet('补货建议');
+
+    addColumns(ws, [
+      { header: '生成时间', key: 'generatedAt', width: 18 },
+      { header: 'SKU', key: 'sku', width: 16 },
+      { header: '商品名', key: 'productName', width: 28 },
+      { header: '分类', key: 'category', width: 14 },
+      { header: '当前库存', key: 'currentStock', width: 12 },
+      { header: '安全库存', key: 'minStock', width: 12 },
+      { header: '建议补货量', key: 'suggestedQty', width: 12 },
+      { header: '单位', key: 'unit', width: 8 },
+      { header: '优选供应商', key: 'supplier', width: 22 },
+      { header: '状态', key: 'status', width: 12 },
+      { header: '原因', key: 'remark', width: 30 },
+    ]);
+
+    const rows = suggestions.map((s) => ({
+      generatedAt: dayjs(s.generatedAt).format('YYYY-MM-DD HH:mm'),
+      sku: s.product.sku,
+      productName: s.product.name,
+      category: s.product.category?.name || '-',
+      currentStock: Number(s.currentStock),
+      minStock: Number(s.minStock),
+      suggestedQty: Number(s.suggestedQty),
+      unit: s.product.unit,
+      supplier: supplierMap[s.supplierId] || s.product.preferredSupplier?.name || '-',
+      status: statusMap[s.status] || s.status,
+      remark: s.remark || '-',
+    }));
+
+    addRows(ws, rows);
+
+    const filename = `补货建议_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+    setupDownloadHeaders(res, filename);
+
+    const buffer = await wb.xlsx.writeBuffer();
+    return res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('exportRestock error:', err);
+    return fail(res, '导出补货建议失败: ' + err.message);
+  }
+}
