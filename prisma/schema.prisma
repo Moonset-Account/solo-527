@@ -1,0 +1,224 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  TRAINER
+  AGENT
+}
+
+enum KnowledgeStatus {
+  ACTIVE
+  EXPIRED
+  UNDER_REVIEW
+  ARCHIVED
+}
+
+enum ExpireReason {
+  OUTDATED
+  POLICY_CHANGED
+  PRODUCT_UPDATED
+  REGULATION_CHANGED
+  DUPLICATE
+  OTHER
+}
+
+enum RetrievalSourceType {
+  KNOWLEDGE_BASE
+  FAQ
+  POLICY_DOCUMENT
+  TRAINING_MATERIAL
+  PREVIOUS_CONVERSATION
+}
+
+enum NotificationType {
+  ACCURACY_ALERT
+  LOW_HIT_RATE
+  KNOWLEDGE_EXPIRING
+  RISK_DETECTED
+  SYSTEM
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  DISMISSED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ResultStatus {
+  ACCEPTED
+  MODIFIED
+  REJECTED
+  PENDING
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  role          UserRole  @default(AGENT)
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  conversations Conversation[]
+  createdKnowledge KnowledgeBase[] @relation("KnowledgeCreator")
+  responsibleKnowledge KnowledgeBase[] @relation("KnowledgeOwner")
+  notifications Notification[]
+  reports       DailyReport[]
+}
+
+model KnowledgeBase {
+  id              String          @id @default(cuid())
+  title           String
+  content         String
+  category        String
+  tags            String[]
+  status          KnowledgeStatus @default(ACTIVE)
+  expireReason    ExpireReason?
+  expireDate      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  lastReviewedAt  DateTime?
+  createdBy       User            @relation("KnowledgeCreator", fields: [createdById], references: [id])
+  createdById     String
+  owner           User            @relation("KnowledgeOwner", fields: [ownerId], references: [id])
+  ownerId         String
+  retrievalRecords RetrievalRecord[]
+  promptVersions  PromptVersionKnowledge[]
+  riskSamples     RiskSampleKnowledge[]
+}
+
+model PromptVersion {
+  id             String   @id @default(cuid())
+  version        String
+  content        String
+  description    String?
+  isActive       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  conversations  Conversation[]
+  knowledgeItems PromptVersionKnowledge[]
+}
+
+model PromptVersionKnowledge {
+  id              String        @id @default(cuid())
+  promptVersionId String
+  promptVersion   PromptVersion @relation(fields: [promptVersionId], references: [id])
+  knowledgeId     String
+  knowledge       KnowledgeBase @relation(fields: [knowledgeId], references: [id])
+  used            Boolean       @default(false)
+  usedAt          DateTime?
+  @@unique([promptVersionId, knowledgeId])
+}
+
+model Conversation {
+  id               String            @id @default(cuid())
+  customerQuestion String
+  suggestedReply   String
+  finalReply       String?
+  status           ResultStatus      @default(PENDING)
+  accuracyScore    Float?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  promptVersionId  String?
+  promptVersion    PromptVersion?    @relation(fields: [promptVersionId], references: [id])
+  retrievalRecords RetrievalRecord[]
+  generationLogs   GenerationLog[]
+  riskSample       RiskSample?
+}
+
+model RetrievalRecord {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   Conversation          @relation(fields: [conversationId], references: [id])
+  knowledgeId    String
+  knowledge      KnowledgeBase         @relation(fields: [knowledgeId], references: [id])
+  sourceType     RetrievalSourceType
+  relevanceScore Float
+  isHit          Boolean
+  position       Int
+  retrievedAt    DateTime              @default(now())
+}
+
+model GenerationLog {
+  id              String       @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  previousResult  String?
+  currentResult   String
+  changeReason    String?
+  changedBy       String?
+  createdAt       DateTime     @default(now())
+}
+
+model RiskSample {
+  id             String         @id @default(cuid())
+  conversationId String         @unique
+  conversation   Conversation   @relation(fields: [conversationId], references: [id])
+  riskLevel      RiskLevel      @default(MEDIUM)
+  description    String
+  isResolved     Boolean        @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  resolutionNote String?
+  createdAt      DateTime       @default(now())
+  knowledgeItems RiskSampleKnowledge[]
+}
+
+model RiskSampleKnowledge {
+  id            String        @id @default(cuid())
+  riskSampleId  String
+  riskSample    RiskSample    @relation(fields: [riskSampleId], references: [id])
+  knowledgeId   String
+  knowledge     KnowledgeBase @relation(fields: [knowledgeId], references: [id])
+  isSource      Boolean       @default(false)
+  @@unique([riskSampleId, knowledgeId])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  metadata  Json?
+  status    NotificationStatus @default(UNREAD)
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+  userId    String
+  user      User               @relation(fields: [userId], references: [id])
+}
+
+model DailyReport {
+  id               String   @id @default(cuid())
+  date             DateTime @unique
+  totalConversations Int     @default(0)
+  hitRate          Float    @default(0)
+  accuracyRate     Float    @default(0)
+  avgResponseTime  Float    @default(0)
+  knowledgeUsed    Int      @default(0)
+  expiredKnowledge Int      @default(0)
+  riskCount        Int      @default(0)
+  createdAt        DateTime @default(now())
+  generatedById    String
+  generatedBy      User     @relation(fields: [generatedById], references: [id])
+}
