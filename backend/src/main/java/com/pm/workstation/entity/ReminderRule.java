@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -31,9 +32,8 @@ public class ReminderRule {
     @Column(columnDefinition = "JSON")
     private String triggerCondition;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private RemindMethod remindMethod;
+    @Column(columnDefinition = "JSON")
+    private List<RemindMethod> remindMethod;
 
     @Column
     private Integer remindBeforeHours;

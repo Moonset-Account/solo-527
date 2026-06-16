@@ -9,7 +9,7 @@ public interface ImportService {
 
     ImportResultDTO batchImportRequirements(MultipartFile file);
 
-    void batchApproveWithValidation(List<Long> ids);
+    ImportResultDTO batchApproveWithValidation(List<Long> ids);
 
     List<ImportError> getImportErrors(String batchNo);
 

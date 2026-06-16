@@ -1,6 +1,7 @@
 package com.pm.workstation.controller;
 
 import com.pm.workstation.dto.ApiResponseDTO;
+import com.pm.workstation.dto.ImportResultDTO;
 import com.pm.workstation.dto.PageResultDTO;
 import com.pm.workstation.dto.RequirementDTO;
 import com.pm.workstation.entity.Requirement;
@@ -62,8 +63,7 @@ public class RequirementController {
     }
 
     @PostMapping("/batch-approve")
-    public ApiResponseDTO<Void> batchApprove(@RequestBody List<Long> ids) {
-        requirementService.batchApprove(ids);
-        return ApiResponseDTO.success(null);
+    public ApiResponseDTO<ImportResultDTO> batchApprove(@RequestBody List<Long> ids) {
+        return ApiResponseDTO.success(requirementService.batchApprove(ids));
     }
 }

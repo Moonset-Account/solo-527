@@ -53,7 +53,7 @@ CREATE TABLE `reminder_rule` (
     `rule_name`         VARCHAR(128) NOT NULL,
     `rule_type`         ENUM('COMMENT_NO_REPLY','TODO_DUE','MEETING_UPCOMING','PROCESS_TIMEOUT') NOT NULL,
     `trigger_condition` JSON         DEFAULT NULL,
-    `remind_method`     ENUM('EMAIL','SMS','IN_APP') NOT NULL DEFAULT 'IN_APP',
+    `remind_method`     JSON         DEFAULT NULL COMMENT '提醒方式：EMAIL/SMS/IN_APP数组',
     `remind_before_hours` INT        DEFAULT NULL COMMENT '提前提醒小时数',
     `enabled`           TINYINT(1)   NOT NULL DEFAULT 1,
     `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

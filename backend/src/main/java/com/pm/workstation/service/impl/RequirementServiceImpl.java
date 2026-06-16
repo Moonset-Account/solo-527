@@ -1,5 +1,6 @@
 package com.pm.workstation.service.impl;
 
+import com.pm.workstation.dto.ImportResultDTO;
 import com.pm.workstation.dto.PageResultDTO;
 import com.pm.workstation.dto.RequirementDTO;
 import com.pm.workstation.entity.ImportError;
@@ -11,6 +12,7 @@ import com.pm.workstation.repository.ImportErrorRepository;
 import com.pm.workstation.repository.RequirementRepository;
 import com.pm.workstation.service.RequirementService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -98,25 +100,35 @@ public class RequirementServiceImpl implements RequirementService {
 
     @Override
     @Transactional
-    public void batchApprove(List<Long> ids) {
+    public ImportResultDTO batchApprove(List<Long> ids) {
         String batchNo = "BATCH_APPROVE_" + System.currentTimeMillis();
+        int successCount = 0;
+        int errorCount = 0;
+        List<ImportResultDTO.ImportErrorDTO> errors = new ArrayList<>();
         for (Long id : ids) {
-            Requirement requirement = requirementRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("需求不存在: " + id));
-            if (requirement.getStatus() != RequirementStatus.SUBMITTED) {
+            Requirement requirement = requirementRepository.findById(id).orElse(null);
+            if (requirement == null || requirement.getStatus() != RequirementStatus.SUBMITTED) {
+                errorCount++;
+                String errorMsg = requirement == null ? "需求" + id + "不存在" : "需求" + id + "状态不是SUBMITTED，无法审批";
                 ImportError error = new ImportError();
                 error.setBatchNo(batchNo);
                 error.setRowNumber(ids.indexOf(id) + 1);
                 error.setRawData("{\"requirementId\":" + id + "}");
-                error.setErrorMessage("需求" + id + "状态不是SUBMITTED，无法审批");
+                error.setErrorMessage(errorMsg);
                 error.setStatus(ImportErrorStatus.PENDING);
                 error.setCreatedAt(LocalDateTime.now());
                 importErrorRepository.save(error);
+                errors.add(new ImportResultDTO.ImportErrorDTO(
+                        ids.indexOf(id) + 1,
+                        "{\"requirementId\":" + id + "}",
+                        errorMsg));
             } else {
+                successCount++;
                 requirement.setStatus(RequirementStatus.IN_PROGRESS);
                 requirement.setUpdatedAt(LocalDateTime.now());
                 requirementRepository.save(requirement);
             }
         }
+        return new ImportResultDTO(ids.size(), successCount, errorCount, batchNo, errors);
     }
 }

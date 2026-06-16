@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import java.util.List;
 
 @Getter
 @Setter
@@ -25,8 +26,9 @@ public class ReminderRuleDTO {
 
     private String triggerCondition;
 
-    @NotNull(message = "提醒方式不能为空")
-    private RemindMethod remindMethod;
+    private Integer triggerHours;
+
+    private List<RemindMethod> remindMethod;
 
     private Integer remindBeforeHours;
 

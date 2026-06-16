@@ -30,7 +30,7 @@
             <el-option
               v-for="u in userOptions"
               :key="u.id"
-              :label="u.name"
+              :label="u.realName"
               :value="u.id"
             />
           </el-select>
@@ -61,6 +61,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { submitRequirement, updateRequirement, getRequirement } from '@/api/requirement'
+import { searchUsers as apiSearchUsers } from '@/api/users'
 
 const route = useRoute()
 const router = useRouter()
@@ -89,7 +90,8 @@ async function searchUsers(query) {
   if (!query) return
   userLoading.value = true
   try {
-    userOptions.value = [{ id: 1, name: query + '_模拟用户' }]
+    const res = await apiSearchUsers(query)
+    userOptions.value = res.data || []
   } finally {
     userLoading.value = false
   }
@@ -108,7 +110,7 @@ async function loadRequirement() {
     deadline: data.deadline
   })
   if (data.assigneeId) {
-    userOptions.value = [{ id: data.assigneeId, name: '用户' + data.assigneeId }]
+    userOptions.value = [{ id: data.assigneeId, realName: data.assigneeName || '用户' + data.assigneeId }]
   }
 }
 

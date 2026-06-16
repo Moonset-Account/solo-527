@@ -1,5 +1,6 @@
 package com.pm.workstation.service;
 
+import com.pm.workstation.dto.ImportResultDTO;
 import com.pm.workstation.dto.PageResultDTO;
 import com.pm.workstation.dto.RequirementDTO;
 import com.pm.workstation.entity.Requirement;
@@ -18,5 +19,5 @@ public interface RequirementService {
 
     Requirement completeRequirement(Long id, RequirementConclusion conclusion);
 
-    void batchApprove(List<Long> ids);
+    ImportResultDTO batchApprove(List<Long> ids);
 }

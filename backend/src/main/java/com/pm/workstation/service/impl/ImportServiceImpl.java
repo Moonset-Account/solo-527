@@ -113,20 +113,30 @@ public class ImportServiceImpl implements ImportService {
 
     @Override
     @Transactional
-    public void batchApproveWithValidation(List<Long> ids) {
+    public ImportResultDTO batchApproveWithValidation(List<Long> ids) {
         String batchNo = "BATCH_APPROVE_" + System.currentTimeMillis();
+        int successCount = 0;
+        int errorCount = 0;
+        List<ImportResultDTO.ImportErrorDTO> errors = new ArrayList<>();
         for (Long id : ids) {
             Requirement req = requirementRepository.findById(id).orElse(null);
             if (req == null || req.getStatus() != RequirementStatus.SUBMITTED) {
+                errorCount++;
+                String errorMsg = req == null ? "需求" + id + "不存在" : "需求" + id + "状态不是SUBMITTED，无法审批";
                 ImportError error = new ImportError();
                 error.setBatchNo(batchNo);
                 error.setRowNumber(ids.indexOf(id) + 1);
                 error.setRawData("{\"requirementId\":" + id + "}");
-                error.setErrorMessage("需求" + id + "状态不是SUBMITTED，无法审批");
+                error.setErrorMessage(errorMsg);
                 error.setStatus(ImportErrorStatus.PENDING);
                 error.setCreatedAt(LocalDateTime.now());
                 importErrorRepository.save(error);
+                errors.add(new ImportResultDTO.ImportErrorDTO(
+                        ids.indexOf(id) + 1,
+                        "{\"requirementId\":" + id + "}",
+                        errorMsg));
             } else {
+                successCount++;
                 req.setStatus(RequirementStatus.IN_PROGRESS);
                 req.setUpdatedAt(LocalDateTime.now());
                 requirementRepository.save(req);
@@ -135,7 +145,8 @@ public class ImportServiceImpl implements ImportService {
         auditLogService.logAction(0L,
                 com.pm.workstation.enums.AuditAction.BATCH_APPROVE,
                 "REQUIREMENT", null,
-                "批量审批需求，数量：" + ids.size());
+                "批量审批需求，数量：" + ids.size() + "，成功" + successCount + "条，失败" + errorCount + "条");
+        return new ImportResultDTO(ids.size(), successCount, errorCount, batchNo, errors);
     }
 
     @Override

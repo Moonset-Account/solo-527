@@ -68,7 +68,11 @@ public class ReminderServiceImpl implements ReminderService {
         ReminderRule rule = new ReminderRule();
         rule.setRuleName(dto.getRuleName());
         rule.setRuleType(dto.getRuleType());
-        rule.setTriggerCondition(dto.getTriggerCondition());
+        if (dto.getTriggerHours() != null) {
+            rule.setTriggerCondition("{\"hours\":" + dto.getTriggerHours() + "}");
+        } else {
+            rule.setTriggerCondition(dto.getTriggerCondition());
+        }
         rule.setRemindMethod(dto.getRemindMethod());
         rule.setRemindBeforeHours(dto.getRemindBeforeHours());
         rule.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : true);
@@ -85,9 +89,17 @@ public class ReminderServiceImpl implements ReminderService {
                 .orElseThrow(() -> new RuntimeException("提醒规则不存在"));
         rule.setRuleName(dto.getRuleName());
         rule.setRuleType(dto.getRuleType());
-        rule.setTriggerCondition(dto.getTriggerCondition());
-        rule.setRemindMethod(dto.getRemindMethod());
-        rule.setRemindBeforeHours(dto.getRemindBeforeHours());
+        if (dto.getTriggerHours() != null) {
+            rule.setTriggerCondition("{\"hours\":" + dto.getTriggerHours() + "}");
+        } else if (dto.getTriggerCondition() != null) {
+            rule.setTriggerCondition(dto.getTriggerCondition());
+        }
+        if (dto.getRemindMethod() != null) {
+            rule.setRemindMethod(dto.getRemindMethod());
+        }
+        if (dto.getRemindBeforeHours() != null) {
+            rule.setRemindBeforeHours(dto.getRemindBeforeHours());
+        }
         if (dto.getEnabled() != null) {
             rule.setEnabled(dto.getEnabled());
         }

@@ -33,7 +33,7 @@
                 <span class="result-success">{{ importResult.successCount }}</span>
               </el-descriptions-item>
               <el-descriptions-item label="失败数">
-                <span class="result-fail">{{ importResult.failCount }}</span>
+                <span class="result-fail">{{ importResult.errorCount }}</span>
               </el-descriptions-item>
             </el-descriptions>
           </div>
@@ -44,9 +44,9 @@
               <el-button type="warning" size="small" @click="handleDownloadErrors">下载错误记录</el-button>
             </div>
             <el-table :data="errorRecords" stripe style="width: 100%">
-              <el-table-column prop="rowNum" label="行号" width="80" />
+              <el-table-column prop="rowNumber" label="行号" width="80" />
               <el-table-column prop="rawData" label="原始数据" min-width="200" />
-              <el-table-column prop="errorMsg" label="错误信息" min-width="200" />
+              <el-table-column prop="errorMessage" label="错误信息" min-width="200" />
               <el-table-column label="状态" width="120">
                 <template #default="{ row }">
                   <el-tag :type="row.status === 'FIXED' ? 'success' : 'warning'" size="small">
@@ -97,7 +97,7 @@
           <span class="result-success">{{ approveResult.successCount }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="失败数">
-          <span class="result-fail">{{ approveResult.failCount }}</span>
+          <span class="result-fail">{{ approveResult.errorCount }}</span>
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
@@ -126,7 +126,7 @@ const errorRecords = ref([])
 const pendingRequirements = ref([])
 const selectedRows = ref([])
 const approveResultVisible = ref(false)
-const approveResult = ref({ successCount: 0, failCount: 0 })
+const approveResult = ref({ successCount: 0, errorCount: 0 })
 
 function handleFileChange(file) {
   selectedFile.value = file.raw
@@ -156,10 +156,10 @@ async function handleImport() {
     const res = await batchImport(formData)
     importResult.value = {
       successCount: res.data?.successCount || 0,
-      failCount: res.data?.failCount || 0
+      errorCount: res.data?.errorCount || 0
     }
     batchNo.value = res.data?.batchNo || ''
-    if (res.data?.failCount > 0) {
+    if (res.data?.errorCount > 0) {
       fetchErrors()
     } else {
       errorRecords.value = []
@@ -175,15 +175,27 @@ async function handleImport() {
 async function fetchErrors() {
   try {
     const res = await getImportErrors(batchNo.value)
-    errorRecords.value = res.data || []
+    errorRecords.value = res.data?.records || res.data || []
   } catch (e) {
     console.error(e)
   }
 }
 
 async function handleDownloadErrors() {
+  if (!batchNo.value) {
+    ElMessage.warning('没有可下载的错误记录')
+    return
+  }
   try {
-    await downloadErrorTemplate(batchNo.value)
+    const res = await downloadErrorTemplate(batchNo.value)
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `import_errors_${batchNo.value}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
   } catch (e) {
     console.error(e)
   }
@@ -217,7 +229,7 @@ async function handleBatchApprove() {
     const res = await batchApprove(ids)
     approveResult.value = {
       successCount: res.data?.successCount || 0,
-      failCount: res.data?.failCount || 0
+      errorCount: res.data?.errorCount || 0
     }
     approveResultVisible.value = true
     fetchPendingRequirements()

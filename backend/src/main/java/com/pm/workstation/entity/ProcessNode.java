@@ -40,7 +40,7 @@ public class ProcessNode {
     private Long assigneeId;
 
     @Column(nullable = false)
-    private Boolean autoRemind;
+    private Boolean autoRemind = false;
 
     @Column
     private Integer remindHours;

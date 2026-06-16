@@ -134,7 +134,16 @@ const form = ref({
 
 function formatTrigger(row) {
   const label = ruleTypeLabelMap[row.ruleType] || row.ruleType
-  const hours = row.triggerCondition?.hours ?? row.triggerHours ?? '-'
+  let triggerHours = row.triggerHours
+  if (!triggerHours && row.triggerCondition) {
+    try {
+      const tc = typeof row.triggerCondition === 'string' 
+        ? JSON.parse(row.triggerCondition) 
+        : row.triggerCondition
+      triggerHours = tc.hours
+    } catch (e) {}
+  }
+  const hours = triggerHours ?? '-'
   if (row.ruleType === 'COMMENT_NO_REPLY' || row.ruleType === 'PROCESS_TIMEOUT') {
     return JSON.stringify({ 超时小时数: hours })
   }
@@ -162,11 +171,20 @@ async function fetchData() {
 
 function openDialog(row) {
   if (row) {
+    let triggerHours = row.triggerHours
+    if (!triggerHours && row.triggerCondition) {
+      try {
+        const tc = typeof row.triggerCondition === 'string' 
+          ? JSON.parse(row.triggerCondition) 
+          : row.triggerCondition
+        triggerHours = tc.hours
+      } catch (e) {}
+    }
     editingId.value = row.id
     form.value = {
       ruleName: row.ruleName,
       ruleType: row.ruleType,
-      triggerHours: row.triggerCondition?.hours ?? row.triggerHours ?? 24,
+      triggerHours: triggerHours ?? 24,
       remindMethod: row.remindMethod ? [...row.remindMethod] : [],
       remindBeforeHours: row.remindBeforeHours ?? 0,
       enabled: row.enabled ?? true

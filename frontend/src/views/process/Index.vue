@@ -166,7 +166,7 @@ async function fetchNodes() {
     const res = await getNodes(selectedDef.value.id)
     const list = res.data || []
     nodes.value = list
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => (a.nodeOrder ?? a.order) - (b.nodeOrder ?? b.order))
       .map(n => ({
         ...n,
         roleName: roles.value.find(r => r.id === n.roleId)?.name || ''
@@ -244,13 +244,13 @@ function openNodeDialog(row) {
   if (row) {
     editingNodeId.value = row.id
     nodeForm.value = {
-      name: row.name,
-      order: row.order,
+      name: row.nodeName ?? row.name,
+      order: row.nodeOrder ?? row.order,
       roleId: row.roleId,
-      assignType: row.assignType || 'ROLE',
-      specificUserId: row.specificUserId,
-      autoReminder: row.autoReminder || false,
-      reminderHours: row.reminderHours || 24
+      assignType: row.assigneeType ?? row.assignType ?? 'ROLE',
+      specificUserId: row.assigneeId ?? row.specificUserId,
+      autoReminder: row.autoRemind ?? row.autoReminder ?? false,
+      reminderHours: row.remindHours ?? row.reminderHours ?? 24
     }
   } else {
     editingNodeId.value = null
@@ -319,13 +319,13 @@ async function saveNodeOrders() {
     await Promise.all(
       nodes.value.map(n =>
         updateNode(n.id, {
-          name: n.name,
-          order: n.order,
+          name: n.nodeName ?? n.name,
+          order: n.nodeOrder ?? n.order,
           roleId: n.roleId,
-          assignType: n.assignType,
-          specificUserId: n.specificUserId,
-          autoReminder: n.autoReminder,
-          reminderHours: n.reminderHours
+          assignType: n.assigneeType ?? n.assignType,
+          specificUserId: n.assigneeId ?? n.specificUserId,
+          autoReminder: n.autoRemind ?? n.autoReminder,
+          reminderHours: n.remindHours ?? n.reminderHours
         })
       )
     )

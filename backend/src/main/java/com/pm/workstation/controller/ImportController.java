@@ -31,9 +31,8 @@ public class ImportController {
     }
 
     @PostMapping("/batch-approve")
-    public ApiResponseDTO<Void> batchApproveWithValidation(@RequestBody List<Long> ids) {
-        importService.batchApproveWithValidation(ids);
-        return ApiResponseDTO.success(null);
+    public ApiResponseDTO<ImportResultDTO> batchApproveWithValidation(@RequestBody List<Long> ids) {
+        return ApiResponseDTO.success(importService.batchApproveWithValidation(ids));
     }
 
     @GetMapping("/errors/{batchNo}")
