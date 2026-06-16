@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { eq, and, desc, gte, lte, asc, or, sql } from 'drizzle-orm';
-import { db } from '../db';
-import { todos, users, members, trainingCamps } from '../db/schema';
-import { paginate, parsePagination } from '../lib/utils';
+import { db } from '../db/index.js';
+import { todos, users, members, trainingCamps } from '../db/schema.js';
+import { paginate, parsePagination } from '../lib/utils.js';
 
 const todosRouter = new Hono();
 

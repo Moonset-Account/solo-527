@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { eq, desc, ilike, and, or, inArray } from 'drizzle-orm';
-import { db } from '../db';
-import { users } from '../db/schema';
-import { paginate, parsePagination } from '../lib/utils';
+import { db } from '../db/index.js';
+import { users } from '../db/schema.js';
+import { paginate, parsePagination } from '../lib/utils.js';
 
 const usersRouter = new Hono();
 

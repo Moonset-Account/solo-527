@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { eq, and, desc, asc } from 'drizzle-orm';
-import { db } from '../db';
-import { chapters, chapterMaterials, trainingCamps } from '../db/schema';
+import { db } from '../db/index.js';
+import { chapters, chapterMaterials, trainingCamps } from '../db/schema.js';
 
 const chaptersRouter = new Hono();
 

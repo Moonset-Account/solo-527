@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
-import { db } from '../db';
-import { refundRules, refundRequests, members, users, trainingCamps } from '../db/schema';
-import { paginate, parsePagination } from '../lib/utils';
+import { db } from '../db/index.js';
+import { refundRules, refundRequests, members, users, trainingCamps } from '../db/schema.js';
+import { paginate, parsePagination } from '../lib/utils.js';
 
 const refundsRouter = new Hono();
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { Parser } from 'json2csv';
 import { eq, and, gte, lte, or, sql, desc, asc } from 'drizzle-orm';
-import { db } from '../db';
+import { db } from '../db/index.js';
 import {
   members,
   users,
@@ -11,7 +11,7 @@ import {
   refundRules,
   memberBenefits,
   todos,
-} from '../db/schema';
+} from '../db/schema.js';
 
 const exportRouter = new Hono();
 

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { eq, and, sql, gte, lte, desc, asc } from 'drizzle-orm';
-import { db } from '../db';
+import { db } from '../db/index.js';
 import {
   trainingCamps,
   members,
@@ -10,7 +10,7 @@ import {
   refundRequests,
   todos,
   users,
-} from '../db/schema';
+} from '../db/schema.js';
 
 const statsRouter = new Hono();
 

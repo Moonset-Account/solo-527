@@ -6,16 +6,16 @@ import { cache } from 'hono/cache';
 import { prettyJSON } from 'hono/pretty-json';
 import 'dotenv/config';
 
-import { campsRouter } from './routes/camps';
-import { chaptersRouter } from './routes/chapters';
-import { membersRouter } from './routes/members';
-import { checkinsRouter } from './routes/checkins';
-import { refundsRouter } from './routes/refunds';
-import { benefitsRouter } from './routes/benefits';
-import { todosRouter } from './routes/todos';
-import { statsRouter } from './routes/stats';
-import { exportRouter } from './routes/export';
-import { usersRouter } from './routes/users';
+import { campsRouter } from './routes/camps.js';
+import { chaptersRouter } from './routes/chapters.js';
+import { membersRouter } from './routes/members.js';
+import { checkinsRouter } from './routes/checkins.js';
+import { refundsRouter } from './routes/refunds.js';
+import { benefitsRouter } from './routes/benefits.js';
+import { todosRouter } from './routes/todos.js';
+import { statsRouter } from './routes/stats.js';
+import { exportRouter } from './routes/export.js';
+import { usersRouter } from './routes/users.js';
 
 const app = new Hono();
 

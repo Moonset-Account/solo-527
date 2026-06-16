@@ -1,4 +1,4 @@
-import { db } from './index';
+import { db } from './index.js';
 import {
   users,
   trainingCamps,
@@ -12,7 +12,7 @@ import {
   refundRequests,
   memberBenefits,
   todos,
-} from './schema';
+} from './schema.js';
 import { sql } from 'drizzle-orm';
 
 const seed = async () => {
