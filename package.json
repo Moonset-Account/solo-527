@@ -1,0 +1,36 @@
+{
+  "name": "tech-interview-pipeline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.0",
+    "@pinia/nuxt": "^0.5.1",
+    "pinia": "^2.1.7",
+    "ioredis": "^5.3.2",
+    "dayjs": "^1.11.10",
+    "chart.js": "^4.4.1",
+    "vue-chartjs": "^5.3.0",
+    "nuxt": "^3.10.0",
+    "vue": "^3.4.15",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "prisma": "^5.10.0",
+    "typescript": "^5.3.3",
+    "@nuxtjs/tailwindcss": "^6.11.4",
+    "tailwindcss": "^3.4.1",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.33"
+  }
+}

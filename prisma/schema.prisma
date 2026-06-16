@@ -1,0 +1,264 @@
+// Prisma Schema for Tech Interview Pipeline System
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id           Int              @id @default(autoincrement())
+  name         String
+  email        String           @unique
+  phone        String?
+  position     String
+  department   String
+  currentStage Stage            @default(SCREENING)
+  status       CandidateStatus  @default(ACTIVE)
+  avatarUrl    String?
+  resumeUrl    String?
+  source       String?
+  referredBy   String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  interviews   Interview[]
+  assessments  Assessment[]
+  stageHistory StageHistory[]
+  checkIns     CheckIn[]
+  reminders    Reminder[]
+  noShows      NoShowRecord[]
+}
+
+enum Stage {
+  SCREENING
+  TECH_ASSESSMENT
+  FIRST_INTERVIEW
+  SECOND_INTERVIEW
+  HR_INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CandidateStatus {
+  ACTIVE
+  ON_HOLD
+  REJECTED
+  HIRED
+  WITHDRAWN
+}
+
+model Interviewer {
+  id         Int         @id @default(autoincrement())
+  name       String
+  email      String      @unique
+  title      String?
+  department String
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  interviews Interview[]
+}
+
+model Interview {
+  id            Int               @id @default(autoincrement())
+  candidateId   Int
+  interviewerId Int
+  title         String
+  type          InterviewType
+  scheduledAt   DateTime
+  durationMin   Int               @default(60)
+  location      String?
+  meetingUrl    String?
+  status        InterviewStatus   @default(SCHEDULED)
+  qualityScore  Int?
+  qualityDetail Json?
+  feedback      String?
+  notes         String?
+  interviewer   Interviewer       @relation(fields: [interviewerId], references: [id])
+  candidate     Candidate         @relation(fields: [candidateId], references: [id])
+  checkIn       CheckIn?
+  reminders     Reminder[]
+  retryLogs     ApiRetryLog[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+enum InterviewType {
+  PHONE_SCREEN
+  TECHNICAL
+  BEHAVIORAL
+  SYSTEM_DESIGN
+  CULTURE_FIT
+  FINAL
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+model Assessment {
+  id          Int             @id @default(autoincrement())
+  candidateId Int
+  type        AssessmentType
+  title       String
+  scoreBefore Float?
+  scoreAfter  Float?
+  questionsBefore Json?
+  questionsAfter  Json?
+  answersBefore   Json?
+  answersAfter    Json?
+  note        String?
+  takenAt     DateTime?
+  status      AssessmentStatus @default(PENDING)
+  candidate   Candidate       @relation(fields: [candidateId], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum AssessmentType {
+  CODING
+  ALGORITHM
+  SYSTEM_DESIGN
+  BEHAVIORAL
+  TAKE_HOME
+}
+
+enum AssessmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+model StageHistory {
+  id           Int       @id @default(autoincrement())
+  candidateId  Int
+  fromStage    Stage?
+  toStage      Stage
+  changedBy    String?
+  reason       String?
+  candidate    Candidate @relation(fields: [candidateId], references: [id])
+  createdAt    DateTime  @default(now())
+}
+
+model CheckIn {
+  id           Int          @id @default(autoincrement())
+  candidateId  Int
+  interviewId  Int          @unique
+  checkInType  CheckInType
+  checkedAt    DateTime?
+  location     String?
+  ipAddress    String?
+  note         String?
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+  interview    Interview    @relation(fields: [interviewId], references: [id])
+  createdAt    DateTime     @default(now())
+}
+
+enum CheckInType {
+  CANDIDATE_ARRIVED
+  INTERVIEWER_READY
+  COMPLETED
+  NO_SHOW_CONFIRMED
+}
+
+model Reminder {
+  id           Int            @id @default(autoincrement())
+  candidateId  Int
+  interviewId  Int?
+  type         ReminderType
+  severity     ReminderSeverity
+  title        String
+  message      String
+  sendAt       DateTime
+  sentAt       DateTime?
+  status       ReminderStatus @default(PENDING)
+  candidate    Candidate      @relation(fields: [candidateId], references: [id])
+  interview    Interview?     @relation(fields: [interviewId], references: [id])
+  createdAt    DateTime       @default(now())
+}
+
+enum ReminderType {
+  INTERVIEW_UPCOMING
+  ASSESSMENT_DUE
+  CANDIDATE_NO_SHOW
+  STAGE_STALLED
+  FOLLOW_UP_NEEDED
+}
+
+enum ReminderSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  ACKNOWLEDGED
+}
+
+model ReminderConfig {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  triggerType         String
+  thresholdMinutes    Int?
+  thresholdHours      Int?
+  thresholdDays       Int?
+  severity            ReminderSeverity
+  isBlocking          Boolean  @default(false)
+  isEnabled           Boolean  @default(true)
+  messageTemplate     String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model NoShowRecord {
+  id           Int       @id @default(autoincrement())
+  candidateId  Int
+  interviewId  Int?
+  reason       String?
+  isFirstTime  Boolean   @default(true)
+  blockingAction AppliedAction?
+  handledBy    String?
+  note         String?
+  candidate    Candidate @relation(fields: [candidateId], references: [id])
+  createdAt    DateTime  @default(now())
+}
+
+enum AppliedAction {
+  WARNING_SENT
+  INTERVIEW_BLOCKED
+  PIPELINE_PAUSED
+  NOTIFY_HR
+}
+
+model ApiRetryLog {
+  id           Int        @id @default(autoincrement())
+  interviewId  Int?
+  endpoint     String
+  method       String
+  errorMessage String
+  errorCode    String?
+  retryCount   Int        @default(0)
+  maxRetries   Int        @default(3)
+  lastAttemptAt DateTime
+  nextRetryAt  DateTime?
+  successAt    DateTime?
+  isSuccess    Boolean    @default(false)
+  requestBody  Json?
+  responseBody Json?
+  interview    Interview? @relation(fields: [interviewId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}

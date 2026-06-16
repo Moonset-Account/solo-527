@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Nuxt
+.output
+.data
+.nuxt
+.nitro
+.cache
+
+# Env
+.env
+.env.*
+
+# Prisma
+prisma/migrations
+!prisma/migrations/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/settings.json
+.idea
+.DS_Store
