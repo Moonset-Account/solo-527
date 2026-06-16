@@ -17,10 +17,10 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("dashboard")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;DashboardStatsDto&gt;&gt;&gt; GetDashboardStats([FromQuery] int? clinicId = null)
+    public async Task<ActionResult<ApiResultDto<DashboardStatsDto>>> GetDashboardStats([FromQuery] int? clinicId = null)
     {
         var result = await _statisticsService.GetDashboardStatsAsync(clinicId);
-        return Ok(new ApiResultDto&lt;DashboardStatsDto&gt;
+        return Ok(new ApiResultDto<DashboardStatsDto>
         {
             Success = true,
             Code = 200,
@@ -29,13 +29,13 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("recheck")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;RecheckStatsDto&gt;&gt;&gt; GetRecheckStats(
+    public async Task<ActionResult<ApiResultDto<RecheckStatsDto>>> GetRecheckStats(
         [FromQuery] int? clinicId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
         var result = await _statisticsService.GetRecheckStatsAsync(clinicId, startDate, endDate);
-        return Ok(new ApiResultDto&lt;RecheckStatsDto&gt;
+        return Ok(new ApiResultDto<RecheckStatsDto>
         {
             Success = true,
             Code = 200,
@@ -44,13 +44,13 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("lost-patients")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;LostPatientStatsDto&gt;&gt;&gt; GetLostPatientStats(
+    public async Task<ActionResult<ApiResultDto<LostPatientStatsDto>>> GetLostPatientStats(
         [FromQuery] int? clinicId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
         var result = await _statisticsService.GetLostPatientStatsAsync(clinicId, startDate, endDate);
-        return Ok(new ApiResultDto&lt;LostPatientStatsDto&gt;
+        return Ok(new ApiResultDto<LostPatientStatsDto>
         {
             Success = true,
             Code = 200,
@@ -59,14 +59,14 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("schedule-utilization")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;ScheduleUtilizationStatsDto&gt;&gt;&gt; GetScheduleUtilization(
+    public async Task<ActionResult<ApiResultDto<ScheduleUtilizationStatsDto>>> GetScheduleUtilization(
         [FromQuery] int? clinicId = null,
         [FromQuery] int? doctorId = null,
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
         var result = await _statisticsService.GetScheduleUtilizationStatsAsync(clinicId, doctorId, startDate, endDate);
-        return Ok(new ApiResultDto&lt;ScheduleUtilizationStatsDto&gt;
+        return Ok(new ApiResultDto<ScheduleUtilizationStatsDto>
         {
             Success = true,
             Code = 200,

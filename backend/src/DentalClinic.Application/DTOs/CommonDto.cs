@@ -9,13 +9,13 @@ public abstract class PagedQueryDto
     public string? SortOrder { get; set; } = "desc";
 }
 
-public class PagedResultDto&lt;T&gt;
+public class PagedResultDto<T>
 {
-    public List&lt;T&gt; Items { get; set; } = new();
+    public List<T> Items { get; set; } = new();
     public int TotalCount { get; set; }
     public int PageIndex { get; set; }
     public int PageSize { get; set; }
-    public int TotalPages =&gt; (int)Math.Ceiling((double)TotalCount / PageSize);
+    public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
 }
 
 public class ApiResultDto
@@ -25,7 +25,7 @@ public class ApiResultDto
     public int Code { get; set; }
 }
 
-public class ApiResultDto&lt;T&gt; : ApiResultDto
+public class ApiResultDto<T> : ApiResultDto
 {
     public T? Data { get; set; }
 }

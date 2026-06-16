@@ -5,10 +5,10 @@ namespace DentalClinic.Application.Interfaces;
 
 public interface IScheduleSlotService
 {
-    Task&lt;List&lt;ScheduleSlotDto&gt;&gt; GetListAsync(ScheduleSlotQueryDto query);
-    Task&lt;ScheduleSlotDto?&gt; GetByIdAsync(int id);
-    Task&lt;ScheduleSlotDto&gt; CreateAsync(ScheduleSlotCreateDto dto);
-    Task&lt;bool&gt; DeleteAsync(int id);
-    Task&lt;List&lt;ScheduleSlotDto&gt;&gt; GetAvailableSlotsAsync(int doctorId, DateTime date);
-    Task&lt;List&lt;ScheduleSlotDto&gt;&gt; GetSlotsByDateRangeAsync(int? clinicId, int? doctorId, DateTime startDate, DateTime endDate);
+    Task<List<ScheduleSlotDto>> GetListAsync(ScheduleSlotQueryDto query);
+    Task<ScheduleSlotDto?> GetByIdAsync(int id);
+    Task<ScheduleSlotDto> CreateAsync(ScheduleSlotCreateDto dto);
+    Task<bool> DeleteAsync(int id);
+    Task<List<ScheduleSlotDto>> GetAvailableSlotsAsync(int doctorId, DateTime date);
+    Task<List<ScheduleSlotDto>> GetSlotsByDateRangeAsync(int? clinicId, int? doctorId, DateTime startDate, DateTime endDate);
 }

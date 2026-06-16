@@ -6,11 +6,11 @@ namespace DentalClinic.Infrastructure.Caching;
 
 public interface ICacheService
 {
-    Task&lt;T?&gt; GetAsync&lt;T&gt;(string key);
-    Task SetAsync&lt;T&gt;(string key, T value, TimeSpan? expiration = null);
+    Task<T?> GetAsync<T>(string key);
+    Task SetAsync<T>(string key, T value, TimeSpan? expiration = null);
     Task RemoveAsync(string key);
     Task RemoveByPatternAsync(string pattern);
-    Task&lt;bool&gt; ExistsAsync(string key);
+    Task<bool> ExistsAsync(string key);
     Task RefreshAsync(string key, TimeSpan expiration);
 }
 
@@ -25,14 +25,14 @@ public class RedisCacheService : ICacheService
         _database = redis.GetDatabase();
     }
 
-    public async Task&lt;T?&gt; GetAsync&lt;T&gt;(string key)
+    public async Task<T?> GetAsync<T>(string key)
     {
         var value = await _database.StringGetAsync(key);
         if (!value.HasValue) return default;
         
         try
         {
-            return JsonConvert.DeserializeObject&lt;T&gt;(value!);
+            return JsonConvert.DeserializeObject<T>(value!);
         }
         catch
         {
@@ -40,7 +40,7 @@ public class RedisCacheService : ICacheService
         }
     }
 
-    public async Task SetAsync&lt;T&gt;(string key, T value, TimeSpan? expiration = null)
+    public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
         var serialized = JsonConvert.SerializeObject(value);
         await _database.StringSetAsync(key, serialized, expiration);
@@ -58,14 +58,14 @@ public class RedisCacheService : ICacheService
         {
             var server = _redis.GetServer(endpoint);
             var keys = server.Keys(pattern: pattern).ToArray();
-            if (keys.Length &gt; 0)
+            if (keys.Length > 0)
             {
                 await _database.KeyDeleteAsync(keys);
             }
         }
     }
 
-    public async Task&lt;bool&gt; ExistsAsync(string key)
+    public async Task<bool> ExistsAsync(string key)
     {
         return await _database.KeyExistsAsync(key);
     }

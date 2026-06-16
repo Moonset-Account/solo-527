@@ -5,8 +5,8 @@ namespace DentalClinic.Application.Interfaces;
 
 public interface IFeeItemService
 {
-    Task&lt;List&lt;FeeItemDto&gt;&gt; GetByAppointmentIdAsync(int appointmentId);
-    Task&lt;FeeItemDto&gt; CreateAsync(FeeItemCreateDto dto);
-    Task&lt;FeeItemDto?&gt; UpdateStatusAsync(int id, int status);
-    Task&lt;decimal&gt; GetTotalAmountByAppointmentIdAsync(int appointmentId);
+    Task<List<FeeItemDto>> GetByAppointmentIdAsync(int appointmentId);
+    Task<FeeItemDto> CreateAsync(FeeItemCreateDto dto);
+    Task<FeeItemDto?> UpdateStatusAsync(int id, int status);
+    Task<decimal> GetTotalAmountByAppointmentIdAsync(int appointmentId);
 }

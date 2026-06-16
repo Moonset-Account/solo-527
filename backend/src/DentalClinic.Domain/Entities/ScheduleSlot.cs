@@ -19,7 +19,7 @@ public class ScheduleSlot
 
     public Doctor? Doctor { get; set; }
     public Clinic? Clinic { get; set; }
-    public ICollection&lt;Appointment&gt; Appointments { get; set; } = new List&lt;Appointment&gt;();
+    public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 }
 
 public enum ScheduleSlotStatus

@@ -18,32 +18,32 @@ public class TodoItemService : ITodoItemService
         _workloadReportService = workloadReportService;
     }
 
-    public async Task&lt;PagedResultDto&lt;TodoItemDto&gt;&gt; GetListAsync(TodoQueryDto query)
+    public async Task<PagedResultDto<TodoItemDto>> GetListAsync(TodoQueryDto query)
     {
         var queryable = _context.TodoItems
-            .Include(t =&gt; t.Patient)
+            .Include(t => t.Patient)
             .AsQueryable();
 
         if (query.AssignedToUserId.HasValue)
-            queryable = queryable.Where(t =&gt; t.AssignedToUserId == query.AssignedToUserId.Value);
+            queryable = queryable.Where(t => t.AssignedToUserId == query.AssignedToUserId.Value);
         if (query.Status.HasValue)
-            queryable = queryable.Where(t =&gt; t.Status == (TodoStatus)query.Status.Value);
+            queryable = queryable.Where(t => t.Status == (TodoStatus)query.Status.Value);
         if (query.Type.HasValue)
-            queryable = queryable.Where(t =&gt; t.Type == (TodoType)query.Type.Value);
+            queryable = queryable.Where(t => t.Type == (TodoType)query.Type.Value);
         if (query.Priority.HasValue)
-            queryable = queryable.Where(t =&gt; t.Priority == (TodoPriority)query.Priority.Value);
+            queryable = queryable.Where(t => t.Priority == (TodoPriority)query.Priority.Value);
 
         var totalCount = await queryable.CountAsync();
 
         var items = await queryable
-            .OrderByDescending(t =&gt; t.Priority)
-            .ThenBy(t =&gt; t.DueDate)
+            .OrderByDescending(t => t.Priority)
+            .ThenBy(t => t.DueDate)
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(t =&gt; MapToDto(t))
+            .Select(t => MapToDto(t))
             .ToListAsync();
 
-        return new PagedResultDto&lt;TodoItemDto&gt;
+        return new PagedResultDto<TodoItemDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -52,11 +52,11 @@ public class TodoItemService : ITodoItemService
         };
     }
 
-    public async Task&lt;TodoItemDto?&gt; GetByIdAsync(int id, bool includeDetails = false)
+    public async Task<TodoItemDto?> GetByIdAsync(int id, bool includeDetails = false)
     {
         var todo = await _context.TodoItems
-            .Include(t =&gt; t.Patient)
-            .FirstOrDefaultAsync(t =&gt; t.Id == id);
+            .Include(t => t.Patient)
+            .FirstOrDefaultAsync(t => t.Id == id);
 
         if (todo == null) return null;
 
@@ -67,11 +67,11 @@ public class TodoItemService : ITodoItemService
             if (todo.AppointmentId.HasValue)
             {
                 var appointment = await _context.Appointments
-                    .Include(a =&gt; a.FeeItems)
-                    .Include(a =&gt; a.ChiefComplaintRecords)
-                    .Include(a =&gt; a.Prescriptions)
-                    .ThenInclude(p =&gt; p.Items)
-                    .FirstOrDefaultAsync(a =&gt; a.Id == todo.AppointmentId.Value);
+                    .Include(a => a.FeeItems)
+                    .Include(a => a.ChiefComplaintRecords)
+                    .Include(a => a.Prescriptions)
+                    .ThenInclude(p => p.Items)
+                    .FirstOrDefaultAsync(a => a.Id == todo.AppointmentId.Value);
 
                 if (appointment != null)
                 {
@@ -89,7 +89,7 @@ public class TodoItemService : ITodoItemService
                         ChiefComplaint = appointment.ChiefComplaint
                     };
 
-                    dto.FeeItems = appointment.FeeItems?.Select(f =&gt; new FeeItemDto
+                    dto.FeeItems = appointment.FeeItems?.Select(f => new FeeItemDto
                     {
                         Id = f.Id,
                         ItemName = f.ItemName,
@@ -104,8 +104,8 @@ public class TodoItemService : ITodoItemService
                     }).ToList();
 
                     dto.ChiefComplaint = appointment.ChiefComplaintRecords?
-                        .OrderByDescending(c =&gt; c.VisitDate)
-                        .Select(c =&gt; new ChiefComplaintDto
+                        .OrderByDescending(c => c.VisitDate)
+                        .Select(c => new ChiefComplaintDto
                         {
                             Id = c.Id,
                             Description = c.Description,
@@ -118,15 +118,15 @@ public class TodoItemService : ITodoItemService
                         }).FirstOrDefault();
 
                     dto.Prescription = appointment.Prescriptions?
-                        .OrderByDescending(p =&gt; p.CreatedAt)
-                        .Select(p =&gt; new PrescriptionDto
+                        .OrderByDescending(p => p.CreatedAt)
+                        .Select(p => new PrescriptionDto
                         {
                             Id = p.Id,
                             PrescriptionNo = p.PrescriptionNo,
                             TotalAmount = p.TotalAmount,
                             Status = (int)p.Status,
                             StatusText = p.Status.ToString(),
-                            Items = p.Items.Select(i =&gt; new PrescriptionItemDto
+                            Items = p.Items.Select(i => new PrescriptionItemDto
                             {
                                 Id = i.Id,
                                 MedicineName = i.MedicineName,
@@ -144,9 +144,9 @@ public class TodoItemService : ITodoItemService
             if (todo.FollowUpId.HasValue)
             {
                 var followUp = await _context.FollowUps
-                    .Include(f =&gt; f.Patient)
-                    .Include(f =&gt; f.Doctor)
-                    .FirstOrDefaultAsync(f =&gt; f.Id == todo.FollowUpId.Value);
+                    .Include(f => f.Patient)
+                    .Include(f => f.Doctor)
+                    .FirstOrDefaultAsync(f => f.Id == todo.FollowUpId.Value);
 
                 if (followUp != null)
                 {
@@ -174,7 +174,7 @@ public class TodoItemService : ITodoItemService
         return dto;
     }
 
-    public async Task&lt;TodoItemDto&gt; CreateAsync(TodoItemCreateDto dto)
+    public async Task<TodoItemDto> CreateAsync(TodoItemCreateDto dto)
     {
         var todo = new TodoItem
         {
@@ -197,7 +197,7 @@ public class TodoItemService : ITodoItemService
         return MapToDto(todo);
     }
 
-    public async Task&lt;TodoItemDto?&gt; UpdateAsync(int id, TodoItemUpdateDto dto)
+    public async Task<TodoItemDto?> UpdateAsync(int id, TodoItemUpdateDto dto)
     {
         var todo = await _context.TodoItems.FindAsync(id);
         if (todo == null) return null;
@@ -205,7 +205,7 @@ public class TodoItemService : ITodoItemService
         todo.Status = (TodoStatus)dto.Status;
         todo.Description = dto.Description;
 
-        if (dto.Status == (int)TodoStatus.Completed &amp;&amp; !todo.CompletedAt.HasValue)
+        if (dto.Status == (int)TodoStatus.Completed && !todo.CompletedAt.HasValue)
         {
             todo.CompletedAt = DateTime.Now;
         }
@@ -214,7 +214,7 @@ public class TodoItemService : ITodoItemService
         return MapToDto(todo);
     }
 
-    public async Task&lt;bool&gt; DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var todo = await _context.TodoItems.FindAsync(id);
         if (todo == null) return false;
@@ -259,14 +259,14 @@ public class TodoItemService : ITodoItemService
         return true;
     }
 
-    public async Task&lt;int&gt; GetPendingCountAsync(int? assignedToUserId = null)
+    public async Task<int> GetPendingCountAsync(int? assignedToUserId = null)
     {
         var query = _context.TodoItems
-            .Where(t =&gt; t.Status == TodoStatus.Pending)
+            .Where(t => t.Status == TodoStatus.Pending)
             .AsQueryable();
 
         if (assignedToUserId.HasValue)
-            query = query.Where(t =&gt; t.AssignedToUserId == assignedToUserId.Value);
+            query = query.Where(t => t.AssignedToUserId == assignedToUserId.Value);
 
         return await query.CountAsync();
     }

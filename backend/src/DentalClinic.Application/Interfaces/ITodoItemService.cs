@@ -5,11 +5,11 @@ namespace DentalClinic.Application.Interfaces;
 
 public interface ITodoItemService
 {
-    Task&lt;PagedResultDto&lt;TodoItemDto&gt;&gt; GetListAsync(TodoQueryDto query);
-    Task&lt;TodoItemDto?&gt; GetByIdAsync(int id, bool includeDetails = false);
-    Task&lt;TodoItemDto&gt; CreateAsync(TodoItemCreateDto dto);
-    Task&lt;TodoItemDto?&gt; UpdateAsync(int id, TodoItemUpdateDto dto);
-    Task&lt;bool&gt; DeleteAsync(int id);
-    Task&lt;bool&gt; CompleteAsync(int id);
-    Task&lt;int&gt; GetPendingCountAsync(int? assignedToUserId = null);
+    Task<PagedResultDto<TodoItemDto>> GetListAsync(TodoQueryDto query);
+    Task<TodoItemDto?> GetByIdAsync(int id, bool includeDetails = false);
+    Task<TodoItemDto> CreateAsync(TodoItemCreateDto dto);
+    Task<TodoItemDto?> UpdateAsync(int id, TodoItemUpdateDto dto);
+    Task<bool> DeleteAsync(int id);
+    Task<bool> CompleteAsync(int id);
+    Task<int> GetPendingCountAsync(int? assignedToUserId = null);
 }

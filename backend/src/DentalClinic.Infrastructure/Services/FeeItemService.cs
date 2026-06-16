@@ -16,16 +16,16 @@ public class FeeItemService : IFeeItemService
         _context = context;
     }
 
-    public async Task&lt;List&lt;FeeItemDto&gt;&gt; GetByAppointmentIdAsync(int appointmentId)
+    public async Task<List<FeeItemDto>> GetByAppointmentIdAsync(int appointmentId)
     {
         return await _context.FeeItems
-            .Where(f =&gt; f.AppointmentId == appointmentId)
-            .OrderBy(f =&gt; f.Category)
-            .Select(f =&gt; MapToDto(f))
+            .Where(f => f.AppointmentId == appointmentId)
+            .OrderBy(f => f.Category)
+            .Select(f => MapToDto(f))
             .ToListAsync();
     }
 
-    public async Task&lt;FeeItemDto&gt; CreateAsync(FeeItemCreateDto dto)
+    public async Task<FeeItemDto> CreateAsync(FeeItemCreateDto dto)
     {
         var feeItem = new FeeItem
         {
@@ -46,7 +46,7 @@ public class FeeItemService : IFeeItemService
         return MapToDto(feeItem);
     }
 
-    public async Task&lt;FeeItemDto?&gt; UpdateStatusAsync(int id, int status)
+    public async Task<FeeItemDto?> UpdateStatusAsync(int id, int status)
     {
         var feeItem = await _context.FeeItems.FindAsync(id);
         if (feeItem == null) return null;
@@ -57,11 +57,11 @@ public class FeeItemService : IFeeItemService
         return MapToDto(feeItem);
     }
 
-    public async Task&lt;decimal&gt; GetTotalAmountByAppointmentIdAsync(int appointmentId)
+    public async Task<decimal> GetTotalAmountByAppointmentIdAsync(int appointmentId)
     {
         return await _context.FeeItems
-            .Where(f =&gt; f.AppointmentId == appointmentId)
-            .SumAsync(f =&gt; f.Amount);
+            .Where(f => f.AppointmentId == appointmentId)
+            .SumAsync(f => f.Amount);
     }
 
     private static FeeItemDto MapToDto(FeeItem feeItem)

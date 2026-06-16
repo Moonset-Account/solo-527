@@ -276,9 +276,9 @@ const RecheckLostStats = () => {
                   pagination={false}
                   scroll={{ y: 360 }}
                 >
-                  <Table.Column title="周期" dataIndex="week" key="week" width: 140 />
-                  <Table.Column title="计划复诊" dataIndex="total" key="total" width: 90 align="center" />
-                  <Table.Column title="已完成" dataIndex="completed" key="completed" width: 90 align="center" />
+                  <Table.Column title="周期" dataIndex="week" key="week" width={140} />
+                  <Table.Column title="计划复诊" dataIndex="total" key="total" width={90} align="center" />
+                  <Table.Column title="已完成" dataIndex="completed" key="completed" width={90} align="center" />
                   <Table.Column
                     title="完成率"
                     dataIndex="rate"
@@ -436,7 +436,7 @@ const RecheckLostStats = () => {
                   size="small"
                   pagination={false}
                 >
-                  <Table.Column title="月份" dataIndex="month" key="month" width: 100 />
+                  <Table.Column title="月份" dataIndex="month" key="month" width={100} />
                   <Table.Column
                     title="新增患者"
                     dataIndex="newCount"

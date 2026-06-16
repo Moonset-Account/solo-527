@@ -1,18 +1,18 @@
 
-&lt;Project Sdk="Microsoft.NET.Sdk.Web"&gt;
-  &lt;PropertyGroup&gt;
-    &lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-    &lt;Nullable&gt;enable&lt;/Nullable&gt;
-    &lt;RootNamespace&gt;DentalClinic.API&lt;/RootNamespace&gt;
-  &lt;/PropertyGroup&gt;
-  &lt;ItemGroup&gt;
-    &lt;ProjectReference Include="..\DentalClinic.Application\DentalClinic.Application.csproj" /&gt;
-    &lt;ProjectReference Include="..\DentalClinic.Domain\DentalClinic.Domain.csproj" /&gt;
-    &lt;ProjectReference Include="..\DentalClinic.Infrastructure\DentalClinic.Infrastructure.csproj" /&gt;
-  &lt;/ItemGroup&gt;
-  &lt;ItemGroup&gt;
-    &lt;PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" /&gt;
-    &lt;PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" /&gt;
-  &lt;/ItemGroup&gt;
-&lt;/Project&gt;
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DentalClinic.API</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DentalClinic.Application\DentalClinic.Application.csproj" />
+    <ProjectReference Include="..\DentalClinic.Domain\DentalClinic.Domain.csproj" />
+    <ProjectReference Include="..\DentalClinic.Infrastructure\DentalClinic.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+  </ItemGroup>
+</Project>

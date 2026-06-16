@@ -16,46 +16,46 @@ public class StatisticsService : IStatisticsService
         _context = context;
     }
 
-    public async Task&lt;DashboardStatsDto&gt; GetDashboardStatsAsync(int? clinicId = null)
+    public async Task<DashboardStatsDto> GetDashboardStatsAsync(int? clinicId = null)
     {
         var today = DateTime.Today;
 
         var todayAppointments = _context.Appointments
-            .Where(a =&gt; a.AppointmentDate.Date == today);
+            .Where(a => a.AppointmentDate.Date == today);
         var pendingFollowUps = _context.FollowUps
-            .Where(f =&gt; f.Status == FollowUpStatus.Pending);
+            .Where(f => f.Status == FollowUpStatus.Pending);
         var overdueFollowUps = _context.FollowUps
-            .Where(f =&gt; f.IsOverdue &amp;&amp; f.Status == FollowUpStatus.Pending);
+            .Where(f => f.IsOverdue && f.Status == FollowUpStatus.Pending);
         var todayNewPatients = _context.Patients
-            .Where(p =&gt; p.CreatedAt.Date == today);
+            .Where(p => p.CreatedAt.Date == today);
         var activeDoctors = _context.Doctors
-            .Where(d =&gt; d.IsActive);
+            .Where(d => d.IsActive);
         var totalPatients = _context.Patients
-            .Where(p =&gt; p.Status == PatientStatus.Active);
+            .Where(p => p.Status == PatientStatus.Active);
         var lostPatients = _context.Patients
-            .Where(p =&gt; p.Status == PatientStatus.Lost);
+            .Where(p => p.Status == PatientStatus.Lost);
 
         if (clinicId.HasValue)
         {
-            todayAppointments = todayAppointments.Where(a =&gt; a.ClinicId == clinicId.Value);
-            pendingFollowUps = pendingFollowUps.Where(f =&gt; f.Doctor != null &amp;&amp; f.Doctor.ClinicId == clinicId.Value);
-            overdueFollowUps = overdueFollowUps.Where(f =&gt; f.Doctor != null &amp;&amp; f.Doctor.ClinicId == clinicId.Value);
-            todayNewPatients = todayNewPatients.Where(p =&gt; p.ClinicId == clinicId.Value);
-            activeDoctors = activeDoctors.Where(d =&gt; d.ClinicId == clinicId.Value);
-            totalPatients = totalPatients.Where(p =&gt; p.ClinicId == clinicId.Value);
-            lostPatients = lostPatients.Where(p =&gt; p.ClinicId == clinicId.Value);
+            todayAppointments = todayAppointments.Where(a => a.ClinicId == clinicId.Value);
+            pendingFollowUps = pendingFollowUps.Where(f => f.Doctor != null && f.Doctor.ClinicId == clinicId.Value);
+            overdueFollowUps = overdueFollowUps.Where(f => f.Doctor != null && f.Doctor.ClinicId == clinicId.Value);
+            todayNewPatients = todayNewPatients.Where(p => p.ClinicId == clinicId.Value);
+            activeDoctors = activeDoctors.Where(d => d.ClinicId == clinicId.Value);
+            totalPatients = totalPatients.Where(p => p.ClinicId == clinicId.Value);
+            lostPatients = lostPatients.Where(p => p.ClinicId == clinicId.Value);
         }
 
         var todayFeeItems = _context.FeeItems
-            .Where(f =&gt; f.Status == FeeItemStatus.Paid &amp;&amp; f.CreatedAt.Date == today);
+            .Where(f => f.Status == FeeItemStatus.Paid && f.CreatedAt.Date == today);
 
         if (clinicId.HasValue)
         {
             todayFeeItems = todayFeeItems
-                .Where(f =&gt; f.Appointment != null &amp;&amp; f.Appointment.ClinicId == clinicId.Value);
+                .Where(f => f.Appointment != null && f.Appointment.ClinicId == clinicId.Value);
         }
 
-        var todayRevenue = await todayFeeItems.SumAsync(f =&gt; f.Amount);
+        var todayRevenue = await todayFeeItems.SumAsync(f => f.Amount);
 
         return new DashboardStatsDto
         {
@@ -70,48 +70,48 @@ public class StatisticsService : IStatisticsService
         };
     }
 
-    public async Task&lt;RecheckStatsDto&gt; GetRecheckStatsAsync(int? clinicId = null, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<RecheckStatsDto> GetRecheckStatsAsync(int? clinicId = null, DateTime? startDate = null, DateTime? endDate = null)
     {
         startDate ??= DateTime.Today.AddMonths(-3);
         endDate ??= DateTime.Today;
 
         var recheckAppointments = _context.Appointments
-            .Where(a =&gt; a.Type == AppointmentType.Recheck 
-                &amp;&amp; a.AppointmentDate.Date &gt;= startDate.Value.Date 
-                &amp;&amp; a.AppointmentDate.Date &lt;= endDate.Value.Date);
+            .Where(a => a.Type == AppointmentType.Recheck 
+                && a.AppointmentDate.Date >= startDate.Value.Date 
+                && a.AppointmentDate.Date <= endDate.Value.Date);
 
         if (clinicId.HasValue)
-            recheckAppointments = recheckAppointments.Where(a =&gt; a.ClinicId == clinicId.Value);
+            recheckAppointments = recheckAppointments.Where(a => a.ClinicId == clinicId.Value);
 
         var totalRecheck = await recheckAppointments.CountAsync();
         var completedRecheck = await recheckAppointments
-            .Where(a =&gt; a.Status == AppointmentStatus.Completed)
+            .Where(a => a.Status == AppointmentStatus.Completed)
             .CountAsync();
         var pendingRecheck = await recheckAppointments
-            .Where(a =&gt; a.Status == AppointmentStatus.Pending || a.Status == AppointmentStatus.Confirmed)
+            .Where(a => a.Status == AppointmentStatus.Pending || a.Status == AppointmentStatus.Confirmed)
             .CountAsync();
 
         var totalInitial = await _context.Appointments
-            .Where(a =&gt; a.Type == AppointmentType.Initial 
-                &amp;&amp; a.AppointmentDate.Date &gt;= startDate.Value.Date 
-                &amp;&amp; a.AppointmentDate.Date &lt;= endDate.Value.Date
-                &amp;&amp; (!clinicId.HasValue || a.ClinicId == clinicId.Value))
+            .Where(a => a.Type == AppointmentType.Initial 
+                && a.AppointmentDate.Date >= startDate.Value.Date 
+                && a.AppointmentDate.Date <= endDate.Value.Date
+                && (!clinicId.HasValue || a.ClinicId == clinicId.Value))
             .CountAsync();
 
-        var recheckRate = totalInitial &gt; 0 ? (decimal)totalRecheck / totalInitial * 100 : 0;
+        var recheckRate = totalInitial > 0 ? (decimal)totalRecheck / totalInitial * 100 : 0;
 
-        var trend = new List&lt;RecheckTrendItemDto&gt;();
-        for (var date = startDate.Value.Date; date &lt;= endDate.Value.Date; date = date.AddDays(7))
+        var trend = new List<RecheckTrendItemDto>();
+        for (var date = startDate.Value.Date; date <= endDate.Value.Date; date = date.AddDays(7))
         {
             var weekEnd = date.AddDays(6);
-            if (weekEnd &gt; endDate.Value.Date) weekEnd = endDate.Value.Date;
+            if (weekEnd > endDate.Value.Date) weekEnd = endDate.Value.Date;
 
             var weekTotal = await recheckAppointments
-                .Where(a =&gt; a.AppointmentDate.Date &gt;= date &amp;&amp; a.AppointmentDate.Date &lt;= weekEnd)
+                .Where(a => a.AppointmentDate.Date >= date && a.AppointmentDate.Date <= weekEnd)
                 .CountAsync();
             var weekCompleted = await recheckAppointments
-                .Where(a =&gt; a.AppointmentDate.Date &gt;= date &amp;&amp; a.AppointmentDate.Date &lt;= weekEnd
-                    &amp;&amp; a.Status == AppointmentStatus.Completed)
+                .Where(a => a.AppointmentDate.Date >= date && a.AppointmentDate.Date <= weekEnd
+                    && a.Status == AppointmentStatus.Completed)
                 .CountAsync();
 
             trend.Add(new RecheckTrendItemDto
@@ -124,26 +124,26 @@ public class StatisticsService : IStatisticsService
 
         var doctorQuery = _context.Doctors.AsQueryable();
         if (clinicId.HasValue)
-            doctorQuery = doctorQuery.Where(d =&gt; d.ClinicId == clinicId.Value);
+            doctorQuery = doctorQuery.Where(d => d.ClinicId == clinicId.Value);
 
         var doctors = await doctorQuery.ToListAsync();
-        var byDoctor = new List&lt;DoctorRecheckStatsDto&gt;();
+        var byDoctor = new List<DoctorRecheckStatsDto>();
 
         foreach (var doctor in doctors.Take(5))
         {
             var doctorPatients = await _context.Appointments
-                .Where(a =&gt; a.DoctorId == doctor.Id 
-                    &amp;&amp; a.AppointmentDate.Date &gt;= startDate.Value.Date 
-                    &amp;&amp; a.AppointmentDate.Date &lt;= endDate.Value.Date)
-                .Select(a =&gt; a.PatientId)
+                .Where(a => a.DoctorId == doctor.Id 
+                    && a.AppointmentDate.Date >= startDate.Value.Date 
+                    && a.AppointmentDate.Date <= endDate.Value.Date)
+                .Select(a => a.PatientId)
                 .Distinct()
                 .CountAsync();
 
             var doctorRechecks = await _context.Appointments
-                .Where(a =&gt; a.DoctorId == doctor.Id 
-                    &amp;&amp; a.Type == AppointmentType.Recheck
-                    &amp;&amp; a.AppointmentDate.Date &gt;= startDate.Value.Date 
-                    &amp;&amp; a.AppointmentDate.Date &lt;= endDate.Value.Date)
+                .Where(a => a.DoctorId == doctor.Id 
+                    && a.Type == AppointmentType.Recheck
+                    && a.AppointmentDate.Date >= startDate.Value.Date 
+                    && a.AppointmentDate.Date <= endDate.Value.Date)
                 .CountAsync();
 
             byDoctor.Add(new DoctorRecheckStatsDto
@@ -152,7 +152,7 @@ public class StatisticsService : IStatisticsService
                 DoctorName = doctor.Name,
                 TotalPatients = doctorPatients,
                 RecheckCount = doctorRechecks,
-                RecheckRate = doctorPatients &gt; 0 ? (decimal)doctorRechecks / doctorPatients * 100 : 0
+                RecheckRate = doctorPatients > 0 ? (decimal)doctorRechecks / doctorPatients * 100 : 0
             });
         }
 
@@ -167,42 +167,42 @@ public class StatisticsService : IStatisticsService
         };
     }
 
-    public async Task&lt;LostPatientStatsDto&gt; GetLostPatientStatsAsync(int? clinicId = null, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<LostPatientStatsDto> GetLostPatientStatsAsync(int? clinicId = null, DateTime? startDate = null, DateTime? endDate = null)
     {
         startDate ??= DateTime.Today.AddMonths(-6);
         endDate ??= DateTime.Today;
 
         var lostPatientsQuery = _context.Patients
-            .Where(p =&gt; p.Status == PatientStatus.Lost);
+            .Where(p => p.Status == PatientStatus.Lost);
 
         if (clinicId.HasValue)
-            lostPatientsQuery = lostPatientsQuery.Where(p =&gt; p.ClinicId == clinicId.Value);
+            lostPatientsQuery = lostPatientsQuery.Where(p => p.ClinicId == clinicId.Value);
 
         var totalLost = await lostPatientsQuery.CountAsync();
 
         var thisMonthLost = await lostPatientsQuery
-            .Where(p =&gt; p.CreatedAt.Date &gt;= new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1))
+            .Where(p => p.CreatedAt.Date >= new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1))
             .CountAsync();
 
         var totalPatientsQuery = _context.Patients.AsQueryable();
         if (clinicId.HasValue)
-            totalPatientsQuery = totalPatientsQuery.Where(p =&gt; p.ClinicId == clinicId.Value);
+            totalPatientsQuery = totalPatientsQuery.Where(p => p.ClinicId == clinicId.Value);
 
         var totalPatients = await totalPatientsQuery.CountAsync();
-        var lostRate = totalPatients &gt; 0 ? (decimal)totalLost / totalPatients * 100 : 0;
+        var lostRate = totalPatients > 0 ? (decimal)totalLost / totalPatients * 100 : 0;
 
-        var trend = new List&lt;LostTrendItemDto&gt;();
-        for (var date = startDate.Value.Date; date &lt;= endDate.Value.Date; date = date.AddMonths(1))
+        var trend = new List<LostTrendItemDto>();
+        for (var date = startDate.Value.Date; date <= endDate.Value.Date; date = date.AddMonths(1))
         {
             var monthStart = new DateTime(date.Year, date.Month, 1);
             var monthEnd = monthStart.AddMonths(1).AddDays(-1);
 
             var monthLost = await lostPatientsQuery
-                .Where(p =&gt; p.CreatedAt.Date &gt;= monthStart &amp;&amp; p.CreatedAt.Date &lt;= monthEnd)
+                .Where(p => p.CreatedAt.Date >= monthStart && p.CreatedAt.Date <= monthEnd)
                 .CountAsync();
 
             var monthNew = await totalPatientsQuery
-                .Where(p =&gt; p.CreatedAt.Date &gt;= monthStart &amp;&amp; p.CreatedAt.Date &lt;= monthEnd)
+                .Where(p => p.CreatedAt.Date >= monthStart && p.CreatedAt.Date <= monthEnd)
                 .CountAsync();
 
             trend.Add(new LostTrendItemDto
@@ -213,7 +213,7 @@ public class StatisticsService : IStatisticsService
             });
         }
 
-        var byReason = new List&lt;LostReasonGroupDto&gt;
+        var byReason = new List<LostReasonGroupDto>
         {
             new() { Reason = "距离太远", Count = 12, Percentage = 24 },
             new() { Reason = "费用太高", Count = 10, Percentage = 20 },
@@ -233,66 +233,66 @@ public class StatisticsService : IStatisticsService
         };
     }
 
-    public async Task&lt;ScheduleUtilizationStatsDto&gt; GetScheduleUtilizationStatsAsync(int? clinicId = null, int? doctorId = null, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<ScheduleUtilizationStatsDto> GetScheduleUtilizationStatsAsync(int? clinicId = null, int? doctorId = null, DateTime? startDate = null, DateTime? endDate = null)
     {
         startDate ??= DateTime.Today.AddDays(-30);
         endDate ??= DateTime.Today.AddDays(30);
 
         var slotsQuery = _context.ScheduleSlots
-            .Where(s =&gt; s.Date.Date &gt;= startDate.Value.Date &amp;&amp; s.Date.Date &lt;= endDate.Value.Date);
+            .Where(s => s.Date.Date >= startDate.Value.Date && s.Date.Date <= endDate.Value.Date);
 
         if (clinicId.HasValue)
-            slotsQuery = slotsQuery.Where(s =&gt; s.ClinicId == clinicId.Value);
+            slotsQuery = slotsQuery.Where(s => s.ClinicId == clinicId.Value);
         if (doctorId.HasValue)
-            slotsQuery = slotsQuery.Where(s =&gt; s.DoctorId == doctorId.Value);
+            slotsQuery = slotsQuery.Where(s => s.DoctorId == doctorId.Value);
 
         var slots = await slotsQuery.ToListAsync();
 
-        var totalSlots = slots.Sum(s =&gt; s.TotalSlots);
-        var bookedSlots = slots.Sum(s =&gt; s.BookedSlots);
-        var utilizationRate = totalSlots &gt; 0 ? (decimal)bookedSlots / totalSlots * 100 : 0;
+        var totalSlots = slots.Sum(s => s.TotalSlots);
+        var bookedSlots = slots.Sum(s => s.BookedSlots);
+        var utilizationRate = totalSlots > 0 ? (decimal)bookedSlots / totalSlots * 100 : 0;
 
         var byStatus = slots
-            .GroupBy(s =&gt; s.Status)
-            .Select(g =&gt; new UtilizationByStatusDto
+            .GroupBy(s => s.Status)
+            .Select(g => new UtilizationByStatusDto
             {
                 Status = (int)g.Key,
                 StatusText = g.Key.ToString(),
                 Count = g.Count(),
-                Percentage = slots.Count &gt; 0 ? Math.Round((decimal)g.Count() / slots.Count * 100, 2) : 0
+                Percentage = slots.Count > 0 ? Math.Round((decimal)g.Count() / slots.Count * 100, 2) : 0
             })
-            .OrderByDescending(x =&gt; x.Count)
+            .OrderByDescending(x => x.Count)
             .ToList();
 
         var byDoctorQuery = slots
-            .GroupBy(s =&gt; new { s.DoctorId, s.Doctor?.Name })
-            .Select(g =&gt; new UtilizationByDoctorDto
+            .GroupBy(s => new { s.DoctorId, s.Doctor?.Name })
+            .Select(g => new UtilizationByDoctorDto
             {
                 DoctorId = g.Key.DoctorId,
                 DoctorName = g.Key.Name ?? "",
-                TotalSlots = g.Sum(s =&gt; s.TotalSlots),
-                BookedSlots = g.Sum(s =&gt; s.BookedSlots),
-                UtilizationRate = g.Sum(s =&gt; s.TotalSlots) &gt; 0 
-                    ? Math.Round((decimal)g.Sum(s =&gt; s.BookedSlots) / g.Sum(s =&gt; s.TotalSlots) * 100, 2) 
+                TotalSlots = g.Sum(s => s.TotalSlots),
+                BookedSlots = g.Sum(s => s.BookedSlots),
+                UtilizationRate = g.Sum(s => s.TotalSlots) > 0 
+                    ? Math.Round((decimal)g.Sum(s => s.BookedSlots) / g.Sum(s => s.TotalSlots) * 100, 2) 
                     : 0
             })
-            .OrderByDescending(x =&gt; x.UtilizationRate)
+            .OrderByDescending(x => x.UtilizationRate)
             .Take(10)
             .ToList();
 
-        var trend = new List&lt;UtilizationTrendDto&gt;();
-        for (var date = startDate.Value.Date; date &lt;= endDate.Value.Date; date = date.AddDays(3))
+        var trend = new List<UtilizationTrendDto>();
+        for (var date = startDate.Value.Date; date <= endDate.Value.Date; date = date.AddDays(3))
         {
-            var daySlots = slots.Where(s =&gt; s.Date.Date == date.Date).ToList();
-            var dayTotal = daySlots.Sum(s =&gt; s.TotalSlots);
-            var dayBooked = daySlots.Sum(s =&gt; s.BookedSlots);
+            var daySlots = slots.Where(s => s.Date.Date == date.Date).ToList();
+            var dayTotal = daySlots.Sum(s => s.TotalSlots);
+            var dayBooked = daySlots.Sum(s => s.BookedSlots);
 
             trend.Add(new UtilizationTrendDto
             {
                 Date = date.ToString("MM-dd"),
                 TotalSlots = dayTotal,
                 BookedSlots = dayBooked,
-                UtilizationRate = dayTotal &gt; 0 ? Math.Round((decimal)dayBooked / dayTotal * 100, 2) : 0
+                UtilizationRate = dayTotal > 0 ? Math.Round((decimal)dayBooked / dayTotal * 100, 2) : 0
             });
         }
 

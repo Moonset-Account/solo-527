@@ -27,8 +27,8 @@ public class RecheckStatsDto
     public int CompletedRecheckCount { get; set; }
     public int PendingRecheckCount { get; set; }
     public decimal RecheckRate { get; set; }
-    public List&lt;RecheckTrendItemDto&gt; Trend { get; set; } = new();
-    public List&lt;DoctorRecheckStatsDto&gt; ByDoctor { get; set; } = new();
+    public List<RecheckTrendItemDto> Trend { get; set; } = new();
+    public List<DoctorRecheckStatsDto> ByDoctor { get; set; } = new();
 }
 
 public class RecheckTrendItemDto
@@ -52,8 +52,8 @@ public class LostPatientStatsDto
     public int TotalLostCount { get; set; }
     public int ThisMonthLostCount { get; set; }
     public decimal LostRate { get; set; }
-    public List&lt;LostTrendItemDto&gt; Trend { get; set; } = new();
-    public List&lt;LostReasonGroupDto&gt; ByReason { get; set; } = new();
+    public List<LostTrendItemDto> Trend { get; set; } = new();
+    public List<LostReasonGroupDto> ByReason { get; set; } = new();
 }
 
 public class LostTrendItemDto
@@ -75,9 +75,9 @@ public class ScheduleUtilizationStatsDto
     public decimal OverallUtilizationRate { get; set; }
     public int TotalSlots { get; set; }
     public int BookedSlots { get; set; }
-    public List&lt;UtilizationByStatusDto&gt; ByStatus { get; set; } = new();
-    public List&lt;UtilizationByDoctorDto&gt; ByDoctor { get; set; } = new();
-    public List&lt;UtilizationTrendDto&gt; Trend { get; set; } = new();
+    public List<UtilizationByStatusDto> ByStatus { get; set; } = new();
+    public List<UtilizationByDoctorDto> ByDoctor { get; set; } = new();
+    public List<UtilizationTrendDto> Trend { get; set; } = new();
 }
 
 public class UtilizationByStatusDto

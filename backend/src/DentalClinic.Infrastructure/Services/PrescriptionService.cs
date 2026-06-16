@@ -16,18 +16,18 @@ public class PrescriptionService : IPrescriptionService
         _context = context;
     }
 
-    public async Task&lt;PrescriptionDto?&gt; GetByIdAsync(int id)
+    public async Task<PrescriptionDto?> GetByIdAsync(int id)
     {
         var prescription = await _context.Prescriptions
-            .Include(p =&gt; p.Patient)
-            .Include(p =&gt; p.Doctor)
-            .Include(p =&gt; p.Items)
-            .FirstOrDefaultAsync(p =&gt; p.Id == id);
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         return prescription == null ? null : MapToDto(prescription);
     }
 
-    public async Task&lt;PrescriptionDto&gt; CreateAsync(PrescriptionCreateDto dto)
+    public async Task<PrescriptionDto> CreateAsync(PrescriptionCreateDto dto)
     {
         var prescriptionNo = $"RX{DateTime.Now:yyyyMMdd}{Guid.NewGuid().ToString("N")[..4].ToUpper()}";
 
@@ -42,7 +42,7 @@ public class PrescriptionService : IPrescriptionService
             CreatedAt = DateTime.Now
         };
 
-        var items = dto.Items.Select(item =&gt; new PrescriptionItem
+        var items = dto.Items.Select(item => new PrescriptionItem
         {
             MedicineName = item.MedicineName,
             Specification = item.Specification,
@@ -54,7 +54,7 @@ public class PrescriptionService : IPrescriptionService
         }).ToList();
 
         prescription.Items = items;
-        prescription.TotalAmount = items.Sum(i =&gt; i.Amount);
+        prescription.TotalAmount = items.Sum(i => i.Amount);
 
         _context.Prescriptions.Add(prescription);
         await _context.SaveChangesAsync();
@@ -62,25 +62,25 @@ public class PrescriptionService : IPrescriptionService
         return MapToDto(prescription);
     }
 
-    public async Task&lt;List&lt;PrescriptionDto&gt;&gt; GetByPatientIdAsync(int patientId)
+    public async Task<List<PrescriptionDto>> GetByPatientIdAsync(int patientId)
     {
         return await _context.Prescriptions
-            .Include(p =&gt; p.Doctor)
-            .Include(p =&gt; p.Items)
-            .Where(p =&gt; p.PatientId == patientId)
-            .OrderByDescending(p =&gt; p.CreatedAt)
-            .Select(p =&gt; MapToDto(p))
+            .Include(p => p.Doctor)
+            .Include(p => p.Items)
+            .Where(p => p.PatientId == patientId)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => MapToDto(p))
             .ToListAsync();
     }
 
-    public async Task&lt;List&lt;PrescriptionDto&gt;&gt; GetByAppointmentIdAsync(int appointmentId)
+    public async Task<List<PrescriptionDto>> GetByAppointmentIdAsync(int appointmentId)
     {
         return await _context.Prescriptions
-            .Include(p =&gt; p.Doctor)
-            .Include(p =&gt; p.Items)
-            .Where(p =&gt; p.AppointmentId == appointmentId)
-            .OrderByDescending(p =&gt; p.CreatedAt)
-            .Select(p =&gt; MapToDto(p))
+            .Include(p => p.Doctor)
+            .Include(p => p.Items)
+            .Where(p => p.AppointmentId == appointmentId)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => MapToDto(p))
             .ToListAsync();
     }
 
@@ -100,7 +100,7 @@ public class PrescriptionService : IPrescriptionService
             Status = (int)prescription.Status,
             StatusText = prescription.Status.ToString(),
             CreatedAt = prescription.CreatedAt,
-            Items = prescription.Items.Select(i =&gt; new PrescriptionItemDto
+            Items = prescription.Items.Select(i => new PrescriptionItemDto
             {
                 Id = i.Id,
                 MedicineName = i.MedicineName,

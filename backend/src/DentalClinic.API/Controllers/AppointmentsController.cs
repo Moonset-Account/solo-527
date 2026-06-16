@@ -17,10 +17,10 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;PagedResultDto&lt;AppointmentDto&gt;&gt;&gt;&gt; GetList([FromQuery] AppointmentQueryDto query)
+    public async Task<ActionResult<ApiResultDto<PagedResultDto<AppointmentDto>>>> GetList([FromQuery] AppointmentQueryDto query)
     {
         var result = await _appointmentService.GetListAsync(query);
-        return Ok(new ApiResultDto&lt;PagedResultDto&lt;AppointmentDto&gt;&gt;
+        return Ok(new ApiResultDto<PagedResultDto<AppointmentDto>>
         {
             Success = true,
             Code = 200,
@@ -29,13 +29,13 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;AppointmentDto&gt;&gt;&gt; GetById(int id, [FromQuery] bool includeDetails = false)
+    public async Task<ActionResult<ApiResultDto<AppointmentDto>>> GetById(int id, [FromQuery] bool includeDetails = false)
     {
         var appointment = await _appointmentService.GetByIdAsync(id, includeDetails);
         if (appointment == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "预约不存在" });
 
-        return Ok(new ApiResultDto&lt;AppointmentDto&gt;
+        return Ok(new ApiResultDto<AppointmentDto>
         {
             Success = true,
             Code = 200,
@@ -44,10 +44,10 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;AppointmentDto&gt;&gt;&gt; Create(AppointmentCreateDto dto)
+    public async Task<ActionResult<ApiResultDto<AppointmentDto>>> Create(AppointmentCreateDto dto)
     {
         var result = await _appointmentService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto&lt;AppointmentDto&gt;
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto<AppointmentDto>
         {
             Success = true,
             Code = 201,
@@ -56,13 +56,13 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;AppointmentDto&gt;&gt;&gt; Update(int id, AppointmentUpdateDto dto)
+    public async Task<ActionResult<ApiResultDto<AppointmentDto>>> Update(int id, AppointmentUpdateDto dto)
     {
         var result = await _appointmentService.UpdateAsync(id, dto);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "预约不存在" });
 
-        return Ok(new ApiResultDto&lt;AppointmentDto&gt;
+        return Ok(new ApiResultDto<AppointmentDto>
         {
             Success = true,
             Code = 200,
@@ -71,7 +71,7 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; Delete(int id)
+    public async Task<ActionResult<ApiResultDto>> Delete(int id)
     {
         var result = await _appointmentService.DeleteAsync(id);
         if (!result)
@@ -81,7 +81,7 @@ public class AppointmentsController : ControllerBase
     }
 
     [HttpPatch("{id}/status")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; UpdateStatus(int id, [FromBody] int status)
+    public async Task<ActionResult<ApiResultDto>> UpdateStatus(int id, [FromBody] int status)
     {
         var result = await _appointmentService.UpdateStatusAsync(id, status);
         if (!result)

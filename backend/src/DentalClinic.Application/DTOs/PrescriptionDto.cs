@@ -16,7 +16,7 @@ public class PrescriptionDto
     public string? StatusText { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public List&lt;PrescriptionItemDto&gt; Items { get; set; } = new();
+    public List<PrescriptionItemDto> Items { get; set; } = new();
 }
 
 public class PrescriptionItemDto
@@ -38,7 +38,7 @@ public class PrescriptionCreateDto
     public int? AppointmentId { get; set; }
     public int DoctorId { get; set; }
     public string? Remark { get; set; }
-    public List&lt;PrescriptionItemCreateDto&gt; Items { get; set; } = new();
+    public List<PrescriptionItemCreateDto> Items { get; set; } = new();
 }
 
 public class PrescriptionItemCreateDto

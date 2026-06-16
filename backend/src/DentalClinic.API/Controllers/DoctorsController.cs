@@ -17,10 +17,10 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;PagedResultDto&lt;DoctorDto&gt;&gt;&gt;&gt; GetList([FromQuery] DoctorQueryDto query)
+    public async Task<ActionResult<ApiResultDto<PagedResultDto<DoctorDto>>>> GetList([FromQuery] DoctorQueryDto query)
     {
         var result = await _doctorService.GetListAsync(query);
-        return Ok(new ApiResultDto&lt;PagedResultDto&lt;DoctorDto&gt;&gt;
+        return Ok(new ApiResultDto<PagedResultDto<DoctorDto>>
         {
             Success = true,
             Code = 200,
@@ -29,10 +29,10 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpGet("all")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;List&lt;DoctorDto&gt;&gt;&gt;&gt; GetAll([FromQuery] int? clinicId = null)
+    public async Task<ActionResult<ApiResultDto<List<DoctorDto>>>> GetAll([FromQuery] int? clinicId = null)
     {
         var result = await _doctorService.GetAllAsync(clinicId);
-        return Ok(new ApiResultDto&lt;List&lt;DoctorDto&gt;&gt;
+        return Ok(new ApiResultDto<List<DoctorDto>>
         {
             Success = true,
             Code = 200,
@@ -41,13 +41,13 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;DoctorDto&gt;&gt;&gt; GetById(int id)
+    public async Task<ActionResult<ApiResultDto<DoctorDto>>> GetById(int id)
     {
         var doctor = await _doctorService.GetByIdAsync(id);
         if (doctor == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "医生不存在" });
 
-        return Ok(new ApiResultDto&lt;DoctorDto&gt;
+        return Ok(new ApiResultDto<DoctorDto>
         {
             Success = true,
             Code = 200,
@@ -56,10 +56,10 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;DoctorDto&gt;&gt;&gt; Create(DoctorCreateDto dto)
+    public async Task<ActionResult<ApiResultDto<DoctorDto>>> Create(DoctorCreateDto dto)
     {
         var result = await _doctorService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto&lt;DoctorDto&gt;
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto<DoctorDto>
         {
             Success = true,
             Code = 201,
@@ -68,13 +68,13 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;DoctorDto&gt;&gt;&gt; Update(int id, DoctorUpdateDto dto)
+    public async Task<ActionResult<ApiResultDto<DoctorDto>>> Update(int id, DoctorUpdateDto dto)
     {
         var result = await _doctorService.UpdateAsync(id, dto);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "医生不存在" });
 
-        return Ok(new ApiResultDto&lt;DoctorDto&gt;
+        return Ok(new ApiResultDto<DoctorDto>
         {
             Success = true,
             Code = 200,
@@ -83,7 +83,7 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; Delete(int id)
+    public async Task<ActionResult<ApiResultDto>> Delete(int id)
     {
         var result = await _doctorService.DeleteAsync(id);
         if (!result)

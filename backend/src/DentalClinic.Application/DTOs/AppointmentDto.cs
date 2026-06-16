@@ -27,9 +27,9 @@ public class AppointmentDto
     public int? ScheduleSlotId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public List&lt;FeeItemDto&gt;? FeeItems { get; set; }
-    public List&lt;ChiefComplaintDto&gt;? ChiefComplaintRecords { get; set; }
-    public List&lt;PrescriptionDto&gt;? Prescriptions { get; set; }
+    public List<FeeItemDto>? FeeItems { get; set; }
+    public List<ChiefComplaintDto>? ChiefComplaintRecords { get; set; }
+    public List<PrescriptionDto>? Prescriptions { get; set; }
 }
 
 public class AppointmentCreateDto

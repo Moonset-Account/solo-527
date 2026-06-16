@@ -16,17 +16,17 @@ public class ChiefComplaintService : IChiefComplaintService
         _context = context;
     }
 
-    public async Task&lt;ChiefComplaintDto?&gt; GetByIdAsync(int id)
+    public async Task<ChiefComplaintDto?> GetByIdAsync(int id)
     {
         var complaint = await _context.ChiefComplaints
-            .Include(c =&gt; c.Patient)
-            .Include(c =&gt; c.Doctor)
-            .FirstOrDefaultAsync(c =&gt; c.Id == id);
+            .Include(c => c.Patient)
+            .Include(c => c.Doctor)
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         return complaint == null ? null : MapToDto(complaint);
     }
 
-    public async Task&lt;ChiefComplaintDto&gt; CreateAsync(ChiefComplaintCreateDto dto)
+    public async Task<ChiefComplaintDto> CreateAsync(ChiefComplaintCreateDto dto)
     {
         var complaint = new ChiefComplaint
         {
@@ -47,22 +47,22 @@ public class ChiefComplaintService : IChiefComplaintService
         return MapToDto(complaint);
     }
 
-    public async Task&lt;List&lt;ChiefComplaintDto&gt;&gt; GetByPatientIdAsync(int patientId)
+    public async Task<List<ChiefComplaintDto>> GetByPatientIdAsync(int patientId)
     {
         return await _context.ChiefComplaints
-            .Include(c =&gt; c.Doctor)
-            .Where(c =&gt; c.PatientId == patientId)
-            .OrderByDescending(c =&gt; c.VisitDate)
-            .Select(c =&gt; MapToDto(c))
+            .Include(c => c.Doctor)
+            .Where(c => c.PatientId == patientId)
+            .OrderByDescending(c => c.VisitDate)
+            .Select(c => MapToDto(c))
             .ToListAsync();
     }
 
-    public async Task&lt;ChiefComplaintDto?&gt; GetLatestByPatientIdAsync(int patientId)
+    public async Task<ChiefComplaintDto?> GetLatestByPatientIdAsync(int patientId)
     {
         var complaint = await _context.ChiefComplaints
-            .Include(c =&gt; c.Doctor)
-            .Where(c =&gt; c.PatientId == patientId)
-            .OrderByDescending(c =&gt; c.VisitDate)
+            .Include(c => c.Doctor)
+            .Where(c => c.PatientId == patientId)
+            .OrderByDescending(c => c.VisitDate)
             .FirstOrDefaultAsync();
 
         return complaint == null ? null : MapToDto(complaint);

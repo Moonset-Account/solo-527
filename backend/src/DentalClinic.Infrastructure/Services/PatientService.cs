@@ -16,20 +16,20 @@ public class PatientService : IPatientService
         _context = context;
     }
 
-    public async Task&lt;PagedResultDto&lt;PatientDto&gt;&gt; GetListAsync(PatientQueryDto query)
+    public async Task<PagedResultDto<PatientDto>> GetListAsync(PatientQueryDto query)
     {
         var queryable = _context.Patients
-            .Include(p =&gt; p.Clinic)
+            .Include(p => p.Clinic)
             .AsQueryable();
 
         if (query.ClinicId.HasValue)
-            queryable = queryable.Where(p =&gt; p.ClinicId == query.ClinicId.Value);
+            queryable = queryable.Where(p => p.ClinicId == query.ClinicId.Value);
         if (!string.IsNullOrEmpty(query.Name))
-            queryable = queryable.Where(p =&gt; p.Name.Contains(query.Name));
+            queryable = queryable.Where(p => p.Name.Contains(query.Name));
         if (!string.IsNullOrEmpty(query.Phone))
-            queryable = queryable.Where(p =&gt; p.Phone.Contains(query.Phone));
+            queryable = queryable.Where(p => p.Phone.Contains(query.Phone));
         if (query.Status.HasValue)
-            queryable = queryable.Where(p =&gt; p.Status == (PatientStatus)query.Status.Value);
+            queryable = queryable.Where(p => p.Status == (PatientStatus)query.Status.Value);
 
         var totalCount = await queryable.CountAsync();
 
@@ -38,17 +38,17 @@ public class PatientService : IPatientService
         
         queryable = sortField.ToLower() switch
         {
-            "name" =&gt; sortOrder ? queryable.OrderBy(p =&gt; p.Name) : queryable.OrderByDescending(p =&gt; p.Name),
-            _ =&gt; sortOrder ? queryable.OrderBy(p =&gt; p.CreatedAt) : queryable.OrderByDescending(p =&gt; p.CreatedAt)
+            "name" => sortOrder ? queryable.OrderBy(p => p.Name) : queryable.OrderByDescending(p => p.Name),
+            _ => sortOrder ? queryable.OrderBy(p => p.CreatedAt) : queryable.OrderByDescending(p => p.CreatedAt)
         };
 
         var items = await queryable
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(p =&gt; MapToDto(p))
+            .Select(p => MapToDto(p))
             .ToListAsync();
 
-        return new PagedResultDto&lt;PatientDto&gt;
+        return new PagedResultDto<PatientDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -57,15 +57,15 @@ public class PatientService : IPatientService
         };
     }
 
-    public async Task&lt;PatientDto?&gt; GetByIdAsync(int id)
+    public async Task<PatientDto?> GetByIdAsync(int id)
     {
         var patient = await _context.Patients
-            .Include(p =&gt; p.Clinic)
-            .FirstOrDefaultAsync(p =&gt; p.Id == id);
+            .Include(p => p.Clinic)
+            .FirstOrDefaultAsync(p => p.Id == id);
         return patient == null ? null : MapToDto(patient);
     }
 
-    public async Task&lt;PatientDto&gt; CreateAsync(PatientCreateDto dto)
+    public async Task<PatientDto> CreateAsync(PatientCreateDto dto)
     {
         var patient = new Patient
         {
@@ -87,7 +87,7 @@ public class PatientService : IPatientService
         return MapToDto(patient);
     }
 
-    public async Task&lt;PatientDto?&gt; UpdateAsync(int id, PatientUpdateDto dto)
+    public async Task<PatientDto?> UpdateAsync(int id, PatientUpdateDto dto)
     {
         var patient = await _context.Patients.FindAsync(id);
         if (patient == null) return null;
@@ -106,7 +106,7 @@ public class PatientService : IPatientService
         return MapToDto(patient);
     }
 
-    public async Task&lt;bool&gt; DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var patient = await _context.Patients.FindAsync(id);
         if (patient == null) return false;
@@ -117,11 +117,11 @@ public class PatientService : IPatientService
         return true;
     }
 
-    public async Task&lt;PatientDto?&gt; GetByPhoneAsync(string phone)
+    public async Task<PatientDto?> GetByPhoneAsync(string phone)
     {
         var patient = await _context.Patients
-            .Include(p =&gt; p.Clinic)
-            .FirstOrDefaultAsync(p =&gt; p.Phone == phone);
+            .Include(p => p.Clinic)
+            .FirstOrDefaultAsync(p => p.Phone == phone);
         return patient == null ? null : MapToDto(patient);
     }
 
@@ -149,7 +149,7 @@ public class PatientService : IPatientService
     private static int CalculateAge(DateTime birthDate)
     {
         var age = DateTime.Today.Year - birthDate.Year;
-        if (birthDate.Date &gt; DateTime.Today.AddYears(-age)) age--;
+        if (birthDate.Date > DateTime.Today.AddYears(-age)) age--;
         return age;
     }
 }

@@ -6,13 +6,13 @@ import {
   BellOutlined,
   UserAddOutlined,
   DollarOutlined,
-  DoctorOutlined,
+  UserOutlined,
   TeamOutlined,
   WarningOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
-const Dashboard = () =&gt; {
+const Dashboard = () => {
   const [stats, setStats] = useState({
     todayAppointments: 18,
     pendingFollowUps: 23,
@@ -67,15 +67,15 @@ const Dashboard = () =&gt; {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type) =&gt; appointmentTypeMap[type] || type
+      render: (type) => appointmentTypeMap[type] || type
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status) =&gt; {
+      render: (status) => {
         const s = statusMap[status]
-        return &lt;Tag color={s?.color}&gt;{s?.text}&lt;/Tag&gt;
+        return <Tag color={s?.color}>{s?.text}</Tag>
       }
     }
   ]
@@ -86,7 +86,7 @@ const Dashboard = () =&gt; {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type) =&gt; followUpTypeMap[type] || type
+      render: (type) => followUpTypeMap[type] || type
     },
     { title: '计划日期', dataIndex: 'plannedDate', key: 'plannedDate' },
     { title: '负责人', dataIndex: 'responsiblePerson', key: 'responsiblePerson' },
@@ -94,120 +94,120 @@ const Dashboard = () =&gt; {
       title: '逾期天数',
       dataIndex: 'overdueDays',
       key: 'overdueDays',
-      render: (days) =&gt; &lt;Tag color="red"&gt;逾期 {days} 天&lt;/Tag&gt;
+      render: (days) => <Tag color="red">逾期 {days} 天</Tag>
     }
   ]
 
   return (
-    &lt;div&gt;
-      &lt;Row gutter={[16, 16]} style={{ marginBottom: 16 }}&gt;
-        &lt;Col span={6}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+    <div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic
               title="今日预约"
               value={stats.todayAppointments}
-              prefix={&lt;CalendarOutlined style={{ color: '#13c2c2' }} /&gt;}
+              prefix={<CalendarOutlined style={{ color: '#13c2c2' }} />}
               valueStyle={{ color: '#13c2c2' }}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-        &lt;Col span={6}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
               title="待随访"
               value={stats.pendingFollowUps}
-              prefix={&lt;BellOutlined style={{ color: '#faad14' }} /&gt;}
+              prefix={<BellOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-        &lt;Col span={6}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
               title="逾期随访"
               value={stats.overdueFollowUps}
-              prefix={&lt;WarningOutlined style={{ color: '#f5222d' }} /&gt;}
+              prefix={<WarningOutlined style={{ color: '#f5222d' }} />}
               valueStyle={{ color: '#f5222d' }}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-        &lt;Col span={6}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
               title="今日营收"
               value={stats.todayRevenue}
-              prefix={&lt;DollarOutlined style={{ color: '#52c41a' }} /&gt;}
+              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
               precision={2}
               valueStyle={{ color: '#52c41a' }}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-      &lt;/Row&gt;
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      &lt;Row gutter={[16, 16]} style={{ marginBottom: 16 }}&gt;
-        &lt;Col span={8}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Card>
+            <Statistic
               title="在职医生"
               value={stats.activeDoctors}
-              prefix={&lt;DoctorOutlined /&gt;}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-        &lt;Col span={8}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+              prefix={<UserOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
               title="患者总数"
               value={stats.totalPatients}
-              prefix={&lt;TeamOutlined /&gt;}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-        &lt;Col span={8}&gt;
-          &lt;Card&gt;
-            &lt;Statistic
+              prefix={<TeamOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
               title="流失患者"
               value={stats.lostPatients}
-              prefix={&lt;UserAddOutlined /&gt;}
+              prefix={<UserAddOutlined />}
               valueStyle={{ color: '#f5222d' }}
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-      &lt;/Row&gt;
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      &lt;Row gutter={[16, 16]}&gt;
-        &lt;Col span={12}&gt;
-          &lt;Card title="今日预约列表" extra={&lt;a href="#/appointment-booking"&gt;查看全部&lt;/a&gt;}&gt;
-            &lt;Table
+      <Row gutter={[16, 16]}>
+        <Col span={12}>
+          <Card title="今日预约列表" extra={<a href="#/appointment-booking">查看全部</a>}>
+            <Table
               columns={appointmentColumns}
               dataSource={recentAppointments}
               rowKey="id"
               pagination={false}
               size="small"
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-        &lt;Col span={12}&gt;
-          &lt;Card
+            />
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card
             title={
-              &lt;Space&gt;
-                &lt;WarningOutlined style={{ color: '#f5222d' }} /&gt;
-                &lt;span&gt;逾期随访提醒&lt;/span&gt;
-              &lt;/Space&gt;
+              <Space>
+                <WarningOutlined style={{ color: '#f5222d' }} />
+                <span>逾期随访提醒</span>
+              </Space>
             }
-            extra={&lt;a href="#/follow-ups"&gt;处理全部&lt;/a&gt;}
-          &gt;
-            &lt;Table
+            extra={<a href="#/follow-ups">处理全部</a>}
+          >
+            <Table
               columns={followUpColumns}
               dataSource={overdueFollowUps}
               rowKey="id"
               pagination={false}
               size="small"
-            /&gt;
-          &lt;/Card&gt;
-        &lt;/Col&gt;
-      &lt;/Row&gt;
-    &lt;/div&gt;
+            />
+          </Card>
+        </Col>
+      </Row>
+    </div>
   )
 }
 

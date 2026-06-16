@@ -17,10 +17,10 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;PagedResultDto&lt;TodoItemDto&gt;&gt;&gt;&gt; GetList([FromQuery] TodoQueryDto query)
+    public async Task<ActionResult<ApiResultDto<PagedResultDto<TodoItemDto>>>> GetList([FromQuery] TodoQueryDto query)
     {
         var result = await _todoItemService.GetListAsync(query);
-        return Ok(new ApiResultDto&lt;PagedResultDto&lt;TodoItemDto&gt;&gt;
+        return Ok(new ApiResultDto<PagedResultDto<TodoItemDto>>
         {
             Success = true,
             Code = 200,
@@ -29,13 +29,13 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;TodoItemDto&gt;&gt;&gt; GetById(int id, [FromQuery] bool includeDetails = true)
+    public async Task<ActionResult<ApiResultDto<TodoItemDto>>> GetById(int id, [FromQuery] bool includeDetails = true)
     {
         var todo = await _todoItemService.GetByIdAsync(id, includeDetails);
         if (todo == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "待办不存在" });
 
-        return Ok(new ApiResultDto&lt;TodoItemDto&gt;
+        return Ok(new ApiResultDto<TodoItemDto>
         {
             Success = true,
             Code = 200,
@@ -44,10 +44,10 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;TodoItemDto&gt;&gt;&gt; Create(TodoItemCreateDto dto)
+    public async Task<ActionResult<ApiResultDto<TodoItemDto>>> Create(TodoItemCreateDto dto)
     {
         var result = await _todoItemService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto&lt;TodoItemDto&gt;
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto<TodoItemDto>
         {
             Success = true,
             Code = 201,
@@ -56,13 +56,13 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;TodoItemDto&gt;&gt;&gt; Update(int id, TodoItemUpdateDto dto)
+    public async Task<ActionResult<ApiResultDto<TodoItemDto>>> Update(int id, TodoItemUpdateDto dto)
     {
         var result = await _todoItemService.UpdateAsync(id, dto);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "待办不存在" });
 
-        return Ok(new ApiResultDto&lt;TodoItemDto&gt;
+        return Ok(new ApiResultDto<TodoItemDto>
         {
             Success = true,
             Code = 200,
@@ -71,7 +71,7 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; Delete(int id)
+    public async Task<ActionResult<ApiResultDto>> Delete(int id)
     {
         var result = await _todoItemService.DeleteAsync(id);
         if (!result)
@@ -81,7 +81,7 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpPost("{id}/complete")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; Complete(int id)
+    public async Task<ActionResult<ApiResultDto>> Complete(int id)
     {
         var result = await _todoItemService.CompleteAsync(id);
         if (!result)
@@ -91,10 +91,10 @@ public class TodoItemsController : ControllerBase
     }
 
     [HttpGet("pending/count")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;int&gt;&gt;&gt; GetPendingCount([FromQuery] int? assignedToUserId = null)
+    public async Task<ActionResult<ApiResultDto<int>>> GetPendingCount([FromQuery] int? assignedToUserId = null)
     {
         var count = await _todoItemService.GetPendingCountAsync(assignedToUserId);
-        return Ok(new ApiResultDto&lt;int&gt;
+        return Ok(new ApiResultDto<int>
         {
             Success = true,
             Code = 200,

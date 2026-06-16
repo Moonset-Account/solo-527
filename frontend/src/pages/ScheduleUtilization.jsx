@@ -435,9 +435,9 @@ const ScheduleUtilization = () => {
               size="small"
               pagination={false}
             >
-              <Table.Column title="日期" dataIndex="date" key="date" width: 100 />
-              <Table.Column title="总号源" dataIndex="totalSlots" key="totalSlots" width: 100 align="center" />
-              <Table.Column title="已预约" dataIndex="bookedSlots" key="bookedSlots" width: 100 align="center" />
+              <Table.Column title="日期" dataIndex="date" key="date" width={100} />
+              <Table.Column title="总号源" dataIndex="totalSlots" key="totalSlots" width={100} align="center" />
+              <Table.Column title="已预约" dataIndex="bookedSlots" key="bookedSlots" width={100} align="center" />
               <Table.Column
                 title="利用率"
                 dataIndex="utilizationRate"

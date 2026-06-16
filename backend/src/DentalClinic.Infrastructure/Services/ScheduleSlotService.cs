@@ -16,41 +16,41 @@ public class ScheduleSlotService : IScheduleSlotService
         _context = context;
     }
 
-    public async Task&lt;List&lt;ScheduleSlotDto&gt;&gt; GetListAsync(ScheduleSlotQueryDto query)
+    public async Task<List<ScheduleSlotDto>> GetListAsync(ScheduleSlotQueryDto query)
     {
         var queryable = _context.ScheduleSlots
-            .Include(s =&gt; s.Doctor)
-            .Include(s =&gt; s.Clinic)
+            .Include(s => s.Doctor)
+            .Include(s => s.Clinic)
             .AsQueryable();
 
         if (query.ClinicId.HasValue)
-            queryable = queryable.Where(s =&gt; s.ClinicId == query.ClinicId.Value);
+            queryable = queryable.Where(s => s.ClinicId == query.ClinicId.Value);
         if (query.DoctorId.HasValue)
-            queryable = queryable.Where(s =&gt; s.DoctorId == query.DoctorId.Value);
+            queryable = queryable.Where(s => s.DoctorId == query.DoctorId.Value);
         if (query.StartDate.HasValue)
-            queryable = queryable.Where(s =&gt; s.Date.Date &gt;= query.StartDate.Value.Date);
+            queryable = queryable.Where(s => s.Date.Date >= query.StartDate.Value.Date);
         if (query.EndDate.HasValue)
-            queryable = queryable.Where(s =&gt; s.Date.Date &lt;= query.EndDate.Value.Date);
+            queryable = queryable.Where(s => s.Date.Date <= query.EndDate.Value.Date);
         if (query.Status.HasValue)
-            queryable = queryable.Where(s =&gt; s.Status == (ScheduleSlotStatus)query.Status.Value);
+            queryable = queryable.Where(s => s.Status == (ScheduleSlotStatus)query.Status.Value);
 
         return await queryable
-            .OrderBy(s =&gt; s.Date)
-            .ThenBy(s =&gt; s.StartTime)
-            .Select(s =&gt; MapToDto(s))
+            .OrderBy(s => s.Date)
+            .ThenBy(s => s.StartTime)
+            .Select(s => MapToDto(s))
             .ToListAsync();
     }
 
-    public async Task&lt;ScheduleSlotDto?&gt; GetByIdAsync(int id)
+    public async Task<ScheduleSlotDto?> GetByIdAsync(int id)
     {
         var slot = await _context.ScheduleSlots
-            .Include(s =&gt; s.Doctor)
-            .Include(s =&gt; s.Clinic)
-            .FirstOrDefaultAsync(s =&gt; s.Id == id);
+            .Include(s => s.Doctor)
+            .Include(s => s.Clinic)
+            .FirstOrDefaultAsync(s => s.Id == id);
         return slot == null ? null : MapToDto(slot);
     }
 
-    public async Task&lt;ScheduleSlotDto&gt; CreateAsync(ScheduleSlotCreateDto dto)
+    public async Task<ScheduleSlotDto> CreateAsync(ScheduleSlotCreateDto dto)
     {
         var slot = new ScheduleSlot
         {
@@ -71,7 +71,7 @@ public class ScheduleSlotService : IScheduleSlotService
         return MapToDto(slot);
     }
 
-    public async Task&lt;bool&gt; DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var slot = await _context.ScheduleSlots.FindAsync(id);
         if (slot == null) return false;
@@ -82,36 +82,36 @@ public class ScheduleSlotService : IScheduleSlotService
         return true;
     }
 
-    public async Task&lt;List&lt;ScheduleSlotDto&gt;&gt; GetAvailableSlotsAsync(int doctorId, DateTime date)
+    public async Task<List<ScheduleSlotDto>> GetAvailableSlotsAsync(int doctorId, DateTime date)
     {
         return await _context.ScheduleSlots
-            .Include(s =&gt; s.Doctor)
-            .Where(s =&gt; s.DoctorId == doctorId 
-                &amp;&amp; s.Date.Date == date.Date 
-                &amp;&amp; s.Status != ScheduleSlotStatus.Closed
-                &amp;&amp; s.AvailableSlots &gt; 0)
-            .OrderBy(s =&gt; s.StartTime)
-            .Select(s =&gt; MapToDto(s))
+            .Include(s => s.Doctor)
+            .Where(s => s.DoctorId == doctorId 
+                && s.Date.Date == date.Date 
+                && s.Status != ScheduleSlotStatus.Closed
+                && s.AvailableSlots > 0)
+            .OrderBy(s => s.StartTime)
+            .Select(s => MapToDto(s))
             .ToListAsync();
     }
 
-    public async Task&lt;List&lt;ScheduleSlotDto&gt;&gt; GetSlotsByDateRangeAsync(int? clinicId, int? doctorId, DateTime startDate, DateTime endDate)
+    public async Task<List<ScheduleSlotDto>> GetSlotsByDateRangeAsync(int? clinicId, int? doctorId, DateTime startDate, DateTime endDate)
     {
         var queryable = _context.ScheduleSlots
-            .Include(s =&gt; s.Doctor)
-            .Include(s =&gt; s.Clinic)
-            .Where(s =&gt; s.Date.Date &gt;= startDate.Date &amp;&amp; s.Date.Date &lt;= endDate.Date)
+            .Include(s => s.Doctor)
+            .Include(s => s.Clinic)
+            .Where(s => s.Date.Date >= startDate.Date && s.Date.Date <= endDate.Date)
             .AsQueryable();
 
         if (clinicId.HasValue)
-            queryable = queryable.Where(s =&gt; s.ClinicId == clinicId.Value);
+            queryable = queryable.Where(s => s.ClinicId == clinicId.Value);
         if (doctorId.HasValue)
-            queryable = queryable.Where(s =&gt; s.DoctorId == doctorId.Value);
+            queryable = queryable.Where(s => s.DoctorId == doctorId.Value);
 
         return await queryable
-            .OrderBy(s =&gt; s.Date)
-            .ThenBy(s =&gt; s.StartTime)
-            .Select(s =&gt; MapToDto(s))
+            .OrderBy(s => s.Date)
+            .ThenBy(s => s.StartTime)
+            .Select(s => MapToDto(s))
             .ToListAsync();
     }
 

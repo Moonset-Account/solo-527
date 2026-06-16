@@ -16,32 +16,32 @@ public class DoctorService : IDoctorService
         _context = context;
     }
 
-    public async Task&lt;PagedResultDto&lt;DoctorDto&gt;&gt; GetListAsync(DoctorQueryDto query)
+    public async Task<PagedResultDto<DoctorDto>> GetListAsync(DoctorQueryDto query)
     {
         var queryable = _context.Doctors
-            .Include(d =&gt; d.Clinic)
+            .Include(d => d.Clinic)
             .AsQueryable();
 
         if (query.ClinicId.HasValue)
-            queryable = queryable.Where(d =&gt; d.ClinicId == query.ClinicId.Value);
+            queryable = queryable.Where(d => d.ClinicId == query.ClinicId.Value);
         if (!string.IsNullOrEmpty(query.Name))
-            queryable = queryable.Where(d =&gt; d.Name.Contains(query.Name));
+            queryable = queryable.Where(d => d.Name.Contains(query.Name));
         if (!string.IsNullOrEmpty(query.Department))
-            queryable = queryable.Where(d =&gt; d.Department.Contains(query.Department));
+            queryable = queryable.Where(d => d.Department.Contains(query.Department));
         if (query.IsActive.HasValue)
-            queryable = queryable.Where(d =&gt; d.IsActive == query.IsActive.Value);
+            queryable = queryable.Where(d => d.IsActive == query.IsActive.Value);
 
         var totalCount = await queryable.CountAsync();
 
         var items = await queryable
-            .OrderBy(d =&gt; d.ClinicId)
-            .ThenBy(d =&gt; d.Name)
+            .OrderBy(d => d.ClinicId)
+            .ThenBy(d => d.Name)
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(d =&gt; MapToDto(d))
+            .Select(d => MapToDto(d))
             .ToListAsync();
 
-        return new PagedResultDto&lt;DoctorDto&gt;
+        return new PagedResultDto<DoctorDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -50,31 +50,31 @@ public class DoctorService : IDoctorService
         };
     }
 
-    public async Task&lt;List&lt;DoctorDto&gt;&gt; GetAllAsync(int? clinicId = null)
+    public async Task<List<DoctorDto>> GetAllAsync(int? clinicId = null)
     {
         var queryable = _context.Doctors
-            .Include(d =&gt; d.Clinic)
-            .Where(d =&gt; d.IsActive)
+            .Include(d => d.Clinic)
+            .Where(d => d.IsActive)
             .AsQueryable();
 
         if (clinicId.HasValue)
-            queryable = queryable.Where(d =&gt; d.ClinicId == clinicId.Value);
+            queryable = queryable.Where(d => d.ClinicId == clinicId.Value);
 
         return await queryable
-            .OrderBy(d =&gt; d.Name)
-            .Select(d =&gt; MapToDto(d))
+            .OrderBy(d => d.Name)
+            .Select(d => MapToDto(d))
             .ToListAsync();
     }
 
-    public async Task&lt;DoctorDto?&gt; GetByIdAsync(int id)
+    public async Task<DoctorDto?> GetByIdAsync(int id)
     {
         var doctor = await _context.Doctors
-            .Include(d =&gt; d.Clinic)
-            .FirstOrDefaultAsync(d =&gt; d.Id == id);
+            .Include(d => d.Clinic)
+            .FirstOrDefaultAsync(d => d.Id == id);
         return doctor == null ? null : MapToDto(doctor);
     }
 
-    public async Task&lt;DoctorDto&gt; CreateAsync(DoctorCreateDto dto)
+    public async Task<DoctorDto> CreateAsync(DoctorCreateDto dto)
     {
         var doctor = new Doctor
         {
@@ -94,7 +94,7 @@ public class DoctorService : IDoctorService
         return MapToDto(doctor);
     }
 
-    public async Task&lt;DoctorDto?&gt; UpdateAsync(int id, DoctorUpdateDto dto)
+    public async Task<DoctorDto?> UpdateAsync(int id, DoctorUpdateDto dto)
     {
         var doctor = await _context.Doctors.FindAsync(id);
         if (doctor == null) return null;
@@ -112,7 +112,7 @@ public class DoctorService : IDoctorService
         return MapToDto(doctor);
     }
 
-    public async Task&lt;bool&gt; DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var doctor = await _context.Doctors.FindAsync(id);
         if (doctor == null) return false;

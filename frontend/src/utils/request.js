@@ -7,10 +7,10 @@ const request = axios.create({
 })
 
 request.interceptors.response.use(
-  response =&gt; {
+  response => {
     return response.data
   },
-  error =&gt; {
+  error => {
     console.error('请求错误:', error)
     return Promise.reject(error)
   }

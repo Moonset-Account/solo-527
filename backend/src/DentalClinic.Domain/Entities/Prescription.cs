@@ -17,7 +17,7 @@ public class Prescription
     public Patient? Patient { get; set; }
     public Appointment? Appointment { get; set; }
     public Doctor? Doctor { get; set; }
-    public ICollection&lt;PrescriptionItem&gt; Items { get; set; } = new List&lt;PrescriptionItem&gt;();
+    public ICollection<PrescriptionItem> Items { get; set; } = new List<PrescriptionItem>();
 }
 
 public class PrescriptionItem

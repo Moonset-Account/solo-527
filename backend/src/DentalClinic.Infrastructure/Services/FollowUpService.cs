@@ -18,43 +18,43 @@ public class FollowUpService : IFollowUpService
         _workloadReportService = workloadReportService;
     }
 
-    public async Task&lt;PagedResultDto&lt;FollowUpDto&gt;&gt; GetListAsync(FollowUpQueryDto query)
+    public async Task<PagedResultDto<FollowUpDto>> GetListAsync(FollowUpQueryDto query)
     {
         var queryable = _context.FollowUps
-            .Include(f =&gt; f.Patient)
-            .Include(f =&gt; f.Doctor)
+            .Include(f => f.Patient)
+            .Include(f => f.Doctor)
             .AsQueryable();
 
         if (query.ClinicId.HasValue)
-            queryable = queryable.Where(f =&gt; f.Doctor != null &amp;&amp; f.Doctor.ClinicId == query.ClinicId.Value);
+            queryable = queryable.Where(f => f.Doctor != null && f.Doctor.ClinicId == query.ClinicId.Value);
         if (query.DoctorId.HasValue)
-            queryable = queryable.Where(f =&gt; f.DoctorId == query.DoctorId.Value);
+            queryable = queryable.Where(f => f.DoctorId == query.DoctorId.Value);
         if (query.PatientId.HasValue)
-            queryable = queryable.Where(f =&gt; f.PatientId == query.PatientId.Value);
+            queryable = queryable.Where(f => f.PatientId == query.PatientId.Value);
         if (query.ResponsiblePersonId.HasValue)
-            queryable = queryable.Where(f =&gt; f.ResponsiblePersonId == query.ResponsiblePersonId.Value);
+            queryable = queryable.Where(f => f.ResponsiblePersonId == query.ResponsiblePersonId.Value);
         if (query.Status.HasValue)
-            queryable = queryable.Where(f =&gt; f.Status == (FollowUpStatus)query.Status.Value);
+            queryable = queryable.Where(f => f.Status == (FollowUpStatus)query.Status.Value);
         if (query.Type.HasValue)
-            queryable = queryable.Where(f =&gt; f.Type == (FollowUpType)query.Type.Value);
+            queryable = queryable.Where(f => f.Type == (FollowUpType)query.Type.Value);
         if (query.IsOverdue.HasValue)
-            queryable = queryable.Where(f =&gt; f.IsOverdue == query.IsOverdue.Value);
+            queryable = queryable.Where(f => f.IsOverdue == query.IsOverdue.Value);
         if (query.StartDate.HasValue)
-            queryable = queryable.Where(f =&gt; f.PlannedDate.Date &gt;= query.StartDate.Value.Date);
+            queryable = queryable.Where(f => f.PlannedDate.Date >= query.StartDate.Value.Date);
         if (query.EndDate.HasValue)
-            queryable = queryable.Where(f =&gt; f.PlannedDate.Date &lt;= query.EndDate.Value.Date);
+            queryable = queryable.Where(f => f.PlannedDate.Date <= query.EndDate.Value.Date);
 
         var totalCount = await queryable.CountAsync();
 
         var items = await queryable
-            .OrderBy(f =&gt; f.Status)
-            .ThenBy(f =&gt; f.PlannedDate)
+            .OrderBy(f => f.Status)
+            .ThenBy(f => f.PlannedDate)
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(f =&gt; MapToDto(f))
+            .Select(f => MapToDto(f))
             .ToListAsync();
 
-        return new PagedResultDto&lt;FollowUpDto&gt;
+        return new PagedResultDto<FollowUpDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -63,16 +63,16 @@ public class FollowUpService : IFollowUpService
         };
     }
 
-    public async Task&lt;FollowUpDto?&gt; GetByIdAsync(int id)
+    public async Task<FollowUpDto?> GetByIdAsync(int id)
     {
         var followUp = await _context.FollowUps
-            .Include(f =&gt; f.Patient)
-            .Include(f =&gt; f.Doctor)
-            .FirstOrDefaultAsync(f =&gt; f.Id == id);
+            .Include(f => f.Patient)
+            .Include(f => f.Doctor)
+            .FirstOrDefaultAsync(f => f.Id == id);
         return followUp == null ? null : MapToDto(followUp);
     }
 
-    public async Task&lt;FollowUpDto&gt; CreateAsync(FollowUpCreateDto dto)
+    public async Task<FollowUpDto> CreateAsync(FollowUpCreateDto dto)
     {
         var followUp = new FollowUp
         {
@@ -115,7 +115,7 @@ public class FollowUpService : IFollowUpService
         return MapToDto(followUp);
     }
 
-    public async Task&lt;FollowUpDto?&gt; UpdateAsync(int id, FollowUpUpdateDto dto)
+    public async Task<FollowUpDto?> UpdateAsync(int id, FollowUpUpdateDto dto)
     {
         var followUp = await _context.FollowUps.FindAsync(id);
         if (followUp == null) return null;
@@ -126,7 +126,7 @@ public class FollowUpService : IFollowUpService
         followUp.CompletedDate = dto.CompletedDate;
         followUp.UpdatedAt = DateTime.Now;
 
-        if (dto.Status == (int)FollowUpStatus.Completed &amp;&amp; !followUp.CompletedDate.HasValue)
+        if (dto.Status == (int)FollowUpStatus.Completed && !followUp.CompletedDate.HasValue)
         {
             followUp.CompletedDate = DateTime.Now;
         }
@@ -135,7 +135,7 @@ public class FollowUpService : IFollowUpService
         return MapToDto(followUp);
     }
 
-    public async Task&lt;bool&gt; DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var followUp = await _context.FollowUps.FindAsync(id);
         if (followUp == null) return false;
@@ -146,12 +146,12 @@ public class FollowUpService : IFollowUpService
         return true;
     }
 
-    public async Task&lt;FollowUpDto?&gt; CompleteAsync(int id, string result, string? remark = null)
+    public async Task<FollowUpDto?> CompleteAsync(int id, string result, string? remark = null)
     {
         var followUp = await _context.FollowUps
-            .Include(f =&gt; f.Patient)
-            .Include(f =&gt; f.Doctor)
-            .FirstOrDefaultAsync(f =&gt; f.Id == id);
+            .Include(f => f.Patient)
+            .Include(f => f.Doctor)
+            .FirstOrDefaultAsync(f => f.Id == id);
 
         if (followUp == null) return null;
 
@@ -162,7 +162,7 @@ public class FollowUpService : IFollowUpService
         followUp.UpdatedAt = DateTime.Now;
 
         var todos = await _context.TodoItems
-            .Where(t =&gt; t.FollowUpId == id &amp;&amp; t.Status != TodoStatus.Completed)
+            .Where(t => t.FollowUpId == id && t.Status != TodoStatus.Completed)
             .ToListAsync();
 
         foreach (var todo in todos)
@@ -177,14 +177,14 @@ public class FollowUpService : IFollowUpService
         return MapToDto(followUp);
     }
 
-    public async Task&lt;int&gt; GetOverdueCountAsync(int? responsiblePersonId = null)
+    public async Task<int> GetOverdueCountAsync(int? responsiblePersonId = null)
     {
         var query = _context.FollowUps
-            .Where(f =&gt; f.IsOverdue &amp;&amp; f.Status == FollowUpStatus.Pending)
+            .Where(f => f.IsOverdue && f.Status == FollowUpStatus.Pending)
             .AsQueryable();
 
         if (responsiblePersonId.HasValue)
-            query = query.Where(f =&gt; f.ResponsiblePersonId == responsiblePersonId.Value);
+            query = query.Where(f => f.ResponsiblePersonId == responsiblePersonId.Value);
 
         return await query.CountAsync();
     }

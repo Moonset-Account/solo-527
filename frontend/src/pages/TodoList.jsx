@@ -21,7 +21,7 @@ import {
   Spin
 } from 'antd'
 import {
-  ToDoOutlined,
+  UnorderedListOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   DollarOutlined,
@@ -218,7 +218,7 @@ const TodoList = () => {
                   <List.Item.Meta
                     avatar={
                       <Badge dot color={getPriorityColor(item.priority)}>
-                        <Avatar icon={<ToDoOutlined />} style={{ backgroundColor: item.status === 3 ? '#52c41a' : '#13c2c2' }} />
+                        <Avatar icon={<UnorderedListOutlined />} style={{ backgroundColor: item.status === 3 ? '#52c41a' : '#13c2c2' }} />
                       </Badge>
                     }
                     title={
@@ -476,7 +476,7 @@ const TodoList = () => {
               ) : (
                 <Card style={{ height: 'calc(100vh - 140px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ textAlign: 'center', color: '#8c8c8c' }}>
-                    <ToDoOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                    <UnorderedListOutlined style={{ fontSize: 48, marginBottom: 16 }} />
                     <p>加载中...</p>
                   </div>
                 </Card>
@@ -485,7 +485,7 @@ const TodoList = () => {
           ) : (
             <Card style={{ height: 'calc(100vh - 140px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ textAlign: 'center', color: '#8c8c8c' }}>
-                <ToDoOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                <UnorderedListOutlined style={{ fontSize: 48, marginBottom: 16 }} />
                 <p>请从左侧选择待办事项查看详情</p>
               </div>
             </Card>

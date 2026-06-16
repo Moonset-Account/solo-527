@@ -5,7 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   DashboardOutlined,
   CalendarOutlined,
-  ToDoOutlined,
+  UnorderedListOutlined,
   BellOutlined,
   BarChartOutlined,
   BugOutlined,
@@ -50,7 +50,7 @@ const MainLayout = () => {
     { key: '/appointment-booking', icon: <CalendarOutlined />, label: '预约挂号' },
     {
       key: '/todos',
-      icon: <ToDoOutlined />,
+      icon: <UnorderedListOutlined />,
       label: '待办事项',
       badge: todoBadge
     },

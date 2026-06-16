@@ -5,10 +5,10 @@ namespace DentalClinic.Application.Interfaces;
 
 public interface IAppointmentService
 {
-    Task&lt;PagedResultDto&lt;AppointmentDto&gt;&gt; GetListAsync(AppointmentQueryDto query);
-    Task&lt;AppointmentDto?&gt; GetByIdAsync(int id, bool includeDetails = false);
-    Task&lt;AppointmentDto&gt; CreateAsync(AppointmentCreateDto dto);
-    Task&lt;AppointmentDto?&gt; UpdateAsync(int id, AppointmentUpdateDto dto);
-    Task&lt;bool&gt; DeleteAsync(int id);
-    Task&lt;bool&gt; UpdateStatusAsync(int id, int status);
+    Task<PagedResultDto<AppointmentDto>> GetListAsync(AppointmentQueryDto query);
+    Task<AppointmentDto?> GetByIdAsync(int id, bool includeDetails = false);
+    Task<AppointmentDto> CreateAsync(AppointmentCreateDto dto);
+    Task<AppointmentDto?> UpdateAsync(int id, AppointmentUpdateDto dto);
+    Task<bool> DeleteAsync(int id);
+    Task<bool> UpdateStatusAsync(int id, int status);
 }

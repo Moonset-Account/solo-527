@@ -11,6 +11,6 @@ public class Clinic
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? UpdatedAt { get; set; }
 
-    public ICollection&lt;Doctor&gt; Doctors { get; set; } = new List&lt;Doctor&gt;();
-    public ICollection&lt;Patient&gt; Patients { get; set; } = new List&lt;Patient&gt;();
+    public ICollection<Doctor> Doctors { get; set; } = new List<Doctor>();
+    public ICollection<Patient> Patients { get; set; } = new List<Patient>();
 }

@@ -17,10 +17,10 @@ public class ExternalApiLogsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;PagedResultDto&lt;ExternalApiLogDto&gt;&gt;&gt;&gt; GetList([FromQuery] ExternalApiLogQueryDto query)
+    public async Task<ActionResult<ApiResultDto<PagedResultDto<ExternalApiLogDto>>>> GetList([FromQuery] ExternalApiLogQueryDto query)
     {
         var result = await _externalApiLogService.GetListAsync(query);
-        return Ok(new ApiResultDto&lt;PagedResultDto&lt;ExternalApiLogDto&gt;&gt;
+        return Ok(new ApiResultDto<PagedResultDto<ExternalApiLogDto>>
         {
             Success = true,
             Code = 200,
@@ -29,13 +29,13 @@ public class ExternalApiLogsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;ExternalApiLogDto&gt;&gt;&gt; GetById(int id)
+    public async Task<ActionResult<ApiResultDto<ExternalApiLogDto>>> GetById(int id)
     {
         var log = await _externalApiLogService.GetByIdAsync(id);
         if (log == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "日志不存在" });
 
-        return Ok(new ApiResultDto&lt;ExternalApiLogDto&gt;
+        return Ok(new ApiResultDto<ExternalApiLogDto>
         {
             Success = true,
             Code = 200,
@@ -44,12 +44,12 @@ public class ExternalApiLogsController : ControllerBase
     }
 
     [HttpGet("failure-summary")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;List&lt;ApiFailureSummaryDto&gt;&gt;&gt;&gt; GetFailureSummary(
+    public async Task<ActionResult<ApiResultDto<List<ApiFailureSummaryDto>>>> GetFailureSummary(
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
         var result = await _externalApiLogService.GetFailureSummaryAsync(startDate, endDate);
-        return Ok(new ApiResultDto&lt;List&lt;ApiFailureSummaryDto&gt;&gt;
+        return Ok(new ApiResultDto<List<ApiFailureSummaryDto>>
         {
             Success = true,
             Code = 200,
@@ -58,12 +58,12 @@ public class ExternalApiLogsController : ControllerBase
     }
 
     [HttpGet("failed")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;List&lt;ExternalApiLogDto&gt;&gt;&gt;&gt; GetFailedLogs(
+    public async Task<ActionResult<ApiResultDto<List<ExternalApiLogDto>>>> GetFailedLogs(
         [FromQuery] string? apiName = null,
         [FromQuery] int? top = 50)
     {
         var result = await _externalApiLogService.GetFailedLogsAsync(apiName, top);
-        return Ok(new ApiResultDto&lt;List&lt;ExternalApiLogDto&gt;&gt;
+        return Ok(new ApiResultDto<List<ExternalApiLogDto>>
         {
             Success = true,
             Code = 200,

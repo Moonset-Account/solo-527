@@ -17,10 +17,10 @@ public class Patient
     public DateTime? UpdatedAt { get; set; }
 
     public Clinic? Clinic { get; set; }
-    public ICollection&lt;Appointment&gt; Appointments { get; set; } = new List&lt;Appointment&gt;();
-    public ICollection&lt;ChiefComplaint&gt; ChiefComplaints { get; set; } = new List&lt;ChiefComplaint&gt;();
-    public ICollection&lt;Prescription&gt; Prescriptions { get; set; } = new List&lt;Prescription&gt;();
-    public ICollection&lt;FollowUp&gt; FollowUps { get; set; } = new List&lt;FollowUp&gt;();
+    public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+    public ICollection<ChiefComplaint> ChiefComplaints { get; set; } = new List<ChiefComplaint>();
+    public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
+    public ICollection<FollowUp> FollowUps { get; set; } = new List<FollowUp>();
 }
 
 public enum PatientStatus

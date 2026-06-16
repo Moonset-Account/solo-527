@@ -17,13 +17,13 @@ public class ChiefComplaintsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;ChiefComplaintDto&gt;&gt;&gt; GetById(int id)
+    public async Task<ActionResult<ApiResultDto<ChiefComplaintDto>>> GetById(int id)
     {
         var complaint = await _chiefComplaintService.GetByIdAsync(id);
         if (complaint == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "主诉记录不存在" });
 
-        return Ok(new ApiResultDto&lt;ChiefComplaintDto&gt;
+        return Ok(new ApiResultDto<ChiefComplaintDto>
         {
             Success = true,
             Code = 200,
@@ -32,10 +32,10 @@ public class ChiefComplaintsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;ChiefComplaintDto&gt;&gt;&gt; Create(ChiefComplaintCreateDto dto)
+    public async Task<ActionResult<ApiResultDto<ChiefComplaintDto>>> Create(ChiefComplaintCreateDto dto)
     {
         var result = await _chiefComplaintService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto&lt;ChiefComplaintDto&gt;
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto<ChiefComplaintDto>
         {
             Success = true,
             Code = 201,
@@ -44,10 +44,10 @@ public class ChiefComplaintsController : ControllerBase
     }
 
     [HttpGet("patient/{patientId}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;List&lt;ChiefComplaintDto&gt;&gt;&gt;&gt; GetByPatientId(int patientId)
+    public async Task<ActionResult<ApiResultDto<List<ChiefComplaintDto>>>> GetByPatientId(int patientId)
     {
         var result = await _chiefComplaintService.GetByPatientIdAsync(patientId);
-        return Ok(new ApiResultDto&lt;List&lt;ChiefComplaintDto&gt;&gt;
+        return Ok(new ApiResultDto<List<ChiefComplaintDto>>
         {
             Success = true,
             Code = 200,
@@ -56,13 +56,13 @@ public class ChiefComplaintsController : ControllerBase
     }
 
     [HttpGet("patient/{patientId}/latest")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;ChiefComplaintDto&gt;&gt;&gt; GetLatestByPatientId(int patientId)
+    public async Task<ActionResult<ApiResultDto<ChiefComplaintDto>>> GetLatestByPatientId(int patientId)
     {
         var result = await _chiefComplaintService.GetLatestByPatientIdAsync(patientId);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "暂无主诉记录" });
 
-        return Ok(new ApiResultDto&lt;ChiefComplaintDto&gt;
+        return Ok(new ApiResultDto<ChiefComplaintDto>
         {
             Success = true,
             Code = 200,

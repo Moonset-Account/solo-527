@@ -17,10 +17,10 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;PagedResultDto&lt;FollowUpDto&gt;&gt;&gt;&gt; GetList([FromQuery] FollowUpQueryDto query)
+    public async Task<ActionResult<ApiResultDto<PagedResultDto<FollowUpDto>>>> GetList([FromQuery] FollowUpQueryDto query)
     {
         var result = await _followUpService.GetListAsync(query);
-        return Ok(new ApiResultDto&lt;PagedResultDto&lt;FollowUpDto&gt;&gt;
+        return Ok(new ApiResultDto<PagedResultDto<FollowUpDto>>
         {
             Success = true,
             Code = 200,
@@ -29,13 +29,13 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;FollowUpDto&gt;&gt;&gt; GetById(int id)
+    public async Task<ActionResult<ApiResultDto<FollowUpDto>>> GetById(int id)
     {
         var followUp = await _followUpService.GetByIdAsync(id);
         if (followUp == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "随访记录不存在" });
 
-        return Ok(new ApiResultDto&lt;FollowUpDto&gt;
+        return Ok(new ApiResultDto<FollowUpDto>
         {
             Success = true,
             Code = 200,
@@ -44,10 +44,10 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;FollowUpDto&gt;&gt;&gt; Create(FollowUpCreateDto dto)
+    public async Task<ActionResult<ApiResultDto<FollowUpDto>>> Create(FollowUpCreateDto dto)
     {
         var result = await _followUpService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto&lt;FollowUpDto&gt;
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, new ApiResultDto<FollowUpDto>
         {
             Success = true,
             Code = 201,
@@ -56,13 +56,13 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;FollowUpDto&gt;&gt;&gt; Update(int id, FollowUpUpdateDto dto)
+    public async Task<ActionResult<ApiResultDto<FollowUpDto>>> Update(int id, FollowUpUpdateDto dto)
     {
         var result = await _followUpService.UpdateAsync(id, dto);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "随访记录不存在" });
 
-        return Ok(new ApiResultDto&lt;FollowUpDto&gt;
+        return Ok(new ApiResultDto<FollowUpDto>
         {
             Success = true,
             Code = 200,
@@ -71,7 +71,7 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; Delete(int id)
+    public async Task<ActionResult<ApiResultDto>> Delete(int id)
     {
         var result = await _followUpService.DeleteAsync(id);
         if (!result)
@@ -81,13 +81,13 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpPost("{id}/complete")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;FollowUpDto&gt;&gt;&gt; Complete(int id, [FromBody] CompleteFollowUpDto dto)
+    public async Task<ActionResult<ApiResultDto<FollowUpDto>>> Complete(int id, [FromBody] CompleteFollowUpDto dto)
     {
         var result = await _followUpService.CompleteAsync(id, dto.Result, dto.Remark);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "随访记录不存在" });
 
-        return Ok(new ApiResultDto&lt;FollowUpDto&gt;
+        return Ok(new ApiResultDto<FollowUpDto>
         {
             Success = true,
             Code = 200,
@@ -97,10 +97,10 @@ public class FollowUpsController : ControllerBase
     }
 
     [HttpGet("overdue/count")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;int&gt;&gt;&gt; GetOverdueCount([FromQuery] int? responsiblePersonId = null)
+    public async Task<ActionResult<ApiResultDto<int>>> GetOverdueCount([FromQuery] int? responsiblePersonId = null)
     {
         var count = await _followUpService.GetOverdueCountAsync(responsiblePersonId);
-        return Ok(new ApiResultDto&lt;int&gt;
+        return Ok(new ApiResultDto<int>
         {
             Success = true,
             Code = 200,

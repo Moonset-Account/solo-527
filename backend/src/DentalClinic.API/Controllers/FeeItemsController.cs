@@ -17,10 +17,10 @@ public class FeeItemsController : ControllerBase
     }
 
     [HttpGet("appointment/{appointmentId}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;List&lt;FeeItemDto&gt;&gt;&gt;&gt; GetByAppointmentId(int appointmentId)
+    public async Task<ActionResult<ApiResultDto<List<FeeItemDto>>>> GetByAppointmentId(int appointmentId)
     {
         var result = await _feeItemService.GetByAppointmentIdAsync(appointmentId);
-        return Ok(new ApiResultDto&lt;List&lt;FeeItemDto&gt;&gt;
+        return Ok(new ApiResultDto<List<FeeItemDto>>
         {
             Success = true,
             Code = 200,
@@ -29,10 +29,10 @@ public class FeeItemsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;FeeItemDto&gt;&gt;&gt; Create(FeeItemCreateDto dto)
+    public async Task<ActionResult<ApiResultDto<FeeItemDto>>> Create(FeeItemCreateDto dto)
     {
         var result = await _feeItemService.CreateAsync(dto);
-        return Ok(new ApiResultDto&lt;FeeItemDto&gt;
+        return Ok(new ApiResultDto<FeeItemDto>
         {
             Success = true,
             Code = 201,
@@ -41,13 +41,13 @@ public class FeeItemsController : ControllerBase
     }
 
     [HttpPatch("{id}/status")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;FeeItemDto&gt;&gt;&gt; UpdateStatus(int id, [FromBody] int status)
+    public async Task<ActionResult<ApiResultDto<FeeItemDto>>> UpdateStatus(int id, [FromBody] int status)
     {
         var result = await _feeItemService.UpdateStatusAsync(id, status);
         if (result == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "收费项目不存在" });
 
-        return Ok(new ApiResultDto&lt;FeeItemDto&gt;
+        return Ok(new ApiResultDto<FeeItemDto>
         {
             Success = true,
             Code = 200,
@@ -56,10 +56,10 @@ public class FeeItemsController : ControllerBase
     }
 
     [HttpGet("appointment/{appointmentId}/total")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;decimal&gt;&gt;&gt; GetTotalAmount(int appointmentId)
+    public async Task<ActionResult<ApiResultDto<decimal>>> GetTotalAmount(int appointmentId)
     {
         var result = await _feeItemService.GetTotalAmountByAppointmentIdAsync(appointmentId);
-        return Ok(new ApiResultDto&lt;decimal&gt;
+        return Ok(new ApiResultDto<decimal>
         {
             Success = true,
             Code = 200,

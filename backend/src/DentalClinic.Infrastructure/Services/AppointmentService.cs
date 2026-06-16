@@ -16,40 +16,40 @@ public class AppointmentService : IAppointmentService
         _context = context;
     }
 
-    public async Task&lt;PagedResultDto&lt;AppointmentDto&gt;&gt; GetListAsync(AppointmentQueryDto query)
+    public async Task<PagedResultDto<AppointmentDto>> GetListAsync(AppointmentQueryDto query)
     {
         var queryable = _context.Appointments
-            .Include(a =&gt; a.Patient)
-            .Include(a =&gt; a.Doctor)
-            .Include(a =&gt; a.Clinic)
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor)
+            .Include(a => a.Clinic)
             .AsQueryable();
 
         if (query.ClinicId.HasValue)
-            queryable = queryable.Where(a =&gt; a.ClinicId == query.ClinicId.Value);
+            queryable = queryable.Where(a => a.ClinicId == query.ClinicId.Value);
         if (query.DoctorId.HasValue)
-            queryable = queryable.Where(a =&gt; a.DoctorId == query.DoctorId.Value);
+            queryable = queryable.Where(a => a.DoctorId == query.DoctorId.Value);
         if (query.PatientId.HasValue)
-            queryable = queryable.Where(a =&gt; a.PatientId == query.PatientId.Value);
+            queryable = queryable.Where(a => a.PatientId == query.PatientId.Value);
         if (query.Status.HasValue)
-            queryable = queryable.Where(a =&gt; a.Status == (AppointmentStatus)query.Status.Value);
+            queryable = queryable.Where(a => a.Status == (AppointmentStatus)query.Status.Value);
         if (query.Type.HasValue)
-            queryable = queryable.Where(a =&gt; a.Type == (AppointmentType)query.Type.Value);
+            queryable = queryable.Where(a => a.Type == (AppointmentType)query.Type.Value);
         if (query.StartDate.HasValue)
-            queryable = queryable.Where(a =&gt; a.AppointmentDate.Date &gt;= query.StartDate.Value.Date);
+            queryable = queryable.Where(a => a.AppointmentDate.Date >= query.StartDate.Value.Date);
         if (query.EndDate.HasValue)
-            queryable = queryable.Where(a =&gt; a.AppointmentDate.Date &lt;= query.EndDate.Value.Date);
+            queryable = queryable.Where(a => a.AppointmentDate.Date <= query.EndDate.Value.Date);
 
         var totalCount = await queryable.CountAsync();
 
         var items = await queryable
-            .OrderByDescending(a =&gt; a.AppointmentDate)
-            .ThenBy(a =&gt; a.StartTime)
+            .OrderByDescending(a => a.AppointmentDate)
+            .ThenBy(a => a.StartTime)
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(a =&gt; MapToDto(a))
+            .Select(a => MapToDto(a))
             .ToListAsync();
 
-        return new PagedResultDto&lt;AppointmentDto&gt;
+        return new PagedResultDto<AppointmentDto>
         {
             Items = items,
             TotalCount = totalCount,
@@ -58,27 +58,27 @@ public class AppointmentService : IAppointmentService
         };
     }
 
-    public async Task&lt;AppointmentDto?&gt; GetByIdAsync(int id, bool includeDetails = false)
+    public async Task<AppointmentDto?> GetByIdAsync(int id, bool includeDetails = false)
     {
         var query = _context.Appointments
-            .Include(a =&gt; a.Patient)
-            .Include(a =&gt; a.Doctor)
-            .Include(a =&gt; a.Clinic)
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor)
+            .Include(a => a.Clinic)
             .AsQueryable();
 
         if (includeDetails)
         {
             query = query
-                .Include(a =&gt; a.FeeItems)
-                .Include(a =&gt; a.ChiefComplaintRecords)
-                .Include(a =&gt; a.Prescriptions);
+                .Include(a => a.FeeItems)
+                .Include(a => a.ChiefComplaintRecords)
+                .Include(a => a.Prescriptions);
         }
 
-        var appointment = await query.FirstOrDefaultAsync(a =&gt; a.Id == id);
+        var appointment = await query.FirstOrDefaultAsync(a => a.Id == id);
         return appointment == null ? null : MapToDto(appointment, includeDetails);
     }
 
-    public async Task&lt;AppointmentDto&gt; CreateAsync(AppointmentCreateDto dto)
+    public async Task<AppointmentDto> CreateAsync(AppointmentCreateDto dto)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -108,9 +108,9 @@ public class AppointmentService : IAppointmentService
                 if (slot != null)
                 {
                     slot.BookedSlots++;
-                    if (slot.BookedSlots &gt;= slot.TotalSlots)
+                    if (slot.BookedSlots >= slot.TotalSlots)
                         slot.Status = ScheduleSlotStatus.FullyBooked;
-                    else if (slot.BookedSlots &gt; 0)
+                    else if (slot.BookedSlots > 0)
                         slot.Status = ScheduleSlotStatus.PartiallyBooked;
                     slot.UpdatedAt = DateTime.Now;
                 }
@@ -128,7 +128,7 @@ public class AppointmentService : IAppointmentService
         }
     }
 
-    public async Task&lt;AppointmentDto?&gt; UpdateAsync(int id, AppointmentUpdateDto dto)
+    public async Task<AppointmentDto?> UpdateAsync(int id, AppointmentUpdateDto dto)
     {
         var appointment = await _context.Appointments.FindAsync(id);
         if (appointment == null) return null;
@@ -141,7 +141,7 @@ public class AppointmentService : IAppointmentService
         return MapToDto(appointment);
     }
 
-    public async Task&lt;bool&gt; DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var appointment = await _context.Appointments.FindAsync(id);
         if (appointment == null) return false;
@@ -154,7 +154,7 @@ public class AppointmentService : IAppointmentService
                 slot.BookedSlots = Math.Max(0, slot.BookedSlots - 1);
                 if (slot.BookedSlots == 0)
                     slot.Status = ScheduleSlotStatus.Available;
-                else if (slot.BookedSlots &lt; slot.TotalSlots)
+                else if (slot.BookedSlots < slot.TotalSlots)
                     slot.Status = ScheduleSlotStatus.PartiallyBooked;
                 slot.UpdatedAt = DateTime.Now;
             }
@@ -166,7 +166,7 @@ public class AppointmentService : IAppointmentService
         return true;
     }
 
-    public async Task&lt;bool&gt; UpdateStatusAsync(int id, int status)
+    public async Task<bool> UpdateStatusAsync(int id, int status)
     {
         var appointment = await _context.Appointments.FindAsync(id);
         if (appointment == null) return false;
@@ -208,7 +208,7 @@ public class AppointmentService : IAppointmentService
 
         if (includeDetails)
         {
-            dto.FeeItems = appointment.FeeItems?.Select(f =&gt; new FeeItemDto
+            dto.FeeItems = appointment.FeeItems?.Select(f => new FeeItemDto
             {
                 Id = f.Id,
                 ItemName = f.ItemName,
@@ -222,7 +222,7 @@ public class AppointmentService : IAppointmentService
                 StatusText = f.Status.ToString()
             }).ToList();
 
-            dto.ChiefComplaintRecords = appointment.ChiefComplaintRecords?.Select(c =&gt; new ChiefComplaintDto
+            dto.ChiefComplaintRecords = appointment.ChiefComplaintRecords?.Select(c => new ChiefComplaintDto
             {
                 Id = c.Id,
                 Description = c.Description,
@@ -232,7 +232,7 @@ public class AppointmentService : IAppointmentService
                 VisitDateText = c.VisitDate.ToString("yyyy-MM-dd")
             }).ToList();
 
-            dto.Prescriptions = appointment.Prescriptions?.Select(p =&gt; new PrescriptionDto
+            dto.Prescriptions = appointment.Prescriptions?.Select(p => new PrescriptionDto
             {
                 Id = p.Id,
                 PrescriptionNo = p.PrescriptionNo,

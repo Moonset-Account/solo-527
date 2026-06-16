@@ -17,10 +17,10 @@ public class WorkloadReportsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;List&lt;WorkloadReportDto&gt;&gt;&gt;&gt; GetList([FromQuery] WorkloadReportQueryDto query)
+    public async Task<ActionResult<ApiResultDto<List<WorkloadReportDto>>>> GetList([FromQuery] WorkloadReportQueryDto query)
     {
         var result = await _workloadReportService.GetListAsync(query);
-        return Ok(new ApiResultDto&lt;List&lt;WorkloadReportDto&gt;&gt;
+        return Ok(new ApiResultDto<List<WorkloadReportDto>>
         {
             Success = true,
             Code = 200,
@@ -29,13 +29,13 @@ public class WorkloadReportsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;WorkloadReportDto&gt;&gt;&gt; GetById(int id)
+    public async Task<ActionResult<ApiResultDto<WorkloadReportDto>>> GetById(int id)
     {
         var report = await _workloadReportService.GetByIdAsync(id);
         if (report == null)
             return NotFound(new ApiResultDto { Success = false, Code = 404, Message = "报表不存在" });
 
-        return Ok(new ApiResultDto&lt;WorkloadReportDto&gt;
+        return Ok(new ApiResultDto<WorkloadReportDto>
         {
             Success = true,
             Code = 200,
@@ -44,10 +44,10 @@ public class WorkloadReportsController : ControllerBase
     }
 
     [HttpPost("generate/{doctorId}")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&lt;WorkloadReportDto&gt;&gt;&gt; Generate(int doctorId, [FromQuery] DateTime reportDate)
+    public async Task<ActionResult<ApiResultDto<WorkloadReportDto>>> Generate(int doctorId, [FromQuery] DateTime reportDate)
     {
         var result = await _workloadReportService.GenerateAsync(doctorId, reportDate);
-        return Ok(new ApiResultDto&lt;WorkloadReportDto&gt;
+        return Ok(new ApiResultDto<WorkloadReportDto>
         {
             Success = true,
             Code = 200,
@@ -57,7 +57,7 @@ public class WorkloadReportsController : ControllerBase
     }
 
     [HttpPost("generate-daily")]
-    public async Task&lt;ActionResult&lt;ApiResultDto&gt;&gt; GenerateDaily([FromQuery] DateTime reportDate)
+    public async Task<ActionResult<ApiResultDto>> GenerateDaily([FromQuery] DateTime reportDate)
     {
         await _workloadReportService.GenerateDailyReportsAsync(reportDate);
         return Ok(new ApiResultDto

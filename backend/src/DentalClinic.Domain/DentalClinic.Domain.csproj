@@ -1,9 +1,9 @@
 
-&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-  &lt;PropertyGroup&gt;
-    &lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-    &lt;Nullable&gt;enable&lt;/Nullable&gt;
-    &lt;RootNamespace&gt;DentalClinic.Domain&lt;/RootNamespace&gt;
-  &lt;/PropertyGroup&gt;
-&lt;/Project&gt;
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DentalClinic.Domain</RootNamespace>
+  </PropertyGroup>
+</Project>

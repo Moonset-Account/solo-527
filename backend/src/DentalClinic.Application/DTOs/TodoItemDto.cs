@@ -25,7 +25,7 @@ public class TodoItemDto
     public DateTime? CompletedAt { get; set; }
 
     public AppointmentDto? Appointment { get; set; }
-    public List&lt;FeeItemDto&gt;? FeeItems { get; set; }
+    public List<FeeItemDto>? FeeItems { get; set; }
     public ChiefComplaintDto? ChiefComplaint { get; set; }
     public PrescriptionDto? Prescription { get; set; }
     public FollowUpDto? FollowUp { get; set; }

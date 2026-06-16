@@ -22,9 +22,9 @@ public class Appointment
     public Doctor? Doctor { get; set; }
     public Clinic? Clinic { get; set; }
     public ScheduleSlot? ScheduleSlot { get; set; }
-    public ICollection&lt;ChiefComplaint&gt; ChiefComplaintRecords { get; set; } = new List&lt;ChiefComplaint&gt;();
-    public ICollection&lt;Prescription&gt; Prescriptions { get; set; } = new List&lt;Prescription&gt;();
-    public ICollection&lt;FeeItem&gt; FeeItems { get; set; } = new List&lt;FeeItem&gt;();
+    public ICollection<ChiefComplaint> ChiefComplaintRecords { get; set; } = new List<ChiefComplaint>();
+    public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
+    public ICollection<FeeItem> FeeItems { get; set; } = new List<FeeItem>();
     public FollowUp? FollowUp { get; set; }
 }
 

@@ -1,22 +1,22 @@
 
-&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
-  &lt;PropertyGroup&gt;
-    &lt;TargetFramework&gt;net8.0&lt;/TargetFramework&gt;
-    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
-    &lt;Nullable&gt;enable&lt;/Nullable&gt;
-    &lt;RootNamespace&gt;DentalClinic.Infrastructure&lt;/RootNamespace&gt;
-  &lt;/PropertyGroup&gt;
-  &lt;ItemGroup&gt;
-    &lt;ProjectReference Include="..\DentalClinic.Application\DentalClinic.Application.csproj" /&gt;
-    &lt;ProjectReference Include="..\DentalClinic.Domain\DentalClinic.Domain.csproj" /&gt;
-  &lt;/ItemGroup&gt;
-  &lt;ItemGroup&gt;
-    &lt;PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" /&gt;
-    &lt;PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" /&gt;
-    &lt;PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" /&gt;
-    &lt;PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" /&gt;
-    &lt;PackageReference Include="StackExchange.Redis" Version="2.7.33" /&gt;
-    &lt;PackageReference Include="Newtonsoft.Json" Version="13.0.3" /&gt;
-    &lt;PackageReference Include="Polly" Version="8.4.0" /&gt;
-  &lt;/ItemGroup&gt;
-&lt;/Project&gt;
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DentalClinic.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DentalClinic.Application\DentalClinic.Application.csproj" />
+    <ProjectReference Include="..\DentalClinic.Domain\DentalClinic.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Polly" Version="8.4.0" />
+  </ItemGroup>
+</Project>
