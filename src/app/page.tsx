@@ -84,12 +84,12 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 mt-3 text-xs">
-                      {s.change >= 0 ? (
+                      {(s.change ?? 0) >= 0 ? (
                         <ArrowUpRight className="h-3.5 w-3.5" />
                       ) : (
                         <ArrowDownRight className="h-3.5 w-3.5" />
                       )}
-                      <span className="font-medium">{Math.abs(s.change)}%</span>
+                      <span className="font-medium">{Math.abs(s.change ?? 0)}%</span>
                       <span className="text-white/60 ml-0.5">较上周</span>
                     </div>
                   </CardContent>

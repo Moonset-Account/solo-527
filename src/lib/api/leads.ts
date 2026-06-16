@@ -1,43 +1,34 @@
 'use client';
 
 import { supabase } from '@/lib/supabase/client';
-import { safeQuery, safeInsert, safeUpdate, isSupabaseConfigured } from './base';
-import { mockLeads, mockStages, mockUsers } from '@/lib/mock-data';
+import { safeQuery, safeInsert, safeUpdate, requireSupabaseConfigured } from './base';
 import { generateId } from '@/lib/utils';
 import type { Lead, LeadStage, User } from '@/lib/types';
 
 export async function fetchLeads(): Promise<Lead[]> {
-  return safeQuery<Lead[]>(
-    () => {
-      const sb = supabase as any;
-      return sb
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-    },
-    mockLeads
-  );
+  return safeQuery<Lead[]>(() => {
+    const sb = supabase as any;
+    return sb
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+  });
 }
 
 export async function fetchLeadById(leadId: string): Promise<Lead | null> {
-  if (!isSupabaseConfigured()) {
-    return mockLeads.find((l) => l.id === leadId) || null;
+  requireSupabaseConfigured();
+  const sb = supabase as any;
+  const result = (await sb
+    .from('leads')
+    .select('*')
+    .eq('id', leadId)
+    .single()) as { data: Lead | null; error: any };
+  const { data, error } = result;
+  if (error) {
+    console.error('Failed to fetch lead by id:', error);
+    throw error;
   }
-  try {
-    const sb = supabase as any;
-    const result = (await sb
-      .from('leads')
-      .select('*')
-      .eq('id', leadId)
-      .single()) as { data: Lead | null; error: any };
-    const { data, error } = result;
-    if (error) {
-      return mockLeads.find((l) => l.id === leadId) || null;
-    }
-    return (data as Lead) || mockLeads.find((l) => l.id === leadId) || null;
-  } catch {
-    return mockLeads.find((l) => l.id === leadId) || null;
-  }
+  return data as Lead | null;
 }
 
 export async function createLead(
@@ -66,23 +57,14 @@ export async function createLead(
     created_at: now,
     updated_at: now,
   };
-  return safeInsert<Lead>(
-    'leads',
-    newLead,
-    () => newLead
-  );
+  return safeInsert<Lead>('leads', newLead);
 }
 
 export async function updateLead(
   leadId: string,
   updates: Partial<Lead>
 ): Promise<Lead> {
-  return safeUpdate<Lead>(
-    'leads',
-    leadId,
-    updates,
-    () => ({ ...mockLeads.find((l) => l.id === leadId)!, ...updates, updated_at: new Date().toISOString() } as Lead)
-  );
+  return safeUpdate<Lead>('leads', leadId, updates);
 }
 
 export async function assignLead(
@@ -93,7 +75,7 @@ export async function assignLead(
 ): Promise<Lead> {
   const assignee = assigneeId ? users.find((u) => u.id === assigneeId) : undefined;
   const followStage = stages.find((s) => s.order === 2);
-  
+
   const updates: Partial<Lead> = {
     assignee_id: assigneeId || undefined,
     assignee_name: assignee?.name,
@@ -101,7 +83,7 @@ export async function assignLead(
     stage_id: followStage?.id,
     auto_recycle_at: undefined,
   };
-  
+
   return updateLead(leadId, updates);
 }
 
@@ -110,14 +92,14 @@ export async function recycleLeadToPool(
   stages: LeadStage[]
 ): Promise<Lead> {
   const poolStage = stages.find((s) => s.order === 0);
-  
+
   const updates: Partial<Lead> = {
     is_in_pool: true,
     stage_id: poolStage?.id,
     assignee_id: undefined,
     assignee_name: undefined,
   };
-  
+
   return updateLead(leadId, updates);
 }
 
@@ -128,17 +110,17 @@ export async function updateLeadStage(
 ): Promise<Lead> {
   const newStage = stages.find((s) => s.id === stageId);
   const isPoolStage = newStage?.order === 0;
-  
+
   const updates: Partial<Lead> = {
     stage_id: stageId,
     is_in_pool: isPoolStage,
   };
-  
+
   if (isPoolStage) {
     updates.assignee_id = undefined;
     updates.assignee_name = undefined;
   }
-  
+
   return updateLead(leadId, updates);
 }
 

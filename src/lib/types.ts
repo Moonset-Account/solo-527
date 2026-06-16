@@ -119,12 +119,20 @@ export interface RevisitRecord {
 }
 
 export interface DashboardStats {
-  today_new_leads: number;
-  pending_follow_ups: number;
-  upcoming_surveys: number;
-  predicted_revenue: number;
-  revenue_change: number;
-  leads_change: number;
-  followup_change: number;
-  survey_change: number;
+  totalLeads: number;
+  inPool: number;
+  inProgress: number;
+  completed: number;
+  totalRevenue: number;
+  conversionRate: number;
+  avgCycleDays: number;
+  poolConversionRate: number;
+  today_new_leads?: number;
+  pending_follow_ups?: number;
+  upcoming_surveys?: number;
+  predicted_revenue?: number;
+  revenue_change?: number;
+  leads_change?: number;
+  followup_change?: number;
+  survey_change?: number;
 }

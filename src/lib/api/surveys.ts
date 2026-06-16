@@ -1,38 +1,29 @@
 'use client';
 
 import { supabase } from '@/lib/supabase/client';
-import { safeQuery, safeInsert, isSupabaseConfigured } from './base';
-import { mockSurveys } from '@/lib/mock-data';
+import { safeQuery, safeInsert, requireSupabaseConfigured } from './base';
 import { generateId } from '@/lib/utils';
 import type { SurveyRecord } from '@/lib/types';
 
 export async function fetchSurveys(leadId?: string): Promise<SurveyRecord[]> {
+  requireSupabaseConfigured();
   if (leadId) {
-    if (!isSupabaseConfigured()) {
-      return mockSurveys.filter((s) => s.lead_id === leadId);
-    }
-    return safeQuery<SurveyRecord[]>(
-      () => {
-        const sb = supabase as any;
-        return sb
-          .from('survey_records')
-          .select('*')
-          .eq('lead_id', leadId)
-          .order('survey_time', { ascending: false });
-      },
-      mockSurveys.filter((s) => s.lead_id === leadId)
-    );
-  }
-  return safeQuery<SurveyRecord[]>(
-    () => {
+    return safeQuery<SurveyRecord[]>(() => {
       const sb = supabase as any;
       return sb
         .from('survey_records')
         .select('*')
+        .eq('lead_id', leadId)
         .order('survey_time', { ascending: false });
-    },
-    mockSurveys
-  );
+    });
+  }
+  return safeQuery<SurveyRecord[]>(() => {
+    const sb = supabase as any;
+    return sb
+      .from('survey_records')
+      .select('*')
+      .order('survey_time', { ascending: false });
+  });
 }
 
 export async function addSurvey(
@@ -45,9 +36,5 @@ export async function addSurvey(
     created_at: now,
     survey_time: record.survey_time || now,
   };
-  return safeInsert<SurveyRecord>(
-    'survey_records',
-    newRecord,
-    () => newRecord
-  );
+  return safeInsert<SurveyRecord>('survey_records', newRecord);
 }

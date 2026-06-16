@@ -269,6 +269,14 @@ export const mockRevisitRecords: RevisitRecord[] = [
 ];
 
 export const mockDashboardStats: DashboardStats = {
+  totalLeads: 156,
+  inPool: 42,
+  inProgress: 89,
+  completed: 25,
+  totalRevenue: 12500000,
+  conversionRate: 16.0,
+  avgCycleDays: 14.5,
+  poolConversionRate: 23.8,
   today_new_leads: 5,
   pending_follow_ups: 18,
   upcoming_surveys: 6,

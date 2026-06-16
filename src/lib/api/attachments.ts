@@ -1,38 +1,29 @@
 'use client';
 
 import { supabase } from '@/lib/supabase/client';
-import { safeQuery, safeInsert, isSupabaseConfigured } from './base';
-import { mockAttachments } from '@/lib/mock-data';
+import { safeQuery, safeInsert, requireSupabaseConfigured } from './base';
 import { generateId } from '@/lib/utils';
 import type { ContractAttachment } from '@/lib/types';
 
 export async function fetchAttachments(leadId?: string): Promise<ContractAttachment[]> {
+  requireSupabaseConfigured();
   if (leadId) {
-    if (!isSupabaseConfigured()) {
-      return mockAttachments.filter((a) => a.lead_id === leadId);
-    }
-    return safeQuery<ContractAttachment[]>(
-      () => {
-        const sb = supabase as any;
-        return sb
-          .from('contract_attachments')
-          .select('*')
-          .eq('lead_id', leadId)
-          .order('created_at', { ascending: false });
-      },
-      mockAttachments.filter((a) => a.lead_id === leadId)
-    );
-  }
-  return safeQuery<ContractAttachment[]>(
-    () => {
+    return safeQuery<ContractAttachment[]>(() => {
       const sb = supabase as any;
       return sb
         .from('contract_attachments')
         .select('*')
+        .eq('lead_id', leadId)
         .order('created_at', { ascending: false });
-    },
-    mockAttachments
-  );
+    });
+  }
+  return safeQuery<ContractAttachment[]>(() => {
+    const sb = supabase as any;
+    return sb
+      .from('contract_attachments')
+      .select('*')
+      .order('created_at', { ascending: false });
+  });
 }
 
 export async function addAttachment(
@@ -44,9 +35,5 @@ export async function addAttachment(
     id: generateId(),
     created_at: now,
   };
-  return safeInsert<ContractAttachment>(
-    'contract_attachments',
-    newRecord,
-    () => newRecord
-  );
+  return safeInsert<ContractAttachment>('contract_attachments', newRecord);
 }

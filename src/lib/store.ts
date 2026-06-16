@@ -3,8 +3,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, LeadStage, LeadTag, Lead, FollowUpRecord, SurveyRecord, ContractAttachment, ChangeLog, DashboardStats } from './types';
-import { mockUsers, mockStages, mockTags, mockLeads, mockFollowUps, mockSurveys, mockAttachments, mockChangeLogs, mockRevisitRecords, mockDashboardStats, mockTrendData, mockPerformanceData } from './mock-data';
-import { generateId } from './utils';
 import * as api from './api';
 
 interface AppState {
@@ -22,6 +20,7 @@ interface AppState {
   trendData: any[];
   performanceData: any[];
   isLoading: boolean;
+  supabaseError: string | null;
 
   initialize: () => Promise<void>;
 
@@ -49,32 +48,47 @@ interface AppState {
 
   createUser: (user: Omit<User, 'id' | 'created_at'>) => Promise<void>;
   updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
+
+  refreshLeads: () => Promise<void>;
+  refreshChangeLogs: () => Promise<void>;
 }
+
+const emptyDashboardStats: DashboardStats = {
+  totalLeads: 0,
+  inPool: 0,
+  inProgress: 0,
+  completed: 0,
+  totalRevenue: 0,
+  conversionRate: 0,
+  avgCycleDays: 0,
+  poolConversionRate: 0,
+};
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: null,
-      users: mockUsers,
-      stages: mockStages,
-      tags: mockTags,
-      leads: mockLeads,
-      followUps: mockFollowUps,
-      surveys: mockSurveys,
-      attachments: mockAttachments,
-      changeLogs: mockChangeLogs,
-      revisitRecords: mockRevisitRecords,
-      dashboardStats: mockDashboardStats,
-      trendData: mockTrendData,
-      performanceData: mockPerformanceData,
+      users: [],
+      stages: [],
+      tags: [],
+      leads: [],
+      followUps: [],
+      surveys: [],
+      attachments: [],
+      changeLogs: [],
+      revisitRecords: [],
+      dashboardStats: emptyDashboardStats,
+      trendData: [],
+      performanceData: [],
       isLoading: false,
+      supabaseError: null,
 
       initialize: async () => {
         if (get().isLoading) return;
-        set({ isLoading: true });
-        
+        set({ isLoading: true, supabaseError: null });
+
         try {
-          const [users, stages, tags, leads, followUps, surveys, attachments, changeLogs] = await Promise.all([
+          const [users, stages, tags, leads, followUps, surveys, attachments, changeLogs, revisitRecords] = await Promise.all([
             api.fetchUsers(),
             api.fetchStages(),
             api.fetchTags(),
@@ -83,8 +97,19 @@ export const useAppStore = create<AppState>()(
             api.fetchSurveys(),
             api.fetchAttachments(),
             api.fetchChangeLogs(),
+            api.fetchRevisitRecords(),
           ]);
-          
+
+          const totalLeads = leads.length;
+          const inPool = leads.filter((l) => l.is_in_pool).length;
+          const completed = leads.filter((l) => {
+            const s = stages.find((st) => st.id === l.stage_id);
+            return s?.name === '签约成交';
+          }).length;
+          const inProgress = totalLeads - inPool - completed;
+          const totalRevenue = leads.reduce((sum, l) => sum + (l.budget_max || 0), 0);
+          const conversionRate = totalLeads > 0 ? (completed / totalLeads) * 100 : 0;
+
           set({
             users,
             stages,
@@ -94,11 +119,25 @@ export const useAppStore = create<AppState>()(
             surveys,
             attachments,
             changeLogs,
+            revisitRecords,
+            dashboardStats: {
+              ...emptyDashboardStats,
+              totalLeads,
+              inPool,
+              inProgress,
+              completed,
+              totalRevenue,
+              conversionRate,
+            },
             isLoading: false,
           });
         } catch (e) {
-          console.warn('Failed to initialize from Supabase, using mock data:', e);
-          set({ isLoading: false });
+          console.error('Failed to initialize from Supabase:', e);
+          set({
+            supabaseError: e instanceof Error ? e.message : 'Unknown error',
+            isLoading: false,
+          });
+          throw e;
         }
       },
 
@@ -110,259 +149,150 @@ export const useAppStore = create<AppState>()(
             return true;
           }
         } catch (e) {
-          console.warn('Login via API failed, trying local:', e);
-        }
-        const user = get().users.find((u) => u.email === email);
-        if (user) {
-          set({ currentUser: user });
-          return true;
+          console.error('Login failed:', e);
+          throw e;
         }
         return false;
       },
+
       logout: () => set({ currentUser: null }),
 
       updateLeadStage: async (leadId, stageId) => {
         const { leads, changeLogs, currentUser, stages } = get();
         const lead = leads.find((l) => l.id === leadId);
-        if (!lead) return;
+        if (!lead) throw new Error('Lead not found');
+
         const oldStage = stages.find((s) => s.id === lead.stage_id);
         const newStage = stages.find((s) => s.id === stageId);
 
-        let savedLead: Lead | null = null;
-        try {
-          savedLead = await api.updateLeadStage(leadId, stageId, stages);
-        } catch (e) {
-          console.warn('Failed to update stage via API:', e);
-        }
+        const savedLead = await api.updateLeadStage(leadId, stageId, stages);
 
-        const updatedLead = savedLead || {
-          ...lead,
-          stage_id: stageId,
-          is_in_pool: newStage?.order === 0,
-          updated_at: new Date().toISOString(),
-          assignee_id: newStage?.order === 0 ? undefined : lead.assignee_id,
-          assignee_name: newStage?.order === 0 ? undefined : lead.assignee_name,
-        };
-
-        const newLog: ChangeLog = {
-          id: generateId(),
+        const newLog: Omit<ChangeLog, 'id' | 'changed_at'> = {
           lead_id: leadId,
           field: 'stage_id',
           old_value: oldStage?.name || lead.stage_id,
           new_value: newStage?.name || stageId,
           changed_by: currentUser?.id || '',
           changed_by_name: currentUser?.name || '',
-          changed_at: new Date().toISOString(),
           change_type: 'stage_change',
         };
 
-        try {
-          await api.addChangeLog(newLog);
-        } catch (e) {
-          console.warn('Failed to add change log via API:', e);
-        }
+        const savedLog = await api.addChangeLog(newLog);
 
         set({
-          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
-          changeLogs: [newLog, ...changeLogs],
+          leads: leads.map((l) => (l.id === leadId ? savedLead : l)),
+          changeLogs: [savedLog, ...changeLogs],
         });
       },
 
       updateLead: async (leadId, updates) => {
         const { leads, changeLogs, currentUser } = get();
         const lead = leads.find((l) => l.id === leadId);
-        if (!lead) return;
+        if (!lead) throw new Error('Lead not found');
 
-        let savedLead: Lead | null = null;
-        try {
-          savedLead = await api.updateLead(leadId, updates);
-        } catch (e) {
-          console.warn('Failed to update lead via API:', e);
-        }
+        const savedLead = await api.updateLead(leadId, updates);
 
-        const updatedLead = savedLead || {
-          ...lead,
-          ...updates,
-          updated_at: new Date().toISOString(),
-        };
-
-        const newLogs: ChangeLog[] = [];
+        const newLogs: Omit<ChangeLog, 'id' | 'changed_at'>[] = [];
         Object.entries(updates).forEach(([key, value]) => {
           if (key !== 'stage_id' && key !== 'assignee_id') {
             const oldVal = (lead as any)[key];
-            newLogs.push({
-              id: generateId(),
-              lead_id: leadId,
-              field: key,
-              old_value: oldVal !== undefined && oldVal !== null ? String(oldVal) : undefined,
-              new_value: value !== undefined && value !== null ? String(value) : undefined,
-              changed_by: currentUser?.id || '',
-              changed_by_name: currentUser?.name || '',
-              changed_at: new Date().toISOString(),
-              change_type: 'update',
-            });
+            if (oldVal !== value) {
+              newLogs.push({
+                lead_id: leadId,
+                field: key,
+                old_value: oldVal !== undefined && oldVal !== null ? String(oldVal) : null,
+                new_value: value !== undefined && value !== null ? String(value) : null,
+                changed_by: currentUser?.id || '',
+                changed_by_name: currentUser?.name || '',
+                change_type: 'update',
+              });
+            }
           }
         });
 
-        try {
-          for (const log of newLogs) {
-            await api.addChangeLog(log);
-          }
-        } catch (e) {
-          console.warn('Failed to add change logs via API:', e);
+        const savedLogs: ChangeLog[] = [];
+        for (const log of newLogs) {
+          const saved = await api.addChangeLog(log);
+          savedLogs.push(saved);
         }
 
         set({
-          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
-          changeLogs: [...newLogs, ...changeLogs],
+          leads: leads.map((l) => (l.id === leadId ? savedLead : l)),
+          changeLogs: [...savedLogs, ...changeLogs],
         });
       },
 
       assignLead: async (leadId, assigneeId) => {
         const { leads, users, changeLogs, currentUser, stages } = get();
         const assignee = assigneeId ? users.find((u) => u.id === assigneeId) : null;
+        const oldLead = leads.find((l) => l.id === leadId);
+        if (!oldLead) throw new Error('Lead not found');
 
-        let savedLead: Lead | null = null;
-        try {
-          savedLead = await api.assignLead(leadId, assigneeId, stages, users);
-        } catch (e) {
-          console.warn('Failed to assign lead via API:', e);
-        }
+        const savedLead = await api.assignLead(leadId, assigneeId, stages, users);
 
-        const assignStage = stages.find((s) => s.order === 2);
-        const updatedLead = savedLead || {
-          ...leads.find((l) => l.id === leadId)!,
-          assignee_id: assigneeId || undefined,
-          assignee_name: assignee?.name,
-          is_in_pool: false,
-          stage_id: assignStage?.id || leadId,
-          updated_at: new Date().toISOString(),
-          auto_recycle_at: undefined,
-        };
-
-        const newLog: ChangeLog = {
-          id: generateId(),
+        const newLog: Omit<ChangeLog, 'id' | 'changed_at'> = {
           lead_id: leadId,
           field: 'assignee_id',
-          old_value: (leads.find((l) => l.id === leadId)?.assignee_name),
-          new_value: assignee?.name,
+          old_value: oldLead.assignee_name || null,
+          new_value: assignee?.name || null,
           changed_by: currentUser?.id || '',
           changed_by_name: currentUser?.name || '',
-          changed_at: new Date().toISOString(),
           change_type: 'assign',
         };
 
-        try {
-          await api.addChangeLog(newLog);
-        } catch (e) {
-          console.warn('Failed to add change log via API:', e);
-        }
+        const savedLog = await api.addChangeLog(newLog);
 
         set({
-          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
-          changeLogs: [newLog, ...changeLogs],
+          leads: leads.map((l) => (l.id === leadId ? savedLead : l)),
+          changeLogs: [savedLog, ...changeLogs],
         });
       },
 
       recycleLeadToPool: async (leadId) => {
         const { leads, changeLogs, currentUser, stages } = get();
-        const poolStage = stages.find((s) => s.order === 0);
-        const lead = leads.find((l) => l.id === leadId);
+        const oldLead = leads.find((l) => l.id === leadId);
+        if (!oldLead) throw new Error('Lead not found');
 
-        let savedLead: Lead | null = null;
-        try {
-          savedLead = await api.recycleLeadToPool(leadId, stages);
-        } catch (e) {
-          console.warn('Failed to recycle lead via API:', e);
-        }
+        const savedLead = await api.recycleLeadToPool(leadId, stages);
 
-        const updatedLead = savedLead || {
-          ...leads.find((l) => l.id === leadId)!,
-          is_in_pool: true,
-          stage_id: poolStage?.id || leadId,
-          assignee_id: undefined,
-          assignee_name: undefined,
-          updated_at: new Date().toISOString(),
-        };
-
-        const newLog: ChangeLog = {
-          id: generateId(),
+        const newLog: Omit<ChangeLog, 'id' | 'changed_at'> = {
           lead_id: leadId,
           field: 'assignee_id',
-          old_value: lead?.assignee_name,
+          old_value: oldLead.assignee_name || null,
           new_value: '公海池',
           changed_by: currentUser?.id || '',
           changed_by_name: currentUser?.name || '',
-          changed_at: new Date().toISOString(),
           change_type: 'recycle',
         };
 
-        try {
-          await api.addChangeLog(newLog);
-        } catch (e) {
-          console.warn('Failed to add change log via API:', e);
-        }
+        const savedLog = await api.addChangeLog(newLog);
 
         set({
-          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
-          changeLogs: [newLog, ...changeLogs],
+          leads: leads.map((l) => (l.id === leadId ? savedLead : l)),
+          changeLogs: [savedLog, ...changeLogs],
         });
       },
 
       createLead: async (data) => {
         const { leads, changeLogs, stages, currentUser } = get();
-        const now = new Date().toISOString();
 
-        let savedLead: Lead | null = null;
-        try {
-          savedLead = await api.createLead(data, stages);
-        } catch (e) {
-          console.warn('Failed to create lead via API:', e);
-        }
+        const savedLead = await api.createLead(data, stages);
 
-        const poolStage = stages.find((s) => s.order === 0);
-        const newLead = savedLead || {
-          id: generateId(),
-          customer_name: data.customer_name || '',
-          phone: data.phone || '',
-          community: data.community,
-          area: data.area,
-          budget_min: data.budget_min,
-          budget_max: data.budget_max,
-          style: data.style,
-          source: data.source,
-          stage_id: poolStage?.id || stages[0].id,
-          tags: data.tags || [],
-          remark: data.remark,
-          is_in_pool: true,
-          assignee_id: undefined,
-          assignee_name: undefined,
-          auto_recycle_at: undefined,
-          created_at: now,
-          updated_at: now,
-        };
-
-        const newLog: ChangeLog = {
-          id: generateId(),
-          lead_id: newLead.id,
+        const newLog: Omit<ChangeLog, 'id' | 'changed_at'> = {
+          lead_id: savedLead.id,
           field: 'lead',
-          old_value: undefined,
+          old_value: null,
           new_value: '新建线索',
           changed_by: currentUser?.id || '',
           changed_by_name: currentUser?.name || '',
-          changed_at: now,
           change_type: 'create',
         };
 
-        try {
-          await api.addChangeLog(newLog);
-        } catch (e) {
-          console.warn('Failed to add change log via API:', e);
-        }
+        const savedLog = await api.addChangeLog(newLog);
 
         set({
-          leads: [newLead, ...leads],
-          changeLogs: [newLog, ...changeLogs],
+          leads: [savedLead, ...leads],
+          changeLogs: [savedLog, ...changeLogs],
         });
       },
 
@@ -377,24 +307,11 @@ export const useAppStore = create<AppState>()(
       },
 
       addFollowUp: async (record) => {
+        const savedRecord = await api.addFollowUp(record);
         const now = new Date().toISOString();
 
-        let savedRecord: FollowUpRecord | null = null;
-        try {
-          savedRecord = await api.addFollowUp(record);
-        } catch (e) {
-          console.warn('Failed to add follow-up via API:', e);
-        }
-
-        const newRecord = savedRecord || {
-          ...record,
-          id: generateId(),
-          created_at: now,
-          follow_up_time: record.follow_up_time || now,
-        };
-
         set({
-          followUps: [newRecord, ...get().followUps],
+          followUps: [savedRecord, ...get().followUps],
         });
         await get().updateLead(record.lead_id, {
           updated_at: now,
@@ -404,24 +321,10 @@ export const useAppStore = create<AppState>()(
 
       addSurvey: async (record) => {
         const { stages } = get();
-        const now = new Date().toISOString();
-
-        let savedRecord: SurveyRecord | null = null;
-        try {
-          savedRecord = await api.addSurvey(record);
-        } catch (e) {
-          console.warn('Failed to add survey via API:', e);
-        }
-
-        const newRecord = savedRecord || {
-          ...record,
-          id: generateId(),
-          created_at: now,
-          survey_time: record.survey_time || now,
-        };
+        const savedRecord = await api.addSurvey(record);
 
         set({
-          surveys: [newRecord, ...get().surveys],
+          surveys: [savedRecord, ...get().surveys],
         });
         const surveyStage = stages.find((s) => s.order === 3);
         if (surveyStage) {
@@ -430,177 +333,95 @@ export const useAppStore = create<AppState>()(
       },
 
       addAttachment: async (record) => {
-        const now = new Date().toISOString();
-
-        let savedRecord: ContractAttachment | null = null;
-        try {
-          savedRecord = await api.addAttachment(record);
-        } catch (e) {
-          console.warn('Failed to add attachment via API:', e);
-        }
-
-        const newRecord = savedRecord || {
-          ...record,
-          id: generateId(),
-          created_at: now,
-        };
+        const savedRecord = await api.addAttachment(record);
 
         set({
-          attachments: [newRecord, ...get().attachments],
+          attachments: [savedRecord, ...get().attachments],
         });
       },
 
       createStage: async (stage) => {
-        const { currentUser, stages } = get();
-        const now = new Date().toISOString();
+        const { currentUser } = get();
 
-        let savedStage: LeadStage | null = null;
-        try {
-          savedStage = await api.createStage({
-            ...stage,
-            created_by: currentUser?.id || '',
-            updated_by: currentUser?.id || '',
-          });
-        } catch (e) {
-          console.warn('Failed to create stage via API:', e);
-        }
-
-        const newStage = savedStage || {
+        const savedStage = await api.createStage({
           ...stage,
-          id: generateId(),
           created_by: currentUser?.id || '',
           updated_by: currentUser?.id || '',
-          created_at: now,
-          updated_at: now,
-        };
+        });
 
         set({
-          stages: [...stages, newStage],
+          stages: [...get().stages, savedStage],
         });
       },
+
       updateStage: async (stageId, updates) => {
-        const { currentUser, stages } = get();
+        const { currentUser } = get();
 
-        let savedStage: LeadStage | null = null;
-        try {
-          savedStage = await api.updateStage(stageId, {
-            ...updates,
-            updated_by: currentUser?.id || '',
-          });
-        } catch (e) {
-          console.warn('Failed to update stage via API:', e);
-        }
+        const savedStage = await api.updateStage(stageId, {
+          ...updates,
+          updated_by: currentUser?.id || '',
+        });
 
         set({
-          stages: stages.map((s) =>
-            s.id === stageId
-              ? savedStage || { ...s, ...updates, updated_by: currentUser?.id || '', updated_at: new Date().toISOString() }
-              : s
-          ),
+          stages: get().stages.map((s) => (s.id === stageId ? savedStage : s)),
         });
       },
+
       deleteStage: async (stageId) => {
-        try {
-          await api.deleteStage(stageId);
-        } catch (e) {
-          console.warn('Failed to delete stage via API:', e);
-        }
+        await api.deleteStage(stageId);
         set({ stages: get().stages.filter((s) => s.id !== stageId) });
       },
 
       createTag: async (tag) => {
-        const { currentUser, tags } = get();
-        const now = new Date().toISOString();
+        const { currentUser } = get();
 
-        let savedTag: LeadTag | null = null;
-        try {
-          savedTag = await api.createTag({
-            ...tag,
-            created_by: currentUser?.id || '',
-            updated_by: currentUser?.id || '',
-          });
-        } catch (e) {
-          console.warn('Failed to create tag via API:', e);
-        }
-
-        const newTag = savedTag || {
+        const savedTag = await api.createTag({
           ...tag,
-          id: generateId(),
           created_by: currentUser?.id || '',
           updated_by: currentUser?.id || '',
-          created_at: now,
-          updated_at: now,
-        };
+        });
 
-        set({ tags: [...tags, newTag] });
+        set({ tags: [...get().tags, savedTag] });
       },
-      updateTag: async (tagId, updates) => {
-        const { currentUser, tags } = get();
 
-        let savedTag: LeadTag | null = null;
-        try {
-          savedTag = await api.updateTag(tagId, {
-            ...updates,
-            updated_by: currentUser?.id || '',
-          });
-        } catch (e) {
-          console.warn('Failed to update tag via API:', e);
-        }
+      updateTag: async (tagId, updates) => {
+        const { currentUser } = get();
+
+        const savedTag = await api.updateTag(tagId, {
+          ...updates,
+          updated_by: currentUser?.id || '',
+        });
 
         set({
-          tags: tags.map((t) =>
-            t.id === tagId
-              ? savedTag || { ...t, ...updates, updated_by: currentUser?.id || '', updated_at: new Date().toISOString() }
-              : t
-          ),
+          tags: get().tags.map((t) => (t.id === tagId ? savedTag : t)),
         });
       },
+
       deleteTag: async (tagId) => {
-        try {
-          await api.deleteTag(tagId);
-        } catch (e) {
-          console.warn('Failed to delete tag via API:', e);
-        }
+        await api.deleteTag(tagId);
         set({ tags: get().tags.filter((t) => t.id !== tagId) });
       },
 
       createUser: async (user) => {
-        const { users } = get();
-
-        let savedUser: User | null = null;
-        try {
-          savedUser = await api.createUser(user);
-        } catch (e) {
-          console.warn('Failed to create user via API:', e);
-        }
-
-        const now = new Date().toISOString();
-        const newUser = savedUser || {
-          ...user,
-          id: generateId(),
-          created_at: now,
-          updated_at: now,
-        };
-
-        set({ users: [...users, newUser] });
+        const savedUser = await api.createUser(user);
+        set({ users: [...get().users, savedUser] });
       },
+
       updateUser: async (userId, updates) => {
-        const { users } = get();
-
-        let savedUser: User | null = null;
-        try {
-          savedUser = await api.updateUser(userId, updates);
-        } catch (e) {
-          console.warn('Failed to update user via API:', e);
-        }
-
+        const savedUser = await api.updateUser(userId, updates);
         set({
-          users: users.map((u) =>
-            u.id === userId
-              ? savedUser || { ...u, ...updates, updated_at: new Date().toISOString() }
-              : u
-          ),
+          users: get().users.map((u) => (u.id === userId ? savedUser : u)),
         });
+      },
+
+      refreshLeads: async () => {
+        const leads = await api.fetchLeads();
+        set({ leads });
+      },
+
+      refreshChangeLogs: async () => {
+        const changeLogs = await api.fetchChangeLogs();
+        set({ changeLogs });
       },
     }),
     {

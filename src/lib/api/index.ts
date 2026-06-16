@@ -9,3 +9,4 @@ export * from './followUps';
 export * from './surveys';
 export * from './attachments';
 export * from './changeLogs';
+export * from './revisitRecords';
