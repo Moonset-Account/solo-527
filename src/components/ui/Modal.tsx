@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface ModalProps {
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   title?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -41,13 +41,23 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [open]);
 
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open && onClose) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
       <div
         className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={() => onClose?.()}
       />
       <div
         className={cn(
@@ -56,7 +66,7 @@ export const Modal: React.FC<ModalProps> = ({
           className
         )}
       >
-        {(title || onClose) && (
+        {(title || !!onClose) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
             {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
             {onClose && (

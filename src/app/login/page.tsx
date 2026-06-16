@@ -23,19 +23,23 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      if (login(email)) {
+    try {
+      const success = await login(email);
+      if (success) {
         router.push('/');
       } else {
         setError('账号不存在，请使用下方快速登录账号');
       }
+    } catch (err) {
+      setError('登录失败，请稍后重试');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (

@@ -11,6 +11,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: Size;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  loading?: boolean;
 }
 
 const variantClasses: Record<Variant, string> = {
@@ -29,10 +30,11 @@ const sizeClasses: Record<Size, string> = {
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', leftIcon, rightIcon, children, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', leftIcon, rightIcon, children, loading, disabled, ...props }, ref) => {
     return (
       <button
         ref={ref}
+        disabled={disabled || loading}
         className={cn(
           'inline-flex items-center justify-center font-medium transition-all duration-200',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2',
@@ -43,9 +45,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        {leftIcon && <span className="shrink-0">{leftIcon}</span>}
+        {loading && (
+          <span className="shrink-0 mr-2 w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        )}
+        {!loading && leftIcon && <span className="shrink-0">{leftIcon}</span>}
         {children}
-        {rightIcon && <span className="shrink-0">{rightIcon}</span>}
+        {!loading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
       </button>
     );
   }

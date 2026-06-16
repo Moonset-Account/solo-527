@@ -2,9 +2,10 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, LeadStage, LeadTag, Lead, FollowUpRecord, SurveyRecord, ContractAttachment, ChangeLog, RevisitRecord, DashboardStats } from './types';
+import { User, LeadStage, LeadTag, Lead, FollowUpRecord, SurveyRecord, ContractAttachment, ChangeLog, DashboardStats } from './types';
 import { mockUsers, mockStages, mockTags, mockLeads, mockFollowUps, mockSurveys, mockAttachments, mockChangeLogs, mockRevisitRecords, mockDashboardStats, mockTrendData, mockPerformanceData } from './mock-data';
 import { generateId } from './utils';
+import * as api from './api';
 
 interface AppState {
   currentUser: User | null;
@@ -16,35 +17,38 @@ interface AppState {
   surveys: SurveyRecord[];
   attachments: ContractAttachment[];
   changeLogs: ChangeLog[];
-  revisitRecords: RevisitRecord[];
+  revisitRecords: any[];
   dashboardStats: DashboardStats;
   trendData: any[];
   performanceData: any[];
+  isLoading: boolean;
 
-  login: (email: string) => boolean;
+  initialize: () => Promise<void>;
+
+  login: (email: string) => Promise<boolean>;
   logout: () => void;
 
-  updateLeadStage: (leadId: string, stageId: string) => void;
-  updateLead: (leadId: string, updates: Partial<Lead>) => void;
-  assignLead: (leadId: string, assigneeId: string | null) => void;
-  recycleLeadToPool: (leadId: string) => void;
-  createLead: (data: Partial<Lead>) => void;
-  batchAssignFromPool: (leadIds: string[], assigneeId: string) => void;
+  updateLeadStage: (leadId: string, stageId: string) => Promise<void>;
+  updateLead: (leadId: string, updates: Partial<Lead>) => Promise<void>;
+  assignLead: (leadId: string, assigneeId: string | null) => Promise<void>;
+  recycleLeadToPool: (leadId: string) => Promise<void>;
+  createLead: (data: Partial<Lead>) => Promise<void>;
+  batchAssignFromPool: (leadIds: string[], assigneeId: string) => Promise<void>;
 
-  addFollowUp: (record: Omit<FollowUpRecord, 'id' | 'created_at'>) => void;
-  addSurvey: (record: Omit<SurveyRecord, 'id' | 'created_at'>) => void;
-  addAttachment: (record: Omit<ContractAttachment, 'id' | 'created_at'>) => void;
+  addFollowUp: (record: Omit<FollowUpRecord, 'id' | 'created_at'>) => Promise<void>;
+  addSurvey: (record: Omit<SurveyRecord, 'id' | 'created_at'>) => Promise<void>;
+  addAttachment: (record: Omit<ContractAttachment, 'id' | 'created_at'>) => Promise<void>;
 
-  createStage: (stage: Omit<LeadStage, 'id' | 'updated_at'>) => void;
-  updateStage: (stageId: string, updates: Partial<LeadStage>) => void;
-  deleteStage: (stageId: string) => void;
+  createStage: (stage: Omit<LeadStage, 'id' | 'updated_at' | 'created_at'>) => Promise<void>;
+  updateStage: (stageId: string, updates: Partial<LeadStage>) => Promise<void>;
+  deleteStage: (stageId: string) => Promise<void>;
 
-  createTag: (tag: Omit<LeadTag, 'id'>) => void;
-  updateTag: (tagId: string, updates: Partial<LeadTag>) => void;
-  deleteTag: (tagId: string) => void;
+  createTag: (tag: Omit<LeadTag, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateTag: (tagId: string, updates: Partial<LeadTag>) => Promise<void>;
+  deleteTag: (tagId: string) => Promise<void>;
 
-  createUser: (user: Omit<User, 'id' | 'created_at'>) => void;
-  updateUser: (userId: string, updates: Partial<User>) => void;
+  createUser: (user: Omit<User, 'id' | 'created_at'>) => Promise<void>;
+  updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
@@ -63,8 +67,51 @@ export const useAppStore = create<AppState>()(
       dashboardStats: mockDashboardStats,
       trendData: mockTrendData,
       performanceData: mockPerformanceData,
+      isLoading: false,
 
-      login: (email) => {
+      initialize: async () => {
+        if (get().isLoading) return;
+        set({ isLoading: true });
+        
+        try {
+          const [users, stages, tags, leads, followUps, surveys, attachments, changeLogs] = await Promise.all([
+            api.fetchUsers(),
+            api.fetchStages(),
+            api.fetchTags(),
+            api.fetchLeads(),
+            api.fetchFollowUps(),
+            api.fetchSurveys(),
+            api.fetchAttachments(),
+            api.fetchChangeLogs(),
+          ]);
+          
+          set({
+            users,
+            stages,
+            tags,
+            leads,
+            followUps,
+            surveys,
+            attachments,
+            changeLogs,
+            isLoading: false,
+          });
+        } catch (e) {
+          console.warn('Failed to initialize from Supabase, using mock data:', e);
+          set({ isLoading: false });
+        }
+      },
+
+      login: async (email) => {
+        try {
+          const user = await api.fetchUserByEmail(email);
+          if (user) {
+            set({ currentUser: user });
+            return true;
+          }
+        } catch (e) {
+          console.warn('Login via API failed, trying local:', e);
+        }
         const user = get().users.find((u) => u.email === email);
         if (user) {
           set({ currentUser: user });
@@ -74,124 +121,187 @@ export const useAppStore = create<AppState>()(
       },
       logout: () => set({ currentUser: null }),
 
-      updateLeadStage: (leadId, stageId) => {
+      updateLeadStage: async (leadId, stageId) => {
         const { leads, changeLogs, currentUser, stages } = get();
         const lead = leads.find((l) => l.id === leadId);
         if (!lead) return;
         const oldStage = stages.find((s) => s.id === lead.stage_id);
         const newStage = stages.find((s) => s.id === stageId);
 
+        try {
+          await api.updateLeadStage(leadId, stageId, stages);
+        } catch (e) {
+          console.warn('Failed to update stage via API, updating locally:', e);
+        }
+
+        const updatedLead = {
+          ...lead,
+          stage_id: stageId,
+          is_in_pool: newStage?.order === 0,
+          updated_at: new Date().toISOString(),
+          assignee_id: newStage?.order === 0 ? undefined : lead.assignee_id,
+          assignee_name: newStage?.order === 0 ? undefined : lead.assignee_name,
+        };
+
+        const newLog: ChangeLog = {
+          id: generateId(),
+          lead_id: leadId,
+          field: 'stage_id',
+          old_value: oldStage?.name || lead.stage_id,
+          new_value: newStage?.name || stageId,
+          changed_by: currentUser?.id || '',
+          changed_by_name: currentUser?.name || '',
+          changed_at: new Date().toISOString(),
+          change_type: 'stage_change',
+        };
+
+        try {
+          await api.addChangeLog(newLog);
+        } catch (e) {
+          console.warn('Failed to add change log via API:', e);
+        }
+
         set({
-          leads: leads.map((l) =>
-            l.id === leadId
-              ? { ...l, stage_id: stageId, is_in_pool: stageId === 'stage-pool', updated_at: new Date().toISOString() }
-              : l
-          ),
-          changeLogs: [
-            ...changeLogs,
-            {
-              id: generateId(),
-              lead_id: leadId,
-              field: 'stage_id',
-              old_value: oldStage?.name || lead.stage_id,
-              new_value: newStage?.name || stageId,
-              changed_by: currentUser?.id || '',
-              changed_by_name: currentUser?.name || '',
-              changed_at: new Date().toISOString(),
-              change_type: 'stage_change',
-            },
-          ],
+          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
+          changeLogs: [newLog, ...changeLogs],
         });
       },
 
-      updateLead: (leadId, updates) => {
+      updateLead: async (leadId, updates) => {
         const { leads, changeLogs, currentUser } = get();
-        set({
-          leads: leads.map((l) =>
-            l.id === leadId ? { ...l, ...updates, updated_at: new Date().toISOString() } : l
-          ),
-        });
+        const lead = leads.find((l) => l.id === leadId);
+        if (!lead) return;
+
+        try {
+          await api.updateLead(leadId, updates);
+        } catch (e) {
+          console.warn('Failed to update lead via API, updating locally:', e);
+        }
+
+        const updatedLead = {
+          ...lead,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
+
+        const newLogs: ChangeLog[] = [];
         Object.entries(updates).forEach(([key, value]) => {
           if (key !== 'stage_id' && key !== 'assignee_id') {
-            set({
-              changeLogs: [
-                ...get().changeLogs,
-                {
-                  id: generateId(),
-                  lead_id: leadId,
-                  field: key,
-                  new_value: value,
-                  changed_by: currentUser?.id || '',
-                  changed_by_name: currentUser?.name || '',
-                  changed_at: new Date().toISOString(),
-                  change_type: 'update',
-                },
-              ],
+            newLogs.push({
+              id: generateId(),
+              lead_id: leadId,
+              field: key,
+              new_value: value as any,
+              changed_by: currentUser?.id || '',
+              changed_by_name: currentUser?.name || '',
+              changed_at: new Date().toISOString(),
+              change_type: 'update',
             });
           }
         });
+
+        try {
+          for (const log of newLogs) {
+            await api.addChangeLog(log);
+          }
+        } catch (e) {
+          console.warn('Failed to add change logs via API:', e);
+        }
+
+        set({
+          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
+          changeLogs: [...newLogs, ...changeLogs],
+        });
       },
 
-      assignLead: (leadId, assigneeId) => {
+      assignLead: async (leadId, assigneeId) => {
         const { leads, users, changeLogs, currentUser, stages } = get();
         const assignee = assigneeId ? users.find((u) => u.id === assigneeId) : null;
+
+        try {
+          await api.assignLead(leadId, assigneeId, stages, users);
+        } catch (e) {
+          console.warn('Failed to assign lead via API, updating locally:', e);
+        }
+
         const assignStage = stages.find((s) => s.order === 2);
+        const updatedLead = {
+          ...leads.find((l) => l.id === leadId)!,
+          assignee_id: assigneeId || undefined,
+          assignee_name: assignee?.name,
+          is_in_pool: false,
+          stage_id: assignStage?.id || leadId,
+          updated_at: new Date().toISOString(),
+          auto_recycle_at: undefined,
+        };
+
+        const newLog: ChangeLog = {
+          id: generateId(),
+          lead_id: leadId,
+          field: 'assignee_id',
+          new_value: assignee?.name,
+          changed_by: currentUser?.id || '',
+          changed_by_name: currentUser?.name || '',
+          changed_at: new Date().toISOString(),
+          change_type: 'assign',
+        };
+
+        try {
+          await api.addChangeLog(newLog);
+        } catch (e) {
+          console.warn('Failed to add change log via API:', e);
+        }
+
         set({
-          leads: leads.map((l) =>
-            l.id === leadId
-              ? {
-                  ...l,
-                  assignee_id: assigneeId || undefined,
-                  assignee_name: assignee?.name,
-                  is_in_pool: false,
-                  stage_id: assignStage?.id || l.stage_id,
-                  updated_at: new Date().toISOString(),
-                  auto_recycle_at: undefined,
-                }
-              : l
-          ),
-          changeLogs: [
-            ...changeLogs,
-            {
-              id: generateId(),
-              lead_id: leadId,
-              field: 'assignee_id',
-              new_value: assignee?.name,
-              changed_by: currentUser?.id || '',
-              changed_by_name: currentUser?.name || '',
-              changed_at: new Date().toISOString(),
-              change_type: 'assign',
-            },
-          ],
+          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
+          changeLogs: [newLog, ...changeLogs],
         });
       },
 
-      recycleLeadToPool: (leadId) => {
+      recycleLeadToPool: async (leadId) => {
         const { leads, changeLogs, currentUser, stages } = get();
         const poolStage = stages.find((s) => s.order === 0);
+
+        try {
+          await api.recycleLeadToPool(leadId, stages);
+        } catch (e) {
+          console.warn('Failed to recycle lead via API, updating locally:', e);
+        }
+
+        const updatedLead = {
+          ...leads.find((l) => l.id === leadId)!,
+          is_in_pool: true,
+          stage_id: poolStage?.id || leadId,
+          assignee_id: undefined,
+          assignee_name: undefined,
+          updated_at: new Date().toISOString(),
+        };
+
+        const newLog: ChangeLog = {
+          id: generateId(),
+          lead_id: leadId,
+          changed_by: currentUser?.id || '',
+          changed_by_name: currentUser?.name || '',
+          changed_at: new Date().toISOString(),
+          change_type: 'recycle',
+        };
+
+        try {
+          await api.addChangeLog(newLog);
+        } catch (e) {
+          console.warn('Failed to add change log via API:', e);
+        }
+
         set({
-          leads: leads.map((l) =>
-            l.id === leadId
-              ? { ...l, is_in_pool: true, stage_id: poolStage?.id || l.stage_id, assignee_id: undefined, assignee_name: undefined, updated_at: new Date().toISOString() }
-              : l
-          ),
-          changeLogs: [
-            ...changeLogs,
-            {
-              id: generateId(),
-              lead_id: leadId,
-              changed_by: currentUser?.id || '',
-              changed_by_name: currentUser?.name || '',
-              changed_at: new Date().toISOString(),
-              change_type: 'recycle',
-            },
-          ],
+          leads: leads.map((l) => (l.id === leadId ? updatedLead : l)),
+          changeLogs: [newLog, ...changeLogs],
         });
       },
 
-      createLead: (data) => {
+      createLead: async (data) => {
         const { leads, changeLogs, stages, currentUser } = get();
         const poolStage = stages.find((s) => s.order === 0);
+        const now = new Date().toISOString();
         const newLead: Lead = {
           id: generateId(),
           customer_name: data.customer_name || '',
@@ -206,111 +316,224 @@ export const useAppStore = create<AppState>()(
           tags: data.tags || [],
           remark: data.remark,
           is_in_pool: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          created_at: now,
+          updated_at: now,
         };
+
+        try {
+          await api.createLead(data, stages);
+        } catch (e) {
+          console.warn('Failed to create lead via API, adding locally:', e);
+        }
+
+        const newLog: ChangeLog = {
+          id: generateId(),
+          lead_id: newLead.id,
+          changed_by: currentUser?.id || '',
+          changed_by_name: currentUser?.name || '',
+          changed_at: now,
+          change_type: 'create',
+        };
+
+        try {
+          await api.addChangeLog(newLog);
+        } catch (e) {
+          console.warn('Failed to add change log via API:', e);
+        }
+
         set({
           leads: [newLead, ...leads],
-          changeLogs: [
-            ...changeLogs,
-            {
-              id: generateId(),
-              lead_id: newLead.id,
-              changed_by: currentUser?.id || '',
-              changed_by_name: currentUser?.name || '',
-              changed_at: new Date().toISOString(),
-              change_type: 'create',
-            },
-          ],
+          changeLogs: [newLog, ...changeLogs],
         });
       },
 
-      batchAssignFromPool: (leadIds, assigneeId) => {
-        const { users, stages } = get();
-        const assignee = users.find((u) => u.id === assigneeId);
-        const followStage = stages.find((s) => s.order === 2);
-        leadIds.forEach((id) => {
-          get().assignLead(id, assigneeId);
+      batchAssignFromPool: async (leadIds, assigneeId) => {
+        for (const id of leadIds) {
+          await get().assignLead(id, assigneeId);
+          const followStage = get().stages.find((s) => s.order === 2);
           if (followStage) {
-            get().updateLeadStage(id, followStage.id);
+            await get().updateLeadStage(id, followStage.id);
           }
-        });
-      },
-
-      addFollowUp: (record) => {
-        set({
-          followUps: [
-            { ...record, id: generateId(), created_at: new Date().toISOString() },
-            ...get().followUps,
-          ],
-        });
-        get().updateLead(record.lead_id, { updated_at: new Date().toISOString(), auto_recycle_at: undefined });
-      },
-
-      addSurvey: (record) => {
-        const { stages } = get();
-        set({
-          surveys: [
-            { ...record, id: generateId(), created_at: new Date().toISOString() },
-            ...get().surveys,
-          ],
-        });
-        const surveyStage = stages.find((s) => s.order === 3);
-        if (surveyStage) {
-          get().updateLeadStage(record.lead_id, surveyStage.id);
         }
       },
 
-      addAttachment: (record) => {
+      addFollowUp: async (record) => {
+        const newRecord = {
+          ...record,
+          id: generateId(),
+          created_at: new Date().toISOString(),
+        };
+
+        try {
+          await api.addFollowUp(record);
+        } catch (e) {
+          console.warn('Failed to add follow-up via API, adding locally:', e);
+        }
+
         set({
-          attachments: [
-            { ...record, id: generateId(), created_at: new Date().toISOString() },
-            ...get().attachments,
-          ],
+          followUps: [newRecord, ...get().followUps],
+        });
+        await get().updateLead(record.lead_id, {
+          updated_at: new Date().toISOString(),
+          auto_recycle_at: undefined,
         });
       },
 
-      createStage: (stage) => {
-        const { stages, currentUser } = get();
+      addSurvey: async (record) => {
+        const { stages } = get();
+        const newRecord = {
+          ...record,
+          id: generateId(),
+          created_at: new Date().toISOString(),
+        };
+
+        try {
+          await api.addSurvey(record);
+        } catch (e) {
+          console.warn('Failed to add survey via API, adding locally:', e);
+        }
+
         set({
-          stages: [
-            ...stages,
-            { ...stage, id: generateId(), updated_at: new Date().toISOString(), created_by: currentUser?.id, updated_by: currentUser?.id },
-          ],
+          surveys: [newRecord, ...get().surveys],
+        });
+        const surveyStage = stages.find((s) => s.order === 3);
+        if (surveyStage) {
+          await get().updateLeadStage(record.lead_id, surveyStage.id);
+        }
+      },
+
+      addAttachment: async (record) => {
+        const newRecord = {
+          ...record,
+          id: generateId(),
+          created_at: new Date().toISOString(),
+        };
+
+        try {
+          await api.addAttachment(record);
+        } catch (e) {
+          console.warn('Failed to add attachment via API, adding locally:', e);
+        }
+
+        set({
+          attachments: [newRecord, ...get().attachments],
         });
       },
-      updateStage: (stageId, updates) => {
-        const { stages, currentUser } = get();
+
+      createStage: async (stage) => {
+        const { currentUser } = get();
+        const now = new Date().toISOString();
+        const newStage = {
+          ...stage,
+          id: generateId(),
+          created_by: currentUser?.id,
+          updated_by: currentUser?.id,
+          created_at: now,
+          updated_at: now,
+        };
+
+        try {
+          await api.createStage(stage);
+        } catch (e) {
+          console.warn('Failed to create stage via API, adding locally:', e);
+        }
+
         set({
-          stages: stages.map((s) =>
-            s.id === stageId ? { ...s, ...updates, updated_by: currentUser?.id, updated_at: new Date().toISOString() } : s
+          stages: [...get().stages, newStage],
+        });
+      },
+      updateStage: async (stageId, updates) => {
+        const { currentUser } = get();
+        try {
+          await api.updateStage(stageId, { ...updates, updated_by: currentUser?.id });
+        } catch (e) {
+          console.warn('Failed to update stage via API, updating locally:', e);
+        }
+        set({
+          stages: get().stages.map((s) =>
+            s.id === stageId
+              ? { ...s, ...updates, updated_by: currentUser?.id, updated_at: new Date().toISOString() }
+              : s
           ),
         });
       },
-      deleteStage: (stageId) => {
+      deleteStage: async (stageId) => {
+        try {
+          await api.deleteStage(stageId);
+        } catch (e) {
+          console.warn('Failed to delete stage via API, deleting locally:', e);
+        }
         set({ stages: get().stages.filter((s) => s.id !== stageId) });
       },
 
-      createTag: (tag) => {
-        set({ tags: [...get().tags, { ...tag, id: generateId() }] });
+      createTag: async (tag) => {
+        const { currentUser } = get();
+        const now = new Date().toISOString();
+        const newTag = {
+          ...tag,
+          id: generateId(),
+          created_by: currentUser?.id,
+          updated_by: currentUser?.id,
+          created_at: now,
+          updated_at: now,
+        };
+
+        try {
+          await api.createTag(tag);
+        } catch (e) {
+          console.warn('Failed to create tag via API, adding locally:', e);
+        }
+
+        set({ tags: [...get().tags, newTag] });
       },
-      updateTag: (tagId, updates) => {
+      updateTag: async (tagId, updates) => {
+        try {
+          await api.updateTag(tagId, updates);
+        } catch (e) {
+          console.warn('Failed to update tag via API, updating locally:', e);
+        }
         set({
-          tags: get().tags.map((t) => (t.id === tagId ? { ...t, ...updates } : t)),
+          tags: get().tags.map((t) =>
+            t.id === tagId ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+          ),
         });
       },
-      deleteTag: (tagId) => {
+      deleteTag: async (tagId) => {
+        try {
+          await api.deleteTag(tagId);
+        } catch (e) {
+          console.warn('Failed to delete tag via API, deleting locally:', e);
+        }
         set({ tags: get().tags.filter((t) => t.id !== tagId) });
       },
 
-      createUser: (user) => {
-        set({
-          users: [...get().users, { ...user, id: generateId(), created_at: new Date().toISOString() }],
-        });
+      createUser: async (user) => {
+        const now = new Date().toISOString();
+        const newUser = {
+          ...user,
+          id: generateId(),
+          created_at: now,
+          updated_at: now,
+        };
+
+        try {
+          await api.createUser(user);
+        } catch (e) {
+          console.warn('Failed to create user via API, adding locally:', e);
+        }
+
+        set({ users: [...get().users, newUser] });
       },
-      updateUser: (userId, updates) => {
+      updateUser: async (userId, updates) => {
+        try {
+          await api.updateUser(userId, updates);
+        } catch (e) {
+          console.warn('Failed to update user via API, updating locally:', e);
+        }
         set({
-          users: get().users.map((u) => (u.id === userId ? { ...u, ...updates } : u)),
+          users: get().users.map((u) =>
+            u.id === userId ? { ...u, ...updates, updated_at: new Date().toISOString() } : u
+          ),
         });
       },
     }),
@@ -318,11 +541,6 @@ export const useAppStore = create<AppState>()(
       name: 'decoration-lead-pipeline-store',
       partialize: (state) => ({
         currentUser: state.currentUser,
-        leads: state.leads,
-        followUps: state.followUps,
-        changeLogs: state.changeLogs,
-        surveys: state.surveys,
-        attachments: state.attachments,
       }),
     }
   )

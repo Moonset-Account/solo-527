@@ -142,7 +142,7 @@ export default function RevisitPage() {
                                   <span className="text-sm font-medium text-gray-700">重复咨询原因分析：</span>
                                 </div>
                                 <div className="flex flex-wrap gap-2 pl-6">
-                                  {r.reasons.map((reason, i) => (
+                                  {r.reasons.map((reason: string, i: number) => (
                                     <span
                                       key={i}
                                       className="inline-flex items-center px-3 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-100 text-xs font-medium"
