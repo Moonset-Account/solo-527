@@ -1,0 +1,11 @@
+django>=4.2,<5.0
+djangorestframework>=3.14
+django-cors-headers>=4.3
+django-filter>=23.5
+celery>=5.3
+redis>=5.0
+psycopg2-binary>=2.9
+Pillow>=10.1
+django-celery-beat>=2.5
+django-celery-results>=2.5
+python-decouple>=3.8
