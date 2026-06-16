@@ -1,0 +1,312 @@
+// Prisma schema for Apartment Service Portal
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  RESIDENT
+  CUSTOMER_SERVICE
+  ENGINEER
+  ADMIN
+}
+
+enum BillStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum BillType {
+  RENT
+  WATER
+  ELECTRICITY
+  GAS
+  INTERNET
+  PROPERTY_MANAGEMENT
+  MAINTENANCE
+  OTHER
+}
+
+enum PaymentMethod {
+  ALIPAY
+  WECHAT
+  BANK_TRANSFER
+  CASH
+  CREDIT_CARD
+}
+
+enum WorkOrderStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum WorkOrderType {
+  REPAIR
+  MAINTENANCE
+  COMPLAINT
+  CONSULTATION
+  OTHER
+}
+
+enum VisitorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum LogAction {
+  CREATE
+  UPDATE
+  DELETE
+  ASSIGN
+  COMPLETE
+  PAY
+  EXPORT
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  phone         String?
+  role          Role      @default(RESIDENT)
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  apartments    Apartment[]
+  createdOrders WorkOrder[] @relation("Creator")
+  assignedOrders WorkOrder[] @relation("Assignee")
+  bills         Bill[]
+  payments      Payment[]
+  createdVisits VisitorAppointment[] @relation("Host")
+  logs          OperationLog[]
+}
+
+model Apartment {
+  id          String    @id @default(cuid())
+  unitNumber  String    @unique
+  building    String
+  floor       Int
+  room        String
+  area        Float?
+  residents   User[]
+  bills       Bill[]
+  contracts   Contract[]
+  workOrders  WorkOrder[]
+  visits      VisitorAppointment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Bill {
+  id            String      @id @default(cuid())
+  billNo        String      @unique
+  apartmentId   String
+  apartment     Apartment   @relation(fields: [apartmentId], references: [id])
+  residentId    String
+  resident      User        @relation(fields: [residentId], references: [id])
+  type          BillType
+  title         String
+  description   String?
+  amount        Decimal     @db.Decimal(10, 2)
+  paidAmount    Decimal     @default(0) @db.Decimal(10, 2)
+  status        BillStatus  @default(PENDING)
+  issueDate     DateTime
+  dueDate       DateTime
+  paidDate      DateTime?
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  payments      Payment[]
+  logs          OperationLog[]
+
+  @@index([apartmentId, status])
+  @@index([residentId, status])
+  @@index([status, dueDate])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  billId      String
+  bill        Bill          @relation(fields: [billId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  amount      Decimal       @db.Decimal(10, 2)
+  method      PaymentMethod
+  transactionNo String?
+  remark      String?
+  paidAt      DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+  logs        OperationLog[]
+
+  @@index([billId])
+  @@index([userId, paidAt])
+}
+
+model Contract {
+  id            String    @id @default(cuid())
+  contractNo    String    @unique
+  apartmentId   String
+  apartment     Apartment @relation(fields: [apartmentId], references: [id])
+  title         String
+  startDate     DateTime
+  endDate       DateTime
+  rentAmount    Decimal   @db.Decimal(10, 2)
+  depositAmount Decimal   @db.Decimal(10, 2)
+  status        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  attachments   ContractAttachment[]
+}
+
+model ContractAttachment {
+  id          String    @id @default(cuid())
+  contractId  String
+  contract    Contract  @relation(fields: [contractId], references: [id])
+  fileName    String
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  uploadedAt  DateTime  @default(now())
+}
+
+model WorkOrder {
+  id               String             @id @default(cuid())
+  orderNo          String             @unique
+  type             WorkOrderType
+  title            String
+  description      String
+  priority         WorkOrderPriority  @default(MEDIUM)
+  status           WorkOrderStatus    @default(PENDING)
+  apartmentId      String
+  apartment        Apartment          @relation(fields: [apartmentId], references: [id])
+  creatorId        String
+  creator          User               @relation("Creator", fields: [creatorId], references: [id])
+  assigneeId       String?
+  assignee         User?              @relation("Assignee", fields: [assigneeId], references: [id])
+  expectedComplete DateTime?
+  actualComplete   DateTime?
+  isOverdue        Boolean            @default(false)
+  overdueReason    String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  exception        WorkOrderException?
+  assignments      WorkOrderAssignment[]
+  logs             OperationLog[]
+
+  @@index([status, priority])
+  @@index([assigneeId, status])
+  @@index([apartmentId])
+  @@index([isOverdue, status])
+}
+
+model WorkOrderAssignment {
+  id           String     @id @default(cuid())
+  workOrderId  String
+  workOrder    WorkOrder  @relation(fields: [workOrderId], references: [id])
+  assigneeId   String
+  assignee     User       @relation(fields: [assigneeId], references: [id])
+  assignedBy   String
+  assignedAt   DateTime   @default(now())
+  remark       String?
+}
+
+model WorkOrderException {
+  id             String     @id @default(cuid())
+  workOrderId    String     @unique
+  workOrder      WorkOrder  @relation(fields: [workOrderId], references: [id])
+  impactScope    String
+  affectedAreas  String
+  handlerId      String
+  handler        User       @relation(fields: [handlerId], references: [id])
+  nextStep       String
+  reportedAt     DateTime   @default(now())
+  resolvedAt     DateTime?
+  resolution     String?
+}
+
+model VisitorAppointment {
+  id             String        @id @default(cuid())
+  apartmentId    String
+  apartment      Apartment     @relation(fields: [apartmentId], references: [id])
+  hostId         String
+  host           User          @relation("Host", fields: [hostId], references: [id])
+  visitorName    String
+  visitorPhone   String
+  visitorIdCard  String?
+  visitDate      DateTime
+  visitStartTime DateTime
+  visitEndTime   DateTime
+  purpose        String
+  visitorCount   Int           @default(1)
+  status         VisitorStatus @default(PENDING)
+  checkInTime    DateTime?
+  checkOutTime   DateTime?
+  remark         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([apartmentId, visitDate])
+  @@index([hostId, status])
+  @@index([status, visitDate])
+}
+
+model OperationLog {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+  action     LogAction
+  targetType String
+  targetId   String
+  oldValue   Json?
+  newValue   Json?
+  detail     String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime   @default(now())
+
+  @@index([targetType, targetId])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  fieldName  String
+  oldValue   String?
+  newValue   String?
+  changedBy  String
+  changedAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([changedBy, changedAt])
+}
