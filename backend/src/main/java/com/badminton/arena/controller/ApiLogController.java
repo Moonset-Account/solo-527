@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.badminton.arena.common.PageResult;
 import com.badminton.arena.common.Result;
 import com.badminton.arena.dto.ApiLogQueryDTO;
+import com.badminton.arena.dto.RetryResultDTO;
 import com.badminton.arena.entity.ApiLog;
 import com.badminton.arena.service.ApiLogService;
 import javax.servlet.http.HttpServletResponse;
@@ -59,6 +60,12 @@ public class ApiLogController {
     @PostMapping("/retry/{id}")
     public Result<Void> retry(@PathVariable Long id) {
         apiLogService.retry(id);
+        return Result.success();
+    }
+
+    @PostMapping("/retry/{id}/result")
+    public Result<Void> updateRetryResult(@PathVariable Long id, @RequestBody RetryResultDTO resultDTO) {
+        apiLogService.updateRetryResult(id, resultDTO);
         return Result.success();
     }
 

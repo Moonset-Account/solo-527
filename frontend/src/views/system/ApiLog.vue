@@ -16,8 +16,8 @@
           </el-form-item>
           <el-form-item label="状态">
             <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-              <el-option label="成功" :value="1" />
-              <el-option label="失败" :value="0" />
+              <el-option label="成功" :value="0" />
+              <el-option label="失败" :value="1" />
             </el-select>
           </el-form-item>
           <el-form-item label="用户ID">
@@ -48,7 +48,7 @@
         <el-button type="success" @click="handleExport">导出</el-button>
       </div>
 
-      <el-table :data="tableData" border stripe>
+      <el-table :data="tableData" border stripe v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="traceId" label="链路ID" width="180" show-overflow-tooltip />
         <el-table-column prop="apiPath" label="接口路径" width="200" show-overflow-tooltip />
@@ -59,8 +59,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '成功' : '失败' }}
+            <el-tag :type="row.status === 0 ? 'success' : 'danger'" size="small">
+              {{ row.status === 0 ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -82,8 +82,8 @@
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleView(row)">详情</el-button>
-            <el-button v-if="row.status === 0" type="warning" link @click="handleMarkRetry(row)">标记重试</el-button>
-            <el-button v-if="row.needRetry === 1" type="success" link @click="handleRetry(row)">立即重试</el-button>
+            <el-button v-if="row.status === 1" type="warning" link @click="handleMarkRetry(row)">标记重试</el-button>
+            <el-button v-if="row.needRetry === 1" type="success" link :loading="retryingMap[row.id]" @click="handleRetry(row)">立即重试</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -107,8 +107,8 @@
         <el-descriptions-item label="接口路径" :span="2">{{ detailData.apiPath }}</el-descriptions-item>
         <el-descriptions-item label="请求方法">{{ detailData.apiMethod }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="detailData.status === 1 ? 'success' : 'danger'">
-            {{ detailData.status === 1 ? '成功' : '失败' }}
+          <el-tag :type="detailData.status === 0 ? 'success' : 'danger'">
+            {{ detailData.status === 0 ? '成功' : '失败' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="耗时">{{ detailData.costTime }}ms</el-descriptions-item>
@@ -122,10 +122,10 @@
       </el-descriptions>
 
       <el-divider>请求参数</el-divider>
-      <pre class="code-block">{{ detailData.requestParams || '-' }}</pre>
+      <pre class="code-block">{{ formatJson(detailData.requestParams) }}</pre>
 
       <el-divider>响应数据</el-divider>
-      <pre class="code-block">{{ detailData.responseData || '-' }}</pre>
+      <pre class="code-block">{{ formatJson(detailData.responseData) }}</pre>
 
       <el-divider v-if="detailData.errorMsg">错误信息</el-divider>
       <el-alert v-if="detailData.errorMsg" :title="detailData.errorMsg" type="error" show-icon />
@@ -136,6 +136,13 @@
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="apiPath" label="接口路径" width="200" show-overflow-tooltip />
         <el-table-column prop="apiMethod" label="方法" width="80" />
+        <el-table-column prop="status" label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 0 ? 'success' : 'danger'" size="small">
+              {{ row.status === 0 ? '成功' : '失败' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="errorMsg" label="错误信息" width="150" show-overflow-tooltip />
         <el-table-column prop="retryCount" label="重试次数" width="90" />
         <el-table-column prop="createTime" label="创建时间" width="180">
@@ -145,7 +152,7 @@
         </el-table-column>
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button type="success" link @click="handleRetryItem(row)">重试</el-button>
+            <el-button type="success" link :loading="retryingMap[row.id]" @click="handleRetryItem(row)">重试</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -156,7 +163,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getApiLogPage, getApiLogDetail, getRetryList, markForRetry, retryApiLog, exportApiLog } from '@/api/apiLog'
+import { getApiLogPage, getApiLogDetail, getRetryList, markForRetry, updateRetryResult, exportApiLog, executeRetryRequest } from '@/api/apiLog'
 
 const searchForm = reactive({
   apiPath: '',
@@ -173,11 +180,13 @@ const pagination = reactive({
   total: 0
 })
 
+const loading = ref(false)
 const tableData = ref([])
 const detailDialogVisible = ref(false)
 const retryDialogVisible = ref(false)
 const detailData = ref({})
 const retryList = ref([])
+const retryingMap = reactive({})
 
 const getMethodTagType = (method) => {
   const map = { GET: 'success', POST: 'primary', PUT: 'warning', DELETE: 'danger' }
@@ -189,8 +198,18 @@ const formatDate = (date) => {
   return date
 }
 
+const formatJson = (str) => {
+  if (!str) return '-'
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch (e) {
+    return str
+  }
+}
+
 const fetchData = async () => {
   try {
+    loading.value = true
     const params = {
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize
@@ -209,6 +228,8 @@ const fetchData = async () => {
     pagination.total = res.total
   } catch (error) {
     console.error('获取接口日志失败:', error)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -247,14 +268,70 @@ const handleMarkRetry = async (row) => {
   }
 }
 
-const handleRetry = async (row) => {
+const doRetry = async (row) => {
+  retryingMap[row.id] = true
+  const startTime = Date.now()
+  let success = false
+  let errorMsg = null
+  let responseData = null
+
   try {
-    await retryApiLog(row.id)
-    ElMessage.success('重试成功')
-    fetchData()
+    const response = await executeRetryRequest(row.apiPath, row.apiMethod, row.requestParams)
+    responseData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+    if (responseData && responseData.length > 5000) {
+      responseData = responseData.substring(0, 5000) + '...'
+    }
+    if (response.status >= 200 && response.status < 300) {
+      const data = response.data
+      if (data && typeof data === 'object' && data.code !== undefined) {
+        success = data.code === 200
+        if (!success) {
+          errorMsg = data.message || '业务失败'
+        }
+      } else {
+        success = true
+      }
+    } else {
+      errorMsg = 'HTTP状态码: ' + response.status
+    }
   } catch (error) {
-    console.error('重试失败:', error)
+    if (error.response) {
+      errorMsg = 'HTTP ' + error.response.status + ': ' + (error.response.statusText || '请求失败')
+      try {
+        responseData = JSON.stringify(error.response.data)
+      } catch (e) {
+        responseData = error.response.statusText
+      }
+    } else {
+      errorMsg = error.message || '请求异常'
+    }
   }
+
+  const costTime = Date.now() - startTime
+
+  try {
+    await updateRetryResult(row.id, {
+      success,
+      errorMsg,
+      responseData,
+      costTime
+    })
+    if (success) {
+      ElMessage.success('重试成功，接口已恢复正常')
+    } else {
+      ElMessage.warning('重试执行完成，但接口仍返回失败：' + (errorMsg || '未知错误'))
+    }
+  } catch (updateError) {
+    console.error('更新重试结果失败:', updateError)
+    ElMessage.error('重试结果回写失败')
+  }
+
+  retryingMap[row.id] = false
+  fetchData()
+}
+
+const handleRetry = (row) => {
+  doRetry(row)
 }
 
 const handleViewRetryList = async () => {
@@ -267,15 +344,8 @@ const handleViewRetryList = async () => {
   }
 }
 
-const handleRetryItem = async (row) => {
-  try {
-    await retryApiLog(row.id)
-    ElMessage.success('重试成功')
-    handleViewRetryList()
-    fetchData()
-  } catch (error) {
-    console.error('重试失败:', error)
-  }
+const handleRetryItem = (row) => {
+  doRetry(row)
 }
 
 const handleExport = async () => {

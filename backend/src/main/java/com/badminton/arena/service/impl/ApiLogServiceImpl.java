@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.badminton.arena.common.Result;
 import com.badminton.arena.dto.ApiLogQueryDTO;
+import com.badminton.arena.dto.RetryResultDTO;
 import com.badminton.arena.entity.ApiLog;
 import com.badminton.arena.exception.BusinessException;
 import com.badminton.arena.mapper.ApiLogMapper;
@@ -169,6 +170,41 @@ public class ApiLogServiceImpl extends ServiceImpl<ApiLogMapper, ApiLog> impleme
             log.warn("生成重试token失败", e);
             return null;
         }
+    }
+
+    @Override
+    public boolean updateRetryResult(Long id, RetryResultDTO resultDTO) {
+        ApiLog apiLog = getById(id);
+        if (apiLog == null) {
+            throw new BusinessException("日志不存在");
+        }
+
+        int newRetryCount = (apiLog.getRetryCount() == null ? 0 : apiLog.getRetryCount()) + 1;
+        apiLog.setRetryCount(newRetryCount);
+
+        if (resultDTO.getCostTime() != null) {
+            apiLog.setCostTime(resultDTO.getCostTime());
+        }
+        if (resultDTO.getResponseData() != null) {
+            String rd = resultDTO.getResponseData();
+            apiLog.setResponseData(rd.length() > 5000 ? rd.substring(0, 5000) + "..." : rd);
+        }
+
+        boolean success = Boolean.TRUE.equals(resultDTO.getSuccess());
+        if (success) {
+            apiLog.setStatus(0);
+            apiLog.setNeedRetry(0);
+            apiLog.setErrorMsg(null);
+        } else {
+            apiLog.setStatus(1);
+            String em = resultDTO.getErrorMsg();
+            apiLog.setErrorMsg(em != null && em.length() > 1000 ? em.substring(0, 1000) : em);
+            if (apiLog.getMaxRetry() != null && newRetryCount >= apiLog.getMaxRetry()) {
+                apiLog.setNeedRetry(0);
+            }
+        }
+
+        return updateById(apiLog);
     }
 
     @Override
