@@ -48,24 +48,57 @@
 		editingNotes = true;
 	}
 
-	function saveNotes() {
+	async function saveNotes() {
 		if (!schedule) return;
-		store.updateScheduleNotes(schedule.id, editedNotes);
-		editingNotes = false;
+		try {
+			const res = await fetch(`/api/schedules/${schedule.id}/notes`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ supplementaryNotes: editedNotes })
+			});
+			if (!res.ok) throw new Error('保存失败');
+			store.updateScheduleNotes(schedule.id, editedNotes);
+			editingNotes = false;
+		} catch (e) {
+			console.error(e);
+			alert('保存补充说明失败');
+		}
 	}
 
 	function cancelEditNotes() {
 		editingNotes = false;
 	}
 
-	function handleMarkPublished() {
+	async function handleMarkPublished() {
 		if (!schedule) return;
-		store.updateSchedule(schedule.id, { status: 'published' });
+		try {
+			const res = await fetch(`/api/schedules/${schedule.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status: 'published' })
+			});
+			if (!res.ok) throw new Error('更新失败');
+			store.updateSchedule(schedule.id, { status: 'published' });
+		} catch (e) {
+			console.error(e);
+			alert('标记已发布失败');
+		}
 	}
 
-	function handleCancel() {
+	async function handleCancel() {
 		if (!schedule) return;
-		store.updateSchedule(schedule.id, { status: 'cancelled' });
+		try {
+			const res = await fetch(`/api/schedules/${schedule.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status: 'cancelled' })
+			});
+			if (!res.ok) throw new Error('更新失败');
+			store.updateSchedule(schedule.id, { status: 'cancelled' });
+		} catch (e) {
+			console.error(e);
+			alert('取消排期失败');
+		}
 	}
 
 	function formatDate(d: Date | string) {

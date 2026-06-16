@@ -47,14 +47,32 @@
 		return map[status];
 	}
 
-	function handleStatusAction(nextStatus: AnomalyStatus) {
+	async function handleStatusAction(nextStatus: AnomalyStatus) {
 		if (!anomaly) return;
-		if (nextStatus === 'closed') {
-			if (!closureNote.trim()) return;
-			store.closeAnomaly(anomaly.id, closureNote);
-			closureNote = '';
-		} else {
-			store.updateAnomaly(anomaly.id, { status: nextStatus });
+		try {
+			if (nextStatus === 'closed') {
+				if (!closureNote.trim()) return;
+				const res = await fetch(`/api/anomalies/${anomaly.id}/close`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ closureNote, closedBy: store.getCurrentUser().id })
+				});
+				if (!res.ok) throw new Error('关闭失败');
+				const updated = await res.json();
+				store.closeAnomaly(anomaly.id, closureNote, updated.closedAt, updated.closedBy);
+				closureNote = '';
+			} else {
+				const res = await fetch(`/api/anomalies/${anomaly.id}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ status: nextStatus })
+				});
+				if (!res.ok) throw new Error('更新失败');
+				store.updateAnomaly(anomaly.id, { status: nextStatus });
+			}
+		} catch (e) {
+			console.error(e);
+			alert('操作失败');
 		}
 	}
 

@@ -438,12 +438,12 @@ function createStore() {
 		return anomalies[idx];
 	}
 
-	function closeAnomaly(id: string, closureNote: string) {
+	function closeAnomaly(id: string, closureNote: string, closedAt?: Date | string, closedBy?: string) {
 		if (!closureNote.trim()) return null;
 		return updateAnomaly(id, {
 			status: 'closed' as AnomalyStatus,
-			closedBy: getCurrentUser().id,
-			closedAt: new Date(),
+			closedBy: closedBy ?? getCurrentUser().id,
+			closedAt: closedAt ? new Date(closedAt) : new Date(),
 			closureNote
 		} as Partial<Anomaly>);
 	}

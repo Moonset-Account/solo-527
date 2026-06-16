@@ -69,9 +69,9 @@
 		newDeadline = '';
 	}
 
-	function handleCreate() {
+	async function handleCreate() {
 		if (!newTitle || !newTopicId || !newAssigneeId || !newDeadline) return;
-		store.addTask({
+		const payload = {
 			topicId: newTopicId,
 			type: newType,
 			title: newTitle,
@@ -80,9 +80,27 @@
 			assigneeId: newAssigneeId,
 			deadline: newDeadline,
 			createdBy: store.getCurrentUser().id
-		});
-		showNewDialog = false;
-		resetForm();
+		};
+		try {
+			const res = await fetch('/api/tasks', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error('创建失败');
+			const created = await res.json();
+			store.addTask({
+				...payload,
+				id: created.id,
+				createdAt: new Date(created.createdAt),
+				updatedAt: new Date(created.updatedAt || created.createdAt)
+			});
+			showNewDialog = false;
+			resetForm();
+		} catch (e) {
+			console.error(e);
+			alert('创建任务失败');
+		}
 	}
 
 	function typeBadgeClass(type: TaskType) {

@@ -73,19 +73,31 @@
 		return d.toISOString().slice(0, 10);
 	}
 
-	function handleUpload() {
+	async function handleUpload() {
 		if (!uploadTitle.trim()) return;
-		store.addMaterial({
+		const payload = {
 			title: uploadTitle.trim(),
 			type: uploadType,
 			fileUrl: '/files/upload-' + Date.now(),
 			fileSize: Math.floor(Math.random() * 50000000) + 1000000,
-			uploadedBy: store.getCurrentUser().id,
-			tags: []
-		});
-		uploadTitle = '';
-		uploadType = 'image';
-		showUploadDialog = false;
+			uploadedBy: store.getCurrentUser().id
+		};
+		try {
+			const res = await fetch('/api/materials', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error('上传失败');
+			const created = await res.json();
+			store.addMaterial({ ...payload, id: created.id, tags: [], createdAt: new Date(created.createdAt) });
+			uploadTitle = '';
+			uploadType = 'image';
+			showUploadDialog = false;
+		} catch (e) {
+			console.error(e);
+			alert('上传素材失败');
+		}
 	}
 
 	function navigateToMaterial(id: string) {

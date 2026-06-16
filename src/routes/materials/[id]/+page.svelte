@@ -95,19 +95,40 @@
 		isEditingTitle = false;
 	}
 
-	function handleAddTag() {
+	async function handleAddTag() {
 		if (!material || !selectedTagId) return;
 		const tag = store.tags.find((t) => t.id === selectedTagId);
-		if (tag) {
+		if (!tag) return;
+		try {
+			const res = await fetch(`/api/materials/${material.id}/tags`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tagId: selectedTagId })
+			});
+			if (!res.ok) throw new Error('添加标签失败');
 			store.addTagToMaterial(material.id, tag);
+			selectedTagId = null;
+			showTagDropdown = false;
+		} catch (e) {
+			console.error(e);
+			alert('添加标签失败');
 		}
-		selectedTagId = null;
-		showTagDropdown = false;
 	}
 
-	function handleRemoveTag(tagId: string) {
+	async function handleRemoveTag(tagId: string) {
 		if (!material) return;
-		store.removeTagFromMaterial(material.id, tagId);
+		try {
+			const res = await fetch(`/api/materials/${material.id}/tags`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tagId })
+			});
+			if (!res.ok) throw new Error('移除标签失败');
+			store.removeTagFromMaterial(material.id, tagId);
+		} catch (e) {
+			console.error(e);
+			alert('移除标签失败');
+		}
 	}
 
 	function getTargetLabel(record: { targetType: string; targetId: string }): string {
