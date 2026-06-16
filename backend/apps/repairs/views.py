@@ -1,8 +1,8 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db import transaction
-from django.db.models import Q, Count, Avg
+from django.db import transaction, models
+from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, DateFilter, NumberFilter
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -186,7 +186,7 @@ class RepairRequestViewSet(viewsets.ModelViewSet):
         by_type = dict(qs.values_list('repair_type').annotate(count=Count('id')))
         completed = qs.filter(status=RepairStatus.COMPLETED)
         avg_time = completed.aggregate(
-            avg=Avg(models.F('completed_at') - models.F('created_at'))
+            avg=Avg(F('completed_at') - F('created_at'))
         )['avg']
         avg_hours = avg_time.total_seconds() / 3600 if avg_time else None
 
@@ -262,6 +262,3 @@ class RepairRequestViewSet(viewsets.ModelViewSet):
 
     def _get_ip(self):
         return self.request.META.get('REMOTE_ADDR')
-
-
-from django.db import models

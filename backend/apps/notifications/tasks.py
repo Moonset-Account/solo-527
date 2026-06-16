@@ -37,11 +37,11 @@ def send_notification_task(self, notification_id, user_ids=None):
 @shared_task
 def push_repair_status_update(repair_id, old_status, new_status):
     from apps.notifications.models import Notification, NotificationType, UserNotification
-    from apps.repairs.models import RepairRequest
+    from apps.repairs.models import RepairRequest, RepairStatus
 
     try:
         repair = RepairRequest.objects.select_related('applicant', 'assignee').get(id=repair_id)
-        status_map = dict(RepairRequest.StatusChoices())
+        status_map = dict(RepairStatus.choices)
         title = f'报修状态更新: {repair.title}'
         content = f'您的报修申请状态已从【{status_map.get(old_status, old_status)}】变更为【{status_map.get(new_status, new_status)}】。'
 

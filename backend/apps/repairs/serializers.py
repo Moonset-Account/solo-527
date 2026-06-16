@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import RepairRequest, RepairPhoto, RepairProgress, RepairComment
+from .models import RepairRequest, RepairPhoto, RepairProgress, RepairComment, RepairStatus
 from apps.users.serializers import UserSerializer
 
 
@@ -108,5 +108,5 @@ class RepairAssignSerializer(serializers.Serializer):
 
 
 class RepairStatusUpdateSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=RepairRequest.StatusChoices())
+    status = serializers.ChoiceField(choices=RepairStatus.choices)
     remark = serializers.CharField(required=False, allow_blank=True)
