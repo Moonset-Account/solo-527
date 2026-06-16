@@ -4,6 +4,7 @@ import com.rider.analyzer.common.Result;
 import com.rider.analyzer.dto.OrderAcceptDTO;
 import com.rider.analyzer.dto.OrderVO;
 import com.rider.analyzer.dto.PageResult;
+import com.rider.analyzer.dto.RouteInfoVO;
 import com.rider.analyzer.dto.TodoDetailDTO;
 import com.rider.analyzer.entity.DeliveryOrder;
 import com.rider.analyzer.service.DeliveryOrderService;
@@ -29,7 +30,7 @@ public class DeliveryOrderController {
     }
 
     @GetMapping("/route/{id}")
-    public Result<DeliveryOrder> getRouteInfo(@PathVariable Long id) {
+    public Result<RouteInfoVO> getRouteInfo(@PathVariable Long id) {
         return Result.success(deliveryOrderService.getRouteInfo(id));
     }
 

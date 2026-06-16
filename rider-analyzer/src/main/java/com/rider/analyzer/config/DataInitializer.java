@@ -159,6 +159,13 @@ public class DataInitializer {
                     node.setActualTime(actual);
                     node.setIsTimeout(isTimeout ? 1 : 0);
                     node.setTimeoutMinutes(isTimeout ? extraMin : 0);
+                    if (isTimeout) {
+                        String[] reasons = {
+                            "骑手接单延迟", "商家出餐慢", "道路拥堵",
+                            "客户地址难找", "天气原因", "联系不上客户"
+                        };
+                        node.setReason(reasons[(i + j) % reasons.length]);
+                    }
                     timelinessNodeRepository.save(node);
                 }
 

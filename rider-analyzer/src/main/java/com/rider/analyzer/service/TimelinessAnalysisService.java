@@ -2,8 +2,13 @@ package com.rider.analyzer.service;
 
 import com.rider.analyzer.dto.FulfillmentDataVO;
 import com.rider.analyzer.dto.TimelinessAnalysisDTO;
+import com.rider.analyzer.dto.TimelinessAnalysisVO;
+import com.rider.analyzer.dto.TimeoutOrderDetailVO;
+import com.rider.analyzer.dto.TimeoutReasonVO;
+import com.rider.analyzer.entity.DeliveryOrder;
 import com.rider.analyzer.entity.Station;
 import com.rider.analyzer.entity.TimelinessNode;
+import com.rider.analyzer.repository.DeliveryOrderRepository;
 import com.rider.analyzer.repository.StationRepository;
 import com.rider.analyzer.repository.TimelinessNodeRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +32,92 @@ public class TimelinessAnalysisService {
 
     private final TimelinessNodeRepository timelinessNodeRepository;
     private final StationRepository stationRepository;
+    private final DeliveryOrderRepository deliveryOrderRepository;
 
     private static final Map<String, String> NODE_LABEL_MAP = new HashMap<>();
+    private static final Map<String, String> REASON_COLOR_MAP = new HashMap<>();
     static {
         NODE_LABEL_MAP.put("ACCEPT", "接单");
         NODE_LABEL_MAP.put("PICKUP", "取货");
         NODE_LABEL_MAP.put("DELIVER", "送达");
         NODE_LABEL_MAP.put("SIGN", "签收");
+
+        REASON_COLOR_MAP.put("骑手接单延迟", "#409eff");
+        REASON_COLOR_MAP.put("商家出餐慢", "#e6a23c");
+        REASON_COLOR_MAP.put("道路拥堵", "#f56c6c");
+        REASON_COLOR_MAP.put("客户地址难找", "#67c23a");
+        REASON_COLOR_MAP.put("天气原因", "#909399");
+        REASON_COLOR_MAP.put("联系不上客户", "#606266");
+    }
+
+    public TimelinessAnalysisVO getFullAnalysis() {
+        TimelinessAnalysisVO vo = new TimelinessAnalysisVO();
+        vo.setNodeStats(getNodeStats());
+        vo.setTimeoutReasons(getTimeoutReasons());
+        vo.setTimeoutOrders(getTimeoutOrderDetails());
+        return vo;
+    }
+
+    public List<TimeoutReasonVO> getTimeoutReasons() {
+        List<TimelinessNode> allTimeoutNodes = timelinessNodeRepository
+                .findByIsTimeoutAndCreateTimeBetween(1,
+                        LocalDateTime.now().minusDays(7),
+                        LocalDateTime.now());
+
+        Map<String, List<TimelinessNode>> byReason = allTimeoutNodes.stream()
+                .filter(n -> n.getReason() != null && !n.getReason().isEmpty())
+                .collect(Collectors.groupingBy(TimelinessNode::getReason));
+
+        long totalTimeout = allTimeoutNodes.size();
+        List<TimeoutReasonVO> result = new ArrayList<>();
+
+        for (Map.Entry<String, List<TimelinessNode>> entry : byReason.entrySet()) {
+            TimeoutReasonVO vo = new TimeoutReasonVO();
+            vo.setReason(entry.getKey());
+            vo.setCount((long) entry.getValue().size());
+            vo.setPercentage(totalTimeout > 0
+                    ? BigDecimal.valueOf(entry.getValue().size())
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(totalTimeout), 2, RoundingMode.HALF_UP)
+                            .doubleValue()
+                    : 0.0);
+            vo.setColor(REASON_COLOR_MAP.getOrDefault(entry.getKey(), "#409eff"));
+            result.add(vo);
+        }
+
+        result.sort((a, b) -> Long.compare(b.getCount(), a.getCount()));
+        return result;
+    }
+
+    public List<TimeoutOrderDetailVO> getTimeoutOrderDetails() {
+        List<TimelinessNode> timeoutNodes = timelinessNodeRepository
+                .findByIsTimeoutAndCreateTimeBetween(1,
+                        LocalDateTime.now().minusDays(7),
+                        LocalDateTime.now());
+
+        Map<Long, DeliveryOrder> orderMap = deliveryOrderRepository.findAll().stream()
+                .collect(Collectors.toMap(DeliveryOrder::getId, o -> o));
+
+        List<TimeoutOrderDetailVO> result = new ArrayList<>();
+        for (TimelinessNode node : timeoutNodes) {
+            TimeoutOrderDetailVO vo = new TimeoutOrderDetailVO();
+            vo.setId(node.getId());
+            vo.setNodeType(node.getNodeType());
+            vo.setNodeLabel(NODE_LABEL_MAP.getOrDefault(node.getNodeType(), node.getNodeType()));
+            vo.setPlanTime(node.getPlanTime());
+            vo.setActualTime(node.getActualTime());
+            vo.setTimeoutMinutes((long) node.getTimeoutMinutes());
+            vo.setReason(node.getReason());
+
+            DeliveryOrder order = orderMap.get(node.getOrderId());
+            if (order != null) {
+                vo.setOrderNo(order.getOrderNo());
+            }
+            result.add(vo);
+        }
+
+        result.sort((a, b) -> Long.compare(b.getTimeoutMinutes(), a.getTimeoutMinutes()));
+        return result;
     }
 
     public List<TimelinessAnalysisDTO> analyzeTimeoutNodes(LocalDateTime start, LocalDateTime end) {

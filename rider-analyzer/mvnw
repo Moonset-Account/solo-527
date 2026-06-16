@@ -1,0 +1,27 @@
+#!/bin/sh
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+if [ -f "$SCRIPT_DIR/.mvn/env.properties" ]; then
+  while IFS='=' read -r key value; do
+    case "$key" in
+      \#*) continue ;;
+      JAVA_HOME)
+        export "$key=$value"
+        echo "Using JAVA_HOME from .mvn/env.properties: $value"
+        ;;
+    esac
+  done < "$SCRIPT_DIR/.mvn/env.properties"
+fi
+
+if [ -z "$JAVA_HOME" ]; then
+  export JAVA_HOME="/usr/local/Cellar/openjdk@17/17.0.19/libexec/openjdk.jdk/Contents/Home"
+  echo "Using default JAVA_HOME: $JAVA_HOME"
+fi
+
+export PATH="$JAVA_HOME/bin:$PATH"
+
+echo "Java version:"
+"$JAVA_HOME/bin/java" -version
+
+exec mvn "$@"

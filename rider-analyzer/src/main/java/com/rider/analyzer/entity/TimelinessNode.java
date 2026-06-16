@@ -32,6 +32,9 @@ public class TimelinessNode {
     @Column(name = "timeout_minutes", nullable = false)
     private Integer timeoutMinutes = 0;
 
+    @Column(name = "reason", length = 100)
+    private String reason;
+
     @Column(name = "create_time", nullable = false, updatable = false)
     private LocalDateTime createTime;
 

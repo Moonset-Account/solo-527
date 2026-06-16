@@ -26,12 +26,15 @@
 
     <el-card>
       <template #header>超时订单明细</template>
-      <el-table :data="timeoutOrderList" stripe size="small">
+      <el-table :data="analysisData.timeoutOrders" stripe size="small" v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" width="190" />
         <el-table-column label="节点类型" width="100">
           <template #default="{ row }">
             {{ row.nodeLabel || row.nodeType }}
           </template>
+        </el-table-column>
+        <el-table-column label="超时原因" width="130">
+          <template #default="{ row }">{{ row.reason || '-' }}</template>
         </el-table-column>
         <el-table-column label="计划时间" width="170">
           <template #default="{ row }">{{ formatTime(row.planTime) }}</template>
@@ -50,47 +53,45 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { BarChart, PieChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { Search } from '@element-plus/icons-vue'
-import { getNodeStats } from '../api/timeliness'
+import { getFullAnalysis } from '../api/timeliness'
 import dayjs from 'dayjs'
 
 use([BarChart, PieChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
 const dateRange = ref(null)
-const nodeStats = ref([])
-const timeoutOrderList = ref([])
+const loading = ref(false)
+const analysisData = reactive({
+  nodeStats: [],
+  timeoutReasons: [],
+  timeoutOrders: []
+})
 
 const timeoutBarOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
   xAxis: {
     type: 'category',
-    data: nodeStats.value.map(n => n.nodeLabel || n.nodeType)
+    data: analysisData.nodeStats.map(n => n.nodeLabel || n.nodeType)
   },
   yAxis: { type: 'value', name: '超时单数' },
   series: [{
     name: '超时单数',
     type: 'bar',
-    data: nodeStats.value.map(n => n.timeoutCount),
+    data: analysisData.nodeStats.map(n => n.timeoutCount),
     itemStyle: { color: '#f56c6c' },
     barWidth: 40
   }]
 }))
 
 const timeoutPieOption = computed(() => {
-  const reasons = [
-    { name: '交通拥堵', value: 35, color: '#f56c6c' },
-    { name: '商家出餐慢', value: 25, color: '#e6a23c' },
-    { name: '天气原因', value: 20, color: '#909399' },
-    { name: '地址不详', value: 12, color: '#67c23a' },
-    { name: '其他', value: 8, color: '#409eff' }
-  ]
+  const reasons = analysisData.timeoutReasons || []
   return {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: '0%' },
@@ -98,8 +99,13 @@ const timeoutPieOption = computed(() => {
       type: 'pie',
       radius: ['40%', '70%'],
       data: reasons.map(r => ({
-        value: r.value, name: r.name, itemStyle: { color: r.color }
-      }))
+        value: r.count,
+        name: r.reason,
+        itemStyle: { color: r.color || '#409eff' }
+      })),
+      label: {
+        formatter: '{b}: {d}%'
+      }
     }]
   }
 })
@@ -108,26 +114,26 @@ function formatTime(t) {
   return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
 }
 
-async function loadNodeStats() {
+async function loadData() {
+  loading.value = true
   try {
-    const res = await getNodeStats()
-    nodeStats.value = res.data || []
+    const res = await getFullAnalysis()
+    const data = res.data || {}
+    analysisData.nodeStats = data.nodeStats || []
+    analysisData.timeoutReasons = data.timeoutReasons || []
+    analysisData.timeoutOrders = data.timeoutOrders || []
   } catch (e) {
-    console.error('超时节点统计加载失败', e)
-    nodeStats.value = [
-      { nodeType: 'ACCEPT', nodeLabel: '接单', timeoutCount: 12, avgTimeoutMinutes: 5.2 },
-      { nodeType: 'PICKUP', nodeLabel: '取货', timeoutCount: 18, avgTimeoutMinutes: 12.5 },
-      { nodeType: 'DELIVER', nodeLabel: '送达', timeoutCount: 25, avgTimeoutMinutes: 18.3 },
-      { nodeType: 'SIGN', nodeLabel: '签收', timeoutCount: 8, avgTimeoutMinutes: 8.7 }
-    ]
+    console.error('时效分析数据加载失败', e)
+  } finally {
+    loading.value = false
   }
 }
 
 function handleSearch() {
-  loadNodeStats()
+  loadData()
 }
 
-onMounted(loadNodeStats)
+onMounted(loadData)
 </script>
 
 <style scoped>

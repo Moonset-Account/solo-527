@@ -3,6 +3,7 @@ package com.rider.analyzer.service;
 import com.rider.analyzer.dto.OrderAcceptDTO;
 import com.rider.analyzer.dto.OrderVO;
 import com.rider.analyzer.dto.PageResult;
+import com.rider.analyzer.dto.RouteInfoVO;
 import com.rider.analyzer.dto.TodoDetailDTO;
 import com.rider.analyzer.entity.DeliveryOrder;
 import com.rider.analyzer.entity.Rider;
@@ -115,9 +116,160 @@ public class DeliveryOrderService {
         return detail;
     }
 
-    public DeliveryOrder getRouteInfo(Long id) {
-        return deliveryOrderRepository.findById(id)
+    public RouteInfoVO getRouteInfo(Long id) {
+        DeliveryOrder order = deliveryOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("订单不存在"));
+
+        RouteInfoVO vo = new RouteInfoVO();
+
+        RouteInfoVO.OrderBasicInfo orderInfo = new RouteInfoVO.OrderBasicInfo();
+        orderInfo.setOrderId(order.getId());
+        orderInfo.setOrderNo(order.getOrderNo());
+        orderInfo.setReceiverName(order.getReceiverName());
+        orderInfo.setReceiverAddress(order.getReceiverAddress());
+        orderInfo.setStatus(order.getStatus());
+        orderInfo.setStatusLabel(STATUS_LABEL_MAP.getOrDefault(order.getStatus(), order.getStatus()));
+        orderInfo.setPromiseTime(order.getPromiseTime());
+        orderInfo.setCreateTime(order.getCreateTime());
+
+        if (order.getRiderId() != null) {
+            riderRepository.findById(order.getRiderId()).ifPresent(
+                    rider -> orderInfo.setRiderName(rider.getName()));
+        }
+        vo.setOrderInfo(orderInfo);
+
+        vo.setTimeline(buildTimelineNodes(order));
+        vo.setRouteInfo(buildRouteDetailInfo(order));
+        vo.setPoints(generateRoutePoints(order));
+
+        return vo;
+    }
+
+    private List<RouteInfoVO.TimelineNode> buildTimelineNodes(DeliveryOrder order) {
+        List<RouteInfoVO.TimelineNode> nodes = new java.util.ArrayList<>();
+        if (order.getSignTime() != null) {
+            RouteInfoVO.TimelineNode node = new RouteInfoVO.TimelineNode();
+            node.setTime(formatTime(order.getSignTime()));
+            node.setLabel("已签收");
+            node.setType("success");
+            nodes.add(node);
+        }
+        if (order.getDeliverTime() != null) {
+            RouteInfoVO.TimelineNode node = new RouteInfoVO.TimelineNode();
+            node.setTime(formatTime(order.getDeliverTime()));
+            node.setLabel("配送中");
+            node.setType("primary");
+            nodes.add(node);
+        }
+        if (order.getPickupTime() != null) {
+            RouteInfoVO.TimelineNode node = new RouteInfoVO.TimelineNode();
+            node.setTime(formatTime(order.getPickupTime()));
+            node.setLabel("取货出发");
+            node.setType("primary");
+            nodes.add(node);
+        }
+        if (order.getAcceptTime() != null) {
+            RouteInfoVO.TimelineNode node = new RouteInfoVO.TimelineNode();
+            node.setTime(formatTime(order.getAcceptTime()));
+            node.setLabel("骑手接单");
+            node.setType("primary");
+            nodes.add(node);
+        }
+        if (order.getCreateTime() != null) {
+            RouteInfoVO.TimelineNode node = new RouteInfoVO.TimelineNode();
+            node.setTime(formatTime(order.getCreateTime()));
+            node.setLabel("系统派单");
+            node.setType("info");
+            nodes.add(node);
+        }
+        return nodes;
+    }
+
+    private RouteInfoVO.RouteDetailInfo buildRouteDetailInfo(DeliveryOrder order) {
+        RouteInfoVO.RouteDetailInfo info = new RouteInfoVO.RouteDetailInfo();
+
+        double distance = 8.5;
+        info.setDistance(distance);
+
+        if (order.getCreateTime() != null) {
+            java.time.LocalDateTime end = order.getSignTime() != null ? order.getSignTime() : java.time.LocalDateTime.now();
+            long diffMinutes = java.time.Duration.between(order.getCreateTime(), end).toMinutes();
+            info.setElapsedTime(formatDuration(diffMinutes));
+        } else {
+            info.setElapsedTime("-");
+        }
+
+        if (order.getPromiseTime() != null) {
+            if ("SIGNED".equals(order.getStatus())) {
+                info.setRemainingTime("已完成");
+                long actualMinutes = java.time.Duration.between(order.getCreateTime(), order.getSignTime()).toMinutes();
+                info.setTotalTime(formatDuration(Math.abs(actualMinutes)));
+            } else {
+                long remaining = java.time.Duration.between(java.time.LocalDateTime.now(), order.getPromiseTime()).toMinutes();
+                if (remaining <= 0) {
+                    info.setRemainingTime("已超时");
+                    info.setTotalTime(formatDuration(
+                            java.time.Duration.between(order.getCreateTime(), order.getPromiseTime()).toMinutes()));
+                } else {
+                    info.setRemainingTime(formatDuration(remaining));
+                    info.setTotalTime(formatDuration(
+                            java.time.Duration.between(order.getCreateTime(), order.getPromiseTime()).toMinutes()));
+                }
+            }
+        } else {
+            info.setRemainingTime("-");
+            info.setTotalTime("-");
+        }
+
+        return info;
+    }
+
+    private List<RouteInfoVO.RoutePoint> generateRoutePoints(DeliveryOrder order) {
+        List<RouteInfoVO.RoutePoint> points = new java.util.ArrayList<>();
+        double baseLng = 116.48;
+        double baseLat = 39.92;
+
+        points.add(createPoint(baseLng, baseLat, "站点"));
+        points.add(createPoint(baseLng - 0.02, baseLat + 0.01, "商家"));
+        points.add(createPoint(baseLng - 0.04, baseLat + 0.02, "中转"));
+
+        String status = order.getStatus();
+        if ("PICKED_UP".equals(status) || "DELIVERING".equals(status) || "SIGNED".equals(status)) {
+            points.add(createPoint(baseLng - 0.06, baseLat + 0.03, "途中"));
+        }
+        if ("DELIVERING".equals(status) || "SIGNED".equals(status)) {
+            points.add(createPoint(baseLng - 0.07, baseLat + 0.04, "配送中"));
+        }
+        if ("SIGNED".equals(status)) {
+            points.add(createPoint(baseLng - 0.08, baseLat + 0.04, "目的地"));
+        }
+
+        if (points.size() < 5) {
+            points.add(createPoint(baseLng - 0.08, baseLat + 0.04, "目的地"));
+        }
+
+        return points;
+    }
+
+    private RouteInfoVO.RoutePoint createPoint(double lng, double lat, String label) {
+        RouteInfoVO.RoutePoint point = new RouteInfoVO.RoutePoint();
+        point.setLng(lng);
+        point.setLat(lat);
+        point.setLabel(label);
+        return point;
+    }
+
+    private String formatTime(java.time.LocalDateTime t) {
+        return t != null ? t.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "-";
+    }
+
+    private String formatDuration(long minutes) {
+        if (minutes < 60) {
+            return minutes + "分钟";
+        }
+        long hours = minutes / 60;
+        long mins = minutes % 60;
+        return hours + "小时" + mins + "分钟";
     }
 
     @Transactional
