@@ -245,4 +245,47 @@ export const partRouter = createTRPCRouter({
 
       return part;
     }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const part = await prisma.part.findUnique({
+        where: { id: input.id },
+        include: {
+          workOrderItems: true,
+          inventoryRecords: true,
+        },
+      });
+
+      if (!part) {
+        throw new Error("配件不存在");
+      }
+
+      if (part.workOrderItems.length > 0) {
+        throw new Error("该配件有关联工单，无法删除");
+      }
+
+      await prisma.$transaction([
+        prisma.inventoryRecord.deleteMany({
+          where: { partId: input.id },
+        }),
+        prisma.priceHistory.deleteMany({
+          where: { partId: input.id },
+        }),
+        prisma.part.delete({
+          where: { id: input.id },
+        }),
+      ]);
+
+      await createAuditLog({
+        action: "DELETE",
+        entityType: "PART",
+        entityId: input.id,
+        oldValue: part,
+        userId: ctx.userId,
+        userName: "当前用户",
+      });
+
+      return { success: true };
+    }),
 });

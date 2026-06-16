@@ -4,7 +4,10 @@ import { auth } from "@clerk/nextjs/server";
 
 function csvEscape(value: any): string {
   if (value === null || value === undefined) return "";
-  const str = String(value);
+  let str = String(value);
+  if (typeof value === "object" && value.toNumber) {
+    str = String(value.toNumber());
+  }
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -170,7 +173,7 @@ function generateQualityCsv(checks: any[]): string {
     "结果",
     "备注",
     "检测时间",
-    "检测人",
+    "检测人ID",
   ];
   const rows = checks.map((q) => [
     q.id,
@@ -179,7 +182,7 @@ function generateQualityCsv(checks: any[]): string {
     q.result,
     q.remarks || "",
     q.checkedAt ? new Date(q.checkedAt).toLocaleString("zh-CN") : "",
-    q.inspectorName || "",
+    q.inspectorId || "",
   ]);
 
   return [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
@@ -285,7 +288,7 @@ export async function GET(
               include: { vehicle: { select: { plateNumber: true } } },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { checkedAt: "desc" },
         });
         csvContent = generateQualityCsv(checks);
         break;
@@ -297,7 +300,10 @@ export async function GET(
     const timestamp = new Date().toISOString().split("T")[0];
     const downloadFilename = encodeURIComponent(`${filename}_${timestamp}.csv`);
 
-    return new NextResponse(csvContent, {
+    const utf8Bom = "\uFEFF";
+    const csvWithBom = utf8Bom + csvContent;
+
+    return new NextResponse(csvWithBom, {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
