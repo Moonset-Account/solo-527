@@ -1,0 +1,108 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.page-container {
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.stat-card {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.stat-card .label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.stat-card .value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+}
+
+.upload-area {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upload-area:hover {
+  border-color: #1677ff;
+}
+
+.photo-item {
+  position: relative;
+  display: inline-block;
+  margin: 4px;
+}
+
+.photo-item img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.photo-item .delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+
+.seat-grid {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.seat-btn {
+  padding: 8px 4px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  font-size: 12px;
+}
+
+.seat-btn:hover:not(:disabled) {
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+.seat-btn.occupied {
+  background: #ff4d4f;
+  color: white;
+  border-color: #ff4d4f;
+  cursor: not-allowed;
+}
+
+.seat-btn.selected {
+  background: #1677ff;
+  color: white;
+  border-color: #1677ff;
+}
