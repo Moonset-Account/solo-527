@@ -86,14 +86,17 @@ export default function AdminExport() {
   };
 
   const handleExport = (format = 'csv') => {
-    const params = {
-      keyword: filters.keyword || undefined,
+    const raw = {
+      keyword: filters.keyword?.trim(),
       status: filters.status,
       counselorId: filters.counselorId,
       startDate: filters.startDate?.format('YYYY-MM-DD'),
       endDate: filters.endDate?.format('YYYY-MM-DD'),
       format,
     };
+    const params = Object.fromEntries(
+      Object.entries(raw).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
     const url = exportApi.appointments(params);
     window.open(url, '_blank');
     message.success(`正在导出${format.toUpperCase()}文件...`);

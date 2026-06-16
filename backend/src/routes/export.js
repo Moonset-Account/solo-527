@@ -14,14 +14,16 @@ const STATUS_LABEL = {
   CANCELLED: '已取消',
 };
 
+const isNonEmpty = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+
 router.get('/appointments', async (req, res, next) => {
   try {
     const { status, counselorId, startDate, endDate, keyword, format = 'csv' } = req.query;
 
     const where = {};
-    if (status) where.status = status;
-    if (counselorId) where.counselorId = parseInt(counselorId);
-    if (startDate && endDate) {
+    if (isNonEmpty(status)) where.status = status;
+    if (isNonEmpty(counselorId)) where.counselorId = parseInt(counselorId);
+    if (isNonEmpty(startDate) && isNonEmpty(endDate)) {
       where.timeSlot = {
         date: {
           gte: dayjs(startDate).startOf('day').toDate(),
@@ -29,7 +31,7 @@ router.get('/appointments', async (req, res, next) => {
         },
       };
     }
-    if (keyword) {
+    if (isNonEmpty(keyword)) {
       where.OR = [
         { clientName: { contains: keyword } },
         { clientPhone: { contains: keyword } },
@@ -52,8 +54,18 @@ router.get('/appointments', async (req, res, next) => {
     const rows = appointments.map((apt) => {
       const completed = apt.status === 'COMPLETED' || apt.status === 'CHECKED_IN';
       const noShow = apt.status === 'NO_SHOW';
-      const total = completed || noShow ? 1 : 0;
-      const checkInEfficiency = total > 0 ? (completed ? 100 : 0) : null;
+      const waitlistExpired = !!apt.waitlistExpired;
+      const cancelled = apt.status === 'CANCELLED' && !waitlistExpired;
+      const pending = apt.status === 'PENDING';
+      const confirmed = apt.status === 'CONFIRMED';
+
+      let checkInEfficiencyLabel;
+      if (completed) checkInEfficiencyLabel = '100%';
+      else if (noShow) checkInEfficiencyLabel = '0%';
+      else if (waitlistExpired) checkInEfficiencyLabel = '候补超时';
+      else if (cancelled) checkInEfficiencyLabel = '已取消';
+      else if (pending || confirmed) checkInEfficiencyLabel = '待完成';
+      else checkInEfficiencyLabel = '未完成';
 
       return {
         预约编号: apt.id,
@@ -70,11 +82,11 @@ router.get('/appointments', async (req, res, next) => {
         到店时间: apt.checkInTime ? dayjs(apt.checkInTime).format('YYYY-MM-DD HH:mm:ss') : '',
         结束时间: apt.checkOutTime ? dayjs(apt.checkOutTime).format('YYYY-MM-DD HH:mm:ss') : '',
         是否候补: apt.isWaitlisted ? '是' : '否',
-        候补是否超时: apt.waitlistExpired ? '是' : '否',
+        候补是否超时: waitlistExpired ? '是' : '否',
         爽约原因: apt.noShowReason || '',
-        核销效率: checkInEfficiency !== null ? `${checkInEfficiency}%` : '未完成',
-        候补超时: apt.waitlistExpired ? '是' : '否',
-        最近一次操作: apt.lastOperation || '',
+        核销效率: checkInEfficiencyLabel,
+        候补超时: waitlistExpired ? '是' : '否',
+        最近一次操作: apt.lastOperation || '无',
         最近操作时间: apt.lastOperatedAt ? dayjs(apt.lastOperatedAt).format('YYYY-MM-DD HH:mm:ss') : '',
       };
     });
