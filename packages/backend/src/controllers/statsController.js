@@ -4,6 +4,8 @@ const TrainingRecord = require('../models/TrainingRecord');
 const VisitRecord = require('../models/VisitRecord');
 const dayjs = require('dayjs');
 
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGODB_URI;
+
 const getOverviewStats = async (req, res) => {
   try {
     const [totalPets, fosteringPets, adoptedPets, totalApplications, pendingApplications, approvedApplications] = await Promise.all([
@@ -34,6 +36,54 @@ const getOverviewStats = async (req, res) => {
 const getAdoptionStatsByTrainer = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+
+    if (USE_MEMORY_DB) {
+      const allApps = await AdoptionApplication.find({});
+      let filteredApps = allApps;
+      
+      if (startDate || endDate) {
+        filteredApps = allApps.filter(app => {
+          const appDate = new Date(app.createdAt);
+          if (startDate && appDate < new Date(startDate)) return false;
+          if (endDate && appDate > new Date(endDate)) return false;
+          return true;
+        });
+      }
+
+      const groups = {};
+      for (const app of filteredApps) {
+        const trainerId = app.trainerId || 'none';
+        const trainerName = app.trainerName || '未分配';
+        const key = `${trainerId}_${trainerName}`;
+        
+        if (!groups[key]) {
+          groups[key] = {
+            trainerId,
+            trainerName,
+            total: 0,
+            submitted: 0,
+            under_review: 0,
+            approved: 0,
+            rejected: 0,
+            missingFieldCount: 0
+          };
+        }
+        
+        groups[key].total++;
+        if (app.status === 'submitted') groups[key].submitted++;
+        if (app.status === 'under_review') groups[key].under_review++;
+        if (app.status === 'approved' || app.status === 'completed') groups[key].approved++;
+        if (app.status === 'rejected') groups[key].rejected++;
+        groups[key].missingFieldCount += (app.missingFields || []).length;
+      }
+
+      const stats = Object.values(groups).map(g => ({
+        ...g,
+        approvalRate: g.total > 0 ? Math.round((g.approved / g.total) * 100 * 100) / 100 : 0
+      })).sort((a, b) => b.total - a.total);
+
+      return res.json({ data: stats });
+    }
 
     const match = {};
     if (startDate || endDate) {
@@ -98,6 +148,59 @@ const getAdoptionStatsByTrainer = async (req, res) => {
 const getAdoptionStatsByDate = async (req, res) => {
   try {
     const { startDate, endDate, granularity = 'day' } = req.query;
+
+    if (USE_MEMORY_DB) {
+      const allApps = await AdoptionApplication.find({});
+      let filteredApps = allApps;
+      
+      if (startDate || endDate) {
+        filteredApps = allApps.filter(app => {
+          const appDate = new Date(app.createdAt);
+          if (startDate && appDate < new Date(startDate)) return false;
+          if (endDate && appDate > new Date(endDate)) return false;
+          return true;
+        });
+      } else {
+        const thirtyDaysAgo = dayjs().subtract(30, 'day').toDate();
+        filteredApps = allApps.filter(app => new Date(app.createdAt) >= thirtyDaysAgo);
+      }
+
+      const groups = {};
+      for (const app of filteredApps) {
+        const date = new Date(app.createdAt);
+        let dateKey;
+        
+        switch (granularity) {
+          case 'month':
+            dateKey = dayjs(date).format('YYYY-MM');
+            break;
+          case 'week':
+            dateKey = dayjs(date).format('YYYY-wo');
+            break;
+          case 'day':
+          default:
+            dateKey = dayjs(date).format('YYYY-MM-DD');
+        }
+        
+        if (!groups[dateKey]) {
+          groups[dateKey] = {
+            date: dateKey,
+            total: 0,
+            approved: 0,
+            rejected: 0,
+            pending: 0
+          };
+        }
+        
+        groups[dateKey].total++;
+        if (app.status === 'approved' || app.status === 'completed') groups[dateKey].approved++;
+        if (app.status === 'rejected') groups[dateKey].rejected++;
+        if (app.status === 'submitted' || app.status === 'under_review') groups[dateKey].pending++;
+      }
+
+      const stats = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
+      return res.json({ data: stats });
+    }
 
     const match = {};
     if (startDate || endDate) {

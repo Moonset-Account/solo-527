@@ -1,6 +1,12 @@
-const mongoose = require('mongoose');
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGODB_URI;
 
-const adoptionApplicationSchema = new mongoose.Schema({
+if (USE_MEMORY_DB) {
+  const { db } = require('../utils/memoryDB');
+  module.exports = db.AdoptionApplication;
+} else {
+  const mongoose = require('mongoose');
+
+  const adoptionApplicationSchema = new mongoose.Schema({
   applicationNo: { type: String, unique: true, required: true },
   petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
   petNo: String,
@@ -52,4 +58,5 @@ adoptionApplicationSchema.index({ applicantName: 'text', applicationNo: 'text' }
 adoptionApplicationSchema.index({ status: 1, trainerId: 1, createdAt: -1 });
 adoptionApplicationSchema.index({ petId: 1, status: 1 });
 
-module.exports = mongoose.model('AdoptionApplication', adoptionApplicationSchema);
+  module.exports = mongoose.model('AdoptionApplication', adoptionApplicationSchema);
+}

@@ -92,12 +92,12 @@ export default function PetNew() {
   const handleChange = (field: string, value: any) => {
     if (field.startsWith('vaccineStatus')) {
       setFormData((prev) => ({
-      ...prev,
-      vaccineStatus: {
-        ...prev.vaccineStatus,
-        [field.split('.')[1]]: value,
-      },
-    }));
+        ...prev,
+        vaccineStatus: {
+          ...prev.vaccineStatus,
+          [field.split('.')[1]]: value,
+        },
+      }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
@@ -154,7 +154,7 @@ export default function PetNew() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">宠物名称<span className="required">*</label>
+              <label className="form-label">宠物名称<span className="required">*</span></label>
               <input
                 type="text"
                 className="form-control"
@@ -366,7 +366,7 @@ export default function PetNew() {
           </button>
         </div>
       </form>
-    </div>
+      </div>
     </div>
   );
 }

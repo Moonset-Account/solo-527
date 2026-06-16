@@ -1,6 +1,12 @@
-const mongoose = require('mongoose');
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGODB_URI;
 
-const safetyReminderSchema = new mongoose.Schema({
+if (USE_MEMORY_DB) {
+  const { db } = require('../utils/memoryDB');
+  module.exports = db.SafetyReminder;
+} else {
+  const mongoose = require('mongoose');
+
+  const safetyReminderSchema = new mongoose.Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
   category: {
@@ -30,4 +36,5 @@ const safetyReminderSchema = new mongoose.Schema({
 safetyReminderSchema.index({ category: 1, isActive: 1 });
 safetyReminderSchema.index({ isPinned: 1, sortOrder: 1 });
 
-module.exports = mongoose.model('SafetyReminder', safetyReminderSchema);
+  module.exports = mongoose.model('SafetyReminder', safetyReminderSchema);
+}

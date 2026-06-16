@@ -165,7 +165,7 @@ export default function FlowRecords() {
                         </div>
                       )}
                       
-                      {!expandedId && record.changedFields && record.changedFields.length > 0 && (
+                      {expandedId !== record._id && record.changedFields && record.changedFields.length > 0 && (
                         <div className="text-sm text-primary mt-2" style={{ cursor: 'pointer' }} onClick={() => toggleExpand(record._id)}>
                           查看 {record.changedFields.length} 项变更详情 ▼
                         </div>

@@ -1,6 +1,12 @@
-const mongoose = require('mongoose');
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGODB_URI;
 
-const trainingRecordSchema = new mongoose.Schema({
+if (USE_MEMORY_DB) {
+  const { db } = require('../utils/memoryDB');
+  module.exports = db.TrainingRecord;
+} else {
+  const mongoose = require('mongoose');
+
+  const trainingRecordSchema = new mongoose.Schema({
   recordNo: { type: String, unique: true, required: true },
   petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
   petNo: String,
@@ -32,4 +38,5 @@ const trainingRecordSchema = new mongoose.Schema({
 trainingRecordSchema.index({ petId: 1, trainingDate: -1 });
 trainingRecordSchema.index({ trainerId: 1, trainingDate: -1 });
 
-module.exports = mongoose.model('TrainingRecord', trainingRecordSchema);
+  module.exports = mongoose.model('TrainingRecord', trainingRecordSchema);
+}

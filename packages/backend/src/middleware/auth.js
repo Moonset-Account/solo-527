@@ -9,7 +9,7 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: '未授权访问' });
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pet-foster-secret-key');
     const user = await User.findById(decoded.userId).select('-password');
     
     if (!user || user.status !== 'active') {

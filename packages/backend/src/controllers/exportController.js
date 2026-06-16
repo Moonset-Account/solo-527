@@ -81,7 +81,8 @@ const exportApplications = async (req, res) => {
     };
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="领养申请_${dayjs().format('YYYYMMDD')}.xlsx"`);
+    const appFilename = `adoption-applications_${dayjs().format('YYYYMMDD')}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${appFilename}"`);
 
     await workbook.xlsx.write(res);
     res.end();
@@ -164,7 +165,8 @@ const exportPets = async (req, res) => {
     };
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="宠物档案_${dayjs().format('YYYYMMDD')}.xlsx"`);
+    const petFilename = `pets_${dayjs().format('YYYYMMDD')}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${petFilename}"`);
 
     await workbook.xlsx.write(res);
     res.end();

@@ -1,6 +1,12 @@
-const mongoose = require('mongoose');
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGODB_URI;
 
-const visitRecordSchema = new mongoose.Schema({
+if (USE_MEMORY_DB) {
+  const { db } = require('../utils/memoryDB');
+  module.exports = db.VisitRecord;
+} else {
+  const mongoose = require('mongoose');
+
+  const visitRecordSchema = new mongoose.Schema({
   recordNo: { type: String, unique: true, required: true },
   applicationId: { type: mongoose.Schema.Types.ObjectId, ref: 'AdoptionApplication', required: true },
   applicationNo: String,
@@ -45,4 +51,5 @@ const visitRecordSchema = new mongoose.Schema({
 visitRecordSchema.index({ applicationId: 1, visitDate: -1 });
 visitRecordSchema.index({ visitorId: 1, visitDate: -1 });
 
-module.exports = mongoose.model('VisitRecord', visitRecordSchema);
+  module.exports = mongoose.model('VisitRecord', visitRecordSchema);
+}

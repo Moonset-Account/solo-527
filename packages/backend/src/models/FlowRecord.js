@@ -1,6 +1,12 @@
-const mongoose = require('mongoose');
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGODB_URI;
 
-const flowRecordSchema = new mongoose.Schema({
+if (USE_MEMORY_DB) {
+  const { db } = require('../utils/memoryDB');
+  module.exports = db.FlowRecord;
+} else {
+  const mongoose = require('mongoose');
+
+  const flowRecordSchema = new mongoose.Schema({
   recordType: {
     type: String,
     enum: ['pet_profile', 'adoption_application', 'training_record', 'adoption_review', 'visit_record'],
@@ -30,4 +36,5 @@ flowRecordSchema.index({ relatedId: 1, createdAt: -1 });
 flowRecordSchema.index({ recordType: 1, createdAt: -1 });
 flowRecordSchema.index({ operatorId: 1, createdAt: -1 });
 
-module.exports = mongoose.model('FlowRecord', flowRecordSchema);
+  module.exports = mongoose.model('FlowRecord', flowRecordSchema);
+}

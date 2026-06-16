@@ -1,4 +1,4 @@
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:3003/api';
 
 interface ApiOptions extends RequestInit {
   headers?: Record<string, string>;
