@@ -1,0 +1,282 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUSINESS
+  LEGAL
+  PRO_BONO_LAWYER
+  ADMIN
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  RECTIFICATION
+  CLOSED
+  ESCALATED
+}
+
+enum Department {
+  MARKETING
+  SALES
+  HR
+  FINANCE
+  IT
+  OPERATIONS
+  LEGAL
+  COMPLIANCE
+}
+
+enum ChecklistCategory {
+  DATA_PRIVACY
+  DATA_SECURITY
+  CONTRACT_COMPLIANCE
+  REGULATORY
+  ACCESS_CONTROL
+  DATA_RETENTION
+}
+
+enum AlertType {
+  PERMISSION_ESCALATION
+  UNAUTHORIZED_ACCESS
+  DATA_BREACH
+  POLICY_VIOLATION
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id             String    @id @default(cuid())
+  clerkId        String    @unique
+  email          String    @unique
+  name           String?
+  role           Role      @default(BUSINESS)
+  department     Department?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  checklists     Checklist[] @relation("submitter")
+  assignedRisks  Risk[]      @relation("assignee")
+  submittedRisks Risk[]      @relation("submitter")
+  alerts         Alert[]     @relation("reporter")
+  assignedAlerts Alert[]     @relation("assignee")
+  reviews        ReviewOpinion[]
+  riskAssessments RiskAssessment[]
+  evidences      Evidence[]
+  contractReviews ContractReview[]
+}
+
+model Checklist {
+  id          String           @id @default(cuid())
+  title       String
+  category    ChecklistCategory
+  description String?
+  submitterId String
+  submitter   User             @relation("submitter", fields: [submitterId], references: [id])
+  department  Department
+  status      RiskStatus       @default(DRAFT)
+  submittedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  items       ChecklistItem[]
+  risks       Risk[]
+  contracts   Contract[]
+
+  @@index([submitterId])
+  @@index([department])
+  @@index([status])
+  @@index([category])
+}
+
+model ChecklistItem {
+  id          String  @id @default(cuid())
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  question    String
+  answer      String?
+  notes       String?
+  order       Int
+  isFlagged   Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([checklistId])
+}
+
+model Risk {
+  id                String          @id @default(cuid())
+  checklistId       String?
+  checklist         Checklist?      @relation(fields: [checklistId], references: [id])
+  title             String
+  description       String
+  riskLevel         RiskLevel       @default(MEDIUM)
+  status            RiskStatus      @default(DRAFT)
+  responsibleDept   Department
+  submitterId       String
+  submitter         User            @relation("submitter", fields: [submitterId], references: [id])
+  assigneeId        String?
+  assignee          User?           @relation("assignee", fields: [assigneeId], references: [id])
+  dueDate           DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  assessments       RiskAssessment[]
+  evidences         Evidence[]
+  reviewOpinions    ReviewOpinion[]
+  rectificationPlans RectificationPlan[]
+  contracts         Contract[]
+  alerts            Alert[]
+
+  @@index([checklistId])
+  @@index([status])
+  @@index([riskLevel])
+  @@index([responsibleDept])
+  @@index([assigneeId])
+  @@index([dueDate])
+}
+
+model RiskAssessment {
+  id          String    @id @default(cuid())
+  riskId      String
+  risk        Risk      @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  assessorId  String
+  assessor    User      @relation(fields: [assessorId], references: [id])
+  riskLevel   RiskLevel
+  likelihood  Int
+  impact      Int
+  description String?
+  createdAt   DateTime  @default(now())
+
+  @@index([riskId])
+  @@index([assessorId])
+}
+
+model Evidence {
+  id          String    @id @default(cuid())
+  riskId      String
+  risk        Risk      @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  uploaderId  String
+  uploader    User      @relation(fields: [uploaderId], references: [id])
+  fileName    String
+  fileUrl     String
+  fileType    String
+  description String?
+  createdAt   DateTime  @default(now())
+
+  @@index([riskId])
+  @@index([uploaderId])
+}
+
+model ReviewOpinion {
+  id          String    @id @default(cuid())
+  riskId      String
+  risk        Risk      @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  reviewerId  String
+  reviewer    User      @relation(fields: [reviewerId], references: [id])
+  content     String
+  status      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([riskId])
+  @@index([reviewerId])
+}
+
+model RectificationPlan {
+  id          String    @id @default(cuid())
+  riskId      String
+  risk        Risk      @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  description String
+  actions     String
+  dueDate     DateTime
+  completedAt DateTime?
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([riskId])
+  @@index([dueDate])
+}
+
+model Contract {
+  id             String           @id @default(cuid())
+  version        String
+  title          String
+  content        String?
+  checklistId    String?
+  checklist      Checklist?       @relation(fields: [checklistId], references: [id])
+  riskId         String?
+  risk           Risk?            @relation(fields: [riskId], references: [id])
+  status         String           @default("DRAFT")
+  createdBy      String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  reviews        ContractReview[]
+
+  @@index([checklistId])
+  @@index([riskId])
+}
+
+model ContractReview {
+  id          String    @id @default(cuid())
+  contractId  String
+  contract    Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  reviewerId  String
+  reviewer    User      @relation(fields: [reviewerId], references: [id])
+  opinion     String
+  status      String
+  createdAt   DateTime  @default(now())
+
+  @@index([contractId])
+  @@index([reviewerId])
+}
+
+model Alert {
+  id              String      @id @default(cuid())
+  type            AlertType
+  title           String
+  description     String
+  status          AlertStatus @default(OPEN)
+  reporterId      String
+  reporter        User        @relation("reporter", fields: [reporterId], references: [id])
+  assigneeId      String?
+  assignee        User?       @relation("assignee", fields: [assigneeId], references: [id])
+  riskId          String?
+  risk            Risk?       @relation(fields: [riskId], references: [id])
+  resolution      String?
+  resolvedAt      DateTime?
+  closedBy        String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([assigneeId])
+  @@index([riskId])
+}
