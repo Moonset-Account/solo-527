@@ -121,6 +121,7 @@ const uploadRef = ref(null)
 const approveTableRef = ref(null)
 const selectedFile = ref(null)
 const importResult = ref(null)
+const batchNo = ref('')
 const errorRecords = ref([])
 const pendingRequirements = ref([])
 const selectedRows = ref([])
@@ -157,6 +158,7 @@ async function handleImport() {
       successCount: res.data?.successCount || 0,
       failCount: res.data?.failCount || 0
     }
+    batchNo.value = res.data?.batchNo || ''
     if (res.data?.failCount > 0) {
       fetchErrors()
     } else {
@@ -172,25 +174,19 @@ async function handleImport() {
 
 async function fetchErrors() {
   try {
-    const res = await getImportErrors()
+    const res = await getImportErrors(batchNo.value)
     errorRecords.value = res.data || []
   } catch (e) {
     console.error(e)
   }
 }
 
-function handleDownloadErrors() {
-  const data = errorRecords.value.map(r => ({
-    '行号': r.rowNum,
-    '原始数据': r.rawData,
-    '错误信息': r.errorMsg,
-    '状态': r.status === 'FIXED' ? '已修复' : '待修复'
-  }))
-  const ws = XLSX.utils.json_to_sheet(data)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '错误记录')
-  ws['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 40 }, { wch: 12 }]
-  XLSX.writeFile(wb, '导入错误记录.xlsx')
+async function handleDownloadErrors() {
+  try {
+    await downloadErrorTemplate(batchNo.value)
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 async function fetchPendingRequirements() {
@@ -218,7 +214,7 @@ async function handleBatchApprove() {
   }
   try {
     const ids = selectedRows.value.map(r => r.id)
-    const res = await batchApprove({ ids })
+    const res = await batchApprove(ids)
     approveResult.value = {
       successCount: res.data?.successCount || 0,
       failCount: res.data?.failCount || 0

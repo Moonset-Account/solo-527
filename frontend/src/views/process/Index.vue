@@ -92,7 +92,7 @@
         </el-form-item>
         <el-form-item v-if="nodeForm.assignType === 'SPECIFIC_USER'" label="指定人">
           <el-select v-model="nodeForm.specificUserId" placeholder="请选择人员" clearable style="width: 100%">
-            <el-option v-for="user in users" :key="user.id" :label="user.name" :value="user.id" />
+            <el-option v-for="user in users" :key="user.id" :label="user.realName" :value="user.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="自动提醒">
@@ -148,10 +148,8 @@ const nodeForm = ref({
 
 const dragIndex = ref(null)
 
-const statusMap = { ACTIVE: '启用', INACTIVE: '停用', DRAFT: '草稿' }
-const statusTypeMap = { ACTIVE: 'success', INACTIVE: 'danger', DRAFT: 'info' }
-const statusLabel = (s) => statusMap[s] || s
-const statusTagType = (s) => statusTypeMap[s] || 'info'
+const statusLabel = (s) => s === 1 ? '启用' : '停用'
+const statusTagType = (s) => s === 1 ? 'success' : 'danger'
 
 async function fetchDefinitions() {
   try {
@@ -273,7 +271,7 @@ async function handleSaveNode() {
   if (!selectedDef.value) return
   try {
     if (editingNodeId.value) {
-      await updateNode(selectedDef.value.id, editingNodeId.value, nodeForm.value)
+      await updateNode(editingNodeId.value, nodeForm.value)
       ElMessage.success('更新成功')
     } else {
       await addNode(selectedDef.value.id, nodeForm.value)
@@ -289,7 +287,7 @@ async function handleSaveNode() {
 async function handleDeleteNode(node) {
   if (!selectedDef.value) return
   try {
-    await deleteNode(selectedDef.value.id, node.id)
+    await deleteNode(node.id)
     ElMessage.success('删除成功')
     fetchNodes()
   } catch (e) {
@@ -320,7 +318,7 @@ async function saveNodeOrders() {
   try {
     await Promise.all(
       nodes.value.map(n =>
-        updateNode(selectedDef.value.id, n.id, {
+        updateNode(n.id, {
           name: n.name,
           order: n.order,
           roleId: n.roleId,

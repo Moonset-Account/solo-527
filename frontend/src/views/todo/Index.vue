@@ -125,9 +125,11 @@ async function fetchData() {
       params.endDate = search.value.dateRange[1]
     }
     const res = activeTab.value === 'mine'
-      ? await getTodosByUser(params)
+      ? await getTodosByUser(1)
       : await getTodos(params)
-    tableData.value = res.data || []
+    tableData.value = activeTab.value === 'mine'
+      ? (res.data?.records || res.data || [])
+      : (res.data || [])
   } catch (e) {
     console.error(e)
   }

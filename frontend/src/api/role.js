@@ -13,7 +13,7 @@ export function deleteRole(id) {
 }
 
 export function getRolesByType(type) {
-  return request.get('/roles', { params: { type } })
+  return request.get(`/roles/type/${type}`)
 }
 
 export function getRoles() {

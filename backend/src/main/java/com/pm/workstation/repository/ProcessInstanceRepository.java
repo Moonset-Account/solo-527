@@ -13,4 +13,6 @@ public interface ProcessInstanceRepository extends JpaRepository<ProcessInstance
     List<ProcessInstance> findByStatus(ProcessStatus status);
 
     List<ProcessInstance> findByDefinitionId(Long definitionId);
+
+    void deleteByDefinitionId(Long definitionId);
 }

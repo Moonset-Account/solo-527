@@ -26,9 +26,27 @@ public class ProcessController {
     @Autowired
     private ProcessService processService;
 
+    @GetMapping("/definitions")
+    public ApiResponseDTO<List<ProcessDefinition>> listDefinitions() {
+        return ApiResponseDTO.success(processService.listDefinitions());
+    }
+
     @PostMapping("/definitions")
     public ApiResponseDTO<ProcessDefinition> createDefinition(@Valid @RequestBody ProcessConfigDTO dto) {
         return ApiResponseDTO.success(processService.createDefinition(dto));
+    }
+
+    @PutMapping("/definitions/{id}")
+    public ApiResponseDTO<ProcessDefinition> updateDefinition(
+            @PathVariable Long id,
+            @Valid @RequestBody ProcessConfigDTO dto) {
+        return ApiResponseDTO.success(processService.updateDefinition(id, dto));
+    }
+
+    @DeleteMapping("/definitions/{id}")
+    public ApiResponseDTO<Void> deleteDefinition(@PathVariable Long id) {
+        processService.deleteDefinition(id);
+        return ApiResponseDTO.success(null);
     }
 
     @PostMapping("/definitions/{id}/nodes")

@@ -170,7 +170,7 @@ async function confirmComplete() {
     ElMessage.warning('请选择完成结论')
     return
   }
-  await completeRequirement(completeId.value)
+  await completeRequirement(completeId.value, completeConclusion.value)
   completeVisible.value = false
   ElMessage.success('操作成功')
   fetchData()

@@ -17,4 +17,6 @@ public interface SysUserRepository extends JpaRepository<SysUser, Long> {
     List<SysUser> findByDepartment(String department);
 
     boolean existsByUsername(String username);
+
+    List<SysUser> findByUsernameContainingOrRealNameContaining(String username, String realName);
 }

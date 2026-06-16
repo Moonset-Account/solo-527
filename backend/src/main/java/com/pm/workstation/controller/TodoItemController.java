@@ -1,6 +1,7 @@
 package com.pm.workstation.controller;
 
 import com.pm.workstation.dto.ApiResponseDTO;
+import com.pm.workstation.dto.PageResultDTO;
 import com.pm.workstation.dto.TodoItemDTO;
 import com.pm.workstation.entity.TodoItem;
 import com.pm.workstation.service.TodoItemService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -22,6 +24,15 @@ public class TodoItemController {
 
     @Autowired
     private TodoItemService todoItemService;
+
+    @GetMapping
+    public ApiResponseDTO<PageResultDTO<TodoItem>> pageTodos(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long userId) {
+        return ApiResponseDTO.success(todoItemService.pageTodos(page, size, status, userId));
+    }
 
     @PostMapping
     public ApiResponseDTO<TodoItem> createTodoItem(

@@ -22,6 +22,11 @@ public class RoleServiceImpl implements RoleService {
     private SysUserRepository sysUserRepository;
 
     @Override
+    public List<SysRole> listRoles() {
+        return sysRoleRepository.findAll();
+    }
+
+    @Override
     @Transactional
     public SysRole createRole(SysRole role) {
         LocalDateTime now = LocalDateTime.now();

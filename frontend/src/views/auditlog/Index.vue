@@ -5,7 +5,7 @@
         <span>审计日志</span>
       </template>
       <div class="search-bar">
-        <el-select v-model="search.actionType" placeholder="操作类型" clearable style="width: 180px" @change="fetchData">
+        <el-select v-model="search.action" placeholder="操作类型" clearable style="width: 180px" @change="fetchData">
           <el-option label="评论无回复" value="COMMENT_NO_REPLY" />
           <el-option label="批量导入" value="BATCH_IMPORT" />
           <el-option label="批量审批" value="BATCH_APPROVE" />
@@ -64,7 +64,7 @@ const detailDialogVisible = ref(false)
 const detailContent = ref('')
 
 const search = ref({
-  actionType: '',
+  action: '',
   dateRange: null,
   username: ''
 })
@@ -97,7 +97,7 @@ async function fetchData() {
       page: pagination.value.page,
       size: pagination.value.size
     }
-    if (search.value.actionType) params.actionType = search.value.actionType
+    if (search.value.action) params.action = search.value.action
     if (search.value.username) params.username = search.value.username
     if (search.value.dateRange && search.value.dateRange.length === 2) {
       params.startDate = search.value.dateRange[0]

@@ -22,6 +22,11 @@ public class RoleController {
     @Autowired
     private RoleService roleService;
 
+    @GetMapping
+    public ApiResponseDTO<List<SysRole>> listRoles() {
+        return ApiResponseDTO.success(roleService.listRoles());
+    }
+
     @PostMapping
     public ApiResponseDTO<SysRole> createRole(@RequestBody SysRole role) {
         return ApiResponseDTO.success(roleService.createRole(role));

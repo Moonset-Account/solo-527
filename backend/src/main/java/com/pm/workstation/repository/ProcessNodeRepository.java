@@ -11,4 +11,6 @@ public interface ProcessNodeRepository extends JpaRepository<ProcessNode, Long> 
     List<ProcessNode> findByRoleId(Long roleId);
 
     long countByDefinitionId(Long definitionId);
+
+    void deleteByDefinitionId(Long definitionId);
 }

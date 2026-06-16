@@ -35,6 +35,34 @@ public class ProcessServiceImpl implements ProcessService {
     private ProcessInstanceNodeRepository processInstanceNodeRepository;
 
     @Override
+    public List<ProcessDefinition> listDefinitions() {
+        return processDefinitionRepository.findAll();
+    }
+
+    @Override
+    @Transactional
+    public ProcessDefinition updateDefinition(Long id, ProcessConfigDTO dto) {
+        ProcessDefinition definition = processDefinitionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("流程定义不存在"));
+        definition.setName(dto.getName());
+        definition.setDescription(dto.getDescription());
+        definition.setUpdatedAt(LocalDateTime.now());
+        return processDefinitionRepository.save(definition);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDefinition(Long id) {
+        List<ProcessInstance> instances = processInstanceRepository.findByDefinitionId(id);
+        for (ProcessInstance instance : instances) {
+            processInstanceNodeRepository.deleteByInstanceId(instance.getId());
+        }
+        processInstanceRepository.deleteByDefinitionId(id);
+        processNodeRepository.deleteByDefinitionId(id);
+        processDefinitionRepository.deleteById(id);
+    }
+
+    @Override
     @Transactional
     public ProcessDefinition createDefinition(ProcessConfigDTO dto) {
         ProcessDefinition definition = new ProcessDefinition();

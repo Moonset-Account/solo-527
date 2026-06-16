@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface RoleService {
 
+    List<SysRole> listRoles();
+
     SysRole createRole(SysRole role);
 
     SysRole updateRole(Long id, SysRole role);

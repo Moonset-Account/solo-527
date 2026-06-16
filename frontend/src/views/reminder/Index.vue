@@ -8,7 +8,7 @@
         </div>
       </template>
       <el-table :data="tableData" stripe style="width: 100%">
-        <el-table-column prop="name" label="规则名称" min-width="140" />
+        <el-table-column prop="ruleName" label="规则名称" min-width="140" />
         <el-table-column label="规则类型" width="160">
           <template #default="{ row }">
             <el-tag :type="ruleTypeTagMap[row.ruleType] || 'info'" size="small">
@@ -23,12 +23,12 @@
         </el-table-column>
         <el-table-column label="提醒方式" width="160">
           <template #default="{ row }">
-            <el-tag v-for="method in (row.notifyMethods || [])" :key="method" :type="methodTagMap[method] || 'info'" size="small" class="method-tag">
+            <el-tag v-for="method in (row.remindMethod || [])" :key="method" :type="methodTagMap[method] || 'info'" size="small" class="method-tag">
               {{ methodLabelMap[method] || method }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="advanceHours" label="提前提醒时长(小时)" width="160" />
+        <el-table-column prop="remindBeforeHours" label="提前提醒时长(小时)" width="160" />
         <el-table-column label="启用状态" width="100">
           <template #default="{ row }">
             <el-switch v-model="row.enabled" @change="handleToggle(row)" />
@@ -50,7 +50,7 @@
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑规则' : '新增规则'" width="560px">
       <el-form :model="form" label-width="120px">
         <el-form-item label="规则名称">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.ruleName" />
         </el-form-item>
         <el-form-item label="规则类型">
           <el-select v-model="form.ruleType" placeholder="请选择规则类型" style="width: 100%" @change="handleRuleTypeChange">
@@ -64,7 +64,7 @@
           <el-input-number v-model="form.triggerHours" :min="1" :max="720" />
         </el-form-item>
         <el-form-item label="提醒方式">
-          <el-checkbox-group v-model="form.notifyMethods">
+          <el-checkbox-group v-model="form.remindMethod">
             <el-checkbox value="EMAIL">邮件</el-checkbox>
             <el-checkbox value="SMS">短信</el-checkbox>
             <el-checkbox value="IN_APP">站内信</el-checkbox>
@@ -72,7 +72,7 @@
         </el-form-item>
         <el-form-item label="提前提醒时长">
           <div style="display: flex; align-items: center; gap: 8px">
-            <el-input-number v-model="form.advanceHours" :min="0" :max="720" />
+            <el-input-number v-model="form.remindBeforeHours" :min="0" :max="720" />
             <span>小时</span>
           </div>
         </el-form-item>
@@ -124,11 +124,11 @@ const methodTagMap = {
 }
 
 const form = ref({
-  name: '',
+  ruleName: '',
   ruleType: '',
   triggerHours: 24,
-  notifyMethods: [],
-  advanceHours: 0,
+  remindMethod: [],
+  remindBeforeHours: 0,
   enabled: true
 })
 
@@ -164,21 +164,21 @@ function openDialog(row) {
   if (row) {
     editingId.value = row.id
     form.value = {
-      name: row.name,
+      ruleName: row.ruleName,
       ruleType: row.ruleType,
       triggerHours: row.triggerCondition?.hours ?? row.triggerHours ?? 24,
-      notifyMethods: row.notifyMethods ? [...row.notifyMethods] : [],
-      advanceHours: row.advanceHours ?? 0,
+      remindMethod: row.remindMethod ? [...row.remindMethod] : [],
+      remindBeforeHours: row.remindBeforeHours ?? 0,
       enabled: row.enabled ?? true
     }
   } else {
     editingId.value = null
     form.value = {
-      name: '',
+      ruleName: '',
       ruleType: '',
       triggerHours: 24,
-      notifyMethods: [],
-      advanceHours: 0,
+      remindMethod: [],
+      remindBeforeHours: 0,
       enabled: true
     }
   }

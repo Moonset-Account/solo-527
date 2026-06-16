@@ -54,17 +54,17 @@ const routes = [
   {
     path: '/reports',
     name: 'CollaborationReport',
-    component: () => import('../views/CollaborationReport.vue')
+    component: () => import('../views/report/Index.vue')
   },
   {
     path: '/imports',
     name: 'ImportCenter',
-    component: () => import('../views/ImportCenter.vue')
+    component: () => import('../views/import/Index.vue')
   },
   {
     path: '/audit-logs',
     name: 'AuditLogList',
-    component: () => import('../views/AuditLogList.vue')
+    component: () => import('../views/auditlog/Index.vue')
   }
 ]
 

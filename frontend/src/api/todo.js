@@ -9,11 +9,11 @@ export function updateTodo(id, data) {
 }
 
 export function completeTodo(id) {
-  return request.put(`/todos/${id}/complete`)
+  return request.post(`/todos/${id}/complete`)
 }
 
-export function getTodosByUser(params) {
-  return request.get('/todos/user', { params })
+export function getTodosByUser(userId) {
+  return request.get(`/todos/user/${userId}`)
 }
 
 export function getTodosByRequirement(requirementId) {

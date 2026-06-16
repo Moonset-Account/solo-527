@@ -16,10 +16,10 @@ export function pageRequirements(params) {
   return request.get('/requirements/page', { params })
 }
 
-export function completeRequirement(id) {
-  return request.put(`/requirements/${id}/complete`)
+export function completeRequirement(id, conclusion) {
+  return request.post(`/requirements/${id}/complete`, null, { params: { conclusion } })
 }
 
 export function batchApprove(data) {
-  return request.put('/requirements/batch-approve', data)
+  return request.post('/requirements/batch-approve', data)
 }

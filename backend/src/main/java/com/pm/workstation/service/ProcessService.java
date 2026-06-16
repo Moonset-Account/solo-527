@@ -8,7 +8,13 @@ import java.util.List;
 
 public interface ProcessService {
 
+    List<ProcessDefinition> listDefinitions();
+
     ProcessDefinition createDefinition(ProcessConfigDTO dto);
+
+    ProcessDefinition updateDefinition(Long id, ProcessConfigDTO dto);
+
+    void deleteDefinition(Long id);
 
     ProcessNode addNode(Long definitionId, ProcessConfigDTO.NodeConfig nodeDTO);
 

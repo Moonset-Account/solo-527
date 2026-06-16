@@ -14,4 +14,6 @@ public interface ProcessInstanceNodeRepository extends JpaRepository<ProcessInst
     List<ProcessInstanceNode> findByAssigneeIdAndStatus(Long assigneeId, NodeStatus status);
 
     List<ProcessInstanceNode> findByNodeId(Long nodeId);
+
+    void deleteByInstanceId(Long instanceId);
 }

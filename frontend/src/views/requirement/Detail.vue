@@ -195,22 +195,7 @@ async function fetchData() {
     requirement.value = reqRes.data || {}
     todos.value = todoRes.data || []
     meetings.value = meetingRes.data || []
-
-    if (requirement.value.processInstanceId) {
-      try {
-        const nodeRes = await getNodes(requirement.value.processInstanceId)
-        const nodes = nodeRes.data || []
-        processNodes.value = nodes.map(n => {
-          let stepStatus = 'wait'
-          if (n.status === 'APPROVED') stepStatus = 'finish'
-          else if (n.status === 'PENDING') stepStatus = 'process'
-          else if (n.status === 'REJECTED') stepStatus = 'error'
-          return { ...n, stepStatus }
-        })
-      } catch (e) {
-        processNodes.value = []
-      }
-    }
+    processNodes.value = []
   } finally {
     loading.value = false
   }
@@ -221,7 +206,7 @@ async function handleComplete() {
     ElMessage.warning('请选择完成结论')
     return
   }
-  await completeRequirement(requirementId.value)
+  await completeRequirement(requirementId.value, completeConclusion.value)
   completeVisible.value = false
   ElMessage.success('操作成功')
   fetchData()
