@@ -4,9 +4,12 @@
   "description": "心理咨询预约日历系统后端",
   "main": "src/server.js",
   "type": "commonjs",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node prisma/seed.js && node src/server.js",
+    "dev": "node prisma/seed.js && nodemon src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node prisma/seed.js"

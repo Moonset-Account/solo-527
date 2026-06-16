@@ -3,6 +3,7 @@ import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
 import ClientBooking from './pages/client/ClientBooking.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
+import AdminCounselors from './pages/admin/AdminCounselors.jsx';
 import AdminTimeSlots from './pages/admin/AdminTimeSlots.jsx';
 import AdminCheckIn from './pages/admin/AdminCheckIn.jsx';
 import AdminNoShow from './pages/admin/AdminNoShow.jsx';
@@ -17,6 +18,7 @@ const menuItems = [
 
 const adminMenuItems = [
   { key: '/admin/dashboard', icon: null, label: <Link to="/admin/dashboard">总览</Link> },
+  { key: '/admin/counselors', icon: null, label: <Link to="/admin/counselors">咨询师管理</Link> },
   { key: '/admin/timeslots', icon: null, label: <Link to="/admin/timeslots">可约时段</Link> },
   { key: '/admin/checkin', icon: null, label: <Link to="/admin/checkin">到店核销</Link> },
   { key: '/admin/noshow', icon: null, label: <Link to="/admin/noshow">爽约名单</Link> },
@@ -57,6 +59,7 @@ function App() {
               <Content style={{ padding: 24, background: '#f5f7fa' }}>
                 <Routes>
                   <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="counselors" element={<AdminCounselors />} />
                   <Route path="timeslots" element={<AdminTimeSlots />} />
                   <Route path="checkin" element={<AdminCheckIn />} />
                   <Route path="noshow" element={<AdminNoShow />} />

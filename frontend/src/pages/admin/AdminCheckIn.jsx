@@ -107,6 +107,9 @@ export default function AdminCheckIn() {
         case 'cancel':
           res = await appointmentApi.cancel(id, payload);
           break;
+        case 'waitlistExpire':
+          res = await appointmentApi.waitlistExpire(id, payload);
+          break;
         default:
           return;
       }
@@ -150,11 +153,20 @@ export default function AdminCheckIn() {
     if (apt.status === 'PENDING') {
       actions.push(<Button size="small" type="primary" onClick={() => handleAction(apt.id, 'confirm')}>确认</Button>);
     }
-    if (apt.status === 'CONFIRMED' || apt.status === 'PENDING') {
+    if (apt.status === 'CONFIRMED' || (apt.status === 'PENDING' && !apt.isWaitlisted)) {
       actions.push(<Button size="small" onClick={() => handleAction(apt.id, 'checkin')}>到店核销</Button>);
     }
     if (apt.status === 'CHECKED_IN') {
       actions.push(<Button size="small" type="primary" onClick={() => handleAction(apt.id, 'complete')}>完成</Button>);
+    }
+    if (apt.isWaitlisted && apt.status === 'PENDING' && !apt.waitlistExpired) {
+      actions.push(
+        <Popconfirm title="确认将该候补标记为超时？" onConfirm={() => handleAction(apt.id, 'waitlistExpire')}>
+          <Button size="small" style={{ borderColor: '#fa8c16', color: '#fa8c16' }}>
+            候补超时
+          </Button>
+        </Popconfirm>
+      );
     }
     if (!['COMPLETED', 'NO_SHOW', 'CANCELLED'].includes(apt.status)) {
       actions.push(
@@ -169,7 +181,7 @@ export default function AdminCheckIn() {
       );
     }
     actions.push(<Button size="small" onClick={() => openDetail(apt)}>详情</Button>);
-    return <Space>{actions}</Space>;
+    return <Space wrap>{actions}</Space>;
   };
 
   const columns = [
@@ -208,15 +220,16 @@ export default function AdminCheckIn() {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 120,
-      render: (v) => {
+      width: 140,
+      render: (v, r) => {
         const opt = STATUS_OPTIONS.find((o) => o.value === v) || { label: v, color: 'default' };
         return (
           <Space direction="vertical" size={4}>
             <Tag color={opt.color}>{opt.label}</Tag>
             {v === 'NO_SHOW' && <Tag color="red">爽约</Tag>}
             {v === 'CANCELLED' && <Tag color="default">已取消</Tag>}
-            {detail?.isWaitlisted && <Tag color="orange">候补</Tag>}
+            {r.isWaitlisted && !r.waitlistExpired && <Tag color="orange">候补</Tag>}
+            {r.waitlistExpired && <Tag color="red">候补超时</Tag>}
           </Space>
         );
       },

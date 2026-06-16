@@ -225,20 +225,35 @@ router.post('/:id/complete', async (req, res, next) => {
 router.post('/:id/noshow', async (req, res, next) => {
   try {
     const { operator = '管理员', reason = '' } = req.body;
+    const aptId = parseInt(req.params.id);
+    const existing = await prisma.appointment.findUnique({ where: { id: aptId } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: '预约不存在' });
+    }
+
+    const wasNoShow = existing.status === 'NO_SHOW';
+    const shouldDecrement = !wasNoShow && !existing.isWaitlisted && existing.status !== 'COMPLETED' && existing.status !== 'CANCELLED';
+
     await prisma.$transaction(async (tx) => {
       const apt = await tx.appointment.update({
-        where: { id: parseInt(req.params.id) },
+        where: { id: aptId },
         data: { status: 'NO_SHOW', noShowReason: reason },
       });
-      if (!apt.isWaitlisted) {
+      if (shouldDecrement) {
         await tx.timeSlot.update({
           where: { id: apt.timeSlotId },
           data: { bookedCount: { decrement: 1 } },
         });
       }
-      await logOperation(tx, apt.id, '标记爽约', operator, reason);
+      await logOperation(
+        tx,
+        apt.id,
+        wasNoShow ? '更新爽约原因' : '标记爽约',
+        operator,
+        reason
+      );
     });
-    res.json({ success: true, message: '已标记爽约' });
+    res.json({ success: true, message: wasNoShow ? '爽约原因已更新' : '已标记爽约' });
   } catch (err) {
     next(err);
   }
@@ -268,15 +283,41 @@ router.post('/:id/cancel', async (req, res, next) => {
 
 router.post('/:id/waitlist-expire', async (req, res, next) => {
   try {
-    const { operator = '系统' } = req.body;
+    const { operator = '系统', reason } = req.body;
+    const aptId = parseInt(req.params.id);
+    const existing = await prisma.appointment.findUnique({ where: { id: aptId } });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: '预约不存在' });
+    }
+    if (!existing.isWaitlisted) {
+      return res.status(400).json({ success: false, message: '该预约不在候补名单中' });
+    }
+    if (existing.waitlistExpired) {
+      return res.status(400).json({ success: false, message: '该候补已标记为超时' });
+    }
+    if (existing.status === 'COMPLETED' || existing.status === 'CHECKED_IN') {
+      return res.status(400).json({ success: false, message: '已完成/已到店的预约不可标记超时' });
+    }
+
     await prisma.$transaction(async (tx) => {
-      const apt = await tx.appointment.update({
-        where: { id: parseInt(req.params.id) },
-        data: { waitlistExpired: true, status: 'CANCELLED' },
+      await tx.appointment.update({
+        where: { id: aptId },
+        data: {
+          waitlistExpired: true,
+          status: 'CANCELLED',
+          noShowReason: reason || existing.noShowReason,
+        },
       });
-      await logOperation(tx, apt.id, '候补超时', operator, '候补等待超时自动取消');
+      await logOperation(
+        tx,
+        aptId,
+        '候补超时',
+        operator,
+        reason || '候补等待超时取消'
+      );
     });
-    res.json({ success: true, message: '候补已超时' });
+    res.json({ success: true, message: '候补已标记超时' });
   } catch (err) {
     next(err);
   }
