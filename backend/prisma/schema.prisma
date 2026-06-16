@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Counselor {
+  id            Int            @id @default(autoincrement())
+  name          String
+  title         String?
+  specialty     String?
+  avatar        String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  timeSlots     TimeSlot[]
+  appointments  Appointment[]
+}
+
+model TimeSlot {
+  id            Int            @id @default(autoincrement())
+  counselorId   Int
+  counselor     Counselor      @relation(fields: [counselorId], references: [id])
+  date          DateTime
+  startTime     String
+  endTime       String
+  duration      Int
+  capacity      Int            @default(1)
+  bookedCount   Int            @default(0)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  appointments  Appointment[]
+
+  @@unique([counselorId, date, startTime, endTime])
+}
+
+model Appointment {
+  id              Int            @id @default(autoincrement())
+  timeSlotId      Int
+  timeSlot        TimeSlot       @relation(fields: [timeSlotId], references: [id])
+  counselorId     Int
+  counselor       Counselor      @relation(fields: [counselorId], references: [id])
+  clientName      String
+  clientPhone     String
+  clientEmail     String?
+  reason          String         @db.Text
+  status          AppointmentStatus @default(PENDING)
+  checkInTime     DateTime?
+  checkOutTime    DateTime?
+  noShowReason    String?
+  isWaitlisted    Boolean        @default(false)
+  waitlistExpired Boolean        @default(false)
+  lastOperation   String?
+  lastOperatedAt  DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  operationLogs   OperationLog[]
+}
+
+model OperationLog {
+  id             Int            @id @default(autoincrement())
+  appointmentId  Int
+  appointment    Appointment    @relation(fields: [appointmentId], references: [id])
+  action         String
+  operator       String
+  remark         String?
+  createdAt      DateTime       @default(now())
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
