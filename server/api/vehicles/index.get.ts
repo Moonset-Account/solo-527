@@ -1,0 +1,22 @@
+import { prisma } from '~/server/utils/prisma'
+import { handlePrismaError } from '~/server/utils/apiError'
+
+export default defineEventHandler(async (event) => {
+  try {
+    const query = getQuery(event)
+
+    const where: Record<string, unknown> = {}
+    if (query.plateNumber) {
+      where.plateNumber = { contains: query.plateNumber as string }
+    }
+
+    const items = await prisma.vehicle.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return { success: true, data: items }
+  } catch (error) {
+    handlePrismaError(error, '查询车辆列表')
+  }
+})

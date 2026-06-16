@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users           User[]
+  appointments    Appointment[]
+  tasks           Task[]
+  partsTurnovers  PartsTurnover[]
+  conversionAlerts ConversionAlert[]
+
+  @@map("stores")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  role      String   @db.VarChar(20)
+  phone     String?
+  storeId   String   @map("store_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  store              Store              @relation(fields: [storeId], references: [id])
+  assignedAppointments Appointment[]     @relation("AssignedAppointments")
+  assignedTasks      Task[]             @relation("AssignedTasks")
+  processLogs        TaskProcessLog[]   @relation("OperatorLogs")
+
+  @@map("users")
+}
+
+model Vehicle {
+  id         String   @id @default(uuid())
+  plateNumber String  @unique @map("plate_number")
+  brand      String?
+  model      String?
+  color      String?
+  ownerName  String?  @map("owner_name")
+  ownerPhone String?  @map("owner_phone")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  appointments  Appointment[]
+  tasks         Task[]
+  processLogs   TaskProcessLog[] @relation("VehicleProcessLogs")
+
+  @@map("vehicles")
+}
+
+model Appointment {
+  id            String   @id @default(uuid())
+  customerName  String   @map("customer_name")
+  customerPhone String?  @map("customer_phone")
+  vehicleId     String   @map("vehicle_id")
+  serviceType   String   @map("service_type") @db.VarChar(20)
+  status        String   @default("PENDING") @db.VarChar(20)
+  scheduledAt   DateTime @map("scheduled_at")
+  assigneeId    String   @map("assignee_id")
+  storeId       String   @map("store_id")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id])
+  assignee User     @relation("AssignedAppointments", fields: [assigneeId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  payment  Payment?
+  tasks    Task[]
+
+  @@index([status], map: "idx_appointment_status")
+  @@index([scheduledAt], map: "idx_appointment_date")
+  @@index([assigneeId], map: "idx_appointment_assignee")
+  @@map("appointments")
+}
+
+model Payment {
+  id           String    @id @default(uuid())
+  appointmentId String   @unique @map("appointment_id")
+  amount       Decimal   @db.Decimal(10, 2)
+  method       String    @db.VarChar(20)
+  status       String    @default("PENDING") @db.VarChar(20)
+  paidAt       DateTime? @map("paid_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  appointment Appointment    @relation(fields: [appointmentId], references: [id])
+  items       PaymentItem[]
+  processLogs TaskProcessLog[] @relation("PaymentProcessLogs")
+
+  @@index([status], map: "idx_payment_status")
+  @@index([createdAt], map: "idx_payment_date")
+  @@map("payments")
+}
+
+model PaymentItem {
+  id        String  @id @default(uuid())
+  paymentId String  @map("payment_id")
+  name      String
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int     @default(1)
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@map("payment_items")
+}
+
+model InspectionTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  category  String?
+  content   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  processLogs TaskProcessLog[] @relation("TemplateProcessLogs")
+
+  @@map("inspection_templates")
+}
+
+model Task {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?
+  status       String    @default("PENDING") @db.VarChar(20)
+  priority     String    @default("MEDIUM") @db.VarChar(20)
+  assigneeId   String    @map("assignee_id")
+  storeId      String    @map("store_id")
+  vehicleId    String?   @map("vehicle_id")
+  appointmentId String?  @map("appointment_id")
+  dueDate      DateTime? @map("due_date")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  assignee    User             @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  store       Store            @relation(fields: [storeId], references: [id])
+  vehicle     Vehicle?         @relation(fields: [vehicleId], references: [id])
+  appointment Appointment?     @relation(fields: [appointmentId], references: [id])
+  processLogs TaskProcessLog[]
+
+  @@index([status], map: "idx_task_status")
+  @@index([dueDate], map: "idx_task_date")
+  @@index([assigneeId], map: "idx_task_assignee")
+  @@map("tasks")
+}
+
+model TaskProcessLog {
+  id               String   @id @default(uuid())
+  taskId           String   @map("task_id")
+  action           String
+  notes            String?
+  operatorId       String   @map("operator_id")
+  linkedTemplateId String?  @map("linked_template_id")
+  linkedPaymentId  String?  @map("linked_payment_id")
+  linkedVehicleId  String?  @map("linked_vehicle_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  task            Task               @relation(fields: [taskId], references: [id])
+  operator        User               @relation("OperatorLogs", fields: [operatorId], references: [id])
+  linkedTemplate  InspectionTemplate? @relation("TemplateProcessLogs", fields: [linkedTemplateId], references: [id])
+  linkedPayment   Payment?           @relation("PaymentProcessLogs", fields: [linkedPaymentId], references: [id])
+  linkedVehicle   Vehicle?           @relation("VehicleProcessLogs", fields: [linkedVehicleId], references: [id])
+
+  @@index([taskId], map: "idx_processlog_task")
+  @@map("task_process_logs")
+}
+
+model PartsTurnover {
+  id            String   @id @default(uuid())
+  partName      String   @map("part_name")
+  partCode      String   @map("part_code")
+  stockQuantity  Int      @default(0) @map("stock_quantity")
+  usedQuantity   Int      @default(0) @map("used_quantity")
+  turnoverRate  Decimal  @default(0) @db.Decimal(5, 2) @map("turnover_rate")
+  storeId       String   @map("store_id")
+  period        DateTime
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@index([storeId], map: "idx_parts_store")
+  @@index([period], map: "idx_parts_period")
+  @@map("parts_turnover")
+}
+
+model ConversionAlert {
+  id             String   @id @default(uuid())
+  storeId        String   @map("store_id")
+  conversionRate Decimal  @db.Decimal(5, 2) @map("conversion_rate")
+  threshold      Decimal  @default(60.00) @db.Decimal(5, 2)
+  alertLevel     String   @map("alert_level") @db.VarChar(20)
+  message        String?
+  resolved       Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@index([storeId], map: "idx_alert_store")
+  @@index([resolved], map: "idx_alert_resolved")
+  @@map("conversion_alerts")
+}

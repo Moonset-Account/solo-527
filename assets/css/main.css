@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-100 p-6;
+  }
+  .card-hover {
+    @apply card hover:shadow-md transition-shadow duration-200;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-pending {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+  .badge-confirmed {
+    @apply badge bg-blue-100 text-blue-800;
+  }
+  .badge-in-progress {
+    @apply badge bg-indigo-100 text-indigo-800;
+  }
+  .badge-completed {
+    @apply badge bg-green-100 text-green-800;
+  }
+  .badge-cancelled {
+    @apply badge bg-gray-100 text-gray-800;
+  }
+  .badge-paid {
+    @apply badge bg-green-100 text-green-800;
+  }
+  .badge-refunded {
+    @apply badge bg-red-100 text-red-800;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  .btn-primary {
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500;
+  }
+  .btn-secondary {
+    @apply btn bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:bg-red-600 focus:ring-red-500;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500;
+  }
+  .select {
+    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white;
+  }
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+}
+
+.timeline-line {
+  @apply absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200;
+}
+
+.timeline-dot {
+  @apply absolute left-2.5 w-3 h-3 rounded-full bg-primary-500 border-2 border-white ring-2 ring-primary-200;
+}
+
+.timeline-dot-warning {
+  @apply absolute left-2.5 w-3 h-3 rounded-full bg-warning border-2 border-white ring-2 ring-yellow-200;
+}
+
+.timeline-dot-danger {
+  @apply absolute left-2.5 w-3 h-3 rounded-full bg-danger border-2 border-white ring-2 ring-red-200;
+}
+
+.timeline-dot-success {
+  @apply absolute left-2.5 w-3 h-3 rounded-full bg-success border-2 border-white ring-2 ring-green-200;
+}
