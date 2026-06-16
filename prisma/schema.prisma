@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String
+  name      String
+  role      String   @default("CUSTOMER")
+  createdAt DateTime @default(now())
+
+  customerFeedbacks  Feedback[]        @relation("CustomerFeedbacks")
+  assignedFeedbacks  Feedback[]        @relation("AssigneeFeedbacks")
+  notes              Note[]
+  assignedTodos      Todo[]
+  improvements       Improvement[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model Feedback {
+  id                String            @id @default(uuid())
+  title             String
+  description       String
+  category          String            @default("OTHER")
+  urgency           String            @default("MEDIUM")
+  status            String            @default("PENDING")
+  rootCause         String?
+  result            String?
+  customerId        String
+  assigneeId        String?
+  knowledgeEntryId  String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  firstResponseAt   DateTime?
+  closedAt          DateTime?
+
+  customer          User              @relation("CustomerFeedbacks", fields: [customerId], references: [id])
+  assignee          User?             @relation("AssigneeFeedbacks", fields: [assigneeId], references: [id])
+  knowledgeEntry    KnowledgeEntry?   @relation(fields: [knowledgeEntryId], references: [id])
+  attachments       Attachment[]
+  notes             Note[]
+  ratings           Rating[]
+  todos             Todo[]
+  knowledgeHits     KnowledgeHit[]
+  responseRecords   ResponseTimeRecord[]
+  improvements      ImprovementFeedback[]
+
+  @@index([customerId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([category])
+  @@map("feedbacks")
+}
+
+model Attachment {
+  id         String   @id @default(uuid())
+  feedbackId String
+  name       String
+  url        String
+  size       Int
+  mimeType   String
+  createdAt  DateTime @default(now())
+
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  feedbackId String
+  authorId   String
+  content    String
+  createdAt  DateTime @default(now())
+
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id])
+
+  @@index([feedbackId])
+  @@map("notes")
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  feedbackId String
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+  @@map("ratings")
+}
+
+model Todo {
+  id                  String          @id @default(uuid())
+  title               String
+  description         String?
+  type                String
+  priority            String          @default("MEDIUM")
+  status              String          @default("PENDING")
+  result              String?
+  relatedFeedbackId   String?
+  relatedKnowledgeId  String?
+  assigneeId          String?
+  dueDate             DateTime?
+  createdAt           DateTime        @default(now())
+  completedAt         DateTime?
+
+  relatedFeedback     Feedback?       @relation(fields: [relatedFeedbackId], references: [id])
+  relatedKnowledge    KnowledgeEntry? @relation(fields: [relatedKnowledgeId], references: [id])
+  assignee            User?           @relation(fields: [assigneeId], references: [id])
+
+  @@index([assigneeId])
+  @@index([status])
+  @@index([type])
+  @@map("todos")
+}
+
+model KnowledgeEntry {
+  id         String          @id @default(uuid())
+  title      String
+  content    String
+  category   String
+  version    String          @default("1.0")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  feedbacks  Feedback[]
+  hits       KnowledgeHit[]
+  todos      Todo[]
+
+  @@index([category])
+  @@map("knowledge_entries")
+}
+
+model KnowledgeHit {
+  id                String          @id @default(uuid())
+  knowledgeEntryId  String
+  feedbackId        String
+  helpful           Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+
+  knowledgeEntry    KnowledgeEntry  @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
+  feedback          Feedback        @relation(fields: [feedbackId], references: [id])
+
+  @@index([knowledgeEntryId])
+  @@map("knowledge_hits")
+}
+
+model Improvement {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String   @default("PENDING")
+  rootCause   String?
+  assigneeId  String
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  assignee    User     @relation(fields: [assigneeId], references: [id])
+  feedbacks   ImprovementFeedback[]
+
+  @@map("improvements")
+}
+
+model ImprovementFeedback {
+  improvementId String
+  feedbackId    String
+
+  improvement   Improvement @relation(fields: [improvementId], references: [id], onDelete: Cascade)
+  feedback      Feedback    @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@id([improvementId, feedbackId])
+  @@map("improvement_feedbacks")
+}
+
+model ResponseTimeRecord {
+  id              String   @id @default(uuid())
+  feedbackId      String
+  responseMinutes Int
+  type            String   @default("FIRST_RESPONSE")
+  recordedAt      DateTime @default(now())
+
+  feedback        Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+  @@map("response_time_records")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  action     String
+  userId     String
+  oldValue   String?
+  newValue   String?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
