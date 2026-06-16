@@ -52,7 +52,7 @@ class CanManageRepair(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        if view.action in ['list', 'retrieve']:
+        if view.action in ['list', 'retrieve', 'create', 'comment']:
             return True
         return request.user.role in [Role.ADMIN, Role.DORM_MANAGER, Role.MAINTENANCE]
 
@@ -74,6 +74,8 @@ class RepairRequestViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.action == 'create':
+            return RepairRequestCreateSerializer
+        if self.action in ['update', 'partial_update']:
             return RepairRequestCreateSerializer
         return RepairRequestSerializer
 

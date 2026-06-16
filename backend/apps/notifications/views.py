@@ -21,7 +21,7 @@ class NotificationPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        if view.action in ['list', 'retrieve']:
+        if view.action in ['list', 'retrieve', 'unread_count', 'mark_read', 'mark_all_read']:
             return True
         return request.user.role in [Role.ADMIN, Role.DORM_MANAGER]
 
