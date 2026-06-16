@@ -4,7 +4,12 @@ import type { ARRecord, ARRecordSummary, ARRecordListResponse, FilterParams } fr
 export const useArStore = defineStore('ar', () => {
   const api = useApi()
   const records = ref<ARRecord[]>([])
-  const summary = ref<ARRecordSummary | null>(null)
+  const summaryList = ref<ARRecordSummary[]>([])
+  const summaryAggregate = ref<{ total_amount: number; paid_amount: number; outstanding_amount: number }>({
+    total_amount: 0,
+    paid_amount: 0,
+    outstanding_amount: 0,
+  })
   const currentRecord = ref<ARRecord | null>(null)
   const total = ref(0)
   const loading = ref(false)
@@ -15,7 +20,6 @@ export const useArStore = defineStore('ar', () => {
       const res = await api.ar.list(filters)
       records.value = res.items
       total.value = res.total
-      if (res.summary) summary.value = res.summary
     } finally {
       loading.value = false
     }
@@ -23,7 +27,16 @@ export const useArStore = defineStore('ar', () => {
 
   async function fetchSummary() {
     try {
-      summary.value = await api.ar.summary()
+      const summaries = await api.ar.summary()
+      summaryList.value = summaries
+      summaryAggregate.value = summaries.reduce(
+        (acc, s) => ({
+          total_amount: acc.total_amount + Number(s.total_amount),
+          paid_amount: acc.paid_amount + Number(s.paid_amount),
+          outstanding_amount: acc.outstanding_amount + Number(s.outstanding_amount),
+        }),
+        { total_amount: 0, paid_amount: 0, outstanding_amount: 0 },
+      )
     } catch (e) {
       console.error('Failed to fetch AR summary', e)
     }
@@ -41,11 +54,22 @@ export const useArStore = defineStore('ar', () => {
   async function fetchDrillDown(id: string) {
     loading.value = true
     try {
-      currentRecord.value = await api.ar.drillDown(id)
+      currentRecord.value = await api.ar.get(id)
     } finally {
       loading.value = false
     }
   }
 
-  return { records, summary, currentRecord, total, loading, fetchList, fetchSummary, fetchById, fetchDrillDown }
+  return {
+    records,
+    summaryList,
+    summaryAggregate,
+    currentRecord,
+    total,
+    loading,
+    fetchList,
+    fetchSummary,
+    fetchById,
+    fetchDrillDown,
+  }
 })

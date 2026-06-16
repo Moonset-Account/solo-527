@@ -7,7 +7,7 @@ export const useReminderStore = defineStore('reminder', () => {
   const total = ref(0)
   const loading = ref(false)
 
-  async function fetchList(filters: Partial<FilterParams>) {
+  async function fetchList(filters: Partial<FilterParams> & Record<string, any>) {
     loading.value = true
     try {
       const res = await api.reminder.list(filters)
@@ -18,17 +18,5 @@ export const useReminderStore = defineStore('reminder', () => {
     }
   }
 
-  async function acknowledge(id: string, acknowledgedBy: string) {
-    return api.reminder.acknowledge(id, { acknowledged_by: acknowledgedBy })
-  }
-
-  async function resolve(id: string, resolvedBy: string) {
-    return api.reminder.resolve(id, { resolved_by: resolvedBy })
-  }
-
-  async function escalate(id: string) {
-    return api.reminder.escalate(id)
-  }
-
-  return { records, total, loading, fetchList, acknowledge, resolve, escalate }
+  return { records, total, loading, fetchList }
 })

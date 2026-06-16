@@ -104,8 +104,11 @@ function buildExportFilters() {
   return f
 }
 
-onMounted(() => {
-  arStore.fetchList(filters.filters.value)
+onMounted(async () => {
+  await Promise.all([
+    arStore.fetchSummary(),
+    arStore.fetchList(filters.filters.value),
+  ])
 })
 </script>
 
@@ -125,17 +128,17 @@ onMounted(() => {
     <NGrid :cols="3" :x-gap="16" style="margin-bottom: 16px">
       <NGi>
         <NCard>
-          <NStatistic label="总应收" :value="formatAmount(arStore.summary?.total_amount ?? 0)" />
+          <NStatistic label="总应收" :value="formatAmount(arStore.summaryAggregate.total_amount)" />
         </NCard>
       </NGi>
       <NGi>
         <NCard>
-          <NStatistic label="已收金额" :value="formatAmount(arStore.summary?.paid_amount ?? 0)" />
+          <NStatistic label="已收金额" :value="formatAmount(arStore.summaryAggregate.paid_amount)" />
         </NCard>
       </NGi>
       <NGi>
         <NCard>
-          <NStatistic label="未收金额" :value="formatAmount(arStore.summary?.outstanding_amount ?? 0)" />
+          <NStatistic label="未收金额" :value="formatAmount(arStore.summaryAggregate.outstanding_amount)" />
         </NCard>
       </NGi>
     </NGrid>
