@@ -27,9 +27,9 @@ export const contractRouter = router({
         where,
         include: {
           checklist: { select: { id: true, title: true } },
-          risk: { select: { id: true, title: true } },
+          risk: { select: { id: true, title: true, riskLevel: true } },
           reviews: {
-            include: { reviewer: { select: { id: true, name: true } } },
+            include: { reviewer: { select: { id: true, name: true, role: true } } },
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
@@ -58,7 +58,7 @@ export const contractRouter = router({
           checklist: { select: { id: true, title: true } },
           risk: { select: { id: true, title: true, riskLevel: true } },
           reviews: {
-            include: { reviewer: { select: { id: true, name: true } } },
+            include: { reviewer: { select: { id: true, name: true, role: true } } },
             orderBy: { createdAt: 'desc' },
           },
         },

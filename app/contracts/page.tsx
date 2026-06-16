@@ -80,12 +80,12 @@ export default function ContractsPage() {
                   placeholder="搜索合同..."
                   className="pl-10"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e: any) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Select
                 value={statusFilter || ''}
-                onChange={(e) => setStatusFilter(e.target.value || undefined)}
+                onChange={(e: any) => setStatusFilter(e.target.value || undefined)}
                 className="w-40"
               >
                 <option value="">全部状态</option>

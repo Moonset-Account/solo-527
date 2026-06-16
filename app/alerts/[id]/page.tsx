@@ -37,7 +37,7 @@ export default function AlertDetailPage() {
 
   const { data: alert, isLoading } = trpc.alert.get.useQuery(
     { id: params.id as string },
-    { enabled: !!params.id }
+    { enabled: !!params.id } as any
   );
 
   const { data: currentUser } = trpc.user.me.useQuery();
@@ -328,7 +328,7 @@ export default function AlertDetailPage() {
                   <Label>处理说明 *</Label>
                   <Textarea
                     value={resolution}
-                    onChange={(e) => setResolution(e.target.value)}
+                    onChange={(e: any) => setResolution(e.target.value)}
                     placeholder="请输入处理结果说明"
                     rows={4}
                     required
@@ -340,7 +340,7 @@ export default function AlertDetailPage() {
                   <Label>备注（可选）</Label>
                   <Textarea
                     value={resolution}
-                    onChange={(e) => setResolution(e.target.value)}
+                    onChange={(e: any) => setResolution(e.target.value)}
                     placeholder="输入备注信息"
                     rows={3}
                   />
@@ -366,12 +366,12 @@ export default function AlertDetailPage() {
                   type="button"
                   onClick={handleStatusUpdate}
                   disabled={
-                    updateStatusMutation.isLoading ||
+                    updateStatusMutation.isPending ||
                     ((newStatus === 'RESOLVED' || newStatus === 'CLOSED') &&
                       !resolution)
                   }
                 >
-                  {updateStatusMutation.isLoading ? '处理中...' : '确认'}
+                  {updateStatusMutation.isPending ? '处理中...' : '确认'}
                 </Button>
               </div>
             </div>

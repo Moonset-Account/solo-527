@@ -20,7 +20,7 @@ export default function SettingsPage() {
   const { data: currentUser, isLoading } = trpc.user.me.useQuery();
   const { data: userStats } = trpc.user.list.useQuery(
     { limit: 10 },
-    { enabled: currentUser?.role === 'ADMIN' }
+    { enabled: currentUser?.role === 'ADMIN' } as any
   );
 
   const [name, setName] = useState(currentUser?.name || '');
@@ -103,12 +103,12 @@ export default function SettingsPage() {
                 <Input
                   id="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e: any) => setName(e.target.value)}
                   placeholder="输入您的名称"
                   className="flex-1"
                 />
-                <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isLoading}>
-                  {updateProfileMutation.isLoading ? '保存中...' : '保存'}
+                <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending}>
+                  {updateProfileMutation.isPending ? '保存中...' : '保存'}
                 </Button>
               </div>
             </div>
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                 <Select
                   id="department"
                   value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
+                  onChange={(e: any) => setDepartment(e.target.value)}
                   className="flex-1"
                 >
                   {DEPARTMENTS.map((d) => (
@@ -129,9 +129,9 @@ export default function SettingsPage() {
                 </Select>
                 <Button
                   onClick={handleSaveDepartment}
-                  disabled={updateDepartmentMutation.isLoading}
+                  disabled={updateDepartmentMutation.isPending}
                 >
-                  {updateDepartmentMutation.isLoading ? '保存中...' : '保存'}
+                  {updateDepartmentMutation.isPending ? '保存中...' : '保存'}
                 </Button>
               </div>
             </div>

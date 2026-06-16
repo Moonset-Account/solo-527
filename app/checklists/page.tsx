@@ -60,7 +60,7 @@ export default function ChecklistsPage() {
   const handleDelete = async (id: string) => {
     if (confirm('确定要删除这个检查清单吗？')) {
       try {
-        await utils.checklist.delete.mutateAsync({ id });
+        await (utils.checklist as any).delete.mutateAsync({ id });
         toast.success('删除成功');
         refetch();
       } catch (error) {
@@ -72,7 +72,7 @@ export default function ChecklistsPage() {
   const handleSubmit = async (id: string) => {
     if (confirm('确定要提交这个检查清单吗？提交后将无法修改。')) {
       try {
-        await utils.checklist.submit.mutateAsync({ id });
+        await (utils.checklist as any).submit.mutateAsync({ id });
         toast.success('提交成功，等待法务审核');
         refetch();
       } catch (error) {
@@ -104,13 +104,13 @@ export default function ChecklistsPage() {
                   placeholder="搜索清单..."
                   className="pl-10"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e: any) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Select
                   value={statusFilter || ''}
-                  onChange={(e) => setStatusFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setStatusFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部状态</option>
@@ -122,7 +122,7 @@ export default function ChecklistsPage() {
                 </Select>
                 <Select
                   value={categoryFilter || ''}
-                  onChange={(e) => setCategoryFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setCategoryFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部类别</option>
@@ -134,7 +134,7 @@ export default function ChecklistsPage() {
                 </Select>
                 <Select
                   value={departmentFilter || ''}
-                  onChange={(e) => setDepartmentFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setDepartmentFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部部门</option>
@@ -302,7 +302,7 @@ function CreateChecklistModal({
             </label>
             <Input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e: any) => setTitle(e.target.value)}
               placeholder="输入清单标题"
               required
             />
@@ -313,7 +313,7 @@ function CreateChecklistModal({
             </label>
             <Select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e: any) => setCategory(e.target.value)}
             >
               {CHECKLIST_CATEGORIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -328,7 +328,7 @@ function CreateChecklistModal({
             </label>
             <Select
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
+              onChange={(e: any) => setDepartment(e.target.value)}
             >
               {DEPARTMENTS.map((d) => (
                 <option key={d.value} value={d.value}>
@@ -344,7 +344,7 @@ function CreateChecklistModal({
             <textarea
               className="w-full rounded-md border border-input px-3 py-2 text-sm"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: any) => setDescription(e.target.value)}
               placeholder="可选描述"
               rows={3}
             />
@@ -353,8 +353,8 @@ function CreateChecklistModal({
             <Button type="button" variant="outline" onClick={onClose}>
               取消
             </Button>
-            <Button type="submit" disabled={createMutation.isLoading}>
-              {createMutation.isLoading ? '创建中...' : '创建'}
+            <Button type="submit" disabled={createMutation.isPending}>
+              {createMutation.isPending ? '创建中...' : '创建'}
             </Button>
           </div>
         </form>

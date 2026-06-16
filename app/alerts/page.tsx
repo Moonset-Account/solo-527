@@ -113,13 +113,13 @@ export default function AlertsPage() {
                   placeholder="搜索提醒..."
                   className="pl-10"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e: any) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Select
                   value={statusFilter || ''}
-                  onChange={(e) => setStatusFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setStatusFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部状态</option>
@@ -131,7 +131,7 @@ export default function AlertsPage() {
                 </Select>
                 <Select
                   value={typeFilter || ''}
-                  onChange={(e) => setTypeFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setTypeFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部类型</option>

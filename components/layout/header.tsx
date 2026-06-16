@@ -14,11 +14,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { user } = useUser();
   const { data: currentUser } = trpc.user.me.useQuery(undefined, {
     enabled: !!user,
-  });
+  } as any);
 
   const { data: alertStats } = trpc.alert.stats.useQuery(undefined, {
     enabled: currentUser?.role === 'PRO_BONO_LAWYER' || currentUser?.role === 'ADMIN',
-  });
+  } as any);
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white px-6">

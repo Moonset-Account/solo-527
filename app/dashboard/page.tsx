@@ -25,12 +25,12 @@ export default function DashboardPage() {
 
   const { data: recentChecklists } = trpc.checklist.list.useQuery(
     { limit: 5 },
-    { enabled: !checklistLoading }
+    { enabled: !checklistLoading } as any
   );
 
   const { data: recentRisks } = trpc.risk.list.useQuery(
     { limit: 5 },
-    { enabled: !riskLoading }
+    { enabled: !riskLoading } as any
   );
 
   const StatCard = ({

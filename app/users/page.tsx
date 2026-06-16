@@ -80,13 +80,13 @@ export default function UsersPage() {
                   placeholder="搜索用户..."
                   className="pl-10"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e: any) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Select
                   value={roleFilter || ''}
-                  onChange={(e) => setRoleFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setRoleFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部角色</option>
@@ -98,7 +98,7 @@ export default function UsersPage() {
                 </Select>
                 <Select
                   value={deptFilter || ''}
-                  onChange={(e) => setDeptFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setDeptFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部部门</option>
@@ -174,7 +174,7 @@ export default function UsersPage() {
                       <TableCell className="text-right">
                         <Select
                           value={user.role}
-                          onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                          onChange={(e: any) => handleRoleChange(user.id, e.target.value)}
                           className="w-28 text-sm"
                         >
                           {USER_ROLES.map((r) => (

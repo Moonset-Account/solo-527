@@ -69,15 +69,15 @@ export const riskRouter = router({
           assignee: { select: { id: true, name: true, email: true } },
           checklist: { select: { id: true, title: true } },
           assessments: {
-            include: { assessor: { select: { id: true, name: true } } },
+            include: { assessor: { select: { id: true, name: true, role: true } } },
             orderBy: { createdAt: 'desc' },
           },
           evidences: {
-            include: { uploader: { select: { id: true, name: true } } },
+            include: { uploader: { select: { id: true, name: true, role: true } } },
             orderBy: { createdAt: 'desc' },
           },
           reviewOpinions: {
-            include: { reviewer: { select: { id: true, name: true } } },
+            include: { reviewer: { select: { id: true, name: true, role: true } } },
             orderBy: { createdAt: 'desc' },
           },
           rectificationPlans: {

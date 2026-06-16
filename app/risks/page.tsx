@@ -83,13 +83,13 @@ export default function RisksPage() {
                   placeholder="搜索风险..."
                   className="pl-10"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e: any) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Select
                   value={statusFilter || ''}
-                  onChange={(e) => setStatusFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setStatusFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部状态</option>
@@ -101,7 +101,7 @@ export default function RisksPage() {
                 </Select>
                 <Select
                   value={riskLevelFilter || ''}
-                  onChange={(e) => setRiskLevelFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setRiskLevelFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部等级</option>
@@ -113,7 +113,7 @@ export default function RisksPage() {
                 </Select>
                 <Select
                   value={deptFilter || ''}
-                  onChange={(e) => setDeptFilter(e.target.value || undefined)}
+                  onChange={(e: any) => setDeptFilter(e.target.value || undefined)}
                   className="w-40"
                 >
                   <option value="">全部部门</option>

@@ -38,7 +38,7 @@ export default function ChecklistDetailPage() {
 
   const { data: checklist, isLoading } = trpc.checklist.get.useQuery(
     { id: params.id as string },
-    { enabled: !!params.id }
+    { enabled: !!params.id } as any
   );
 
   const { data: currentUser } = trpc.user.me.useQuery();
@@ -56,7 +56,7 @@ export default function ChecklistDetailPage() {
 
   const saveItem = async (itemId: string) => {
     try {
-      await utils.checklist.updateItem.mutateAsync({
+      await (utils.checklist as any).updateItem.mutateAsync({
         itemId,
         answer: answerValues[itemId],
         notes: noteValues[itemId],
@@ -70,7 +70,7 @@ export default function ChecklistDetailPage() {
 
   const toggleFlag = async (itemId: string, currentFlag: boolean) => {
     try {
-      await utils.checklist.updateItem.mutateAsync({
+      await (utils.checklist as any).updateItem.mutateAsync({
         itemId,
         isFlagged: !currentFlag,
       });
@@ -84,7 +84,7 @@ export default function ChecklistDetailPage() {
   const handleSubmit = async () => {
     if (confirm('确定要提交这个检查清单吗？提交后将无法修改。')) {
       try {
-        await utils.checklist.submit.mutateAsync({ id: params.id as string });
+        await (utils.checklist as any).submit.mutateAsync({ id: params.id as string });
         utils.checklist.get.invalidate({ id: params.id as string });
         toast.success('提交成功，等待法务审核');
       } catch (error) {
@@ -258,7 +258,7 @@ export default function ChecklistDetailPage() {
                         <div className="flex gap-2">
                           <Input
                             value={answerValues[item.id] ?? item.answer ?? ''}
-                            onChange={(e) => handleAnswerChange(item.id, e.target.value)}
+                            onChange={(e: any) => handleAnswerChange(item.id, e.target.value)}
                             placeholder="输入您的回答"
                           />
                           <Button onClick={() => saveItem(item.id)}>保存</Button>
@@ -277,7 +277,7 @@ export default function ChecklistDetailPage() {
                         <div className="space-y-2">
                           <Textarea
                             value={noteValues[item.id] ?? item.notes ?? ''}
-                            onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                            onChange={(e: any) => handleNoteChange(item.id, e.target.value)}
                             placeholder="添加备注说明"
                             rows={2}
                           />

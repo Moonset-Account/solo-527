@@ -30,7 +30,7 @@ export default function NewAlertPage() {
   const { data: proBonoLawyers } = trpc.user.getProBonoLawyers.useQuery();
   const { data: risk } = trpc.risk.get.useQuery(
     { id: riskId || '' },
-    { enabled: !!riskId }
+    { enabled: !!riskId } as any
   );
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export default function NewAlertPage() {
                   <Select
                     id="type"
                     value={formData.type}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, type: e.target.value }))
                     }
                   >
@@ -134,7 +134,7 @@ export default function NewAlertPage() {
                   <Select
                     id="assigneeId"
                     value={formData.assigneeId}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({
                         ...prev,
                         assigneeId: e.target.value,
@@ -155,7 +155,7 @@ export default function NewAlertPage() {
                   <Input
                     id="title"
                     value={formData.title}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, title: e.target.value }))
                     }
                     placeholder="输入提醒标题"
@@ -168,7 +168,7 @@ export default function NewAlertPage() {
                   <Textarea
                     id="description"
                     value={formData.description}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({
                         ...prev,
                         description: e.target.value,
@@ -219,9 +219,9 @@ export default function NewAlertPage() {
                 >
                   取消
                 </Button>
-                <Button type="submit" disabled={createMutation.isLoading} variant="warning">
+                <Button type="submit" disabled={createMutation.isPending} variant="warning">
                   <Bell className="mr-2 h-4 w-4" />
-                  {createMutation.isLoading ? '发送中...' : '发送提醒'}
+                  {createMutation.isPending ? '发送中...' : '发送提醒'}
                 </Button>
               </div>
             </form>

@@ -49,7 +49,7 @@ export default function RiskDetailPage() {
 
   const { data: risk, isLoading } = trpc.risk.get.useQuery(
     { id: params.id as string },
-    { enabled: !!params.id }
+    { enabled: !!params.id } as any
   );
 
   const { data: currentUser } = trpc.user.me.useQuery();
@@ -270,7 +270,7 @@ export default function RiskDetailPage() {
               <div className="flex gap-1 mt-2">
                 <Select
                   value={risk.status}
-                  onChange={(e) =>
+                  onChange={(e: any) =>
                     updateStatusMutation.mutate({
                       id: risk.id,
                       status: e.target.value as any,
@@ -566,7 +566,7 @@ export default function RiskDetailPage() {
                           </div>
                           <Select
                             value={plan.status}
-                            onChange={(e) =>
+                            onChange={(e: any) =>
                               updateRectificationMutation.mutate({
                                 id: plan.id,
                                 status: e.target.value as any,
@@ -696,7 +696,7 @@ export default function RiskDetailPage() {
           riskId={risk.id}
           onClose={() => setShowAssessmentModal(false)}
           onSubmit={(data) => addAssessmentMutation.mutate(data)}
-          isLoading={addAssessmentMutation.isLoading}
+          isLoading={addAssessmentMutation.isPending}
         />
       )}
 
@@ -705,7 +705,7 @@ export default function RiskDetailPage() {
           riskId={risk.id}
           onClose={() => setShowEvidenceModal(false)}
           onSubmit={(data) => addEvidenceMutation.mutate(data)}
-          isLoading={addEvidenceMutation.isLoading}
+          isLoading={addEvidenceMutation.isPending}
         />
       )}
 
@@ -714,7 +714,7 @@ export default function RiskDetailPage() {
           riskId={risk.id}
           onClose={() => setShowReviewModal(false)}
           onSubmit={(data) => addReviewMutation.mutate(data)}
-          isLoading={addReviewMutation.isLoading}
+          isLoading={addReviewMutation.isPending}
         />
       )}
 
@@ -723,7 +723,7 @@ export default function RiskDetailPage() {
           riskId={risk.id}
           onClose={() => setShowRectificationModal(false)}
           onSubmit={(data) => addRectificationMutation.mutate(data)}
-          isLoading={addRectificationMutation.isLoading}
+          isLoading={addRectificationMutation.isPending}
         />
       )}
 
@@ -733,7 +733,7 @@ export default function RiskDetailPage() {
           proBonoLawyers={proBonoLawyers || []}
           onClose={() => setShowAlertModal(false)}
           onSubmit={(data) => createAlertMutation.mutate(data)}
-          isLoading={createAlertMutation.isLoading}
+          isLoading={createAlertMutation.isPending}
         />
       )}
 
@@ -743,18 +743,10 @@ export default function RiskDetailPage() {
           legalUsers={legalUsers || []}
           onClose={() => setShowEditModal(false)}
           onSubmit={(data) => updateRiskMutation.mutate(data)}
-          isLoading={updateRiskMutation.isLoading}
+          isLoading={updateRiskMutation.isPending}
         />
       )}
     </AppLayout>
-  );
-}
-
-function Link({ href, children, className }: any) {
-  return (
-    <a href={href} className={className}>
-      {children}
-    </a>
   );
 }
 
@@ -790,7 +782,7 @@ function AssessmentModal({
             <Label>风险等级</Label>
             <Select
               value={formData.riskLevel}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, riskLevel: e.target.value }))
               }
             >
@@ -808,7 +800,7 @@ function AssessmentModal({
               min="1"
               max="10"
               value={formData.likelihood}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({
                   ...prev,
                   likelihood: parseInt(e.target.value),
@@ -826,7 +818,7 @@ function AssessmentModal({
               min="1"
               max="10"
               value={formData.impact}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({
                   ...prev,
                   impact: parseInt(e.target.value),
@@ -841,7 +833,7 @@ function AssessmentModal({
             <Label>评估说明</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="可选"
@@ -920,7 +912,7 @@ function EvidenceModal({
             <Label>描述</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="证据说明（可选）"
@@ -971,7 +963,7 @@ function ReviewModal({
             <Label>意见内容 *</Label>
             <Textarea
               value={formData.content}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, content: e.target.value }))
               }
               placeholder="请输入复核意见"
@@ -983,7 +975,7 @@ function ReviewModal({
             <Label>状态</Label>
             <Select
               value={formData.status}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, status: e.target.value }))
               }
             >
@@ -1037,7 +1029,7 @@ function RectificationModal({
             <Label>整改内容 *</Label>
             <Input
               value={formData.description}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="简要描述整改内容"
@@ -1048,7 +1040,7 @@ function RectificationModal({
             <Label>具体措施 *</Label>
             <Textarea
               value={formData.actions}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, actions: e.target.value }))
               }
               placeholder="详细说明整改措施"
@@ -1061,7 +1053,7 @@ function RectificationModal({
             <Input
               type="date"
               value={formData.dueDate}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
               }
               required
@@ -1120,7 +1112,7 @@ function AlertModal({
             <Label>提醒类型</Label>
             <Select
               value={formData.type}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, type: e.target.value }))
               }
             >
@@ -1134,7 +1126,7 @@ function AlertModal({
             <Label>标题 *</Label>
             <Input
               value={formData.title}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               placeholder="提醒标题"
@@ -1145,7 +1137,7 @@ function AlertModal({
             <Label>详细描述 *</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               placeholder="详细描述越权情况"
@@ -1157,7 +1149,7 @@ function AlertModal({
             <Label>指派给（公益律师）</Label>
             <Select
               value={formData.assigneeId}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, assigneeId: e.target.value }))
               }
             >
@@ -1228,7 +1220,7 @@ function EditRiskModal({
             <Label>风险名称 *</Label>
             <Input
               value={formData.title}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               required
@@ -1238,7 +1230,7 @@ function EditRiskModal({
             <Label>风险描述 *</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               rows={3}
@@ -1250,7 +1242,7 @@ function EditRiskModal({
               <Label>风险等级</Label>
               <Select
                 value={formData.riskLevel}
-                onChange={(e) =>
+                onChange={(e: any) =>
                   setFormData((prev) => ({ ...prev, riskLevel: e.target.value }))
                 }
               >
@@ -1265,7 +1257,7 @@ function EditRiskModal({
               <Label>状态</Label>
               <Select
                 value={formData.status}
-                onChange={(e) =>
+                onChange={(e: any) =>
                   setFormData((prev) => ({ ...prev, status: e.target.value }))
                 }
               >
@@ -1281,7 +1273,7 @@ function EditRiskModal({
             <Label>责任部门</Label>
             <Select
               value={formData.responsibleDept}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({
                   ...prev,
                   responsibleDept: e.target.value,
@@ -1299,7 +1291,7 @@ function EditRiskModal({
             <Label>负责人</Label>
             <Select
               value={formData.assigneeId}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, assigneeId: e.target.value }))
               }
             >
@@ -1316,7 +1308,7 @@ function EditRiskModal({
             <Input
               type="date"
               value={formData.dueDate}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
               }
             />

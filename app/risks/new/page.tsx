@@ -34,7 +34,7 @@ export default function NewRiskPage() {
   const { data: legalUsers } = trpc.user.getLegalUsers.useQuery();
   const { data: checklist } = trpc.checklist.get.useQuery(
     { id: checklistId || '' },
-    { enabled: !!checklistId }
+    { enabled: !!checklistId } as any
   );
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function NewRiskPage() {
                   <Input
                     id="title"
                     value={formData.title}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, title: e.target.value }))
                     }
                     placeholder="输入风险名称"
@@ -120,7 +120,7 @@ export default function NewRiskPage() {
                   <Textarea
                     id="description"
                     value={formData.description}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({
                         ...prev,
                         description: e.target.value,
@@ -137,7 +137,7 @@ export default function NewRiskPage() {
                   <Select
                     id="riskLevel"
                     value={formData.riskLevel}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({
                         ...prev,
                         riskLevel: e.target.value,
@@ -157,7 +157,7 @@ export default function NewRiskPage() {
                   <Select
                     id="responsibleDept"
                     value={formData.responsibleDept}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({
                         ...prev,
                         responsibleDept: e.target.value,
@@ -178,7 +178,7 @@ export default function NewRiskPage() {
                   <Select
                     id="assigneeId"
                     value={formData.assigneeId}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({
                         ...prev,
                         assigneeId: e.target.value,
@@ -200,7 +200,7 @@ export default function NewRiskPage() {
                     id="dueDate"
                     type="date"
                     value={formData.dueDate}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
                     }
                   />
@@ -215,8 +215,8 @@ export default function NewRiskPage() {
                 >
                   取消
                 </Button>
-                <Button type="submit" disabled={createMutation.isLoading}>
-                  {createMutation.isLoading ? '创建中...' : '创建风险'}
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? '创建中...' : '创建风险'}
                 </Button>
               </div>
             </form>

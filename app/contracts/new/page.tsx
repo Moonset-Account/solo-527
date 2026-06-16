@@ -30,12 +30,12 @@ export default function NewContractPage() {
 
   const { data: risk } = trpc.risk.get.useQuery(
     { id: riskId || '' },
-    { enabled: !!riskId }
+    { enabled: !!riskId } as any
   );
 
   const { data: checklist } = trpc.checklist.get.useQuery(
     { id: checklistId || '' },
-    { enabled: !!checklistId }
+    { enabled: !!checklistId } as any
   );
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function NewContractPage() {
                   <Input
                     id="title"
                     value={formData.title}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, title: e.target.value }))
                     }
                     placeholder="输入合同名称"
@@ -125,7 +125,7 @@ export default function NewContractPage() {
                   <Input
                     id="version"
                     value={formData.version}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, version: e.target.value }))
                     }
                     placeholder="例如：1.0"
@@ -138,7 +138,7 @@ export default function NewContractPage() {
                   <Select
                     id="status"
                     value={formData.status}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, status: e.target.value }))
                     }
                   >
@@ -154,7 +154,7 @@ export default function NewContractPage() {
                   <Textarea
                     id="content"
                     value={formData.content}
-                    onChange={(e) =>
+                    onChange={(e: any) =>
                       setFormData((prev) => ({ ...prev, content: e.target.value }))
                     }
                     placeholder="粘贴或输入合同内容"
@@ -172,8 +172,8 @@ export default function NewContractPage() {
                 >
                   取消
                 </Button>
-                <Button type="submit" disabled={createMutation.isLoading}>
-                  {createMutation.isLoading ? '创建中...' : '创建合同'}
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? '创建中...' : '创建合同'}
                 </Button>
               </div>
             </form>

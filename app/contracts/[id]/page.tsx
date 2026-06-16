@@ -35,7 +35,7 @@ export default function ContractDetailPage() {
 
   const { data: contract, isLoading } = trpc.contract.get.useQuery(
     { id: params.id as string },
-    { enabled: !!params.id }
+    { enabled: !!params.id } as any
   );
 
   const { data: currentUser } = trpc.user.me.useQuery();
@@ -311,7 +311,7 @@ export default function ContractDetailPage() {
           contract={contract}
           onClose={() => setShowEditModal(false)}
           onSubmit={(data) => updateMutation.mutate(data)}
-          isLoading={updateMutation.isLoading}
+          isLoading={updateMutation.isPending}
         />
       )}
 
@@ -320,7 +320,7 @@ export default function ContractDetailPage() {
           contractId={contract.id}
           onClose={() => setShowReviewModal(false)}
           onSubmit={(data) => addReviewMutation.mutate(data)}
-          isLoading={addReviewMutation.isLoading}
+          isLoading={addReviewMutation.isPending}
         />
       )}
 
@@ -329,7 +329,7 @@ export default function ContractDetailPage() {
           contract={contract}
           onClose={() => setShowNewVersionModal(false)}
           onSubmit={(data) => newVersionMutation.mutate(data)}
-          isLoading={newVersionMutation.isLoading}
+          isLoading={newVersionMutation.isPending}
         />
       )}
     </AppLayout>
@@ -369,7 +369,7 @@ function EditContractModal({
             <Label>合同名称 *</Label>
             <Input
               value={formData.title}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               required
@@ -380,7 +380,7 @@ function EditContractModal({
               <Label>版本号 *</Label>
               <Input
                 value={formData.version}
-                onChange={(e) =>
+                onChange={(e: any) =>
                   setFormData((prev) => ({ ...prev, version: e.target.value }))
                 }
                 required
@@ -390,7 +390,7 @@ function EditContractModal({
               <Label>状态</Label>
               <Select
                 value={formData.status}
-                onChange={(e) =>
+                onChange={(e: any) =>
                   setFormData((prev) => ({ ...prev, status: e.target.value }))
                 }
               >
@@ -405,7 +405,7 @@ function EditContractModal({
             <Label>合同内容</Label>
             <Textarea
               value={formData.content}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, content: e.target.value }))
               }
               rows={8}
@@ -456,7 +456,7 @@ function ReviewModal({
             <Label>审查意见 *</Label>
             <Textarea
               value={formData.opinion}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, opinion: e.target.value }))
               }
               placeholder="请输入审查意见"
@@ -468,7 +468,7 @@ function ReviewModal({
             <Label>审查结果</Label>
             <Select
               value={formData.status}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, status: e.target.value }))
               }
             >
@@ -527,7 +527,7 @@ function NewVersionModal({
             <Label>新版本号 *</Label>
             <Input
               value={formData.newVersion}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, newVersion: e.target.value }))
               }
               placeholder="例如：1.1"
@@ -538,7 +538,7 @@ function NewVersionModal({
             <Label>合同内容（可编辑）</Label>
             <Textarea
               value={formData.content}
-              onChange={(e) =>
+              onChange={(e: any) =>
                 setFormData((prev) => ({ ...prev, content: e.target.value }))
               }
               rows={8}

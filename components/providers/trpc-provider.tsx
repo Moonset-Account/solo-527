@@ -23,7 +23,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
 
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      transformer: superjson,
+      transformer: superjson as any,
       links: [
         loggerLink({
           enabled: (opts) =>

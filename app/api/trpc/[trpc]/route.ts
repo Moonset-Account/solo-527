@@ -9,7 +9,7 @@ const handler = (req: Request) =>
     router: appRouter,
     createContext: async () => {
       const user = await getCurrentUser();
-      return { user };
+      return { user: user! };
     },
     onError({ error }) {
       if (error.code === 'INTERNAL_SERVER_ERROR') {
