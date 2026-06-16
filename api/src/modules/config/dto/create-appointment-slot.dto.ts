@@ -1,8 +1,10 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsDateString } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsBoolean, Min, Max } from 'class-validator';
 
 export class CreateAppointmentSlotDto {
-  @IsString()
-  name: string;
+  @IsNumber()
+  @Min(0)
+  @Max(6)
+  dayOfWeek: number;
 
   @IsString()
   startTime: string;
@@ -12,17 +14,9 @@ export class CreateAppointmentSlotDto {
 
   @IsOptional()
   @IsNumber()
-  intervalMinutes?: number;
-
-  @IsOptional()
-  @IsNumber()
-  maxAppointments?: number;
+  interval?: number;
 
   @IsOptional()
   @IsBoolean()
-  isEnabled?: boolean;
-
-  @IsOptional()
-  @IsDateString()
-  effectiveDate?: string;
+  isActive?: boolean;
 }

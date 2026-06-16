@@ -5,17 +5,17 @@ export class ContractTemplate {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'name', length: 100 })
+  @Column({ name: 'name', length: 200 })
   name: string;
 
   @Column({ name: 'content', type: 'text' })
   content: string;
 
-  @Column({ name: 'version', length: 20 })
-  version: string;
+  @Column({ name: 'fields', type: 'jsonb', default: '[]' })
+  fields: string[];
 
-  @Column({ name: 'status', type: 'enum', enum: ['active', 'inactive'], default: 'active' })
-  status: 'active' | 'inactive';
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -5,23 +5,25 @@ export class SettlementRule {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'name', length: 100 })
+  @Column({ name: 'name', length: 200 })
   name: string;
 
-  @Column({ name: 'type', length: 50 })
-  type: string;
+  @Column({ name: 'project_type', length: 100, nullable: true })
+  projectType: string;
 
-  @Column({ name: 'amount', type: 'decimal', precision: 10, scale: 2 })
-  amount: number;
+  @Column({
+    name: 'cycle',
+    type: 'varchar',
+    length: 20,
+    default: 'monthly',
+  })
+  cycle: 'monthly' | 'quarterly' | 'yearly';
 
-  @Column({ name: 'calculation_method', length: 50, nullable: true })
-  calculationMethod: string;
+  @Column({ name: 'ratio', type: 'decimal', precision: 5, scale: 4, default: 1.0 })
+  ratio: number;
 
-  @Column({ name: 'description', type: 'text', nullable: true })
-  description: string;
-
-  @Column({ name: 'status', type: 'enum', enum: ['active', 'inactive'], default: 'active' })
-  status: 'active' | 'inactive';
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

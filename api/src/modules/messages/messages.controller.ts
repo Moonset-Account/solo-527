@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { MessagesService } from './messages.service.js';
 import { CreateMessageDto } from './dto/create-message.dto.js';
 import { UpdateMessageDto } from './dto/update-message.dto.js';
 import { MessageResultDto } from './dto/message-result.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 @Controller('messages')
 export class MessagesController {
@@ -14,8 +15,8 @@ export class MessagesController {
   }
 
   @Get()
-  findAll() {
-    return this.messagesService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.messagesService.findAll(query);
   }
 
   @Get(':id')

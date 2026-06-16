@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } 
 import { VacancyService } from './vacancy.service.js';
 import { CreateVacancyAlertConfigDto } from './dto/create-vacancy-alert-config.dto.js';
 import { UpdateVacancyAlertConfigDto } from './dto/update-vacancy-alert-config.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 @Controller('vacancy')
 export class VacancyController {
@@ -13,8 +14,8 @@ export class VacancyController {
   }
 
   @Get('alerts')
-  getAlerts() {
-    return this.vacancyService.getAlerts();
+  getAlerts(@Query() query: PaginationQueryDto) {
+    return this.vacancyService.getAlerts(query);
   }
 
   @Put('alerts/:id/read')
@@ -23,8 +24,8 @@ export class VacancyController {
   }
 
   @Get('alert-configs')
-  findAllAlertConfigs() {
-    return this.vacancyService.findAllAlertConfigs();
+  findAllAlertConfigs(@Query() query: PaginationQueryDto) {
+    return this.vacancyService.findAllAlertConfigs(query);
   }
 
   @Get('alert-configs/:id')

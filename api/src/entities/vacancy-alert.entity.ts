@@ -24,14 +24,26 @@ export class VacancyAlert {
 
   @Column({
     name: 'status',
-    type: 'enum',
-    enum: ['active', 'read', 'resolved'],
+    type: 'varchar',
+    length: 20,
     default: 'active',
   })
   status: 'active' | 'read' | 'resolved';
 
   @Column({ name: 'read_at', type: 'timestamp', nullable: true })
   readAt: Date;
+
+  @Column({ name: 'project_area', length: 200, nullable: true })
+  projectArea: string;
+
+  @Column({ name: 'is_read', type: 'boolean', default: false })
+  isRead: boolean;
+
+  @Column({ name: 'vacancy_rate', type: 'decimal', precision: 5, scale: 4, default: 0 })
+  vacancyRate: number;
+
+  @Column({ name: 'threshold', type: 'decimal', precision: 5, scale: 4, default: 0 })
+  threshold: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

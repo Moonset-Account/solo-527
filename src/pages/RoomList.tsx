@@ -1,24 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, LayoutGrid, List } from 'lucide-react';
+import { Search, Filter, LayoutGrid, List, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import StatusBadge from '@/components/StatusBadge';
-import type { Room, VacancyStats } from '@/types';
-
-const mockRooms: Room[] = [
-  { id: 1, name: '望京SOHO-A1201', address: '朝阳区望京SOHO A座1201', area: 85, unitType: '一室一厅', status: 'vacant', monthlyRent: 6500, images: [], vacantDays: 12, createdAt: '2026-01-01', updatedAt: '2026-06-16' },
-  { id: 2, name: '中关村-B0803', address: '海淀区中关村B座0803', area: 60, unitType: '单间', status: 'rented', monthlyRent: 4200, images: [], vacantDays: 0, createdAt: '2026-01-15', updatedAt: '2026-06-10' },
-  { id: 3, name: '望京SOHO-A1203', address: '朝阳区望京SOHO A座1203', area: 110, unitType: '两室一厅', status: 'maintenance', monthlyRent: 8800, images: [], vacantDays: 5, createdAt: '2026-02-01', updatedAt: '2026-06-14' },
-  { id: 4, name: '朝阳区-C0502', address: '朝阳区建国路C座0502', area: 75, unitType: '一室一厅', status: 'reserved', monthlyRent: 5800, images: [], vacantDays: 0, createdAt: '2026-03-01', updatedAt: '2026-06-12' },
-  { id: 5, name: '海淀区-D1101', address: '海淀区西二旗D座1101', area: 95, unitType: '两室一厅', status: 'vacant', monthlyRent: 7200, images: [], vacantDays: 25, createdAt: '2026-01-20', updatedAt: '2026-06-16' },
-  { id: 6, name: '望京SOHO-B0905', address: '朝阳区望京SOHO B座0905', area: 50, unitType: '单间', status: 'rented', monthlyRent: 3500, images: [], vacantDays: 0, createdAt: '2026-04-01', updatedAt: '2026-06-08' },
-];
-
-const mockVacancy: VacancyStats[] = Array.from({ length: 30 }, (_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() - (29 - i));
-  return { date: d.toISOString().slice(0, 10), totalRooms: 120, vacantRooms: 14 + Math.floor(Math.random() * 8), vacancyRate: (14 + Math.floor(Math.random() * 8)) / 120 };
-});
+import { useRoomStore } from '@/stores/roomStore';
+import { useVacancyStore } from '@/stores/vacancyStore';
+import type { Room } from '@/types';
 
 const statusOptions = [
   { value: '', label: '全部状态' },
@@ -86,12 +73,25 @@ export default function RoomList() {
   const [unitType, setUnitType] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
 
-  const filtered = mockRooms.filter((r) => {
-    if (statusFilter && r.status !== statusFilter) return false;
-    if (areaSearch && !r.address.includes(areaSearch) && !r.name.includes(areaSearch)) return false;
-    if (unitType && r.unitType !== unitType) return false;
-    return true;
-  });
+  const { rooms, loading, fetchRooms } = useRoomStore();
+  const { stats, loading: statsLoading, fetchStats } = useVacancyStore();
+
+  useEffect(() => {
+    fetchRooms({ status: statusFilter, keyword: areaSearch, unitType });
+    fetchStats(30);
+  }, [statusFilter, areaSearch, unitType]);
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setAreaSearch(value);
+  };
+
+  const handleUnitTypeChange = (value: string) => {
+    setUnitType(value);
+  };
 
   return (
     <div className="space-y-4">
@@ -118,12 +118,12 @@ export default function RoomList() {
           <Filter size={16} className="text-[#94A3B8]" />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusChange(e.target.value)}
             className="bg-transparent text-sm text-[#F1F5F9] outline-none"
           >
             {statusOptions.map((o) => (
-              <option key={o.value} value={o.value} className="bg-[#1E293B]">{o.label}</option>
-            ))}
+            <option key={o.value} value={o.value} className="bg-[#1E293B]">{o.label}</option>
+          ))}
           </select>
         </div>
         <div className="flex items-center gap-2 bg-[#1E293B] rounded-lg px-3 py-2 border border-[#334155]">
@@ -132,13 +132,13 @@ export default function RoomList() {
             type="text"
             placeholder="搜索区域/地址"
             value={areaSearch}
-            onChange={(e) => setAreaSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="bg-transparent text-sm text-[#F1F5F9] outline-none placeholder:text-[#64748B] w-40"
           />
         </div>
         <select
           value={unitType}
-          onChange={(e) => setUnitType(e.target.value)}
+          onChange={(e) => handleUnitTypeChange(e.target.value)}
           className="bg-[#1E293B] rounded-lg px-3 py-2 border border-[#334155] text-sm text-[#F1F5F9] outline-none"
         >
           <option value="" className="bg-[#1E293B]">全部户型</option>
@@ -151,55 +151,67 @@ export default function RoomList() {
       {viewMode === 'table' ? (
         <>
           <div className="bg-[#1E293B] rounded-lg border border-[#334155] overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#334155]">
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">房源名称</th>
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">地址</th>
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">面积</th>
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">户型</th>
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">月租</th>
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">状态</th>
-                  <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">空置天数</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((room) => (
-                  <tr key={room.id} className="border-b border-[#334155]/50 hover:bg-[#334155]/30">
-                    <td className="px-4 py-3">
-                      <Link to={`/rooms/${room.id}`} className="text-[#F97316] hover:underline">{room.name}</Link>
-                    </td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">{room.address}</td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">{room.area}㎡</td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">{room.unitType}</td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">¥{room.monthlyRent}</td>
-                    <td className="px-4 py-3"><StatusBadge status={room.status} /></td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">
-                      {room.vacantDays > 0 ? (
-                        <span className={room.vacantDays > 15 ? 'text-rose-400 font-medium' : ''}>{room.vacantDays}天</span>
-                      ) : '-'}
-                    </td>
+            {loading ? (
+              <div className="h-64 flex items-center justify-center">
+                <Loader2 size={24} className="animate-spin text-[#F97316]" />
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#334155]">
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">房源名称</th>
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">地址</th>
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">面积</th>
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">户型</th>
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">月租</th>
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">状态</th>
+                    <th className="px-4 py-3 text-left text-[#94A3B8] font-medium">空置天数</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rooms.map((room) => (
+                    <tr key={room.id} className="border-b border-[#334155]/50 hover:bg-[#334155]/30">
+                      <td className="px-4 py-3">
+                        <Link to={`/rooms/${room.id}`} className="text-[#F97316] hover:underline">{room.name}</Link>
+                      </td>
+                      <td className="px-4 py-3 text-[#CBD5E1]">{room.address}</td>
+                      <td className="px-4 py-3 text-[#CBD5E1]">{room.area}㎡</td>
+                      <td className="px-4 py-3 text-[#CBD5E1]">{room.unitType}</td>
+                      <td className="px-4 py-3 text-[#CBD5E1]">¥{room.monthlyRent}</td>
+                      <td className="px-4 py-3"><StatusBadge status={room.status} /></td>
+                      <td className="px-4 py-3 text-[#CBD5E1]">
+                        {room.vacantDays > 0 ? (
+                          <span className={room.vacantDays > 15 ? 'text-rose-400 font-medium' : ''}>{room.vacantDays}天</span>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
           <div className="bg-[#1E293B] rounded-lg p-5 border border-[#334155]">
             <h3 className="text-sm font-medium text-[#F1F5F9] mb-3">空置率趋势 (近30天)</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={mockVacancy}>
-                <defs>
-                  <linearGradient id="roomVacancy" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F97316" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={{ stroke: '#334155' }} tickLine={false} />
-                <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 8 }} formatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
-                <Area type="monotone" dataKey="vacancyRate" stroke="#F97316" fill="url(#roomVacancy)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {statsLoading ? (
+              <div className="h-40 flex items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-[#64748B]" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={stats}>
+                  <defs>
+                    <linearGradient id="roomVacancy" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F97316" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={{ stroke: '#334155' }} tickLine={false} />
+                  <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 8 }} formatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
+                  <Area type="monotone" dataKey="vacancyRate" stroke="#F97316" fill="url(#roomVacancy)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </>
       ) : (
@@ -207,19 +219,25 @@ export default function RoomList() {
           {kanbanColumns.map((col) => (
             <div key={col.status} className={`rounded-lg border-t-2 ${col.color} bg-[#1E293B] border border-[#334155]`}>
               <div className="px-3 py-2 border-b border-[#334155]">
-                <span className="text-sm font-medium text-[#F1F5F9]">{col.label}</span>
-                <span className="ml-2 text-xs text-[#94A3B8]">
-                  {filtered.filter((r) => r.status === col.status).length}
-                </span>
-              </div>
-              <div className="p-2 space-y-2">
-                {filtered
-                  .filter((r) => r.status === col.status)
-                  .map((room) => (
-                    <KanbanCard key={room.id} room={room} />
-                  ))}
-              </div>
+              <span className="text-sm font-medium text-[#F1F5F9]">{col.label}</span>
+              <span className="ml-2 text-xs text-[#94A3B8]">
+                {rooms.filter((r) => r.status === col.status).length}
+              </span>
             </div>
+            <div className="p-2 space-y-2">
+              {loading ? (
+                <div className="py-8 flex justify-center">
+                  <Loader2 size={18} className="animate-spin text-[#64748B]" />
+                </div>
+              ) : (
+                  rooms
+                    .filter((r) => r.status === col.status)
+                    .map((room) => (
+                      <KanbanCard key={room.id} room={room} />
+                    ))
+                )}
+            </div>
+          </div>
           ))}
         </div>
       )}

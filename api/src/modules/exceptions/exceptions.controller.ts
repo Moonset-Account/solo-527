@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { ExceptionsService } from './exceptions.service.js';
 import { CreateExceptionDto } from './dto/create-exception.dto.js';
 import { UpdateExceptionDto } from './dto/update-exception.dto.js';
 import { ResolveExceptionDto } from './dto/resolve-exception.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 @Controller('exceptions')
 export class ExceptionsController {
@@ -14,8 +15,8 @@ export class ExceptionsController {
   }
 
   @Get()
-  findAll() {
-    return this.exceptionsService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.exceptionsService.findAll(query);
   }
 
   @Get(':id')

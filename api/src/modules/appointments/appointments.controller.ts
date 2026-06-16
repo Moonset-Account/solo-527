@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto.js';
+import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 @Controller('appointments')
 export class AppointmentsController {
@@ -13,8 +15,8 @@ export class AppointmentsController {
   }
 
   @Get()
-  findAll() {
-    return this.appointmentsService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.appointmentsService.findAll(query);
   }
 
   @Get(':id')
@@ -25,6 +27,11 @@ export class AppointmentsController {
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAppointmentDto) {
     return this.appointmentsService.update(id, dto);
+  }
+
+  @Put(':id/status')
+  updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAppointmentStatusDto) {
+    return this.appointmentsService.updateStatus(id, dto.status);
   }
 
   @Delete(':id')

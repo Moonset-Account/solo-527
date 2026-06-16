@@ -1,33 +1,34 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, IsArray } from 'class-validator';
 
 export class CreateRoomDto {
   @IsString()
-  roomNumber: string;
+  name: string;
 
   @IsString()
-  building: string;
-
-  @IsNumber()
-  floor: number;
-
-  @IsOptional()
-  @IsString()
-  unit?: string;
+  address: string;
 
   @IsNumber()
   area: number;
 
-  @IsNumber()
-  rentPrice: number;
-
-  @IsNumber()
-  deposit: number;
+  @IsString()
+  unitType: string;
 
   @IsOptional()
   @IsEnum(['vacant', 'rented', 'maintenance', 'reserved'])
   status?: 'vacant' | 'rented' | 'maintenance' | 'reserved';
 
+  @IsNumber()
+  monthlyRent: number;
+
   @IsOptional()
-  @IsString()
-  description?: string;
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  vacantDays?: number;
+
+  @IsNumber()
+  ownerId: number;
 }

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { WorkOrdersService } from './work-orders.service.js';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto.js';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto.js';
 import { FollowUpDto } from './dto/follow-up.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 @Controller('work-orders')
 export class WorkOrdersController {
@@ -14,8 +15,8 @@ export class WorkOrdersController {
   }
 
   @Get()
-  findAll() {
-    return this.workOrdersService.findAll();
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.workOrdersService.findAll(query);
   }
 
   @Get(':id')

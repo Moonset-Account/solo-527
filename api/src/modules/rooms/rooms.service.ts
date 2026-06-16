@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Room } from '../../entities/room.entity.js';
 import { CreateRoomDto } from './dto/create-room.dto.js';
 import { UpdateRoomDto } from './dto/update-room.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { PaginatedResult } from '../../common/types/paginated-result.type.js';
 
 @Injectable()
 export class RoomsService {
@@ -17,8 +19,24 @@ export class RoomsService {
     return this.roomRepo.save(room);
   }
 
-  async findAll(): Promise<Room[]> {
-    return this.roomRepo.find({ order: { id: 'ASC' } });
+  async findAll(query: PaginationQueryDto): Promise<PaginatedResult<Room>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const [data, total] = await this.roomRepo.findAndCount({
+      where,
+      order: { id: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return { data, total, page, limit };
   }
 
   async findOne(id: number): Promise<Room> {

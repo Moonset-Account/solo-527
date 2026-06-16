@@ -7,6 +7,8 @@ import { CreateAppointmentSlotDto } from './dto/create-appointment-slot.dto.js';
 import { UpdateAppointmentSlotDto } from './dto/update-appointment-slot.dto.js';
 import { CreateWorkflowNodeDto } from './dto/create-workflow-node.dto.js';
 import { UpdateWorkflowNodeDto } from './dto/update-workflow-node.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { PaginatedResult } from '../../common/types/paginated-result.type.js';
 
 @Injectable()
 export class ConfigService {
@@ -17,8 +19,24 @@ export class ConfigService {
     private readonly workflowNodeRepo: Repository<WorkflowNodeConfig>,
   ) {}
 
-  async findAllSlots(): Promise<AppointmentSlotConfig[]> {
-    return this.slotConfigRepo.find({ order: { id: 'ASC' } });
+  async findAllSlots(query: PaginationQueryDto): Promise<PaginatedResult<AppointmentSlotConfig>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.isActive = query.status === 'active' ? true : false;
+    }
+
+    const [data, total] = await this.slotConfigRepo.findAndCount({
+      where,
+      order: { id: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return { data, total, page, limit };
   }
 
   async findOneSlot(id: number): Promise<AppointmentSlotConfig> {
@@ -43,8 +61,24 @@ export class ConfigService {
     await this.slotConfigRepo.remove(slot);
   }
 
-  async findAllWorkflowNodes(): Promise<WorkflowNodeConfig[]> {
-    return this.workflowNodeRepo.find({ order: { orderNum: 'ASC' } });
+  async findAllWorkflowNodes(query: PaginationQueryDto): Promise<PaginatedResult<WorkflowNodeConfig>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.isActive = query.status === 'active' ? true : false;
+    }
+
+    const [data, total] = await this.workflowNodeRepo.findAndCount({
+      where,
+      order: { nodeOrder: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return { data, total, page, limit };
   }
 
   async findOneWorkflowNode(id: number): Promise<WorkflowNodeConfig> {

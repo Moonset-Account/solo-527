@@ -1,26 +1,25 @@
 import { IsString, IsEnum, IsNumber, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateWorkflowNodeDto {
-  @IsString()
-  name: string;
+  @IsEnum(['contract', 'settlement', 'appointment'])
+  processType: 'contract' | 'settlement' | 'appointment';
 
   @IsString()
-  workflowType: string;
-
-  @IsEnum(['start', 'end', 'approve', 'notify', 'condition'])
-  nodeType: 'start' | 'end' | 'approve' | 'notify' | 'condition';
-
-  @IsString()
-  nodeKey: string;
-
-  @IsOptional()
-  config?: Record<string, any>;
+  nodeName: string;
 
   @IsOptional()
   @IsNumber()
-  orderNum?: number;
+  nodeOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  approverRole?: string;
 
   @IsOptional()
   @IsBoolean()
-  isEnabled?: boolean;
+  isRequired?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

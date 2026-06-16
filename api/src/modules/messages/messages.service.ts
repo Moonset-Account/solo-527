@@ -5,6 +5,8 @@ import { MessageRecord } from '../../entities/message-record.entity.js';
 import { CreateMessageDto } from './dto/create-message.dto.js';
 import { UpdateMessageDto } from './dto/update-message.dto.js';
 import { MessageResultDto } from './dto/message-result.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { PaginatedResult } from '../../common/types/paginated-result.type.js';
 
 @Injectable()
 export class MessagesService {
@@ -21,8 +23,25 @@ export class MessagesService {
     return this.messageRepo.save(message);
   }
 
-  async findAll(): Promise<MessageRecord[]> {
-    return this.messageRepo.find({ relations: ['user'], order: { id: 'ASC' } });
+  async findAll(query: PaginationQueryDto): Promise<PaginatedResult<MessageRecord>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const [data, total] = await this.messageRepo.findAndCount({
+      where,
+      relations: ['user'],
+      order: { id: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return { data, total, page, limit };
   }
 
   async findOne(id: number): Promise<MessageRecord> {

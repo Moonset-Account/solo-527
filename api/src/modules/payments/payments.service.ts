@@ -5,6 +5,8 @@ import { PaymentRecord } from '../../entities/payment-record.entity.js';
 import { CreatePaymentDto } from './dto/create-payment.dto.js';
 import { UpdatePaymentDto } from './dto/update-payment.dto.js';
 import { PaymentResultDto } from './dto/payment-result.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { PaginatedResult } from '../../common/types/paginated-result.type.js';
 
 @Injectable()
 export class PaymentsService {
@@ -21,8 +23,25 @@ export class PaymentsService {
     return this.paymentRepo.save(payment);
   }
 
-  async findAll(): Promise<PaymentRecord[]> {
-    return this.paymentRepo.find({ relations: ['settlement', 'contract'], order: { id: 'ASC' } });
+  async findAll(query: PaginationQueryDto): Promise<PaginatedResult<PaymentRecord>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const [data, total] = await this.paymentRepo.findAndCount({
+      where,
+      relations: ['settlement', 'contract'],
+      order: { id: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return { data, total, page, limit };
   }
 
   async findOne(id: number): Promise<PaymentRecord> {

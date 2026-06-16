@@ -1,17 +1,18 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { ConfigService } from './config.service.js';
 import { CreateAppointmentSlotDto } from './dto/create-appointment-slot.dto.js';
 import { UpdateAppointmentSlotDto } from './dto/update-appointment-slot.dto.js';
 import { CreateWorkflowNodeDto } from './dto/create-workflow-node.dto.js';
 import { UpdateWorkflowNodeDto } from './dto/update-workflow-node.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 @Controller('config')
 export class ConfigController {
   constructor(private readonly configService: ConfigService) {}
 
   @Get('appointment-slots')
-  findAllSlots() {
-    return this.configService.findAllSlots();
+  findAllSlots(@Query() query: PaginationQueryDto) {
+    return this.configService.findAllSlots(query);
   }
 
   @Get('appointment-slots/:id')
@@ -35,8 +36,8 @@ export class ConfigController {
   }
 
   @Get('workflow-nodes')
-  findAllWorkflowNodes() {
-    return this.configService.findAllWorkflowNodes();
+  findAllWorkflowNodes(@Query() query: PaginationQueryDto) {
+    return this.configService.findAllWorkflowNodes(query);
   }
 
   @Get('workflow-nodes/:id')

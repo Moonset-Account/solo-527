@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { WorkOrder } from '../../entities/work-order.entity.js';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto.js';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto.js';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
+import { PaginatedResult } from '../../common/types/paginated-result.type.js';
 
 @Injectable()
 export class WorkOrdersService {
@@ -17,8 +19,25 @@ export class WorkOrdersService {
     return this.workOrderRepo.save(workOrder);
   }
 
-  async findAll(): Promise<WorkOrder[]> {
-    return this.workOrderRepo.find({ relations: ['room', 'user', 'assignedUser'], order: { id: 'ASC' } });
+  async findAll(query: PaginationQueryDto): Promise<PaginatedResult<WorkOrder>> {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const [data, total] = await this.workOrderRepo.findAndCount({
+      where,
+      relations: ['room', 'user', 'assignedUser'],
+      order: { id: 'ASC' },
+      skip,
+      take: limit,
+    });
+
+    return { data, total, page, limit };
   }
 
   async findOne(id: number): Promise<WorkOrder> {
