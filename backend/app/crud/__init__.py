@@ -1,0 +1,20 @@
+from .base import CRUDBase
+from .. import models
+
+user = CRUDBase(models.User)
+material = CRUDBase(models.Material)
+material_category = CRUDBase(models.MaterialCategory)
+monthly_usage = CRUDBase(models.MonthlyUsage)
+supplier = CRUDBase(models.Supplier)
+supplier_risk_log = CRUDBase(models.SupplierRiskLog)
+quote = CRUDBase(models.Quote)
+quote_comparison = CRUDBase(models.QuoteComparison)
+purchase_request = CRUDBase(models.PurchaseRequest)
+purchase_order = CRUDBase(models.PurchaseOrder)
+purchase_order_item = CRUDBase(models.PurchaseOrderItem)
+framework_agreement = CRUDBase(models.FrameworkAgreement)
+agreement_item = CRUDBase(models.AgreementItem)
+audit_log = CRUDBase(models.AuditLog)
+delivery_alert = CRUDBase(models.DeliveryAlert)
+notification = CRUDBase(models.Notification)
+dashboard_record = CRUDBase(models.DashboardRecord)

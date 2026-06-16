@@ -1,0 +1,9 @@
+import { create, NButton, NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NDatePicker, NTable, NDataTable, NDialogProvider, NMessageProvider, NNotificationProvider, NConfigProvider, NLayout, NLayoutHeader, NLayoutSider, NLayoutContent, NLayoutFooter, NMenu, NBreadcrumb, NBreadcrumbItem, NDropdown, NIcon, NAvatar, NTag, NBadge, NEmpty, NSpace, NGrid, NGridItem, NStatistic, NProgress, NAlert, NModal, NDrawer, NDrawerContent, NPopconfirm, NSpin, NUpload, NSteps, NStep, NDescriptions, NDescriptionsItem, NDivider, NTabs, NTabPane, NPageHeader, NThing, NListItem, NList, NRate, NColorPicker, NSlider, NSwitch, NCheckbox, NRadio, NRadioGroup, NTimePicker, NTree, NTransfer, NLog, NCode, NElement, NH1, NH2, NH3, NText, NP, NStrong, NEllipsis, NResult, NBackTop, NCalendar, NImage, NCascader, NMention, NAutoComplete, NCountdown, NNumberAnimation, NGradientText, NLoadingBarProvider, NScrollbar, NGlobalStyle } from 'naive-ui'
+
+const naive = create({
+  components: [NButton, NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NDatePicker, NTable, NDataTable, NDialogProvider, NMessageProvider, NNotificationProvider, NConfigProvider, NLayout, NLayoutHeader, NLayoutSider, NLayoutContent, NLayoutFooter, NMenu, NBreadcrumb, NBreadcrumbItem, NDropdown, NIcon, NAvatar, NTag, NBadge, NEmpty, NSpace, NGrid, NGridItem, NStatistic, NProgress, NAlert, NModal, NDrawer, NDrawerContent, NPopconfirm, NSpin, NUpload, NSteps, NStep, NDescriptions, NDescriptionsItem, NDivider, NTabs, NTabPane, NPageHeader, NThing, NListItem, NList, NRate, NColorPicker, NSlider, NSwitch, NCheckbox, NRadio, NRadioGroup, NTimePicker, NTree, NTransfer, NLog, NCode, NElement, NH1, NH2, NH3, NText, NP, NStrong, NEllipsis, NResult, NBackTop, NCalendar, NImage, NCascader, NMention, NAutoComplete, NCountdown, NNumberAnimation, NGradientText, NLoadingBarProvider, NScrollbar, NGlobalStyle]
+})
+
+export default defineNuxtPlugin((nuxtApp) => {
+  nuxtApp.vueApp.use(naive)
+})
