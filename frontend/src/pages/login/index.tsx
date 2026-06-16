@@ -3,6 +3,7 @@ import { Form, Input, Button, Card, message, Select } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { setToken, setUserInfo } from '@/utils/auth'
+import { login } from '@/api'
 import type { LoginParams, UserRole } from '@/types'
 
 const roleOptions = [
@@ -22,21 +23,26 @@ const Login = () => {
   const navigate = useNavigate()
   const [form] = Form.useForm()
 
-  const onFinish = (values: LoginParams & { role: UserRole }) => {
+  const onFinish = async (values: LoginParams & { role: UserRole }) => {
     setLoading(true)
-    setTimeout(() => {
-      setToken('mock-token-' + Date.now())
+    try {
+      const result = await login(values)
+      setToken(result.token)
       setUserInfo({
-        id: 1,
-        username: values.username,
-        nickname: values.username,
-        avatar: '',
-        roles: [values.role]
+        id: result.user.id,
+        username: result.user.username,
+        role: result.user.role,
+        gridId: result.user.gridId,
+        realName: result.user.realName,
+        phone: result.user.phone
       })
       message.success('登录成功')
+      navigate(dashboardMap[result.user.role])
+    } catch {
+      message.error('登录失败，请检查用户名和密码')
+    } finally {
       setLoading(false)
-      navigate(dashboardMap[values.role])
-    }, 1000)
+    }
   }
 
   return (

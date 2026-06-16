@@ -62,6 +62,8 @@ public class ClosureReportDto
     public double NormalCloseRate { get; set; }
     public double OverallCloseRate { get; set; }
     public double AvgProcessingHours { get; set; }
+    public int PendingVisitCount { get; set; }
+    public double PendingVisitRate { get; set; }
 }
 
 public class ReportQueryDto

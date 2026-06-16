@@ -39,9 +39,9 @@ export const hasRole = (role: UserRole | UserRole[]): boolean => {
   const user = getUserInfo()
   if (!user) return false
   if (Array.isArray(role)) {
-    return role.some(r => user.roles.includes(r))
+    return role.includes(user.role)
   }
-  return user.roles.includes(role)
+  return user.role === role
 }
 
 export const clearAuth = (): void => {

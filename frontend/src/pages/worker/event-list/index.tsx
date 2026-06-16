@@ -3,23 +3,24 @@ import { Card, Table, Tag, Select, Input, Button, Space, Form } from 'antd'
 import { PlusOutlined, SearchOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getEventList } from '@/api'
-import type { GridEvent, EventStatus, EventCategory, PageParams } from '@/types'
+import type { GridEvent, EventStatus, EventType } from '@/types'
 import dayjs from 'dayjs'
 
 const statusMap: Record<EventStatus, { label: string; color: string }> = {
-  pending: { label: '待处理', color: 'orange' },
-  processing: { label: '处理中', color: 'blue' },
-  pending_review: { label: '待复查', color: 'purple' },
-  pending_visit: { label: '待回访', color: 'cyan' },
-  completed: { label: '已完成', color: 'green' },
-  rejected: { label: '已驳回', color: 'red' }
+  reported: { label: '已上报', color: 'orange' },
+  assigned: { label: '已指派', color: 'blue' },
+  processing: { label: '处理中', color: 'geekblue' },
+  reviewing: { label: '待复查', color: 'purple' },
+  following_up: { label: '跟进中', color: 'cyan' },
+  closed: { label: '已关闭', color: 'green' },
+  abnormal_closed: { label: '异常关闭', color: 'red' }
 }
 
-const categoryMap: Record<EventCategory, string> = {
-  environment: '环境卫生',
-  security: '治安安全',
-  facility: '设施损坏',
-  civil: '民事纠纷',
+const eventTypeMap: Record<EventType, string> = {
+  environmental_hygiene: '环境卫生',
+  security_issue: '治安安全',
+  facility_damage: '设施损坏',
+  dispute_resolution: '民事纠纷',
   other: '其他'
 }
 
@@ -31,19 +32,23 @@ const EventList = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
 
   useEffect(() => {
-    loadData({ page: 1, pageSize: 10 })
+    loadData(1, 10)
   }, [])
 
-  const loadData = async (params: PageParams) => {
+  const loadData = async (pageIndex?: number, pageSize?: number) => {
     setLoading(true)
     try {
       const values = form.getFieldsValue()
-      const res = await getEventList({ ...params, ...values })
-      setData(res.data.list)
+      const res = await getEventList({
+        pageIndex: pageIndex || pagination.current,
+        pageSize: pageSize || pagination.pageSize,
+        ...values
+      })
+      setData(res.items)
       setPagination({
-        current: res.data.page,
-        pageSize: res.data.pageSize,
-        total: res.data.total
+        current: res.pageIndex,
+        pageSize: res.pageSize,
+        total: res.totalCount
       })
     } finally {
       setLoading(false)
@@ -51,12 +56,12 @@ const EventList = () => {
   }
 
   const handleSearch = () => {
-    loadData({ page: 1, pageSize: pagination.pageSize })
+    loadData(1, pagination.pageSize)
   }
 
   const handleReset = () => {
     form.resetFields()
-    loadData({ page: 1, pageSize: pagination.pageSize })
+    loadData(1, pagination.pageSize)
   }
 
   const columns = [
@@ -72,21 +77,21 @@ const EventList = () => {
     },
     {
       title: '类型',
-      dataIndex: 'category',
+      dataIndex: 'eventType',
       width: 100,
-      render: (category: EventCategory) => categoryMap[category]
+      render: (type: EventType) => eventTypeMap[type]
     },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
       render: (status: EventStatus) => (
-        <Tag color={statusMap[status].color}>{statusMap[status].label}</Tag>
+        <Tag color={statusMap[status]?.color || 'default'}>{statusMap[status]?.label || status}</Tag>
       )
     },
     {
       title: '发生地点',
-      dataIndex: 'address',
+      dataIndex: 'locationAddress',
       ellipsis: true,
       render: (address: string) => (
         <span>
@@ -98,7 +103,8 @@ const EventList = () => {
     {
       title: '上报人',
       dataIndex: 'reporterName',
-      width: 100
+      width: 100,
+      render: (name?: string) => name || '-'
     },
     {
       title: '上报时间',
@@ -141,9 +147,9 @@ const EventList = () => {
             ))}
           </Select>
         </Form.Item>
-        <Form.Item name="category">
+        <Form.Item name="eventType">
           <Select placeholder="选择类型" allowClear style={{ width: 150 }}>
-            {Object.entries(categoryMap).map(([key, val]) => (
+            {Object.entries(eventTypeMap).map(([key, val]) => (
               <Select.Option key={key} value={key}>{val}</Select.Option>
             ))}
           </Select>
@@ -169,7 +175,7 @@ const EventList = () => {
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => loadData({ page, pageSize })
+          onChange: (page, pageSize) => loadData(page, pageSize)
         }}
       />
     </Card>

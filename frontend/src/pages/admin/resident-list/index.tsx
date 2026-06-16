@@ -9,8 +9,6 @@ import {
   Space,
   Form,
   Modal,
-  DatePicker,
-  Radio,
   message,
   Popconfirm
 } from 'antd'
@@ -19,17 +17,18 @@ import {
   SearchOutlined,
   EditOutlined,
   DeleteOutlined,
-  ImportOutlined
+  ImportOutlined,
+  ExportOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import {
   getResidentList,
   createResident,
   updateResident,
-  deleteResident
+  deleteResident,
+  exportResidents
 } from '@/api'
-import type { Resident, PageParams, ResidentFormData } from '@/types'
-import dayjs from 'dayjs'
+import type { Resident, ResidentFormData } from '@/types'
 
 const ResidentList = () => {
   const navigate = useNavigate()
@@ -43,19 +42,23 @@ const ResidentList = () => {
   const [submitLoading, setSubmitLoading] = useState(false)
 
   useEffect(() => {
-    loadData({ page: 1, pageSize: 10 })
+    loadData(1, 10)
   }, [])
 
-  const loadData = async (params: PageParams) => {
+  const loadData = async (pageIndex?: number, pageSize?: number) => {
     setLoading(true)
     try {
       const values = searchForm.getFieldsValue()
-      const res = await getResidentList({ ...params, ...values })
-      setData(res.data.list)
+      const res = await getResidentList({
+        pageIndex: pageIndex || pagination.current,
+        pageSize: pageSize || pagination.pageSize,
+        ...values
+      })
+      setData(res.items)
       setPagination({
-        current: res.data.page,
-        pageSize: res.data.pageSize,
-        total: res.data.total
+        current: res.pageIndex,
+        pageSize: res.pageSize,
+        total: res.totalCount
       })
     } finally {
       setLoading(false)
@@ -63,12 +66,22 @@ const ResidentList = () => {
   }
 
   const handleSearch = () => {
-    loadData({ page: 1, pageSize: pagination.pageSize })
+    loadData(1, pagination.pageSize)
   }
 
   const handleReset = () => {
     searchForm.resetFields()
-    loadData({ page: 1, pageSize: pagination.pageSize })
+    loadData(1, pagination.pageSize)
+  }
+
+  const handleExport = async () => {
+    try {
+      const values = searchForm.getFieldsValue()
+      await exportResidents(values)
+      message.success('导出成功')
+    } catch {
+      message.error('导出失败')
+    }
   }
 
   const openAddModal = () => {
@@ -79,10 +92,7 @@ const ResidentList = () => {
 
   const openEditModal = (record: Resident) => {
     setEditingId(record.id)
-    modalForm.setFieldsValue({
-      ...record,
-      birthDate: record.birthDate ? dayjs(record.birthDate) : undefined
-    } as any)
+    modalForm.setFieldsValue(record as any)
     setModalOpen(true)
   }
 
@@ -90,19 +100,15 @@ const ResidentList = () => {
     try {
       const values = await modalForm.validateFields()
       setSubmitLoading(true)
-      const submitData: ResidentFormData = {
-        ...values,
-        birthDate: values.birthDate ? dayjs(values.birthDate).format('YYYY-MM-DD') : ''
-      }
       if (editingId) {
-        await updateResident(editingId, submitData)
+        await updateResident(editingId, values)
         message.success('编辑成功')
       } else {
-        await createResident(submitData)
+        await createResident(values)
         message.success('新增成功')
       }
       setModalOpen(false)
-      loadData({ page: pagination.current, pageSize: pagination.pageSize })
+      loadData(pagination.current, pagination.pageSize)
     } finally {
       setSubmitLoading(false)
     }
@@ -112,7 +118,7 @@ const ResidentList = () => {
     try {
       await deleteResident(id)
       message.success('删除成功')
-      loadData({ page: pagination.current, pageSize: pagination.pageSize })
+      loadData(pagination.current, pagination.pageSize)
     } catch {}
   }
 
@@ -121,12 +127,6 @@ const ResidentList = () => {
       title: '姓名',
       dataIndex: 'name',
       width: 100
-    },
-    {
-      title: '性别',
-      dataIndex: 'gender',
-      width: 80,
-      render: (gender: string) => (gender === 'male' ? '男' : '女')
     },
     {
       title: '身份证号',
@@ -139,37 +139,36 @@ const ResidentList = () => {
       width: 130
     },
     {
-      title: '出生日期',
-      dataIndex: 'birthDate',
-      width: 110
-    },
-    {
-      title: '户籍类型',
-      dataIndex: 'householdType',
-      width: 100,
-      render: (type: string) => (
-        <Tag color={type === 'local' ? 'blue' : 'green'}>
-          {type === 'local' ? '本地户籍' : '流动人口'}
-        </Tag>
-      )
-    },
-    {
       title: '住址',
       dataIndex: 'address',
       ellipsis: true
     },
     {
-      title: '楼栋信息',
-      width: 150,
-      render: (_: any, record: Resident) => (
-        <span>{record.building}栋 {record.unit}单元 {record.room}室</span>
+      title: '所属网格',
+      dataIndex: 'gridName',
+      width: 120,
+      render: (name?: string) => name || '-'
+    },
+    {
+      title: '户籍类型',
+      dataIndex: 'householdType',
+      width: 100,
+      render: (type?: string) => (
+        type ? <Tag color={type === 'local' ? 'blue' : 'green'}>{type === 'local' ? '本地户籍' : '流动人口'}</Tag> : '-'
       )
     },
     {
-      title: '特殊人群',
-      dataIndex: 'specialType',
-      width: 100,
-      render: (type?: string) => type ? <Tag color="red">{type}</Tag> : '-'
+      title: '标签',
+      dataIndex: 'tags',
+      width: 150,
+      render: (tags?: string[]) => tags?.length ? tags.map(t => <Tag key={t}>{t}</Tag>) : '-'
+    },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      width: 120,
+      ellipsis: true,
+      render: (remark?: string) => remark || '-'
     },
     {
       title: '操作',
@@ -196,6 +195,9 @@ const ResidentList = () => {
       title="居民信息管理"
       extra={
         <Space>
+          <Button icon={<ExportOutlined />} onClick={handleExport}>
+            导出
+          </Button>
           <Button icon={<ImportOutlined />} onClick={() => navigate('/admin/resident-import')}>
             批量导入
           </Button>
@@ -215,8 +217,8 @@ const ResidentList = () => {
             <Select.Option value="migrant">流动人口</Select.Option>
           </Select>
         </Form.Item>
-        <Form.Item name="building">
-          <Input placeholder="楼栋" allowClear style={{ width: 120 }} />
+        <Form.Item name="gridId">
+          <Input placeholder="网格ID" allowClear style={{ width: 120 }} />
         </Form.Item>
         <Form.Item>
           <Space>
@@ -233,13 +235,13 @@ const ResidentList = () => {
         columns={columns}
         dataSource={data}
         rowKey="id"
-        scroll={{ x: 1300 }}
+        scroll={{ x: 1200 }}
         pagination={{
           ...pagination,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => loadData({ page, pageSize })
+          onChange: (page, pageSize) => loadData(page, pageSize)
         }}
       />
 
@@ -263,17 +265,6 @@ const ResidentList = () => {
               <Input placeholder="请输入姓名" />
             </Form.Item>
             <Form.Item
-              label="性别"
-              name="gender"
-              rules={[{ required: true, message: '请选择性别' }]}
-              style={{ width: 'calc(50% - 8px)', marginBottom: 16 }}
-            >
-              <Radio.Group>
-                <Radio value="male">男</Radio>
-                <Radio value="female">女</Radio>
-              </Radio.Group>
-            </Form.Item>
-            <Form.Item
               label="身份证号"
               name="idCard"
               rules={[
@@ -287,75 +278,43 @@ const ResidentList = () => {
             <Form.Item
               label="联系电话"
               name="phone"
-              rules={[{ required: true, message: '请输入联系电话' }]}
               style={{ width: 'calc(50% - 8px)', marginBottom: 16 }}
             >
               <Input placeholder="请输入联系电话" />
             </Form.Item>
             <Form.Item
-              label="出生日期"
-              name="birthDate"
-              rules={[{ required: true, message: '请选择出生日期' }]}
+              label="所属网格ID"
+              name="gridId"
+              rules={[{ required: true, message: '请输入网格ID' }]}
               style={{ width: 'calc(50% - 8px)', marginBottom: 16 }}
             >
-              <DatePicker style={{ width: '100%' }} placeholder="选择出生日期" />
+              <Input placeholder="请输入网格ID" type="number" />
             </Form.Item>
             <Form.Item
               label="户籍类型"
               name="householdType"
-              rules={[{ required: true, message: '请选择户籍类型' }]}
               style={{ width: 'calc(50% - 8px)', marginBottom: 16 }}
             >
-              <Select placeholder="请选择户籍类型">
+              <Select placeholder="请选择户籍类型" allowClear>
                 <Select.Option value="local">本地户籍</Select.Option>
                 <Select.Option value="migrant">流动人口</Select.Option>
               </Select>
             </Form.Item>
             <Form.Item
-              label="楼栋"
-              name="building"
-              rules={[{ required: true, message: '请输入楼栋' }]}
-              style={{ width: 'calc(33.33% - 11px)', marginBottom: 16 }}
-            >
-              <Input placeholder="楼栋号" />
-            </Form.Item>
-            <Form.Item
-              label="单元"
-              name="unit"
-              rules={[{ required: true, message: '请输入单元' }]}
-              style={{ width: 'calc(33.33% - 11px)', marginBottom: 16 }}
-            >
-              <Input placeholder="单元号" />
-            </Form.Item>
-            <Form.Item
-              label="房号"
-              name="room"
-              rules={[{ required: true, message: '请输入房号' }]}
-              style={{ width: 'calc(33.33% - 11px)', marginBottom: 16 }}
-            >
-              <Input placeholder="房号" />
-            </Form.Item>
-            <Form.Item
               label="详细地址"
               name="address"
-              rules={[{ required: true, message: '请输入详细地址' }]}
-              style={{ width: '100%', marginBottom: 16 }}
+              style={{ width: 'calc(50% - 8px)', marginBottom: 16 }}
             >
               <Input placeholder="请输入详细地址" />
             </Form.Item>
             <Form.Item
-              label="特殊人群类型"
-              name="specialType"
+              label="标签"
+              name="tags"
               style={{ width: 'calc(50% - 8px)', marginBottom: 16 }}
             >
-              <Select placeholder="如为空则不选" allowClear>
-                <Select.Option value="低保户">低保户</Select.Option>
-                <Select.Option value="残疾人">残疾人</Select.Option>
-                <Select.Option value="空巢老人">空巢老人</Select.Option>
-                <Select.Option value="留守儿童">留守儿童</Select.Option>
-              </Select>
+              <Select mode="tags" placeholder="输入标签后回车" style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="备注" name="remark" style={{ width: 'calc(50% - 8px)', marginBottom: 0 }}>
+            <Form.Item label="备注" name="remark" style={{ width: '100%', marginBottom: 0 }}>
               <Input.TextArea rows={3} placeholder="备注信息" />
             </Form.Item>
           </Space>

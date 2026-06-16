@@ -153,6 +153,27 @@ public class EventService : IEventService
             evt.CloseReason = request.CloseReason;
         }
 
+        if (request.NewStatus == EventStatus.FollowingUp)
+        {
+            var hasPendingFollowUpTodo = await _context.TodoItems
+                .AnyAsync(t => t.Type == TodoType.FollowUp
+                    && t.RelatedId == id
+                    && !t.IsCompleted);
+            if (!hasPendingFollowUpTodo)
+            {
+                var todo = new TodoItem
+                {
+                    UserId = evt.ReporterId,
+                    Type = TodoType.FollowUp,
+                    RelatedId = evt.Id,
+                    Title = $"回访待办：{evt.Title}",
+                    DueDate = DateTime.UtcNow.AddDays(3),
+                    IsCompleted = false
+                };
+                _context.TodoItems.Add(todo);
+            }
+        }
+
         var statusLog = new EventStatusLog
         {
             EventId = id,

@@ -1,34 +1,40 @@
 import { useState } from 'react'
-import { Card, Form, Input, Select, Upload, Button, message, Row, Col, Space } from 'antd'
+import { Card, Form, Input, Select, Upload, Button, message, Row, Col, Space, InputNumber } from 'antd'
 import { PlusOutlined, EnvironmentOutlined, UploadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { createEvent } from '@/api'
-import { EventCategory } from '@/types'
-import type { UploadFile } from 'antd'
+import { EventType } from '@/types'
 
 const { TextArea } = Input
 
-const categoryOptions = [
-  { value: EventCategory.ENVIRONMENT, label: '环境卫生' },
-  { value: EventCategory.SECURITY, label: '治安安全' },
-  { value: EventCategory.FACILITY, label: '设施损坏' },
-  { value: EventCategory.CIVIL, label: '民事纠纷' },
-  { value: EventCategory.OTHER, label: '其他' }
+const eventTypeOptions = [
+  { value: EventType.ENVIRONMENTAL_HYGIENE, label: '环境卫生' },
+  { value: EventType.SECURITY_ISSUE, label: '治安安全' },
+  { value: EventType.FACILITY_DAMAGE, label: '设施损坏' },
+  { value: EventType.DISPUTE_RESOLUTION, label: '民事纠纷' },
+  { value: EventType.OTHER, label: '其他' }
+]
+
+const priorityOptions = [
+  { value: 1, label: '低' },
+  { value: 2, label: '中' },
+  { value: 3, label: '高' },
+  { value: 4, label: '紧急' }
 ]
 
 const EventReport = () => {
   const [form] = Form.useForm()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [fileList, setFileList] = useState<any[]>([])
 
   const getLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           form.setFieldsValue({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            locationLat: position.coords.latitude,
+            locationLng: position.coords.longitude
           })
           message.success('定位成功')
         },
@@ -44,8 +50,7 @@ const EventReport = () => {
   const onFinish = async (values: any) => {
     setLoading(true)
     try {
-      const images = fileList.map(f => f.url || f.name).filter(Boolean)
-      await createEvent({ ...values, images })
+      await createEvent(values)
       message.success('上报成功')
       navigate('/worker/event-list')
     } finally {
@@ -59,7 +64,7 @@ const EventReport = () => {
         form={form}
         layout="vertical"
         onFinish={onFinish}
-        initialValues={{ category: EventCategory.OTHER }}
+        initialValues={{ eventType: EventType.OTHER, priority: 2 }}
       >
         <Row gutter={16}>
           <Col xs={24} md={12}>
@@ -74,10 +79,10 @@ const EventReport = () => {
           <Col xs={24} md={12}>
             <Form.Item
               label="事件类型"
-              name="category"
+              name="eventType"
               rules={[{ required: true, message: '请选择事件类型' }]}
             >
-              <Select options={categoryOptions} placeholder="请选择事件类型" />
+              <Select options={eventTypeOptions} placeholder="请选择事件类型" />
             </Form.Item>
           </Col>
         </Row>
@@ -94,19 +99,19 @@ const EventReport = () => {
           <Col xs={24} md={8}>
             <Form.Item
               label="纬度"
-              name="latitude"
+              name="locationLat"
               rules={[{ required: true, message: '请输入纬度' }]}
             >
-              <Input placeholder="如：39.9042" type="number" step="any" />
+              <InputNumber placeholder="如：39.9042" style={{ width: '100%' }} step="any" />
             </Form.Item>
           </Col>
           <Col xs={24} md={8}>
             <Form.Item
               label="经度"
-              name="longitude"
+              name="locationLng"
               rules={[{ required: true, message: '请输入经度' }]}
             >
-              <Input placeholder="如：116.4074" type="number" step="any" />
+              <InputNumber placeholder="如：116.4074" style={{ width: '100%' }} step="any" />
             </Form.Item>
           </Col>
           <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -120,11 +125,37 @@ const EventReport = () => {
 
         <Form.Item
           label="详细地址"
-          name="address"
+          name="locationAddress"
           rules={[{ required: true, message: '请输入详细地址' }]}
         >
           <Input placeholder="请输入事件发生的详细地址" />
         </Form.Item>
+
+        <Row gutter={16}>
+          <Col xs={24} md={8}>
+            <Form.Item
+              label="所属网格ID"
+              name="gridId"
+              rules={[{ required: true, message: '请输入网格ID' }]}
+            >
+              <InputNumber placeholder="网格ID" style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={8}>
+            <Form.Item
+              label="优先级"
+              name="priority"
+              rules={[{ required: true, message: '请选择优先级' }]}
+            >
+              <Select options={priorityOptions} placeholder="请选择优先级" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={8}>
+            <Form.Item label="来源单号" name="sourceBillNo">
+              <Input placeholder="选填" />
+            </Form.Item>
+          </Col>
+        </Row>
 
         <Form.Item label="现场照片">
           <Upload

@@ -45,23 +45,17 @@ service.interceptors.response.use(
   }
 )
 
-export interface ResponseData<T = any> {
-  code: number
-  data: T
-  message: string
-}
-
 export const request = {
-  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<ResponseData<T>> {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return service.get(url, config)
   },
-  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ResponseData<T>> {
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     return service.post(url, data, config)
   },
-  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ResponseData<T>> {
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     return service.put(url, data, config)
   },
-  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ResponseData<T>> {
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return service.delete(url, config)
   }
 }

@@ -1,4 +1,4 @@
-namespace GridEventManagement.Enums;
+namespace GridEventManagement.Web.Enums;
 
 public enum EventStatus
 {

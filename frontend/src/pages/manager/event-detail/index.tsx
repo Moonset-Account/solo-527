@@ -8,10 +8,7 @@ import {
   Table,
   Button,
   Space,
-  Row,
-  Col,
   Empty,
-  Image,
   Spin
 } from 'antd'
 import {
@@ -31,38 +28,47 @@ import {
 import type {
   GridEvent,
   EventStatus,
-  EventCategory,
+  EventType,
   EventStatusLog,
   RectificationReview,
   FollowUpVisit,
-  PatrolTask
+  PatrolTask,
+  TaskStatus
 } from '@/types'
 import dayjs from 'dayjs'
 
 const statusMap: Record<EventStatus, { label: string; color: string }> = {
-  pending: { label: '待处理', color: 'orange' },
-  processing: { label: '处理中', color: 'blue' },
-  pending_review: { label: '待复查', color: 'purple' },
-  pending_visit: { label: '待回访', color: 'cyan' },
-  completed: { label: '已完成', color: 'green' },
-  rejected: { label: '已驳回', color: 'red' }
+  reported: { label: '已上报', color: 'orange' },
+  assigned: { label: '已指派', color: 'blue' },
+  processing: { label: '处理中', color: 'geekblue' },
+  reviewing: { label: '待复查', color: 'purple' },
+  following_up: { label: '跟进中', color: 'cyan' },
+  closed: { label: '已关闭', color: 'green' },
+  abnormal_closed: { label: '异常关闭', color: 'red' }
 }
 
-const categoryMap: Record<EventCategory, string> = {
-  environment: '环境卫生',
-  security: '治安安全',
-  facility: '设施损坏',
-  civil: '民事纠纷',
+const eventTypeMap: Record<EventType, string> = {
+  environmental_hygiene: '环境卫生',
+  security_issue: '治安安全',
+  facility_damage: '设施损坏',
+  dispute_resolution: '民事纠纷',
   other: '其他'
 }
 
 const statusTimelineMap: Record<EventStatus, string> = {
-  pending: '事件上报',
+  reported: '事件上报',
+  assigned: '已指派',
   processing: '开始处理',
-  pending_review: '申请复查',
-  pending_visit: '等待回访',
-  completed: '事件完成',
-  rejected: '事件驳回'
+  reviewing: '待复查',
+  following_up: '跟进中',
+  closed: '事件关闭',
+  abnormal_closed: '异常关闭'
+}
+
+const taskStatusMap: Record<TaskStatus, { label: string; color: string }> = {
+  pending: { label: '待开始', color: 'orange' },
+  in_progress: { label: '进行中', color: 'blue' },
+  completed: { label: '已完成', color: 'green' }
 }
 
 const EventDetail = () => {
@@ -87,13 +93,13 @@ const EventDetail = () => {
         getEventStatusLogs(eventId),
         getEventReviews(eventId),
         getEventVisits(eventId),
-        getPatrolTaskList({ page: 1, pageSize: 100 })
+        getPatrolTaskList({ pageIndex: 1, pageSize: 100 })
       ])
-      setEvent(eRes.data)
-      setLogs(lRes.data)
-      setReviews(rRes.data)
-      setVisits(vRes.data)
-      setTasks(tRes.data.list)
+      setEvent(eRes)
+      setLogs(lRes)
+      setReviews(rRes)
+      setVisits(vRes)
+      setTasks(tRes.items)
     } finally {
       setLoading(false)
     }
@@ -103,7 +109,8 @@ const EventDetail = () => {
     {
       title: '复查人',
       dataIndex: 'reviewerName',
-      width: 120
+      width: 120,
+      render: (name?: string) => name || '-'
     },
     {
       title: '复查结果',
@@ -116,8 +123,9 @@ const EventDetail = () => {
       )
     },
     {
-      title: '复查意见',
-      dataIndex: 'comment'
+      title: '备注',
+      dataIndex: 'remark',
+      render: (remark?: string) => remark || '-'
     },
     {
       title: '复查时间',
@@ -131,21 +139,27 @@ const EventDetail = () => {
     {
       title: '回访人',
       dataIndex: 'visitorName',
-      width: 120
+      width: 120,
+      render: (name?: string) => name || '-'
     },
     {
-      title: '居民姓名',
-      dataIndex: 'residentName',
-      width: 120
-    },
-    {
-      title: '联系电话',
-      dataIndex: 'residentPhone',
-      width: 140
+      title: '回访日期',
+      dataIndex: 'visitDate',
+      width: 120,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD')
     },
     {
       title: '回访结果',
-      dataIndex: 'visitResult'
+      dataIndex: 'visitResult',
+      render: (result?: string) => result || '-'
+    },
+    {
+      title: '是否完成',
+      dataIndex: 'isCompleted',
+      width: 100,
+      render: (completed: boolean) => (
+        <Tag color={completed ? 'green' : 'orange'}>{completed ? '已完成' : '未完成'}</Tag>
+      )
     },
     {
       title: '回访时间',
@@ -161,35 +175,31 @@ const EventDetail = () => {
       dataIndex: 'title'
     },
     {
-      title: '巡查区域',
-      dataIndex: 'area',
-      width: 150
+      title: '所属网格',
+      dataIndex: 'gridName',
+      width: 120,
+      render: (name?: string) => name || '-'
     },
     {
       title: '负责人',
       dataIndex: 'assigneeName',
-      width: 120
+      width: 120,
+      render: (name?: string) => name || '-'
     },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (status: string) => {
-        const map: Record<string, { label: string; color: string }> = {
-          pending: { label: '待开始', color: 'orange' },
-          in_progress: { label: '进行中', color: 'blue' },
-          completed: { label: '已完成', color: 'green' },
-          expired: { label: '已超时', color: 'red' }
-        }
-        const s = map[status]
-        return s ? <Tag color={s.color}>{s.label}</Tag> : status
+      render: (status: TaskStatus) => {
+        const s = taskStatusMap[status]
+        return s ? <Tag color={s.color}>{s.label}</Tag> : <Tag>{status}</Tag>
       }
     },
     {
-      title: '截止时间',
-      dataIndex: 'endTime',
-      width: 170,
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm')
+      title: '计划日期',
+      dataIndex: 'planDate',
+      width: 120,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD')
     }
   ]
 
@@ -208,52 +218,43 @@ const EventDetail = () => {
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label="事件编号">{event.id}</Descriptions.Item>
                 <Descriptions.Item label="事件状态">
-                  <Tag color={statusMap[event.status].color}>
-                    {statusMap[event.status].label}
+                  <Tag color={statusMap[event.status]?.color || 'default'}>
+                    {statusMap[event.status]?.label || event.status}
                   </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="事件标题" span={2}>
                   {event.title}
                 </Descriptions.Item>
                 <Descriptions.Item label="事件类型">
-                  {categoryMap[event.category]}
+                  {eventTypeMap[event.eventType] || event.eventType}
                 </Descriptions.Item>
-                <Descriptions.Item label="上报人">{event.reporterName}</Descriptions.Item>
-                <Descriptions.Item label="处理人">
-                  {event.handlerName || '-'}
-                </Descriptions.Item>
+                <Descriptions.Item label="上报人">{event.reporterName || '-'}</Descriptions.Item>
+                <Descriptions.Item label="优先级">{event.priority}</Descriptions.Item>
+                <Descriptions.Item label="所属网格">{event.gridName || '-'}</Descriptions.Item>
                 <Descriptions.Item label="发生地点" span={2}>
                   <Space>
                     <EnvironmentOutlined />
-                    {event.address}
+                    {event.locationAddress}
                   </Space>
                 </Descriptions.Item>
-                <Descriptions.Item label="经度">{event.longitude}</Descriptions.Item>
-                <Descriptions.Item label="纬度">{event.latitude}</Descriptions.Item>
+                <Descriptions.Item label="经度">{event.locationLng}</Descriptions.Item>
+                <Descriptions.Item label="纬度">{event.locationLat}</Descriptions.Item>
                 <Descriptions.Item label="事件描述" span={2}>
                   {event.description}
                 </Descriptions.Item>
+                {event.closeReason && (
+                  <Descriptions.Item label="关闭原因" span={2}>
+                    {event.closeReason}
+                  </Descriptions.Item>
+                )}
+                {event.sourceBillNo && (
+                  <Descriptions.Item label="来源单号" span={2}>
+                    {event.sourceBillNo}
+                  </Descriptions.Item>
+                )}
                 <Descriptions.Item label="上报时间" span={2}>
                   {dayjs(event.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                 </Descriptions.Item>
-                {event.images && event.images.length > 0 && (
-                  <Descriptions.Item label="现场照片" span={2}>
-                    <Image.PreviewGroup>
-                      <Row gutter={[8, 8]}>
-                        {event.images.map((img, idx) => (
-                          <Col key={idx} span={6}>
-                            <Image
-                              width="100%"
-                              height={120}
-                              src={img}
-                              style={{ objectFit: 'cover', borderRadius: 4 }}
-                            />
-                          </Col>
-                        ))}
-                      </Row>
-                    </Image.PreviewGroup>
-                  </Descriptions.Item>
-                )}
               </Descriptions>
             </Card>
 
@@ -261,15 +262,15 @@ const EventDetail = () => {
               {logs.length > 0 ? (
                 <Timeline
                   items={logs.map(log => ({
-                    color: log.toStatus === 'completed' ? 'green' : log.toStatus === 'rejected' ? 'red' : 'blue',
-                    dot: log.toStatus === 'completed' ? <CheckCircleOutlined /> : <ClockCircleOutlined />,
+                    color: log.toStatus === 'closed' ? 'green' : log.toStatus === 'abnormal_closed' ? 'red' : 'blue',
+                    dot: log.toStatus === 'closed' ? <CheckCircleOutlined /> : <ClockCircleOutlined />,
                     children: (
                       <div>
                         <Space>
                           <Tag color={statusMap[log.toStatus]?.color}>
                             {statusTimelineMap[log.toStatus] || log.toStatus}
                           </Tag>
-                          <strong>{log.operatorName}</strong>
+                          <strong>{log.operatorName || '-'}</strong>
                           <span style={{ color: '#999' }}>
                             {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                           </span>

@@ -1,48 +1,41 @@
 import { useState, useEffect } from 'react'
 import { Card, Table, Tag, Select, Button, Space, Form, message, Popconfirm } from 'antd'
 import { CheckCircleOutlined } from '@ant-design/icons'
-import { getTodoList, updateTodoStatus } from '@/api'
-import type { TodoItem, TodoType, TodoStatus, PageParams } from '@/types'
+import { getTodoList, completeTodo } from '@/api'
+import type { TodoItem, TodoType } from '@/types'
 import dayjs from 'dayjs'
 
 const typeMap: Record<TodoType, { label: string; color: string }> = {
-  event: { label: '事件处理', color: 'blue' },
-  task: { label: '巡查任务', color: 'green' },
+  event_process: { label: '事件处理', color: 'blue' },
+  patrol: { label: '巡查任务', color: 'green' },
   review: { label: '整改复查', color: 'orange' },
-  visit: { label: '随访回访', color: 'purple' }
+  follow_up: { label: '随访回访', color: 'purple' }
 }
 
-const priorityMap = {
-  high: { label: '高', color: 'red' },
-  medium: { label: '中', color: 'orange' },
-  low: { label: '低', color: 'green' }
-}
-
-const statusMap: Record<TodoStatus, { label: string; color: string }> = {
-  pending: { label: '待处理', color: 'orange' },
-  completed: { label: '已完成', color: 'green' }
-}
-
-const TodoList = () => {
+const TodoListPage = () => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<TodoItem[]>([])
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
 
   useEffect(() => {
-    loadData({ page: 1, pageSize: 10 })
+    loadData(1, 10)
   }, [])
 
-  const loadData = async (params: PageParams) => {
+  const loadData = async (pageIndex?: number, pageSize?: number) => {
     setLoading(true)
     try {
       const values = form.getFieldsValue()
-      const res = await getTodoList({ ...params, ...values })
-      setData(res.data.list)
+      const res = await getTodoList({
+        pageIndex: pageIndex || pagination.current,
+        pageSize: pageSize || pagination.pageSize,
+        ...values
+      })
+      setData(res.items)
       setPagination({
-        current: res.data.page,
-        pageSize: res.data.pageSize,
-        total: res.data.total
+        current: res.pageIndex,
+        pageSize: res.pageSize,
+        total: res.totalCount
       })
     } finally {
       setLoading(false)
@@ -50,19 +43,19 @@ const TodoList = () => {
   }
 
   const handleSearch = () => {
-    loadData({ page: 1, pageSize: pagination.pageSize })
+    loadData(1, pagination.pageSize)
   }
 
   const handleReset = () => {
     form.resetFields()
-    loadData({ page: 1, pageSize: pagination.pageSize })
+    loadData(1, pagination.pageSize)
   }
 
   const handleComplete = async (id: number) => {
     try {
-      await updateTodoStatus(id, 'completed')
+      await completeTodo(id)
       message.success('操作成功')
-      loadData({ page: pagination.current, pageSize: pagination.pageSize })
+      loadData(pagination.current, pagination.pageSize)
     } catch {}
   }
 
@@ -77,7 +70,7 @@ const TodoList = () => {
       dataIndex: 'type',
       width: 120,
       render: (type: TodoType) => (
-        <Tag color={typeMap[type].color}>{typeMap[type].label}</Tag>
+        <Tag color={typeMap[type]?.color || 'default'}>{typeMap[type]?.label || type}</Tag>
       )
     },
     {
@@ -86,31 +79,18 @@ const TodoList = () => {
       ellipsis: true
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      ellipsis: true
-    },
-    {
-      title: '优先级',
-      dataIndex: 'priority',
+      title: '状态',
+      dataIndex: 'isCompleted',
       width: 100,
-      render: (priority: string) => (
-        <Tag color={priorityMap[priority as keyof typeof priorityMap].color}>
-          {priorityMap[priority as keyof typeof priorityMap].label}
+      render: (isCompleted: boolean) => (
+        <Tag color={isCompleted ? 'green' : 'orange'}>
+          {isCompleted ? '已完成' : '待处理'}
         </Tag>
       )
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (status: TodoStatus) => (
-        <Tag color={statusMap[status].color}>{statusMap[status].label}</Tag>
-      )
-    },
-    {
       title: '截止时间',
-      dataIndex: 'deadline',
+      dataIndex: 'dueDate',
       width: 170,
       render: (time?: string) => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
     },
@@ -127,7 +107,7 @@ const TodoList = () => {
       fixed: 'right' as const,
       render: (_: any, record: TodoItem) => (
         <Space>
-          {record.status === 'pending' && (
+          {!record.isCompleted && (
             <Popconfirm title="确认标记为已完成？" onConfirm={() => handleComplete(record.id)}>
               <Button type="link" icon={<CheckCircleOutlined />}>
                 完成
@@ -149,18 +129,10 @@ const TodoList = () => {
             ))}
           </Select>
         </Form.Item>
-        <Form.Item name="status">
+        <Form.Item name="isCompleted">
           <Select placeholder="选择状态" allowClear style={{ width: 150 }}>
-            {Object.entries(statusMap).map(([key, val]) => (
-              <Select.Option key={key} value={key}>{val.label}</Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-        <Form.Item name="priority">
-          <Select placeholder="选择优先级" allowClear style={{ width: 150 }}>
-            {Object.entries(priorityMap).map(([key, val]) => (
-              <Select.Option key={key} value={key}>{val.label}</Select.Option>
-            ))}
+            <Select.Option value={false}>待处理</Select.Option>
+            <Select.Option value={true}>已完成</Select.Option>
           </Select>
         </Form.Item>
         <Form.Item>
@@ -176,17 +148,17 @@ const TodoList = () => {
         columns={columns}
         dataSource={data}
         rowKey="id"
-        scroll={{ x: 1100 }}
+        scroll={{ x: 900 }}
         pagination={{
           ...pagination,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => loadData({ page, pageSize })
+          onChange: (page, pageSize) => loadData(page, pageSize)
         }}
       />
     </Card>
   )
 }
 
-export default TodoList
+export default TodoListPage

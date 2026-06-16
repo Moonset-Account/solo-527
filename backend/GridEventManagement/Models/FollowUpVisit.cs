@@ -1,4 +1,4 @@
-namespace GridEventManagement.Models;
+namespace GridEventManagement.Web.Models;
 
 public class FollowUpVisit
 {

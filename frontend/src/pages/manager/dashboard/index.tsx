@@ -5,36 +5,42 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   TeamOutlined,
-  EnvironmentOutlined,
   SafetyOutlined
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
-import { getEventStats, getTaskStats, getResidentStats } from '@/api'
+import { getDashboardReport, getEventStatusReport } from '@/api'
+import type { DashboardReport, EventStatusReportItem } from '@/types'
+
+const statusLabelMap: Record<string, string> = {
+  reported: '已上报',
+  assigned: '已指派',
+  processing: '处理中',
+  reviewing: '待复查',
+  following_up: '跟进中',
+  closed: '已关闭',
+  abnormal_closed: '异常关闭'
+}
+
+const statusColorMap: Record<string, string> = {
+  reported: '#faad14',
+  assigned: '#1677ff',
+  processing: '#597ef7',
+  reviewing: '#722ed1',
+  following_up: '#13c2c2',
+  closed: '#52c41a',
+  abnormal_closed: '#ff4d4f'
+}
 
 const ManagerDashboard = () => {
   const [loading, setLoading] = useState(false)
-  const [eventStats, setEventStats] = useState({
-    total: 0,
-    pending: 0,
-    processing: 0,
-    completed: 0,
-    categoryStats: [] as { category: string; count: number }[],
-    dailyStats: [] as { date: string; count: number }[]
+  const [dashboard, setDashboard] = useState<DashboardReport>({
+    TotalResidents: 0,
+    TotalPatrolTasks: 0,
+    CompletedPatrolTasks: 0,
+    PendingPatrolTasks: 0,
+    PendingTodos: 0
   })
-  const [taskStats, setTaskStats] = useState({
-    total: 0,
-    pending: 0,
-    inProgress: 0,
-    completed: 0,
-    expired: 0
-  })
-  const [residentStats, setResidentStats] = useState({
-    total: 0,
-    local: 0,
-    migrant: 0,
-    special: 0,
-    buildingStats: [] as { building: string; count: number }[]
-  })
+  const [eventStatusData, setEventStatusData] = useState<EventStatusReportItem[]>([])
 
   useEffect(() => {
     loadData()
@@ -43,28 +49,18 @@ const ManagerDashboard = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [eRes, tRes, rRes] = await Promise.all([
-        getEventStats(),
-        getTaskStats(),
-        getResidentStats()
+      const [dRes, eRes] = await Promise.all([
+        getDashboardReport(),
+        getEventStatusReport()
       ])
-      setEventStats(eRes.data)
-      setTaskStats(tRes.data)
-      setResidentStats(rRes.data)
+      setDashboard(dRes)
+      setEventStatusData(eRes)
     } finally {
       setLoading(false)
     }
   }
 
-  const categoryLabelMap: Record<string, string> = {
-    environment: '环境卫生',
-    security: '治安安全',
-    facility: '设施损坏',
-    civil: '民事纠纷',
-    other: '其他'
-  }
-
-  const categoryOption = {
+  const eventPieOption = {
     tooltip: { trigger: 'item' },
     legend: { orient: 'vertical', left: 'left' },
     series: [
@@ -73,40 +69,11 @@ const ManagerDashboard = () => {
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
         label: { show: true, formatter: '{b}: {c}' },
-        data: eventStats.categoryStats.map(s => ({
-          name: categoryLabelMap[s.category] || s.category,
-          value: s.count
+        data: eventStatusData.map(s => ({
+          name: statusLabelMap[s.status] || s.status,
+          value: s.count,
+          itemStyle: { color: statusColorMap[s.status] || '#999' }
         }))
-      }
-    ]
-  }
-
-  const trendOption = {
-    tooltip: { trigger: 'axis' },
-    xAxis: {
-      type: 'category',
-      data: eventStats.dailyStats.map(s => s.date)
-    },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        data: eventStats.dailyStats.map(s => s.count),
-        type: 'line',
-        smooth: true,
-        areaStyle: {}
-      }
-    ]
-  }
-
-  const buildingOption = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    xAxis: { type: 'category', data: residentStats.buildingStats.map(s => `${s.building}栋`) },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        data: residentStats.buildingStats.map(s => s.count),
-        type: 'bar',
-        itemStyle: { color: '#1677ff' }
       }
     ]
   }
@@ -118,10 +85,9 @@ const ManagerDashboard = () => {
         type: 'pie',
         radius: '60%',
         data: [
-          { value: taskStats.pending, name: '待处理', itemStyle: { color: '#faad14' } },
-          { value: taskStats.inProgress, name: '进行中', itemStyle: { color: '#1677ff' } },
-          { value: taskStats.completed, name: '已完成', itemStyle: { color: '#52c41a' } },
-          { value: taskStats.expired, name: '已超时', itemStyle: { color: '#ff4d4f' } }
+          { value: dashboard.PendingPatrolTasks, name: '待处理', itemStyle: { color: '#faad14' } },
+          { value: dashboard.CompletedPatrolTasks, name: '已完成', itemStyle: { color: '#52c41a' } },
+          { value: dashboard.TotalPatrolTasks - dashboard.CompletedPatrolTasks - dashboard.PendingPatrolTasks, name: '进行中', itemStyle: { color: '#1677ff' } }
         ],
         label: { formatter: '{b}: {c}' }
       }
@@ -135,8 +101,18 @@ const ManagerDashboard = () => {
           <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
-                title="事件总数"
-                value={eventStats.total}
+                title="居民总数"
+                value={dashboard.TotalResidents}
+                valueStyle={{ color: '#722ed1' }}
+                prefix={<TeamOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card>
+              <Statistic
+                title="待办总数"
+                value={dashboard.PendingTodos}
                 prefix={<FileTextOutlined style={{ color: '#1677ff' }} />}
               />
             </Card>
@@ -144,8 +120,8 @@ const ManagerDashboard = () => {
           <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
-                title="待处理事件"
-                value={eventStats.pending}
+                title="待处理巡查"
+                value={dashboard.PendingPatrolTasks}
                 valueStyle={{ color: '#faad14' }}
                 prefix={<ClockCircleOutlined />}
               />
@@ -154,81 +130,24 @@ const ManagerDashboard = () => {
           <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
-                title="已完成事件"
-                value={eventStats.completed}
+                title="已完成巡查"
+                value={dashboard.CompletedPatrolTasks}
                 valueStyle={{ color: '#52c41a' }}
                 prefix={<CheckCircleOutlined />}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="居民总数"
-                value={residentStats.total}
-                valueStyle={{ color: '#722ed1' }}
-                prefix={<TeamOutlined />}
-              />
-            </Card>
-          </Col>
         </Row>
 
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col xs={24} md={8}>
-            <Card title="事件类型分布" extra={<EnvironmentOutlined />}>
-              <ReactECharts option={categoryOption} style={{ height: 300 }} />
+          <Col xs={24} md={12}>
+            <Card title="事件状态分布" extra={<FileTextOutlined />}>
+              <ReactECharts option={eventPieOption} style={{ height: 300 }} />
             </Card>
           </Col>
-          <Col xs={24} md={8}>
-            <Card title="近7日事件趋势">
-              <ReactECharts option={trendOption} style={{ height: 300 }} />
-            </Card>
-          </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={12}>
             <Card title="巡查任务状态" extra={<SafetyOutlined />}>
               <ReactECharts option={taskOption} style={{ height: 300 }} />
-            </Card>
-          </Col>
-        </Row>
-
-        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col xs={24} md={12}>
-            <Card title="各楼栋居民分布">
-              <ReactECharts option={buildingOption} style={{ height: 300 }} />
-            </Card>
-          </Col>
-          <Col xs={24} md={12}>
-            <Card title="居民概况">
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Statistic
-                    title="本地户籍"
-                    value={residentStats.local}
-                    valueStyle={{ color: '#1677ff' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Statistic
-                    title="流动人口"
-                    value={residentStats.migrant}
-                    valueStyle={{ color: '#52c41a' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Statistic
-                    title="特殊人群"
-                    value={residentStats.special}
-                    valueStyle={{ color: '#ff4d4f' }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Statistic
-                    title="进行中任务"
-                    value={taskStats.inProgress}
-                    valueStyle={{ color: '#faad14' }}
-                  />
-                </Col>
-              </Row>
             </Card>
           </Col>
         </Row>

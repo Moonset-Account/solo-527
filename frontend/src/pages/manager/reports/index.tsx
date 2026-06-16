@@ -6,56 +6,48 @@ import {
   Statistic,
   Button,
   Space,
-  DatePicker,
-  Select,
-  Form,
   Spin,
   message
 } from 'antd'
 import {
   DownloadOutlined,
   FileTextOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
-  TeamOutlined,
-  SafetyOutlined
+  TeamOutlined
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import {
-  getEventStats,
-  getTaskStats,
-  getResidentStats,
-  exportReport
+  getDashboardReport,
+  getEventStatusReport,
+  getClosureReport,
+  exportResidents
 } from '@/api'
+import type { DashboardReport, EventStatusReportItem, ClosureReport } from '@/types'
 
-
-const { RangePicker } = DatePicker
+const statusLabelMap: Record<string, string> = {
+  reported: '已上报',
+  assigned: '已指派',
+  processing: '处理中',
+  reviewing: '待复查',
+  following_up: '跟进中',
+  closed: '已关闭',
+  abnormal_closed: '异常关闭'
+}
 
 const Reports = () => {
-  const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [eventStats, setEventStats] = useState({
-    total: 0,
-    pending: 0,
-    processing: 0,
-    completed: 0,
-    categoryStats: [] as { category: string; count: number }[],
-    dailyStats: [] as { date: string; count: number }[]
+  const [dashboard, setDashboard] = useState<DashboardReport>({
+    TotalResidents: 0,
+    TotalPatrolTasks: 0,
+    CompletedPatrolTasks: 0,
+    PendingPatrolTasks: 0,
+    PendingTodos: 0
   })
-  const [taskStats, setTaskStats] = useState({
-    total: 0,
-    pending: 0,
-    inProgress: 0,
-    completed: 0,
-    expired: 0
-  })
-  const [residentStats, setResidentStats] = useState({
-    total: 0,
-    local: 0,
-    migrant: 0,
-    special: 0,
-    buildingStats: [] as { building: string; count: number }[]
+  const [eventStatusData, setEventStatusData] = useState<EventStatusReportItem[]>([])
+  const [closureReport, setClosureReport] = useState<ClosureReport>({
+    pendingVisitCount: 0,
+    pendingVisitRate: 0
   })
 
   useEffect(() => {
@@ -65,39 +57,30 @@ const Reports = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [eRes, tRes, rRes] = await Promise.all([
-        getEventStats(),
-        getTaskStats(),
-        getResidentStats()
+      const [dRes, eRes, cRes] = await Promise.all([
+        getDashboardReport(),
+        getEventStatusReport(),
+        getClosureReport()
       ])
-      setEventStats(eRes.data)
-      setTaskStats(tRes.data)
-      setResidentStats(rRes.data)
+      setDashboard(dRes)
+      setEventStatusData(eRes)
+      setClosureReport(cRes)
     } finally {
       setLoading(false)
     }
   }
 
-  const categoryLabelMap: Record<string, string> = {
-    environment: '环境卫生',
-    security: '治安安全',
-    facility: '设施损坏',
-    civil: '民事纠纷',
-    other: '其他'
-  }
-
-  const handleExport = async (type: string) => {
+  const handleExport = async () => {
     setExporting(true)
     try {
-      const values = form.getFieldsValue()
-      await exportReport(type, values)
+      await exportResidents()
       message.success('导出成功')
     } finally {
       setExporting(false)
     }
   }
 
-  const categoryPieOption = {
+  const eventPieOption = {
     tooltip: { trigger: 'item' },
     legend: { bottom: 0 },
     series: [
@@ -105,29 +88,10 @@ const Reports = () => {
         type: 'pie',
         radius: ['35%', '65%'],
         label: { show: true, formatter: '{b}: {c} ({d}%)' },
-        data: eventStats.categoryStats.map(s => ({
-          name: categoryLabelMap[s.category] || s.category,
+        data: eventStatusData.map(s => ({
+          name: statusLabelMap[s.status] || s.status,
           value: s.count
         }))
-      }
-    ]
-  }
-
-  const eventTrendOption = {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 50, right: 20, top: 30, bottom: 40 },
-    xAxis: {
-      type: 'category',
-      data: eventStats.dailyStats.map(s => s.date)
-    },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: '事件数量',
-        data: eventStats.dailyStats.map(s => s.count),
-        type: 'bar',
-        itemStyle: { color: '#1677ff' },
-        barWidth: '50%'
       }
     ]
   }
@@ -141,44 +105,9 @@ const Reports = () => {
         radius: '60%',
         label: { formatter: '{b}: {c} ({d}%)' },
         data: [
-          { value: taskStats.pending, name: '待开始', itemStyle: { color: '#faad14' } },
-          { value: taskStats.inProgress, name: '进行中', itemStyle: { color: '#1677ff' } },
-          { value: taskStats.completed, name: '已完成', itemStyle: { color: '#52c41a' } },
-          { value: taskStats.expired, name: '已超时', itemStyle: { color: '#ff4d4f' } }
-        ]
-      }
-    ]
-  }
-
-  const residentBarOption = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 50, right: 20, top: 30, bottom: 40 },
-    xAxis: { type: 'category', data: residentStats.buildingStats.map(s => `${s.building}栋`) },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: '居民数量',
-        type: 'bar',
-        data: residentStats.buildingStats.map(s => s.count),
-        itemStyle: { color: '#722ed1' },
-        barWidth: '50%',
-        label: { show: true, position: 'top' }
-      }
-    ]
-  }
-
-  const householdPieOption = {
-    tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
-    series: [
-      {
-        type: 'pie',
-        radius: '60%',
-        label: { formatter: '{b}: {c} ({d}%)' },
-        data: [
-          { value: residentStats.local, name: '本地户籍', itemStyle: { color: '#1677ff' } },
-          { value: residentStats.migrant, name: '流动人口', itemStyle: { color: '#52c41a' } },
-          { value: residentStats.special, name: '特殊人群', itemStyle: { color: '#ff4d4f' } }
+          { value: dashboard.PendingPatrolTasks, name: '待处理', itemStyle: { color: '#faad14' } },
+          { value: dashboard.CompletedPatrolTasks, name: '已完成', itemStyle: { color: '#52c41a' } },
+          { value: dashboard.TotalPatrolTasks - dashboard.CompletedPatrolTasks - dashboard.PendingPatrolTasks, name: '进行中', itemStyle: { color: '#1677ff' } }
         ]
       }
     ]
@@ -191,31 +120,13 @@ const Reports = () => {
           title="统计报表"
           extra={
             <Space>
-              <Form form={form} layout="inline">
-                <Form.Item name="dateRange">
-                  <RangePicker />
-                </Form.Item>
-                <Form.Item name="type">
-                  <Select
-                    placeholder="报表类型"
-                    allowClear
-                    style={{ width: 150 }}
-                    defaultValue="event"
-                    options={[
-                      { value: 'event', label: '事件报表' },
-                      { value: 'task', label: '任务报表' },
-                      { value: 'resident', label: '居民报表' }
-                    ]}
-                  />
-                </Form.Item>
-              </Form>
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
                 loading={exporting}
-                onClick={() => handleExport('event')}
+                onClick={handleExport}
               >
-                导出报表
+                导出居民数据
               </Button>
             </Space>
           }
@@ -224,33 +135,34 @@ const Reports = () => {
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>
               <Statistic
-                title="事件总数"
-                value={eventStats.total}
+                title="居民总数"
+                value={dashboard.TotalResidents}
+                valueStyle={{ color: '#722ed1' }}
+                prefix={<TeamOutlined />}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Statistic
+                title="待办总数"
+                value={dashboard.PendingTodos}
                 prefix={<FileTextOutlined style={{ color: '#1677ff' }} />}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Statistic
-                title="待处理事件"
-                value={eventStats.pending}
+                title="待回访数"
+                value={closureReport.pendingVisitCount}
                 valueStyle={{ color: '#faad14' }}
                 prefix={<ClockCircleOutlined />}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Statistic
-                title="已完成事件"
-                value={eventStats.completed}
-                valueStyle={{ color: '#52c41a' }}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Statistic
-                title="居民总数"
-                value={residentStats.total}
-                valueStyle={{ color: '#722ed1' }}
-                prefix={<TeamOutlined />}
+                title="待回访率"
+                value={closureReport.pendingVisitRate}
+                suffix="%"
+                valueStyle={{ color: '#ff4d4f' }}
+                prefix={<ClockCircleOutlined />}
               />
             </Col>
           </Row>
@@ -258,33 +170,16 @@ const Reports = () => {
 
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} md={12}>
-            <Card title="事件类型分布统计">
-              <ReactECharts option={categoryPieOption} style={{ height: 320 }} />
+            <Card title="事件状态分布统计">
+              <ReactECharts option={eventPieOption} style={{ height: 320 }} />
             </Card>
           </Col>
           <Col xs={24} md={12}>
-            <Card title="每日事件上报趋势">
-              <ReactECharts option={eventTrendOption} style={{ height: 320 }} />
-            </Card>
-          </Col>
-        </Row>
-
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} md={12}>
-            <Card title="巡查任务状态统计" extra={<SafetyOutlined />}>
+            <Card title="巡查任务状态统计">
               <ReactECharts option={taskPieOption} style={{ height: 320 }} />
             </Card>
           </Col>
-          <Col xs={24} md={12}>
-            <Card title="居民人口构成统计">
-              <ReactECharts option={householdPieOption} style={{ height: 320 }} />
-            </Card>
-          </Col>
         </Row>
-
-        <Card title="各楼栋居民分布统计">
-          <ReactECharts option={residentBarOption} style={{ height: 350 }} />
-        </Card>
       </div>
     </Spin>
   )

@@ -4,29 +4,28 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined,
   ArrowRightOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { getTodoStats, getTodoList } from '@/api'
-import type { TodoItem, TodoType } from '@/types'
+import { getDashboardReport, getTodoList } from '@/api'
+import type { TodoItem, TodoType, DashboardReport } from '@/types'
 
 const todoTypeMap: Record<TodoType, { label: string; color: string }> = {
-  event: { label: '事件处理', color: 'blue' },
-  task: { label: '巡查任务', color: 'green' },
+  event_process: { label: '事件处理', color: 'blue' },
+  patrol: { label: '巡查任务', color: 'green' },
   review: { label: '整改复查', color: 'orange' },
-  visit: { label: '随访回访', color: 'purple' }
-}
-
-const priorityMap = {
-  high: { label: '高', color: 'red' },
-  medium: { label: '中', color: 'orange' },
-  low: { label: '低', color: 'green' }
+  follow_up: { label: '随访回访', color: 'purple' }
 }
 
 const WorkerDashboard = () => {
   const navigate = useNavigate()
-  const [stats, setStats] = useState({ pending: 0, completed: 0, total: 0 })
+  const [stats, setStats] = useState<DashboardReport>({
+    TotalResidents: 0,
+    TotalPatrolTasks: 0,
+    CompletedPatrolTasks: 0,
+    PendingPatrolTasks: 0,
+    PendingTodos: 0
+  })
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -37,12 +36,12 @@ const WorkerDashboard = () => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [statsRes, todosRes] = await Promise.all([
-        getTodoStats(),
-        getTodoList({ page: 1, pageSize: 5, status: 'pending' })
+      const [dashboardRes, todosRes] = await Promise.all([
+        getDashboardReport(),
+        getTodoList({ pageIndex: 1, pageSize: 5, isCompleted: false })
       ])
-      setStats(statsRes.data)
-      setTodos(todosRes.data.list)
+      setStats(dashboardRes)
+      setTodos(todosRes.items)
     } finally {
       setLoading(false)
     }
@@ -55,7 +54,7 @@ const WorkerDashboard = () => {
           <Card>
             <Statistic
               title="待办总数"
-              value={stats.total}
+              value={stats.PendingTodos}
               prefix={<FileTextOutlined style={{ color: '#1677ff' }} />}
             />
           </Card>
@@ -63,8 +62,8 @@ const WorkerDashboard = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="待处理"
-              value={stats.pending}
+              title="待处理巡查"
+              value={stats.PendingPatrolTasks}
               valueStyle={{ color: '#faad14' }}
               prefix={<ClockCircleOutlined />}
             />
@@ -73,8 +72,8 @@ const WorkerDashboard = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="已完成"
-              value={stats.completed}
+              title="已完成巡查"
+              value={stats.CompletedPatrolTasks}
               valueStyle={{ color: '#52c41a' }}
               prefix={<CheckCircleOutlined />}
             />
@@ -84,9 +83,9 @@ const WorkerDashboard = () => {
           <Card>
             <Statistic
               title="紧急待办"
-              value={todos.filter(t => t.priority === 'high').length}
+              value={todos.filter(t => !t.isCompleted).length}
               valueStyle={{ color: '#ff4d4f' }}
-              prefix={<ExclamationCircleOutlined />}
+              prefix={<ClockCircleOutlined />}
             />
           </Card>
         </Col>
@@ -117,16 +116,15 @@ const WorkerDashboard = () => {
                   <List.Item.Meta
                     title={
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Tag color={todoTypeMap[item.type].color}>
-                          {todoTypeMap[item.type].label}
+                        <Tag color={todoTypeMap[item.type]?.color || 'default'}>
+                          {todoTypeMap[item.type]?.label || item.type}
                         </Tag>
-                        <Tag color={priorityMap[item.priority].color}>
-                          {priorityMap[item.priority].label}优先级
+                        <Tag color={item.isCompleted ? 'green' : 'orange'}>
+                          {item.isCompleted ? '已完成' : '待处理'}
                         </Tag>
                         <span>{item.title}</span>
                       </div>
                     }
-                    description={item.description}
                   />
                 </List.Item>
               )}

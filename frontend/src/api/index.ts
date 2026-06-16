@@ -2,7 +2,6 @@ import { request } from './request'
 import type {
   LoginParams,
   LoginResponse,
-  UserInfo,
   GridEvent,
   Resident,
   PatrolTask,
@@ -10,10 +9,12 @@ import type {
   EventStatusLog,
   RectificationReview,
   FollowUpVisit,
-  PageParams,
   PageResult,
   EventReportParams,
-  ResidentFormData
+  ResidentFormData,
+  DashboardReport,
+  EventStatusReportItem,
+  ClosureReport
 } from '@/types'
 
 export const login = (data: LoginParams) => {
@@ -24,11 +25,7 @@ export const logout = () => {
   return request.post('/auth/logout')
 }
 
-export const getUserInfo = () => {
-  return request.get<UserInfo>('/user/info')
-}
-
-export const getEventList = (params: PageParams) => {
+export const getEventList = (params: Record<string, any>) => {
   return request.get<PageResult<GridEvent>>('/events', { params })
 }
 
@@ -40,32 +37,24 @@ export const createEvent = (data: EventReportParams) => {
   return request.post<GridEvent>('/events', data)
 }
 
-export const updateEvent = (id: number, data: Partial<GridEvent>) => {
-  return request.put<GridEvent>(`/events/${id}`, data)
-}
-
-export const updateEventStatus = (id: number, status: string, remark?: string) => {
-  return request.put<GridEvent>(`/events/${id}/status`, { status, remark })
+export const updateEventStatus = (id: number, data: { newStatus: string; remark?: string; closeReason?: string }) => {
+  return request.put<GridEvent>(`/events/${id}/status`, data)
 }
 
 export const getEventStatusLogs = (eventId: number) => {
-  return request.get<EventStatusLog[]>(`/events/${eventId}/logs`)
+  return request.get<EventStatusLog[]>(`/events/${eventId}/status-logs`)
 }
 
 export const getEventReviews = (eventId: number) => {
-  return request.get<RectificationReview[]>(`/events/${eventId}/reviews`)
+  return request.get<RectificationReview[]>(`/tasks/patrol/${eventId}/reviews`)
 }
 
 export const getEventVisits = (eventId: number) => {
-  return request.get<FollowUpVisit[]>(`/events/${eventId}/visits`)
+  return request.get<FollowUpVisit[]>(`/tasks/patrol/${eventId}/visits`)
 }
 
-export const getResidentList = (params: PageParams) => {
+export const getResidentList = (params: Record<string, any>) => {
   return request.get<PageResult<Resident>>('/residents', { params })
-}
-
-export const getResidentDetail = (id: number) => {
-  return request.get<Resident>(`/residents/${id}`)
 }
 
 export const createResident = (data: ResidentFormData) => {
@@ -88,61 +77,42 @@ export const importResidents = (file: File) => {
   })
 }
 
-export const getPatrolTaskList = (params: PageParams) => {
-  return request.get<PageResult<PatrolTask>>('/tasks', { params })
+export const exportResidents = (params?: Record<string, any>) => {
+  return request.get('/residents/export', { params, responseType: 'blob' })
+}
+
+export const getPatrolTaskList = (params: Record<string, any>) => {
+  return request.get<PageResult<PatrolTask>>('/tasks/patrol', { params })
 }
 
 export const getPatrolTaskDetail = (id: number) => {
-  return request.get<PatrolTask>(`/tasks/${id}`)
+  return request.get<PatrolTask>(`/tasks/patrol/${id}`)
 }
 
 export const updatePatrolTask = (id: number, data: Partial<PatrolTask>) => {
-  return request.put<PatrolTask>(`/tasks/${id}`, data)
+  return request.put<PatrolTask>(`/tasks/patrol/${id}`, data)
 }
 
-export const getTodoList = (params: PageParams) => {
+export const getTodoList = (params: Record<string, any>) => {
   return request.get<PageResult<TodoItem>>('/todos', { params })
 }
 
-export const updateTodoStatus = (id: number, status: string) => {
-  return request.put<TodoItem>(`/todos/${id}/status`, { status })
+export const completeTodo = (id: number) => {
+  return request.put<TodoItem>(`/todos/${id}/complete`)
 }
 
-export const getTodoStats = () => {
-  return request.get<{ pending: number; completed: number; total: number }>('/todos/stats')
+export const getDashboardReport = () => {
+  return request.get<DashboardReport>('/reports/dashboard')
 }
 
-export const getEventStats = () => {
-  return request.get<{
-    total: number
-    pending: number
-    processing: number
-    completed: number
-    categoryStats: { category: string; count: number }[]
-    dailyStats: { date: string; count: number }[]
-  }>('/reports/event-stats')
+export const getEventStatusReport = () => {
+  return request.get<EventStatusReportItem[]>('/reports/event-status')
 }
 
-export const getTaskStats = () => {
-  return request.get<{
-    total: number
-    pending: number
-    inProgress: number
-    completed: number
-    expired: number
-  }>('/reports/task-stats')
+export const getClosureReport = () => {
+  return request.get<ClosureReport>('/reports/closure')
 }
 
-export const getResidentStats = () => {
-  return request.get<{
-    total: number
-    local: number
-    migrant: number
-    special: number
-    buildingStats: { building: string; count: number }[]
-  }>('/reports/resident-stats')
-}
-
-export const exportReport = (type: string, params?: any) => {
-  return request.get(`/reports/export/${type}`, { params, responseType: 'blob' })
+export const exportResidentsData = (params?: Record<string, any>) => {
+  return request.get('/residents/export', { params, responseType: 'blob' })
 }

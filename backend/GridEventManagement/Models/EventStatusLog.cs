@@ -1,6 +1,6 @@
-using GridEventManagement.Enums;
+using GridEventManagement.Web.Enums;
 
-namespace GridEventManagement.Models;
+namespace GridEventManagement.Web.Models;
 
 public class EventStatusLog
 {

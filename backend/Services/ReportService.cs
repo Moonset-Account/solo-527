@@ -232,6 +232,8 @@ public class ReportService : IReportService
             avgHours = Math.Round(totalHours / closedEvents.Count, 2);
         }
 
+        var pendingVisitCount = await queryable.CountAsync(e => e.Status == EventStatus.FollowingUp);
+
         return new ClosureReportDto
         {
             TotalEvents = totalEvents,
@@ -240,7 +242,9 @@ public class ReportService : IReportService
             OpenEvents = openEvents,
             NormalCloseRate = totalEvents > 0 ? Math.Round((double)normalClosed / totalEvents * 100, 2) : 0,
             OverallCloseRate = totalEvents > 0 ? Math.Round((double)(normalClosed + abnormalClosed) / totalEvents * 100, 2) : 0,
-            AvgProcessingHours = avgHours
+            AvgProcessingHours = avgHours,
+            PendingVisitCount = pendingVisitCount,
+            PendingVisitRate = totalEvents > 0 ? Math.Round((double)pendingVisitCount / totalEvents * 100, 2) : 0
         };
     }
 }

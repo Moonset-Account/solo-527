@@ -31,10 +31,10 @@ const roleNameMap: Record<UserRole, string> = {
   manager: '管理层'
 }
 
-const getMenuItems = (roles: UserRole[]): MenuItem[] => {
+const getMenuItems = (role: UserRole): MenuItem[] => {
   const items: MenuItem[] = []
 
-  if (roles.includes('worker') || roles.includes('manager')) {
+  if (role === 'worker' || role === 'manager') {
     items.push({
       key: 'worker',
       icon: <SwapOutlined />,
@@ -64,7 +64,7 @@ const getMenuItems = (roles: UserRole[]): MenuItem[] => {
     })
   }
 
-  if (roles.includes('admin') || roles.includes('manager')) {
+  if (role === 'admin' || role === 'manager') {
     items.push({
       key: 'admin',
       icon: <TeamOutlined />,
@@ -84,7 +84,7 @@ const getMenuItems = (roles: UserRole[]): MenuItem[] => {
     })
   }
 
-  if (roles.includes('manager')) {
+  if (role === 'manager') {
     items.push({
       key: 'manager',
       icon: <BarChartOutlined />,
@@ -119,14 +119,14 @@ const MainLayout = () => {
   } = theme.useToken()
   const navigate = useNavigate()
   const location = useLocation()
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
+  const [userInfo, setUserInfoState] = useState<UserInfo | null>(null)
 
   useEffect(() => {
-    setUserInfo(getUserInfo())
+    setUserInfoState(getUserInfo())
   }, [])
 
   const menuItems = useMemo(
-    () => (userInfo ? getMenuItems(userInfo.roles) : []),
+    () => (userInfo ? getMenuItems(userInfo.role) : []),
     [userInfo]
   )
 
@@ -200,12 +200,12 @@ const MainLayout = () => {
           </div>
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar icon={<UserOutlined />} src={userInfo?.avatar} />
+              <Avatar icon={<UserOutlined />} />
               <span>
-                {userInfo?.nickname || '用户'}
-                {userInfo?.roles?.[0] && (
+                {userInfo?.realName || userInfo?.username || '用户'}
+                {userInfo?.role && (
                   <span style={{ color: '#999', marginLeft: 6 }}>
-                    （{roleNameMap[userInfo.roles[0]]}）
+                    （{roleNameMap[userInfo.role]}）
                   </span>
                 )}
               </span>

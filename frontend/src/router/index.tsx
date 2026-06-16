@@ -40,9 +40,9 @@ const RequireRole = ({
 const getHomeRoute = (): string => {
   const user = getUserInfo()
   if (!user) return '/login'
-  if (user.roles.includes('worker')) return '/worker/dashboard'
-  if (user.roles.includes('admin')) return '/admin/resident-list'
-  if (user.roles.includes('manager')) return '/manager/dashboard'
+  if (user.role === 'worker') return '/worker/dashboard'
+  if (user.role === 'admin') return '/admin/resident-list'
+  if (user.role === 'manager') return '/manager/dashboard'
   return '/login'
 }
 

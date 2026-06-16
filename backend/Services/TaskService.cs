@@ -152,6 +152,38 @@ public class TaskService : ITaskService
 
     public async Task<VisitDto?> CreateVisitAsync(CreateVisitDto request)
     {
+        var evt = await _context.GridEvents.FindAsync(request.EventId);
+        if (evt == null) return null;
+
+        if (evt.Status == EventStatus.FollowingUp)
+        {
+            var hasPendingFollowUpTodo = await _context.TodoItems
+                .AnyAsync(t => t.Type == TodoType.FollowUp
+                    && t.RelatedId == request.EventId
+                    && !t.IsCompleted);
+            if (!hasPendingFollowUpTodo)
+            {
+                var lastVisit = await _context.FollowUpVisits
+                    .Where(v => v.EventId == request.EventId)
+                    .OrderByDescending(v => v.VisitDate)
+                    .FirstOrDefaultAsync();
+
+                if (lastVisit == null || (DateTime.UtcNow - lastVisit.VisitDate).TotalDays > 3)
+                {
+                    var todo = new TodoItem
+                    {
+                        UserId = evt.ReporterId,
+                        Type = TodoType.FollowUp,
+                        RelatedId = evt.Id,
+                        Title = $"回访待办：{evt.Title}",
+                        DueDate = DateTime.UtcNow.AddDays(3),
+                        IsCompleted = false
+                    };
+                    _context.TodoItems.Add(todo);
+                }
+            }
+        }
+
         var visit = new FollowUpVisit
         {
             EventId = request.EventId,
@@ -295,6 +327,19 @@ public class TaskService : ITaskService
 
         todo.IsCompleted = true;
         todo.CompletedAt = DateTime.UtcNow;
+
+        if (todo.Type == TodoType.FollowUp)
+        {
+            var visit = new FollowUpVisit
+            {
+                EventId = todo.RelatedId,
+                VisitorId = todo.UserId,
+                VisitDate = DateTime.UtcNow,
+                IsCompleted = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.FollowUpVisits.Add(visit);
+        }
 
         await _context.SaveChangesAsync();
         return MapToTodoDto(await _context.TodoItems.Include(t => t.User).FirstAsync(t => t.Id == id));
