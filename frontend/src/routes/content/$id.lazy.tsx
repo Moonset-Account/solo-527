@@ -1,19 +1,18 @@
 import { createLazyFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { contentApi, authApi } from '../../lib/api'
-import type { PodcastContent, AuthMeResponse } from '../../lib/types'
+import { contentApi } from '../../lib/api'
+import { useAuth } from '../../contexts/AuthContext'
+import type { PodcastContent } from '../../lib/types'
 
 function ContentDetailPage() {
   const { id } = Route.useParams()
+  const { user, membershipStatus, activeSubscription, login } = useAuth()
   const [content, setContent] = useState<PodcastContent | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [authData, setAuthData] = useState<AuthMeResponse | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
     fetchContent()
-    fetchCurrentUser()
   }, [id])
 
   const fetchContent = async () => {
@@ -28,16 +27,12 @@ function ContentDetailPage() {
     }
   }
 
-  const fetchCurrentUser = async () => {
-    setAuthLoading(true)
+  const handleQuickLogin = async () => {
     try {
-      const data = await authApi.getCurrentUser()
-      setAuthData(data)
+      await login(1)
     } catch (error) {
-      console.error('Failed to fetch current user:', error)
-      setAuthData(null)
-    } finally {
-      setAuthLoading(false)
+      console.error('Login failed:', error)
+      alert('登录失败')
     }
   }
 
@@ -53,11 +48,10 @@ function ContentDetailPage() {
   const canViewContent = () => {
     if (!content) return false
     if (!content.isMemberOnly) return true
-    if (!authData) return false
-    return authData.membershipStatus === 'active' && !!authData.activeSubscription
+    return membershipStatus === 'active' && !!activeSubscription
   }
 
-  if (loading || authLoading) {
+  if (loading || membershipStatus === 'loading') {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-gray-500">加载中...</div>
@@ -82,8 +76,8 @@ function ContentDetailPage() {
   }
 
   const canView = canViewContent()
-  const isLoggedIn = !!authData
-  const isMember = authData?.membershipStatus === 'active'
+  const isLoggedIn = !!user
+  const isMember = membershipStatus === 'active'
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -181,14 +175,17 @@ function ContentDetailPage() {
             <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6 text-center">
               {!isLoggedIn ? (
                 <>
-                  <div className="text-5xl mb-4">�</div>
+                  <div className="text-5xl mb-4">👤</div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">
                     请先登录
                   </h3>
                   <p className="text-gray-600 mb-6">
                     登录后即可查看您的会员状态并解锁内容
                   </p>
-                  <button className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                  <button
+                    onClick={handleQuickLogin}
+                    className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
                     登录账号
                   </button>
                 </>

@@ -10,6 +10,7 @@ import rulesRouter from './routes/rules.js';
 import featuresRouter from './routes/features.js';
 import contentRouter from './routes/content.js';
 import authRouter from './routes/auth.js';
+import usersRouter from './routes/users.js';
 
 const app = new Hono();
 
@@ -23,6 +24,7 @@ app.get('/api/health', (c) => {
 });
 
 app.route('/api/auth', authRouter);
+app.route('/api/users', usersRouter);
 app.route('/api/stats', statsRouter);
 app.route('/api/subscriptions', subscriptionsRouter);
 app.route('/api/materials', materialsRouter);

@@ -1,31 +1,22 @@
 import { createLazyFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { subscriptionsApi, authApi } from '../lib/api'
-import type { MembershipPlan, AuthMeResponse, CreateOrderResponse } from '../lib/types'
+import { subscriptionsApi } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
+import type { MembershipPlan, CreateOrderResponse } from '../lib/types'
 
 function MembershipPage() {
+  const { user, membershipStatus, activeSubscription, refreshAuth } = useAuth()
   const [plans, setPlans] = useState<MembershipPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null)
-  const [userId] = useState<number>(1)
-  const [owner] = useState<string>('小王')
   const [submitting, setSubmitting] = useState(false)
   const [subscribeResult, setSubscribeResult] = useState<CreateOrderResponse | null>(null)
-  const [authData, setAuthData] = useState<AuthMeResponse | null>(null)
 
   useEffect(() => {
     fetchPlans()
-    fetchCurrentUser()
   }, [])
 
-  const fetchCurrentUser = async () => {
-    try {
-      const data = await authApi.getCurrentUser()
-      setAuthData(data)
-    } catch (error) {
-      console.error('Failed to fetch current user:', error)
-    }
-  }
+  const isLoggedIn = !!user
 
   const fetchPlans = async () => {
     setLoading(true)
@@ -109,16 +100,20 @@ function MembershipPage() {
       alert('请先选择一个订阅方案')
       return
     }
+    if (!user) {
+      alert('请先登录')
+      return
+    }
     setSubmitting(true)
     setSubscribeResult(null)
     try {
       const result = await subscriptionsApi.createOrder({
         planId: selectedPlan,
-        userId,
-        owner,
+        userId: user.id,
+        owner: user.name,
       })
       setSubscribeResult(result)
-      await fetchCurrentUser()
+      await refreshAuth()
     } catch (error) {
       console.error('Subscription failed:', error)
       alert('订阅失败：' + (error instanceof Error ? error.message : '未知错误'))
@@ -194,7 +189,7 @@ function MembershipPage() {
     },
   ]
 
-  if (loading) {
+  if (loading || membershipStatus === 'loading') {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-gray-500">加载中...</div>
@@ -204,22 +199,36 @@ function MembershipPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-12">
-      {authData && authData.membershipStatus === 'active' && authData.activeSubscription && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+      {!isLoggedIn && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
           <div className="flex items-center gap-3">
-            <div className="text-3xl">✅</div>
+            <div className="text-3xl">👤</div>
             <div>
-              <h3 className="font-bold text-green-800 text-lg">您已是尊贵会员</h3>
-              <p className="text-green-600 text-sm mt-1">
-                当前方案：{authData.activeSubscription.planName || '会员方案'} ·
-                有效期至：{formatDate(authData.activeSubscription.endDate)}
+              <h3 className="font-bold text-yellow-800 text-lg">请先登录</h3>
+              <p className="text-yellow-600 text-sm mt-1">
+                点击右上角头像切换用户，登录后即可订阅会员
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {authData && authData.membershipStatus === 'expired' && (
+      {membershipStatus === 'active' && activeSubscription && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">✅</div>
+            <div>
+              <h3 className="font-bold text-green-800 text-lg">您已是尊贵会员</h3>
+              <p className="text-green-600 text-sm mt-1">
+                当前方案：{activeSubscription.planName || '会员方案'} ·
+                有效期至：{formatDate(activeSubscription.endDate)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {membershipStatus === 'expired' && (
         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
           <div className="flex items-center gap-3">
             <div className="text-3xl">⏰</div>

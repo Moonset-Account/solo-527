@@ -178,7 +178,33 @@ app.get('/:id', async (c) => {
     .where(eq(exceptionLogs.exceptionId, id))
     .orderBy(desc(exceptionLogs.createdAt));
 
-  return c.json({ exception, logs });
+  let sourceException = null;
+  if (exception.reopenedFrom) {
+    const sourceList = await db
+      .select({
+        id: exceptionPool.id,
+        title: exceptionPool.title,
+        status: exceptionPool.status,
+        createdAt: exceptionPool.createdAt,
+      })
+      .from(exceptionPool)
+      .where(eq(exceptionPool.id, exception.reopenedFrom))
+      .limit(1);
+    sourceException = sourceList[0] || null;
+  }
+
+  const reopenedTo = await db
+    .select({
+      id: exceptionPool.id,
+      title: exceptionPool.title,
+      status: exceptionPool.status,
+      createdAt: exceptionPool.createdAt,
+    })
+    .from(exceptionPool)
+    .where(eq(exceptionPool.reopenedFrom, id))
+    .orderBy(desc(exceptionPool.createdAt));
+
+  return c.json({ exception, logs, sourceException, reopenedTo });
 });
 
 app.post('/', async (c) => {

@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { exceptionsApi, statsApi } from '../../lib/api';
-import type { Exception, ExceptionLog } from '../../lib/types';
+import type { Exception, ExceptionLog, ExceptionSummary } from '../../lib/types';
 
 const statusMap: Record<string, { label: string; color: string }> = {
   open: { label: '待处理', color: 'bg-yellow-100 text-yellow-700' },
@@ -43,6 +43,10 @@ function ExceptionsPage() {
   const [selectedException, setSelectedException] = useState<Exception | null>(null);
   const [logs, setLogs] = useState<ExceptionLog[]>([]);
   const [showDetail, setShowDetail] = useState(false);
+  const [sourceException, setSourceException] = useState<ExceptionSummary | null>(null);
+  const [reopenedTo, setReopenedTo] = useState<ExceptionSummary[]>([]);
+  const [history, setHistory] = useState<number[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
   const [actionType, setActionType] = useState<ActionType>(null);
   const [actionForm, setActionForm] = useState({
     closeReason: '',
@@ -106,20 +110,48 @@ function ExceptionsPage() {
       const data = await exceptionsApi.get(exc.id);
       setSelectedException(data.exception);
       setLogs(data.logs);
+      setSourceException(data.sourceException);
+      setReopenedTo(data.reopenedTo);
+      setHistory([exc.id]);
+      setCurrentIndex(0);
     } catch (error) {
       console.error('Failed to fetch exception detail:', error);
     }
     setShowDetail(true);
   };
 
-  const handleViewOriginal = async (originalId: number) => {
+  const handleNavigateToException = async (id: number) => {
     try {
-      const data = await exceptionsApi.get(originalId);
+      const data = await exceptionsApi.get(id);
       setSelectedException(data.exception);
       setLogs(data.logs);
+      setSourceException(data.sourceException);
+      setReopenedTo(data.reopenedTo);
+      const newHistory = history.slice(0, currentIndex + 1);
+      newHistory.push(id);
+      setHistory(newHistory);
+      setCurrentIndex(newHistory.length - 1);
     } catch (error) {
-      console.error('Failed to fetch original exception:', error);
-      setToast({ message: '获取原始异常失败', type: 'error' });
+      console.error('Failed to fetch exception detail:', error);
+      setToast({ message: '获取异常详情失败', type: 'error' });
+    }
+  };
+
+  const handleGoBack = async () => {
+    if (currentIndex > 0) {
+      const prevIndex = currentIndex - 1;
+      const prevId = history[prevIndex];
+      try {
+        const data = await exceptionsApi.get(prevId);
+        setSelectedException(data.exception);
+        setLogs(data.logs);
+        setSourceException(data.sourceException);
+        setReopenedTo(data.reopenedTo);
+        setCurrentIndex(prevIndex);
+      } catch (error) {
+        console.error('Failed to fetch exception detail:', error);
+        setToast({ message: '获取异常详情失败', type: 'error' });
+      }
     }
   };
 
@@ -496,9 +528,22 @@ function ExceptionsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800">异常详情</h2>
-                <p className="text-sm text-gray-500">{selectedException.title}</p>
+              <div className="flex items-center gap-3">
+                {currentIndex > 0 && (
+                  <button
+                    onClick={handleGoBack}
+                    className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    返回
+                  </button>
+                )}
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">异常详情</h2>
+                  <p className="text-sm text-gray-500">{selectedException.title}</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowDetail(false)}
@@ -516,15 +561,68 @@ function ExceptionsPage() {
             </div>
 
             <div className="p-4 space-y-4">
-              {(selectedException.reopenedFrom || selectedException.originalExceptionId) && (
+              {sourceException && (
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <p className="text-xs text-purple-600 mb-1">来源异常</p>
-                  <button
-                    onClick={() => handleViewOriginal(selectedException.reopenedFrom || selectedException.originalExceptionId!)}
-                    className="text-sm text-purple-700 hover:text-purple-900 font-medium underline"
-                  >
-                    查看异常 #{selectedException.reopenedFrom || selectedException.originalExceptionId}
-                  </button>
+                  <p className="text-xs text-purple-600 mb-2 font-medium">来源异常</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-purple-900">{sourceException.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            statusMap[sourceException.status]?.color || 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {statusMap[sourceException.status]?.label || sourceException.status}
+                        </span>
+                        <span className="text-xs text-purple-600">
+                          {formatDate(sourceException.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleNavigateToException(sourceException.id)}
+                      className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-xs font-medium hover:bg-purple-600"
+                    >
+                      查看
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {reopenedTo.length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-600 mb-2 font-medium">重开记录 ({reopenedTo.length})</p>
+                  <div className="space-y-2">
+                    {reopenedTo.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-2 bg-white rounded border border-blue-100"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{item.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                statusMap[item.status]?.color || 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {statusMap[item.status]?.label || item.status}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(item.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleNavigateToException(item.id)}
+                          className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600"
+                        >
+                          查看
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">

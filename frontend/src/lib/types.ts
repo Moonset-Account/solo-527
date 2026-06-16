@@ -214,9 +214,18 @@ export interface ExceptionListResponse {
   totalPages: number;
 }
 
+export interface ExceptionSummary {
+  id: number;
+  title: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface ExceptionDetailResponse {
   exception: Exception;
   logs: ExceptionLog[];
+  sourceException: ExceptionSummary | null;
+  reopenedTo: ExceptionSummary[];
 }
 
 export interface Feature {

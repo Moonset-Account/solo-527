@@ -24,17 +24,62 @@ import type {
   PodcastContentDetailResponse,
   AuthMeResponse,
   CreateOrderResponse,
+  User,
+  Subscription,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+const TOKEN_KEY = 'auth_token';
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAuthToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function getCurrentUserId(): number | null {
+  const token = getAuthToken();
+  if (!token) return null;
+  const match = token.match(/mock-token-(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getAuthToken();
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+  });
+
+  if (options.headers) {
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((value, key) => {
+        headers.set(key, value);
+      });
+    } else if (Array.isArray(options.headers)) {
+      options.headers.forEach(([key, value]) => {
+        headers.set(key, value);
+      });
+    } else {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
+    }
+  }
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!response.ok) {
@@ -498,4 +543,17 @@ export const contentApi = {
 export const authApi = {
   getCurrentUser: () =>
     request<AuthMeResponse>('/auth/me'),
+
+  login: async (userId: number) => {
+    const token = `mock-token-${userId}`;
+    setAuthToken(token);
+    return request<AuthMeResponse>('/auth/me');
+  },
+
+  logout: () => {
+    setAuthToken(null);
+  },
+
+  getUserList: () =>
+    request<{ users: User[] }>('/users'),
 };
