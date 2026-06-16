@@ -105,9 +105,9 @@
 		newNotes = '';
 	}
 
-	function handleCreate() {
+	async function handleCreate() {
 		if (!newTopicId || !newPlatform || !newAccountName || !newPublishDate || !newPublishTime) return;
-		store.addSchedule({
+		const payload = {
 			topicId: newTopicId,
 			platform: newPlatform,
 			accountName: newAccountName,
@@ -116,9 +116,22 @@
 			status: 'scheduled',
 			supplementaryNotes: newNotes,
 			createdBy: store.getCurrentUser().id
-		});
-		showNewDialog = false;
-		resetForm();
+		};
+		try {
+			const res = await fetch('/api/schedules', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error('创建失败');
+			const created = await res.json();
+			store.addSchedule({ ...payload, id: created.id, createdAt: new Date(created.createdAt) });
+			showNewDialog = false;
+			resetForm();
+		} catch (e) {
+			console.error(e);
+			alert('创建排期失败');
+		}
 	}
 
 	function statusBadgeClass(status: ScheduleStatus) {

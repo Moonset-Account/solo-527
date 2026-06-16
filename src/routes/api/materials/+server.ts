@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { materials, materialTags, tags } from '$lib/server/schema';
-import { eq, and, like, desc, count } from 'drizzle-orm';
+import { eq, and, like, desc, count, inArray } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		const tag = url.searchParams.get('tag');
 		const keyword = url.searchParams.get('keyword');
 		const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
-		const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize')) || 20));
+		const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize')) || 100));
 		const offset = (page - 1) * pageSize;
 
 		const conditions = [];
@@ -29,6 +29,8 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const data = await query.orderBy(desc(materials.createdAt)).limit(pageSize).offset(offset);
 
+		let filteredIds = data.map((m) => m.id);
+
 		if (tag) {
 			const tagRows = await db.select().from(tags).where(eq(tags.name, tag));
 			if (tagRows.length > 0) {
@@ -37,12 +39,33 @@ export const GET: RequestHandler = async ({ url }) => {
 					.from(materialTags)
 					.where(eq(materialTags.tagId, tagRows[0].id));
 				const idSet = new Set(taggedMaterialIds.map((r) => r.materialId));
-				const filtered = data.filter((m) => idSet.has(m.id));
-				return json({ data: filtered, total: totalResult.count, page, pageSize });
+				filteredIds = filteredIds.filter((id) => idSet.has(id));
 			}
 		}
 
-		return json({ data, total: totalResult.count, page, pageSize });
+		const finalData = data.filter((m) => filteredIds.includes(m.id));
+
+		const allTagLinks = filteredIds.length
+			? await db
+					.select({ materialId: materialTags.materialId, tag: tags })
+					.from(materialTags)
+					.innerJoin(tags, eq(materialTags.tagId, tags.id))
+					.where(inArray(materialTags.materialId, filteredIds))
+			: [];
+
+		const tagsByMaterial: Record<string, typeof tags.$inferSelect[]> = {};
+		for (const link of allTagLinks) {
+			if (!tagsByMaterial[link.materialId]) tagsByMaterial[link.materialId] = [];
+			tagsByMaterial[link.materialId].push(link.tag);
+		}
+
+		const enriched = finalData.map((m) => ({
+			...m,
+			tags: tagsByMaterial[m.id] ?? [],
+			reuseCount: 0
+		}));
+
+		return json({ data: enriched, total: totalResult.count, page, pageSize });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Unknown error';
 		return json({ error: message }, { status: 500 });

@@ -67,18 +67,31 @@
 		return `${base} ${map[status]}`;
 	}
 
-	function handleSubmit() {
+	async function handleSubmit() {
 		if (!newTitle.trim()) return;
-		store.addTopic({
+		const payload = {
 			title: newTitle.trim(),
 			description: newDescription.trim(),
 			status: 'draft',
 			createdBy: store.getCurrentUser().id,
 			approvedBy: null
-		});
-		newTitle = '';
-		newDescription = '';
-		showNewDialog = false;
+		};
+		try {
+			const res = await fetch('/api/topics', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error('创建失败');
+			const created = await res.json();
+			store.addTopic({ ...payload, id: created.id, createdAt: new Date(created.createdAt), updatedAt: new Date(created.updatedAt || created.createdAt) });
+			newTitle = '';
+			newDescription = '';
+			showNewDialog = false;
+		} catch (e) {
+			console.error(e);
+			alert('创建选题失败');
+		}
 	}
 </script>
 

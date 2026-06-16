@@ -69,18 +69,31 @@
 		newDescription = '';
 	}
 
-	function handleCreate() {
+	async function handleCreate() {
 		if (!newTopicId || !newDescription.trim()) return;
-		store.addAnomaly({
+		const payload = {
 			topicId: newTopicId,
 			type: 'version_conflict',
 			severity: newSeverity,
 			description: newDescription,
 			status: 'open',
 			createdBy: store.getCurrentUser().id
-		});
-		showNewDialog = false;
-		resetForm();
+		};
+		try {
+			const res = await fetch('/api/anomalies', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error('创建失败');
+			const created = await res.json();
+			store.addAnomaly({ ...payload, id: created.id, createdAt: new Date(created.createdAt) });
+			showNewDialog = false;
+			resetForm();
+		} catch (e) {
+			console.error(e);
+			alert('创建异常失败');
+		}
 	}
 </script>
 
