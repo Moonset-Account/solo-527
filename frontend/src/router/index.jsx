@@ -145,6 +145,7 @@ function RouterView() {
             <Route path="/exceptions" element={<ExceptionList />} />
             <Route path="/exceptions/:id" element={<ExceptionDetail />} />
             <Route path="/batch-ops" element={<BatchOpList />} />
+            <Route path="/batch-ops/:id/confirm" element={<BatchOpConfirm />} />
             <Route path="/batch-ops/confirm/:id" element={<BatchOpConfirm />} />
             <Route path="/statistics" element={<StatisticsIndex />} />
             <Route path="/restock" element={<RestockList />} />

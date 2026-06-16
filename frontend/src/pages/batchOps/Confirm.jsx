@@ -48,7 +48,12 @@ import {
   fmtMoney,
   fmtDateTime,
 } from '@/utils/format.js';
-import { BATCH_OP_STATUS, BATCH_OP_TYPES } from '@/utils/constants.js';
+import {
+  BATCH_OP_STATUS,
+  BATCH_OP_TYPES,
+  BATCH_STATUS,
+  INBOUND_STATUS,
+} from '@/utils/constants.js';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -108,7 +113,54 @@ export default function BatchOpConfirm() {
 
   const typeCfg = BATCH_OP_TYPES[detail?.opType] || { label: '批量操作', color: 'default' };
 
-  const previewItems = previewData?.items || previewData?.list || [];
+  const rawPreviewItems = previewData?.items || previewData?.list || [];
+  const params = detail?.inputData?.params || {};
+  const previewItems = useMemo(() => rawPreviewItems.map((item) => {
+    const opType = detail?.opType;
+    let itemName = item.itemName || item.name || item.product?.name || '-';
+    let itemNo = item.itemNo || item.batchNo || item.orderNo || item.sku || item.code || '-';
+    let currentValue = '-';
+    let targetValue = '-';
+    let impact = 'MEDIUM';
+    if (opType === 'BATCH_UPDATE_BATCH_STATUS' || opType === 'BATCH_STATUS_UPDATE') {
+      currentValue = BATCH_STATUS[item.status]?.label || item.status;
+      targetValue = BATCH_STATUS[params?.newStatus]?.label || params?.newStatus || 'NORMAL';
+      impact = item.status === 'EXPIRED' || params?.newStatus === 'EXPIRED' ? 'HIGH' : item.status === 'NEAR_EXPIRY' || params?.newStatus === 'NEAR_EXPIRY' ? 'MEDIUM' : 'LOW';
+      if (item.product?.name) itemName = item.product.name;
+      if (item.batchNo) itemNo = item.batchNo;
+    } else if (opType === 'BATCH_UPDATE_INBOUND_STATUS') {
+      currentValue = INBOUND_STATUS[item.status]?.label || item.status;
+      targetValue = INBOUND_STATUS[params?.newStatus]?.label || params?.newStatus || '-';
+      impact = 'MEDIUM';
+      if (item.orderNo) itemNo = item.orderNo;
+      if (item.supplier?.name) itemName = item.supplier.name;
+    } else if (opType === 'BATCH_CREATE_EXCEPTION') {
+      currentValue = BATCH_STATUS[item.status]?.label || item.status;
+      targetValue = '异常';
+      impact = 'HIGH';
+      if (item.product?.name) itemName = item.product.name;
+      if (item.batchNo) itemNo = item.batchNo;
+    } else if (opType === 'BATCH_DELETE_BATCH') {
+      currentValue = BATCH_STATUS[item.status]?.label || item.status;
+      targetValue = '删除';
+      impact = 'HIGH';
+      if (item.product?.name) itemName = item.product.name;
+      if (item.batchNo) itemNo = item.batchNo;
+    } else if (opType === 'PRICE_UPDATE') {
+      currentValue = fmtMoney(item.defaultPrice);
+      targetValue = fmtMoney(params?.newPrice || item.defaultPrice);
+      impact = params?.newPrice && item.defaultPrice && params.newPrice < item.defaultPrice * 0.8 ? 'HIGH' : 'MEDIUM';
+    } else if (opType === 'STOCK_ADJUST') {
+      currentValue = fmtNum(item.quantity);
+      targetValue = fmtNum(params?.adjustment || item.quantity);
+      impact = 'MEDIUM';
+    } else if (opType === 'STOCKTAKE_CONFIRM') {
+      currentValue = BATCH_STATUS[item.status]?.label || item.status;
+      targetValue = '盘点核对';
+      impact = 'LOW';
+    }
+    return { ...item, itemName, itemNo, currentValue, targetValue, impact, opType };
+  }), [rawPreviewItems, detail, params]);
   const totalCount = previewItems.length;
   const selectedCount = checkedItems.length;
 

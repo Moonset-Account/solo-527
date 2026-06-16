@@ -70,6 +70,7 @@ export const BATCH_OP_STATUS = {
   PARTIAL_SUCCESS: { label: '部分成功', color: 'orange' },
   COMPLETED: { label: '全部成功', color: 'success' },
   FAILED: { label: '全部失败', color: 'error' },
+  CANCELLED: { label: '已取消', color: 'default' },
 };
 
 export const ALERT_TYPE = {
@@ -92,13 +93,16 @@ export const OUTBOUND_TYPES = {
 };
 
 export const BATCH_OP_TYPES = {
-  PRICE_UPDATE: { label: '批量改价', color: 'blue' },
-  BATCH_STATUS_UPDATE: { label: '批次状态更新', color: 'orange' },
-  STOCK_ADJUST: { label: '库存调整', color: 'cyan' },
-  STOCKTAKE_CONFIRM: { label: '盘点确认', color: 'purple' },
-  REASSIGN_SUPPLIER: { label: '重新分配供应商', color: 'green' },
+  BATCH_UPDATE_BATCH_STATUS: { label: '批量更新批次状态', color: 'orange' },
+  BATCH_UPDATE_INBOUND_STATUS: { label: '批量更新入库单状态', color: 'blue' },
   BATCH_CREATE_EXCEPTION: { label: '批量标记异常', color: 'red' },
-  SUPPLIER_RATE_BATCH: { label: '批量评分', color: 'magenta' },
+  BATCH_DELETE_BATCH: { label: '批量删除批次', color: 'purple' },
+  PRICE_UPDATE: { label: '批量改价', color: 'cyan' },
+  STOCK_ADJUST: { label: '库存调整', color: 'geekblue' },
+  STOCKTAKE_CONFIRM: { label: '盘点确认', color: 'magenta' },
+  REASSIGN_SUPPLIER: { label: '重新分配供应商', color: 'green' },
+  SUPPLIER_RATE_BATCH: { label: '批量评分', color: 'volcano' },
+  BATCH_STATUS_UPDATE: { label: '批次状态更新', color: 'orange' },
 };
 
 export const URGENT_LEVEL = {
