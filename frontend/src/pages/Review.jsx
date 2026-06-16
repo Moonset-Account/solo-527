@@ -19,7 +19,7 @@ import {
   Alert
 } from 'antd'
 import {
-  BarChartOutlined,
+  PieChartOutlined,
   UserOutlined,
   MessageOutlined,
   EditOutlined,
@@ -287,7 +287,7 @@ function Review() {
     <div className="page-container">
       <div className="page-header">
         <Space>
-          <BarChartOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+          <PieChartOutlined style={{ fontSize: 24, color: '#1890ff' }} />
           <h2>业务复盘 - {reviewData.event?.name}</h2>
         </Space>
         <Select

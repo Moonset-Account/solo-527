@@ -6,13 +6,13 @@ import {
   ShopOutlined,
   OrderedListOutlined,
   CheckCircleOutlined,
-  RefundOutlined,
+  MoneyCollectOutlined,
   FileTextOutlined,
-  TodoOutlined,
+  UnorderedListOutlined,
   BellOutlined,
   UserOutlined,
   LogoutOutlined,
-  BarChartOutlined
+  PieChartOutlined
 } from '@ant-design/icons'
 import Login from './pages/Login.jsx'
 import EventList from './pages/EventList.jsx'
@@ -94,7 +94,7 @@ function App() {
     const organizerItems = [
       { key: '/events', icon: <ShopOutlined />, label: '活动列表' },
       { key: '/orders', icon: <OrderedListOutlined />, label: '我的订单' },
-      { key: '/todos', icon: <TodoOutlined />, label: '待办事项' }
+      { key: '/todos', icon: <UnorderedListOutlined />, label: '待办事项' }
     ]
 
     const internalItems = [
@@ -102,9 +102,9 @@ function App() {
       { key: '/events', icon: <ShopOutlined />, label: '活动管理' },
       { key: '/orders', icon: <OrderedListOutlined />, label: '订单管理' },
       { key: '/checkin', icon: <CheckCircleOutlined />, label: '核销签到' },
-      { key: '/refunds', icon: <RefundOutlined />, label: '退票管理' },
-      { key: '/review', icon: <BarChartOutlined />, label: '业务复盘' },
-      { key: '/todos', icon: <TodoOutlined />, label: '待办事项' }
+      { key: '/refunds', icon: <MoneyCollectOutlined />, label: '退票管理' },
+      { key: '/review', icon: <PieChartOutlined />, label: '业务复盘' },
+      { key: '/todos', icon: <UnorderedListOutlined />, label: '待办事项' }
     ]
 
     if (user?.role === 'ORGANIZER') {
@@ -147,7 +147,7 @@ function App() {
               />
             </Badge>
             <Badge count={todoStats?.pending || 0} size="small" color="orange">
-              <TodoOutlined
+              <UnorderedListOutlined
                 style={{ fontSize: 20, cursor: 'pointer' }}
                 onClick={() => navigate('/todos')}
               />

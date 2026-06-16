@@ -60,12 +60,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders          Order[]
-  checkInsAsUser  CheckIn[]  @relation("CheckInUser")
-  checkInsAsOp    CheckIn[]  @relation("CheckInOperator")
-  refundsAsUser   Refund[]   @relation("RefundUser")
-  refundsAsOp     Refund[]   @relation("RefundOperator")
-  revenueLogs     RevenueLog[]
+  orders           Order[]
+  organizedEvents  Event[]
+  checkInsAsUser   CheckIn[]  @relation("CheckInUser")
+  checkInsAsOp     CheckIn[]  @relation("CheckInOperator")
+  refundsAsUser    Refund[]   @relation("RefundUser")
+  refundsAsOp      Refund[]   @relation("RefundOperator")
+  revenueLogs      RevenueLog[]
   todos           Todo[]
   notifications   Notification[]
   savedFilters    SavedFilter[]
@@ -171,7 +172,7 @@ model OrderItem {
   orderId    Int
   ticketId   Int?
   sessionId  Int?
-  seatId     Int?
+  seatId     Int?     @unique
   seatName   String?
   ticketName String
   price      Decimal  @db.Decimal(10, 2)
