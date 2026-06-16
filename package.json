@@ -1,0 +1,26 @@
+{
+  "name": "podcast-revenue-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "独立播客收入结算看板系统",
+  "workspaces": [
+    "server",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n SERVER,FRONTEND -c blue,green \"npm run dev:server\" \"npm run dev:frontend\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "build": "npm run build:server && npm run build:frontend",
+    "build:server": "npm --workspace server run build",
+    "build:frontend": "npm --workspace frontend run build",
+    "db:generate": "npm --workspace server run db:generate",
+    "db:migrate": "npm --workspace server run db:migrate",
+    "db:push": "npm --workspace server run db:push",
+    "db:seed": "npm --workspace server run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}
