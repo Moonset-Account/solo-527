@@ -5,6 +5,8 @@ import Seat from './seat.js'
 import User from './user.js'
 
 export default class RenewalList extends BaseModel {
+  static table = 'renewal_list'
+
   @column({ isPrimary: true })
   declare id: number
 

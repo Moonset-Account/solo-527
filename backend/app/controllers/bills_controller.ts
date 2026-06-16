@@ -71,7 +71,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_bill_list',
       resourceType: 'bill',
       ipAddress: request.ip(),
@@ -98,7 +98,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_bill_detail',
       resourceType: 'bill',
       resourceId: bill.id,
@@ -136,7 +136,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'create_bill',
       resourceType: 'bill',
       resourceId: bill.id,
@@ -187,7 +187,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'update_bill',
       resourceType: 'bill',
       resourceId: bill.id,
@@ -215,7 +215,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'delete_bill',
       resourceType: 'bill',
       resourceId: bill.id,
@@ -297,7 +297,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'generate_bills',
       resourceType: 'bill',
       ipAddress: request.ip(),
@@ -378,7 +378,7 @@ export default class BillsController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'export_bills',
       resourceType: 'bill',
       ipAddress: request.ip(),

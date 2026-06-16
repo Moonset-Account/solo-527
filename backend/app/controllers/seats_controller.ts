@@ -213,16 +213,27 @@ export default class SeatsController {
   }
 
   async idleList({ request, auth }: HttpContext) {
-    const { page = 1, perPage = 20, sortBy = 'idleDays', sortOrder = 'desc' } = request.all()
+    const { page = 1, perPage = 20, sortBy = 'idleDays', sortOrder = 'desc', keyword } = request.all()
 
     const query = Seat.query()
       .where('isIdle', true)
       .preload('plan')
 
+    if (keyword) {
+      query.where((q) => {
+        q.where('customerName', 'like', `%${keyword}%`).orWhere('seatCode', 'like', `%${keyword}%`)
+      })
+    }
+
     const sortColumn = sortBy === 'idleDays' ? 'idleDays' : sortBy
     query.orderBy(sortColumn, sortOrder as 'asc' | 'desc')
 
     const seats = await query.paginate(page, perPage)
+
+    const totalCount = await Seat.query().where('isIdle', true).count('* as total').first()
+    const over7Days = await Seat.query().where('isIdle', true).andWhere('idleDays', '>=', 7).count('* as total').first()
+    const over15Days = await Seat.query().where('isIdle', true).andWhere('idleDays', '>=', 15).count('* as total').first()
+    const over30Days = await Seat.query().where('isIdle', true).andWhere('idleDays', '>=', 30).count('* as total').first()
 
     const user = auth.getUserOrFail()
     await OperationLog.create({
@@ -242,6 +253,12 @@ export default class SeatsController {
         page: seats.currentPage,
         perPage: seats.perPage,
         lastPage: seats.lastPage,
+      },
+      stats: {
+        total: Number(totalCount?.$extras.total || 0),
+        over7Days: Number(over7Days?.$extras.total || 0),
+        over15Days: Number(over15Days?.$extras.total || 0),
+        over30Days: Number(over30Days?.$extras.total || 0),
       },
     }
   }

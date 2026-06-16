@@ -1,7 +1,27 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany, beforeSave, afterFind, afterFetch } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Seat from './seat.js'
+
+function parseJson(val: any): Record<string, any> | null {
+  if (!val) return null
+  if (typeof val === 'object') return val
+  try {
+    return JSON.parse(val)
+  } catch {
+    return val
+  }
+}
+
+function stringifyJson(val: any): string | null {
+  if (val === null || val === undefined) return null
+  if (typeof val === 'string') return val
+  try {
+    return JSON.stringify(val)
+  } catch {
+    return null
+  }
+}
 
 export default class Plan extends BaseModel {
   @column({ isPrimary: true })
@@ -45,4 +65,19 @@ export default class Plan extends BaseModel {
 
   @hasMany(() => Seat)
   declare seats: HasMany<typeof Seat>
+
+  @beforeSave()
+  static async stringifyFeatures(plan: Plan) {
+    plan.$attributes.features = stringifyJson(plan.features) as any
+  }
+
+  @afterFind()
+  static async parseFeaturesOne(plan: Plan) {
+    plan.features = parseJson(plan.$attributes.features)
+  }
+
+  @afterFetch()
+  static async parseFeaturesMany(plans: Plan[]) {
+    plans.forEach((p) => (p.features = parseJson(p.$attributes.features)))
+  }
 }

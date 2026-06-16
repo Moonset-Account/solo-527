@@ -1,17 +1,31 @@
-import { UserSchema } from '#database/schema'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { type AccessToken, DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
-import { column, hasMany, manyToMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany, manyToMany } from '@adonisjs/lucid/orm'
 import type { HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import { DateTime } from 'luxon'
 import Role from './role.js'
 import OperationLog from './operation_log.js'
 
-export default class User extends compose(UserSchema, withAuthFinder(hash)) {
+export default class User extends compose(BaseModel, withAuthFinder(hash)) {
   static accessTokens = DbAccessTokensProvider.forModel(User)
   declare currentAccessToken?: AccessToken
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare fullName: string | null
+
+  @column()
+  declare email: string
+
+  @column({ serializeAs: null })
+  declare password: string
+
+  @column()
+  declare avatarUrl: string | null
 
   @column()
   declare phone: string | null
@@ -27,6 +41,12 @@ export default class User extends compose(UserSchema, withAuthFinder(hash)) {
 
   @column({ columnName: 'last_login_ip' })
   declare lastLoginIp: string | null
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 
   @manyToMany(() => Role, {
     pivotTable: 'user_roles',

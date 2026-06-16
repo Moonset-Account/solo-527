@@ -84,7 +84,7 @@ export default class UsageController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_usage_trends',
       resourceType: 'usage',
       ipAddress: request.ip(),
@@ -138,7 +138,7 @@ export default class UsageController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_usage_records',
       resourceType: 'usage_record',
       ipAddress: request.ip(),
@@ -207,7 +207,7 @@ export default class UsageController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_error_records',
       resourceType: 'usage_record',
       ipAddress: request.ip(),
@@ -310,7 +310,7 @@ export default class UsageController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_usage_summary',
       resourceType: 'usage',
       ipAddress: request.ip(),
@@ -399,7 +399,7 @@ export default class UsageController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_seat_usage',
       resourceType: 'seat',
       resourceId: seat.id,

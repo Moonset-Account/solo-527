@@ -3,4 +3,4 @@
 | Re-export for HTTP server via bin/server.js
 |--------------------------------------------------------------------------
 */
-require('../server.js')
+import '../server.js'

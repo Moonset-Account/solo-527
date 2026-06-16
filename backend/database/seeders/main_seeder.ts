@@ -1,18 +1,47 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
+import db from '@adonisjs/lucid/services/db'
 import Role from '#models/role'
 import Permission from '#models/permission'
 import User from '#models/user'
 import Plan from '#models/plan'
 import BillingCycle from '#models/billing_cycle'
 import Seat from '#models/seat'
+import SeatNote from '#models/seat_note'
 import UsageRecord from '#models/usage_record'
+import DailyUsage from '#models/daily_usage'
 import Bill from '#models/bill'
 import RenewalList from '#models/renewal_list'
+import OperationLog from '#models/operation_log'
 import { DateTime } from 'luxon'
 
 export default class extends BaseSeeder {
   async run() {
     console.log('开始播种数据...')
+    console.log('清理旧数据...')
+
+    const tables = [
+      'operation_logs',
+      'renewal_list',
+      'bills',
+      'usage_records',
+      'seat_notes',
+      'seats',
+      'daily_usage',
+      'billing_cycles',
+      'plans',
+      'user_roles',
+      'role_permissions',
+      'users',
+      'roles',
+      'permissions',
+    ]
+
+    for (const table of tables) {
+      try {
+        await db.from(table).delete()
+      } catch (e) {}
+    }
+    console.log('旧数据已清理')
 
     const permissions = [
       { name: 'user:manage', displayName: '用户管理', description: '管理用户账户' },
@@ -195,12 +224,12 @@ export default class extends BaseSeeder {
         apiKey: `sk_${Math.random().toString(36).substring(2, 34)}`,
         apiCallsUsed: apiCallsUsed,
         apiCallsLimit: plan.apiCallsLimit,
-        startDate: startDate.toJSDate(),
-        endDate: endDate.toJSDate(),
-        trialEndDate: status === 'trial' ? endDate.toJSDate() : null,
+        startDate: startDate,
+        endDate: endDate,
+        trialEndDate: status === 'trial' ? endDate : null,
         isIdle: isIdle,
         idleDays: isIdle ? Math.floor(Math.random() * 30) : 0,
-        lastActivityAt: DateTime.now().minus({ days: Math.floor(Math.random() * 30) }).toJSDate(),
+        lastActivityAt: DateTime.now().minus({ days: Math.floor(Math.random() * 30) }),
         notes: i % 3 === 0 ? '重点关注客户' : null,
         createdBy: adminUser.id,
       })
@@ -228,7 +257,7 @@ export default class extends BaseSeeder {
         requestDate: date.toISODate(),
         isError: isError,
         errorMessage: isError ? ['Rate limit exceeded', 'Invalid token', 'Internal server error', 'Bad request'][Math.floor(Math.random() * 4)] : null,
-        createdAt: date.toJSDate(),
+        createdAt: date,
       })
     }
 
@@ -249,13 +278,13 @@ export default class extends BaseSeeder {
         customerName: seat.customerName,
         planName: createdPlans[i % createdPlans.length].name,
         billingMonth: month.toFormat('yyyy-MM'),
-        periodStart: month.startOf('month').toJSDate(),
-        periodEnd: month.endOf('month').toJSDate(),
+        periodStart: month.startOf('month'),
+        periodEnd: month.endOf('month'),
         amount: amount,
         apiCallsUsed: Math.floor(Math.random() * 10000),
         status: ['draft', 'unpaid', 'paid', 'overdue'][i % 4],
-        dueDate: month.plus({ days: 15 }).toJSDate(),
-        paidAt: i % 3 === 0 ? month.plus({ days: 10 }).toJSDate() : null,
+        dueDate: month.plus({ days: 15 }),
+        paidAt: i % 3 === 0 ? month.plus({ days: 10 }) : null,
         remark: i % 4 === 0 ? '自动扣款成功' : null,
         createdBy: adminUser.id,
       })
@@ -266,8 +295,8 @@ export default class extends BaseSeeder {
 
     console.log('生成续费名单...')
     const renewalEntries = []
-    const priorities = ['high', 'medium', 'low']
-    const renewalStatuses = ['pending', 'contacted', 'renewed', 'lost']
+    const priorities = ['high', 'medium', 'low', 'urgent']
+    const renewalStatuses = ['pending', 'following', 'converted', 'lost']
 
     for (let i = 0; i < 12; i++) {
       const seat = createdSeats[i + 5]
@@ -278,12 +307,12 @@ export default class extends BaseSeeder {
         customerId: seat.customerId,
         customerName: seat.customerName,
         planName: createdPlans[i % createdPlans.length].name,
-        expiryDate: expiryDate.toJSDate(),
+        expiryDate: expiryDate,
         status: renewalStatuses[i % renewalStatuses.length],
         priority: priorities[i % priorities.length],
         assignedTo: i % 2 === 0 ? operatorUser.id : null,
-        lastFollowUpAt: i % 3 === 0 ? DateTime.now().minus({ days: Math.floor(Math.random() * 7) }).toJSDate() : null,
-        nextFollowUpAt: DateTime.now().plus({ days: Math.floor(Math.random() * 7) }).toJSDate(),
+        lastFollowUpAt: i % 3 === 0 ? DateTime.now().minus({ days: Math.floor(Math.random() * 7) }) : null,
+        nextFollowUpAt: DateTime.now().plus({ days: Math.floor(Math.random() * 7) }),
         notes: i % 2 === 0 ? '客户意向较高，需重点跟进' : null,
       })
     }

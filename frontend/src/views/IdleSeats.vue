@@ -199,11 +199,14 @@ const loadData = async () => {
       keyword: searchKeyword.value
     }
     const res = await getIdleSeats(params)
-    const data = res.data || res
-    tableData.value = data.list || data.data || []
-    total.value = data.total || 0
-    if (data.stats) {
-      Object.assign(stats, data.stats)
+    const resp = res.data || res
+    tableData.value = resp.list || resp.data || []
+    total.value = resp.total || resp.meta?.total || 0
+    const statsData = resp.stats
+    if (statsData) {
+      Object.assign(stats, statsData)
+    } else if (!total.value) {
+      stats.total = resp.list?.length || resp.data?.length || 0
     }
   } catch (e) {
     console.error(e)

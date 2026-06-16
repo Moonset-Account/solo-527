@@ -25,7 +25,7 @@ export default class BillingCyclesController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'view_billing_cycles',
       resourceType: 'billing_cycle',
       ipAddress: request.ip(),
@@ -51,7 +51,7 @@ export default class BillingCyclesController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'create_billing_cycle',
       resourceType: 'billing_cycle',
       resourceId: cycle.id,
@@ -91,7 +91,7 @@ export default class BillingCyclesController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'update_billing_cycle',
       resourceType: 'billing_cycle',
       resourceId: cycle.id,
@@ -122,7 +122,7 @@ export default class BillingCyclesController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'delete_billing_cycle',
       resourceType: 'billing_cycle',
       resourceId: cycle.id,
@@ -159,7 +159,7 @@ export default class BillingCyclesController {
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
-      userName: user.fullName,
+      userName: user.fullName || user.email,
       action: 'set_default_billing_cycle',
       resourceType: 'billing_cycle',
       resourceId: cycle.id,

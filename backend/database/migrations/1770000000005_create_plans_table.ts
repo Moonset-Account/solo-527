@@ -1,11 +1,11 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
-import app from '@adonisjs/core/services/app'
+import config from '@adonisjs/core/services/config'
 
 export default class extends BaseSchema {
   protected tableName = 'plans'
 
   async up() {
-    const isSqlite = app.container.use('Adonis/Core/Config').get('database.connection') === 'sqlite'
+    const isSqlite = config.get('database.connection') === 'sqlite'
     const jsonType = isSqlite ? 'text' : 'jsonb'
 
     this.schema.createTable(this.tableName, (table) => {

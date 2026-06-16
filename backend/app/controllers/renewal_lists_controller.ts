@@ -259,6 +259,20 @@ export default class RenewalListsController {
       }
       if (status) {
         item.status = status
+        if (status === 'converted') {
+          const seat = await Seat.find(item.seatId)
+          if (seat) {
+            seat.status = 'active'
+            seat.endDate = item.expiryDate
+            await seat.save()
+          }
+        } else if (status === 'lost') {
+          const seat = await Seat.find(item.seatId)
+          if (seat && seat.status !== 'cancelled') {
+            seat.status = 'cancelled'
+            await seat.save()
+          }
+        }
       }
 
       await item.save()

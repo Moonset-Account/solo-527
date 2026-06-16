@@ -651,6 +651,7 @@ const getStatusText = (status) => {
 
 const getPriorityType = (priority) => {
   const map = {
+    urgent: 'danger',
     high: 'danger',
     medium: 'warning',
     low: 'info'
@@ -660,6 +661,7 @@ const getPriorityType = (priority) => {
 
 const getPriorityText = (priority) => {
   const map = {
+    urgent: '紧急',
     high: '高',
     medium: '中',
     low: '低'

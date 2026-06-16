@@ -3,4 +3,4 @@
 | Re-export for ace commands via bin/console.js
 |--------------------------------------------------------------------------
 */
-require('../ace.js')
+import '../ace.js'
