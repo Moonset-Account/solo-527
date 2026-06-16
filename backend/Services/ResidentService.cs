@@ -160,7 +160,7 @@ public class ResidentService : IResidentService
                 IdCard = idCard,
                 Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
                 Address = string.IsNullOrWhiteSpace(address) ? null : address,
-                GridId = gridId ?? 0,
+                GridId = gridId,
                 HouseholdType = string.IsNullOrWhiteSpace(householdType) ? null : householdType,
                 Tags = string.IsNullOrWhiteSpace(tags) ? null : tags,
                 Remark = string.IsNullOrWhiteSpace(remark) ? null : remark

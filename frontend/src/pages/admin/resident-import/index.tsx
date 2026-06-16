@@ -36,11 +36,11 @@ const ResidentImport = () => {
 
   const props: UploadProps = {
     fileList,
-    accept: '.xlsx,.xls,.csv',
+    accept: '.csv',
     beforeUpload: (file) => {
-      const isExcel = /\.(xlsx|xls|csv)$/i.test(file.name)
-      if (!isExcel) {
-        message.error('只支持上传 Excel 文件！')
+      const isCsv = /\.csv$/i.test(file.name)
+      if (!isCsv) {
+        message.error('只支持上传 CSV 文件！')
         return false
       }
       const isLt10M = file.size / 1024 / 1024 < 10
@@ -131,7 +131,7 @@ const ResidentImport = () => {
           <UploadOutlined />
         </p>
         <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-        <p className="ant-upload-hint">仅支持 Excel 文件格式</p>
+        <p className="ant-upload-hint">仅支持 CSV 文件格式（UTF-8 编码）</p>
       </Upload.Dragger>
 
       {uploading && (

@@ -196,6 +196,22 @@ public class TaskService : ITaskService
         };
 
         _context.FollowUpVisits.Add(visit);
+
+        if (request.IsCompleted)
+        {
+            var pendingTodos = await _context.TodoItems
+                .Where(t => t.Type == TodoType.FollowUp
+                    && t.RelatedId == request.EventId
+                    && !t.IsCompleted)
+                .ToListAsync();
+
+            foreach (var todo in pendingTodos)
+            {
+                todo.IsCompleted = true;
+                todo.CompletedAt = DateTime.UtcNow;
+            }
+        }
+
         await _context.SaveChangesAsync();
         return MapToVisitDto(await _context.FollowUpVisits.Include(v => v.Event).Include(v => v.Visitor).FirstAsync(v => v.Id == visit.Id));
     }

@@ -78,7 +78,7 @@ public class ResidentsController : ControllerBase
 
     [HttpPost("import")]
     [Authorize(Roles = "admin,manager")]
-    public async Task<IActionResult> ImportResidents(IFormFile file, [FromQuery] int? gridId = null)
+    public async Task<IActionResult> ImportResidents(IFormFile file, int? gridId = null)
     {
         if (file == null || file.Length == 0)
         {
