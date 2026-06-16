@@ -11,7 +11,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 
 export default class UsersController {
-  async index({ request, auth, serialize }: HttpContext) {
+  async index({ request, auth }: HttpContext) {
     const { page = 1, perPage = 20, keyword, status } = await request.validateUsing(indexUserValidator)
 
     const query = User.query()
@@ -44,10 +44,18 @@ export default class UsersController {
       details: { page, perPage, keyword, status },
     })
 
-    return serialize(users)
+    return {
+      data: users.toJSON().data,
+      meta: {
+        total: users.total,
+        page: users.currentPage,
+        perPage: users.perPage,
+        lastPage: users.lastPage,
+      },
+    }
   }
 
-  async show({ request, auth, serialize }: HttpContext) {
+  async show({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const user = await User.query().where('id', id).preload('roles').firstOrFail()
@@ -64,10 +72,10 @@ export default class UsersController {
       details: { userId: id },
     })
 
-    return serialize(user)
+    return user
   }
 
-  async store({ request, auth, serialize }: HttpContext) {
+  async store({ request, auth }: HttpContext) {
     const data = await request.validateUsing(storeUserValidator)
 
     const user = await db.transaction(async () => {
@@ -109,10 +117,10 @@ export default class UsersController {
       },
     })
 
-    return serialize(user)
+    return user
   }
 
-  async update({ request, auth, serialize }: HttpContext) {
+  async update({ request, auth }: HttpContext) {
     const id = request.param('id')
     const data = await request.validateUsing(updateUserValidator)
 
@@ -150,7 +158,7 @@ export default class UsersController {
       },
     })
 
-    return serialize(user)
+    return user
   }
 
   async destroy({ request, auth }: HttpContext) {
@@ -176,7 +184,7 @@ export default class UsersController {
     }
   }
 
-  async assignRoles({ request, auth, serialize }: HttpContext) {
+  async assignRoles({ request, auth }: HttpContext) {
     const id = request.param('id')
     const { roleIds } = await request.validateUsing(assignRolesValidator)
 
@@ -196,10 +204,10 @@ export default class UsersController {
       details: { roleIds },
     })
 
-    return serialize(user)
+    return user
   }
 
-  async getRoles({ request, auth, serialize }: HttpContext) {
+  async getRoles({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const user = await User.findOrFail(id)
@@ -217,6 +225,8 @@ export default class UsersController {
       details: { userId: id },
     })
 
-    return serialize(roles)
+    return {
+      data: roles,
+    }
   }
 }

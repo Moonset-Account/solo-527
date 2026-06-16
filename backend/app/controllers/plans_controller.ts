@@ -1,10 +1,10 @@
 import Plan from '#models/plan'
-import OperationLogService from '#services/operation_log_service'
-import { createPlanSchema, updatePlanSchema, queryPlanSchema } from '#validators/plan_validator'
+import OperationLog from '#models/operation_log'
+import { createPlanValidator, updatePlanValidator, queryPlanValidator } from '#validators/plan_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 
 export default class PlansController {
-  async index({ request }: HttpContext) {
+  async index({ request, auth }: HttpContext) {
     const {
       page = 1,
       perPage = 20,
@@ -12,7 +12,7 @@ export default class PlansController {
       keyword,
       sortBy = 'sortOrder',
       sortOrder = 'asc',
-    } = await request.validateUsing(queryPlanSchema)
+    } = await request.validateUsing(queryPlanValidator)
 
     const query = Plan.query()
 
@@ -28,10 +28,21 @@ export default class PlansController {
       })
     }
 
-    const sortColumn = sortBy === 'sortOrder' ? 'sort_order' : sortBy
+    const sortColumn = sortBy === 'sortOrder' ? 'sortOrder' : sortBy
     query.orderBy(sortColumn, sortOrder as 'asc' | 'desc')
 
     const plans = await query.paginate(page, perPage)
+
+    const user = auth.getUserOrFail()
+    await OperationLog.create({
+      userId: user.id,
+      userName: user.fullName || user.email,
+      action: 'view_plans',
+      resourceType: 'plan',
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent'),
+      details: { page, perPage, keyword, status },
+    })
 
     return {
       data: plans.toJSON().data,
@@ -44,62 +55,89 @@ export default class PlansController {
     }
   }
 
-  async show({ params }: HttpContext) {
+  async show({ params, request, auth }: HttpContext) {
     const plan = await Plan.findOrFail(params.id)
+
+    const user = auth.getUserOrFail()
+    await OperationLog.create({
+      userId: user.id,
+      userName: user.fullName || user.email,
+      action: 'view_plan',
+      resourceType: 'plan',
+      resourceId: plan.id,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent'),
+      details: { planCode: plan.code, planName: plan.name },
+    })
+
     return plan
   }
 
   async store({ request, auth }: HttpContext) {
-    const data = await request.validateUsing(createPlanSchema)
+    const data = await request.validateUsing(createPlanValidator)
 
-    const plan = await Plan.create(data)
+    const plan = await Plan.create({
+      ...data,
+      status: data.status || 'active',
+      sortOrder: data.sortOrder || 0,
+    })
 
-    await OperationLogService.log(
-      { auth, request } as HttpContext,
-      'create',
-      'plan',
-      plan.id,
-      data
-    )
+    const user = auth.getUserOrFail()
+    await OperationLog.create({
+      userId: user.id,
+      userName: user.fullName || user.email,
+      action: 'create_plan',
+      resourceType: 'plan',
+      resourceId: plan.id,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent'),
+      details: { ...data },
+    })
 
     return plan
   }
 
   async update({ params, request, auth }: HttpContext) {
     const plan = await Plan.findOrFail(params.id)
-    const data = await request.validateUsing(updatePlanSchema)
+    const data = await request.validateUsing(updatePlanValidator)
 
     const oldData = plan.toJSON()
     plan.merge(data)
     await plan.save()
 
-    await OperationLogService.log(
-      { auth, request } as HttpContext,
-      'update',
-      'plan',
-      plan.id,
-      { old: oldData, new: data }
-    )
+    const user = auth.getUserOrFail()
+    await OperationLog.create({
+      userId: user.id,
+      userName: user.fullName || user.email,
+      action: 'update_plan',
+      resourceType: 'plan',
+      resourceId: plan.id,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent'),
+      details: { old: oldData, new: data },
+    })
 
     return plan
   }
 
   async destroy({ params, auth, request }: HttpContext) {
     const plan = await Plan.findOrFail(params.id)
+    await plan.delete()
 
-    plan.status = 'inactive'
-    await plan.save()
-
-    await OperationLogService.log(
-      { auth, request } as HttpContext,
-      'delete',
-      'plan',
-      plan.id,
-      { planName: plan.name, planCode: plan.code }
-    )
+    const user = auth.getUserOrFail()
+    await OperationLog.create({
+      userId: user.id,
+      userName: user.fullName || user.email,
+      action: 'delete_plan',
+      resourceType: 'plan',
+      resourceId: plan.id,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent'),
+      details: { planCode: plan.code, planName: plan.name },
+    })
 
     return {
-      message: 'Plan deactivated successfully',
+      message: '套餐删除成功',
     }
   }
 }

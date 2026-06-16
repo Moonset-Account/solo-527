@@ -1,15 +1,17 @@
 import vine from '@vinejs/vine'
 
-export const indexRenewalListValidator = vine.create({
-  page: vine.number().min(1).optional(),
-  perPage: vine.number().min(1).max(100).optional(),
-  status: vine.string().optional(),
-  priority: vine.string().optional(),
-  assignedTo: vine.number().positive().optional(),
-  keyword: vine.string().trim().maxLength(100).optional(),
-  sortBy: vine.string().optional(),
-  sortOrder: vine.enum(['asc', 'desc']).optional(),
-})
+export const indexRenewalListValidator = vine.compile(
+  vine.object({
+    page: vine.number().min(1).optional(),
+    perPage: vine.number().min(1).max(100).optional(),
+    status: vine.string().optional(),
+    priority: vine.string().optional(),
+    assignedTo: vine.number().positive().optional(),
+    keyword: vine.string().trim().maxLength(100).optional(),
+    sortBy: vine.string().optional(),
+    sortOrder: vine.enum(['asc', 'desc']).optional(),
+  })
+)
 
 export const storeRenewalListValidator = vine.compile(
   vine.object({
@@ -20,9 +22,9 @@ export const storeRenewalListValidator = vine.compile(
     expiryDate: vine.date(),
     status: vine.enum(['pending', 'following', 'converted', 'lost']).optional(),
     priority: vine.enum(['low', 'medium', 'high', 'urgent']).optional(),
-    assignedTo: vine.number().positive().nullable().optional(),
-    nextFollowUpAt: vine.date().nullable().optional(),
-    notes: vine.string().nullable().maxLength(1000).optional(),
+    assignedTo: vine.number().positive().optional(),
+    nextFollowUpAt: vine.date().optional(),
+    notes: vine.string().maxLength(1000).optional(),
   })
 )
 
@@ -34,8 +36,8 @@ export const updateRenewalListValidator = vine.compile(
     expiryDate: vine.date().optional(),
     status: vine.enum(['pending', 'following', 'converted', 'lost']).optional(),
     priority: vine.enum(['low', 'medium', 'high', 'urgent']).optional(),
-    nextFollowUpAt: vine.date().nullable().optional(),
-    notes: vine.string().nullable().maxLength(1000).optional(),
+    nextFollowUpAt: vine.date().optional(),
+    notes: vine.string().maxLength(1000).optional(),
   })
 )
 
@@ -48,7 +50,7 @@ export const assignRenewalListValidator = vine.compile(
 export const followUpValidator = vine.compile(
   vine.object({
     content: vine.string().maxLength(1000),
-    nextFollowUpAt: vine.date().nullable().optional(),
+    nextFollowUpAt: vine.date().optional(),
     status: vine.enum(['pending', 'following', 'converted', 'lost']).optional(),
   })
 )

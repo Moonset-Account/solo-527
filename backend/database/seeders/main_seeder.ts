@@ -6,7 +6,6 @@ import Plan from '#models/plan'
 import BillingCycle from '#models/billing_cycle'
 import Seat from '#models/seat'
 import UsageRecord from '#models/usage_record'
-import DailyUsage from '#models/usage_record'
 import Bill from '#models/bill'
 import RenewalList from '#models/renewal_list'
 import { DateTime } from 'luxon'
@@ -87,7 +86,7 @@ export default class extends BaseSeeder {
 
     await adminUser.related('roles').sync([adminRole.id])
     await pmUser.related('roles').sync([pmRole.id])
-    await operatorUser.related('roles').sync([operatorRole])
+    await operatorUser.related('roles').sync([operatorRole.id])
     console.log('创建了 3 个测试用户')
 
     const plans = [
@@ -207,7 +206,7 @@ export default class extends BaseSeeder {
       })
     }
 
-    const createdSeats = await Seat.createMany(seats)
+    const createdSeats = await Seat.createMany(seats as any)
     console.log(`创建了 ${createdSeats.length} 个席位`)
 
     console.log('生成用量记录...')
@@ -233,7 +232,7 @@ export default class extends BaseSeeder {
       })
     }
 
-    await UsageRecord.createMany(usageRecords)
+    await UsageRecord.createMany(usageRecords as any)
     console.log(`创建了 ${usageRecords.length} 条用量记录`)
 
     console.log('生成账单...')
@@ -262,7 +261,7 @@ export default class extends BaseSeeder {
       })
     }
 
-    await Bill.createMany(bills)
+    await Bill.createMany(bills as any)
     console.log(`创建了 ${bills.length} 个账单`)
 
     console.log('生成续费名单...')
@@ -289,7 +288,7 @@ export default class extends BaseSeeder {
       })
     }
 
-    await RenewalList.createMany(renewalEntries)
+    await RenewalList.createMany(renewalEntries as any)
     console.log(`创建了 ${renewalEntries.length} 条续费名单`)
 
     console.log('✅ 数据播种完成！')

@@ -18,10 +18,10 @@ export default class CacheService {
     }
   }
 
-  static async set(key: string, value: any, ttl?: number) {
+  static async set(key: string, value: any, ttl: number = CacheService.defaultTTL) {
     try {
       const data = typeof value === 'string' ? value : JSON.stringify(value)
-      if (ttl) {
+      if (ttl > 0) {
         await redis.setex(key, ttl, data)
       } else {
         await redis.set(key, data)

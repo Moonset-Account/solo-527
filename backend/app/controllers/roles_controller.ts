@@ -11,7 +11,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 
 export default class RolesController {
-  async index({ request, auth, serialize }: HttpContext) {
+  async index({ request, auth }: HttpContext) {
     const { page = 1, perPage = 20, keyword } = await request.validateUsing(indexRoleValidator)
 
     const query = Role.query()
@@ -37,10 +37,18 @@ export default class RolesController {
       details: { page, perPage, keyword },
     })
 
-    return serialize(roles)
+    return {
+      data: roles.toJSON().data,
+      meta: {
+        total: roles.total,
+        page: roles.currentPage,
+        perPage: roles.perPage,
+        lastPage: roles.lastPage,
+      },
+    }
   }
 
-  async show({ request, auth, serialize }: HttpContext) {
+  async show({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const role = await Role.query().where('id', id).preload('permissions').firstOrFail()
@@ -57,10 +65,10 @@ export default class RolesController {
       details: { roleId: id },
     })
 
-    return serialize(role)
+    return role
   }
 
-  async store({ request, auth, serialize }: HttpContext) {
+  async store({ request, auth }: HttpContext) {
     const data = await request.validateUsing(storeRoleValidator)
 
     const role = await db.transaction(async () => {
@@ -97,10 +105,10 @@ export default class RolesController {
       },
     })
 
-    return serialize(role)
+    return role
   }
 
-  async update({ request, auth, serialize }: HttpContext) {
+  async update({ request, auth }: HttpContext) {
     const id = request.param('id')
     const data = await request.validateUsing(updateRoleValidator)
 
@@ -130,7 +138,7 @@ export default class RolesController {
       },
     })
 
-    return serialize(role)
+    return role
   }
 
   async destroy({ request, auth }: HttpContext) {
@@ -156,7 +164,7 @@ export default class RolesController {
     }
   }
 
-  async assignPermissions({ request, auth, serialize }: HttpContext) {
+  async assignPermissions({ request, auth }: HttpContext) {
     const id = request.param('id')
     const { permissionIds } = await request.validateUsing(assignPermissionsValidator)
 
@@ -176,6 +184,6 @@ export default class RolesController {
       details: { permissionIds },
     })
 
-    return serialize(role)
+    return role
   }
 }

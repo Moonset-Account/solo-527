@@ -7,7 +7,7 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 
 export default class DashboardController {
-  async stats({ request, auth, serialize }: HttpContext) {
+  async stats({ request, auth }: HttpContext) {
     const today = DateTime.now().toISODate()
 
     const totalSeats = await Seat.query().count('* as total').first()
@@ -37,16 +37,16 @@ export default class DashboardController {
       userAgent: request.header('user-agent'),
     })
 
-    return serialize({
+    return {
       totalSeats: Number(totalSeats?.$extras.total || 0),
       activeSeats: Number(activeSeats?.$extras.total || 0),
       todayCalls: Number(todayUsage?.$extras.total_calls || 0),
       pendingRenewals: Number(pendingRenewals?.$extras.total || 0),
       idleSeats: Number(idleSeats?.$extras.total || 0),
-    })
+    }
   }
 
-  async todos({ request, auth, serialize }: HttpContext) {
+  async todos({ request, auth }: HttpContext) {
     const user = auth.getUserOrFail()
 
     const myRenewals = await RenewalList.query()
@@ -90,7 +90,7 @@ export default class DashboardController {
       userAgent: request.header('user-agent'),
     })
 
-    return serialize({
+    return {
       myRenewals: myRenewals.map((item) => ({
         id: item.id,
         customerName: item.customerName,
@@ -129,10 +129,10 @@ export default class DashboardController {
             }
           : null,
       })),
-    })
+    }
   }
 
-  async recentActivity({ request, auth, serialize }: HttpContext) {
+  async recentActivity({ request, auth }: HttpContext) {
     const user = auth.getUserOrFail()
     const limit = request.input('limit', 20)
 
@@ -151,23 +151,21 @@ export default class DashboardController {
       userAgent: request.header('user-agent'),
     })
 
-    return serialize(
-      recentLogs.map((log) => ({
-        id: log.id,
-        action: log.action,
-        resourceType: log.resourceType,
-        resourceId: log.resourceId,
-        userName: log.userName,
-        user: log.user
-          ? {
-              id: log.user.id,
-              name: log.user.fullName || log.user.email,
-              email: log.user.email,
-            }
-          : null,
-        details: log.details,
-        createdAt: log.createdAt,
-      }))
-    )
+    return recentLogs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      resourceType: log.resourceType,
+      resourceId: log.resourceId,
+      userName: log.userName,
+      user: log.user
+        ? {
+            id: log.user.id,
+            name: log.user.fullName || log.user.email,
+            email: log.user.email,
+          }
+        : null,
+      details: log.details,
+      createdAt: log.createdAt,
+    }))
   }
 }

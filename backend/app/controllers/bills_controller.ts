@@ -3,10 +3,10 @@ import Seat from '#models/seat'
 import OperationLog from '#models/operation_log'
 import DailyUsage from '#models/daily_usage'
 import {
-  createBillSchema,
-  updateBillSchema,
-  queryBillSchema,
-  generateBillsSchema,
+  createBillValidator,
+  updateBillValidator,
+  queryBillValidator,
+  generateBillsValidator,
 } from '#validators/bill_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
@@ -21,8 +21,8 @@ function generateBillNo(): string {
 }
 
 export default class BillsController {
-  async index({ request, auth, serialize }: HttpContext) {
-    const payload = await request.validateUsing(queryBillSchema)
+  async index({ request, auth }: HttpContext) {
+    const payload = await request.validateUsing(queryBillValidator)
     const page = payload.page || 1
     const perPage = payload.perPage || 20
 
@@ -79,10 +79,18 @@ export default class BillsController {
       details: { ...payload, page, perPage },
     })
 
-    return serialize(bills)
+    return {
+      data: bills.toJSON().data,
+      meta: {
+        total: bills.total,
+        page: bills.currentPage,
+        perPage: bills.perPage,
+        lastPage: bills.lastPage,
+      },
+    }
   }
 
-  async show({ request, auth, serialize }: HttpContext) {
+  async show({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const bill = await Bill.query().where('id', id).preload('seat').firstOrFail()
@@ -99,11 +107,11 @@ export default class BillsController {
       details: { billId: id, billNo: bill.billNo },
     })
 
-    return serialize(bill)
+    return bill
   }
 
-  async store({ request, auth, serialize }: HttpContext) {
-    const payload = await request.validateUsing(createBillSchema)
+  async store({ request, auth }: HttpContext) {
+    const payload = await request.validateUsing(createBillValidator)
 
     const seat = await Seat.query().where('id', payload.seatId).preload('plan').firstOrFail()
 
@@ -118,7 +126,7 @@ export default class BillsController {
     bill.periodEnd = DateTime.fromISO(payload.periodEnd)
     bill.amount = payload.amount
     bill.apiCallsUsed = payload.apiCallsUsed || 0
-    bill.status = payload.status || 'draft'
+    bill.status = payload.status || 'pending'
     bill.dueDate = payload.dueDate ? DateTime.fromISO(payload.dueDate) : null
     bill.remark = payload.remark || null
     bill.createdBy = auth.user?.id || null
@@ -137,12 +145,12 @@ export default class BillsController {
       details: { ...payload, billNo: bill.billNo },
     })
 
-    return serialize(bill)
+    return bill
   }
 
-  async update({ request, auth, serialize }: HttpContext) {
+  async update({ request, auth }: HttpContext) {
     const id = request.param('id')
-    const payload = await request.validateUsing(updateBillSchema)
+    const payload = await request.validateUsing(updateBillValidator)
 
     const bill = await Bill.findOrFail(id)
     const oldData = bill.toJSON()
@@ -193,10 +201,10 @@ export default class BillsController {
       },
     })
 
-    return serialize(bill)
+    return bill
   }
 
-  async destroy({ request, auth, serialize }: HttpContext) {
+  async destroy({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const bill = await Bill.findOrFail(id)
@@ -216,13 +224,13 @@ export default class BillsController {
       details: { billId: id, billNo },
     })
 
-    return serialize({
+    return {
       message: '账单删除成功',
-    })
+    }
   }
 
-  async generate({ request, auth, serialize }: HttpContext) {
-    const payload = await request.validateUsing(generateBillsSchema)
+  async generate({ request, auth }: HttpContext) {
+    const payload = await request.validateUsing(generateBillsValidator)
 
     const billingMonth = payload.billingMonth
     const monthDate = DateTime.fromFormat(billingMonth, 'yyyy-MM')
@@ -273,7 +281,7 @@ export default class BillsController {
         bill.periodEnd = periodEnd
         bill.amount = amount
         bill.apiCallsUsed = apiCallsUsed
-        bill.status = 'draft'
+        bill.status = 'pending'
         bill.createdBy = auth.user?.id || null
 
         await bill.save()
@@ -302,12 +310,12 @@ export default class BillsController {
       },
     })
 
-    return serialize({
+    return {
       message: `成功生成 ${generatedBills.length} 条账单`,
       generatedCount: generatedBills.length,
       totalSeats: seats.length,
       bills: generatedBills,
-    })
+    }
   }
 
   async export({ request, auth, response }: HttpContext) {

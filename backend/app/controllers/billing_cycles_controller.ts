@@ -1,11 +1,16 @@
 import BillingCycle from '#models/billing_cycle'
 import OperationLog from '#models/operation_log'
+import {
+  createBillingCycleValidator,
+  updateBillingCycleValidator,
+  queryBillingCycleValidator,
+} from '#validators/billing_cycle_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 
 export default class BillingCyclesController {
-  async index({ request, auth, serialize }: HttpContext) {
-    const { status } = request.qs()
+  async index({ request, auth }: HttpContext) {
+    const { status } = await request.validateUsing(queryBillingCycleValidator)
 
     const query = BillingCycle.query()
 
@@ -28,18 +33,18 @@ export default class BillingCyclesController {
       details: { status },
     })
 
-    return serialize(cycles)
+    return cycles
   }
 
-  async store({ request, auth, serialize }: HttpContext) {
-    const { name, cycleType, dayOfMonth, status } = request.body()
+  async store({ request, auth }: HttpContext) {
+    const data = await request.validateUsing(createBillingCycleValidator)
 
     const cycle = new BillingCycle()
-    cycle.name = name
-    cycle.cycleType = cycleType || 'monthly'
-    cycle.dayOfMonth = dayOfMonth || null
+    cycle.name = data.name
+    cycle.cycleType = data.cycleType || 'monthly'
+    cycle.dayOfMonth = data.dayOfMonth || null
     cycle.isDefault = false
-    cycle.status = status || 'active'
+    cycle.status = data.status || 'active'
 
     await cycle.save()
 
@@ -52,33 +57,33 @@ export default class BillingCyclesController {
       resourceId: cycle.id,
       ipAddress: request.ip(),
       userAgent: request.header('user-agent'),
-      details: { name, cycleType, dayOfMonth, status },
+      details: { name: data.name, cycleType: data.cycleType, dayOfMonth: data.dayOfMonth, status: data.status },
     })
 
-    return serialize(cycle)
+    return cycle
   }
 
-  async update({ request, auth, serialize }: HttpContext) {
+  async update({ request, auth }: HttpContext) {
     const id = request.param('id')
-    const { name, cycleType, dayOfMonth, status } = request.body()
+    const data = await request.validateUsing(updateBillingCycleValidator)
 
     const cycle = await BillingCycle.findOrFail(id)
     const oldData = cycle.toJSON()
 
-    if (name !== undefined) {
-      cycle.name = name
+    if (data.name !== undefined) {
+      cycle.name = data.name
     }
 
-    if (cycleType !== undefined) {
-      cycle.cycleType = cycleType
+    if (data.cycleType !== undefined) {
+      cycle.cycleType = data.cycleType
     }
 
-    if (dayOfMonth !== undefined) {
-      cycle.dayOfMonth = dayOfMonth
+    if (data.dayOfMonth !== undefined) {
+      cycle.dayOfMonth = data.dayOfMonth
     }
 
-    if (status !== undefined) {
-      cycle.status = status
+    if (data.status !== undefined) {
+      cycle.status = data.status
     }
 
     await cycle.save()
@@ -95,14 +100,14 @@ export default class BillingCyclesController {
       details: {
         id,
         oldData,
-        newData: { name, cycleType, dayOfMonth, status },
+        newData: data,
       },
     })
 
-    return serialize(cycle)
+    return cycle
   }
 
-  async destroy({ request, response, auth, serialize }: HttpContext) {
+  async destroy({ request, response, auth }: HttpContext) {
     const id = request.param('id')
 
     const cycle = await BillingCycle.findOrFail(id)
@@ -126,12 +131,12 @@ export default class BillingCyclesController {
       details: { id, name: cycleName },
     })
 
-    return serialize({
+    return {
       message: '账期删除成功',
-    })
+    }
   }
 
-  async setDefault({ request, auth, serialize }: HttpContext) {
+  async setDefault({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const cycle = await BillingCycle.findOrFail(id)
@@ -163,9 +168,9 @@ export default class BillingCyclesController {
       details: { id, name: cycle.name },
     })
 
-    return serialize({
+    return {
       message: '已设为默认账期',
       cycle,
-    })
+    }
   }
 }

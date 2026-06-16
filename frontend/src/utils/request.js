@@ -22,7 +22,21 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
   (response) => {
-    return response.data
+    const data = response.data
+
+    if (data && Array.isArray(data.data) && data.meta && typeof data.meta.total !== 'undefined') {
+      return {
+        list: data.data,
+        total: data.meta.total,
+        page: data.meta.page,
+        pageSize: data.meta.perPage,
+        lastPage: data.meta.lastPage,
+        data: data.data,
+        meta: data.meta,
+      }
+    }
+
+    return data
   },
   (error) => {
     const { response } = error

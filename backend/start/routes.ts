@@ -9,7 +9,18 @@
 
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
-import { controllers } from '#generated/controllers'
+
+import AccessTokensController from '#controllers/access_tokens_controller'
+import ProfileController from '#controllers/profile_controller'
+import DashboardController from '#controllers/dashboard_controller'
+import UsersController from '#controllers/users_controller'
+import RolesController from '#controllers/roles_controller'
+import PlansController from '#controllers/plans_controller'
+import SeatsController from '#controllers/seats_controller'
+import UsageController from '#controllers/usage_controller'
+import BillsController from '#controllers/bills_controller'
+import BillingCyclesController from '#controllers/billing_cycles_controller'
+import RenewalListsController from '#controllers/renewal_lists_controller'
 
 router.get('/', () => {
   return { message: '席位配置台 API', version: 'v1' }
@@ -19,16 +30,16 @@ router
   .group(() => {
     router
       .group(() => {
-        router.post('login', [controllers.AccessTokens, 'store'])
-        router.post('logout', [controllers.AccessTokens, 'destroy']).use(middleware.auth())
+        router.post('login', [AccessTokensController, 'store'])
+        router.post('logout', [AccessTokensController, 'destroy']).use(middleware.auth())
       })
       .prefix('auth')
       .as('auth')
 
     router
       .group(() => {
-        router.get('profile', [controllers.Profile, 'show'])
-        router.put('profile', [controllers.Profile, 'update'])
+        router.get('profile', [ProfileController, 'show'])
+        router.put('profile', [ProfileController, 'update'])
       })
       .prefix('account')
       .as('account')
@@ -36,9 +47,9 @@ router
 
     router
       .group(() => {
-        router.get('stats', [controllers.Dashboard, 'stats'])
-        router.get('todos', [controllers.Dashboard, 'todos'])
-        router.get('recent-activity', [controllers.Dashboard, 'recentActivity'])
+        router.get('stats', [DashboardController, 'stats'])
+        router.get('todos', [DashboardController, 'todos'])
+        router.get('recent-activity', [DashboardController, 'recentActivity'])
       })
       .prefix('dashboard')
       .as('dashboard')
@@ -46,13 +57,13 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.Users, 'index'])
-        router.get(':id', [controllers.Users, 'show'])
-        router.post('', [controllers.Users, 'store']).use(middleware.role('admin'))
-        router.put(':id', [controllers.Users, 'update']).use(middleware.role('admin'))
-        router.delete(':id', [controllers.Users, 'destroy']).use(middleware.role('admin'))
-        router.post(':id/roles', [controllers.Users, 'assignRoles']).use(middleware.role('admin'))
-        router.get(':id/roles', [controllers.Users, 'getRoles'])
+        router.get('', [UsersController, 'index'])
+        router.get(':id', [UsersController, 'show'])
+        router.post('', [UsersController, 'store']).use(middleware.role('admin'))
+        router.put(':id', [UsersController, 'update']).use(middleware.role('admin'))
+        router.delete(':id', [UsersController, 'destroy']).use(middleware.role('admin'))
+        router.post(':id/roles', [UsersController, 'assignRoles']).use(middleware.role('admin'))
+        router.get(':id/roles', [UsersController, 'getRoles'])
       })
       .prefix('users')
       .as('users')
@@ -60,12 +71,12 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.Roles, 'index'])
-        router.get(':id', [controllers.Roles, 'show'])
-        router.post('', [controllers.Roles, 'store']).use(middleware.role('admin'))
-        router.put(':id', [controllers.Roles, 'update']).use(middleware.role('admin'))
-        router.delete(':id', [controllers.Roles, 'destroy']).use(middleware.role('admin'))
-        router.post(':id/permissions', [controllers.Roles, 'assignPermissions']).use(middleware.role('admin'))
+        router.get('', [RolesController, 'index'])
+        router.get(':id', [RolesController, 'show'])
+        router.post('', [RolesController, 'store']).use(middleware.role('admin'))
+        router.put(':id', [RolesController, 'update']).use(middleware.role('admin'))
+        router.delete(':id', [RolesController, 'destroy']).use(middleware.role('admin'))
+        router.post(':id/permissions', [RolesController, 'assignPermissions']).use(middleware.role('admin'))
       })
       .prefix('roles')
       .as('roles')
@@ -73,11 +84,11 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.Plans, 'index'])
-        router.get(':id', [controllers.Plans, 'show'])
-        router.post('', [controllers.Plans, 'store']).use(middleware.role(['admin', 'product_manager']))
-        router.put(':id', [controllers.Plans, 'update']).use(middleware.role(['admin', 'product_manager']))
-        router.delete(':id', [controllers.Plans, 'destroy']).use(middleware.role('admin'))
+        router.get('', [PlansController, 'index'])
+        router.get(':id', [PlansController, 'show'])
+        router.post('', [PlansController, 'store']).use(middleware.role(['admin', 'product_manager']))
+        router.put(':id', [PlansController, 'update']).use(middleware.role(['admin', 'product_manager']))
+        router.delete(':id', [PlansController, 'destroy']).use(middleware.role('admin'))
       })
       .prefix('plans')
       .as('plans')
@@ -85,16 +96,16 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.Seats, 'index'])
-        router.get('idle', [controllers.Seats, 'idleList'])
-        router.get('batch-query', [controllers.Seats, 'batchQuery'])
-        router.get(':id', [controllers.Seats, 'show'])
-        router.post('', [controllers.Seats, 'store']).use(middleware.role(['admin', 'operator']))
-        router.put(':id', [controllers.Seats, 'update']).use(middleware.role(['admin', 'operator']))
-        router.delete(':id', [controllers.Seats, 'destroy']).use(middleware.role('admin'))
-        router.get(':id/notes', [controllers.Seats, 'getNotes'])
-        router.post(':id/notes', [controllers.Seats, 'addNote'])
-        router.patch(':id/idle-status', [controllers.Seats, 'updateIdleStatus']).use(middleware.role(['admin', 'operator']))
+        router.get('', [SeatsController, 'index'])
+        router.get('idle', [SeatsController, 'idleList'])
+        router.get('batch-query', [SeatsController, 'batchQuery'])
+        router.get(':id', [SeatsController, 'show'])
+        router.post('', [SeatsController, 'store']).use(middleware.role(['admin', 'operator']))
+        router.put(':id', [SeatsController, 'update']).use(middleware.role(['admin', 'operator']))
+        router.delete(':id', [SeatsController, 'destroy']).use(middleware.role('admin'))
+        router.get(':id/notes', [SeatsController, 'getNotes'])
+        router.post(':id/notes', [SeatsController, 'addNote'])
+        router.patch(':id/idle-status', [SeatsController, 'updateIdleStatus']).use(middleware.role(['admin', 'operator']))
       })
       .prefix('seats')
       .as('seats')
@@ -102,11 +113,11 @@ router
 
     router
       .group(() => {
-        router.get('trends', [controllers.Usage, 'trends'])
-        router.get('records', [controllers.Usage, 'records'])
-        router.get('errors', [controllers.Usage, 'errors'])
-        router.get('summary', [controllers.Usage, 'summary'])
-        router.get('seat/:seatId', [controllers.Usage, 'seatUsage'])
+        router.get('trends', [UsageController, 'trends'])
+        router.get('records', [UsageController, 'records'])
+        router.get('errors', [UsageController, 'errors'])
+        router.get('summary', [UsageController, 'summary'])
+        router.get('seat/:seatId', [UsageController, 'seatUsage'])
       })
       .prefix('usage')
       .as('usage')
@@ -114,13 +125,13 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.Bills, 'index'])
-        router.get('export', [controllers.Bills, 'export'])
-        router.post('generate', [controllers.Bills, 'generate']).use(middleware.role(['admin', 'product_manager']))
-        router.get(':id', [controllers.Bills, 'show'])
-        router.post('', [controllers.Bills, 'store']).use(middleware.role(['admin', 'product_manager']))
-        router.put(':id', [controllers.Bills, 'update']).use(middleware.role(['admin', 'product_manager']))
-        router.delete(':id', [controllers.Bills, 'destroy']).use(middleware.role('admin'))
+        router.get('', [BillsController, 'index'])
+        router.get('export', [BillsController, 'export'])
+        router.post('generate', [BillsController, 'generate']).use(middleware.role(['admin', 'product_manager']))
+        router.get(':id', [BillsController, 'show'])
+        router.post('', [BillsController, 'store']).use(middleware.role(['admin', 'product_manager']))
+        router.put(':id', [BillsController, 'update']).use(middleware.role(['admin', 'product_manager']))
+        router.delete(':id', [BillsController, 'destroy']).use(middleware.role('admin'))
       })
       .prefix('bills')
       .as('bills')
@@ -128,11 +139,11 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.BillingCycles, 'index'])
-        router.post('', [controllers.BillingCycles, 'store']).use(middleware.role('admin'))
-        router.put(':id', [controllers.BillingCycles, 'update']).use(middleware.role('admin'))
-        router.delete(':id', [controllers.BillingCycles, 'destroy']).use(middleware.role('admin'))
-        router.patch(':id/default', [controllers.BillingCycles, 'setDefault']).use(middleware.role('admin'))
+        router.get('', [BillingCyclesController, 'index'])
+        router.post('', [BillingCyclesController, 'store']).use(middleware.role('admin'))
+        router.put(':id', [BillingCyclesController, 'update']).use(middleware.role('admin'))
+        router.delete(':id', [BillingCyclesController, 'destroy']).use(middleware.role('admin'))
+        router.patch(':id/default', [BillingCyclesController, 'setDefault']).use(middleware.role('admin'))
       })
       .prefix('billing-cycles')
       .as('billing_cycles')
@@ -140,16 +151,16 @@ router
 
     router
       .group(() => {
-        router.get('', [controllers.RenewalLists, 'index'])
-        router.get('stats', [controllers.RenewalLists, 'stats'])
-        router.get('export', [controllers.RenewalLists, 'export'])
-        router.post('batch-import', [controllers.RenewalLists, 'batchImport']).use(middleware.role(['admin', 'operator']))
-        router.get(':id', [controllers.RenewalLists, 'show'])
-        router.post('', [controllers.RenewalLists, 'store']).use(middleware.role(['admin', 'operator']))
-        router.put(':id', [controllers.RenewalLists, 'update']).use(middleware.role(['admin', 'operator']))
-        router.delete(':id', [controllers.RenewalLists, 'destroy']).use(middleware.role('admin'))
-        router.post(':id/assign', [controllers.RenewalLists, 'assign']).use(middleware.role(['admin', 'operator']))
-        router.post(':id/follow-up', [controllers.RenewalLists, 'followUp']).use(middleware.role(['admin', 'operator']))
+        router.get('', [RenewalListsController, 'index'])
+        router.get('stats', [RenewalListsController, 'stats'])
+        router.get('export', [RenewalListsController, 'export'])
+        router.post('batch-import', [RenewalListsController, 'batchImport']).use(middleware.role(['admin', 'operator']))
+        router.get(':id', [RenewalListsController, 'show'])
+        router.post('', [RenewalListsController, 'store']).use(middleware.role(['admin', 'operator']))
+        router.put(':id', [RenewalListsController, 'update']).use(middleware.role(['admin', 'operator']))
+        router.delete(':id', [RenewalListsController, 'destroy']).use(middleware.role('admin'))
+        router.post(':id/assign', [RenewalListsController, 'assign']).use(middleware.role(['admin', 'operator']))
+        router.post(':id/follow-up', [RenewalListsController, 'followUp']).use(middleware.role(['admin', 'operator']))
       })
       .prefix('renewal-lists')
       .as('renewal_lists')

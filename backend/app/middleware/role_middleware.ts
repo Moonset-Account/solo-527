@@ -8,7 +8,7 @@ export default class RoleMiddleware {
       return ctx.response.forbidden({ message: '未登录' })
     }
 
-    await user.load('roles')
+    await user.load((loader) => loader.load('roles'))
 
     const roleNames = Array.isArray(roles) ? roles : [roles]
     const hasRole = user.roles.some((role) => roleNames.includes(role.name))

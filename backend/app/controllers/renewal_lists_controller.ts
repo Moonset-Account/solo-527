@@ -16,7 +16,7 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 
 export default class RenewalListsController {
-  async index({ request, auth, serialize }: HttpContext) {
+  async index({ request, auth }: HttpContext) {
     const {
       page = 1,
       perPage = 20,
@@ -52,7 +52,7 @@ export default class RenewalListsController {
 
     query.preload('assignedUser')
     query.preload('seat')
-    query.orderBy(sortBy, sortOrder)
+    query.orderBy(sortBy, sortOrder as 'asc' | 'desc')
 
     const lists = await query.paginate(page, perPage)
 
@@ -67,10 +67,18 @@ export default class RenewalListsController {
       details: { page, perPage, status, priority, assignedTo, keyword },
     })
 
-    return serialize(lists)
+    return {
+      data: lists.toJSON().data,
+      meta: {
+        total: lists.total,
+        page: lists.currentPage,
+        perPage: lists.perPage,
+        lastPage: lists.lastPage,
+      },
+    }
   }
 
-  async show({ request, auth, serialize }: HttpContext) {
+  async show({ request, auth }: HttpContext) {
     const id = request.param('id')
 
     const item = await RenewalList.query()
@@ -97,19 +105,19 @@ export default class RenewalListsController {
       details: { id },
     })
 
-    return serialize({
-      ...item.serialize(),
+    return {
+      ...item.toJSON(),
       followUps,
-    })
+    }
   }
 
-  async store({ request, auth, serialize }: HttpContext) {
+  async store({ request, auth }: HttpContext) {
     const data = await request.validateUsing(storeRenewalListValidator)
 
     const _seat = await Seat.findOrFail(data.seatId)
 
     const renewalList = await RenewalList.create({
-      seatId: data.seatId,
+      seatId: _seat.id,
       customerId: data.customerId,
       customerName: data.customerName,
       planName: data.planName,
@@ -135,14 +143,14 @@ export default class RenewalListsController {
       userAgent: request.header('user-agent'),
       details: {
         ...data,
-        expiryDate: data.expiryDate.toISOString(),
+        expiryDate: data.expiryDate.toISO(),
       },
     })
 
-    return serialize(renewalList)
+    return renewalList
   }
 
-  async update({ request, auth, serialize }: HttpContext) {
+  async update({ request, auth }: HttpContext) {
     const id = request.param('id')
     const data = await request.validateUsing(updateRenewalListValidator)
 
@@ -173,11 +181,11 @@ export default class RenewalListsController {
       details: {
         id,
         ...data,
-        expiryDate: data.expiryDate?.toISOString(),
+        expiryDate: data.expiryDate?.toISO(),
       },
     })
 
-    return serialize(item)
+    return item
   }
 
   async destroy({ request, auth }: HttpContext) {
@@ -203,7 +211,7 @@ export default class RenewalListsController {
     }
   }
 
-  async assign({ request, auth, serialize }: HttpContext) {
+  async assign({ request, auth }: HttpContext) {
     const id = request.param('id')
     const { assignedTo } = await request.validateUsing(assignRenewalListValidator)
 
@@ -227,10 +235,10 @@ export default class RenewalListsController {
       details: { id, assignedTo, assigneeName: assignee.fullName || assignee.email },
     })
 
-    return serialize(item)
+    return item
   }
 
-  async followUp({ request, auth, serialize }: HttpContext) {
+  async followUp({ request, auth }: HttpContext) {
     const id = request.param('id')
     const { content, nextFollowUpAt, status } = await request.validateUsing(followUpValidator)
 
@@ -274,24 +282,27 @@ export default class RenewalListsController {
       },
     })
 
-    return serialize(item)
+    return item
   }
 
-  async stats({ request, auth, serialize }: HttpContext) {
+  async stats({ request, auth }: HttpContext) {
     const { startDate, endDate } = request.qs()
 
     const start = startDate ? DateTime.fromISO(startDate) : DateTime.now().startOf('month')
     const end = endDate ? DateTime.fromISO(endDate) : DateTime.now()
 
+    const startStr = start.toISO() || start.toFormat('yyyy-MM-dd HH:mm:ss')
+    const endStr = end.toISO() || end.toFormat('yyyy-MM-dd HH:mm:ss')
+
     const convertedCount = await RenewalList.query()
       .where('status', 'converted')
-      .whereBetween('updatedAt', [start.toISO(), end.toISO()])
+      .whereBetween('updatedAt', [startStr, endStr])
       .count('* as total')
       .first()
 
     const lostCount = await RenewalList.query()
       .where('status', 'lost')
-      .whereBetween('updatedAt', [start.toISO(), end.toISO()])
+      .whereBetween('updatedAt', [startStr, endStr])
       .count('* as total')
       .first()
 
@@ -318,7 +329,7 @@ export default class RenewalListsController {
       details: { startDate: start.toISODate(), endDate: end.toISODate() },
     })
 
-    return serialize({
+    return {
       total: Number(totalCount?.$extras.total || 0),
       converted: Number(convertedCount?.$extras.total || 0),
       lost: Number(lostCount?.$extras.total || 0),
@@ -333,10 +344,10 @@ export default class RenewalListsController {
         startDate: start.toISODate(),
         endDate: end.toISODate(),
       },
-    })
+    }
   }
 
-  async batchImport({ request, auth, serialize }: HttpContext) {
+  async batchImport({ request, auth }: HttpContext) {
     const { items } = await request.validateUsing(batchImportValidator)
 
     const results = await db.transaction(async () => {
@@ -362,7 +373,7 @@ export default class RenewalListsController {
           })
 
           successItems.push(renewalList)
-        } catch (error) {
+        } catch (error: any) {
           failedItems.push({ ...item, error: error.message })
         }
       }
@@ -385,11 +396,11 @@ export default class RenewalListsController {
       },
     })
 
-    return serialize({
+    return {
       successCount: results.successItems.length,
       failedCount: results.failedItems.length,
       failedItems: results.failedItems,
-    })
+    }
   }
 
   async export({ request, auth, response }: HttpContext) {

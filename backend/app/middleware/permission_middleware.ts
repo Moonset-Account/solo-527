@@ -8,8 +8,10 @@ export default class PermissionMiddleware {
       return ctx.response.forbidden({ message: '未登录' })
     }
 
-    await user.load('roles', (query) => {
-      query.preload('permissions')
+    await user.load((loader) => {
+      loader.load('roles', (rolesLoader) => {
+        rolesLoader.preload('permissions')
+      })
     })
 
     const permissionNames = Array.isArray(permissions) ? permissions : [permissions]

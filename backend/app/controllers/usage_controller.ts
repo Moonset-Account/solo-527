@@ -7,7 +7,7 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 
 export default class UsageController {
-  async trends({ request, auth, serialize }: HttpContext) {
+  async trends({ request, auth }: HttpContext) {
     const { seatId, startDate, endDate, groupBy = 'day' } = request.qs()
 
     const start = startDate ? DateTime.fromISO(startDate) : DateTime.now().minus({ days: 30 })
@@ -92,17 +92,19 @@ export default class UsageController {
       details: { seatId, startDate, endDate, groupBy },
     })
 
-    return serialize({
+    return {
+      dates: xAxisData,
+      values: totalCallsData,
       xAxis: xAxisData,
       series: [
         { name: '总调用量', data: totalCallsData, type: 'line' },
         { name: '成功调用', data: successCallsData, type: 'line' },
         { name: '失败调用', data: errorCallsData, type: 'line' },
       ],
-    })
+    }
   }
 
-  async records({ request, auth, serialize }: HttpContext) {
+  async records({ request, auth }: HttpContext) {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 20)
     const { seatId, startDate, endDate, method, statusCode } = request.qs()
@@ -144,10 +146,18 @@ export default class UsageController {
       details: { seatId, startDate, endDate, page, perPage },
     })
 
-    return serialize(records)
+    return {
+      data: records.toJSON().data,
+      meta: {
+        total: records.total,
+        page: records.currentPage,
+        perPage: records.perPage,
+        lastPage: records.lastPage,
+      },
+    }
   }
 
-  async errors({ request, auth, serialize }: HttpContext) {
+  async errors({ request, auth }: HttpContext) {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 20)
     const { seatId, startDate, endDate, errorType } = request.qs()
@@ -185,10 +195,18 @@ export default class UsageController {
       details: { seatId, startDate, endDate, errorType, page, perPage },
     })
 
-    return serialize(errors)
+    return {
+      data: errors.toJSON().data,
+      meta: {
+        total: errors.total,
+        page: errors.currentPage,
+        perPage: errors.perPage,
+        lastPage: errors.lastPage,
+      },
+    }
   }
 
-  async summary({ request, auth, serialize }: HttpContext) {
+  async summary({ request, auth }: HttpContext) {
     const { seatId, startDate, endDate } = request.qs()
 
     const start = startDate ? DateTime.fromISO(startDate) : DateTime.now().startOf('month')
@@ -268,11 +286,11 @@ export default class UsageController {
       details: { seatId, startDate, endDate },
     })
 
-    return serialize(summaryData)
+    return summaryData
   }
 
-  async seatUsage({ request, auth, serialize }: HttpContext) {
-    const seatId = request.param('id')
+  async seatUsage({ request, auth }: HttpContext) {
+    const seatId = request.param('seatId')
     const { startDate, endDate } = request.qs()
 
     const seat = await Seat.query().where('id', seatId).preload('plan').firstOrFail()
@@ -358,6 +376,6 @@ export default class UsageController {
       details: { seatId, startDate, endDate },
     })
 
-    return serialize(result)
+    return result
   }
 }
