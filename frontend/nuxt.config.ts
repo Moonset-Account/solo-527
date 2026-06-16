@@ -1,9 +1,7 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  devtools: { enabled: true },
+  devtools: { enabled: false },
 
   modules: [
-    '@pinia/nuxt',
     '@nuxtjs/tailwindcss',
   ],
 
@@ -28,16 +26,20 @@ export default defineNuxtConfig({
     },
   },
 
-  vite: {
-    optimizeDeps: {
-      include: [
-        'naive-ui',
-        'vueuc',
-        'date-fns-tz/formatInTimeZone',
-        'date-fns/formatISO',
-      ],
-    },
+  ssr: false,
+
+  build: {
+    transpile: ['naive-ui', 'vueuc', 'vdirs', 'evtd'],
   },
 
-  ssr: false,
+  imports: {
+    dirs: ['stores'],
+  },
+
+  postcss: {
+    plugins: {
+      tailwindcss: {},
+      autoprefixer: {},
+    },
+  },
 })
