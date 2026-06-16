@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
-    "dev": "USE_MEMORY_DB=true nodemon src/server.js",
-    "start": "USE_MEMORY_DB=true node src/server.js",
+    "dev": "USE_MEMORY_DB=true PORT=3001 nodemon src/server.js",
+    "start": "USE_MEMORY_DB=true PORT=3001 node src/server.js",
+    "build": "echo 'Backend (Express) does not require build step, skipping.'",
     "seed": "node src/scripts/seed.js"
   },
   "dependencies": {
