@@ -5,9 +5,17 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 开始初始化种子数据...')
 
-  await prisma.interviewer.deleteMany()
+  await prisma.checkIn.deleteMany()
+  await prisma.reminder.deleteMany()
+  await prisma.noShowRecord.deleteMany()
+  await prisma.stageHistory.deleteMany()
+  await prisma.assessment.deleteMany()
+  await prisma.apiRetryLog.deleteMany()
+  await prisma.interview.deleteMany()
   await prisma.candidate.deleteMany()
+  await prisma.interviewer.deleteMany()
   await prisma.reminderConfig.deleteMany()
+  console.log('🧹 已清理所有历史数据')
 
   const interviewers = await Promise.all([
     prisma.interviewer.create({
