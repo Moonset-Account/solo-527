@@ -8,14 +8,13 @@ import type { LeadTag } from '@/lib/types';
 
 export async function fetchTags(): Promise<LeadTag[]> {
   return safeQuery<LeadTag[]>(
-    () =>
-      supabase
-        .from('lead_tags' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('lead_tags')
         .select('*')
-        .order('created_at', { ascending: false }) as unknown as Promise<{
-        data: LeadTag[] | null;
-        error: any;
-      }>,
+        .order('created_at', { ascending: false });
+    },
     mockTags
   );
 }

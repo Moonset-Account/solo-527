@@ -8,14 +8,13 @@ import type { Lead, LeadStage, User } from '@/lib/types';
 
 export async function fetchLeads(): Promise<Lead[]> {
   return safeQuery<Lead[]>(
-    () =>
-      supabase
-        .from('leads' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('leads')
         .select('*')
-        .order('created_at', { ascending: false }) as unknown as Promise<{
-        data: Lead[] | null;
-        error: any;
-      }>,
+        .order('created_at', { ascending: false });
+    },
     mockLeads
   );
 }
@@ -25,13 +24,17 @@ export async function fetchLeadById(leadId: string): Promise<Lead | null> {
     return mockLeads.find((l) => l.id === leadId) || null;
   }
   try {
-    const { data, error } = await supabase
+    const sb = supabase as any;
+    const result = (await sb
       .from('leads')
       .select('*')
       .eq('id', leadId)
-      .single();
-    if (error) return null;
-    return data as Lead;
+      .single()) as { data: Lead | null; error: any };
+    const { data, error } = result;
+    if (error) {
+      return mockLeads.find((l) => l.id === leadId) || null;
+    }
+    return (data as Lead) || mockLeads.find((l) => l.id === leadId) || null;
   } catch {
     return mockLeads.find((l) => l.id === leadId) || null;
   }

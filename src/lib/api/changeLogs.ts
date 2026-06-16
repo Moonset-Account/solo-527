@@ -12,27 +12,25 @@ export async function fetchChangeLogs(leadId?: string): Promise<ChangeLog[]> {
       return mockChangeLogs.filter((c) => c.lead_id === leadId);
     }
     return safeQuery<ChangeLog[]>(
-      () =>
-        supabase
-          .from('change_logs' as any)
+      () => {
+        const sb = supabase as any;
+        return sb
+          .from('change_logs')
           .select('*')
           .eq('lead_id', leadId)
-          .order('changed_at', { ascending: false }) as unknown as Promise<{
-          data: ChangeLog[] | null;
-          error: any;
-        }>,
+          .order('changed_at', { ascending: false });
+      },
       mockChangeLogs.filter((c) => c.lead_id === leadId)
     );
   }
   return safeQuery<ChangeLog[]>(
-    () =>
-      supabase
-        .from('change_logs' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('change_logs')
         .select('*')
-        .order('changed_at', { ascending: false }) as unknown as Promise<{
-        data: ChangeLog[] | null;
-        error: any;
-      }>,
+        .order('changed_at', { ascending: false });
+    },
     mockChangeLogs
   );
 }

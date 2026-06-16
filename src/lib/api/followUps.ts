@@ -12,27 +12,25 @@ export async function fetchFollowUps(leadId?: string): Promise<FollowUpRecord[]>
       return mockFollowUps.filter((f) => f.lead_id === leadId);
     }
     return safeQuery<FollowUpRecord[]>(
-      () =>
-        supabase
-          .from('follow_up_records' as any)
+      () => {
+        const sb = supabase as any;
+        return sb
+          .from('follow_up_records')
           .select('*')
           .eq('lead_id', leadId)
-          .order('follow_up_time', { ascending: false }) as unknown as Promise<{
-          data: FollowUpRecord[] | null;
-          error: any;
-        }>,
+          .order('follow_up_time', { ascending: false });
+      },
       mockFollowUps.filter((f) => f.lead_id === leadId)
     );
   }
   return safeQuery<FollowUpRecord[]>(
-    () =>
-      supabase
-        .from('follow_up_records' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('follow_up_records')
         .select('*')
-        .order('follow_up_time', { ascending: false }) as unknown as Promise<{
-        data: FollowUpRecord[] | null;
-        error: any;
-      }>,
+        .order('follow_up_time', { ascending: false });
+    },
     mockFollowUps
   );
 }

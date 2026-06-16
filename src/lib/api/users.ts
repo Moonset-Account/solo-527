@@ -8,14 +8,13 @@ import type { User } from '@/lib/types';
 
 export async function fetchUsers(): Promise<User[]> {
   return safeQuery<User[]>(
-    () =>
-      supabase
-        .from('users' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('users')
         .select('*')
-        .order('created_at', { ascending: false }) as unknown as Promise<{
-        data: User[] | null;
-        error: any;
-      }>,
+        .order('created_at', { ascending: false });
+    },
     mockUsers
   );
 }
@@ -25,13 +24,17 @@ export async function fetchUserByEmail(email: string): Promise<User | null> {
     return mockUsers.find((u) => u.email === email) || null;
   }
   try {
-    const { data, error } = await supabase
+    const sb = supabase as any;
+    const result = (await sb
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
-    if (error) return null;
-    return data as User;
+      .single()) as { data: User | null; error: any };
+    const { data, error } = result;
+    if (error) {
+      return mockUsers.find((u) => u.email === email) || null;
+    }
+    return (data as User) || mockUsers.find((u) => u.email === email) || null;
   } catch {
     return mockUsers.find((u) => u.email === email) || null;
   }

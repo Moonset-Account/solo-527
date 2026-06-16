@@ -12,27 +12,25 @@ export async function fetchSurveys(leadId?: string): Promise<SurveyRecord[]> {
       return mockSurveys.filter((s) => s.lead_id === leadId);
     }
     return safeQuery<SurveyRecord[]>(
-      () =>
-        supabase
-          .from('survey_records' as any)
+      () => {
+        const sb = supabase as any;
+        return sb
+          .from('survey_records')
           .select('*')
           .eq('lead_id', leadId)
-          .order('survey_time', { ascending: false }) as unknown as Promise<{
-          data: SurveyRecord[] | null;
-          error: any;
-        }>,
+          .order('survey_time', { ascending: false });
+      },
       mockSurveys.filter((s) => s.lead_id === leadId)
     );
   }
   return safeQuery<SurveyRecord[]>(
-    () =>
-      supabase
-        .from('survey_records' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('survey_records')
         .select('*')
-        .order('survey_time', { ascending: false }) as unknown as Promise<{
-        data: SurveyRecord[] | null;
-        error: any;
-      }>,
+        .order('survey_time', { ascending: false });
+    },
     mockSurveys
   );
 }

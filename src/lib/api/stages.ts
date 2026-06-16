@@ -1,21 +1,20 @@
 'use client';
 
 import { supabase } from '@/lib/supabase/client';
-import { safeQuery, safeInsert, safeUpdate, safeDelete, isSupabaseConfigured } from './base';
+import { safeQuery, safeInsert, safeUpdate, safeDelete } from './base';
 import { mockStages } from '@/lib/mock-data';
 import { generateId } from '@/lib/utils';
 import type { LeadStage } from '@/lib/types';
 
 export async function fetchStages(): Promise<LeadStage[]> {
   return safeQuery<LeadStage[]>(
-    () =>
-      supabase
-        .from('lead_stages' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('lead_stages')
         .select('*')
-        .order('order', { ascending: true }) as unknown as Promise<{
-        data: LeadStage[] | null;
-        error: any;
-      }>,
+        .order('order', { ascending: true });
+    },
     mockStages
   );
 }

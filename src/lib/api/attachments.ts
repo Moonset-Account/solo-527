@@ -12,27 +12,25 @@ export async function fetchAttachments(leadId?: string): Promise<ContractAttachm
       return mockAttachments.filter((a) => a.lead_id === leadId);
     }
     return safeQuery<ContractAttachment[]>(
-      () =>
-        supabase
-          .from('contract_attachments' as any)
+      () => {
+        const sb = supabase as any;
+        return sb
+          .from('contract_attachments')
           .select('*')
           .eq('lead_id', leadId)
-          .order('created_at', { ascending: false }) as unknown as Promise<{
-          data: ContractAttachment[] | null;
-          error: any;
-        }>,
+          .order('created_at', { ascending: false });
+      },
       mockAttachments.filter((a) => a.lead_id === leadId)
     );
   }
   return safeQuery<ContractAttachment[]>(
-    () =>
-      supabase
-        .from('contract_attachments' as any)
+    () => {
+      const sb = supabase as any;
+      return sb
+        .from('contract_attachments')
         .select('*')
-        .order('created_at', { ascending: false }) as unknown as Promise<{
-        data: ContractAttachment[] | null;
-        error: any;
-      }>,
+        .order('created_at', { ascending: false });
+    },
     mockAttachments
   );
 }
