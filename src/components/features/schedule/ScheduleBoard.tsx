@@ -2,88 +2,17 @@
 
 import { useState } from "react";
 import { CalendarClock, ChevronLeft, ChevronRight, Users, Clock } from "lucide-react";
+import { trpc } from "@/trpc/react";
 
-const teams = [
-  { id: "1", name: "机修一组", color: "bg-blue-500" },
-  { id: "2", name: "机修二组", color: "bg-emerald-500" },
-  { id: "3", name: "钣金组", color: "bg-amber-500" },
-  { id: "4", name: "美容组", color: "bg-purple-500" },
-  { id: "5", name: "电工组", color: "bg-rose-500" },
-];
-
-const mockSchedule = [
-  {
-    id: "1",
-    workOrderNo: "WO202606170001",
-    vehiclePlate: "京A12345",
-    vehicleBrand: "丰田",
-    vehicleModel: "凯美瑞",
-    teamId: "1",
-    startTime: "08:30",
-    endTime: "10:30",
-    status: "IN_PROGRESS",
-    description: "常规保养",
-  },
-  {
-    id: "2",
-    workOrderNo: "WO202606170002",
-    vehiclePlate: "京B67890",
-    vehicleBrand: "大众",
-    vehicleModel: "帕萨特",
-    teamId: "2",
-    startTime: "09:00",
-    endTime: "11:30",
-    status: "SCHEDULED",
-    description: "发动机检修",
-  },
-  {
-    id: "3",
-    workOrderNo: "WO202606170003",
-    vehiclePlate: "京C11111",
-    vehicleBrand: "本田",
-    vehicleModel: "雅阁",
-    teamId: "3",
-    startTime: "10:30",
-    endTime: "16:00",
-    status: "SCHEDULED",
-    description: "钣金修复",
-  },
-  {
-    id: "4",
-    workOrderNo: "WO202606170004",
-    vehiclePlate: "京D22222",
-    vehicleBrand: "奥迪",
-    vehicleModel: "A6L",
-    teamId: "1",
-    startTime: "13:30",
-    endTime: "17:00",
-    status: "SCHEDULED",
-    description: "变速箱维修",
-  },
-  {
-    id: "5",
-    workOrderNo: "WO202606170005",
-    vehiclePlate: "京E33333",
-    vehicleBrand: "宝马",
-    vehicleModel: "3系",
-    teamId: "4",
-    startTime: "14:00",
-    endTime: "16:30",
-    status: "SCHEDULED",
-    description: "全车美容",
-  },
-  {
-    id: "6",
-    workOrderNo: "WO202606170006",
-    vehiclePlate: "京F44444",
-    vehicleBrand: "奔驰",
-    vehicleModel: "C级",
-    teamId: "5",
-    startTime: "09:30",
-    endTime: "12:00",
-    status: "COMPLETED",
-    description: "电路检修",
-  },
+const teamColors = [
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-purple-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+  "bg-indigo-500",
+  "bg-teal-500",
 ];
 
 const timeSlots = [
@@ -95,16 +24,34 @@ const statusColors: Record<string, string> = {
   SCHEDULED: "bg-slate-100 border-slate-300 text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200",
   IN_PROGRESS: "bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-900/30 dark:border-emerald-700 dark:text-emerald-300",
   COMPLETED: "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300",
+  CANCELLED: "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-900/30 dark:border-rose-700 dark:text-rose-300",
 };
 
 const statusText: Record<string, string> = {
   SCHEDULED: "待开始",
   IN_PROGRESS: "进行中",
   COMPLETED: "已完成",
+  CANCELLED: "已取消",
 };
 
 export function ScheduleBoard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const utils = trpc.useUtils();
+
+  const dateStr = selectedDate.toISOString().split("T")[0];
+
+  const { data: teams = [], isLoading: teamsLoading } =
+    trpc.schedule.teams.useQuery();
+
+  const { data: schedules = [], isLoading: schedulesLoading } =
+    trpc.schedule.listByDate.useQuery(
+      { date: dateStr },
+      {
+        enabled: teams.length > 0,
+      }
+    );
+
+  const isLoading = teamsLoading || schedulesLoading;
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("zh-CN", {
@@ -127,8 +74,17 @@ export function ScheduleBoard() {
     setSelectedDate(newDate);
   };
 
+  const goToToday = () => {
+    setSelectedDate(new Date());
+    utils.schedule.listByDate.invalidate({ date: dateStr });
+  };
+
+  const getTeamColor = (index: number) => {
+    return teamColors[index % teamColors.length];
+  };
+
   const getScheduleForTeam = (teamId: string) => {
-    return mockSchedule.filter((s) => s.teamId === teamId);
+    return schedules.filter((s: any) => s.teamId === teamId);
   };
 
   const timeToPercent = (time: string) => {
@@ -144,6 +100,23 @@ export function ScheduleBoard() {
     const endMinutes = (endH - 8) * 60 + endM;
     return ((endMinutes - startMinutes) / (10 * 60)) * 100;
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">班组排期</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">查看和管理每日工单排期</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-card border border-slate-200 dark:border-slate-700 p-12 text-center">
+          <div className="inline-block w-8 h-8 border-4 border-slate-200 border-t-primary-500 rounded-full animate-spin"></div>
+          <p className="mt-4 text-slate-500">加载排期数据...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -176,7 +149,10 @@ export function ScheduleBoard() {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors font-medium">
+            <button
+              onClick={goToToday}
+              className="px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors font-medium"
+            >
               今天
             </button>
             <button className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
@@ -191,19 +167,25 @@ export function ScheduleBoard() {
               <div className="w-32 flex-shrink-0 p-3 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
                 <Users className="w-4 h-4 text-slate-500" />
               </div>
-              {teams.map((team) => (
-                <div
-                  key={team.id}
-                  className="flex-1 p-3 border-r border-slate-200 dark:border-slate-700 last:border-r-0 bg-slate-50 dark:bg-slate-700/50"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${team.color}`}></div>
-                    <span className="font-medium text-slate-900 dark:text-white text-sm">
-                      {team.name}
-                    </span>
+              {teams.length > 0 ? (
+                teams.map((team: any, idx: number) => (
+                  <div
+                    key={team.id}
+                    className="flex-1 p-3 border-r border-slate-200 dark:border-slate-700 last:border-r-0 bg-slate-50 dark:bg-slate-700/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${getTeamColor(idx)}`}></div>
+                      <span className="font-medium text-slate-900 dark:text-white text-sm">
+                        {team.name}
+                      </span>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="flex-1 p-3 text-center text-sm text-slate-500">
+                  暂无班组数据，请先在系统设置中配置班组
                 </div>
-              ))}
+              )}
             </div>
 
             <div className="relative" style={{ height: "480px" }}>
@@ -219,52 +201,68 @@ export function ScheduleBoard() {
                   ))}
                 </div>
 
-                <div className="flex-1 flex">
-                  {teams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="flex-1 border-r border-slate-200 dark:border-slate-700 last:border-r-0 relative"
-                    >
-                      {timeSlots.map((time, idx) => (
-                        <div
-                          key={time}
-                          className="h-12 border-b border-slate-100 dark:border-slate-800"
-                        ></div>
-                      ))}
-
-                      {getScheduleForTeam(team.id).map((schedule) => {
-                        const top = timeToPercent(schedule.startTime);
-                        const height = durationToPercent(schedule.startTime, schedule.endTime);
-
-                        return (
+                {teams.length > 0 ? (
+                  <div className="flex-1 flex">
+                    {teams.map((team: any) => (
+                      <div
+                        key={team.id}
+                        className="flex-1 border-r border-slate-200 dark:border-slate-700 last:border-r-0 relative"
+                      >
+                        {timeSlots.map((time, idx) => (
                           <div
-                            key={schedule.id}
-                            className={`absolute left-1 right-1 rounded-lg border p-2 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${
-                              statusColors[schedule.status]
-                            }`}
-                            style={{
-                              top: `${top}%`,
-                              height: `${height}%`,
-                            }}
-                          >
-                            <p className="font-medium text-sm truncate">
-                              {schedule.vehiclePlate}
-                            </p>
-                            <p className="text-xs opacity-75 truncate">
-                              {schedule.description}
-                            </p>
-                            <div className="flex items-center gap-1 text-xs opacity-60 mt-1">
-                              <Clock className="w-3 h-3" />
-                              <span>
-                                {schedule.startTime} - {schedule.endTime}
-                              </span>
+                            key={time}
+                            className="h-12 border-b border-slate-100 dark:border-slate-800"
+                          ></div>
+                        ))}
+
+                        {getScheduleForTeam(team.id).map((schedule: any) => {
+                          const top = timeToPercent(schedule.startTime);
+                          const height = durationToPercent(schedule.startTime, schedule.endTime);
+                          const vehicle = schedule.workOrder?.vehicle;
+
+                          return (
+                            <div
+                              key={schedule.id}
+                              className={`absolute left-1 right-1 rounded-lg border p-2 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${
+                                statusColors[schedule.status]
+                              }`}
+                              style={{
+                                top: `${top}%`,
+                                height: `${height}%`,
+                              }}
+                              title={`${vehicle?.plateNumber || ''} ${schedule.workOrder?.description || ''}`}
+                            >
+                              <p className="font-medium text-sm truncate">
+                                {vehicle?.plateNumber || schedule.workOrder?.orderNo || '未分配车辆'}
+                              </p>
+                              <p className="text-xs opacity-75 truncate">
+                                {schedule.workOrder?.description || schedule.workOrder?.orderNo}
+                              </p>
+                              <div className="flex items-center gap-1 text-xs opacity-60 mt-1">
+                                <Clock className="w-3 h-3" />
+                                <span>
+                                  {schedule.startTime} - {schedule.endTime}
+                                </span>
+                              </div>
+                              <div className="mt-1">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20">
+                                  {statusText[schedule.status]}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-slate-400">
+                      <CalendarClock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">暂无班组配置</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -283,6 +281,11 @@ export function ScheduleBoard() {
             <span className="w-3 h-3 rounded bg-blue-400"></span>
             <span className="text-sm text-slate-600 dark:text-slate-300">已完成</span>
           </div>
+          {schedules.length > 0 && (
+            <div className="ml-auto text-sm text-slate-500">
+              共 {schedules.length} 条排期
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Car,
   ClipboardList,
@@ -11,59 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-
-async function getDashboardData() {
-  return {
-    todayWorkOrders: 12,
-    pendingQualityChecks: 5,
-    lowStockParts: 8,
-    delayedOrders: 2,
-    totalVehicles: 256,
-    totalParts: 1248,
-    thisMonthOrders: 156,
-    completedOrders: 132,
-  };
-}
-
-async function getTodaySchedule() {
-  return [
-    {
-      id: "1",
-      time: "08:30",
-      workOrder: { orderNo: "WO202606170001", vehicle: { plateNumber: "京A12345", brand: "丰田", model: "凯美瑞" } },
-      team: { name: "机修一组" },
-      status: "IN_PROGRESS",
-    },
-    {
-      id: "2",
-      time: "09:00",
-      workOrder: { orderNo: "WO202606170002", vehicle: { plateNumber: "京B67890", brand: "大众", model: "帕萨特" } },
-      team: { name: "机修二组" },
-      status: "SCHEDULED",
-    },
-    {
-      id: "3",
-      time: "10:30",
-      workOrder: { orderNo: "WO202606170003", vehicle: { plateNumber: "京C11111", brand: "本田", model: "雅阁" } },
-      team: { name: "钣金组" },
-      status: "SCHEDULED",
-    },
-    {
-      id: "4",
-      time: "13:30",
-      workOrder: { orderNo: "WO202606170004", vehicle: { plateNumber: "京D22222", brand: "奥迪", model: "A6L" } },
-      team: { name: "机修一组" },
-      status: "SCHEDULED",
-    },
-    {
-      id: "5",
-      time: "14:00",
-      workOrder: { orderNo: "WO202606170005", vehicle: { plateNumber: "京E33333", brand: "宝马", model: "3系" } },
-      team: { name: "美容组" },
-      status: "SCHEDULED",
-    },
-  ];
-}
+import { trpc } from "@/trpc/react";
 
 const quickActions = [
   { icon: Plus, label: "登记车辆", href: "/vehicles/new", color: "bg-blue-500" },
@@ -86,22 +36,43 @@ const statusText: Record<string, string> = {
   CANCELLED: "已取消",
 };
 
-export default async function DashboardPage() {
-  const stats = await getDashboardData();
-  const schedule = await getTodaySchedule();
+export default function DashboardPage() {
+  const { data: stats, isLoading: statsLoading } =
+    trpc.stats.dashboard.useQuery();
+
+  const { data: schedule, isLoading: scheduleLoading } =
+    trpc.stats.todaySchedule.useQuery();
+
+  const isLoading = statsLoading || scheduleLoading;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">工作台</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">欢迎回来，今天也要加油哦</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <div className="inline-block w-8 h-8 border-4 border-slate-200 border-t-primary-500 rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
 
   const statCards = [
     {
       title: "今日工单",
-      value: stats.todayWorkOrders,
+      value: stats?.todayWorkOrders || 0,
       icon: ClipboardList,
       color: "from-blue-500 to-blue-600",
-      subtitle: `本月 ${stats.thisMonthOrders} 单`,
+      subtitle: `本月 ${stats?.thisMonthOrders || 0} 单`,
       href: "/workorders",
     },
     {
       title: "待质检",
-      value: stats.pendingQualityChecks,
+      value: stats?.qualityPending || 0,
       icon: ShieldCheck,
       color: "from-amber-500 to-amber-600",
       subtitle: "需尽快处理",
@@ -109,7 +80,7 @@ export default async function DashboardPage() {
     },
     {
       title: "库存预警",
-      value: stats.lowStockParts,
+      value: stats?.lowStockParts || 0,
       icon: AlertTriangle,
       color: "from-rose-500 to-rose-600",
       subtitle: "低于安全库存",
@@ -117,11 +88,11 @@ export default async function DashboardPage() {
     },
     {
       title: "延期工单",
-      value: stats.delayedOrders,
+      value: stats?.delayedOrders || 0,
       icon: Clock,
       color: "from-orange-500 to-orange-600",
       subtitle: "需要跟进",
-      href: "/quality/delay",
+      href: "/quality",
     },
   ];
 
@@ -178,39 +149,49 @@ export default async function DashboardPage() {
               </Link>
             </div>
             <div className="p-5">
-              <div className="space-y-3">
-                {schedule.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <div className="text-center min-w-[60px]">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white font-mono">
-                        {item.time}
-                      </p>
-                    </div>
-                    <div className={`w-1.5 h-12 rounded-full ${statusColors[item.status]}`}></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-900 dark:text-white">
-                        {item.workOrder.vehicle.plateNumber} - {item.workOrder.vehicle.brand}{" "}
-                        {item.workOrder.vehicle.model}
-                      </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {item.workOrder.orderNo} · {item.team.name}
-                      </p>
-                    </div>
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        item.status === "IN_PROGRESS"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : "bg-slate-100 text-slate-600 dark:bg-slate-600 dark:text-slate-300"
-                      }`}
-                    >
-                      {statusText[item.status]}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {!schedule || schedule.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">今日暂无排期</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {schedule.map((item: any) => {
+                    const vehicle = item.workOrder?.vehicle;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <div className="text-center min-w-[60px]">
+                          <p className="text-lg font-bold text-slate-900 dark:text-white font-mono">
+                            {item.startTime}
+                          </p>
+                        </div>
+                        <div className={`w-1.5 h-12 rounded-full ${statusColors[item.status] || "bg-slate-400"}`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-900 dark:text-white">
+                            {vehicle?.plateNumber || "未分配车辆"} - {vehicle?.brand || ""}{" "}
+                            {vehicle?.model || ""}
+                          </p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {item.workOrder?.orderNo || "未分配工单"} · {item.team?.name || "未分配班组"}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                            item.status === "IN_PROGRESS"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : "bg-slate-100 text-slate-600 dark:bg-slate-600 dark:text-slate-300"
+                          }`}
+                        >
+                          {statusText[item.status] || item.status}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -256,7 +237,7 @@ export default async function DashboardPage() {
                   <span className="text-sm text-slate-600 dark:text-slate-300">在档车辆</span>
                 </div>
                 <span className="font-bold text-slate-900 dark:text-white font-mono">
-                  {stats.totalVehicles}
+                  {stats?.totalVehicles || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -267,7 +248,7 @@ export default async function DashboardPage() {
                   <span className="text-sm text-slate-600 dark:text-slate-300">配件种类</span>
                 </div>
                 <span className="font-bold text-slate-900 dark:text-white font-mono">
-                  {stats.totalParts}
+                  {stats?.totalParts || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -278,8 +259,8 @@ export default async function DashboardPage() {
                   <span className="text-sm text-slate-600 dark:text-slate-300">本月完成率</span>
                 </div>
                 <span className="font-bold text-slate-900 dark:text-white font-mono">
-                  {stats.thisMonthOrders > 0
-                    ? Math.round((stats.completedOrders / stats.thisMonthOrders) * 100)
+                  {(stats?.thisMonthOrders || 0) > 0
+                    ? Math.round(((stats?.completedOrders || 0) / (stats?.thisMonthOrders || 1)) * 100)
                     : 0}
                   %
                 </span>

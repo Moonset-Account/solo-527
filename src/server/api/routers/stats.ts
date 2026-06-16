@@ -13,6 +13,8 @@ export const statsRouter = createTRPCRouter({
     const [
       todayWorkOrders,
       pendingQualityChecks,
+      passedQualityChecks,
+      failedQualityChecks,
       lowStockPartsResult,
       delayedOrders,
       totalVehicles,
@@ -28,8 +30,14 @@ export const statsRouter = createTRPCRouter({
           },
         },
       }),
-      prisma.workOrder.count({
-        where: { status: "QUALITY_CHECK" },
+      prisma.qualityCheck.count({
+        where: { result: "PENDING" },
+      }),
+      prisma.qualityCheck.count({
+        where: { result: "PASSED", checkedAt: { gte: today } },
+      }),
+      prisma.qualityCheck.count({
+        where: { result: "FAILED" },
       }),
       prisma.$queryRaw<{ count: number }[]>`SELECT COUNT(*)::int as count FROM "Part" WHERE stock <= "minStock"`,
       prisma.workOrder.count({
@@ -58,7 +66,9 @@ export const statsRouter = createTRPCRouter({
 
     return {
       todayWorkOrders,
-      pendingQualityChecks,
+      qualityPending: pendingQualityChecks,
+      qualityPassed: passedQualityChecks,
+      qualityFailed: failedQualityChecks,
       lowStockParts,
       delayedOrders,
       totalVehicles,
