@@ -64,6 +64,8 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { useUserStore } from '@/store/user'
 import {
   Odometer,
   Document,
@@ -76,6 +78,25 @@ import {
   Upload,
   Notebook
 } from '@element-plus/icons-vue'
+
+const userStore = useUserStore()
+
+onMounted(() => {
+  const userId = localStorage.getItem('userId')
+  const userName = localStorage.getItem('userName')
+  const userRole = localStorage.getItem('userRole')
+  if (!userId && !userRole) {
+    const defaultUser = {
+      id: '1',
+      name: '管理员',
+      roleType: 'ADMIN',
+      department: ''
+    }
+    userStore.setUser(defaultUser)
+  } else {
+    userStore.initUser()
+  }
+})
 </script>
 
 <style>

@@ -12,6 +12,10 @@ request.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    const userRole = localStorage.getItem('userRole') || 'ADMIN'
+    const userId = localStorage.getItem('userId') || '1'
+    config.headers['X-User-Role'] = userRole
+    config.headers['X-User-Id'] = userId
     return config
   },
   (error) => {

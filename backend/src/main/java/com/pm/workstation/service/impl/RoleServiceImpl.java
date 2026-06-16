@@ -1,5 +1,8 @@
 package com.pm.workstation.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pm.workstation.dto.RoleDTO;
 import com.pm.workstation.entity.SysRole;
 import com.pm.workstation.entity.SysUser;
 import com.pm.workstation.enums.RoleType;
@@ -15,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RoleServiceImpl implements RoleService {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     @Autowired
     private SysRoleRepository sysRoleRepository;
 
@@ -28,7 +33,19 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
-    public SysRole createRole(SysRole role) {
+    public SysRole createRole(RoleDTO dto) {
+        SysRole role = new SysRole();
+        role.setRoleName(dto.getRoleName());
+        role.setRoleCode(dto.getRoleCode());
+        role.setRoleType(dto.getRoleType());
+        role.setDescription(dto.getDescription());
+        if (dto.getPermissions() != null) {
+            try {
+                role.setPermissions(OBJECT_MAPPER.writeValueAsString(dto.getPermissions()));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("权限数据序列化失败", e);
+            }
+        }
         LocalDateTime now = LocalDateTime.now();
         role.setCreatedAt(now);
         role.setUpdatedAt(now);
@@ -37,14 +54,28 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
-    public SysRole updateRole(Long id, SysRole role) {
+    public SysRole updateRole(Long id, RoleDTO dto) {
         SysRole existing = sysRoleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("角色不存在"));
-        existing.setRoleName(role.getRoleName());
-        existing.setRoleCode(role.getRoleCode());
-        existing.setRoleType(role.getRoleType());
-        existing.setDescription(role.getDescription());
-        existing.setPermissions(role.getPermissions());
+        if (dto.getRoleName() != null) {
+            existing.setRoleName(dto.getRoleName());
+        }
+        if (dto.getRoleCode() != null) {
+            existing.setRoleCode(dto.getRoleCode());
+        }
+        if (dto.getRoleType() != null) {
+            existing.setRoleType(dto.getRoleType());
+        }
+        if (dto.getDescription() != null) {
+            existing.setDescription(dto.getDescription());
+        }
+        if (dto.getPermissions() != null) {
+            try {
+                existing.setPermissions(OBJECT_MAPPER.writeValueAsString(dto.getPermissions()));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("权限数据序列化失败", e);
+            }
+        }
         existing.setUpdatedAt(LocalDateTime.now());
         return sysRoleRepository.save(existing);
     }

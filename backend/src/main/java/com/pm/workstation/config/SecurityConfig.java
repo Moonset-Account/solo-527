@@ -16,8 +16,12 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class SecurityConfig {
 
     private static final Set<String> ADMIN_PATHS = Set.of(
-            "/api/processes/definitions",
-            "/api/roles"
+            "/api/processes/",
+            "/api/roles/",
+            "/api/reminders/",
+            "/api/imports/",
+            "/api/audit-logs",
+            "/api/users/"
     );
 
     @Bean

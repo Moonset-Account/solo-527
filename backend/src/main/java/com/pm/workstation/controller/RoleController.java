@@ -1,6 +1,7 @@
 package com.pm.workstation.controller;
 
 import com.pm.workstation.dto.ApiResponseDTO;
+import com.pm.workstation.dto.RoleDTO;
 import com.pm.workstation.entity.SysRole;
 import com.pm.workstation.enums.RoleType;
 import com.pm.workstation.service.RoleService;
@@ -28,13 +29,13 @@ public class RoleController {
     }
 
     @PostMapping
-    public ApiResponseDTO<SysRole> createRole(@RequestBody SysRole role) {
-        return ApiResponseDTO.success(roleService.createRole(role));
+    public ApiResponseDTO<SysRole> createRole(@RequestBody RoleDTO dto) {
+        return ApiResponseDTO.success(roleService.createRole(dto));
     }
 
     @PutMapping("/{id}")
-    public ApiResponseDTO<SysRole> updateRole(@PathVariable Long id, @RequestBody SysRole role) {
-        return ApiResponseDTO.success(roleService.updateRole(id, role));
+    public ApiResponseDTO<SysRole> updateRole(@PathVariable Long id, @RequestBody RoleDTO dto) {
+        return ApiResponseDTO.success(roleService.updateRole(id, dto));
     }
 
     @DeleteMapping("/{id}")

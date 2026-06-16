@@ -12,19 +12,19 @@
         <el-tab-pane label="管理员角色" name="ADMIN" />
       </el-tabs>
       <el-table :data="roles" stripe style="width: 100%">
-        <el-table-column prop="name" label="角色名称" min-width="120" />
-        <el-table-column prop="code" label="角色代码" min-width="120" />
-        <el-table-column prop="type" label="角色类型" width="120">
+        <el-table-column prop="roleName" label="角色名称" min-width="120" />
+        <el-table-column prop="roleCode" label="角色代码" min-width="120" />
+        <el-table-column prop="roleType" label="角色类型" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.type === 'GENERAL_OFFICE' ? 'primary' : 'warning'" size="small">
-              {{ row.type === 'GENERAL_OFFICE' ? '总经办' : '管理员' }}
+            <el-tag :type="row.roleType === 'GENERAL_OFFICE' ? 'primary' : 'warning'" size="small">
+              {{ row.roleType === 'GENERAL_OFFICE' ? '总经办' : '管理员' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="权限列表" min-width="280">
           <template #default="{ row }">
             <el-tag
-              v-for="perm in row.permissions"
+              v-for="perm in parsePermissions(row.permissions)"
               :key="perm"
               size="small"
               class="perm-tag"
@@ -49,13 +49,13 @@
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑角色' : '新建角色'" width="600px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="角色名称">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.roleName" />
         </el-form-item>
         <el-form-item label="角色代码">
-          <el-input v-model="form.code" />
+          <el-input v-model="form.roleCode" />
         </el-form-item>
         <el-form-item label="角色类型">
-          <el-select v-model="form.type" placeholder="请选择角色类型" style="width: 100%">
+          <el-select v-model="form.roleType" placeholder="请选择角色类型" style="width: 100%">
             <el-option label="总经办" value="GENERAL_OFFICE" />
             <el-option label="管理员" value="ADMIN" />
           </el-select>
@@ -94,9 +94,9 @@ const dialogVisible = ref(false)
 const editingId = ref(null)
 
 const form = ref({
-  name: '',
-  code: '',
-  type: 'GENERAL_OFFICE',
+  roleName: '',
+  roleCode: '',
+  roleType: 'GENERAL_OFFICE',
   description: '',
   permissions: []
 })
@@ -121,6 +121,18 @@ function permissionLabel(value) {
   return permissionLabelMap[value] || value
 }
 
+function parsePermissions(permissions) {
+  if (!permissions) return []
+  if (typeof permissions === 'string') {
+    try {
+      return JSON.parse(permissions)
+    } catch (e) {
+      return []
+    }
+  }
+  return permissions
+}
+
 async function fetchRoles() {
   try {
     const res = await getRolesByType(activeTab.value)
@@ -138,18 +150,18 @@ function openDialog(row) {
   if (row) {
     editingId.value = row.id
     form.value = {
-      name: row.name,
-      code: row.code,
-      type: row.type,
+      roleName: row.roleName,
+      roleCode: row.roleCode,
+      roleType: row.roleType,
       description: row.description || '',
-      permissions: row.permissions ? [...row.permissions] : []
+      permissions: parsePermissions(row.permissions)
     }
   } else {
     editingId.value = null
     form.value = {
-      name: '',
-      code: '',
-      type: activeTab.value,
+      roleName: '',
+      roleCode: '',
+      roleType: activeTab.value,
       description: '',
       permissions: []
     }
@@ -159,11 +171,12 @@ function openDialog(row) {
 
 async function handleSave() {
   try {
+    const payload = { ...form.value }
     if (editingId.value) {
-      await updateRole(editingId.value, form.value)
+      await updateRole(editingId.value, payload)
       ElMessage.success('更新成功')
     } else {
-      await createRole(form.value)
+      await createRole(payload)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
