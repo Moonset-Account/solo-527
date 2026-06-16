@@ -3,7 +3,9 @@
     <n-message-provider>
       <n-dialog-provider>
         <n-notification-provider>
-          <NuxtPage />
+          <NuxtLayout>
+            <NuxtPage />
+          </NuxtLayout>
         </n-notification-provider>
       </n-dialog-provider>
     </n-message-provider>
