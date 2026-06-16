@@ -59,13 +59,19 @@ export default function FeedbackDetailPage() {
   const utils = trpc.useUtils();
 
   const updateMutation = trpc.feedback.update.useMutation({
-    onSuccess: () => utils.feedback.getById.invalidate({ id }),
+    onSuccess: () => {
+      utils.feedback.getById.invalidate({ id });
+      utils.knowledge.getHitStats.invalidate();
+    },
   });
   const addNoteMutation = trpc.feedback.addNote.useMutation({
     onSuccess: () => { setNoteContent(""); utils.feedback.getById.invalidate({ id }); },
   });
   const updateKnowledgeHitMutation = trpc.feedback.updateKnowledgeHit.useMutation({
-    onSuccess: () => utils.feedback.getById.invalidate({ id }),
+    onSuccess: () => {
+      utils.feedback.getById.invalidate({ id });
+      utils.knowledge.getHitStats.invalidate();
+    },
   });
 
   if (isPending) return <div className="flex items-center justify-center py-20 text-slate-400">加载中...</div>;
@@ -341,7 +347,14 @@ export default function FeedbackDetailPage() {
                       size="sm"
                       variant="secondary"
                       className="flex-1"
-                      onClick={() => updateMutation.mutate({ id, knowledgeEntryId: feedback.knowledgeEntryId!, knowledgeHelpful: true })}
+                      onClick={() => {
+                        const hit = feedback.knowledgeHits?.find(
+                          (h: any) => h.knowledgeEntryId === feedback.knowledgeEntryId
+                        );
+                        if (hit) {
+                          updateKnowledgeHitMutation.mutate({ hitId: hit.id, helpful: true });
+                        }
+                      }}
                     >
                       <ThumbsUp className="h-3.5 w-3.5 mr-1" /> 有效
                     </Button>
@@ -349,7 +362,14 @@ export default function FeedbackDetailPage() {
                       size="sm"
                       variant="secondary"
                       className="flex-1"
-                      onClick={() => updateMutation.mutate({ id, knowledgeEntryId: feedback.knowledgeEntryId!, knowledgeHelpful: false })}
+                      onClick={() => {
+                        const hit = feedback.knowledgeHits?.find(
+                          (h: any) => h.knowledgeEntryId === feedback.knowledgeEntryId
+                        );
+                        if (hit) {
+                          updateKnowledgeHitMutation.mutate({ hitId: hit.id, helpful: false });
+                        }
+                      }}
                     >
                       <ThumbsDown className="h-3.5 w-3.5 mr-1" /> 无效
                     </Button>

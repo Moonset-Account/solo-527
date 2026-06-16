@@ -331,8 +331,9 @@ export const feedbackRouter = createTRPCRouter({
         },
       });
 
+      let todo = null;
       if (input.score <= 3) {
-        const todo = await prisma.todo.create({
+        todo = await prisma.todo.create({
           data: {
             title: "低分评价跟进: 反馈 " + input.feedbackId.slice(0, 8),
             type: "LOW_RATING",
@@ -347,13 +348,13 @@ export const feedbackRouter = createTRPCRouter({
             entityType: "FEEDBACK",
             entityId: input.feedbackId,
             action: "TODO_CREATED",
-            userId: "system",
+            userId: ctx.user.id,
             newValue: JSON.stringify({ todoId: todo.id, type: "LOW_RATING", score: input.score }),
           },
         });
       }
 
-      return rating;
+      return { success: true, rating, todoCreated: !!todo };
     }),
 
   getMyFeedback: protectedProcedure
