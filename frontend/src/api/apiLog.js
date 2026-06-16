@@ -54,7 +54,7 @@ export function exportApiLog(params) {
   })
 }
 
-export function executeRetryRequest(apiPath, apiMethod, requestParams, queryParams) {
+export function executeRetryRequest(apiPath, apiMethod, requestParams, queryParams, requestBody) {
   const method = (apiMethod || 'GET').toUpperCase()
 
   let finalUrl = apiPath
@@ -70,17 +70,29 @@ export function executeRetryRequest(apiPath, apiMethod, requestParams, queryPara
     }
   }
 
-  if (requestParams && (method === 'POST' || method === 'PUT')) {
-    try {
-      const parsed = typeof requestParams === 'string' ? JSON.parse(requestParams) : requestParams
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const first = parsed[0]
-        if (first !== null && typeof first === 'object') {
-          body = first
-        }
+  if (method === 'POST' || method === 'PUT') {
+    if (requestBody && typeof requestBody === 'string' && requestBody.trim().length > 0) {
+      try {
+        body = JSON.parse(requestBody)
+      } catch (e) {
+        body = requestBody
       }
-    } catch (e) {
-      // ignore
+    } else if (requestBody && typeof requestBody === 'object') {
+      body = requestBody
+    } else if (requestParams) {
+      try {
+        const parsed = typeof requestParams === 'string' ? JSON.parse(requestParams) : requestParams
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const first = parsed[0]
+          if (first !== null && typeof first === 'object') {
+            body = first
+          }
+        } else if (!Array.isArray(parsed) && parsed !== null && typeof parsed === 'object') {
+          body = parsed
+        }
+      } catch (e) {
+        // ignore
+      }
     }
   }
 

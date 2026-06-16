@@ -32,6 +32,9 @@ public class ApiLog implements Serializable {
     private String queryParams;
 
     @ExcelIgnore
+    private String requestBody;
+
+    @ExcelIgnore
     private String responseData;
 
     @ExcelProperty("状态")
@@ -109,6 +112,14 @@ public class ApiLog implements Serializable {
 
     public void setQueryParams(String queryParams) {
         this.queryParams = queryParams;
+    }
+
+    public String getRequestBody() {
+        return requestBody;
+    }
+
+    public void setRequestBody(String requestBody) {
+        this.requestBody = requestBody;
     }
 
     public String getResponseData() {

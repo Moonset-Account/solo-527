@@ -121,7 +121,13 @@
         <el-descriptions-item label="创建时间" :span="2">{{ formatDate(detailData.createTime) }}</el-descriptions-item>
       </el-descriptions>
 
-      <el-divider>请求参数</el-divider>
+      <el-divider>查询参数</el-divider>
+      <pre class="code-block">{{ formatJson(detailData.queryParams) }}</pre>
+
+      <el-divider>请求体</el-divider>
+      <pre class="code-block">{{ formatJson(detailData.requestBody) }}</pre>
+
+      <el-divider>请求参数（原始参数）</el-divider>
       <pre class="code-block">{{ formatJson(detailData.requestParams) }}</pre>
 
       <el-divider>响应数据</el-divider>
@@ -276,7 +282,7 @@ const doRetry = async (row) => {
   let responseData = null
 
   try {
-    const response = await executeRetryRequest(row.apiPath, row.apiMethod, row.requestParams, row.queryParams)
+    const response = await executeRetryRequest(row.apiPath, row.apiMethod, row.requestParams, row.queryParams, row.requestBody)
     responseData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
     if (responseData && responseData.length > 5000) {
       responseData = responseData.substring(0, 5000) + '...'

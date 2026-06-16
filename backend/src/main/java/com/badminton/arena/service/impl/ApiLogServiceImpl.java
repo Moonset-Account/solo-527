@@ -90,7 +90,28 @@ public class ApiLogServiceImpl extends ServiceImpl<ApiLogMapper, ApiLog> impleme
         String responseData = null;
 
         try {
-            String url = "http://localhost:" + serverPort + apiLog.getApiPath();
+            StringBuilder urlBuilder = new StringBuilder("http://localhost:").append(serverPort).append(apiLog.getApiPath());
+            if (apiLog.getQueryParams() != null && !apiLog.getQueryParams().isEmpty()) {
+                try {
+                    java.util.Map<String, Object> queryMap = JSONUtil.toBean(apiLog.getQueryParams(), java.util.Map.class);
+                    if (queryMap != null && !queryMap.isEmpty()) {
+                        StringBuilder qs = new StringBuilder();
+                        for (java.util.Map.Entry<String, Object> e : queryMap.entrySet()) {
+                            if (e.getValue() == null) continue;
+                            if (qs.length() > 0) qs.append('&');
+                            qs.append(java.net.URLEncoder.encode(e.getKey(), "UTF-8"))
+                                    .append('=')
+                                    .append(java.net.URLEncoder.encode(String.valueOf(e.getValue()), "UTF-8"));
+                        }
+                        if (qs.length() > 0) {
+                            urlBuilder.append(urlBuilder.indexOf("?") >= 0 ? '&' : '?').append(qs);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("组装查询参数失败", e);
+                }
+            }
+            String url = urlBuilder.toString();
             String token = generateTokenForUser(apiLog.getUserId());
 
             HttpHeaders headers = new HttpHeaders();
@@ -99,8 +120,13 @@ public class ApiLogServiceImpl extends ServiceImpl<ApiLogMapper, ApiLog> impleme
                 headers.set("Authorization", token);
             }
 
+            String body = apiLog.getRequestBody();
+            if (body == null || body.isEmpty()) {
+                body = apiLog.getRequestParams();
+            }
+
             String method = apiLog.getApiMethod() != null ? apiLog.getApiMethod().toUpperCase() : "GET";
-            HttpEntity<String> entity = new HttpEntity<>(apiLog.getRequestParams(), headers);
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
             ResponseEntity<String> response;
             if ("GET".equals(method)) {
