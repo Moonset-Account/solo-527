@@ -1,0 +1,628 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  WAREHOUSE_MANAGER
+  PURCHASE_STAFF
+  QC_STAFF
+  SUPPLIER
+  VIEWER
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_SUPPLIER
+  SUPPLIER_CONFIRMED
+  PARTIAL_DELIVERED
+  FULLY_DELIVERED
+  CANCELLED
+  COMPLETED
+}
+
+enum InboundStatus {
+  PENDING
+  QC_PENDING
+  QC_PASSED
+  QC_REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum OutboundStatus {
+  PENDING
+  PICKING
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum ExceptionType {
+  QC_REJECT
+  NEAR_EXPIRY
+  EXPIRED
+  INVENTORY_MISMATCH
+  DELIVERY_DELAY
+  SHORT_DELIVERY
+  OVER_DELIVERY
+  BATCH_ERROR
+  OTHER
+}
+
+enum ExceptionStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_SUPPLIER
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum AlertType {
+  LOW_STOCK
+  NEAR_EXPIRY
+  EXPIRED
+  QC_EXCEPTION
+  SUPPLIER_REPLY
+  PURCHASE_FOLLOWUP
+}
+
+enum AlertStatus {
+  UNREAD
+  READ
+  DISMISSED
+}
+
+enum BatchOpStatus {
+  PENDING_CONFIRM
+  PROCESSING
+  PARTIAL_SUCCESS
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  username        String           @unique @db.VarChar(50)
+  passwordHash    String           @db.VarChar(255)
+  realName        String           @db.VarChar(50)
+  email           String?          @unique @db.VarChar(100)
+  phone           String?          @db.VarChar(20)
+  role            UserRole
+  supplierId      Int?
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  isActive        Boolean          @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  createdPurchaseOrders PurchaseOrder[] @relation("CreatedPO")
+  assignedPurchaseOrders PurchaseOrder[] @relation("AssignedPO")
+  createdInbounds       InboundOrder[]  @relation("CreatedInbound")
+  handledInbounds       InboundOrder[]  @relation("HandledInbound")
+  createdOutbounds      OutboundOrder[] @relation("CreatedOutbound")
+  handledOutbounds      OutboundOrder[] @relation("HandledOutbound")
+  sentReplies           SupplierReply[] @relation("SentBy")
+  receivedReplies       SupplierReply[] @relation("ReceivedBy")
+  supplierRatings       SupplierRating[]
+  exceptionHandled      ExceptionRecord[] @relation("ExceptionHandler")
+  exceptionCreated      ExceptionRecord[] @relation("ExceptionCreator")
+  batchOps              BatchOperation[]
+  auditLogs             AuditLog[]
+  alertsTargeted        Alert[] @relation("AlertTarget")
+
+  @@index([role])
+  @@index([supplierId])
+}
+
+model Supplier {
+  id               Int              @id @default(autoincrement())
+  code             String           @unique @db.VarChar(30)
+  name             String           @db.VarChar(100)
+  contactPerson    String           @db.VarChar(50)
+  phone            String           @db.VarChar(20)
+  email            String?          @db.VarChar(100)
+  address          String?          @db.Text
+  category         String?          @db.VarChar(50)
+  level            Int              @default(3)
+  status           String           @default("ACTIVE")
+  rating           Decimal          @default(0) @db.Decimal(3, 2)
+  totalOrders      Int              @default(0)
+  onTimeRate       Decimal          @default(0) @db.Decimal(5, 2)
+  qcPassRate       Decimal          @default(0) @db.Decimal(5, 2)
+  contractStart    DateTime?
+  contractEnd      DateTime?
+  remark           String?          @db.Text
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  users            User[]
+  products         Product[]
+  purchaseOrders   PurchaseOrder[]
+  inboundOrders    InboundOrder[]
+  replies          SupplierReply[]
+  ratings          SupplierRating[]
+  exceptions       ExceptionRecord[]
+  batches          Batch[]
+
+  @@index([status])
+  @@index([level])
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(50)
+  code      String    @unique @db.VarChar(20)
+  parentId  Int?
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  products  Product[]
+  parent    Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+}
+
+model Product {
+  id              Int              @id @default(autoincrement())
+  sku             String           @unique @db.VarChar(50)
+  barcode         String?          @db.VarChar(50)
+  name            String           @db.VarChar(200)
+  categoryId      Int
+  category        Category         @relation(fields: [categoryId], references: [id])
+  unit            String           @db.VarChar(10)
+  spec            String?          @db.VarChar(100)
+  shelfLifeDays   Int              @default(0)
+  warningDays     Int              @default(7)
+  minStock        Decimal          @default(0) @db.Decimal(12, 2)
+  maxStock        Decimal?         @db.Decimal(12, 2)
+  defaultPrice    Decimal?         @db.Decimal(12, 2)
+  storageCondition String?         @db.VarChar(50)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  preferredSupplierId Int?
+  preferredSupplier   Supplier?  @relation(fields: [preferredSupplierId], references: [id])
+  suppliers           ProductSupplier[]
+  inventory           Inventory[]
+  purchaseItems       PurchaseOrderItem[]
+  inboundItems        InboundItem[]
+  outboundItems       OutboundItem[]
+  batches             Batch[]
+  restockSuggestions  RestockSuggestion[]
+
+  @@index([categoryId])
+  @@index([sku])
+  @@index([barcode])
+}
+
+model ProductSupplier {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  supplierId   Int
+  price        Decimal  @db.Decimal(12, 2)
+  leadTimeDays Int      @default(1)
+  isPreferred  Boolean  @default(false)
+  priority     Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@unique([productId, supplierId])
+  @@index([supplierId])
+}
+
+model Inventory {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  warehouseZone String   @db.VarChar(30)
+  location      String?  @db.VarChar(50)
+  totalQty      Decimal  @default(0) @db.Decimal(12, 2)
+  availableQty  Decimal  @default(0) @db.Decimal(12, 2)
+  reservedQty   Decimal  @default(0) @db.Decimal(12, 2)
+  damagedQty    Decimal  @default(0) @db.Decimal(12, 2)
+  lastCheckedAt DateTime?
+  updatedAt     DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+  batches Batch[]
+
+  @@unique([productId, warehouseZone])
+  @@index([warehouseZone])
+}
+
+model Batch {
+  id            Int      @id @default(autoincrement())
+  batchNo       String   @unique @db.VarChar(50)
+  productId     Int
+  supplierId    Int
+  inventoryId   Int?
+  qty           Decimal  @db.Decimal(12, 2)
+  remainingQty  Decimal  @db.Decimal(12, 2)
+  lockedQty     Decimal  @default(0) @db.Decimal(12, 2)
+  produceDate   DateTime?
+  expiryDate    DateTime
+  inboundDate   DateTime?
+  inboundOrderId Int?
+  price         Decimal? @db.Decimal(12, 2)
+  status        String   @default("NORMAL")
+  qcStatus      String   @default("PENDING")
+  remark        String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product       Product        @relation(fields: [productId], references: [id])
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  inventory     Inventory?     @relation(fields: [inventoryId], references: [id])
+  inboundOrder  InboundOrder?  @relation(fields: [inboundOrderId], references: [id])
+  inboundItems  InboundItem[]
+  outboundItems OutboundItem[]
+  exceptions    ExceptionRecord[]
+
+  @@index([productId, expiryDate])
+  @@index([supplierId])
+  @@index([expiryDate])
+  @@index([status])
+}
+
+model PurchaseOrder {
+  id              Int                  @id @default(autoincrement())
+  orderNo         String               @unique @db.VarChar(30)
+  supplierId      Int
+  supplier        Supplier             @relation(fields: [supplierId], references: [id])
+  status          PurchaseOrderStatus  @default(DRAFT)
+  createdById     Int
+  createdBy       User                 @relation("CreatedPO", fields: [createdById], references: [id])
+  assignedToId    Int?
+  assignedTo      User?                @relation("AssignedPO", fields: [assignedToId], references: [id])
+  expectedDate    DateTime?
+  totalAmount     Decimal              @default(0) @db.Decimal(14, 2)
+  totalQty        Decimal              @default(0) @db.Decimal(12, 2)
+  urgentLevel     Int                  @default(1)
+  requireQc       Boolean              @default(true)
+  remark          String?              @db.Text
+  closedAt        DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  items           PurchaseOrderItem[]
+  inboundOrders   InboundOrder[]
+  replies         SupplierReply[]
+  ratings         SupplierRating[]
+  exceptions      ExceptionRecord[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model PurchaseOrderItem {
+  id              Int      @id @default(autoincrement())
+  purchaseOrderId Int
+  productId       Int
+  expectedQty     Decimal  @db.Decimal(12, 2)
+  confirmedQty    Decimal? @db.Decimal(12, 2)
+  deliveredQty    Decimal  @default(0) @db.Decimal(12, 2)
+  unitPrice       Decimal  @db.Decimal(12, 2)
+  subtotal        Decimal  @db.Decimal(14, 2)
+  expectedDate    DateTime?
+  remark          String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+model InboundOrder {
+  id              Int             @id @default(autoincrement())
+  orderNo         String          @unique @db.VarChar(30)
+  purchaseOrderId Int?
+  supplierId      Int
+  supplier        Supplier        @relation(fields: [supplierId], references: [id])
+  purchaseOrder   PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  status          InboundStatus   @default(PENDING)
+  createdById     Int
+  createdBy       User            @relation("CreatedInbound", fields: [createdById], references: [id])
+  handledById     Int?
+  handledBy       User?           @relation("HandledInbound", fields: [handledById], references: [id])
+  qcById          Int?
+  qcBy            User?           @relation(fields: [qcById], references: [id])
+  totalQty        Decimal         @default(0) @db.Decimal(12, 2)
+  acceptedQty     Decimal         @default(0) @db.Decimal(12, 2)
+  rejectedQty     Decimal         @default(0) @db.Decimal(12, 2)
+  arrivedAt       DateTime?
+  qcAt            DateTime?
+  completedAt     DateTime?
+  driverName      String?         @db.VarChar(50)
+  driverPhone     String?         @db.VarChar(20)
+  vehicleNo       String?         @db.VarChar(20)
+  temperature     Decimal?        @db.Decimal(5, 2)
+  remark          String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  items           InboundItem[]
+  batches         Batch[]
+  replies         SupplierReply[]
+  exceptions      ExceptionRecord[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([purchaseOrderId])
+  @@index([createdAt])
+}
+
+model InboundItem {
+  id              Int      @id @default(autoincrement())
+  inboundOrderId  Int
+  purchaseItemId  Int?
+  productId       Int
+  batchId         Int?
+  expectedQty     Decimal  @db.Decimal(12, 2)
+  actualQty       Decimal  @db.Decimal(12, 2)
+  acceptedQty     Decimal  @default(0) @db.Decimal(12, 2)
+  rejectedQty     Decimal  @default(0) @db.Decimal(12, 2)
+  rejectReason    String?  @db.Text
+  unitPrice       Decimal? @db.Decimal(12, 2)
+  shelfLifeCheck  String?  @db.VarChar(20)
+  temperatureOk   Boolean?
+  packagingOk     Boolean?
+  qcRemark        String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  inboundOrder   InboundOrder   @relation(fields: [inboundOrderId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseOrderItem? @relation(fields: [purchaseItemId], references: [id])
+  product        Product        @relation(fields: [productId], references: [id])
+  batch          Batch?         @relation(fields: [batchId], references: [id])
+
+  @@index([inboundOrderId])
+  @@index([productId])
+  @@index([batchId])
+}
+
+model OutboundOrder {
+  id            Int            @id @default(autoincrement())
+  orderNo       String         @unique @db.VarChar(30)
+  outboundType  String         @db.VarChar(20)
+  referenceNo   String?        @db.VarChar(30)
+  status        OutboundStatus @default(PENDING)
+  createdById   Int
+  createdBy     User           @relation("CreatedOutbound", fields: [createdById], references: [id])
+  handledById   Int?
+  handledBy     User?          @relation("HandledOutbound", fields: [handledById], references: [id])
+  destination   String?        @db.VarChar(200)
+  contactPerson String?        @db.VarChar(50)
+  contactPhone  String?        @db.VarChar(20)
+  totalQty      Decimal        @default(0) @db.Decimal(12, 2)
+  pickedQty     Decimal        @default(0) @db.Decimal(12, 2)
+  pickedAt      DateTime?
+  shippedAt     DateTime?
+  completedAt   DateTime?
+  remark        String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  items         OutboundItem[]
+
+  @@index([status])
+  @@index([outboundType])
+  @@index([createdAt])
+}
+
+model OutboundItem {
+  id              Int      @id @default(autoincrement())
+  outboundOrderId Int
+  productId       Int
+  batchId         Int?
+  requestedQty    Decimal  @db.Decimal(12, 2)
+  pickedQty       Decimal  @default(0) @db.Decimal(12, 2)
+  shippedQty      Decimal  @default(0) @db.Decimal(12, 2)
+  unitPrice       Decimal? @db.Decimal(12, 2)
+  pickingLocation String?  @db.VarChar(50)
+  remark          String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  outboundOrder OutboundOrder @relation(fields: [outboundOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  batch         Batch?        @relation(fields: [batchId], references: [id])
+
+  @@index([outboundOrderId])
+  @@index([productId])
+  @@index([batchId])
+}
+
+model SupplierReply {
+  id               Int        @id @default(autoincrement())
+  type             String     @db.VarChar(20)
+  purchaseOrderId  Int?
+  inboundOrderId   Int?
+  exceptionId      Int?
+  fromUserId       Int
+  fromUser         User       @relation("SentBy", fields: [fromUserId], references: [id])
+  toUserId         Int?
+  toUser           User?      @relation("ReceivedBy", fields: [toUserId], references: [id])
+  subject          String     @db.VarChar(200)
+  content          String     @db.Text
+  replyToId        Int?
+  status           String     @default("UNREAD")
+  isPublic         Boolean    @default(true)
+  attachmentUrl    String?    @db.VarChar(500)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  purchaseOrder    PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  inboundOrder     InboundOrder?   @relation(fields: [inboundOrderId], references: [id])
+  exception        ExceptionRecord? @relation(fields: [exceptionId], references: [id])
+  parent           SupplierReply?  @relation("ReplyThread", fields: [replyToId], references: [id])
+  children         SupplierReply[] @relation("ReplyThread")
+
+  @@index([fromUserId])
+  @@index([purchaseOrderId])
+  @@index([inboundOrderId])
+  @@index([exceptionId])
+  @@index([createdAt])
+}
+
+model SupplierRating {
+  id               Int      @id @default(autoincrement())
+  supplierId       Int
+  purchaseOrderId  Int?
+  inboundOrderId   Int?
+  ratedByUserId    Int
+  ratedBy          User     @relation(fields: [ratedByUserId], references: [id])
+  score            Int
+  onTimeScore      Int      @default(0)
+  qualityScore     Int      @default(0)
+  quantityScore    Int      @default(0)
+  docScore         Int      @default(0)
+  comment          String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  supplier         Supplier       @relation(fields: [supplierId], references: [id])
+  purchaseOrder    PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  inboundOrder     InboundOrder?  @relation(fields: [inboundOrderId], references: [id])
+
+  @@index([supplierId])
+  @@index([purchaseOrderId])
+}
+
+model ExceptionRecord {
+  id                Int             @id @default(autoincrement())
+  exceptionNo       String          @unique @db.VarChar(30)
+  type              ExceptionType
+  title             String          @db.VarChar(200)
+  description       String          @db.Text
+  status            ExceptionStatus @default(OPEN)
+  priority          Int             @default(2)
+  supplierId        Int?
+  purchaseOrderId   Int?
+  inboundOrderId    Int?
+  batchId           Int?
+  productId         Int?
+  createdById       Int
+  createdBy         User            @relation("ExceptionCreator", fields: [createdById], references: [id])
+  handlerId         Int?
+  handler           User?           @relation("ExceptionHandler", fields: [handlerId], references: [id])
+  lossAmount        Decimal?        @db.Decimal(14, 2)
+  affectedQty       Decimal?        @db.Decimal(12, 2)
+  resolution        String?         @db.Text
+  resolvedAt        DateTime?
+  slaDueAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  supplier          Supplier?       @relation(fields: [supplierId], references: [id])
+  purchaseOrder     PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  inboundOrder      InboundOrder?   @relation(fields: [inboundOrderId], references: [id])
+  batch             Batch?          @relation(fields: [batchId], references: [id])
+  replies           SupplierReply[]
+
+  @@index([type])
+  @@index([status])
+  @@index([supplierId])
+  @@index([createdAt])
+  @@index([handlerId])
+}
+
+model Alert {
+  id            Int         @id @default(autoincrement())
+  type          AlertType
+  title         String      @db.VarChar(200)
+  content       String?     @db.Text
+  status        AlertStatus @default(UNREAD)
+  targetUserId  Int
+  targetUser    User        @relation("AlertTarget", fields: [targetUserId], references: [id])
+  relatedType   String?     @db.VarChar(30)
+  relatedId     Int?
+  metadata      String?     @db.Json
+  createdAt     DateTime    @default(now())
+  readAt        DateTime?
+
+  @@index([targetUserId, status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model RestockSuggestion {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  currentStock  Decimal  @db.Decimal(12, 2)
+  minStock      Decimal  @db.Decimal(12, 2)
+  suggestedQty  Decimal  @db.Decimal(12, 2)
+  avgDailyUsage Decimal? @db.Decimal(12, 2)
+  leadTimeDays  Int      @default(1)
+  supplierId    Int?
+  status        String   @default("PENDING")
+  purchaseOrderId Int?
+  generatedAt   DateTime @default(now())
+  handledAt     DateTime?
+  remark        String?  @db.Text
+
+  product       Product        @relation(fields: [productId], references: [id])
+
+  @@index([status])
+  @@index([productId])
+  @@index([generatedAt])
+}
+
+model BatchOperation {
+  id            Int          @id @default(autoincrement())
+  batchOpNo     String       @unique @db.VarChar(30)
+  opType        String       @db.VarChar(30)
+  title         String       @db.VarChar(200)
+  status        BatchOpStatus @default(PENDING_CONFIRM)
+  createdById   Int
+  createdBy     User         @relation(fields: [createdById], references: [id])
+  totalCount    Int          @default(0)
+  successCount  Int          @default(0)
+  failCount     Int          @default(0)
+  inputData     String?      @db.Json
+  resultData    String?      @db.Json
+  failedItems   String?      @db.Json
+  remark        String?      @db.Text
+  confirmedAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([opType])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+  action     String    @db.VarChar(50)
+  entityType String    @db.VarChar(30)
+  entityId   Int?
+  oldValue   String?   @db.Json
+  newValue   String?   @db.Json
+  ip         String?   @db.VarChar(50)
+  userAgent  String?   @db.VarChar(500)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
