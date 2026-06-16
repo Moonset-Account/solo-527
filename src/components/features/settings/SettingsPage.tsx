@@ -96,6 +96,15 @@ export function SettingsPage() {
     },
   });
 
+  const retryExport = trpc.export.retry.useMutation({
+    onSuccess: () => {
+      refetchExports();
+    },
+    onError: (error) => {
+      alert(error.message);
+    },
+  });
+
   const logs = logsData?.data || [];
   const exports = exportsData?.data || [];
   const totalLogs = logsData?.total || 0;
@@ -116,7 +125,9 @@ export function SettingsPage() {
   };
 
   const handleRetry = (taskId: string) => {
-    alert("重试功能开发中");
+    if (confirm("确定要重试这个导出任务吗？")) {
+      retryExport.mutate({ id: taskId });
+    }
   };
 
   return (
@@ -395,9 +406,10 @@ export function SettingsPage() {
                               {task.status === "FAILED" && (
                                 <button
                                   onClick={() => handleRetry(task.id)}
-                                  className="text-sm text-rose-600 hover:text-rose-700 font-medium"
+                                  disabled={retryExport.isPending}
+                                  className="text-sm text-rose-600 hover:text-rose-700 font-medium disabled:opacity-50"
                                 >
-                                  重试
+                                  {retryExport.isPending ? "重试中..." : "重试"}
                                 </button>
                               )}
                               <span

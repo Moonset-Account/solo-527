@@ -14,6 +14,8 @@ import {
   History,
   Trash2,
   Edit2,
+  Plus,
+  Minus,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -25,15 +27,28 @@ export default function PartDetailPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "inventory" | "orders">(
     "overview"
   );
+  const [adjustAmount, setAdjustAmount] = useState<number>(1);
 
   const { data: part, isLoading, error } = trpc.part.get.useQuery({
     id: params.id,
   });
 
-  const updateStock = trpc.part.updateStock.useMutation({
+  const inbound = trpc.inventory.inbound.useMutation({
     onSuccess: () => {
       utils.part.get.invalidate({ id: params.id });
       utils.part.list.invalidate();
+      utils.inventory.list.invalidate();
+    },
+    onError: (error) => {
+      alert(error.message);
+    },
+  });
+
+  const outbound = trpc.inventory.outbound.useMutation({
+    onSuccess: () => {
+      utils.part.get.invalidate({ id: params.id });
+      utils.part.list.invalidate();
+      utils.inventory.list.invalidate();
     },
     onError: (error) => {
       alert(error.message);
@@ -50,18 +65,26 @@ export default function PartDetailPage() {
     },
   });
 
-  const handleStockAdjust = (type: "IN" | "OUT", amount: number) => {
-    const changeAmount = type === "IN" ? amount : -amount;
-    if (type === "OUT" && (part?.stock || 0) < amount) {
+  const handleInbound = (amount: number) => {
+    if (confirm(`确定要入库 ${amount} 件吗？`)) {
+      inbound.mutate({
+        partId: params.id,
+        quantity: amount,
+        remark: "手动入库",
+      });
+    }
+  };
+
+  const handleOutbound = (amount: number) => {
+    if ((part?.stock || 0) < amount) {
       alert("库存不足！");
       return;
     }
-    if (confirm(`确定要${type === "IN" ? "入库" : "出库"} ${amount} 件吗？`)) {
-      updateStock.mutate({
-        id: params.id,
-        change: changeAmount,
-        type,
-        note: type === "IN" ? "手动入库" : "手动出库",
+    if (confirm(`确定要出库 ${amount} 件吗？`)) {
+      outbound.mutate({
+        partId: params.id,
+        quantity: amount,
+        remark: "手动出库",
       });
     }
   };
@@ -99,9 +122,12 @@ export default function PartDetailPage() {
   }
 
   const isLowStock = part.stock <= part.minStock;
-  const margin = part.price - part.costPrice;
-  const marginRate = ((margin / part.price) * 100).toFixed(1);
-  const inventoryValue = part.stock * part.costPrice;
+  const price = Number(part.price);
+  const costPrice = Number(part.costPrice);
+  const margin = price - costPrice;
+  const marginRate = price > 0 ? ((margin / price) * 100).toFixed(1) : "0";
+  const inventoryValue = part.stock * costPrice;
+  const isAdjusting = inbound.isPending || outbound.isPending;
 
   return (
     <div className="space-y-6">
@@ -135,17 +161,39 @@ export default function PartDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setAdjustAmount(Math.max(1, adjustAmount - 1))}
+              className="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 transition-colors"
+            >
+              <Minus className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+            </button>
+            <input
+              type="number"
+              min="1"
+              value={adjustAmount}
+              onChange={(e) => setAdjustAmount(Math.max(1, Number(e.target.value)))}
+              className="w-16 text-center bg-transparent text-sm font-medium text-slate-900 dark:text-white focus:outline-none"
+            />
+            <button
+              onClick={() => setAdjustAmount(adjustAmount + 1)}
+              className="p-1.5 rounded hover:bg-white dark:hover:bg-slate-600 transition-colors"
+            >
+              <Plus className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+            </button>
+          </div>
+
           <button
-            onClick={() => handleStockAdjust("IN", 1)}
-            disabled={updateStock.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 rounded-lg transition-colors"
+            onClick={() => handleInbound(adjustAmount)}
+            disabled={isAdjusting}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 rounded-lg transition-colors disabled:opacity-50"
           >
             <TrendingUp className="w-4 h-4" />
             入库
           </button>
           <button
-            onClick={() => handleStockAdjust("OUT", 1)}
-            disabled={updateStock.isPending || part.stock <= 0}
+            onClick={() => handleOutbound(adjustAmount)}
+            disabled={isAdjusting || part.stock <= 0}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:hover:bg-rose-900/50 rounded-lg transition-colors disabled:opacity-50"
           >
             <TrendingDown className="w-4 h-4" />
@@ -158,7 +206,7 @@ export default function PartDetailPage() {
           <button
             onClick={handleDelete}
             disabled={deletePart.isPending}
-            className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+            className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors disabled:opacity-50"
           >
             <Trash2 className="w-5 h-5" />
           </button>
@@ -213,7 +261,7 @@ export default function PartDetailPage() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500 dark:text-slate-400">
-                  库存预警
+                  库存状态
                 </span>
                 <span
                   className={`font-medium ${
@@ -239,7 +287,7 @@ export default function PartDetailPage() {
                   销售单价
                 </span>
                 <span className="text-lg font-bold text-slate-900 dark:text-white font-mono">
-                  ¥{Number(part.price).toLocaleString()}
+                  ¥{price.toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -247,7 +295,7 @@ export default function PartDetailPage() {
                   成本单价
                 </span>
                 <span className="text-slate-600 dark:text-slate-300 font-mono">
-                  ¥{Number(part.costPrice).toLocaleString()}
+                  ¥{costPrice.toLocaleString()}
                 </span>
               </div>
               <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
@@ -256,7 +304,7 @@ export default function PartDetailPage() {
                     单件毛利
                   </span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium font-mono">
-                    ¥{Number(margin).toLocaleString()}
+                    ¥{margin.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-2">
@@ -289,9 +337,7 @@ export default function PartDetailPage() {
               <p className="text-2xl font-bold text-primary-600 dark:text-primary-400 font-mono">
                 ¥{Number(inventoryValue).toLocaleString()}
               </p>
-              <p className="text-xs text-slate-400 mt-1">
-                按成本价计算
-              </p>
+              <p className="text-xs text-slate-400 mt-1">按成本价计算</p>
             </div>
           </div>
 
@@ -354,9 +400,7 @@ export default function PartDetailPage() {
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                        <p className="text-xs text-slate-500 mb-1">
-                          配件编码
-                        </p>
+                        <p className="text-xs text-slate-500 mb-1">配件编码</p>
                         <p className="font-medium text-slate-900 dark:text-white font-mono">
                           {part.code}
                         </p>
@@ -388,8 +432,9 @@ export default function PartDetailPage() {
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <button
-                        onClick={() => handleStockAdjust("IN", 5)}
-                        className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-left"
+                        onClick={() => handleInbound(5)}
+                        disabled={isAdjusting}
+                        className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-left disabled:opacity-50"
                       >
                         <TrendingUp className="w-5 h-5 text-emerald-600 mb-2" />
                         <p className="font-medium text-emerald-700 dark:text-emerald-400 text-sm">
@@ -397,8 +442,9 @@ export default function PartDetailPage() {
                         </p>
                       </button>
                       <button
-                        onClick={() => handleStockAdjust("IN", 10)}
-                        className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-left"
+                        onClick={() => handleInbound(10)}
+                        disabled={isAdjusting}
+                        className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-left disabled:opacity-50"
                       >
                         <TrendingUp className="w-5 h-5 text-emerald-600 mb-2" />
                         <p className="font-medium text-emerald-700 dark:text-emerald-400 text-sm">
@@ -406,8 +452,8 @@ export default function PartDetailPage() {
                         </p>
                       </button>
                       <button
-                        onClick={() => handleStockAdjust("OUT", 1)}
-                        disabled={part.stock < 1}
+                        onClick={() => handleOutbound(1)}
+                        disabled={isAdjusting || part.stock < 1}
                         className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors text-left disabled:opacity-50"
                       >
                         <TrendingDown className="w-5 h-5 text-rose-600 mb-2" />
@@ -416,7 +462,7 @@ export default function PartDetailPage() {
                         </p>
                       </button>
                       <Link
-                        href={`/workorders/new?partId=${part.id}`}
+                        href="/workorders/new"
                         className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors text-left"
                       >
                         <History className="w-5 h-5 text-primary-600 mb-2" />
@@ -431,7 +477,7 @@ export default function PartDetailPage() {
 
               {activeTab === "inventory" && (
                 <div className="space-y-3">
-                  {part.inventoryRecords?.length === 0 ? (
+                  {!part.inventoryRecords || part.inventoryRecords.length === 0 ? (
                     <div className="py-8 text-center">
                       <History className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                       <p className="text-slate-500 dark:text-slate-400 text-sm">
@@ -439,25 +485,21 @@ export default function PartDetailPage() {
                       </p>
                     </div>
                   ) : (
-                    (part.inventoryRecords || [])
-                      .sort(
-                        (a: any, b: any) =>
-                          new Date(b.createdAt).getTime() -
-                          new Date(a.createdAt).getTime()
-                      )
-                      .map((record: any) => (
+                    part.inventoryRecords.map((record: any) => {
+                      const isInbound = record.type === "INBOUND";
+                      return (
                         <div
                           key={record.id}
                           className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
                         >
                           <div
                             className={`p-2 rounded-lg ${
-                              record.type === "IN"
+                              isInbound
                                 ? "bg-emerald-100 dark:bg-emerald-900/30"
                                 : "bg-rose-100 dark:bg-rose-900/30"
                             }`}
                           >
-                            {record.type === "IN" ? (
+                            {isInbound ? (
                               <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             ) : (
                               <TrendingDown className="w-4 h-4 text-rose-600 dark:text-rose-400" />
@@ -467,23 +509,31 @@ export default function PartDetailPage() {
                             <div className="flex items-center gap-2">
                               <span
                                 className={`font-medium ${
-                                  record.type === "IN"
+                                  isInbound
                                     ? "text-emerald-600 dark:text-emerald-400"
                                     : "text-rose-600 dark:text-rose-400"
                                 }`}
                               >
-                                {record.type === "IN" ? "+" : "-"}
-                                {Math.abs(record.change)}
+                                {isInbound ? "+" : "-"}
+                                {record.quantity}
                               </span>
                               <span className="text-slate-500 text-sm">
-                                {record.type === "IN" ? "入库" : "出库"}
+                                {isInbound ? "入库" : "出库"}
                               </span>
                               <span className="text-slate-400 text-sm">
                                 结存: {record.balanceAfter}
                               </span>
+                              {record.workOrder && (
+                                <Link
+                                  href={`/workorders/${record.workOrderId}`}
+                                  className="text-xs text-primary-600 hover:underline"
+                                >
+                                  {record.workOrder.orderNo}
+                                </Link>
+                              )}
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                              {record.note}
+                              {record.remark || "无备注"}
                             </p>
                           </div>
                           <div className="text-right">
@@ -500,14 +550,15 @@ export default function PartDetailPage() {
                             </p>
                           </div>
                         </div>
-                      ))
+                      );
+                    })
                   )}
                 </div>
               )}
 
               {activeTab === "orders" && (
                 <div className="space-y-3">
-                  {part.workOrderItems?.length === 0 ? (
+                  {!part.workOrderItems || part.workOrderItems.length === 0 ? (
                     <div className="py-8 text-center">
                       <Package className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                       <p className="text-slate-500 dark:text-slate-400 text-sm">
@@ -515,13 +566,10 @@ export default function PartDetailPage() {
                       </p>
                     </div>
                   ) : (
-                    (part.workOrderItems || [])
-                      .sort(
-                        (a: any, b: any) =>
-                          new Date(b.workOrder?.createdAt).getTime() -
-                          new Date(a.workOrder?.createdAt).getTime()
-                      )
-                      .map((item: any) => (
+                    part.workOrderItems.map((item: any) => {
+                      const wo = item.workOrder;
+                      const vehicle = wo?.vehicle;
+                      return (
                         <Link
                           key={item.id}
                           href={`/workorders/${item.workOrderId}`}
@@ -533,14 +581,14 @@ export default function PartDetailPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-slate-900 dark:text-white font-mono">
-                                {item.workOrder?.orderNo}
+                                {wo?.orderNo}
                               </span>
                               <span className="text-xs text-slate-500">
-                                {item.workOrder?.vehicle?.plateNumber}
+                                {vehicle?.plateNumber}
                               </span>
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
-                              {item.workOrder?.description}
+                              {wo?.description || "无描述"}
                             </p>
                           </div>
                           <div className="text-right">
@@ -552,7 +600,8 @@ export default function PartDetailPage() {
                             </p>
                           </div>
                         </Link>
-                      ))
+                      );
+                    })
                   )}
                 </div>
               )}

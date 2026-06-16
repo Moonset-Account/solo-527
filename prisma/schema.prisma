@@ -266,9 +266,10 @@ model ExportTask {
   totalRecords    Int         @default(0)
   processedRecords Int        @default(0)
   downloadUrl     String?
+  errorMessage    String?
   filters         Json?
   createdBy       String
-  createdAt       DateTime    @default(now())
+  createdAt       DateTime @default(now())
   completedAt     DateTime?
 
   @@index([createdBy, createdAt])

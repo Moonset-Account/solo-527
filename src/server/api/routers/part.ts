@@ -28,19 +28,21 @@ export const partRouter = createTRPCRouter({
       if (category) {
         where.category = category;
       }
+
+      const allParts = await prisma.part.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+      });
+
+      let filteredParts = allParts;
       if (stockStatus === "LOW") {
-        where.stock = { lte: { minStock: true } };
+        filteredParts = allParts.filter((p) => p.stock <= p.minStock);
+      } else if (stockStatus === "NORMAL") {
+        filteredParts = allParts.filter((p) => p.stock > p.minStock);
       }
 
-      const [data, total] = await Promise.all([
-        prisma.part.findMany({
-          where,
-          skip,
-          take: pageSize,
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.part.count({ where }),
-      ]);
+      const total = filteredParts.length;
+      const data = filteredParts.slice(skip, skip + pageSize);
 
       return { data, total, page, pageSize };
     }),
@@ -54,10 +56,26 @@ export const partRouter = createTRPCRouter({
           inventoryRecords: {
             take: 20,
             orderBy: { createdAt: "desc" },
+            include: {
+              workOrder: {
+                select: { orderNo: true, vehicle: { select: { plateNumber: true } } },
+              },
+            },
           },
           priceHistories: {
             take: 10,
             orderBy: { createdAt: "desc" },
+          },
+          workOrderItems: {
+            take: 20,
+            orderBy: { createdAt: "desc" },
+            include: {
+              workOrder: {
+                include: {
+                  vehicle: { select: { plateNumber: true, brand: true, model: true } },
+                },
+              },
+            },
           },
         },
       });
