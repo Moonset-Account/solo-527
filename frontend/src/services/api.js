@@ -91,7 +91,7 @@ export const notificationAPI = {
 }
 
 export const filterAPI = {
-  getList: (pageKey) => request.get(`/filters/${pageKey}`),
+  getList: (pageKey, roleDefault) => request.get(`/filters/${pageKey}`, { params: roleDefault ? { roleDefault } : {} }),
   create: (data) => request.post('/filters', data),
   update: (id, data) => request.put(`/filters/${id}`, data),
   remove: (id) => request.delete(`/filters/${id}`)

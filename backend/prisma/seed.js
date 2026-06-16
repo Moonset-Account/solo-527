@@ -393,6 +393,22 @@ async function main() {
         name: '核销失败记录',
         filterData: { status: 'FAILED' },
         isDefault: false
+      },
+      {
+        userId: internal.id,
+        pageKey: 'orders',
+        name: '内部运营默认订单筛选',
+        filterData: { status: 'PAID' },
+        isDefault: false,
+        roleDefault: 'INTERNAL'
+      },
+      {
+        userId: internal.id,
+        pageKey: 'checkins',
+        name: '内部运营默认核销筛选',
+        filterData: { status: 'PENDING' },
+        isDefault: false,
+        roleDefault: 'INTERNAL'
       }
     ]
   })

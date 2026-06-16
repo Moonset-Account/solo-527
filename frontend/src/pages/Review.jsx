@@ -8,24 +8,23 @@ import {
   Table,
   Tag,
   Tabs,
-  List,
-  Avatar,
   Rate,
   Modal,
   Form,
   Input,
   Button,
   message,
-  Divider,
-  Space
+  Space,
+  Tooltip,
+  Alert
 } from 'antd'
 import {
   BarChartOutlined,
-  DollarOutlined,
   UserOutlined,
   MessageOutlined,
-  CheckCircleOutlined,
-  EditOutlined
+  EditOutlined,
+  WarningOutlined,
+  ArrowDownOutlined
 } from '@ant-design/icons'
 import {
   BarChart,
@@ -33,11 +32,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RTooltip,
   Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line
+  ResponsiveContainer
 } from 'recharts'
 import dayjs from 'dayjs'
 import { dashboardAPI, feedbackAPI, revenueAPI } from '../services/api.js'
@@ -132,6 +129,69 @@ function Review() {
       render: (v) => (
         <Tag color={v >= 80 ? 'green' : v >= 50 ? 'orange' : 'red'}>{v}%</Tag>
       )
+    },
+    {
+      title: '核销失败数',
+      dataIndex: 'failedCount',
+      render: (v) => v > 0
+        ? <Tag color="red"><WarningOutlined /> {v}</Tag>
+        : <Tag>0</Tag>
+    },
+    {
+      title: '调整后到场率',
+      dataIndex: 'adjustedAttendanceRate',
+      render: (v, record) => {
+        const delta = record.attendanceRateDelta
+        return (
+          <Space>
+            <Tag color={v >= 80 ? 'green' : v >= 50 ? 'orange' : 'red'}>{v}%</Tag>
+            {delta !== 0 && (
+              <Tooltip title={`核销失败导致到场率变化 ${delta}%`}>
+                <span style={{ color: delta < 0 ? '#ff4d4f' : '#52c41a', fontSize: 12 }}>
+                  <ArrowDownOutlined /> {delta}%
+                </span>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      }
+    }
+  ]
+
+  const failedCheckInColumns = [
+    { title: '订单号', dataIndex: ['order', 'orderNo'], width: 150 },
+    {
+      title: '来源单据',
+      dataIndex: ['order', 'sourceOrder'],
+      width: 130,
+      render: (v) => v ? <Tag color="blue">{v}</Tag> : '-'
+    },
+    { title: '场次', dataIndex: ['session', 'name'], width: 120 },
+    { title: '票种/座位', dataIndex: 'orderItem', width: 130,
+      render: (v) => v ? `${v.ticketName}${v.seatName ? ` / ${v.seatName}` : ''}` : '-'
+    },
+    { title: '购票人', dataIndex: ['user', 'name'], width: 80 },
+    { title: '操作人', dataIndex: ['operator', 'name'], width: 80, render: (v) => v || '-' },
+    {
+      title: '失败原因',
+      dataIndex: 'failureReason',
+      width: 180,
+      ellipsis: true,
+      render: (v) => <Tag color="red">{v}</Tag>
+    },
+    {
+      title: '处理备注',
+      dataIndex: 'handleRemark',
+      width: 150,
+      ellipsis: true,
+      render: (v) => v || <span style={{ color: '#d9d9d9' }}>未处理</span>
+    },
+    { title: '来源单号', dataIndex: 'sourceOrder', width: 130, render: (v) => v || '-' },
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      width: 150,
+      render: (t) => dayjs(t).format('YYYY-MM-DD HH:mm')
     }
   ]
 
@@ -218,6 +278,11 @@ function Review() {
     )
   }
 
+  const totalFailed = reviewData.failedCheckIns?.length || 0
+  const avgAttendanceDelta = reviewData.sessionStats?.length > 0
+    ? (reviewData.sessionStats.reduce((s, r) => s + r.attendanceRateDelta, 0) / reviewData.sessionStats.length).toFixed(2)
+    : 0
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -238,7 +303,7 @@ function Review() {
       </div>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
+        <Col span={4}>
           <Card>
             <Statistic
               title="总订单"
@@ -247,7 +312,7 @@ function Review() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={4}>
           <Card>
             <Statistic
               title="票务总收入"
@@ -258,7 +323,7 @@ function Review() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={4}>
           <Card>
             <Statistic
               title="平均评分"
@@ -269,7 +334,7 @@ function Review() {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={4}>
           <Card>
             <Statistic
               title="反馈数量"
@@ -278,21 +343,53 @@ function Review() {
             />
           </Card>
         </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic
+              title="核销失败"
+              value={totalFailed}
+              valueStyle={{ color: totalFailed > 0 ? '#ff4d4f' : '#52c41a' }}
+              prefix={<WarningOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card>
+            <Statistic
+              title="到场率影响"
+              value={avgAttendanceDelta}
+              precision={2}
+              suffix="%"
+              valueStyle={{ color: parseFloat(avgAttendanceDelta) < 0 ? '#ff4d4f' : '#52c41a' }}
+              prefix={parseFloat(avgAttendanceDelta) < 0 ? <ArrowDownOutlined /> : null}
+            />
+          </Card>
+        </Col>
       </Row>
 
-      <Card title="场次到场数据" style={{ marginBottom: 16 }}>
+      {totalFailed > 0 && (
+        <Alert
+          message={`当前活动有 ${totalFailed} 条核销失败记录，已导致平均到场率变化 ${avgAttendanceDelta}%`}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      <Card title="场次到场数据 & 核销影响" style={{ marginBottom: 16 }}>
         <Row gutter={16}>
           <Col span={14}>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={280}>
               <BarChart data={reviewData.sessionStats || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="sessionName" />
                 <YAxis />
-                <Tooltip />
+                <RTooltip />
                 <Legend />
                 <Bar dataKey="totalSeats" name="总座位" fill="#1890ff" />
                 <Bar dataKey="soldSeats" name="售出" fill="#52c41a" />
                 <Bar dataKey="checkedIn" name="到场" fill="#722ed1" />
+                <Bar dataKey="failedCount" name="核销失败" fill="#ff4d4f" />
               </BarChart>
             </ResponsiveContainer>
           </Col>
@@ -303,6 +400,7 @@ function Review() {
               columns={sessionColumns}
               dataSource={reviewData.sessionStats || []}
               pagination={false}
+              scroll={{ x: 700 }}
             />
           </Col>
         </Row>
@@ -310,12 +408,35 @@ function Review() {
 
       <Card
         tabList={[
+          { key: 'failedCheckins', tab: <span><WarningOutlined /> 核销失败记录</span> },
           { key: 'feedback', tab: '到场反馈' },
           { key: 'revenue', tab: '收入明细' }
         ]}
-        defaultActiveKey="feedback"
+        defaultActiveKey="failedCheckins"
       >
-        <Tabs defaultActiveKey="feedback" items={[
+        <Tabs defaultActiveKey="failedCheckins" items={[
+          {
+            key: 'failedCheckins',
+            label: <span><WarningOutlined /> 核销失败记录</span>,
+            children: (
+              <>
+                {totalFailed === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#52c41a' }}>
+                    <WarningOutlined style={{ fontSize: 40, marginBottom: 16 }} />
+                    <p>当前活动暂无核销失败记录</p>
+                  </div>
+                ) : (
+                  <Table
+                    rowKey="id"
+                    columns={failedCheckInColumns}
+                    dataSource={reviewData.failedCheckIns || []}
+                    pagination={{ pageSize: 10 }}
+                    scroll={{ x: 1200 }}
+                  />
+                )}
+              </>
+            )
+          },
           {
             key: 'feedback',
             label: '到场反馈',

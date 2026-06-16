@@ -129,23 +129,48 @@ router.get('/review/summary', authMiddleware, async (req, res) => {
 
   const revenueLogs = await prisma.revenueLog.findMany({
     where: { eventId: eid },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    include: { operator: { select: { name: true } } }
   })
 
   const totalRevenue = parseFloat(
     revenueLogs.reduce((sum, log) => sum + parseFloat(log.amount), 0).toFixed(2)
   )
 
-  const checkInStats = event.sessions.map(session => ({
-    sessionId: session.id,
-    sessionName: session.name,
-    totalSeats: session.totalSeats,
-    soldSeats: session.soldSeats,
-    checkedIn: session.checkedIn,
-    attendanceRate: session.soldSeats > 0
-      ? (session.checkedIn / session.soldSeats * 100).toFixed(2)
+  const failedCheckIns = await prisma.checkIn.findMany({
+    where: { eventId: eid, status: 'FAILED' },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      order: { select: { orderNo: true, sourceOrder: true } },
+      session: { select: { name: true } },
+      user: { select: { name: true } },
+      operator: { select: { name: true } },
+      orderItem: { select: { ticketName: true, seatName: true } }
+    }
+  })
+
+  const checkInStats = event.sessions.map(session => {
+    const successCount = session.checkedIn
+    const sessionFailedCount = failedCheckIns.filter(c => c.sessionId === session.id).length
+    const attendanceRateBefore = session.soldSeats > 0
+      ? (successCount / session.soldSeats * 100).toFixed(2)
       : '0.00'
-  }))
+    const adjustedRate = session.soldSeats > 0
+      ? ((successCount) / (session.soldSeats + sessionFailedCount) * 100).toFixed(2)
+      : '0.00'
+
+    return {
+      sessionId: session.id,
+      sessionName: session.name,
+      totalSeats: session.totalSeats,
+      soldSeats: session.soldSeats,
+      checkedIn: successCount,
+      failedCount: sessionFailedCount,
+      attendanceRate: parseFloat(attendanceRateBefore),
+      adjustedAttendanceRate: parseFloat(adjustedRate),
+      attendanceRateDelta: parseFloat((parseFloat(adjustedRate) - parseFloat(attendanceRateBefore)).toFixed(2))
+    }
+  })
 
   res.json({
     code: 0,
@@ -163,7 +188,8 @@ router.get('/review/summary', authMiddleware, async (req, res) => {
       avgRating: parseFloat(avgRating),
       sessionStats: checkInStats,
       feedbacks,
-      revenueLogs
+      revenueLogs,
+      failedCheckIns
     }
   })
 })
