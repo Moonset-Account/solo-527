@@ -74,6 +74,8 @@ async def _fetch_export_data(request: ExportRequest, db: AsyncSession) -> tuple[
             query = query.where(ARRecord.status == filters["status"])
         if filters.get("customer_name"):
             query = query.where(ARRecord.customer_name.ilike(f"%{filters['customer_name']}%"))
+        if filters.get("responsible_person"):
+            query = query.where(ARRecord.responsible_person.ilike(f"%{filters['responsible_person']}%"))
         if filters.get("date_from"):
             query = query.where(ARRecord.due_date >= filters["date_from"])
         if filters.get("date_to"):
@@ -104,6 +106,10 @@ async def _fetch_export_data(request: ExportRequest, db: AsyncSession) -> tuple[
             query = query.where(Refund.status == filters["status"])
         if filters.get("applicant"):
             query = query.where(Refund.applicant.ilike(f"%{filters['applicant']}%"))
+        if filters.get("date_from"):
+            query = query.where(Refund.created_at >= filters["date_from"])
+        if filters.get("date_to"):
+            query = query.where(Refund.created_at <= filters["date_to"])
 
         result = await db.execute(query.order_by(Refund.created_at.desc()))
         refunds = result.scalars().all()
@@ -129,12 +135,24 @@ async def _fetch_export_data(request: ExportRequest, db: AsyncSession) -> tuple[
         payment_query = select(Payment)
         if filters.get("status"):
             payment_query = payment_query.where(Payment.status == filters["status"])
+        if filters.get("operator"):
+            payment_query = payment_query.where(Payment.operator.ilike(f"%{filters['operator']}%"))
+        if filters.get("date_from"):
+            payment_query = payment_query.where(Payment.created_at >= filters["date_from"])
+        if filters.get("date_to"):
+            payment_query = payment_query.where(Payment.created_at <= filters["date_to"])
         payment_result = await db.execute(payment_query.order_by(Payment.created_at.desc()))
         payments = payment_result.scalars().all()
 
         writeoff_query = select(Writeoff)
         if filters.get("status"):
             writeoff_query = writeoff_query.where(Writeoff.status == filters["status"])
+        if filters.get("operator"):
+            writeoff_query = writeoff_query.where(Writeoff.operator.ilike(f"%{filters['operator']}%"))
+        if filters.get("date_from"):
+            writeoff_query = writeoff_query.where(Writeoff.created_at >= filters["date_from"])
+        if filters.get("date_to"):
+            writeoff_query = writeoff_query.where(Writeoff.created_at <= filters["date_to"])
         writeoff_result = await db.execute(writeoff_query.order_by(Writeoff.created_at.desc()))
         writeoffs = writeoff_result.scalars().all()
 

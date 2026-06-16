@@ -24,12 +24,14 @@ definePageMeta({ layout: 'default' })
 
 const cashGapStore = useCashGapStore()
 const filters = useFilters()
+const api = useApi()
+const message = useMessage()
 
 const statusOptions = [
   { label: '全部', value: '' },
-  { label: '预测中', value: GapStatus.FORECASTED },
-  { label: '实际', value: GapStatus.ACTUAL },
-  { label: '已解决', value: GapStatus.RESOLVED },
+  { label: '安全', value: GapStatus.SAFE },
+  { label: '预警', value: GapStatus.WARNING },
+  { label: '严重', value: GapStatus.CRITICAL },
 ]
 
 const responsibleOptions = [
@@ -43,11 +45,13 @@ const showCreateModal = ref(false)
 const selectedForecast = ref<CashGapForecast | null>(null)
 const createFormRef = ref<FormInst | null>(null)
 const createForm = ref({
-  date: null as number | null,
-  expected_inflow: 0,
-  expected_outflow: 0,
+  forecast_date: null as number | null,
+  period_start: null as number | null,
+  period_end: null as number | null,
+  expected_inflow: '',
+  expected_outflow: '',
+  responsible_person: '',
   notes: '',
-  status: GapStatus.FORECASTED,
 })
 
 function formatAmount(val: number) {
@@ -61,41 +65,55 @@ function gapColor(val: number) {
 }
 
 function gapStatusType(status: string) {
-  if (status === GapStatus.RESOLVED) return 'success'
-  if (status === GapStatus.ACTUAL) return 'info'
-  return 'warning'
+  if (status === GapStatus.SAFE) return 'success'
+  if (status === GapStatus.WARNING) return 'warning'
+  if (status === GapStatus.CRITICAL) return 'error'
+  return 'default'
 }
 
 function gapStatusLabel(status: string) {
   const map: Record<string, string> = {
-    [GapStatus.FORECASTED]: '预测中',
-    [GapStatus.ACTUAL]: '实际',
-    [GapStatus.RESOLVED]: '已解决',
+    [GapStatus.SAFE]: '安全',
+    [GapStatus.WARNING]: '预警',
+    [GapStatus.CRITICAL]: '严重',
   }
   return map[status] ?? status
 }
 
-const totalInflow = computed(() => cashGapStore.forecasts.reduce((s, f) => s + f.expected_inflow, 0))
-const totalOutflow = computed(() => cashGapStore.forecasts.reduce((s, f) => s + f.expected_outflow, 0))
+function computeGapStatus(inflow: number, outflow: number): string {
+  const gap = inflow - outflow
+  if (gap >= 0) return GapStatus.SAFE
+  if (gap >= -50000) return GapStatus.WARNING
+  return GapStatus.CRITICAL
+}
+
+const totalInflow = computed(() => cashGapStore.forecasts.reduce((s, f) => s + Number(f.expected_inflow), 0))
+const totalOutflow = computed(() => cashGapStore.forecasts.reduce((s, f) => s + Number(f.expected_outflow), 0))
 const netGap = computed(() => totalInflow.value - totalOutflow.value)
 
 const columns: DataTableColumns<CashGapForecast> = [
-  { title: '日期', key: 'date', width: 120 },
-  { title: '期间', key: 'id', width: 80, render: (row) => `P${cashGapStore.forecasts.indexOf(row) + 1}` },
-  { title: '预计流入', key: 'expected_inflow', width: 140, render: (row) => formatAmount(row.expected_inflow) },
-  { title: '预计流出', key: 'expected_outflow', width: 140, render: (row) => formatAmount(row.expected_outflow) },
+  { title: '预测日期', key: 'forecast_date', width: 120 },
+  {
+    title: '期间',
+    key: 'period',
+    width: 160,
+    render: (row) => `${row.period_start} ~ ${row.period_end}`,
+  },
+  { title: '预计流入', key: 'expected_inflow', width: 140, render: (row) => formatAmount(Number(row.expected_inflow)) },
+  { title: '预计流出', key: 'expected_outflow', width: 140, render: (row) => formatAmount(Number(row.expected_outflow)) },
   {
     title: '缺口金额',
-    key: 'net_gap',
+    key: 'gap_amount',
     width: 140,
-    render: (row) => h('span', { style: { color: gapColor(row.net_gap), fontWeight: 'bold' } }, formatAmount(row.net_gap)),
+    render: (row) => h('span', { style: { color: gapColor(Number(row.gap_amount)), fontWeight: 'bold' } }, formatAmount(Number(row.gap_amount))),
   },
   {
     title: '状态',
-    key: 'status',
+    key: 'gap_status',
     width: 100,
-    render: (row) => h(NTag, { type: gapStatusType(row.status) as any, size: 'small' }, { default: () => gapStatusLabel(row.status) }),
+    render: (row) => h(NTag, { type: gapStatusType(row.gap_status) as any, size: 'small' }, { default: () => gapStatusLabel(row.gap_status) }),
   },
+  { title: '负责人', key: 'responsible_person', width: 100, render: (row) => row.responsible_person ?? '-' },
   {
     title: '操作',
     key: 'actions',
@@ -116,7 +134,12 @@ function handleFilter(filterValues: { dateRange: [number, number] | null; respon
   filters.responsiblePerson.value = filterValues.responsible
   filters.status.value = filterValues.status || null
   filters.page.value = 1
-  cashGapStore.fetchList(filters.filters.value)
+  cashGapStore.fetchList({
+    ...filters.filters.value,
+    gap_status: filterValues.status || undefined,
+    period_start: filters.dateFrom.value || undefined,
+    period_end: filters.dateTo.value || undefined,
+  })
 }
 
 function handleReset() {
@@ -130,8 +153,46 @@ function handlePageChange(page: number) {
 }
 
 function openCreateModal() {
-  createForm.value = { date: null, expected_inflow: 0, expected_outflow: 0, notes: '', status: GapStatus.FORECASTED }
+  createForm.value = {
+    forecast_date: null,
+    period_start: null,
+    period_end: null,
+    expected_inflow: '',
+    expected_outflow: '',
+    responsible_person: '',
+    notes: '',
+  }
   showCreateModal.value = true
+}
+
+function formatDate(ts: number | null): string {
+  if (!ts) return ''
+  return new Date(ts).toISOString().slice(0, 10)
+}
+
+async function submitCreate() {
+  const inflow = Number(createForm.value.expected_inflow) || 0
+  const outflow = Number(createForm.value.expected_outflow) || 0
+  const gapAmount = inflow - outflow
+
+  try {
+    await api.cashGap.create({
+      forecast_date: formatDate(createForm.value.forecast_date),
+      period_start: formatDate(createForm.value.period_start),
+      period_end: formatDate(createForm.value.period_end),
+      expected_inflow: inflow,
+      expected_outflow: outflow,
+      gap_amount: gapAmount,
+      gap_status: computeGapStatus(inflow, outflow),
+      responsible_person: createForm.value.responsible_person || null,
+      notes: createForm.value.notes || null,
+    })
+    message.success('预测已创建')
+    showCreateModal.value = false
+    cashGapStore.fetchList(filters.filters.value)
+  } catch {
+    message.error('创建失败')
+  }
 }
 
 onMounted(() => {
@@ -187,37 +248,47 @@ onMounted(() => {
 
     <NModal v-model:show="showDetailModal" preset="card" title="预测详情" style="width: 500px">
       <NForm label-placement="left" label-width="100" v-if="selectedForecast">
-        <NFormItem label="日期">{{ selectedForecast.date }}</NFormItem>
-        <NFormItem label="预计流入">{{ formatAmount(selectedForecast.expected_inflow) }}</NFormItem>
-        <NFormItem label="预计流出">{{ formatAmount(selectedForecast.expected_outflow) }}</NFormItem>
+        <NFormItem label="预测日期">{{ selectedForecast.forecast_date }}</NFormItem>
+        <NFormItem label="期间">{{ selectedForecast.period_start }} ~ {{ selectedForecast.period_end }}</NFormItem>
+        <NFormItem label="预计流入">{{ formatAmount(Number(selectedForecast.expected_inflow)) }}</NFormItem>
+        <NFormItem label="预计流出">{{ formatAmount(Number(selectedForecast.expected_outflow)) }}</NFormItem>
         <NFormItem label="缺口金额">
-          <span :style="{ color: gapColor(selectedForecast.net_gap) }">{{ formatAmount(selectedForecast.net_gap) }}</span>
+          <span :style="{ color: gapColor(Number(selectedForecast.gap_amount)) }">{{ formatAmount(Number(selectedForecast.gap_amount)) }}</span>
         </NFormItem>
-        <NFormItem label="累计缺口">{{ formatAmount(selectedForecast.cumulative_gap) }}</NFormItem>
         <NFormItem label="状态">
-          <NTag :type="gapStatusType(selectedForecast.status) as any" size="small">{{ gapStatusLabel(selectedForecast.status) }}</NTag>
+          <NTag :type="gapStatusType(selectedForecast.gap_status) as any" size="small">{{ gapStatusLabel(selectedForecast.gap_status) }}</NTag>
         </NFormItem>
+        <NFormItem label="负责人">{{ selectedForecast.responsible_person || '-' }}</NFormItem>
         <NFormItem label="备注">{{ selectedForecast.notes || '-' }}</NFormItem>
       </NForm>
     </NModal>
 
-    <NModal v-model:show="showCreateModal" preset="card" title="新建资金缺口预测" style="width: 500px">
+    <NModal v-model:show="showCreateModal" preset="card" title="新建资金缺口预测" style="width: 520px">
       <NForm ref="createFormRef" :model="createForm" label-placement="left" label-width="100">
-        <NFormItem label="日期" path="date">
-          <NDatePicker v-model:value="createForm.date" type="date" style="width: 100%" />
+        <NFormItem label="预测日期" path="forecast_date">
+          <NDatePicker v-model:value="createForm.forecast_date" type="date" style="width: 100%" />
+        </NFormItem>
+        <NFormItem label="期间开始" path="period_start">
+          <NDatePicker v-model:value="createForm.period_start" type="date" style="width: 100%" />
+        </NFormItem>
+        <NFormItem label="期间结束" path="period_end">
+          <NDatePicker v-model:value="createForm.period_end" type="date" style="width: 100%" />
         </NFormItem>
         <NFormItem label="预计流入" path="expected_inflow">
-          <NInput v-model:value="createForm.expected_inflow" type="number" placeholder="请输入预计流入金额" />
+          <NInput v-model:value="createForm.expected_inflow" placeholder="请输入预计流入金额" />
         </NFormItem>
         <NFormItem label="预计流出" path="expected_outflow">
-          <NInput v-model:value="createForm.expected_outflow" type="number" placeholder="请输入预计流出金额" />
+          <NInput v-model:value="createForm.expected_outflow" placeholder="请输入预计流出金额" />
+        </NFormItem>
+        <NFormItem label="负责人">
+          <NInput v-model:value="createForm.responsible_person" placeholder="请输入负责人" />
         </NFormItem>
         <NFormItem label="备注">
           <NInput v-model:value="createForm.notes" type="textarea" placeholder="请输入备注" />
         </NFormItem>
         <NSpace justify="end">
           <NButton @click="showCreateModal = false">取消</NButton>
-          <NButton type="primary" @click="showCreateModal = false">提交</NButton>
+          <NButton type="primary" @click="submitCreate">提交</NButton>
         </NSpace>
       </NForm>
     </NModal>

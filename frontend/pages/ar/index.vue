@@ -42,7 +42,6 @@ const statusColorMap: Record<string, string> = {
   [ARStatus.PARTIAL]: 'warning',
   [ARStatus.PAID]: 'success',
   [ARStatus.OVERDUE]: 'error',
-  [ARStatus.WRITEOFF]: 'info',
 }
 
 const statusLabelMap: Record<string, string> = {
@@ -50,14 +49,18 @@ const statusLabelMap: Record<string, string> = {
   [ARStatus.PARTIAL]: '部分收款',
   [ARStatus.PAID]: '已结清',
   [ARStatus.OVERDUE]: '逾期',
-  [ARStatus.WRITEOFF]: '已冲销',
 }
 
 const columns: DataTableColumns<ARRecord> = [
   { title: '客户名称', key: 'customer_name', width: 160 },
   { title: '应收金额', key: 'amount', width: 140, render: (row) => formatAmount(row.amount) },
-  { title: '已收金额', key: 'paid_amount', width: 140, render: (row) => formatAmount(row.paid_amount) },
-  { title: '未收金额', key: 'remaining_amount', width: 140, render: (row) => formatAmount(row.remaining_amount) },
+  { title: '已收金额', key: 'paid_amount', width: 140, render: (row) => formatAmount(row.paid_amount ?? 0) },
+  {
+    title: '未收金额',
+    key: 'outstanding',
+    width: 140,
+    render: (row) => formatAmount(row.amount - (row.paid_amount ?? 0)),
+  },
   { title: '到期日', key: 'due_date', width: 120 },
   {
     title: '状态',
@@ -92,6 +95,15 @@ function handleRowClick(row: ARRecord) {
   router.push(`/ar/${row.id}`)
 }
 
+function buildExportFilters() {
+  const f: Record<string, any> = {}
+  if (filters.status.value) f.status = filters.status.value
+  if (filters.responsiblePerson.value) f.responsible_person = filters.responsiblePerson.value
+  if (filters.dateFrom.value) f.date_from = filters.dateFrom.value
+  if (filters.dateTo.value) f.date_to = filters.dateTo.value
+  return f
+}
+
 onMounted(() => {
   arStore.fetchList(filters.filters.value)
 })
@@ -106,7 +118,7 @@ onMounted(() => {
       @reset="handleReset"
     >
       <template #default>
-        <ExportButton module="ar-records" :filters="filters.filters.value" />
+        <ExportButton module="ar_collection" :filters="buildExportFilters()" />
       </template>
     </FilterBar>
 
@@ -118,12 +130,12 @@ onMounted(() => {
       </NGi>
       <NGi>
         <NCard>
-          <NStatistic label="已收金额" :value="formatAmount(arStore.summary?.total_paid ?? 0)" />
+          <NStatistic label="已收金额" :value="formatAmount(arStore.summary?.paid_amount ?? 0)" />
         </NCard>
       </NGi>
       <NGi>
         <NCard>
-          <NStatistic label="未收金额" :value="formatAmount(arStore.summary?.total_remaining ?? 0)" />
+          <NStatistic label="未收金额" :value="formatAmount(arStore.summary?.outstanding_amount ?? 0)" />
         </NCard>
       </NGi>
     </NGrid>

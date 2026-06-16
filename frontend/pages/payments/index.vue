@@ -18,7 +18,7 @@ const router = useRouter()
 
 const statusOptions = [
   { label: '全部', value: '' },
-  { label: '已确认', value: PaymentStatus.COMPLETED },
+  { label: '已确认', value: PaymentStatus.CONFIRMED },
   { label: '待确认', value: PaymentStatus.PENDING },
   { label: '失败', value: PaymentStatus.FAILED },
 ]
@@ -31,9 +31,7 @@ const responsibleOptions = [
 
 const paymentMethodMap: Record<string, string> = {
   bank_transfer: '银行转账',
-  cash: '现金',
-  check: '支票',
-  electronic: '电子支付',
+  credit_card: '信用卡',
   other: '其他',
 }
 
@@ -62,21 +60,30 @@ const columns: DataTableColumns<Payment> = [
     width: 80,
     render: (row) => {
       const typeMap: Record<string, string> = {
-        [PaymentStatus.COMPLETED]: 'success',
+        [PaymentStatus.CONFIRMED]: 'success',
         [PaymentStatus.PENDING]: 'warning',
         [PaymentStatus.FAILED]: 'error',
-        [PaymentStatus.CANCELLED]: 'default',
       }
       const labelMap: Record<string, string> = {
-        [PaymentStatus.COMPLETED]: '已确认',
+        [PaymentStatus.CONFIRMED]: '已确认',
         [PaymentStatus.PENDING]: '待确认',
         [PaymentStatus.FAILED]: '失败',
-        [PaymentStatus.CANCELLED]: '已取消',
       }
       return h(NTag, { type: typeMap[row.status] as any, size: 'small' }, { default: () => labelMap[row.status] ?? row.status })
     },
   },
+  { title: '操作人', key: 'operator', width: 100 },
+  { title: '创建时间', key: 'created_at', width: 160 },
 ]
+
+function buildExportFilters() {
+  const f: Record<string, any> = {}
+  if (filters.status.value) f.status = filters.status.value
+  if (filters.responsiblePerson.value) f.operator = filters.responsiblePerson.value
+  if (filters.dateFrom.value) f.date_from = filters.dateFrom.value
+  if (filters.dateTo.value) f.date_to = filters.dateTo.value
+  return f
+}
 
 function handleFilter(filterValues: { dateRange: [number, number] | null; responsible: string | null; status: string | null }) {
   filters.dateFrom.value = filterValues.dateRange ? new Date(filterValues.dateRange[0]).toISOString().slice(0, 10) : null
@@ -84,7 +91,7 @@ function handleFilter(filterValues: { dateRange: [number, number] | null; respon
   filters.responsiblePerson.value = filterValues.responsible
   filters.status.value = filterValues.status || null
   filters.page.value = 1
-  paymentStore.fetchList(filters.filters.value)
+  paymentStore.fetchList({ ...filters.filters.value, operator: filterValues.responsible })
 }
 
 function handleReset() {
@@ -111,7 +118,7 @@ onMounted(() => {
       @reset="handleReset"
     >
       <template #default>
-        <ExportButton module="payments" :filters="filters.filters.value" />
+        <ExportButton module="processing_record" :filters="buildExportFilters()" />
       </template>
     </FilterBar>
 

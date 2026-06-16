@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { NButton, NDropdown } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
+import type { ExportModule, ExportFormat } from '~/types'
 
 const props = defineProps<{
-  module: string
+  module: ExportModule
   filters?: Record<string, any>
 }>()
 
@@ -18,15 +19,11 @@ async function handleExport(format: string) {
   exporting.value = true
   try {
     const api = useApi()
-    const blob = await api.export({ module: props.module, format: format as 'xlsx' | 'csv', filters: props.filters ?? {} })
-    const url = window.URL.createObjectURL(blob as unknown as Blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${props.module}_${new Date().toISOString().slice(0, 10)}.${format}`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+    await api.exportFile({
+      module: props.module,
+      format: format as ExportFormat,
+      filters: props.filters ?? {},
+    })
   } catch (e) {
     console.error('Export failed', e)
   } finally {

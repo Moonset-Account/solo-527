@@ -3,29 +3,25 @@ export enum ARStatus {
   PARTIAL = 'partial',
   PAID = 'paid',
   OVERDUE = 'overdue',
-  WRITEOFF = 'writeoff',
 }
 
 export enum PaymentMethod {
   BANK_TRANSFER = 'bank_transfer',
-  CASH = 'cash',
-  CHECK = 'check',
-  ELECTRONIC = 'electronic',
+  CREDIT_CARD = 'credit_card',
   OTHER = 'other',
 }
 
 export enum PaymentStatus {
+  CONFIRMED = 'confirmed',
   PENDING = 'pending',
-  COMPLETED = 'completed',
   FAILED = 'failed',
-  CANCELLED = 'cancelled',
 }
 
 export enum RefundStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
-  PROCESSED = 'processed',
+  DISPUTED = 'disputed',
 }
 
 export enum WriteoffStatus {
@@ -35,20 +31,20 @@ export enum WriteoffStatus {
 }
 
 export enum GapStatus {
-  FORECASTED = 'forecasted',
-  ACTUAL = 'actual',
-  RESOLVED = 'resolved',
+  SAFE = 'safe',
+  WARNING = 'warning',
+  CRITICAL = 'critical',
 }
 
 export enum ReminderType {
-  OVERDUE = 'overdue',
   PAYMENT_DUE = 'payment_due',
-  CASH_GAP = 'cash_gap',
-  REVIEW_NEEDED = 'review_needed',
+  REFUND_PENDING = 'refund_pending',
+  WRITEOFF_PENDING = 'writeoff_pending',
+  ESCALATION = 'escalation',
 }
 
 export enum ReminderStatus {
-  ACTIVE = 'active',
+  PENDING = 'pending',
   ACKNOWLEDGED = 'acknowledged',
   RESOLVED = 'resolved',
   ESCALATED = 'escalated',
@@ -57,27 +53,25 @@ export enum ReminderStatus {
 export interface ARRecord {
   id: string
   customer_name: string
-  invoice_number: string
-  invoice_date: string
-  due_date: string
+  customer_id: string
   amount: number
-  paid_amount: number
-  remaining_amount: number
+  currency: string
+  due_date: string
   status: ARStatus
   responsible_person: string
-  contract_number: string
-  notes: string
+  description: string | null
+  subscription_id: string | null
+  paid_amount: number
   created_at: string
   updated_at: string
 }
 
 export interface ARRecordSummary {
+  customer_name: string
   total_amount: number
-  total_paid: number
-  total_remaining: number
-  overdue_count: number
-  overdue_amount: number
-  by_status: Record<ARStatus, { count: number; amount: number }>
+  paid_amount: number
+  outstanding_amount: number
+  status: string
 }
 
 export interface ARRecordListResponse {
@@ -85,20 +79,17 @@ export interface ARRecordListResponse {
   total: number
   page: number
   page_size: number
-  summary?: ARRecordSummary
 }
 
 export interface Payment {
   id: string
   ar_record_id: string
-  customer_name: string
-  invoice_number: string
   amount: number
   payment_date: string
   payment_method: PaymentMethod
+  reference_number: string | null
   status: PaymentStatus
-  reference_number: string
-  notes: string
+  operator: string
   created_at: string
   updated_at: string
 }
@@ -113,13 +104,12 @@ export interface PaymentListResponse {
 export interface Refund {
   id: string
   ar_record_id: string
-  customer_name: string
-  invoice_number: string
   amount: number
   reason: string
   status: RefundStatus
-  reviewed_by: string | null
-  reviewed_at: string | null
+  applicant: string
+  reviewer: string | null
+  review_note: string | null
   created_at: string
   updated_at: string
 }
@@ -134,13 +124,11 @@ export interface RefundListResponse {
 export interface Writeoff {
   id: string
   ar_record_id: string
-  customer_name: string
-  invoice_number: string
   amount: number
   reason: string
   status: WriteoffStatus
-  approved_by: string | null
-  approved_at: string | null
+  operator: string
+  approver: string | null
   created_at: string
   updated_at: string
 }
@@ -154,13 +142,15 @@ export interface WriteoffListResponse {
 
 export interface CashGapForecast {
   id: string
-  date: string
+  forecast_date: string
+  period_start: string
+  period_end: string
   expected_inflow: number
   expected_outflow: number
-  net_gap: number
-  cumulative_gap: number
-  status: GapStatus
-  notes: string
+  gap_amount: number
+  gap_status: GapStatus
+  responsible_person: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
@@ -174,15 +164,15 @@ export interface CashGapForecastListResponse {
 
 export interface Reminder {
   id: string
+  ar_record_id: string | null
   type: ReminderType
   title: string
   message: string
-  related_id: string | null
+  assigned_to: string
   status: ReminderStatus
-  acknowledged_by: string | null
-  acknowledged_at: string | null
-  resolved_by: string | null
-  resolved_at: string | null
+  due_at: string
+  escalated_at: string | null
+  escalated_to: string | null
   created_at: string
   updated_at: string
 }
@@ -203,8 +193,11 @@ export interface FilterParams {
   page_size: number
 }
 
+export type ExportModule = 'ar_collection' | 'refund_dispute' | 'processing_record'
+export type ExportFormat = 'xlsx' | 'csv'
+
 export interface ExportParams {
-  module: string
-  format: 'csv' | 'xlsx' | 'pdf'
-  filters: Partial<FilterParams>
+  module: ExportModule
+  format: ExportFormat
+  filters: Record<string, any>
 }

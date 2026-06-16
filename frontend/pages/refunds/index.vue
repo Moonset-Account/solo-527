@@ -11,6 +11,7 @@ import {
   NInput,
   NForm,
   NFormItem,
+  NSelect,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { RefundStatus, type Refund } from '~/types'
@@ -20,13 +21,14 @@ definePageMeta({ layout: 'default' })
 const refundStore = useRefundStore()
 const filters = useFilters()
 const message = useMessage()
+const api = useApi()
 
 const statusOptions = [
   { label: '全部', value: '' },
   { label: '待审批', value: RefundStatus.PENDING },
   { label: '已批准', value: RefundStatus.APPROVED },
   { label: '已驳回', value: RefundStatus.REJECTED },
-  { label: '已处理', value: RefundStatus.PROCESSED },
+  { label: '争议中', value: RefundStatus.DISPUTED },
 ]
 
 const responsibleOptions = [
@@ -35,9 +37,15 @@ const responsibleOptions = [
   { label: '王五', value: '王五' },
 ]
 
+const showReviewModal = ref(false)
+const reviewRefundId = ref('')
+const reviewStatus = ref<'approved' | 'rejected' | 'disputed'>('approved')
+const reviewNote = ref('')
+const reviewerName = ref('')
+
 const showDisputeModal = ref(false)
 const disputeRefundId = ref('')
-const disputeReason = ref('')
+const disputeNote = ref('')
 
 function formatAmount(val: number) {
   return val.toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' })
@@ -47,14 +55,14 @@ const statusColorMap: Record<string, string> = {
   [RefundStatus.PENDING]: 'warning',
   [RefundStatus.APPROVED]: 'success',
   [RefundStatus.REJECTED]: 'error',
-  [RefundStatus.PROCESSED]: 'info',
+  [RefundStatus.DISPUTED]: 'info',
 }
 
 const statusLabelMap: Record<string, string> = {
   [RefundStatus.PENDING]: '待审批',
   [RefundStatus.APPROVED]: '已批准',
   [RefundStatus.REJECTED]: '已驳回',
-  [RefundStatus.PROCESSED]: '已处理',
+  [RefundStatus.DISPUTED]: '争议中',
 }
 
 const columns: DataTableColumns<Refund> = [
@@ -66,34 +74,35 @@ const columns: DataTableColumns<Refund> = [
       h('a', {
         style: 'color: #2080f0; cursor: pointer',
         onClick: () => navigateTo(`/ar/${row.ar_record_id}`),
-      }, row.ar_record_id),
+      }, row.ar_record_id.slice(0, 8)),
   },
   { title: '金额', key: 'amount', width: 120, render: (row) => formatAmount(row.amount) },
   { title: '原因', key: 'reason', width: 160 },
-  { title: '申请人', key: 'customer_name', width: 100 },
+  { title: '申请人', key: 'applicant', width: 100 },
   {
     title: '状态',
     key: 'status',
     width: 80,
     render: (row) => h(NTag, { type: statusColorMap[row.status] as any, size: 'small' }, { default: () => statusLabelMap[row.status] ?? row.status }),
   },
-  { title: '审核人', key: 'reviewed_by', width: 100 },
-  { title: '审核备注', key: 'review_note', width: 140, render: (row) => (row as any).review_note ?? '-' },
+  { title: '审核人', key: 'reviewer', width: 100, render: (row) => row.reviewer ?? '-' },
+  { title: '审核备注', key: 'review_note', width: 140, render: (row) => row.review_note ?? '-' },
   { title: '申请时间', key: 'created_at', width: 160 },
   {
     title: '操作',
     key: 'actions',
-    width: 140,
+    width: 160,
     render: (row) => {
       const buttons: VNode[] = []
       if (row.status === RefundStatus.PENDING) {
         buttons.push(
-          h(NButton, { size: 'small', type: 'success', onClick: () => handleApprove(row.id) }, { default: () => '审批' }),
+          h(NButton, { size: 'small', type: 'success', onClick: () => openReviewModal(row.id, 'approved') }, { default: () => '通过' }),
+          h(NButton, { size: 'small', type: 'error', onClick: () => openReviewModal(row.id, 'rejected') }, { default: () => '驳回' }),
         )
       }
       if (row.status === RefundStatus.APPROVED) {
         buttons.push(
-          h(NButton, { size: 'small', type: 'warning', onClick: () => handleDispute(row.id) }, { default: () => '争议' }),
+          h(NButton, { size: 'small', type: 'warning', onClick: () => openDisputeModal(row.id) }, { default: () => '争议' }),
         )
       }
       return h(NSpace, { size: 'small' }, { default: () => buttons })
@@ -101,25 +110,42 @@ const columns: DataTableColumns<Refund> = [
   },
 ]
 
-async function handleApprove(id: string) {
+function openReviewModal(id: string, status: 'approved' | 'rejected') {
+  reviewRefundId.value = id
+  reviewStatus.value = status
+  reviewNote.value = ''
+  reviewerName.value = ''
+  showReviewModal.value = true
+}
+
+function openDisputeModal(id: string) {
+  disputeRefundId.value = id
+  disputeNote.value = ''
+  showDisputeModal.value = true
+}
+
+async function submitReview() {
   try {
-    await refundStore.review(id, { status: 'approved', reviewed_by: 'current_user' })
-    message.success('审批成功')
+    await api.refund.review(reviewRefundId.value, {
+      reviewer: reviewerName.value || '当前用户',
+      status: reviewStatus.value,
+      review_note: reviewNote.value || undefined,
+    })
+    message.success(reviewStatus.value === 'approved' ? '审批通过' : '已驳回')
+    showReviewModal.value = false
     refundStore.fetchList(filters.filters.value)
   } catch {
     message.error('审批失败')
   }
 }
 
-function handleDispute(id: string) {
-  disputeRefundId.value = id
-  disputeReason.value = ''
-  showDisputeModal.value = true
-}
-
 async function submitDispute() {
   try {
-    await refundStore.review(disputeRefundId.value, { status: 'rejected', reviewed_by: 'current_user' })
+    await api.refund.review(disputeRefundId.value, {
+      reviewer: '当前用户',
+      status: 'disputed',
+      review_note: disputeNote.value || undefined,
+    })
     message.success('争议已提交')
     showDisputeModal.value = false
     refundStore.fetchList(filters.filters.value)
@@ -134,7 +160,7 @@ function handleFilter(filterValues: { dateRange: [number, number] | null; respon
   filters.responsiblePerson.value = filterValues.responsible
   filters.status.value = filterValues.status || null
   filters.page.value = 1
-  refundStore.fetchList(filters.filters.value)
+  refundStore.fetchList({ ...filters.filters.value, applicant: filterValues.responsible })
 }
 
 function handleReset() {
@@ -145,6 +171,15 @@ function handleReset() {
 function handlePageChange(page: number) {
   filters.setPage(page)
   refundStore.fetchList(filters.filters.value)
+}
+
+function buildExportFilters() {
+  const f: Record<string, any> = {}
+  if (filters.status.value) f.status = filters.status.value
+  if (filters.responsiblePerson.value) f.applicant = filters.responsiblePerson.value
+  if (filters.dateFrom.value) f.date_from = filters.dateFrom.value
+  if (filters.dateTo.value) f.date_to = filters.dateTo.value
+  return f
 }
 
 onMounted(() => {
@@ -161,7 +196,7 @@ onMounted(() => {
       @reset="handleReset"
     >
       <template #default>
-        <ExportButton module="refunds" :filters="filters.filters.value" />
+        <ExportButton module="refund_dispute" :filters="buildExportFilters()" />
       </template>
     </FilterBar>
 
@@ -176,14 +211,29 @@ onMounted(() => {
       </NSpace>
     </NCard>
 
+    <NModal v-model:show="showReviewModal" preset="card" :title="reviewStatus === 'approved' ? '审批通过' : '驳回退款'" style="width: 450px">
+      <NForm label-placement="left" label-width="80">
+        <NFormItem label="审核人">
+          <NInput v-model:value="reviewerName" placeholder="请输入审核人姓名" />
+        </NFormItem>
+        <NFormItem label="审核备注">
+          <NInput v-model:value="reviewNote" type="textarea" placeholder="请输入审核备注" />
+        </NFormItem>
+        <NSpace justify="end">
+          <NButton @click="showReviewModal = false">取消</NButton>
+          <NButton :type="reviewStatus === 'approved' ? 'success' : 'error'" @click="submitReview">确认</NButton>
+        </NSpace>
+      </NForm>
+    </NModal>
+
     <NModal v-model:show="showDisputeModal" preset="card" title="提交争议" style="width: 450px">
       <NForm label-placement="left" label-width="80">
         <NFormItem label="争议原因">
-          <NInput v-model:value="disputeReason" type="textarea" placeholder="请输入争议原因" />
+          <NInput v-model:value="disputeNote" type="textarea" placeholder="请输入争议原因" />
         </NFormItem>
         <NSpace justify="end">
           <NButton @click="showDisputeModal = false">取消</NButton>
-          <NButton type="primary" @click="submitDispute">提交</NButton>
+          <NButton type="warning" @click="submitDispute">提交争议</NButton>
         </NSpace>
       </NForm>
     </NModal>

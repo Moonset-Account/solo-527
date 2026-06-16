@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosRequestConfig } from 'axios'
+import type { AxiosInstance } from 'axios'
 import type {
   ARRecord,
   ARRecordListResponse,
@@ -10,6 +10,7 @@ import type {
   RefundListResponse,
   WriteoffListResponse,
   CashGapForecastListResponse,
+  CashGapForecast,
   Reminder,
   ReminderListResponse,
   FilterParams,
@@ -53,7 +54,7 @@ export const useApi = () => {
     return response.data
   }
 
-  function buildQuery(filters: Partial<FilterParams>): Record<string, any> {
+  function buildQuery(filters: Partial<FilterParams> & Record<string, any>): Record<string, any> {
     const query: Record<string, any> = {}
     if (filters.date_from) query.date_from = filters.date_from
     if (filters.date_to) query.date_to = filters.date_to
@@ -61,6 +62,14 @@ export const useApi = () => {
     if (filters.status) query.status = filters.status
     if (filters.page) query.page = filters.page
     if (filters.page_size) query.page_size = filters.page_size
+    if (filters.type) query.type = filters.type
+    if (filters.assigned_to) query.assigned_to = filters.assigned_to
+    if (filters.gap_status) query.gap_status = filters.gap_status
+    if (filters.applicant) query.applicant = filters.applicant
+    if (filters.operator) query.operator = filters.operator
+    if (filters.ar_record_id) query.ar_record_id = filters.ar_record_id
+    if (filters.period_start) query.period_start = filters.period_start
+    if (filters.period_end) query.period_end = filters.period_end
     return query
   }
 
@@ -86,7 +95,7 @@ export const useApi = () => {
     },
 
     refund: {
-      list: (filters: Partial<FilterParams>) =>
+      list: (filters: Partial<FilterParams> & Record<string, any>) =>
         get<RefundListResponse>('/refunds', buildQuery(filters)),
       get: (id: string) => get<Refund>(`/refunds/${id}`),
       create: (data: Partial<Refund>) => post<Refund>('/refunds', data),
@@ -96,21 +105,26 @@ export const useApi = () => {
     },
 
     writeoff: {
-      list: (filters: Partial<FilterParams>) =>
+      list: (filters: Partial<FilterParams> & Record<string, any>) =>
         get<WriteoffListResponse>('/writeoffs', buildQuery(filters)),
+      get: (id: string) => get<any>(`/writeoffs/${id}`),
+      create: (data: any) => post<any>('/writeoffs', data),
+      approve: (id: string, approver: string) =>
+        post<any>(`/writeoffs/${id}/approve`, { approver }),
+      update: (id: string, data: any) => put<any>(`/writeoffs/${id}`, data),
     },
 
     cashGap: {
-      list: (filters: Partial<FilterParams>) =>
+      list: (filters: Partial<FilterParams> & Record<string, any>) =>
         get<CashGapForecastListResponse>('/cash-gaps', buildQuery(filters)),
       dashboard: () => get<any>('/cash-gaps/dashboard'),
-      get: (id: string) => get<any>(`/cash-gaps/${id}`),
-      create: (data: any) => post<any>('/cash-gaps', data),
-      update: (id: string, data: any) => put<any>(`/cash-gaps/${id}`, data),
+      get: (id: string) => get<CashGapForecast>(`/cash-gaps/${id}`),
+      create: (data: Partial<CashGapForecast>) => post<CashGapForecast>('/cash-gaps', data),
+      update: (id: string, data: Partial<CashGapForecast>) => put<CashGapForecast>(`/cash-gaps/${id}`, data),
     },
 
     reminder: {
-      list: (filters: Partial<FilterParams>) =>
+      list: (filters: Partial<FilterParams> & Record<string, any>) =>
         get<ReminderListResponse>('/reminders', buildQuery(filters)),
       get: (id: string) => get<Reminder>(`/reminders/${id}`),
       create: (data: Partial<Reminder>) => post<Reminder>('/reminders', data),
@@ -119,10 +133,25 @@ export const useApi = () => {
         post<Reminder>(`/reminders/${id}/escalate`, { escalated_to: escalatedTo }),
     },
 
-    export: (params: ExportParams) => post<Blob>('/exports/', {
-      module: params.module,
-      format: params.format,
-      filters: params.filters,
-    }),
+    exportFile: async (params: ExportParams): Promise<void> => {
+      const response = await client.post('/exports/', {
+        module: params.module,
+        format: params.format,
+        filters: params.filters,
+      }, { responseType: 'blob' })
+      const blob = response.data as Blob
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const disposition = response.headers['content-disposition']
+      const filename = disposition
+        ? disposition.split('filename=')[1]?.replace(/"/g, '')
+        : `${params.module}_${new Date().toISOString().slice(0, 10)}.${params.format}`
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    },
   }
 }
