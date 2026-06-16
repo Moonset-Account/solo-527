@@ -1,4 +1,15 @@
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:3001/api';
+declare global {
+  interface Window {
+    ENV?: {
+      REMIX_PUBLIC_API_BASE_URL?: string;
+    };
+  }
+}
+
+export const API_BASE =
+  (typeof process !== 'undefined' && process?.env?.REMIX_PUBLIC_API_BASE_URL) ||
+  (typeof window !== 'undefined' && window?.ENV?.REMIX_PUBLIC_API_BASE_URL) ||
+  'http://localhost:3001/api';
 
 interface ApiOptions extends RequestInit {
   headers?: Record<string, string>;
