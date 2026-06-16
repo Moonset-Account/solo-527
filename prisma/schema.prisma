@@ -1,0 +1,298 @@
+// 生成器配置
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 数据源配置
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 车辆表
+model Vehicle {
+  id          String   @id @default(cuid())
+  plateNumber String   @unique
+  brand       String
+  model       String
+  year        Int
+  color       String
+  vin         String   @unique
+  ownerName   String
+  ownerPhone  String
+  mileage     Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workOrders WorkOrder[]
+
+  @@index([brand, model])
+}
+
+// 工单表
+model WorkOrder {
+  id               String    @id @default(cuid())
+  orderNo          String    @unique
+  vehicleId        String
+  status           WorkOrderStatus @default(PENDING)
+  priority         WorkOrderPriority @default(NORMAL)
+  description      String
+  estimatedDelivery DateTime
+  actualDelivery   DateTime?
+  assigneeTeam     String?
+  assigneeUserId   String?
+  totalCost        Decimal   @default(0) @db.Decimal(10, 2)
+  totalLaborCost   Decimal   @default(0) @db.Decimal(10, 2)
+  totalPartCost    Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  vehicle         Vehicle          @relation(fields: [vehicleId], references: [id])
+  items           WorkOrderItem[]
+  schedules       Schedule[]
+  qualityChecks   QualityCheck[]
+  delayRecords    DelayRecord[]
+  inventoryRecords InventoryRecord[]
+
+  @@index([status])
+  @@index([vehicleId])
+  @@index([estimatedDelivery])
+  @@index([assigneeTeam])
+}
+
+enum WorkOrderStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  QUALITY_CHECK
+  COMPLETED
+  DELAYED
+}
+
+enum WorkOrderPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// 工单项目表
+model WorkOrderItem {
+  id          String  @id @default(cuid())
+  workOrderId String
+  type        WorkOrderItemType
+  name        String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+  partId      String?
+  createdAt   DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  part      Part?     @relation(fields: [partId], references: [id])
+
+  @@index([workOrderId])
+}
+
+enum WorkOrderItemType {
+  SERVICE
+  PART
+}
+
+// 配件表
+model Part {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  category      String
+  unit          String
+  price         Decimal  @db.Decimal(10, 2)
+  costPrice     Decimal  @db.Decimal(10, 2)
+  stock         Int      @default(0)
+  minStock      Int      @default(0)
+  location      String
+  turnoverDays  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workOrderItems  WorkOrderItem[]
+  inventoryRecords InventoryRecord[]
+  priceHistories  PriceHistory[]
+
+  @@index([category])
+  @@index([name])
+}
+
+// 库存记录表
+model InventoryRecord {
+  id            String   @id @default(cuid())
+  partId        String
+  type          InventoryType
+  quantity      Int
+  balanceAfter  Int
+  workOrderId   String?
+  remark        String?
+  operatorId    String?
+  createdAt     DateTime @default(now())
+
+  part      Part      @relation(fields: [partId], references: [id])
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@index([partId, createdAt])
+}
+
+enum InventoryType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  TRANSFER
+}
+
+// 价格历史表
+model PriceHistory {
+  id            String   @id @default(cuid())
+  partId        String
+  oldPrice      Decimal  @db.Decimal(10, 2)
+  newPrice      Decimal  @db.Decimal(10, 2)
+  oldCostPrice  Decimal  @db.Decimal(10, 2)
+  newCostPrice  Decimal  @db.Decimal(10, 2)
+  changedBy     String
+  createdAt     DateTime @default(now())
+
+  part Part @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@index([partId])
+}
+
+// 班组表
+model Team {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  leaderId    String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  schedules Schedule[]
+}
+
+// 排期表
+model Schedule {
+  id           String   @id @default(cuid())
+  workOrderId  String
+  teamId       String
+  userId       String?
+  scheduledDate DateTime @db.Date
+  startTime    String
+  endTime      String
+  status       ScheduleStatus @default(SCHEDULED)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  team      Team      @relation(fields: [teamId], references: [id])
+
+  @@index([teamId, scheduledDate])
+  @@index([workOrderId])
+}
+
+enum ScheduleStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// 质检表
+model QualityCheck {
+  id          String   @id @default(cuid())
+  workOrderId String
+  inspectorId String
+  result      QualityResult
+  remarks     String?
+  checkedAt   DateTime @default(now())
+
+  workOrder WorkOrder        @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  items     QualityCheckItem[]
+
+  @@index([workOrderId])
+}
+
+enum QualityResult {
+  PASSED
+  FAILED
+  PENDING
+}
+
+// 质检项目表
+model QualityCheckItem {
+  id             String   @id @default(cuid())
+  qualityCheckId String
+  name           String
+  result         QualityItemResult
+  remark         String?
+
+  qualityCheck QualityCheck @relation(fields: [qualityCheckId], references: [id], onDelete: Cascade)
+}
+
+enum QualityItemResult {
+  PASS
+  FAIL
+  NA
+}
+
+// 延期记录表
+model DelayRecord {
+  id                  String   @id @default(cuid())
+  workOrderId         String
+  reason              String
+  impactScope         String
+  actionTaken         String
+  nextStep            String
+  newEstimatedDelivery DateTime
+  createdBy           String
+  createdAt           DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+}
+
+// 导出任务表
+model ExportTask {
+  id              String      @id @default(cuid())
+  type            String
+  status          ExportStatus @default(PENDING)
+  totalRecords    Int         @default(0)
+  processedRecords Int        @default(0)
+  downloadUrl     String?
+  filters         Json?
+  createdBy       String
+  createdAt       DateTime    @default(now())
+  completedAt     DateTime?
+
+  @@index([createdBy, createdAt])
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// 操作日志表
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  userId     String
+  userName   String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+}
