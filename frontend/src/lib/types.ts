@@ -148,6 +148,8 @@ export interface RevenueCostStats {
     byType: { type: string; amount: string }[];
   };
   profit: number;
+  byDate?: { date: string; revenue: string; cost: string; profit: number }[];
+  byOwner?: { owner: string; revenue: string; cost: string; profit: number; revenueCount: number; costCount: number }[];
 }
 
 export interface RetentionStats {
@@ -162,6 +164,8 @@ export interface RetentionStats {
     total: number;
     active: number;
   }[];
+  byDate?: { date: string; total: number; active: number; renewed: number }[];
+  byOwner?: { owner: string; total: number; active: number; renewed: number; activeRate: number; renewalRate: number }[];
 }
 
 export interface MembersStats {
@@ -184,6 +188,8 @@ export interface Exception {
   resultSummary?: string;
   resultNote?: string;
   reopenedFrom?: number;
+  originalExceptionId?: number;
+  originalException?: Exception;
   createdAt: string;
   updatedAt: string;
   closedAt?: string;
@@ -272,4 +278,16 @@ export interface PodcastContentListResponse {
 
 export interface PodcastContentDetailResponse {
   content: PodcastContent;
+}
+
+export interface AuthMeResponse {
+  user: User;
+  activeSubscription?: Subscription;
+  membershipStatus: 'none' | 'active' | 'expired';
+}
+
+export interface CreateOrderResponse {
+  subscription: Subscription;
+  order: Order;
+  plan: MembershipPlan;
 }

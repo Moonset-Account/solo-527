@@ -1,16 +1,31 @@
 import { createLazyFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { subscriptionsApi } from '../lib/api'
-import type { MembershipPlan } from '../lib/types'
+import { subscriptionsApi, authApi } from '../lib/api'
+import type { MembershipPlan, AuthMeResponse, CreateOrderResponse } from '../lib/types'
 
 function MembershipPage() {
   const [plans, setPlans] = useState<MembershipPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null)
+  const [userId] = useState<number>(1)
+  const [owner] = useState<string>('小王')
+  const [submitting, setSubmitting] = useState(false)
+  const [subscribeResult, setSubscribeResult] = useState<CreateOrderResponse | null>(null)
+  const [authData, setAuthData] = useState<AuthMeResponse | null>(null)
 
   useEffect(() => {
     fetchPlans()
+    fetchCurrentUser()
   }, [])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const data = await authApi.getCurrentUser()
+      setAuthData(data)
+    } catch (error) {
+      console.error('Failed to fetch current user:', error)
+    }
+  }
 
   const fetchPlans = async () => {
     setLoading(true)
@@ -89,6 +104,29 @@ function MembershipPage() {
     }
   }
 
+  const handleSubscribe = async () => {
+    if (!selectedPlan) {
+      alert('请先选择一个订阅方案')
+      return
+    }
+    setSubmitting(true)
+    setSubscribeResult(null)
+    try {
+      const result = await subscriptionsApi.createOrder({
+        planId: selectedPlan,
+        userId,
+        owner,
+      })
+      setSubscribeResult(result)
+      await fetchCurrentUser()
+    } catch (error) {
+      console.error('Subscription failed:', error)
+      alert('订阅失败：' + (error instanceof Error ? error.message : '未知错误'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const getPlanFeatures = (plan: MembershipPlan): string[] => {
     const features = plan.features as any
     if (features?.benefits && Array.isArray(features.benefits)) {
@@ -112,6 +150,15 @@ function MembershipPage() {
       return `${months}个月`
     }
     return `${days}天`
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
   }
 
   const memberBenefits = [
@@ -157,6 +204,35 @@ function MembershipPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-12">
+      {authData && authData.membershipStatus === 'active' && authData.activeSubscription && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">✅</div>
+            <div>
+              <h3 className="font-bold text-green-800 text-lg">您已是尊贵会员</h3>
+              <p className="text-green-600 text-sm mt-1">
+                当前方案：{authData.activeSubscription.planName || '会员方案'} ·
+                有效期至：{formatDate(authData.activeSubscription.endDate)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {authData && authData.membershipStatus === 'expired' && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">⏰</div>
+            <div>
+              <h3 className="font-bold text-orange-800 text-lg">会员已过期</h3>
+              <p className="text-orange-600 text-sm mt-1">
+                您的会员订阅已过期，重新订阅可继续享受全部会员权益
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-3">
           会员订阅
@@ -238,14 +314,57 @@ function MembershipPage() {
         })}
       </div>
 
-      <div className="bg-blue-50 rounded-2xl p-6 text-center">
-        <p className="text-gray-600 mb-4">
-          选择了心仪的方案？立即订阅，享受会员专属内容
-        </p>
-        <button className="bg-blue-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors">
-          立即订阅
-        </button>
-      </div>
+      {subscribeResult ? (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
+          <div className="text-5xl mb-4">🎉</div>
+          <h3 className="text-xl font-bold text-green-800 mb-4">订阅成功！</h3>
+          <div className="bg-white rounded-xl p-6 text-left space-y-3 max-w-md mx-auto">
+            <div className="flex justify-between">
+              <span className="text-gray-500">订单号</span>
+              <span className="font-medium text-gray-800">{subscribeResult.order.orderNo}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">订阅方案</span>
+              <span className="font-medium text-gray-800">{subscribeResult.plan.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">支付金额</span>
+              <span className="font-medium text-gray-800">¥{subscribeResult.order.amount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">有效期至</span>
+              <span className="font-medium text-gray-800">{formatDate(subscribeResult.subscription.endDate)}</span>
+            </div>
+          </div>
+          <div className="mt-6 flex gap-3 justify-center">
+            <Link
+              to="/content"
+              className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors"
+            >
+              浏览会员内容
+            </Link>
+            <button
+              onClick={() => setSubscribeResult(null)}
+              className="border border-gray-300 text-gray-600 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              继续订阅
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-blue-50 rounded-2xl p-6 text-center">
+          <p className="text-gray-600 mb-4">
+            选择了心仪的方案？立即订阅，享受会员专属内容
+          </p>
+          <button
+            onClick={handleSubscribe}
+            disabled={submitting}
+            className="bg-blue-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? '处理中...' : '立即订阅'}
+          </button>
+        </div>
+      )}
 
       <div>
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-8">

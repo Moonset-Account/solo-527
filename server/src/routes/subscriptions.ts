@@ -34,6 +34,12 @@ const updateSubscriptionSchema = z.object({
   cancelReason: z.string().optional(),
 });
 
+const createOrderSchema = z.object({
+  planId: z.number(),
+  userId: z.number(),
+  owner: z.string().optional(),
+});
+
 app.get('/', async (c) => {
   const query = c.req.query();
   const result = subscriptionQuerySchema.safeParse(query);
@@ -242,6 +248,85 @@ app.get('/plans/list', async (c) => {
     .orderBy(asc(membershipPlans.sortOrder));
 
   return c.json({ plans });
+});
+
+app.post('/create-order', async (c) => {
+  const body = await c.req.json();
+  const result = createOrderSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json({ error: result.error.issues }, 400);
+  }
+
+  const { planId, userId, owner } = result.data;
+
+  const planList = await db
+    .select()
+    .from(membershipPlans)
+    .where(eq(membershipPlans.id, planId))
+    .limit(1);
+  const plan = planList[0];
+
+  if (!plan) {
+    return c.json({ error: 'Membership plan not found' }, 404);
+  }
+
+  if (!plan.isActive) {
+    return c.json({ error: 'Membership plan is not active' }, 400);
+  }
+
+  const userList = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const user = userList[0];
+
+  if (!user) {
+    return c.json({ error: 'User not found' }, 404);
+  }
+
+  const now = new Date();
+  const startDate = new Date(now);
+  const endDate = new Date(now);
+  endDate.setDate(endDate.getDate() + plan.durationDays);
+
+  const newSubscriptions = await db
+    .insert(subscriptions)
+    .values({
+      userId,
+      planId,
+      startDate,
+      endDate,
+      status: 'active',
+      autoRenew: true,
+      owner,
+      renewCount: 0,
+    })
+    .returning();
+  const newSubscription = newSubscriptions[0];
+
+  const orderNo = `SUB${Date.now()}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+  const newOrders = await db
+    .insert(orders)
+    .values({
+      orderNo,
+      userId,
+      subscriptionId: newSubscription.id,
+      amount: plan.price,
+      status: 'paid',
+      paidAt: now,
+      owner,
+    })
+    .returning();
+  const newOrder = newOrders[0];
+
+  return c.json({
+    subscription: newSubscription,
+    order: newOrder,
+    plan,
+  }, 201);
 });
 
 export default app;

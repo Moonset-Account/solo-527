@@ -335,31 +335,54 @@ app.post('/:id/reopen', async (c) => {
 
   const { reason, operator } = result.data;
 
-  const updated = await db
-    .update(exceptionPool)
-    .set({
-      status: 'open',
-      reopenedFrom: id,
-      closedAt: null,
-      closer: null,
-      closeReason: null,
-      updatedAt: new Date(),
-    })
+  const originalList = await db
+    .select()
+    .from(exceptionPool)
     .where(eq(exceptionPool.id, id))
-    .returning();
+    .limit(1);
 
-  if (updated.length === 0) {
+  if (originalList.length === 0) {
     return c.json({ error: 'Exception not found' }, 404);
   }
 
-  await db.insert(exceptionLogs).values({
-    exceptionId: id,
-    action: 'reopened',
-    operator,
-    detail: { reason } as any,
-  });
+  const originalException = originalList[0];
 
-  return c.json({ exception: updated[0] });
+  const newExceptions = await db
+    .insert(exceptionPool)
+    .values({
+      category: originalException.category,
+      title: originalException.title,
+      description: originalException.description,
+      relatedOrderId: originalException.relatedOrderId,
+      priority: originalException.priority,
+      assignee: originalException.assignee,
+      status: 'open',
+      reopenedFrom: originalException.id,
+      delayDays: 0,
+    })
+    .returning();
+
+  const newException = newExceptions[0];
+
+  await Promise.all([
+    db.insert(exceptionLogs).values({
+      exceptionId: originalException.id,
+      action: 'reopened_from',
+      operator,
+      detail: { newExceptionId: newException.id, reason } as any,
+    }),
+    db.insert(exceptionLogs).values({
+      exceptionId: newException.id,
+      action: 'reopened_to',
+      operator,
+      detail: { originalExceptionId: originalException.id, reason } as any,
+    }),
+  ]);
+
+  return c.json({
+    exception: newException,
+    originalException,
+  });
 });
 
 app.get('/:id/logs', async (c) => {

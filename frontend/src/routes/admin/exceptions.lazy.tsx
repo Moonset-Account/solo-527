@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { exceptionsApi } from '../../lib/api';
+import { exceptionsApi, statsApi } from '../../lib/api';
 import type { Exception, ExceptionLog } from '../../lib/types';
 
 const statusMap: Record<string, { label: string; color: string }> = {
@@ -54,12 +54,29 @@ function ExceptionsPage() {
     delayDays: 0,
     delayReason: '',
   });
-
-  const assignees = ['张三', '李四', '王五', '赵六'];
+  const [ownersList, setOwnersList] = useState<string[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchExceptions();
+    fetchOwners();
   }, [page, pageSize, search, status, category, priority, assignee]);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const fetchOwners = async () => {
+    try {
+      const data = await statsApi.getOwners();
+      setOwnersList(data.owners);
+    } catch (error) {
+      console.error('Failed to fetch owners:', error);
+    }
+  };
 
   const fetchExceptions = async () => {
     setLoading(true);
@@ -95,6 +112,17 @@ function ExceptionsPage() {
     setShowDetail(true);
   };
 
+  const handleViewOriginal = async (originalId: number) => {
+    try {
+      const data = await exceptionsApi.get(originalId);
+      setSelectedException(data.exception);
+      setLogs(data.logs);
+    } catch (error) {
+      console.error('Failed to fetch original exception:', error);
+      setToast({ message: '获取原始异常失败', type: 'error' });
+    }
+  };
+
   const handleOpenAction = (type: ActionType, exc: Exception) => {
     setSelectedException(exc);
     setActionType(type);
@@ -128,6 +156,7 @@ function ExceptionsPage() {
             reason: actionForm.reason,
             operator: actionForm.operator || undefined,
           });
+          setToast({ message: '已创建新异常，原异常记录已保留', type: 'success' });
           break;
         case 'delay':
           await exceptionsApi.delay(selectedException.id, {
@@ -144,6 +173,7 @@ function ExceptionsPage() {
       }
     } catch (error) {
       console.error('Action failed:', error);
+      setToast({ message: '操作失败，请重试', type: 'error' });
     }
   };
 
@@ -271,7 +301,7 @@ function ExceptionsPage() {
               className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">全部负责人</option>
-              {assignees.map((a) => (
+              {ownersList.map((a) => (
                 <option key={a} value={a}>
                   {a}
                 </option>
@@ -316,7 +346,16 @@ function ExceptionsPage() {
                     <tbody>
                       {group.items.map((exc) => (
                         <tr key={exc.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 font-medium text-gray-800">{exc.title}</td>
+                          <td className="py-3 px-4 font-medium text-gray-800">
+                            <div className="flex items-center gap-2">
+                              <span>{exc.title}</span>
+                              {(exc.reopenedFrom || exc.originalExceptionId) && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                  回溯
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-3 px-4 text-gray-600">{exc.category}</td>
                           <td className="py-3 px-4">
                             <span
@@ -477,6 +516,17 @@ function ExceptionsPage() {
             </div>
 
             <div className="p-4 space-y-4">
+              {(selectedException.reopenedFrom || selectedException.originalExceptionId) && (
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-xs text-purple-600 mb-1">来源异常</p>
+                  <button
+                    onClick={() => handleViewOriginal(selectedException.reopenedFrom || selectedException.originalExceptionId!)}
+                    className="text-sm text-purple-700 hover:text-purple-900 font-medium underline"
+                  >
+                    查看异常 #{selectedException.reopenedFrom || selectedException.originalExceptionId}
+                  </button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">标题</p>
@@ -806,6 +856,20 @@ function ExceptionsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+              toast.type === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-red-500 text-white'
+            }`}
+          >
+            {toast.message}
           </div>
         </div>
       )}

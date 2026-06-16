@@ -1,18 +1,19 @@
 import { createLazyFileRoute, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { contentApi } from '../../lib/api'
-import type { PodcastContent } from '../../lib/types'
+import { contentApi, authApi } from '../../lib/api'
+import type { PodcastContent, AuthMeResponse } from '../../lib/types'
 
 function ContentDetailPage() {
   const { id } = Route.useParams()
   const [content, setContent] = useState<PodcastContent | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isLoggedIn] = useState(false)
-  const [isMember] = useState(false)
+  const [authData, setAuthData] = useState<AuthMeResponse | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
     fetchContent()
+    fetchCurrentUser()
   }, [id])
 
   const fetchContent = async () => {
@@ -24,6 +25,19 @@ function ContentDetailPage() {
       console.error('Failed to fetch content:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchCurrentUser = async () => {
+    setAuthLoading(true)
+    try {
+      const data = await authApi.getCurrentUser()
+      setAuthData(data)
+    } catch (error) {
+      console.error('Failed to fetch current user:', error)
+      setAuthData(null)
+    } finally {
+      setAuthLoading(false)
     }
   }
 
@@ -39,10 +53,11 @@ function ContentDetailPage() {
   const canViewContent = () => {
     if (!content) return false
     if (!content.isMemberOnly) return true
-    return isLoggedIn && isMember
+    if (!authData) return false
+    return authData.membershipStatus === 'active' && !!authData.activeSubscription
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-gray-500">加载中...</div>
@@ -67,6 +82,8 @@ function ContentDetailPage() {
   }
 
   const canView = canViewContent()
+  const isLoggedIn = !!authData
+  const isMember = authData?.membershipStatus === 'active'
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -114,6 +131,15 @@ function ContentDetailPage() {
             </p>
           </div>
 
+          {content.isMemberOnly && isMember && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">✅</span>
+                <span className="text-green-700 font-medium">会员已解锁，尽情收听吧！</span>
+              </div>
+            </div>
+          )}
+
           {canView ? (
             <div className="bg-gray-50 rounded-xl p-6">
               <h3 className="font-semibold text-gray-800 mb-4">播放节目</h3>
@@ -153,24 +179,36 @@ function ContentDetailPage() {
             </div>
           ) : (
             <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6 text-center">
-              <div className="text-5xl mb-4">🔒</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                会员专享内容
-              </h3>
-              <p className="text-gray-600 mb-6">
-                升级为会员，解锁全部精彩内容
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link
-                  to="/membership"
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2.5 rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-colors"
-                >
-                  立即升级会员
-                </Link>
-                <button className="border border-gray-300 text-gray-600 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-                  登录账号
-                </button>
-              </div>
+              {!isLoggedIn ? (
+                <>
+                  <div className="text-5xl mb-4">�</div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    请先登录
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    登录后即可查看您的会员状态并解锁内容
+                  </p>
+                  <button className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                    登录账号
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="text-5xl mb-4">🔒</div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    会员专享内容
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    升级为会员，解锁全部精彩内容
+                  </p>
+                  <Link
+                    to="/membership"
+                    className="inline-block bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2.5 rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-colors"
+                  >
+                    立即升级会员
+                  </Link>
+                </>
+              )}
             </div>
           )}
         </div>

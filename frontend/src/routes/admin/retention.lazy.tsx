@@ -48,42 +48,27 @@ function getDateRange(range: string): { startDate: string; endDate: string } {
   return { startDate: start.toISOString().split('T')[0], endDate: end };
 }
 
-function generateRetentionTrendData(months: number, stats: RetentionStats) {
-  const data = [];
-  const now = new Date();
-
-  for (let i = months - 1; i >= 0; i--) {
-    const date = new Date(now);
-    date.setMonth(date.getMonth() - i);
-    const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-    const totalBase = Math.round(stats.total / months);
-    const activeBase = Math.round(stats.active / months);
-    const renewedBase = Math.round(stats.renewed / months);
-
-    data.push({
-      month: monthStr,
-      total: Math.round(totalBase * (0.8 + Math.random() * 0.4)),
-      active: Math.round(activeBase * (0.8 + Math.random() * 0.4)),
-      renewed: Math.round(renewedBase * (0.8 + Math.random() * 0.4)),
-    });
-  }
-
-  return data;
-}
-
 function RetentionPage() {
   const [timeRange, setTimeRange] = useState('month');
   const [owner, setOwner] = useState('');
   const [retentionStats, setRetentionStats] = useState<RetentionStats | null>(null);
   const [membersStats, setMembersStats] = useState<MembersStats | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const owners = ['张三', '李四', '王五', '赵六'];
+  const [ownersList, setOwnersList] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
+    fetchOwners();
   }, [timeRange, owner]);
+
+  const fetchOwners = async () => {
+    try {
+      const data = await statsApi.getOwners();
+      setOwnersList(data.owners);
+    } catch (error) {
+      console.error('Failed to fetch owners:', error);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -109,8 +94,12 @@ function RetentionPage() {
     }
   };
 
-  const trendMonths = timeRange === 'month' ? 1 : timeRange === 'quarter' ? 3 : 12;
-  const trendData = retentionStats ? generateRetentionTrendData(Math.max(trendMonths, 6), retentionStats) : [];
+  const trendData = retentionStats?.byDate?.map((item) => ({
+    month: item.date.slice(0, 7),
+    total: item.total,
+    active: item.active,
+    renewed: item.renewed,
+  })) || [];
 
   const byPlanData = retentionStats?.byPlan.map((item) => ({
     name: item.planName,
@@ -119,12 +108,12 @@ function RetentionPage() {
     activeRate: item.total > 0 ? ((item.active / item.total) * 100).toFixed(1) : '0',
   })) || [];
 
-  const ownerData = [
-    { name: '张三', total: 120, active: 95, renewed: 45 },
-    { name: '李四', total: 98, active: 72, renewed: 38 },
-    { name: '王五', total: 156, active: 120, renewed: 68 },
-    { name: '赵六', total: 87, active: 65, renewed: 30 },
-  ];
+  const ownerData = retentionStats?.byOwner?.map((item) => ({
+    name: item.owner,
+    total: item.total,
+    active: item.active,
+    renewed: item.renewed,
+  })) || [];
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -154,7 +143,7 @@ function RetentionPage() {
             className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">全部负责人</option>
-            {owners.map((o) => (
+            {ownersList.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
@@ -277,21 +266,23 @@ function RetentionPage() {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">按负责人留存</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={ownerData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                  <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                  <Legend />
-                  <Bar dataKey="total" name="总订阅" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="active" name="活跃" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="renewed" name="续费" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {ownerData.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">按负责人留存</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={ownerData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                    <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                    <Legend />
+                    <Bar dataKey="total" name="总订阅" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="active" name="活跃" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="renewed" name="续费" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

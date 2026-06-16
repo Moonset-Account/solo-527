@@ -22,6 +22,8 @@ import type {
   PodcastContent,
   PodcastContentListResponse,
   PodcastContentDetailResponse,
+  AuthMeResponse,
+  CreateOrderResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -77,6 +79,10 @@ export const statsApi = {
     if (params?.endDate) query.set('endDate', params.endDate);
     return request<MembersStats>(`/stats/members?${query.toString()}`);
   },
+
+  getOwners: () => {
+    return request<{ owners: string[] }>('/stats/owners');
+  },
 };
 
 export const subscriptionsApi = {
@@ -110,6 +116,12 @@ export const subscriptionsApi = {
 
   getPlans: () =>
     request<{ plans: MembershipPlan[] }>('/subscriptions/plans/list'),
+
+  createOrder: (data: { planId: number; userId: number; owner?: string }) =>
+    request<CreateOrderResponse>('/subscriptions/create-order', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const materialsApi = {
@@ -481,4 +493,9 @@ export const contentApi = {
     request<{ message: string }>(`/content/${id}`, {
       method: 'DELETE',
     }),
+};
+
+export const authApi = {
+  getCurrentUser: () =>
+    request<AuthMeResponse>('/auth/me'),
 };

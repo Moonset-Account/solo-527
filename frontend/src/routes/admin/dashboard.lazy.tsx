@@ -56,39 +56,26 @@ function getDateRange(range: string): { startDate: string; endDate: string } {
   return { startDate: start.toISOString().split('T')[0], endDate: end };
 }
 
-function generateTrendData(days: number, stats: RevenueCostStats) {
-  const data = [];
-  const now = new Date();
-
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
-
-    const revenueBase = Number(stats.revenue.total) / days;
-    const costBase = Number(stats.cost.total) / days;
-
-    data.push({
-      date: dateStr.slice(5),
-      revenue: Math.round(revenueBase * (0.7 + Math.random() * 0.6)),
-      cost: Math.round(costBase * (0.7 + Math.random() * 0.6)),
-    });
-  }
-
-  return data;
-}
-
 function DashboardPage() {
   const [timeRange, setTimeRange] = useState('month');
   const [owner, setOwner] = useState('');
   const [stats, setStats] = useState<RevenueCostStats | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const owners = ['张三', '李四', '王五', '赵六'];
+  const [ownersList, setOwnersList] = useState<string[]>([]);
 
   useEffect(() => {
     fetchStats();
+    fetchOwners();
   }, [timeRange, owner]);
+
+  const fetchOwners = async () => {
+    try {
+      const data = await statsApi.getOwners();
+      setOwnersList(data.owners);
+    } catch (error) {
+      console.error('Failed to fetch owners:', error);
+    }
+  };
 
   const fetchStats = async () => {
     setLoading(true);
@@ -107,8 +94,18 @@ function DashboardPage() {
     }
   };
 
-  const trendDays = timeRange === 'today' ? 1 : timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : timeRange === 'quarter' ? 90 : 365;
-  const trendData = stats ? generateTrendData(Math.min(trendDays, 30), stats) : [];
+  const trendData = stats?.byDate?.map((item) => ({
+    date: item.date.slice(5),
+    revenue: Number(item.revenue),
+    cost: Number(item.cost),
+  })) || [];
+
+  const ownerStatsData = stats?.byOwner?.map((item) => ({
+    name: item.owner,
+    revenue: Number(item.revenue),
+    cost: Number(item.cost),
+    profit: item.profit,
+  })) || [];
 
   const revenueByTypeData = stats?.revenue.byType.map((item) => ({
     name: item.type,
@@ -153,7 +150,7 @@ function DashboardPage() {
             className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">全部负责人</option>
-            {owners.map((o) => (
+            {ownersList.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
@@ -306,6 +303,27 @@ function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {ownerStatsData.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">按负责人统计</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={ownerStatsData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value)}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  />
+                  <Legend />
+                  <Bar dataKey="revenue" name="收入" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cost" name="成本" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="profit" name="利润" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <div className="bg-white rounded-xl shadow-sm p-6">
