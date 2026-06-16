@@ -1,0 +1,31 @@
+{
+  "name": "nail-salon-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ace build",
+    "dev": "node ace serve --watch",
+    "start": "node build/bin/server.js",
+    "lint": "eslint . --ext=.ts",
+    "migrate": "node ace migration:run",
+    "migrate:rollback": "node ace migration:rollback",
+    "seed": "node ace db:seed",
+    "test": "node ace test"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^7",
+    "@types/ioredis": "^5",
+    "typescript": "~5.6"
+  },
+  "dependencies": {
+    "@adonisjs/auth": "^9",
+    "@adonisjs/core": "^6",
+    "@adonisjs/drive": "^2",
+    "@adonisjs/lucid": "^20",
+    "@vinejs/vine": "^2",
+    "ioredis": "^5",
+    "luxon": "^3",
+    "pg": "^8"
+  }
+}
