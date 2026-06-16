@@ -97,8 +97,31 @@ export async function updateConversation(prevState: any, formData: FormData) {
     }
 
     const updateData: any = {}
-    if (finalReply !== undefined && finalReply !== '') updateData.finalReply = finalReply
-    if (status !== undefined) updateData.status = status
+    let actualFinalReply = finalReply
+    let logChangeReason = changeReason
+
+    if (status === 'ACCEPTED') {
+      actualFinalReply = conversation.suggestedReply
+      updateData.finalReply = actualFinalReply
+      updateData.status = 'ACCEPTED'
+      if (!logChangeReason) logChangeReason = '直接采纳建议回复'
+    } else if (status === 'MODIFIED') {
+      if (finalReply && finalReply.trim() !== '') {
+        updateData.finalReply = finalReply
+        actualFinalReply = finalReply
+      }
+      updateData.status = 'MODIFIED'
+      if (!logChangeReason) logChangeReason = '修改后使用'
+    } else if (status === 'REJECTED') {
+      updateData.finalReply = null
+      actualFinalReply = ''
+      updateData.status = 'REJECTED'
+      if (!logChangeReason) logChangeReason = '拒绝建议回复'
+    } else {
+      if (finalReply !== undefined && finalReply !== '') updateData.finalReply = finalReply
+      if (status !== undefined) updateData.status = status
+    }
+
     if (accuracyScoreStr !== undefined && accuracyScoreStr !== '') {
       updateData.accuracyScore = parseFloat(accuracyScoreStr)
     }
@@ -108,13 +131,18 @@ export async function updateConversation(prevState: any, formData: FormData) {
       data: updateData,
     })
 
-    if (finalReply && conversation.suggestedReply !== finalReply) {
+    const shouldCreateLog = status === 'ACCEPTED' || 
+                           status === 'REJECTED' || 
+                           (finalReply && conversation.suggestedReply !== finalReply) ||
+                           (status !== undefined && status !== conversation.status)
+
+    if (shouldCreateLog) {
       await prisma.generationLog.create({
         data: {
           conversationId: id,
           previousResult: conversation.suggestedReply,
-          currentResult: finalReply,
-          changeReason,
+          currentResult: actualFinalReply || null,
+          changeReason: logChangeReason,
           changedBy: user.name,
         },
       })
@@ -268,7 +296,7 @@ export async function resolveRisk(prevState: any, formData: FormData) {
 
 export async function createPromptVersion(prevState: any, formData: FormData) {
   try {
-    await requireRole('ADMIN')
+    await requireRole('ADMIN', 'TRAINER')
     const user = await getCurrentUser()
 
     const version = formData.get('version') as string
@@ -312,7 +340,7 @@ export async function createPromptVersion(prevState: any, formData: FormData) {
 
 export async function activatePrompt(prevState: any, formData: FormData) {
   try {
-    await requireRole('ADMIN')
+    await requireRole('ADMIN', 'TRAINER')
 
     const id = formData.get('id') as string
 

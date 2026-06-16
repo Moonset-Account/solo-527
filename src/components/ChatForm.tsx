@@ -109,20 +109,12 @@ function ReplySection({ data }: { data: SubmitData }) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-              处理状态
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              当前状态
             </label>
-            <select
-              id="status"
-              name="status"
-              defaultValue="PENDING"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            >
-              <option value="PENDING">待处理</option>
-              <option value="ACCEPTED">已采纳</option>
-              <option value="MODIFIED">已修改</option>
-              <option value="REJECTED">已拒绝</option>
-            </select>
+            <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-600">
+              待确认
+            </div>
           </div>
 
           <div>
@@ -136,7 +128,7 @@ function ReplySection({ data }: { data: SubmitData }) {
               step="0.01"
               min="0"
               max="1"
-              defaultValue="0.8"
+              defaultValue="0.85"
               placeholder="0.85"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />

@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { createPromptVersion, activatePrompt } from '@/app/actions'
-import { Settings, Plus, User, Clock, Check, Clock3 } from 'lucide-react'
+import { Settings, Plus, User, Clock, Check, Clock3, GitCompare, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface PromptItem {
   id: string
@@ -15,6 +15,46 @@ interface PromptItem {
   _count: { conversations: number }
 }
 
+interface VersionChange {
+  fromVersion: string
+  toVersion: string
+  fromContent: string
+  toContent: string
+  changedAt: string
+  changedBy: string
+}
+
+function DiffViewer({ oldText, newText }: { oldText: string; newText: string }) {
+  const oldLines = oldText.split('\n')
+  const newLines = newText.split('\n')
+  const maxLines = Math.max(oldLines.length, newLines.length)
+
+  return (
+    <div className="font-mono text-xs border border-gray-200 rounded-lg overflow-hidden">
+      {Array.from({ length: maxLines }).map((_, i) => {
+        const oldLine = oldLines[i] || ''
+        const newLine = newLines[i] || ''
+        const isChanged = oldLine !== newLine
+        const isAdded = oldLine === '' && newLine !== ''
+        const isRemoved = oldLine !== '' && newLine === ''
+
+        return (
+          <div key={i} className={`flex ${isChanged ? 'bg-yellow-50' : ''}`}>
+            <div className={`w-1/2 border-r border-gray-200 px-2 py-1 ${isRemoved ? 'bg-red-100 line-through text-red-700' : ''}`}>
+              {isRemoved && <span className="text-red-500 mr-1">-</span>}
+              {oldLine || ' '}
+            </div>
+            <div className={`w-1/2 px-2 py-1 ${isAdded ? 'bg-green-100 text-green-700' : ''}`}>
+              {isAdded && <span className="text-green-500 mr-1">+</span>}
+              {newLine || ' '}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function PromptManager({ prompts }: { prompts: PromptItem[] }) {
   const [createState, createAction] = useActionState(createPromptVersion, {
     success: false,
@@ -25,6 +65,24 @@ export default function PromptManager({ prompts }: { prompts: PromptItem[] }) {
     success: false,
     error: '',
   })
+
+  const [showChanges, setShowChanges] = useState(true)
+
+  const sortedPrompts = [...prompts].sort((a, b) =>
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )
+
+  const versionChanges: VersionChange[] = []
+  for (let i = 0; i < sortedPrompts.length - 1; i++) {
+    versionChanges.push({
+      fromVersion: sortedPrompts[i].version,
+      toVersion: sortedPrompts[i + 1].version,
+      fromContent: sortedPrompts[i].content,
+      toContent: sortedPrompts[i + 1].content,
+      changedAt: sortedPrompts[i + 1].createdAt,
+      changedBy: sortedPrompts[i + 1].createdBy.name,
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -79,6 +137,11 @@ export default function PromptManager({ prompts }: { prompts: PromptItem[] }) {
             {createState.error}
           </div>
         )}
+        {createState?.success && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            版本创建成功！
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -99,6 +162,50 @@ export default function PromptManager({ prompts }: { prompts: PromptItem[] }) {
           </p>
         </div>
       </div>
+
+      {versionChanges.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <button
+            onClick={() => setShowChanges(!showChanges)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <GitCompare className="w-5 h-5 text-purple-600" />
+              版本变化历史 ({versionChanges.length} 次变更)
+            </h3>
+            {showChanges ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+
+          {showChanges && (
+            <div className="mt-4 space-y-4">
+              {versionChanges.map((change, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-sm font-mono">
+                        {change.fromVersion}
+                      </span>
+                      <span className="text-gray-400">→</span>
+                      <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm font-mono font-bold">
+                        {change.toVersion}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      <User className="w-4 h-4 inline mr-1" />
+                      {change.changedBy}
+                      <span className="mx-2">·</span>
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      {new Date(change.changedAt).toLocaleString('zh-CN')}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 mb-2">内容差异对比：</div>
+                  <DiffViewer oldText={change.fromContent} newText={change.toContent} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-4">
         {prompts.map((prompt) => (
@@ -147,7 +254,8 @@ export default function PromptManager({ prompts }: { prompts: PromptItem[] }) {
               {!prompt.isActive && (
                 <form action={activateAction} className="border-t border-gray-200 pt-4 mt-4">
                   <input type="hidden" name="id" value={prompt.id} />
-                  <div className="flex justify-end">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-500">点击按钮将此版本设为当前生效版本</p>
                     <button
                       type="submit"
                       className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"

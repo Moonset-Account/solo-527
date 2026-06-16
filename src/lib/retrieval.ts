@@ -11,21 +11,75 @@ export interface RetrievalResult {
 }
 
 const normalizeText = (text: string): string => {
-  return text.toLowerCase().trim().replace(/\s+/g, ' ')
+  return text.toLowerCase().trim().replace(/\s+/g, '').replace(/[，。！？、；：""''（）【】]/g, '')
 }
 
-const calculateSimilarity = (text1: string, text2: string): number => {
-  const words1 = new Set(normalizeText(text1).split(' '))
-  const words2 = new Set(normalizeText(text2).split(' '))
+const getNGrams = (text: string, n = 2): string[] => {
+  const normalized = normalizeText(text)
+  const grams: string[] = []
+  for (let i = 0; i <= normalized.length - n; i++) {
+    grams.push(normalized.slice(i, i + n))
+  }
+  return grams
+}
+
+const extractKeywords = (text: string): string[] => {
+  const normalized = normalizeText(text)
+  const keywords: string[] = []
+  const stopWords = new Set(['我', '想', '要', '怎', '么', '怎', '办', '操', '作', '是', '的', '了', '吗', '啊', '呢', '吧', '请', '问', '能', '可', '以', '该', '如', '何'])
   
-  if (words1.size === 0 || words2.size === 0) return 0
-  
-  let intersection = 0
-  for (const word of words1) {
-    if (words2.has(word)) intersection++
+  for (let i = 0; i < normalized.length; i++) {
+    if (!stopWords.has(normalized[i])) {
+      keywords.push(normalized[i])
+    }
+    if (i < normalized.length - 1) {
+      const bigram = normalized.slice(i, i + 2)
+      if (!stopWords.has(bigram[0]) || !stopWords.has(bigram[1])) {
+        keywords.push(bigram)
+      }
+    }
   }
   
-  const union = words1.size + words2.size - intersection
+  return [...new Set(keywords)]
+}
+
+const calculateSimilarity = (query: string, text: string): number => {
+  const queryKeywords = extractKeywords(query)
+  const normalizedText = normalizeText(text)
+  
+  if (queryKeywords.length === 0) return 0
+  
+  let matchScore = 0
+  let matchedKeywords = 0
+  
+  for (const keyword of queryKeywords) {
+    if (normalizedText.includes(keyword)) {
+      matchedKeywords++
+      const weight = keyword.length === 2 ? 2 : 1
+      matchScore += weight
+    }
+  }
+  
+  const keywordMatch = matchedKeywords / queryKeywords.length
+  const bigramMatch = calculateBigramSimilarity(query, text)
+  
+  const containsBoost = normalizedText.includes(normalizeText(query)) ? 0.3 : 0
+  
+  return Math.min(keywordMatch * 0.6 + bigramMatch * 0.4 + containsBoost, 1.0)
+}
+
+const calculateBigramSimilarity = (text1: string, text2: string): number => {
+  const grams1 = new Set(getNGrams(text1, 2))
+  const grams2 = new Set(getNGrams(text2, 2))
+  
+  if (grams1.size === 0 || grams2.size === 0) return 0
+  
+  let intersection = 0
+  for (const gram of grams1) {
+    if (grams2.has(gram)) intersection++
+  }
+  
+  const union = grams1.size + grams2.size - intersection
   return union > 0 ? intersection / union : 0
 }
 
@@ -62,7 +116,7 @@ export const searchKnowledge = async (
 
     const totalScore = titleScore + contentScore + tagsScore + categoryScore
 
-    if (totalScore > 0.1) {
+    if (totalScore > 0.05) {
       let sourceType: RetrievalSourceType = 'KNOWLEDGE_BASE'
       if (knowledge.category === '常见问题') sourceType = 'FAQ'
       else if (knowledge.category === '政策文档') sourceType = 'POLICY_DOCUMENT'
@@ -81,7 +135,7 @@ export const searchKnowledge = async (
   const finalResults: RetrievalResult[] = results.slice(0, limit).map((r, index) => ({
     ...r,
     position: index + 1,
-    isHit: r.score > 0.3,
+    isHit: r.score > 0.15,
   }))
 
   await cacheSet(cacheKey, finalResults, 600)
