@@ -1,7 +1,2 @@
-import { defineNuxtPlugin } from '#app'
-import { createPinia } from 'pinia'
-
-export default defineNuxtPlugin((nuxtApp) => {
-  const pinia = createPinia()
-  nuxtApp.vueApp.use(pinia)
-})
+// 已被 01.pinia.client.ts 取代，请使用带数字前缀的版本以确保加载顺序
+export default defineNuxtPlugin(() => {})
