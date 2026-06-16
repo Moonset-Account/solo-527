@@ -30,15 +30,25 @@
           <el-table :data="todos.renewals" v-loading="loading" style="width: 100%">
             <el-table-column prop="customerName" label="客户名称" />
             <el-table-column prop="planName" label="套餐" />
-            <el-table-column prop="expiryDate" label="到期日" />
-            <el-table-column prop="priority" label="优先级">
+            <el-table-column label="到期日" width="110">
               <template #default="{ row }">
-                <el-tag :type="row.priority === 'high' ? 'danger' : row.priority === 'medium' ? 'warning' : 'info'">
-                  {{ row.priority === 'high' ? '高' : row.priority === 'medium' ? '中' : '低' }}
+                {{ formatShortDate(row.expiryDate) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="priority" label="优先级" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.priority === 'high' || row.priority === 'urgent' ? 'danger' : row.priority === 'medium' ? 'warning' : 'info'" size="small">
+                  {{ row.priority === 'urgent' ? '紧急' : row.priority === 'high' ? '高' : row.priority === 'medium' ? '中' : '低' }}
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="openRenewalFollow(row)">跟进</el-button>
+              </template>
+            </el-table-column>
           </el-table>
+          <div v-if="todos.renewals.length === 0 && !loading" class="empty-text">暂无待处理</div>
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -50,14 +60,78 @@
             </div>
           </template>
           <el-table :data="todos.expiringSeats" v-loading="loading" style="width: 100%">
-            <el-table-column prop="seatCode" label="席位编码" />
+            <el-table-column prop="seatCode" label="席位编码" width="120" />
             <el-table-column prop="customerName" label="客户名称" />
-            <el-table-column prop="expireDays" label="剩余天数">
+            <el-table-column label="剩余天数" width="100">
               <template #default="{ row }">
-                <span :style="{ color: row.expireDays <= 7 ? '#f56c6c' : '#67c23a' }">{{ row.expireDays }}天</span>
+                <span :style="{ color: row.expireDays <= 7 ? '#f56c6c' : row.expireDays <= 15 ? '#e6a23c' : '#67c23a' }">
+                  {{ row.expireDays }}天
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="goToSeatDetail(row)">处理</el-button>
               </template>
             </el-table-column>
           </el-table>
+          <div v-if="todos.expiringSeats.length === 0 && !loading" class="empty-text">暂无到期席位</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="content-row">
+      <el-col :span="12">
+        <el-card class="todo-card">
+          <template #header>
+            <div class="card-header">
+              <span>高优先级续费</span>
+            </div>
+          </template>
+          <el-table :data="todos.highPriorityRenewals" v-loading="loading" style="width: 100%">
+            <el-table-column prop="customerName" label="客户名称" />
+            <el-table-column prop="planName" label="套餐" />
+            <el-table-column label="到期日" width="110">
+              <template #default="{ row }">
+                {{ formatShortDate(row.expiryDate) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="跟进人" width="100">
+              <template #default="{ row }">
+                {{ row.assignedTo?.name || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="openRenewalFollow(row)">跟进</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-if="todos.highPriorityRenewals.length === 0 && !loading" class="empty-text">暂无高优先级</div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="todo-card">
+          <template #header>
+            <div class="card-header">
+              <span>最近需要跟进</span>
+            </div>
+          </template>
+          <el-table :data="todos.upcomingFollowUps" v-loading="loading" style="width: 100%">
+            <el-table-column prop="customerName" label="客户名称" />
+            <el-table-column prop="planName" label="套餐" />
+            <el-table-column label="下次跟进" width="150">
+              <template #default="{ row }">
+                {{ formatDate(row.nextFollowUpAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="openRenewalFollow(row)">跟进</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-if="todos.upcomingFollowUps.length === 0 && !loading" class="empty-text">暂无近期跟进</div>
         </el-card>
       </el-col>
     </el-row>
@@ -117,7 +191,9 @@ const statsCards = reactive([
 
 const todos = reactive({
   renewals: [],
-  expiringSeats: []
+  expiringSeats: [],
+  highPriorityRenewals: [],
+  upcomingFollowUps: []
 })
 
 const activities = ref([])
@@ -140,11 +216,9 @@ const loadTodos = async () => {
     const res = await getTodos()
     const data = res.data || res
     todos.renewals = data.myRenewals || []
-    todos.expiringSeats = data.upcomingFollowUps?.map((item) => ({
-      seatCode: item.seat?.seatCode || '-',
-      customerName: item.customerName,
-      expireDays: Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24))
-    })) || []
+    todos.expiringSeats = data.expiringSeats || []
+    todos.highPriorityRenewals = data.highPriorityRenewals || []
+    todos.upcomingFollowUps = data.upcomingFollowUps || []
   } catch (e) {
     console.error(e)
   }
@@ -245,6 +319,32 @@ const goToRenewal = () => {
 
 const goToSeats = () => {
   router.push('/seats')
+}
+
+const goToSeatDetail = (row) => {
+  router.push(`/seats/${row.id}`)
+}
+
+const openRenewalFollow = (row) => {
+  router.push({ path: '/renewal', query: { focusId: row.id } })
+}
+
+const formatDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const formatShortDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit'
+  })
 }
 
 const loadData = async () => {

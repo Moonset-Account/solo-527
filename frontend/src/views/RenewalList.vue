@@ -42,11 +42,12 @@
             <el-option label="高" value="high" />
             <el-option label="中" value="medium" />
             <el-option label="低" value="low" />
+            <el-option label="紧急" value="urgent" />
           </el-select>
         </el-form-item>
         <el-form-item label="跟进人">
-          <el-select v-model="searchForm.followerId" placeholder="全部" clearable filterable>
-            <el-option v-for="user in userOptions" :key="user.id" :label="user.name" :value="user.id" />
+          <el-select v-model="searchForm.assignedTo" placeholder="全部" clearable filterable>
+            <el-option v-for="user in userOptions" :key="user.id" :label="user.fullName || user.name || user.email" :value="user.id" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -76,46 +77,51 @@
       </div>
 
       <el-table
-        :data="tableData"
-        v-loading="loading"
-        @selection-change="handleSelectionChange"
-        style="width: 100%"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="customerName" label="客户名称" min-width="150" />
-        <el-table-column prop="planName" label="套餐" width="120" />
-        <el-table-column prop="expireDate" label="到期日" width="120">
-          <template #default="{ row }">
-            {{ formatDate(row.expireDate) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="priority" label="优先级" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getPriorityType(row.priority)">
-              {{ getPriorityText(row.priority) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="followerName" label="跟进人" width="100" />
-        <el-table-column prop="lastFollowAt" label="最后跟进" width="180">
-          <template #default="{ row }">
-            {{ formatDate(row.lastFollowAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="openFollowDialog(row)">跟进</el-button>
-            <el-button type="warning" link @click="handleEdit(row)">编辑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          :data="tableData"
+          v-loading="loading"
+          @selection-change="handleSelectionChange"
+          style="width: 100%"
+        >
+          <el-table-column type="selection" width="55" />
+          <el-table-column prop="customerName" label="客户名称" min-width="150" />
+          <el-table-column prop="planName" label="套餐" width="120" />
+          <el-table-column prop="expiryDate" label="到期日" width="120">
+            <template #default="{ row }">
+              {{ formatDate(row.expiryDate) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="priority" label="优先级" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getPriorityType(row.priority)">
+                {{ getPriorityText(row.priority) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)">
+                {{ getStatusText(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="assignedUser" label="跟进人" width="100">
+            <template #default="{ row }">
+              {{ row.assignedUser?.fullName || row.assignedUser?.email || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="lastFollowUpAt" label="最后跟进" width="180">
+            <template #default="{ row }">
+              {{ formatDate(row.lastFollowUpAt || row.lastFollowAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="260" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="openFollowDialog(row)">跟进</el-button>
+              <el-button type="warning" link @click="handleEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
 
       <div class="pagination">
         <el-pagination
@@ -130,36 +136,75 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="showFormDialog" :title="editMode ? '编辑续费' : '新增续费'" width="500px">
+    <el-dialog v-model="showFormDialog" :title="editMode ? '编辑续费' : '新增续费'" width="600px">
       <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px">
-        <el-form-item label="客户名称" prop="customerName">
-          <el-input v-model="form.customerName" placeholder="请输入客户名称" />
-        </el-form-item>
-        <el-form-item label="套餐" prop="planId">
-          <el-select v-model="form.planId" placeholder="请选择套餐" style="width: 100%">
-            <el-option v-for="plan in planOptions" :key="plan.id" :label="plan.name" :value="plan.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="到期日" prop="expireDate">
-          <el-date-picker
-            v-model="form.expireDate"
-            type="date"
-            placeholder="选择日期"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="优先级" prop="priority">
-          <el-radio-group v-model="form.priority">
-            <el-radio label="high">高</el-radio>
-            <el-radio label="medium">中</el-radio>
-            <el-radio label="low">低</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="跟进人" prop="followerId">
-          <el-select v-model="form.followerId" placeholder="请选择跟进人" style="width: 100%" filterable>
-            <el-option v-for="user in userOptions" :key="user.id" :label="user.name" :value="user.id" />
-          </el-select>
-        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="席位ID" prop="seatId">
+              <el-input-number v-model="form.seatId" :min="1" placeholder="席位ID" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="客户ID" prop="customerId">
+              <el-input v-model="form.customerId" placeholder="请输入客户ID" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="客户名称" prop="customerName">
+              <el-input v-model="form.customerName" placeholder="请输入客户名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="套餐名称" prop="planName">
+              <el-select v-model="form.planName" placeholder="请选择套餐" style="width: 100%" filterable allow-create>
+                <el-option v-for="plan in planOptions" :key="plan.id" :label="plan.name" :value="plan.name" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="到期日" prop="expiryDate">
+              <el-date-picker
+                v-model="form.expiryDate"
+                type="date"
+                placeholder="选择到期日期"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="优先级" prop="priority">
+              <el-radio-group v-model="form.priority">
+                <el-radio label="high">高</el-radio>
+                <el-radio label="medium">中</el-radio>
+                <el-radio label="low">低</el-radio>
+                <el-radio label="urgent">紧急</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="跟进人" prop="assignedTo">
+              <el-select v-model="form.assignedTo" placeholder="请选择跟进人" style="width: 100%" filterable clearable>
+                <el-option v-for="user in userOptions" :key="user.id" :label="user.fullName || user.name || user.email" :value="user.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态" prop="status">
+              <el-select v-model="form.status" placeholder="请选择状态" style="width: 100%">
+                <el-option label="待跟进" value="pending" />
+                <el-option label="跟进中" value="following" />
+                <el-option label="已转化" value="converted" />
+                <el-option label="已流失" value="lost" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="showFormDialog = false">取消</el-button>
@@ -215,23 +260,35 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showImportDialog" title="批量导入" width="500px">
-      <el-upload
-        action="#"
-        :auto-upload="false"
-        :show-file-list="true"
-        :on-change="handleFileChange"
-        accept=".xlsx,.xls,.csv"
-      >
-        <el-button type="primary">选择文件</el-button>
-        <template #tip>
-          <div class="el-upload__tip">支持 xlsx、xls、csv 格式</div>
-        </template>
-      </el-upload>
+    <el-dialog v-model="showImportDialog" title="批量导入续费名单" width="600px">
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        title="请按格式填写续费名单（每行一条）"
+        description="格式：席位ID,客户ID,客户名称,套餐名称,到期日期,优先级（可选）
+示例：
+1001,C001,某某公司,企业版,2026-12-31,high
+1002,C002,某某科技,基础版,2026-06-30,medium"
+        style="margin-bottom: 20px"
+      />
+      <el-form label-width="80px">
+        <el-form-item label="数据内容">
+          <el-input
+            v-model="importText"
+            type="textarea"
+            :rows="12"
+            placeholder="每行一条，逗号分隔字段
+席位ID,客户ID,客户名称,套餐名称,到期日期,优先级
+示例：
+1001,C001,某某公司,企业版,2026-12-31,high"
+          />
+        </el-form-item>
+      </el-form>
       <template #footer>
         <el-button @click="showImportDialog = false">取消</el-button>
         <el-button type="primary" :loading="importLoading" @click="handleImport">
-          导入
+          开始导入
         </el-button>
       </template>
     </el-dialog>
@@ -240,8 +297,8 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getRenewalList, getRenewalStats, createRenewal, updateRenewal, followUpRenewal, assignRenewal, batchImportRenewals, exportRenewals } from '../api/renewal'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getRenewalList, getRenewalStats, createRenewal, updateRenewal, followUpRenewal, assignRenewal, deleteRenewal, batchImportRenewals, exportRenewals } from '../api/renewal'
 import { getPlanList } from '../api/plans'
 import { getUserList } from '../api/users'
 
@@ -259,6 +316,7 @@ const formRef = ref(null)
 const currentRenewalId = ref(null)
 const assignFollowerId = ref('')
 const importFile = ref(null)
+const importText = ref('')
 
 const tableData = ref([])
 const total = ref(0)
@@ -277,7 +335,7 @@ const stats = reactive({
 const searchForm = reactive({
   status: '',
   priority: '',
-  followerId: ''
+  assignedTo: ''
 })
 
 const pagination = reactive({
@@ -287,17 +345,22 @@ const pagination = reactive({
 
 const form = reactive({
   id: null,
+  seatId: null,
+  customerId: '',
   customerName: '',
-  planId: '',
-  expireDate: '',
+  planName: '',
+  expiryDate: '',
   priority: 'medium',
-  followerId: ''
+  assignedTo: null,
+  status: 'pending'
 })
 
 const formRules = {
+  seatId: [{ required: true, message: '请输入席位ID', trigger: 'blur' }],
+  customerId: [{ required: true, message: '请输入客户ID', trigger: 'blur' }],
   customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
-  planId: [{ required: true, message: '请选择套餐', trigger: 'change' }],
-  expireDate: [{ required: true, message: '请选择到期日', trigger: 'change' }],
+  planName: [{ required: true, message: '请选择套餐', trigger: 'change' }],
+  expiryDate: [{ required: true, message: '请选择到期日', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }]
 }
 
@@ -361,7 +424,7 @@ const handleSearch = () => {
 const handleReset = () => {
   searchForm.status = ''
   searchForm.priority = ''
-  searchForm.followerId = ''
+  searchForm.assignedTo = ''
   pagination.page = 1
   loadData()
   loadStats()
@@ -385,23 +448,43 @@ const handleSelectionChange = (selection) => {
 const handleAdd = () => {
   editMode.value = false
   form.id = null
+  form.seatId = null
+  form.customerId = ''
   form.customerName = ''
-  form.planId = ''
-  form.expireDate = ''
+  form.planName = ''
+  form.expiryDate = ''
   form.priority = 'medium'
-  form.followerId = ''
+  form.assignedTo = null
+  form.status = 'pending'
   showFormDialog.value = true
 }
 
 const handleEdit = (row) => {
   editMode.value = true
   form.id = row.id
+  form.seatId = row.seatId
+  form.customerId = row.customerId
   form.customerName = row.customerName
-  form.planId = row.planId
-  form.expireDate = row.expireDate
+  form.planName = row.planName
+  form.expiryDate = row.expiryDate ? new Date(row.expiryDate) : ''
   form.priority = row.priority
-  form.followerId = row.followerId
+  form.assignedTo = row.assignedTo
+  form.status = row.status
   showFormDialog.value = true
+}
+
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条续费记录吗？', '确认', { type: 'warning' })
+    await deleteRenewal(row.id)
+    ElMessage.success('删除成功')
+    loadData()
+    loadStats()
+  } catch (e) {
+    if (e !== 'cancel') {
+      console.error(e)
+    }
+  }
 }
 
 const handleSubmit = async () => {
@@ -457,16 +540,22 @@ const handleAssign = async () => {
     ElMessage.warning('请选择跟进人')
     return
   }
+  if (selectedIds.value.length === 0) {
+    ElMessage.warning('请先选择要分配的记录')
+    return
+  }
   assignLoading.value = true
   try {
     await Promise.all(
-      selectedIds.value.map(id => assignRenewal(id, { followerId: assignFollowerId.value }))
+      selectedIds.value.map(id => assignRenewal(id, { assignedTo: assignFollowerId.value }))
     )
-    ElMessage.success('分配成功')
+    ElMessage.success(`成功分配 ${selectedIds.value.length} 条记录`)
     showAssignDialog.value = false
+    selectedIds.value = []
     loadData()
   } catch (e) {
     console.error(e)
+    ElMessage.error('分配失败')
   } finally {
     assignLoading.value = false
   }
@@ -477,21 +566,48 @@ const handleFileChange = (file) => {
 }
 
 const handleImport = async () => {
-  if (!importFile.value) {
-    ElMessage.warning('请选择文件')
+  if (!importText.value.trim()) {
+    ElMessage.warning('请输入导入数据')
     return
   }
   importLoading.value = true
   try {
-    const formData = new FormData()
-    formData.append('file', importFile.value)
-    await batchImportRenewals(formData)
-    ElMessage.success('导入成功')
+    const lines = importText.value.trim().split('\n').filter(line => line.trim())
+    const items = lines.map(line => {
+      const parts = line.split(',').map(s => s.trim())
+      const [seatId, customerId, customerName, planName, expiryDate, priority] = parts
+      return {
+        seatId: parseInt(seatId),
+        customerId,
+        customerName,
+        planName,
+        expiryDate,
+        priority: priority || 'medium'
+      }
+    }).filter(item => item.seatId && item.customerId && item.customerName && item.planName && item.expiryDate)
+
+    if (items.length === 0) {
+      ElMessage.warning('没有有效的导入数据，请检查格式')
+      return
+    }
+
+    const res = await batchImportRenewals({ items })
+    ElMessage.success(`导入完成：成功 ${res.successCount || 0} 条，失败 ${res.failedCount || 0} 条`)
+    if (res.failedItems && res.failedItems.length > 0) {
+      const failDetails = res.failedItems.slice(0, 5).map(f => `${f.customerName || f.seatId}: ${f.error}`).join('\n')
+      ElMessageBox.alert(
+        `以下导入失败（最多显示5条）：\n${failDetails}${res.failedItems.length > 5 ? `\n...共${res.failedItems.length}条失败` : ''}`,
+        '导入失败详情',
+        { type: 'warning' }
+      )
+    }
     showImportDialog.value = false
+    importText.value = ''
     loadData()
     loadStats()
   } catch (e) {
     console.error(e)
+    ElMessage.error('导入失败')
   } finally {
     importLoading.value = false
   }

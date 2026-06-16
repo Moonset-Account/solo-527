@@ -81,6 +81,14 @@ export default class DashboardController {
       .orderBy('expiryDate', 'asc')
       .limit(10)
 
+    const expiringSeats = await Seat.query()
+      .whereNotNull('endDate')
+      .where('endDate', '<=', DateTime.now().plus({ days: 30 }).toISO())
+      .where('status', '!=', 'cancelled')
+      .preload('plan')
+      .orderBy('endDate', 'asc')
+      .limit(10)
+
     await OperationLog.create({
       userId: user.id,
       userName: user.fullName || user.email,
@@ -93,21 +101,25 @@ export default class DashboardController {
     return {
       myRenewals: myRenewals.map((item) => ({
         id: item.id,
+        customerId: item.customerId,
         customerName: item.customerName,
         planName: item.planName,
         expiryDate: item.expiryDate,
         status: item.status,
         priority: item.priority,
         nextFollowUpAt: item.nextFollowUpAt,
+        seatId: item.seatId,
       })),
       upcomingFollowUps: upcomingFollowUps.map((item) => ({
         id: item.id,
+        customerId: item.customerId,
         customerName: item.customerName,
         planName: item.planName,
         expiryDate: item.expiryDate,
         status: item.status,
         priority: item.priority,
         nextFollowUpAt: item.nextFollowUpAt,
+        seatId: item.seatId,
         assignedTo: item.assignedUser
           ? {
               id: item.assignedUser.id,
@@ -117,11 +129,13 @@ export default class DashboardController {
       })),
       highPriorityRenewals: highPriorityRenewals.map((item) => ({
         id: item.id,
+        customerId: item.customerId,
         customerName: item.customerName,
         planName: item.planName,
         expiryDate: item.expiryDate,
         status: item.status,
         priority: item.priority,
+        seatId: item.seatId,
         assignedTo: item.assignedUser
           ? {
               id: item.assignedUser.id,
@@ -129,6 +143,20 @@ export default class DashboardController {
             }
           : null,
       })),
+      expiringSeats: expiringSeats.map((seat) => {
+        const endDate = seat.endDate ? DateTime.fromJSDate(seat.endDate.toJSDate()) : null
+        const expireDays = endDate ? Math.ceil(endDate.diff(DateTime.now(), 'days').days) : 0
+        return {
+          id: seat.id,
+          seatCode: seat.seatCode,
+          customerId: seat.customerId,
+          customerName: seat.customerName,
+          planName: seat.plan?.name || '',
+          endDate: seat.endDate,
+          expireDays,
+          status: seat.status,
+        }
+      }),
     }
   }
 

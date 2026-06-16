@@ -94,25 +94,70 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="showAddDialog" :title="editMode ? '编辑席位' : '新增席位'" width="500px">
-      <el-form :model="seatForm" :rules="seatRules" ref="seatFormRef" label-width="80px">
-        <el-form-item label="席位编码" prop="seatCode">
-          <el-input v-model="seatForm.seatCode" placeholder="请输入席位编码" />
-        </el-form-item>
-        <el-form-item label="客户名称" prop="customerName">
-          <el-input v-model="seatForm.customerName" placeholder="请输入客户名称" />
-        </el-form-item>
-        <el-form-item label="套餐" prop="planId">
-          <el-select v-model="seatForm.planId" placeholder="请选择套餐" style="width: 100%">
-            <el-option v-for="plan in plans" :key="plan.id" :label="plan.name" :value="plan.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="seatForm.status">
-            <el-radio label="active">启用</el-radio>
-            <el-radio label="inactive">停用</el-radio>
-          </el-radio-group>
-        </el-form-item>
+    <el-dialog v-model="showAddDialog" :title="editMode ? '编辑席位' : '新增席位'" width="600px">
+      <el-form :model="seatForm" :rules="seatRules" ref="seatFormRef" label-width="100px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="席位编码" prop="seatCode">
+              <el-input v-model="seatForm.seatCode" placeholder="请输入席位编码" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="客户ID" prop="customerId">
+              <el-input v-model="seatForm.customerId" placeholder="请输入客户ID" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="客户名称" prop="customerName">
+              <el-input v-model="seatForm.customerName" placeholder="请输入客户名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="套餐" prop="planId">
+              <el-select v-model="seatForm.planId" placeholder="请选择套餐" style="width: 100%">
+                <el-option v-for="plan in plans" :key="plan.id" :label="plan.name" :value="plan.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="开通日期" prop="startDate">
+              <el-date-picker
+                v-model="seatForm.startDate"
+                type="date"
+                placeholder="选择开通日期"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态" prop="status">
+              <el-radio-group v-model="seatForm.status">
+                <el-radio label="active">启用</el-radio>
+                <el-radio label="trial">试用</el-radio>
+                <el-radio label="suspended">停用</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="账期">
+              <el-select v-model="seatForm.billingCycle" placeholder="请选择账期" style="width: 100%" clearable>
+                <el-option label="月付" value="monthly" />
+                <el-option label="年付" value="yearly" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="调用上限">
+              <el-input-number v-model="seatForm.apiCallsLimit" :min="1" placeholder="调用上限" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
@@ -191,15 +236,21 @@ const pagination = reactive({
 const seatForm = reactive({
   id: null,
   seatCode: '',
+  customerId: '',
   customerName: '',
   planId: '',
-  status: 'active'
+  status: 'active',
+  startDate: new Date(),
+  billingCycle: 'monthly',
+  apiCallsLimit: null
 })
 
 const seatRules = {
   seatCode: [{ required: true, message: '请输入席位编码', trigger: 'blur' }],
+  customerId: [{ required: true, message: '请输入客户ID', trigger: 'blur' }],
   customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
-  planId: [{ required: true, message: '请选择套餐', trigger: 'change' }]
+  planId: [{ required: true, message: '请选择套餐', trigger: 'change' }],
+  startDate: [{ required: true, message: '请选择开通日期', trigger: 'change' }]
 }
 
 const noteForm = reactive({
@@ -273,9 +324,13 @@ const handleEdit = (row) => {
   editMode.value = true
   seatForm.id = row.id
   seatForm.seatCode = row.seatCode
+  seatForm.customerId = row.customerId
   seatForm.customerName = row.customerName
   seatForm.planId = row.planId
   seatForm.status = row.status
+  seatForm.startDate = row.startDate ? new Date(row.startDate) : new Date()
+  seatForm.billingCycle = row.billingCycle || 'monthly'
+  seatForm.apiCallsLimit = row.apiCallsLimit || null
   showAddDialog.value = true
 }
 
@@ -330,14 +385,16 @@ const handleBatchQuery = async () => {
   }
   batchLoading.value = true
   try {
-    const ids = batchIds.value.split(/[,\n\s]+/).filter(Boolean)
-    const res = await batchQuerySeats({ ids: ids.join(',') })
+    const customerIds = batchIds.value.split(/[,\n\s]+/).filter(Boolean)
+    const res = await batchQuerySeats({ customerIds })
     const data = res.data || res
-    tableData.value = data.list || data.data || []
+    tableData.value = Array.isArray(data) ? data : (data.list || data.data || [])
     total.value = data.total || tableData.value.length
     showBatchDialog.value = false
+    ElMessage.success(`查询到 ${tableData.value.length} 条结果`)
   } catch (e) {
     console.error(e)
+    ElMessage.error('批量查询失败')
   } finally {
     batchLoading.value = false
   }

@@ -184,6 +184,26 @@ export default class UsageController {
 
     const errors = await query.paginate(page, perPage)
 
+    const errorTypeCounts = await UsageRecord.query()
+      .where('isError', true)
+      .if(seatId, (q) => q.where('seatId', seatId))
+      .if(startDate, (q) => q.where('requestDate', '>=', DateTime.fromISO(startDate).toFormat('yyyy-MM-dd')))
+      .if(endDate, (q) => q.where('requestDate', '<=', DateTime.fromISO(endDate).toFormat('yyyy-MM-dd')))
+      .select('statusCode', db.raw('COUNT(*) as error_count'))
+      .groupBy('statusCode')
+      .orderBy('error_count', 'desc')
+      .limit(10)
+
+    const topSeatErrors = await UsageRecord.query()
+      .where('isError', true)
+      .if(startDate, (q) => q.where('requestDate', '>=', DateTime.fromISO(startDate).toFormat('yyyy-MM-dd')))
+      .if(endDate, (q) => q.where('requestDate', '<=', DateTime.fromISO(endDate).toFormat('yyyy-MM-dd')))
+      .select('seatId', db.raw('COUNT(*) as error_count'))
+      .groupBy('seatId')
+      .orderBy('error_count', 'desc')
+      .limit(10)
+      .preload('seat')
+
     const user = auth.getUserOrFail()
     await OperationLog.create({
       userId: user.id,
@@ -202,6 +222,18 @@ export default class UsageController {
         page: errors.currentPage,
         perPage: errors.perPage,
         lastPage: errors.lastPage,
+      },
+      stats: {
+        errorTypeBreakdown: errorTypeCounts.map((e) => ({
+          statusCode: e.statusCode,
+          count: Number(e.$extras.error_count || 0),
+        })),
+        topErrorSeats: topSeatErrors.map((s) => ({
+          seatId: s.seatId,
+          seatCode: s.seat?.seatCode || '',
+          customerName: s.seat?.customerName || '',
+          count: Number(s.$extras.error_count || 0),
+        })),
       },
     }
   }
