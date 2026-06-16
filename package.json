@@ -4,10 +4,14 @@
   "version": "1.0.0",
   "description": "宠物寄养订单售后台",
   "scripts": {
-    "dev:backend": "cd packages/backend && npm run dev",
-    "dev:frontend": "cd packages/frontend && npm run dev",
+    "dev:backend": "cd packages/backend && USE_MEMORY_DB=true node src/server.js",
+    "dev:frontend": "cd packages/frontend && npx remix dev -p 3000",
+    "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build:backend": "cd packages/backend && npm run build",
     "build:frontend": "cd packages/frontend && npm run build",
     "seed": "cd packages/backend && npm run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

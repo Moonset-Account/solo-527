@@ -160,9 +160,6 @@ const getAdoptionStatsByDate = async (req, res) => {
           if (endDate && appDate > new Date(endDate)) return false;
           return true;
         });
-      } else {
-        const thirtyDaysAgo = dayjs().subtract(30, 'day').toDate();
-        filteredApps = allApps.filter(app => new Date(app.createdAt) >= thirtyDaysAgo);
       }
 
       const groups = {};
@@ -207,9 +204,6 @@ const getAdoptionStatsByDate = async (req, res) => {
       match.createdAt = {};
       if (startDate) match.createdAt.$gte = new Date(startDate);
       if (endDate) match.createdAt.$lte = new Date(endDate);
-    } else {
-      const thirtyDaysAgo = dayjs().subtract(30, 'day').toDate();
-      match.createdAt = { $gte: thirtyDaysAgo };
     }
 
     let dateFormat;

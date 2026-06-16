@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "USE_MEMORY_DB=true nodemon src/server.js",
+    "start": "USE_MEMORY_DB=true node src/server.js",
     "seed": "node src/scripts/seed.js"
   },
   "dependencies": {
