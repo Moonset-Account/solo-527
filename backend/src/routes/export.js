@@ -14,27 +14,50 @@ const STATUS_LABEL = {
   CANCELLED: '已取消',
 };
 
-const isNonEmpty = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+const INVALID_STRINGS = new Set(['undefined', 'null', 'nan', 'none', '']);
+
+const isValidParam = (v) => {
+  if (v === undefined || v === null) return false;
+  const s = String(v).trim().toLowerCase();
+  if (INVALID_STRINGS.has(s)) return false;
+  if (v === 'NaN') return false;
+  return true;
+};
+
+const isValidStatus = (v) => {
+  if (!isValidParam(v)) return false;
+  return Object.prototype.hasOwnProperty.call(STATUS_LABEL, String(v).toUpperCase());
+};
+
+const isValidInt = (v) => {
+  if (!isValidParam(v)) return false;
+  const n = Number(v);
+  return Number.isFinite(n) && Number.isInteger(n) && n > 0;
+};
 
 router.get('/appointments', async (req, res, next) => {
   try {
     const { status, counselorId, startDate, endDate, keyword, format = 'csv' } = req.query;
 
     const where = {};
-    if (isNonEmpty(status)) where.status = status;
-    if (isNonEmpty(counselorId)) where.counselorId = parseInt(counselorId);
-    if (isNonEmpty(startDate) && isNonEmpty(endDate)) {
-      where.timeSlot = {
-        date: {
-          gte: dayjs(startDate).startOf('day').toDate(),
-          lte: dayjs(endDate).endOf('day').toDate(),
-        },
-      };
+    if (isValidStatus(status)) where.status = String(status).toUpperCase();
+    if (isValidInt(counselorId)) where.counselorId = parseInt(counselorId, 10);
+    if (isValidParam(startDate) && isValidParam(endDate)) {
+      const sd = dayjs(startDate);
+      const ed = dayjs(endDate);
+      if (sd.isValid() && ed.isValid()) {
+        where.timeSlot = {
+          date: {
+            gte: sd.startOf('day').toDate(),
+            lte: ed.endOf('day').toDate(),
+          },
+        };
+      }
     }
-    if (isNonEmpty(keyword)) {
+    if (isValidParam(keyword)) {
       where.OR = [
-        { clientName: { contains: keyword } },
-        { clientPhone: { contains: keyword } },
+        { clientName: { contains: String(keyword).trim() } },
+        { clientPhone: { contains: String(keyword).trim() } },
       ];
     }
 

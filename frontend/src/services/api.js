@@ -46,9 +46,19 @@ export const statsApi = {
   daily: (params) => request.get('/stats/daily', { params }),
 };
 
+const cleanParams = (params) =>
+  Object.fromEntries(
+    Object.entries(params || {}).filter(
+      ([, v]) => v !== undefined && v !== null && String(v).trim() !== ''
+        && String(v).trim().toLowerCase() !== 'undefined'
+        && String(v).trim().toLowerCase() !== 'null'
+    )
+  );
+
 export const exportApi = {
   appointments: (params) => {
-    const query = new URLSearchParams(params).toString();
-    return `/api/export/appointments?${query}`;
+    const clean = cleanParams(params);
+    const query = new URLSearchParams(clean).toString();
+    return query ? `/api/export/appointments?${query}` : '/api/export/appointments';
   },
 };
