@@ -35,6 +35,10 @@ public class ApiLogAspect {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
 
+        if (request != null && request.getRequestURI() != null && request.getRequestURI().contains("/api-log/")) {
+            return joinPoint.proceed();
+        }
+
         ApiLog apiLog = new ApiLog();
         apiLog.setTraceId(traceId);
 

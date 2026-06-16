@@ -59,8 +59,8 @@
         :total="pagination.total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="fetchData"
-        @current-change="fetchData"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
       />
     </el-card>
 
@@ -94,6 +94,7 @@ const pagination = reactive({
   total: 0
 })
 
+const allData = ref([])
 const tableData = ref([])
 
 function getDefaultStartDate() {
@@ -215,14 +216,21 @@ const fetchData = async () => {
     }
     if (searchForm.reportType) params.reportType = searchForm.reportType
     const res = await getInventoryReport(params)
-    tableData.value = res
+    allData.value = res
     pagination.total = res.length
+    handlePageData()
     nextTick(() => {
       updateChart()
     })
   } catch (error) {
     console.error('获取库存报表失败:', error)
   }
+}
+
+const handlePageData = () => {
+  const start = (pagination.pageNum - 1) * pagination.pageSize
+  const end = start + pagination.pageSize
+  tableData.value = allData.value.slice(start, end)
 }
 
 const handleSearch = () => {
@@ -239,6 +247,17 @@ const handleReset = () => {
   searchForm.endDate = getDefaultEndDate()
   searchForm.reportType = ''
   handleSearch()
+}
+
+const handleSizeChange = (size) => {
+  pagination.pageSize = size
+  pagination.pageNum = 1
+  handlePageData()
+}
+
+const handleCurrentChange = (page) => {
+  pagination.pageNum = page
+  handlePageData()
 }
 
 const handleGenerate = async () => {

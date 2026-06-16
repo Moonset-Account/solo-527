@@ -8,11 +8,13 @@ import com.badminton.arena.context.UserContext;
 import com.badminton.arena.entity.Course;
 import com.badminton.arena.entity.CourseEnrollment;
 import com.badminton.arena.entity.CourseSchedule;
+import com.badminton.arena.entity.InventoryReport;
 import com.badminton.arena.entity.Waitlist;
 import com.badminton.arena.exception.BusinessException;
 import com.badminton.arena.mapper.CourseEnrollmentMapper;
 import com.badminton.arena.mapper.CourseMapper;
 import com.badminton.arena.mapper.CourseScheduleMapper;
+import com.badminton.arena.mapper.InventoryReportMapper;
 import com.badminton.arena.service.CourseScheduleService;
 import com.badminton.arena.service.WaitlistService;
 import org.slf4j.Logger;
@@ -36,6 +38,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Autowired
     private CourseEnrollmentMapper courseEnrollmentMapper;
+
+    @Autowired
+    private InventoryReportMapper inventoryReportMapper;
 
     @Autowired
     @Lazy
@@ -195,12 +200,41 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     private void updateInventoryReport(CourseSchedule schedule) {
         try {
+            Course course = courseMapper.selectById(schedule.getCourseId());
+            String courseName = course != null ? course.getName() : "";
+
             int usedCapacity = schedule.getEnrolledCount();
             int totalCapacity = schedule.getMaxStudents();
-            double occupancyRate = totalCapacity > 0 ? (usedCapacity * 100.0 / totalCapacity) : 0;
+            double rate = totalCapacity > 0 ? (usedCapacity * 100.0 / totalCapacity) : 0;
+            java.math.BigDecimal occupancyRate = java.math.BigDecimal.valueOf(rate).setScale(2, java.math.BigDecimal.ROUND_HALF_UP);
 
-            log.info("更新库存占用报表: scheduleId={}, used={}, total={}, rate={}%",
-                    schedule.getId(), usedCapacity, totalCapacity, String.format("%.2f", occupancyRate));
+            LambdaQueryWrapper<InventoryReport> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(InventoryReport::getReportDate, schedule.getScheduleDate())
+                    .eq(InventoryReport::getReportType, "course_occupancy")
+                    .eq(InventoryReport::getBizId, schedule.getId());
+            InventoryReport report = inventoryReportMapper.selectOne(wrapper);
+
+            if (report == null) {
+                report = new InventoryReport();
+                report.setReportDate(schedule.getScheduleDate());
+                report.setReportType("course_occupancy");
+                report.setBizId(schedule.getId());
+                report.setBizName(courseName + " - " + schedule.getStartTime());
+                report.setTotalCapacity(totalCapacity);
+                report.setUsedCapacity(usedCapacity);
+                report.setOccupancyRate(occupancyRate);
+                report.setDetails("课程排班:" + schedule.getId());
+                inventoryReportMapper.insert(report);
+            } else {
+                report.setBizName(courseName + " - " + schedule.getStartTime());
+                report.setTotalCapacity(totalCapacity);
+                report.setUsedCapacity(usedCapacity);
+                report.setOccupancyRate(occupancyRate);
+                inventoryReportMapper.updateById(report);
+            }
+
+            log.info("更新库存占用报表成功: scheduleId={}, used={}, total={}, rate={}%",
+                    schedule.getId(), usedCapacity, totalCapacity, occupancyRate);
         } catch (Exception e) {
             log.error("更新库存占用报表失败", e);
         }

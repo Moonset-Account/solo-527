@@ -28,22 +28,22 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = computed(() => !!token.value)
 
   const login = async (loginData) => {
-    const res = await apiLogin(loginData)
-    if (res.code === 200) {
-      setToken(res.data.token)
-      const info = { ...res.data }
+    const data = await apiLogin(loginData)
+    if (data) {
+      setToken(data.token)
+      const info = { ...data }
       delete info.token
       setUserInfo(info)
     }
-    return res
+    return data
   }
 
   const fetchUserInfo = async () => {
-    const res = await apiGetUserInfo()
-    if (res.code === 200) {
-      setUserInfo(res.data)
+    const data = await apiGetUserInfo()
+    if (data) {
+      setUserInfo(data)
     }
-    return res
+    return data
   }
 
   const logout = () => {
