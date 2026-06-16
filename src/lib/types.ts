@@ -59,13 +59,14 @@ export interface SurveyRecord {
 
 export interface ContractAttachment {
   id: string;
-  lead_id: string;
+  lead_id: string | null;
   file_name: string;
-  file_url: string;
+  file_type: string;
   file_size: number;
-  version: number;
+  file_url: string;
+  is_template: boolean;
   uploaded_by: string;
-  uploaded_by_name?: string;
+  uploaded_by_name: string;
   created_at: string;
 }
 

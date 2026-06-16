@@ -209,22 +209,26 @@ export const mockSurveys: SurveyRecord[] = [
 export const mockAttachments: ContractAttachment[] = [
   {
     id: 'att-1', lead_id: 'lead-1', file_name: '装修合同-周先生-V2.docx',
-    file_url: '#', file_size: 245760, version: 2,
+    file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    file_url: '#', file_size: 245760, is_template: false,
     uploaded_by: 'user-consultant1', uploaded_by_name: '王浩然', created_at: hoursAgo(4),
   },
   {
     id: 'att-2', lead_id: 'lead-1', file_name: '设计方案-翡翠公园.pdf',
-    file_url: '#', file_size: 3670016, version: 1,
+    file_type: 'application/pdf',
+    file_url: '#', file_size: 3670016, is_template: false,
     uploaded_by: 'user-consultant1', uploaded_by_name: '王浩然', created_at: daysAgo(3),
   },
   {
     id: 'att-3', lead_id: 'lead-6', file_name: '装修施工合同-马女士.pdf',
-    file_url: '#', file_size: 1024000, version: 1,
+    file_type: 'application/pdf',
+    file_url: '#', file_size: 1024000, is_template: false,
     uploaded_by: 'user-consultant2', uploaded_by_name: '陈雪琪', created_at: daysAgo(2),
   },
   {
     id: 'att-4', lead_id: 'lead-2', file_name: '报价明细-碧桂园.xlsx',
-    file_url: '#', file_size: 81920, version: 3,
+    file_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    file_url: '#', file_size: 81920, is_template: false,
     uploaded_by: 'user-consultant2', uploaded_by_name: '陈雪琪', created_at: hoursAgo(8),
   },
 ];

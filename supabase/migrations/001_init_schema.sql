@@ -108,11 +108,12 @@ CREATE TABLE IF NOT EXISTS public.survey_records (
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.contract_attachments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
+  lead_id UUID REFERENCES public.leads(id) ON DELETE CASCADE,
   file_name TEXT NOT NULL,
   file_type TEXT NOT NULL,
   file_size BIGINT NOT NULL,
   file_url TEXT NOT NULL,
+  is_template BOOLEAN NOT NULL DEFAULT FALSE,
   uploaded_by UUID NOT NULL REFERENCES public.users(id),
   uploaded_by_name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

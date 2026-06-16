@@ -430,7 +430,7 @@ export default function LeadDetailPage() {
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-gray-800 truncate">{a.file_name}</div>
                               <div className="text-xs text-gray-400 mt-0.5">
-                                v{a.version} · {formatFileSize(a.file_size)} · 上传者 {a.uploaded_by_name} · {formatDateTime(a.created_at)}
+                                {a.file_type || '未知类型'} · {formatFileSize(a.file_size)} · 上传者 {a.uploaded_by_name} · {formatDateTime(a.created_at)}
                               </div>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

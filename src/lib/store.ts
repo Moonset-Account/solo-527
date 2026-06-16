@@ -37,6 +37,7 @@ interface AppState {
   addFollowUp: (record: Omit<FollowUpRecord, 'id' | 'created_at'>) => Promise<void>;
   addSurvey: (record: Omit<SurveyRecord, 'id' | 'created_at'>) => Promise<void>;
   addAttachment: (record: Omit<ContractAttachment, 'id' | 'created_at'>) => Promise<void>;
+  deleteAttachment: (id: string) => Promise<void>;
 
   createStage: (stage: Omit<LeadStage, 'id' | 'updated_at' | 'created_at'>) => Promise<void>;
   updateStage: (stageId: string, updates: Partial<LeadStage>) => Promise<void>;
@@ -337,6 +338,13 @@ export const useAppStore = create<AppState>()(
 
         set({
           attachments: [savedRecord, ...get().attachments],
+        });
+      },
+
+      deleteAttachment: async (id) => {
+        await api.deleteAttachment(id);
+        set({
+          attachments: get().attachments.filter((a) => a.id !== id),
         });
       },
 

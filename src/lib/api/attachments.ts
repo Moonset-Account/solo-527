@@ -1,7 +1,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabase/client';
-import { safeQuery, safeInsert, requireSupabaseConfigured } from './base';
+import { safeQuery, safeInsert, safeDelete, requireSupabaseConfigured } from './base';
 import { generateId } from '@/lib/utils';
 import type { ContractAttachment } from '@/lib/types';
 
@@ -26,6 +26,18 @@ export async function fetchAttachments(leadId?: string): Promise<ContractAttachm
   });
 }
 
+export async function fetchTemplateAttachments(): Promise<ContractAttachment[]> {
+  requireSupabaseConfigured();
+  return safeQuery<ContractAttachment[]>(() => {
+    const sb = supabase as any;
+    return sb
+      .from('contract_attachments')
+      .select('*')
+      .eq('is_template', true)
+      .order('created_at', { ascending: false });
+  });
+}
+
 export async function addAttachment(
   record: Omit<ContractAttachment, 'id' | 'created_at'>
 ): Promise<ContractAttachment> {
@@ -36,4 +48,9 @@ export async function addAttachment(
     created_at: now,
   };
   return safeInsert<ContractAttachment>('contract_attachments', newRecord);
+}
+
+export async function deleteAttachment(id: string): Promise<void> {
+  requireSupabaseConfigured();
+  return safeDelete('contract_attachments', id);
 }
