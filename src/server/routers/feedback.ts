@@ -253,7 +253,7 @@ export const feedbackRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return prisma.note.create({
+      const note = await prisma.note.create({
         data: {
           feedbackId: input.feedbackId,
           authorId: ctx.user.id,
@@ -261,6 +261,51 @@ export const feedbackRouter = createTRPCRouter({
         },
         include: { author: { select: { id: true, name: true } } },
       });
+
+      await prisma.auditLog.create({
+        data: {
+          entityType: "FEEDBACK",
+          entityId: input.feedbackId,
+          action: "NOTE_ADDED",
+          userId: ctx.user.id,
+          newValue: JSON.stringify({ noteId: note.id, content: input.content }),
+        },
+      });
+
+      return note;
+    }),
+
+  updateKnowledgeHit: staffProcedure
+    .input(
+      z.object({
+        hitId: z.string(),
+        helpful: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const old = await prisma.knowledgeHit.findUnique({
+        where: { id: input.hitId },
+        include: { knowledgeEntry: { select: { title: true } } },
+      });
+      if (!old) throw new Error("知识命中记录不存在");
+
+      const hit = await prisma.knowledgeHit.update({
+        where: { id: input.hitId },
+        data: { helpful: input.helpful },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          entityType: "FEEDBACK",
+          entityId: hit.feedbackId,
+          action: "KNOWLEDGE_HIT_UPDATED",
+          userId: ctx.user.id,
+          oldValue: JSON.stringify({ hitId: input.hitId, helpful: old.helpful }),
+          newValue: JSON.stringify({ hitId: input.hitId, helpful: input.helpful }),
+        },
+      });
+
+      return hit;
     }),
 
   rate: protectedProcedure
@@ -276,14 +321,34 @@ export const feedbackRouter = createTRPCRouter({
         data: input,
       });
 
+      await prisma.auditLog.create({
+        data: {
+          entityType: "FEEDBACK",
+          entityId: input.feedbackId,
+          action: "RATING_CREATED",
+          userId: ctx.user.id,
+          newValue: JSON.stringify({ score: input.score, comment: input.comment }),
+        },
+      });
+
       if (input.score <= 3) {
-        await prisma.todo.create({
+        const todo = await prisma.todo.create({
           data: {
-            title: `低分评价跟进: 反馈 ${input.feedbackId.slice(0, 8)}`,
+            title: "低分评价跟进: 反馈 " + input.feedbackId.slice(0, 8),
             type: "LOW_RATING",
             priority: "HIGH",
             relatedFeedbackId: input.feedbackId,
-            description: `客户评分 ${input.score}/5${input.comment ? `，评语: ${input.comment}` : ""}`,
+            description: "客户评分 " + input.score + "/5" + (input.comment ? "，评语: " + input.comment : ""),
+          },
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            entityType: "FEEDBACK",
+            entityId: input.feedbackId,
+            action: "TODO_CREATED",
+            userId: "system",
+            newValue: JSON.stringify({ todoId: todo.id, type: "LOW_RATING", score: input.score }),
           },
         });
       }

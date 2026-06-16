@@ -6,11 +6,13 @@ import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea, Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { BarChart3, TrendingUp, CheckCircle2, BookOpen } from "lucide-react";
+import { BarChart3, TrendingUp, CheckCircle2, BookOpen, RefreshCw } from "lucide-react";
 
 const MOCK_TREND = [
   { date: "06-01", rate: 72 }, { date: "06-02", rate: 68 }, { date: "06-03", rate: 75 },
@@ -23,11 +25,46 @@ const MOCK_TREND = [
 export default function KnowledgePage() {
   const [page, setPage] = useState(1);
   const limit = 15;
+  const [versionModalOpen, setVersionModalOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<any>(null);
+  const [newVersion, setNewVersion] = useState("");
+  const [newContent, setNewContent] = useState("");
+
+  const utils = trpc.useUtils();
 
   const { data: knowledgeData, isLoading } = trpc.knowledge.list.useQuery({ page, limit });
   const { data: stats } = trpc.knowledge.getHitStats.useQuery({});
 
+  const updateVersionMutation = trpc.knowledge.updateVersion.useMutation({
+    onSuccess: () => {
+      setVersionModalOpen(false);
+      setSelectedEntry(null);
+      setNewVersion("");
+      setNewContent("");
+      utils.knowledge.list.invalidate();
+    },
+  });
+
   const items = knowledgeData?.items ?? [];
+
+  const handleOpenVersionModal = (entry: any) => {
+    setSelectedEntry(entry);
+    const currentVer = entry.version;
+    const parts = currentVer.split(".");
+    const nextVer = [...parts.slice(0, -1), String(Number(parts[parts.length - 1]) + 1)].join(".");
+    setNewVersion(nextVer);
+    setNewContent(entry.content || "");
+    setVersionModalOpen(true);
+  };
+
+  const handleUpdateVersion = () => {
+    if (!selectedEntry || !newVersion || !newContent) return;
+    updateVersionMutation.mutate({
+      id: selectedEntry.id,
+      version: newVersion,
+      content: newContent,
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -100,6 +137,7 @@ export default function KnowledgePage() {
                   <th className="px-4 py-3 text-right font-medium">命中次数</th>
                   <th className="px-4 py-3 text-right font-medium">关联反馈</th>
                   <th className="px-4 py-3 text-left font-medium">更新时间</th>
+                  <th className="px-4 py-3 text-right font-medium">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,6 +155,17 @@ export default function KnowledgePage() {
                       </td>
                       <td className="px-4 py-3 text-right text-slate-500">{item._count?.feedbacks ?? 0}</td>
                       <td className="px-4 py-3 text-slate-500 text-xs">{new Date(item.updatedAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenVersionModal(item)}
+                          className="inline-flex items-center gap-1"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          更新版本
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -133,6 +182,44 @@ export default function KnowledgePage() {
           <Button variant="secondary" size="sm" disabled={page >= (knowledgeData?.totalPages ?? 1)} onClick={() => setPage(page + 1)}>下一页</Button>
         </div>
       )}
+
+      <Modal
+        isOpen={versionModalOpen}
+        onClose={() => setVersionModalOpen(false)}
+        title="更新知识库版本"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">知识条目</label>
+            <p className="text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded">
+              {selectedEntry?.title}
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">新版本号</label>
+            <Input
+              value={newVersion}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewVersion(e.target.value)}
+              placeholder="例如: 1.1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">更新内容</label>
+            <Textarea
+              value={newContent}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewContent(e.target.value)}
+              placeholder="请输入更新后的知识内容"
+              rows={6}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setVersionModalOpen(false)}>取消</Button>
+            <Button onClick={handleUpdateVersion} disabled={!newVersion || !newContent}>
+              确认更新
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -64,6 +64,9 @@ export default function FeedbackDetailPage() {
   const addNoteMutation = trpc.feedback.addNote.useMutation({
     onSuccess: () => { setNoteContent(""); utils.feedback.getById.invalidate({ id }); },
   });
+  const updateKnowledgeHitMutation = trpc.feedback.updateKnowledgeHit.useMutation({
+    onSuccess: () => utils.feedback.getById.invalidate({ id }),
+  });
 
   if (isPending) return <div className="flex items-center justify-center py-20 text-slate-400">加载中...</div>;
   if (!feedback) return <EmptyState icon={FileText} title="反馈不存在" description="未找到该反馈记录" />;
@@ -135,7 +138,7 @@ export default function FeedbackDetailPage() {
                 feedback.attachments?.length > 0 ? (
                   <div className="space-y-2">
                     {feedback.attachments.map((att: any) => (
-                      <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer"
+                      <a key={att.id} href={`/api/download/${att.id}`} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 text-sm text-slate-700">
                         <Paperclip className="h-4 w-4 text-slate-400" />{att.name}
                         <span className="text-xs text-slate-400 ml-auto">{(att.size / 1024).toFixed(1)} KB</span>
@@ -157,15 +160,28 @@ export default function FeedbackDetailPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
-                          {hit.helpful ? (
-                            <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                              <ThumbsUp className="h-3 w-3" /> 有效
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-rose-600 bg-rose-50 px-2 py-1 rounded">
-                              <ThumbsDown className="h-3 w-3" /> 无效
-                            </span>
-                          )}
+                          <button
+                            onClick={() => updateKnowledgeHitMutation.mutate({ hitId: hit.id, helpful: true })}
+                            disabled={hit.helpful}
+                            className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                              hit.helpful
+                                ? "text-emerald-600 bg-emerald-50 cursor-default"
+                                : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                            }`}
+                          >
+                            <ThumbsUp className="h-3 w-3" /> 有效
+                          </button>
+                          <button
+                            onClick={() => updateKnowledgeHitMutation.mutate({ hitId: hit.id, helpful: false })}
+                            disabled={!hit.helpful}
+                            className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                              !hit.helpful
+                                ? "text-rose-600 bg-rose-50 cursor-default"
+                                : "text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                            }`}
+                          >
+                            <ThumbsDown className="h-3 w-3" /> 无效
+                          </button>
                         </div>
                       </div>
                     ))}

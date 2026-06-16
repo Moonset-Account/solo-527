@@ -11,10 +11,13 @@ const ACTION_LABELS: Record<string, string> = {
   COMPLETED: "完成",
   RECORDED: "记录",
   KNOWLEDGE_LINKED: "关联知识",
+  KNOWLEDGE_HIT_UPDATED: "知识命中更新",
   ASSIGNEE_CHANGED: "负责人变更",
   NOTE_ADDED: "添加备注",
   RATING_SUBMITTED: "提交评价",
+  RATING_CREATED: "服务评价",
   IMPROVEMENT_LINKED: "关联改进",
+  TODO_CREATED: "待办创建",
 };
 
 export const auditLogRouter = createTRPCRouter({
