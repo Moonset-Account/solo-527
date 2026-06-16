@@ -144,7 +144,6 @@ const RootLayout: React.FC<RootLayoutProps> = ({ children }) => {
           <Content className="app-content">{children}</Content>
         </Layout>
       </Layout>
-    </div>
   );
 };
 

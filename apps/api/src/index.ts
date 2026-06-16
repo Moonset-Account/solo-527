@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { cache } from 'hono/cache';
@@ -80,9 +81,6 @@ app.onError((err, c) => {
 const port = parseInt(process.env.PORT || '3001', 10);
 const host = process.env.HOST || '0.0.0.0';
 
-console.log(`🚀 Starting server on http://${host}:${port}`);
-
-export default {
-  port,
-  fetch: app.fetch,
-};
+serve({ fetch: app.fetch, port, hostname: host }, (info) => {
+  console.log(`🚀 Server running on http://${info.address}:${info.port}`);
+});

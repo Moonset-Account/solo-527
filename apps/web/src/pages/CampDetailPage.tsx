@@ -606,7 +606,7 @@ const CampDetailPage: React.FC = () => {
             },
           ]}
         />
-      )}
+      </Card>
 
       <Modal
         title={editingChapter ? '编辑章节' : '添加章节'}
