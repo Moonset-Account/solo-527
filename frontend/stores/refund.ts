@@ -18,7 +18,7 @@ export const useRefundStore = defineStore('refund', () => {
     }
   }
 
-  async function review(id: string, data: { status: string; reviewed_by: string }) {
+  async function review(id: string, data: { reviewer: string; status: string; review_note?: string }) {
     return api.refund.review(id, data)
   }
 

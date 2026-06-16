@@ -45,7 +45,6 @@ function formatAmount(val: number) {
 }
 
 const cashGapPercent = computed(() => {
-  if (!dashboardStore.summary) return 0
   const total = dashboardStore.totalAR
   if (total === 0) return 0
   const paid = dashboardStore.totalPaid
@@ -136,7 +135,7 @@ const router = useRouter()
                 align="center"
               >
                 <span>{{ r.title }}</span>
-                <NTag :type="r.status === 'active' ? 'warning' : r.status === 'resolved' ? 'success' : 'info'" size="small">
+                <NTag :type="r.status === 'pending' ? 'warning' : r.status === 'resolved' ? 'success' : r.status === 'escalated' ? 'error' : 'info'" size="small">
                   {{ r.status }}
                 </NTag>
               </NSpace>

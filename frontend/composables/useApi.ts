@@ -87,7 +87,7 @@ export const useApi = () => {
     },
 
     payment: {
-      list: (filters: Partial<FilterParams>) =>
+      list: (filters: Partial<FilterParams> & Record<string, any>) =>
         get<PaymentListResponse>('/payments', buildQuery(filters)),
       get: (id: string) => get<Payment>(`/payments/${id}`),
       create: (data: Partial<Payment>) => post<Payment>('/payments', data),
