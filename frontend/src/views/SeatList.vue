@@ -7,9 +7,11 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
+            <el-option label="试用" value="trial" />
             <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
+            <el-option label="停用" value="suspended" />
             <el-option label="已过期" value="expired" />
+            <el-option label="已取消" value="cancelled" />
           </el-select>
         </el-form-item>
         <el-form-item label="套餐">
@@ -136,9 +138,11 @@
           <el-col :span="12">
             <el-form-item label="状态" prop="status">
               <el-radio-group v-model="seatForm.status">
-                <el-radio label="active">启用</el-radio>
                 <el-radio label="trial">试用</el-radio>
+                <el-radio label="active">启用</el-radio>
                 <el-radio label="suspended">停用</el-radio>
+                <el-radio label="expired">已过期</el-radio>
+                <el-radio label="cancelled">已取消</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
@@ -402,18 +406,24 @@ const handleBatchQuery = async () => {
 
 const getStatusType = (status) => {
   const map = {
+    trial: 'warning',
     active: 'success',
+    suspended: 'info',
     inactive: 'info',
-    expired: 'danger'
+    expired: 'danger',
+    cancelled: 'info'
   }
   return map[status] || 'info'
 }
 
 const getStatusText = (status) => {
   const map = {
+    trial: '试用',
     active: '启用',
+    suspended: '停用',
     inactive: '停用',
-    expired: '已过期'
+    expired: '已过期',
+    cancelled: '已取消'
   }
   return map[status] || status
 }

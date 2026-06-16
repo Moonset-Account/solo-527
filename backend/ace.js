@@ -3,31 +3,53 @@
 | JavaScript entrypoint for running ace commands
 |--------------------------------------------------------------------------
 |
-| DO NOT MODIFY THIS FILE AS IT WILL BE OVERRIDDEN DURING THE BUILD
-| PROCESS.
-|
-| See docs.adonisjs.com/guides/typescript-build-process#creating-production-build
-|
-| Since, we cannot run TypeScript source code using "node" binary, we need
-| a JavaScript entrypoint to run ace commands.
-|
-| This file registers the "ts-node/esm" hook with the Node.js module system
-| and then imports the "bin/console.ts" file.
+| This file detects whether @swc/core bindings are available. If not,
+| it re-spawns itself using "tsx" (esbuild) which does not require
+| native SWC bindings.
 |
 */
 
-process.env.SWC_SKIP_NATIVE_BINDINGS = '1'
+const { spawnSync } = require('node:child_process')
+const path = require('node:path')
+
+const APP_ROOT = path.resolve(__dirname)
+const TSX_ENTRY = path.join(APP_ROOT, 'bin', 'console.ts')
+const args = process.argv.slice(2)
+
+let resolvedTsx = null
 try {
-  const binding = require.resolve('@swc/wasm')
-  if (binding) process.env.__SWC_WASM_BINDING__ = binding
+  resolvedTsx = require.resolve('tsx/cli')
 } catch (e) {}
 
-/**
- * Register hook to process TypeScript files using @poppinss/ts-exec
- */
-import '@poppinss/ts-exec'
+if (!resolvedTsx) {
+  try {
+    resolvedTsx = require.resolve('tsx')
+  } catch (e) {}
+}
 
-/**
- * Import ace console entrypoint
- */
-await import('./bin/console.js')
+if (resolvedTsx) {
+  const result = spawnSync(
+    process.execPath,
+    ['--loader', 'tsx', TSX_ENTRY, ...args],
+    {
+      cwd: APP_ROOT,
+      env: { ...process.env, SWC_SKIP_NATIVE_BINDINGS: '1' },
+      stdio: 'inherit'
+    }
+  )
+  process.exit(result.status || 0)
+}
+
+try {
+  require('@swc/wasm')
+  process.env.SWC_SKIP_NATIVE_BINDINGS = '1'
+} catch (e) {}
+
+import('@poppinss/ts-exec')
+  .then(() => import('./bin/console.js'))
+  .catch((err) => {
+    console.error('[ace] Unable to bootstrap TypeScript runtime:')
+    console.error(err && err.message ? err.message : err)
+    console.error('\nPlease install tsx: npm install --save-dev tsx')
+    process.exit(1)
+  })

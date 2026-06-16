@@ -1,12 +1,14 @@
 import vine from '@vinejs/vine'
 
+export const SEAT_STATUSES = ['trial', 'active', 'suspended', 'expired', 'cancelled'] as const
+
 export const createSeatValidator = vine.compile(
   vine.object({
     customerId: vine.string().maxLength(255),
     customerName: vine.string().maxLength(255),
     planId: vine.number().positive(),
     seatCode: vine.string().maxLength(100).unique({ table: 'seats', column: 'seat_code' }),
-    status: vine.enum(['active', 'trial', 'suspended', 'cancelled']).optional(),
+    status: vine.enum(SEAT_STATUSES).optional(),
     billingCycle: vine.enum(['monthly', 'yearly']).optional(),
     startDate: vine.date(),
     endDate: vine.date().optional(),
@@ -26,7 +28,7 @@ export const updateSeatValidator = vine.compile(
       .maxLength(100)
       .unique({ table: 'seats', column: 'seat_code' })
       .optional(),
-    status: vine.enum(['active', 'trial', 'suspended', 'cancelled']).optional(),
+    status: vine.enum(SEAT_STATUSES).optional(),
     billingCycle: vine.enum(['monthly', 'yearly']).optional(),
     startDate: vine.date().optional(),
     endDate: vine.date().optional(),
@@ -41,7 +43,7 @@ export const querySeatValidator = vine.compile(
     page: vine.number().positive().optional(),
     perPage: vine.number().positive().max(100).optional(),
     keyword: vine.string().maxLength(255).optional(),
-    status: vine.enum(['active', 'trial', 'suspended', 'cancelled']).optional(),
+    status: vine.enum([...SEAT_STATUSES, 'inactive'] as const).optional(),
     planId: vine.number().positive().optional(),
     isIdle: vine.boolean().optional(),
     customerIds: vine.array(vine.string().maxLength(255)).optional(),

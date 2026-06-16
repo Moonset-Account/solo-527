@@ -6,20 +6,36 @@ const dbConfig = defineConfig({
   /**
    * Default connection used for all queries.
    */
-  connection: env.get('DB_CONNECTION', 'pg'),
+  connection: env.get('DB_CONNECTION', 'sqlite'),
 
   connections: {
+    /**
+     * SQLite connection (zero-config, good for local dev)
+     */
+    sqlite: {
+      client: 'better-sqlite3',
+      connection: {
+        filename: env.get('DB_DATABASE', 'tmp/seats.db'),
+      },
+      useNullAsDefault: true,
+      migrations: {
+        naturalSort: true,
+        paths: ['database/migrations'],
+      },
+      debug: app.inDev,
+    },
+
     /**
      * PostgreSQL connection.
      */
     pg: {
       client: 'pg',
       connection: {
-        host: env.get('DB_HOST'),
-        port: env.get('DB_PORT'),
-        user: env.get('DB_USER'),
-        password: env.get('DB_PASSWORD'),
-        database: env.get('DB_DATABASE'),
+        host: env.get('DB_HOST', 'localhost'),
+        port: env.get('DB_PORT', 5432),
+        user: env.get('DB_USER', 'postgres'),
+        password: env.get('DB_PASSWORD', ''),
+        database: env.get('DB_DATABASE', 'adonis'),
       },
       migrations: {
         naturalSort: true,

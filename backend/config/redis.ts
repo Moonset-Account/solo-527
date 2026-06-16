@@ -6,11 +6,14 @@ const redisConfig = defineConfig({
 
   connections: {
     main: {
-      host: env.get('REDIS_HOST'),
-      port: env.get('REDIS_PORT'),
-      password: env.get('REDIS_PASSWORD'),
+      host: env.get('REDIS_HOST', 'localhost'),
+      port: env.get('REDIS_PORT', 6379),
+      password: env.get('REDIS_PASSWORD', ''),
       db: 0,
       keyPrefix: '',
+      maxRetriesPerRequest: 1,
+      enableReadyCheck: false,
+      lazyConnect: true,
     },
   },
 })

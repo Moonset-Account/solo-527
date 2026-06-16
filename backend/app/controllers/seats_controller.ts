@@ -11,17 +11,23 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
 export default class SeatsController {
+  private normalizeStatus(status: string | undefined): string | undefined {
+    if (!status) return undefined
+    return status === 'inactive' ? 'suspended' : status
+  }
+
   async index({ request, auth }: HttpContext) {
+    const payload = await request.validateUsing(querySeatValidator)
     const {
       page = 1,
       perPage = 20,
       keyword,
-      status,
       planId,
       isIdle,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-    } = await request.validateUsing(querySeatValidator)
+    } = payload
+    const status = this.normalizeStatus(payload.status)
 
     const query = Seat.query()
 
@@ -94,7 +100,8 @@ export default class SeatsController {
   }
 
   async store({ request, auth }: HttpContext) {
-    const data = await request.validateUsing(createSeatValidator)
+    const payload = await request.validateUsing(createSeatValidator)
+    const data = { ...payload, status: this.normalizeStatus(payload.status) || payload.status }
 
     const user = auth.getUserOrFail()
 
@@ -122,7 +129,8 @@ export default class SeatsController {
 
   async update({ params, request, auth }: HttpContext) {
     const seat = await Seat.findOrFail(params.id)
-    const data = await request.validateUsing(updateSeatValidator)
+    const payload = await request.validateUsing(updateSeatValidator)
+    const data = { ...payload, status: this.normalizeStatus(payload.status) || payload.status }
 
     const oldData = seat.toJSON()
     seat.merge(data)
@@ -165,7 +173,9 @@ export default class SeatsController {
   }
 
   async batchQuery({ request, auth }: HttpContext) {
-    const { customerIds, status, planId } = await request.validateUsing(querySeatValidator)
+    const payload = await request.validateUsing(querySeatValidator)
+    const { customerIds, planId } = payload
+    const status = this.normalizeStatus(payload.status)
 
     const query = Seat.query()
 

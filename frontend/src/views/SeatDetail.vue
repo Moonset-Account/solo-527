@@ -277,18 +277,24 @@ const goBack = () => {
 
 const getStatusType = (status) => {
   const map = {
+    trial: 'warning',
     active: 'success',
+    suspended: 'info',
     inactive: 'info',
-    expired: 'danger'
+    expired: 'danger',
+    cancelled: 'info'
   }
   return map[status] || 'info'
 }
 
 const getStatusText = (status) => {
   const map = {
+    trial: '试用',
     active: '启用',
+    suspended: '停用',
     inactive: '停用',
-    expired: '已过期'
+    expired: '已过期',
+    cancelled: '已取消'
   }
   return map[status] || status || '-'
 }
