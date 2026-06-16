@@ -54,11 +54,25 @@ export function exportApiLog(params) {
   })
 }
 
-export function executeRetryRequest(apiPath, apiMethod, requestParams) {
+export function executeRetryRequest(apiPath, apiMethod, requestParams, queryParams) {
+  const method = (apiMethod || 'GET').toUpperCase()
+
+  let finalUrl = apiPath
   let body = null
-  if (requestParams && ['POST', 'PUT'].includes(apiMethod?.toUpperCase())) {
+  const params = {}
+
+  if (queryParams && (method === 'GET' || method === 'DELETE')) {
     try {
-      const parsed = JSON.parse(requestParams)
+      const parsed = typeof queryParams === 'string' ? JSON.parse(queryParams) : queryParams
+      Object.assign(params, parsed)
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (requestParams && (method === 'POST' || method === 'PUT')) {
+    try {
+      const parsed = typeof requestParams === 'string' ? JSON.parse(requestParams) : requestParams
       if (Array.isArray(parsed) && parsed.length > 0) {
         const first = parsed[0]
         if (first !== null && typeof first === 'object') {
@@ -70,18 +84,19 @@ export function executeRetryRequest(apiPath, apiMethod, requestParams) {
     }
   }
 
-  const method = (apiMethod || 'GET').toLowerCase()
-  const url = '/api' + apiPath
-
   const config = {
-    method,
-    url,
+    method: method.toLowerCase(),
+    url: finalUrl,
     timeout: 30000
   }
 
   const token = localStorage.getItem('token')
   if (token) {
     config.headers = { Authorization: token }
+  }
+
+  if (Object.keys(params).length > 0) {
+    config.params = params
   }
 
   if (body) {

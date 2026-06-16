@@ -45,13 +45,42 @@ public class ApiLogAspect {
         if (request != null) {
             apiLog.setApiPath(request.getRequestURI());
             apiLog.setApiMethod(request.getMethod());
+            try {
+                java.util.Map<String, String[]> parameterMap = request.getParameterMap();
+                if (parameterMap != null && !parameterMap.isEmpty()) {
+                    java.util.Map<String, Object> queryParams = new java.util.HashMap<>();
+                    for (java.util.Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
+                        String[] values = entry.getValue();
+                        if (values != null && values.length > 0) {
+                            queryParams.put(entry.getKey(), values.length == 1 ? values[0] : values);
+                        }
+                    }
+                    if (!queryParams.isEmpty()) {
+                        apiLog.setQueryParams(JSONUtil.toJsonStr(queryParams));
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("保存查询参数失败", e);
+            }
         }
 
         try {
             Object[] args = joinPoint.getArgs();
             if (args != null && args.length > 0) {
                 try {
-                    apiLog.setRequestParams(JSONUtil.toJsonStr(args));
+                    java.util.List<Object> bodyArgs = new java.util.ArrayList<>();
+                    for (Object arg : args) {
+                        if (arg != null
+                                && !(arg instanceof javax.servlet.http.HttpServletRequest)
+                                && !(arg instanceof javax.servlet.http.HttpServletResponse)
+                                && !(arg instanceof org.springframework.web.multipart.MultipartFile)
+                                && !(arg instanceof org.springframework.validation.BindingResult)) {
+                            bodyArgs.add(arg);
+                        }
+                    }
+                    if (!bodyArgs.isEmpty()) {
+                        apiLog.setRequestParams(JSONUtil.toJsonStr(bodyArgs));
+                    }
                 } catch (Exception e) {
                     apiLog.setRequestParams("参数序列化失败");
                 }

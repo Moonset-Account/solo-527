@@ -276,7 +276,7 @@ const doRetry = async (row) => {
   let responseData = null
 
   try {
-    const response = await executeRetryRequest(row.apiPath, row.apiMethod, row.requestParams)
+    const response = await executeRetryRequest(row.apiPath, row.apiMethod, row.requestParams, row.queryParams)
     responseData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
     if (responseData && responseData.length > 5000) {
       responseData = responseData.substring(0, 5000) + '...'
@@ -288,6 +288,8 @@ const doRetry = async (row) => {
         if (!success) {
           errorMsg = data.message || '业务失败'
         }
+      } else if (data && typeof data === 'object' && data.success === true) {
+        success = true
       } else {
         success = true
       }
@@ -301,6 +303,10 @@ const doRetry = async (row) => {
         responseData = JSON.stringify(error.response.data)
       } catch (e) {
         responseData = error.response.statusText
+      }
+      const data = error.response.data
+      if (data && typeof data === 'object' && data.message) {
+        errorMsg = data.message
       }
     } else {
       errorMsg = error.message || '请求异常'
