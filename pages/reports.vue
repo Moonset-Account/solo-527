@@ -145,7 +145,11 @@ const stats = computed(() => [
 const byStage = computed(() => reportData.value.byStage || [])
 const byDepartment = computed(() => reportData.value.byDepartment || [])
 const interviewerQuality = computed(() => reportData.value.interviewerQuality || [])
+const scoreDistribution = computed(() => reportData.value.scoreDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 })
 const totalCandidates = computed(() => reportData.value.overview.totalCandidates || 0)
+const totalScoredInterviews = computed(() => {
+  return Object.values(scoreDistribution.value).reduce((a: number, b: number) => a + b, 0)
+})
 
 function getStageCount(stage: string) {
   const item = byStage.value.find((s: any) => s.stage === stage)
@@ -160,12 +164,13 @@ function getConversionRate(from: string, to: string) {
 }
 
 function getScoreCount(score: number) {
-  return Math.floor(Math.random() * 10) + 1
+  return scoreDistribution.value[score] || 0
 }
 
 function getScorePercent(score: number) {
-  const total = 30
-  return (getScoreCount(score) / total * 100).toFixed(0) as unknown as number
+  const count = getScoreCount(score)
+  if (!totalScoredInterviews.value) return 0
+  return Math.round((count / totalScoredInterviews.value) * 100)
 }
 
 onMounted(async () => {

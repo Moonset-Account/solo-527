@@ -1,5 +1,5 @@
-import prisma from '../../../utils/prisma'
-import { withRetry } from '../../../utils/retry'
+import prisma from '../../utils/prisma'
+import { withRetry } from '../../utils/retry'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
         interviewId: body.interviewId,
         type: body.type,
         severity: body.severity,
+        isBlocking: body.isBlocking || body.severity === 'CRITICAL',
         title: body.title,
         message: body.message,
         sendAt: new Date(body.sendAt)

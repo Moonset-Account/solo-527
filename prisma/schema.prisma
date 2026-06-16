@@ -177,6 +177,7 @@ model Reminder {
   interviewId  Int?
   type         ReminderType
   severity     ReminderSeverity
+  isBlocking   Boolean        @default(false)
   title        String
   message      String
   sendAt       DateTime

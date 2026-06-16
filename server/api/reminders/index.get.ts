@@ -1,4 +1,4 @@
-import prisma from '../../../utils/prisma'
+import prisma from '../../utils/prisma'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -9,11 +9,7 @@ export default defineEventHandler(async (event) => {
   if (status && status !== 'ALL') where.status = status
   if (type && type !== 'ALL') where.type = type
   if (candidateId) where.candidateId = Number(candidateId)
-  if (isBlocking !== undefined) {
-    where.reminderConfig = {
-      isBlocking: isBlocking === 'true'
-    }
-  }
+  if (isBlocking !== undefined) where.isBlocking = isBlocking === 'true'
 
   return prisma.reminder.findMany({
     where,

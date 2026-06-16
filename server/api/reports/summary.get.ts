@@ -1,4 +1,4 @@
-import prisma from '../../../utils/prisma'
+import prisma from '../../utils/prisma'
 
 export default defineEventHandler(async () => {
   const [
@@ -9,7 +9,8 @@ export default defineEventHandler(async () => {
     noShowCount,
     interviewsThisMonth,
     qualityByInterviewer,
-    stageConversion
+    stageConversion,
+    qualityScoreDistribution
   ] = await Promise.all([
     prisma.candidate.count(),
     prisma.candidate.groupBy({
@@ -42,8 +43,20 @@ export default defineEventHandler(async () => {
     prisma.stageHistory.groupBy({
       by: ['fromStage', 'toStage'],
       _count: true
+    }),
+    prisma.interview.groupBy({
+      by: ['qualityScore'],
+      _count: true,
+      where: { qualityScore: { not: null } }
     })
   ])
+
+  const scoreDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  qualityScoreDistribution.forEach((item: any) => {
+    if (item.qualityScore !== null) {
+      scoreDistribution[item.qualityScore] = item._count
+    }
+  })
 
   const interviewerQualityMap = new Map<number, { scores: number[], count: number }>()
   qualityByInterviewer.forEach((i: any) => {
@@ -81,6 +94,7 @@ export default defineEventHandler(async () => {
       from: g.fromStage,
       to: g.toStage,
       count: g._count
-    }))
+    })),
+    scoreDistribution
   }
 })

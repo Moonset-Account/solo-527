@@ -209,6 +209,29 @@
           <h3 class="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
             <span>✅</span> 签到记录
           </h3>
+
+          <div v-if="upcomingInterviews.length > 0" class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <p class="text-sm text-blue-700 font-medium mb-3">待签到面试：</p>
+            <div class="space-y-3">
+              <div v-for="interview in upcomingInterviews" :key="interview.id" class="bg-white rounded-lg p-3 border border-blue-200">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-medium text-gray-800">{{ interview.title }}</span>
+                  <span class="text-xs text-gray-500">{{ formatDate(interview.scheduledAt) }}</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="type in checkInTypes"
+                    :key="`${interview.id}-${type.value}`"
+                    class="btn-secondary text-xs"
+                    :class="getCheckInBtnClass(type.value)"
+                    @click="openCheckInModal(interview, type.value)"
+                  >
+                    {{ type.icon }} {{ type.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div v-if="candidate.checkIns.length === 0" class="text-center py-6 text-gray-400 text-sm">暂无签到记录</div>
           <div v-else class="space-y-3">
             <div v-for="ci in candidate.checkIns" :key="ci.id" class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
@@ -408,6 +431,37 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showCheckInModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showCheckInModal = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-2">
+          {{ currentCheckInType === 'CANDIDATE_ARRIVED' ? '🧑 候选人签到' :
+             currentCheckInType === 'INTERVIEWER_READY' ? '👨‍💼 面试官就绪' :
+             currentCheckInType === 'COMPLETED' ? '✅ 完成签到' : '❌ 确认爽约' }}
+        </h3>
+        <p class="text-sm text-gray-500 mb-4">
+          面试：{{ currentCheckInInterview?.title }} · {{ formatDate(currentCheckInInterview?.scheduledAt) }}
+        </p>
+        <div class="space-y-4">
+          <div>
+            <label class="label">签到地点</label>
+            <input v-model="checkInForm.location" type="text" class="input" placeholder="如：A座3楼会议室301" />
+          </div>
+          <div>
+            <label class="label">IP 地址 (可选)</label>
+            <input v-model="checkInForm.ipAddress" type="text" class="input" placeholder="自动获取或手动输入" />
+          </div>
+          <div>
+            <label class="label">备注</label>
+            <textarea v-model="checkInForm.note" class="input" rows="2" placeholder="特殊情况说明"></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button class="btn-secondary" @click="showCheckInModal = false">取消</button>
+          <button class="btn-primary" @click="handleCheckIn">确认签到</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -456,6 +510,67 @@ const qualityForm = reactive({
   qualityDetail: { technicalSkill: 3, problemSolving: 3, communication: 3, cultureFit: 3 } as Record<string, number>,
   feedback: '', notes: ''
 })
+
+const checkInTypes = [
+  { value: 'CANDIDATE_ARRIVED', label: '候选人到场', icon: '🧑' },
+  { value: 'INTERVIEWER_READY', label: '面试官就绪', icon: '👨‍💼' },
+  { value: 'COMPLETED', label: '签到完成', icon: '✅' },
+  { value: 'NO_SHOW_CONFIRMED', label: '确认爽约', icon: '❌' }
+]
+
+const showCheckInModal = ref(false)
+const currentCheckInInterview = ref<any>(null)
+const currentCheckInType = ref('')
+const checkInForm = reactive({
+  location: '',
+  ipAddress: '',
+  note: ''
+})
+
+const upcomingInterviews = computed(() => {
+  if (!candidate.value?.interviews) return []
+  return candidate.value.interviews.filter((i: any) =>
+    i.status === 'SCHEDULED' || i.status === 'IN_PROGRESS'
+  ).sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+})
+
+function getCheckInBtnClass(type: string) {
+  if (type === 'CANDIDATE_ARRIVED') return 'bg-green-100 text-green-700 hover:bg-green-200'
+  if (type === 'INTERVIEWER_READY') return 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+  if (type === 'COMPLETED') return 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+  if (type === 'NO_SHOW_CONFIRMED') return 'bg-red-100 text-red-700 hover:bg-red-200'
+  return ''
+}
+
+function openCheckInModal(interview: any, type: string) {
+  currentCheckInInterview.value = interview
+  currentCheckInType.value = type
+  checkInForm.location = ''
+  checkInForm.ipAddress = ''
+  checkInForm.note = ''
+  showCheckInModal.value = true
+}
+
+async function handleCheckIn() {
+  if (!currentCheckInInterview.value || !currentCheckInType.value) return
+  try {
+    await $fetch('/api/check-ins', {
+      method: 'POST',
+      body: {
+        candidateId: Number(route.params.id),
+        interviewId: currentCheckInInterview.value.id,
+        checkInType: currentCheckInType.value,
+        location: checkInForm.location || '办公室',
+        ipAddress: checkInForm.ipAddress || '127.0.0.1',
+        note: checkInForm.note
+      }
+    })
+    showCheckInModal.value = false
+    candidateStore.fetchCandidate(Number(route.params.id))
+  } catch (e: any) {
+    alert(e?.statusMessage || '签到失败')
+  }
+}
 
 function openQualityModal(interview: any) {
   currentQualityInterview.value = interview

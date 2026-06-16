@@ -1,5 +1,5 @@
-import prisma from '../../../utils/prisma'
-import { withRetry } from '../../../utils/retry'
+import prisma from '../../utils/prisma'
+import { withRetry } from '../../utils/retry'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
