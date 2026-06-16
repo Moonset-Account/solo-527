@@ -1,0 +1,30 @@
+{
+  "name": "parent-child-training-camp",
+  "private": true,
+  "version": "1.0.0",
+  "description": "亲子训练营会员学习站 - 运营管理系统",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:web": "npm --workspace apps/web run dev",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm --workspace apps/api run build",
+    "build:web": "npm --workspace apps/web run build",
+    "db:generate": "npm --workspace apps/api run db:generate",
+    "db:migrate": "npm --workspace apps/api run db:migrate",
+    "db:seed": "npm --workspace apps/api run db:seed",
+    "db:studio": "npm --workspace apps/api run db:studio"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "typescript": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
