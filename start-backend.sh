@@ -44,9 +44,6 @@ else
 fi
 
 echo ""
-echo "🔄 生成数据库迁移文件..."
-python manage.py makemigrations --noinput 2>/dev/null || echo "  迁移文件已存在，跳过生成"
-
 echo "🔄 执行数据库迁移..."
 python manage.py migrate --noinput
 
