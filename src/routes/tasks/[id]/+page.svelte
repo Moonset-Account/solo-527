@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { store } from '$lib/stores/mock-data.svelte';
 	import { TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '$lib/types';
@@ -45,6 +46,21 @@
 		'completed'
 	];
 
+	onMount(async () => {
+		try {
+			const res = await fetch(`/api/tasks/${id}`);
+			if (res.ok) {
+				const data = await res.json();
+				store.addTask({
+					...data,
+					deliverables: data.deliverables ?? []
+				});
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	});
+
 	function typeBadgeClass(type: TaskType) {
 		return type === 'shooting'
 			? 'bg-blue-100 text-blue-700'
@@ -62,23 +78,47 @@
 		return map[status];
 	}
 
-	function handleStatusAction() {
+	async function handleStatusAction() {
 		if (!task) return;
 		const action = statusActions[task.status];
-		if (action) store.updateTaskStatus(task.id, action.nextStatus);
+		if (!action) return;
+		try {
+			const res = await fetch(`/api/tasks/${task.id}/status`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status: action.nextStatus })
+			});
+			if (!res.ok) throw new Error('状态更新失败');
+			store.updateTaskStatus(task.id, action.nextStatus);
+		} catch (e) {
+			console.error(e);
+			alert('状态更新失败');
+		}
 	}
 
-	function handleSubmitDeliverable() {
+	async function handleSubmitDeliverable() {
 		if (!task || !deliverableNote.trim()) return;
-		store.addDeliverable({
-			taskId: task.id,
+		const payload = {
 			fileUrl: `/deliverables/${crypto.randomUUID()}.${deliverableFileType.split('/')[1]}`,
 			fileType: deliverableFileType,
 			note: deliverableNote
-		});
-		showDeliverableForm = false;
-		deliverableFileType = 'video/mp4';
-		deliverableNote = '';
+		};
+		try {
+			const res = await fetch(`/api/tasks/${task.id}/deliverables`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) throw new Error('提交失败');
+			const created = await res.json();
+			store.addDeliverable({ ...payload, id: created.id, taskId: task.id, submittedAt: created.submittedAt });
+			showDeliverableForm = false;
+			deliverableFileType = 'video/mp4';
+			deliverableNote = '';
+		} catch (e) {
+			console.error(e);
+			alert('提交交付物失败');
+		}
 	}
 
 	function formatDate(d: Date | string) {

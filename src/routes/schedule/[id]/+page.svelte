@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { store } from '$lib/stores/mock-data.svelte';
 	import {
 		SCHEDULE_STATUS_LABELS,
 		PLATFORM_COLORS
 	} from '$lib/types';
-	import type { ScheduleStatus } from '$lib/types';
+	import type { ScheduleStatus, SourceRecord } from '$lib/types';
 	import {
 		ArrowLeft,
 		Calendar,
@@ -24,10 +25,25 @@
 
 	let topic = $derived(schedule ? store.topics.find((t) => t.id === schedule.topicId) : undefined);
 	let creator = $derived(schedule ? store.users.find((u) => u.id === schedule.createdBy) : undefined);
-	let sourceRecord = $derived(schedule ? store.getTopicSourceRecord(schedule.topicId) : undefined);
+	let sourceRecord = $state<SourceRecord | undefined>(undefined);
 
 	let editingNotes = $state(false);
 	let editedNotes = $state('');
+
+	onMount(async () => {
+		if (!schedule) return;
+		try {
+			const res = await fetch(`/api/source-records/${schedule.topicId}`);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.data && data.data.length > 0) {
+					sourceRecord = data.data[0];
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	});
 
 	function platformColor(platform: string) {
 		return PLATFORM_COLORS[platform] ?? '#e07a3a';

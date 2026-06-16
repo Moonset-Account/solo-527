@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { store } from '$lib/stores/mock-data.svelte';
-	import type { MaterialType, Tag } from '$lib/types';
+	import type { MaterialType, Tag, MaterialReuse } from '$lib/types';
 	import { MATERIAL_TYPE_LABELS, TOPIC_STATUS_LABELS } from '$lib/types';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -21,7 +22,7 @@
 	let id = $derived($page.params.id);
 	let material = $derived(store.materials.find((m) => m.id === id));
 	let uploader = $derived(material ? store.users.find((u) => u.id === material.uploadedBy) : null);
-	let reuseRecords = $derived(material ? store.getMaterialReuseRecords(material.id) : []);
+	let reuseRecords = $state<MaterialReuse[]>([]);
 	let linkedTopics = $derived(
 		material
 			? store.topics.filter((t) => t.materials.some((m) => m.id === material.id))
@@ -67,6 +68,25 @@
 			? store.tags.filter((t) => !material.tags.some((mt) => mt.id === t.id))
 			: []
 	);
+
+	onMount(async () => {
+		try {
+			const [detailRes, reuseRes] = await Promise.all([
+				fetch(`/api/materials/${id}`),
+				fetch(`/api/materials/${id}/reuse`)
+			]);
+			if (detailRes.ok) {
+				const data = await detailRes.json();
+				store.addMaterial(data);
+			}
+			if (reuseRes.ok) {
+				const data = await reuseRes.json();
+				reuseRecords = data.data ?? [];
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	});
 
 	function formatFileSize(bytes: number): string {
 		if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
@@ -147,9 +167,10 @@
 		return record.targetId;
 	}
 
-	function getUsedByName(userId: string): string {
-		const user = store.users.find((u) => u.id === userId);
-		return user ? user.name : userId;
+	function getUsedByName(record: MaterialReuse & { usedByUser?: { name: string } }): string {
+		if (record.usedByUser) return record.usedByUser.name;
+		const user = store.users.find((u) => u.id === record.usedBy);
+		return user ? user.name : record.usedBy;
 	}
 </script>
 
@@ -300,7 +321,7 @@
 										<span class="text-ink">{getTargetLabel(record)}</span>
 									</div>
 									<div class="mt-1 flex items-center gap-3 text-xs text-ink-lighter">
-										<span>使用人：{getUsedByName(record.usedBy)}</span>
+										<span>使用人：{getUsedByName(record)}</span>
 										<span class="flex items-center gap-1">
 											<Clock size={10} />
 											{formatDate(record.usedAt)}

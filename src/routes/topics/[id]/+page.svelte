@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { store } from '$lib/stores/mock-data.svelte';
-	import type { TopicStatus, Script, Material } from '$lib/types';
+	import type { TopicStatus, Script, Material, SourceRecord } from '$lib/types';
 	import {
 		TOPIC_STATUS_LABELS,
 		TASK_STATUS_LABELS,
@@ -43,13 +44,34 @@
 
 	let relatedTasks = $derived(store.tasks.filter((t) => t.topicId === topicId));
 	let relatedSchedules = $derived(store.schedules.filter((s) => s.topicId === topicId));
-	let sourceRecord = $derived(store.getTopicSourceRecord(topicId));
+	let sourceRecord = $state<SourceRecord | undefined>(undefined);
 
 	let availableMaterials = $derived(
 		store.materials.filter(
 			(m) => !topic?.materials.some((tm) => tm.id === m.id)
 		)
 	);
+
+	onMount(async () => {
+		try {
+			const [topicRes, sourceRes] = await Promise.all([
+				fetch(`/api/topics/${topicId}`),
+				fetch(`/api/source-records/${topicId}`)
+			]);
+			if (topicRes.ok) {
+				const data = await topicRes.json();
+				store.addTopic(data);
+			}
+			if (sourceRes.ok) {
+				const data = await sourceRes.json();
+				if (data.data && data.data.length > 0) {
+					sourceRecord = data.data[0];
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	});
 
 	function getUserName(id: string) {
 		return store.users.find((u) => u.id === id)?.name ?? id;
@@ -96,9 +118,20 @@
 		return map[status] ?? 'bg-gray-100 text-gray-600';
 	}
 
-	function handleStatusAction(status: TopicStatus) {
+	async function handleStatusAction(status: TopicStatus) {
 		if (!topic) return;
-		store.updateTopicStatus(topic.id, status);
+		try {
+			const res = await fetch(`/api/topics/${topic.id}/status`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status })
+			});
+			if (!res.ok) throw new Error('状态更新失败');
+			store.updateTopicStatus(topic.id, status);
+		} catch (e) {
+			console.error(e);
+			alert('状态更新失败');
+		}
 	}
 
 	function startEditDescription() {
@@ -107,10 +140,21 @@
 		editingDescription = true;
 	}
 
-	function saveDescription() {
+	async function saveDescription() {
 		if (!topic) return;
-		store.updateTopic(topic.id, { description: descriptionDraft });
-		editingDescription = false;
+		try {
+			const res = await fetch(`/api/topics/${topic.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ description: descriptionDraft })
+			});
+			if (!res.ok) throw new Error('保存失败');
+			store.updateTopic(topic.id, { description: descriptionDraft });
+			editingDescription = false;
+		} catch (e) {
+			console.error(e);
+			alert('保存描述失败');
+		}
 	}
 
 	function toggleScriptExpand(scriptId: string) {
@@ -123,20 +167,39 @@
 		expandedScripts = next;
 	}
 
-	function handleAddScript() {
+	async function handleAddScript() {
 		if (!topic || !scriptContent.trim()) return;
-		store.addScriptToTopic(topic.id, {
-			content: scriptContent.trim(),
-			version: 0,
-			createdBy: store.getCurrentUser().id
-		});
-		scriptContent = '';
-		showScriptEditor = false;
+		try {
+			const res = await fetch(`/api/topics/${topic.id}/scripts`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ content: scriptContent.trim(), createdBy: store.getCurrentUser().id })
+			});
+			if (!res.ok) throw new Error('添加脚本失败');
+			const created = await res.json();
+			store.addScriptToTopic(topic.id, { ...created });
+			scriptContent = '';
+			showScriptEditor = false;
+		} catch (e) {
+			console.error(e);
+			alert('添加脚本失败');
+		}
 	}
 
-	function handleAddMaterial(material: Material) {
+	async function handleAddMaterial(material: Material) {
 		if (!topic) return;
-		store.addMaterialToTopic(topic.id, material);
+		try {
+			const res = await fetch(`/api/topics/${topic.id}/materials`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ materialId: material.id })
+			});
+			if (!res.ok) throw new Error('关联素材失败');
+			store.addMaterialToTopic(topic.id, material);
+		} catch (e) {
+			console.error(e);
+			alert('关联素材失败');
+		}
 	}
 
 	function startEditSourceNotes() {
@@ -147,10 +210,7 @@
 
 	function saveSourceNotes() {
 		if (!sourceRecord) return;
-		const idx = store.sourceRecords.findIndex((sr) => sr.id === sourceRecord.id);
-		if (idx !== -1) {
-			store.sourceRecords[idx].supplementaryNotes = sourceNotesDraft;
-		}
+		sourceRecord.supplementaryNotes = sourceNotesDraft;
 		editingSourceNotes = false;
 	}
 </script>
