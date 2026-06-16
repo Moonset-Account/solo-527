@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
-import { topics, topicMaterials, materials, scripts } from '$lib/server/schema';
-import { eq, desc } from 'drizzle-orm';
+import { topics, topicMaterials, materials, scripts, materialTags, tags } from '$lib/server/schema';
+import { eq, desc, inArray } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -23,7 +23,28 @@ export const GET: RequestHandler = async ({ params }) => {
 			.where(eq(scripts.topicId, params.id))
 			.orderBy(desc(scripts.version));
 
-		return json({ ...topic, materials: materialRows.map((r) => r.material), scripts: scriptRows });
+		const materialsWithTags = materialRows.map((r) => r.material);
+		if (materialsWithTags.length > 0) {
+			const materialIds = materialsWithTags.map((m) => m.id);
+			const tagJoinRows = await db
+				.select({ materialId: materialTags.materialId, tag: tags })
+				.from(materialTags)
+				.innerJoin(tags, eq(materialTags.tagId, tags.id))
+				.where(inArray(materialTags.materialId, materialIds));
+
+			const tagMap = new Map<string, typeof tagJoinRows>();
+			for (const row of tagJoinRows) {
+				const list = tagMap.get(row.materialId) ?? [];
+				list.push(row);
+				tagMap.set(row.materialId, list);
+			}
+
+			for (const m of materialsWithTags as any[]) {
+				m.tags = (tagMap.get(m.id) ?? []).map((r: any) => r.tag);
+			}
+		}
+
+		return json({ ...topic, materials: materialsWithTags, scripts: scriptRows });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Unknown error';
 		return json({ error: message }, { status: 500 });

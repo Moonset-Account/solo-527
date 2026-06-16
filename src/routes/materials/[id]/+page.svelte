@@ -95,8 +95,8 @@
 		return bytes + ' B';
 	}
 
-	function formatDate(d: Date): string {
-		return d.toISOString().slice(0, 10);
+	function formatDate(d: Date | string): string {
+		return new Date(d).toISOString().slice(0, 10);
 	}
 
 	function startEditTitle() {

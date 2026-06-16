@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { $effect } from 'svelte';
 	import { page } from '$app/stores';
 	import { store } from '$lib/stores/mock-data.svelte';
 	import {
@@ -30,19 +30,22 @@
 	let editingNotes = $state(false);
 	let editedNotes = $state('');
 
-	onMount(async () => {
+	$effect(() => {
 		if (!schedule) return;
-		try {
-			const res = await fetch(`/api/source-records/${schedule.topicId}`);
-			if (res.ok) {
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await fetch(`/api/source-records/${schedule.topicId}`);
+				if (cancelled || !res.ok) return;
 				const data = await res.json();
 				if (data.data && data.data.length > 0) {
 					sourceRecord = data.data[0];
 				}
+			} catch (e) {
+				console.error(e);
 			}
-		} catch (e) {
-			console.error(e);
-		}
+		})();
+		return () => { cancelled = true; };
 	});
 
 	function platformColor(platform: string) {
