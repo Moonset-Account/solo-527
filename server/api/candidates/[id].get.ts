@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
       interviews: {
         include: {
           interviewer: true,
-          checkIn: true,
+          checkIns: true,
           retryLogs: true
         },
         orderBy: { scheduledAt: 'desc' }

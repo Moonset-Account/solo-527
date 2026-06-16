@@ -98,11 +98,11 @@ async function main() {
       ],
       checkIns: [
         {
-          checkInType: 'CANDIDATE_ARRIVED', location: 'A座大厅',
+          interviewIndex: 1, checkInType: 'CANDIDATE_ARRIVED', location: 'A座大厅',
           ipAddress: '192.168.1.100', note: '提前15分钟到达'
         },
         {
-          checkInType: 'INTERVIEWER_READY', location: '3楼301会议室',
+          interviewIndex: 1, checkInType: 'INTERVIEWER_READY', location: '3楼301会议室',
           ipAddress: '192.168.1.101', note: '面试官已就位'
         }
       ],
@@ -177,15 +177,15 @@ async function main() {
       ],
       checkIns: [
         {
-          checkInType: 'CANDIDATE_ARRIVED', location: 'B座大厅',
+          interviewIndex: 1, checkInType: 'CANDIDATE_ARRIVED', location: 'B座大厅',
           ipAddress: '192.168.1.102', note: '提前10分钟到达'
         },
         {
-          checkInType: 'INTERVIEWER_READY', location: '2楼201会议室',
+          interviewIndex: 1, checkInType: 'INTERVIEWER_READY', location: '2楼201会议室',
           ipAddress: '192.168.1.103', note: '面试官已就位'
         },
         {
-          checkInType: 'COMPLETED', location: '2楼201会议室',
+          interviewIndex: 1, checkInType: 'COMPLETED', location: '2楼201会议室',
           ipAddress: '192.168.1.103', note: '面试顺利完成'
         }
       ],
@@ -251,7 +251,15 @@ async function main() {
       ],
       checkIns: [
         {
-          checkInType: 'NO_SHOW_CONFIRMED', location: 'C座1楼101会议室',
+          interviewIndex: 0, checkInType: 'CANDIDATE_ARRIVED', location: 'C座1楼101会议室',
+          ipAddress: '192.168.1.104', note: '候选人未到场'
+        },
+        {
+          interviewIndex: 0, checkInType: 'INTERVIEWER_READY', location: 'C座1楼101会议室',
+          ipAddress: '192.168.1.105', note: '面试官已就位等待'
+        },
+        {
+          interviewIndex: 0, checkInType: 'NO_SHOW_CONFIRMED', location: 'C座1楼101会议室',
           ipAddress: '192.168.1.104', note: '等待30分钟未到场，电话无人接听'
         }
       ],
@@ -347,9 +355,9 @@ async function main() {
         { fromStage: 'HR_INTERVIEW', toStage: 'OFFER', reason: 'HR面通过，薪资谈妥', changedBy: '钱HR' }
       ],
       checkIns: [
-        { checkInType: 'CANDIDATE_ARRIVED', location: '总部大厅', ipAddress: '10.0.0.1' },
-        { checkInType: 'INTERVIEWER_READY', location: '18楼会议室', ipAddress: '10.0.0.2' },
-        { checkInType: 'COMPLETED', location: '18楼会议室', ipAddress: '10.0.0.2', note: '面试非常成功' }
+        { interviewIndex: 0, checkInType: 'CANDIDATE_ARRIVED', location: '总部大厅', ipAddress: '10.0.0.1' },
+        { interviewIndex: 0, checkInType: 'INTERVIEWER_READY', location: '18楼会议室', ipAddress: '10.0.0.2' },
+        { interviewIndex: 0, checkInType: 'COMPLETED', location: '18楼会议室', ipAddress: '10.0.0.2', note: '面试非常成功' }
       ],
       reminders: [
         {
@@ -435,12 +443,16 @@ async function main() {
       include: { interviews: true }
     })
 
-    for (let i = 0; i < checkIns.length; i++) {
+    for (const ci of checkIns) {
+      const interviewIdx = (ci as any).interviewIndex ?? 0
       await prisma.checkIn.create({
         data: {
-          ...checkIns[i],
+          checkInType: ci.checkInType,
+          location: ci.location,
+          ipAddress: ci.ipAddress,
+          note: ci.note,
           candidateId: candidate.id,
-          interviewId: candidate.interviews[Math.min(i, candidate.interviews.length - 1)]?.id
+          interviewId: candidate.interviews[interviewIdx]?.id
         }
       })
     }

@@ -80,7 +80,7 @@ model Interview {
   notes         String?
   interviewer   Interviewer       @relation(fields: [interviewerId], references: [id])
   candidate     Candidate         @relation(fields: [candidateId], references: [id])
-  checkIn       CheckIn?
+  checkIns      CheckIn[]
   reminders     Reminder[]
   retryLogs     ApiRetryLog[]
   createdAt     DateTime          @default(now())
@@ -153,7 +153,7 @@ model StageHistory {
 model CheckIn {
   id           Int          @id @default(autoincrement())
   candidateId  Int
-  interviewId  Int          @unique
+  interviewId  Int
   checkInType  CheckInType
   checkedAt    DateTime?
   location     String?

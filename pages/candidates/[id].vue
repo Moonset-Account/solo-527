@@ -199,6 +199,27 @@
                   </div>
                 </details>
               </div>
+
+              <div v-if="interview.checkIns && interview.checkIns.length > 0" class="mt-3 border-t border-gray-100 pt-3">
+                <p class="text-sm font-medium text-gray-700 mb-2">本场签到节点：</p>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="ci in interview.checkIns"
+                    :key="ci.id"
+                    class="badge text-xs"
+                    :class="{
+                      'bg-green-100 text-green-800': ci.checkInType === 'CANDIDATE_ARRIVED',
+                      'bg-blue-100 text-blue-800': ci.checkInType === 'INTERVIEWER_READY',
+                      'bg-purple-100 text-purple-800': ci.checkInType === 'COMPLETED',
+                      'bg-red-100 text-red-800': ci.checkInType === 'NO_SHOW_CONFIRMED'
+                    }"
+                  >
+                    {{ ci.checkInType === 'CANDIDATE_ARRIVED' ? '🧑' : ci.checkInType === 'INTERVIEWER_READY' ? '👨‍💼' : ci.checkInType === 'COMPLETED' ? '✅' : '❌' }}
+                    {{ checkInTypeLabels[ci.checkInType] }}
+                    <span class="opacity-60 ml-1">{{ formatDate(ci.checkedAt || ci.createdAt) }}</span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

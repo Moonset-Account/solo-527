@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     include: {
       candidate: { select: { id: true, name: true, email: true, position: true } },
       interviewer: true,
-      checkIn: true,
+      checkIns: true,
       retryLogs: true
     },
     orderBy: { scheduledAt: 'desc' }
