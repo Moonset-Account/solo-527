@@ -15,12 +15,14 @@ export interface User {
 interface AuthState {
   token: string | null
   user: User | null
+  initialized: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     token: null,
     user: null,
+    initialized: false,
   }),
 
   getters: {
@@ -61,21 +63,27 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null
       this.user = null
+      this.initialized = true
       if (process.client) {
         localStorage.removeItem('token')
       }
     },
 
-    initAuth() {
+    async initAuth() {
       if (process.client) {
         const token = localStorage.getItem('token')
         if (token) {
           this.token = token
-          this.fetchUser().catch(() => {
+          try {
+            await this.fetchUser()
+          } catch {
             this.logout()
-          })
+            this.initialized = true
+            return
+          }
         }
       }
+      this.initialized = true
     },
   },
 })

@@ -42,4 +42,14 @@ export default defineNuxtConfig({
       autoprefixer: {},
     },
   },
+
+  plugins: [
+    '~/plugins/01.pinia.client.ts',
+    '~/plugins/02.auth.client.ts',
+  ],
+
+  ignore: [
+    'plugins/auth.client.ts',
+    'plugins/pinia.client.ts',
+  ],
 })
