@@ -143,7 +143,7 @@ export const exportRouter = createTRPCRouter({
           totalRecords: 0,
           downloadUrl: null,
           completedAt: null,
-        },
+        } as any,
       });
 
       setTimeout(() => {

@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 function csvEscape(value: any): string {
   if (value === null || value === undefined) return "";
   let str = String(value);
-  if (typeof value === "object" && value.toNumber) {
+  if (typeof value === "object" && typeof value.toNumber === "function") {
     str = String(value.toNumber());
   }
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -197,10 +197,11 @@ const typeFilenames: Record<string, string> = {
   QUALITY_CHECKS: "质检数据导出",
 };
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { userId } = auth();
 
@@ -208,8 +209,10 @@ export async function GET(
       return NextResponse.json({ error: "未授权" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const task = await prisma.exportTask.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!task) {
@@ -221,8 +224,9 @@ export async function GET(
     }
 
     if (task.status === "FAILED") {
+      const errorMessage = task.errorMessage as string | null;
       return NextResponse.json(
-        { error: task.errorMessage || "导出失败" },
+        { error: errorMessage || "导出失败" },
         { status: 500 }
       );
     }
@@ -235,7 +239,7 @@ export async function GET(
     }
 
     let csvContent = "";
-    let filename = typeFilenames[task.type] || "数据导出";
+    const filename = typeFilenames[task.type] || "数据导出";
 
     switch (task.type) {
       case "VEHICLES": {
