@@ -228,6 +228,7 @@ export async function createReply(req, res) {
     const reply = await prisma.supplierReply.create({
       data: {
         type,
+        supplierId: req.user.supplierId || null,
         purchaseOrderId: purchaseOrderId ? Number(purchaseOrderId) : null,
         inboundOrderId: inboundOrderId ? Number(inboundOrderId) : null,
         exceptionId: exceptionId ? Number(exceptionId) : null,

@@ -106,6 +106,7 @@ model User {
   assignedPurchaseOrders PurchaseOrder[] @relation("AssignedPO")
   createdInbounds       InboundOrder[]  @relation("CreatedInbound")
   handledInbounds       InboundOrder[]  @relation("HandledInbound")
+  qcInbounds            InboundOrder[]  @relation("QcInbound")
   createdOutbounds      OutboundOrder[] @relation("CreatedOutbound")
   handledOutbounds      OutboundOrder[] @relation("HandledOutbound")
   sentReplies           SupplierReply[] @relation("SentBy")
@@ -144,6 +145,7 @@ model Supplier {
 
   users            User[]
   products         Product[]
+  productSuppliers ProductSupplier[]
   purchaseOrders   PurchaseOrder[]
   inboundOrders    InboundOrder[]
   replies          SupplierReply[]
@@ -323,6 +325,7 @@ model PurchaseOrderItem {
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product       Product       @relation(fields: [productId], references: [id])
+  inboundItems  InboundItem[]
 
   @@index([purchaseOrderId])
   @@index([productId])
@@ -341,7 +344,7 @@ model InboundOrder {
   handledById     Int?
   handledBy       User?           @relation("HandledInbound", fields: [handledById], references: [id])
   qcById          Int?
-  qcBy            User?           @relation(fields: [qcById], references: [id])
+  qcBy            User?           @relation("QcInbound", fields: [qcById], references: [id])
   totalQty        Decimal         @default(0) @db.Decimal(12, 2)
   acceptedQty     Decimal         @default(0) @db.Decimal(12, 2)
   rejectedQty     Decimal         @default(0) @db.Decimal(12, 2)
@@ -360,6 +363,7 @@ model InboundOrder {
   batches         Batch[]
   replies         SupplierReply[]
   exceptions      ExceptionRecord[]
+  ratings         SupplierRating[]
 
   @@index([supplierId])
   @@index([status])
@@ -451,6 +455,7 @@ model OutboundItem {
 model SupplierReply {
   id               Int        @id @default(autoincrement())
   type             String     @db.VarChar(20)
+  supplierId       Int?
   purchaseOrderId  Int?
   inboundOrderId   Int?
   exceptionId      Int?
@@ -467,6 +472,7 @@ model SupplierReply {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
+  supplier         Supplier?        @relation(fields: [supplierId], references: [id])
   purchaseOrder    PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
   inboundOrder     InboundOrder?   @relation(fields: [inboundOrderId], references: [id])
   exception        ExceptionRecord? @relation(fields: [exceptionId], references: [id])
@@ -551,7 +557,7 @@ model Alert {
   targetUser    User        @relation("AlertTarget", fields: [targetUserId], references: [id])
   relatedType   String?     @db.VarChar(30)
   relatedId     Int?
-  metadata      String?     @db.Json
+  metadata      Json?
   createdAt     DateTime    @default(now())
   readAt        DateTime?
 
@@ -593,9 +599,9 @@ model BatchOperation {
   totalCount    Int          @default(0)
   successCount  Int          @default(0)
   failCount     Int          @default(0)
-  inputData     String?      @db.Json
-  resultData    String?      @db.Json
-  failedItems   String?      @db.Json
+  inputData     Json?
+  resultData    Json?
+  failedItems   Json?
   remark        String?      @db.Text
   confirmedAt   DateTime?
   completedAt   DateTime?
@@ -615,8 +621,8 @@ model AuditLog {
   action     String    @db.VarChar(50)
   entityType String    @db.VarChar(30)
   entityId   Int?
-  oldValue   String?   @db.Json
-  newValue   String?   @db.Json
+  oldValue   Json?
+  newValue   Json?
   ip         String?   @db.VarChar(50)
   userAgent  String?   @db.VarChar(500)
   createdAt  DateTime  @default(now())

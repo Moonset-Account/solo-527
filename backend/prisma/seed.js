@@ -648,11 +648,13 @@ async function main() {
   console.log('💬 创建供应商回复...');
   const latestPOs = await prisma.purchaseOrder.findMany({ take: 2 });
   const supUsers = await prisma.user.findMany({ where: { role: 'SUPPLIER' } });
+  const suppliers = await prisma.supplier.findMany({ take: 3 });
   const firstEx = await prisma.exceptionRecord.findFirst();
   await prisma.supplierReply.createMany({
     data: [
       {
         type: 'PURCHASE_ACK',
+        supplierId: suppliers[0]?.id,
         purchaseOrderId: latestPOs[0]?.id,
         fromUserId: supUsers[0].id,
         toUserId: purchaseUser.id,
@@ -663,6 +665,7 @@ async function main() {
       },
       {
         type: 'PURCHASE_ACK',
+        supplierId: suppliers[1]?.id,
         purchaseOrderId: latestPOs[1]?.id,
         fromUserId: supUsers[1].id,
         toUserId: purchaseUser.id,
@@ -673,6 +676,7 @@ async function main() {
       },
       {
         type: 'EXCEPTION_REPLY',
+        supplierId: suppliers[0]?.id,
         exceptionId: firstEx?.id,
         fromUserId: supUsers[0].id,
         toUserId: managerUser.id,
@@ -690,15 +694,15 @@ async function main() {
   await prisma.batchOperation.create({
     data: {
       batchOpNo: `BOP${dayjs().subtract(2, 'day').format('YYYYMMDD')}001`,
-      opType: 'PRICE_UPDATE',
-      title: '批量更新蔬菜类商品默认价',
+      opType: 'BATCH_CREATE_EXCEPTION',
+      title: '批量标记临期批次为异常',
       status: 'COMPLETED',
       createdById: managerUser.id,
       totalCount: 6,
       successCount: 6,
       failCount: 0,
-      inputData: JSON.stringify({ factor: 1.05, categoryId: catVegetable.id }),
-      resultData: JSON.stringify({ updatedSku: ['V001', 'V002', 'V003', 'V004', 'V005', 'V006'] }),
+      inputData: { factor: 1.05, categoryId: catVegetable.id, nearExpiryDays: 15 },
+      resultData: { updatedSku: ['V001', 'V002', 'V003', 'V004', 'V005', 'V006'] },
       confirmedAt: dayjs().subtract(2, 'day').toDate(),
       completedAt: dayjs().subtract(2, 'day').toDate(),
       createdAt: dayjs().subtract(2, 'day').toDate(),
@@ -707,15 +711,15 @@ async function main() {
   await prisma.batchOperation.create({
     data: {
       batchOpNo: `BOP${dayjs().subtract(1, 'day').format('YYYYMMDD')}001`,
-      opType: 'BATCH_STATUS_UPDATE',
+      opType: 'BATCH_UPDATE_BATCH_STATUS',
       title: '批量标记过期批次状态',
       status: 'PARTIAL_SUCCESS',
       createdById: qcUser.id,
       totalCount: 4,
       successCount: 3,
       failCount: 1,
-      inputData: JSON.stringify({ newStatus: 'EXPIRED', reason: '自然到期' }),
-      failedItems: JSON.stringify([{ batchNo: 'B2024060100008', error: '批次已锁定，无法更新' }]),
+      inputData: { newStatus: 'EXPIRED', reason: '自然到期' },
+      failedItems: [{ batchNo: 'B2024060100008', error: '批次已锁定，无法更新' }],
       remark: '有一个批次关联出库中，暂不能修改',
       confirmedAt: dayjs().subtract(1, 'day').toDate(),
       completedAt: dayjs().subtract(1, 'day').toDate(),
@@ -725,18 +729,14 @@ async function main() {
   await prisma.batchOperation.create({
     data: {
       batchOpNo: `BOP${dayjs().format('YYYYMMDD')}001`,
-      opType: 'STOCK_ADJUST',
-      title: '批量调整3个SKU库存（盘点差异）',
+      opType: 'BATCH_UPDATE_BATCH_STATUS',
+      title: '批量调整批次状态（待确认）',
       status: 'PENDING_CONFIRM',
       createdById: managerUser.id,
       totalCount: 3,
       successCount: 0,
       failCount: 0,
-      inputData: JSON.stringify([
-        { sku: 'S004', adjustment: -3, reason: '盘点差异' },
-        { sku: 'M002', adjustment: +2, reason: '前期少记' },
-        { sku: 'V006', adjustment: -5, reason: '出库漏记' },
-      ]),
+      inputData: { itemIds: [1, 2, 3], params: { newStatus: 'NEAR_EXPIRY' } },
       createdAt: dayjs().toDate(),
     },
   });
@@ -747,7 +747,7 @@ async function main() {
   await prisma.auditLog.createMany({
     data: [
       { userId: managerUser.id, action: 'CREATE', entityType: 'PURCHASE_ORDER', entityId: 1, ip: '10.0.0.101', createdAt: dayjs().subtract(8, 'day').toDate() },
-      { userId: purchaseUser.id, action: 'UPDATE', entityType: 'PURCHASE_ORDER', entityId: 1, oldValue: JSON.stringify({ status: 'DRAFT' }), newValue: JSON.stringify({ status: 'PENDING_SUPPLIER' }), ip: '10.0.0.102', createdAt: dayjs().subtract(8, 'day').add(1, 'hour').toDate() },
+      { userId: purchaseUser.id, action: 'UPDATE', entityType: 'PURCHASE_ORDER', entityId: 1, oldValue: { status: 'DRAFT' }, newValue: { status: 'PENDING_SUPPLIER' }, ip: '10.0.0.102', createdAt: dayjs().subtract(8, 'day').add(1, 'hour').toDate() },
       { userId: managerUser.id, action: 'CREATE', entityType: 'INBOUND_ORDER', entityId: 1, ip: '10.0.0.101', createdAt: dayjs().subtract(7, 'day').toDate() },
       { userId: qcUser.id, action: 'QC_APPROVE', entityType: 'INBOUND_ORDER', entityId: 1, ip: '10.0.0.103', createdAt: dayjs().subtract(7, 'day').add(3, 'hour').toDate() },
       { userId: superadmin?.id || managerUser.id, action: 'LOGIN', entityType: 'USER', createdAt: dayjs().subtract(30, 'minute').toDate() },

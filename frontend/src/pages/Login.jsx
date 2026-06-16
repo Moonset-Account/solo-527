@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, App as AntdApp } from 'antd';
-import { UserOutlined, LockOutlined, WarehouseOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { useAppStore } from '../store/index.js';
 import { authApi } from '../api/index.js';
 import router from '../router/index.jsx';

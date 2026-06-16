@@ -56,11 +56,23 @@ export async function getBatchOps(req, res) {
 
 export async function previewBatchOp(req, res) {
   try {
-    const { opType, itemIds, filters, params } = req.body;
+    let { opType, itemIds, filters, params, batchOpId } = req.body;
+
+    if (batchOpId) {
+      const batchOp = await prisma.batchOperation.findUnique({
+        where: { id: Number(batchOpId) },
+      });
+      if (!batchOp) return notFound(res, '批量操作记录不存在');
+      const input = batchOp.inputData || {};
+      opType = batchOp.opType;
+      itemIds = input.itemIds;
+      filters = input.filters;
+      params = input.params;
+    }
 
     if (!opType) return fail(res, '操作类型不能为空');
 
-    let affectedItems = [];
+    let items = [];
     let targetModel = null;
 
     switch (opType) {
@@ -74,7 +86,7 @@ export async function previewBatchOp(req, res) {
           if (filters.expiryFrom) where.expiryDate = { gte: new Date(filters.expiryFrom) };
           if (filters.expiryTo) where.expiryDate = { ...(where.expiryDate || {}), lte: new Date(filters.expiryTo) };
         }
-        affectedItems = await prisma.batch.findMany({
+        items = await prisma.batch.findMany({
           where,
           include: {
             product: { select: { id: true, sku: true, name: true } },
@@ -91,7 +103,7 @@ export async function previewBatchOp(req, res) {
           if (filters.status) where.status = filters.status;
           if (filters.supplierId) where.supplierId = Number(filters.supplierId);
         }
-        affectedItems = await prisma.inboundOrder.findMany({
+        items = await prisma.inboundOrder.findMany({
           where,
           include: {
             supplier: { select: { id: true, code: true, name: true } },
@@ -104,7 +116,6 @@ export async function previewBatchOp(req, res) {
         const where = {};
         if (itemIds && itemIds.length) where.id = { in: itemIds.map(Number) };
         if (filters) {
-          const now = new Date();
           if (filters.nearExpiryDays) {
             const d = new Date();
             d.setDate(d.getDate() + Number(filters.nearExpiryDays));
@@ -112,7 +123,7 @@ export async function previewBatchOp(req, res) {
           }
           if (filters.onlyLowQty) where.remainingQty = { lt: 1 };
         }
-        affectedItems = await prisma.batch.findMany({
+        items = await prisma.batch.findMany({
           where,
           include: {
             product: { select: { id: true, sku: true, name: true } },
@@ -126,7 +137,7 @@ export async function previewBatchOp(req, res) {
         const where = {};
         if (itemIds && itemIds.length) where.id = { in: itemIds.map(Number) };
         if (filters && filters.status) where.status = filters.status;
-        affectedItems = await prisma.batch.findMany({
+        items = await prisma.batch.findMany({
           where,
           include: {
             product: { select: { id: true, sku: true, name: true } },
@@ -142,18 +153,18 @@ export async function previewBatchOp(req, res) {
     const summary = {
       opType,
       targetModel,
-      totalCount: affectedItems.length,
+      totalCount: items.length,
       params: params || {},
     };
 
-    return success(res, { summary, affectedItems }, '预览成功');
+    return success(res, { summary, items }, '预览成功');
   } catch (err) {
     console.error('previewBatchOp error:', err);
     return fail(res, '预览失败: ' + err.message);
   }
 }
 
-export async function confirmBatchOp(req, res) {
+export async function createBatchOp(req, res) {
   try {
     const { opType, itemIds, filters, params, title, remark } = req.body;
     const userId = req.user.id;
@@ -165,16 +176,39 @@ export async function confirmBatchOp(req, res) {
         batchOpNo: generateBatchOpNo(),
         opType,
         title: title || `批量操作: ${opType}`,
-        status: 'PROCESSING',
+        status: 'PENDING_CONFIRM',
         createdById: userId,
-        totalCount: 0,
-        successCount: 0,
-        failCount: 0,
-        inputData: JSON.stringify({ itemIds, filters, params }),
+        inputData: { itemIds: itemIds || [], filters: filters || {}, params: params || {} },
         remark,
-        confirmedAt: new Date(),
       },
     });
+
+    return success(res, batchOp, '批量操作创建成功，请确认后执行');
+  } catch (err) {
+    console.error('createBatchOp error:', err);
+    return fail(res, '创建批量操作失败: ' + err.message);
+  }
+}
+
+export async function confirmBatchOp(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const batchOp = await prisma.batchOperation.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!batchOp) return notFound(res, '批量操作不存在');
+
+    if (batchOp.status !== 'PENDING_CONFIRM') {
+      return fail(res, `当前状态(${batchOp.status})不允许执行，请确保是待确认状态`);
+    }
+
+    const inputData = batchOp.inputData || {};
+    const { opType } = batchOp;
+    const itemIds = inputData.itemIds || [];
+    const filters = inputData.filters || {};
+    const params = inputData.params || {};
 
     const failedItems = [];
     let successCount = 0;
@@ -202,7 +236,12 @@ export async function confirmBatchOp(req, res) {
               });
               successCount++;
             } catch (e) {
-              failedItems.push({ id: item.id, batchNo: item.batchNo, error: e.message });
+              failedItems.push({
+                id: item.id,
+                batchNo: item.batchNo,
+                productId: item.productId,
+                error: e.message,
+              });
             }
           }
           break;
@@ -226,7 +265,12 @@ export async function confirmBatchOp(req, res) {
               });
               successCount++;
             } catch (e) {
-              failedItems.push({ id: item.id, orderNo: item.orderNo, error: e.message });
+              failedItems.push({
+                id: item.id,
+                orderNo: item.orderNo,
+                supplierId: item.supplierId,
+                error: e.message,
+              });
             }
           }
           break;
@@ -279,7 +323,13 @@ export async function confirmBatchOp(req, res) {
               });
               successCount++;
             } catch (e) {
-              failedItems.push({ id: item.id, batchNo: item.batchNo, error: e.message });
+              failedItems.push({
+                id: item.id,
+                batchNo: item.batchNo,
+                productId: item.productId,
+                supplierId: item.supplierId,
+                error: e.message,
+              });
             }
           }
           break;
@@ -297,7 +347,12 @@ export async function confirmBatchOp(req, res) {
               await tx.batch.delete({ where: { id: item.id } });
               successCount++;
             } catch (e) {
-              failedItems.push({ id: item.id, batchNo: item.batchNo, error: e.message });
+              failedItems.push({
+                id: item.id,
+                batchNo: item.batchNo,
+                productId: item.productId,
+                error: e.message,
+              });
             }
           }
           break;
@@ -311,6 +366,20 @@ export async function confirmBatchOp(req, res) {
         ? 'COMPLETED'
         : (successCount > 0 ? 'PARTIAL_SUCCESS' : 'FAILED');
 
+      if (failedItems.length > 0) {
+        const excRecords = failedItems.map((fi) => ({
+          exceptionNo: generateExceptionNo(),
+          type: 'OTHER',
+          title: `批量操作失败: ${opType} - 第${fi.id}项`,
+          description: `批量操作#${batchOp.id}执行失败，项ID: ${fi.id}，错误: ${fi.error}`,
+          status: 'OPEN',
+          priority: 3,
+          createdById: userId,
+          batchId: fi.id && opType.includes('BATCH') ? fi.id : null,
+        }));
+        await tx.exceptionRecord.createMany({ data: excRecords });
+      }
+
       await tx.batchOperation.update({
         where: { id: batchOp.id },
         data: {
@@ -318,7 +387,9 @@ export async function confirmBatchOp(req, res) {
           totalCount,
           successCount,
           failCount: failedItems.length,
-          failedItems: JSON.stringify(failedItems),
+          failedItems,
+          resultData: { totalCount, successCount, failCount: failedItems.length },
+          confirmedAt: new Date(),
           completedAt: new Date(),
         },
       });

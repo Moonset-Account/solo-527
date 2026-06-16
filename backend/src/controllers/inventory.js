@@ -152,19 +152,19 @@ export async function adjustInventory(req, res) {
           action: `INVENTORY_${type}`,
           entityType: 'INVENTORY',
           entityId: Number(id),
-          oldValue: JSON.stringify({
+          oldValue: {
             totalQty: oldTotal,
             availableQty: oldAvailable,
             damagedQty: oldDamaged,
-          }),
-          newValue: JSON.stringify({
+          },
+          newValue: {
             totalQty: newTotal,
             availableQty: newAvailable,
             damagedQty: newDamaged,
             delta: deltaQty,
             reason: reason || '',
             remark: remark || '',
-          }),
+          },
           ip: req.ip,
           userAgent: req.headers['user-agent'],
         },
@@ -261,13 +261,13 @@ export async function batchAdjustInventory(req, res) {
               action: `INVENTORY_BATCH_${item.type}`,
               entityType: 'INVENTORY',
               entityId: Number(item.inventoryId),
-              oldValue: JSON.stringify({
+              oldValue: {
                 totalQty: oldTotal, availableQty: oldAvailable, damagedQty: oldDamaged,
-              }),
-              newValue: JSON.stringify({
+              },
+              newValue: {
                 totalQty: newTotal, availableQty: newAvailable, damagedQty: newDamaged,
                 delta: deltaQty, reason: item.reason || '', remark: item.remark || '',
-              }),
+              },
               ip: req.ip,
               userAgent: req.headers['user-agent'],
             },

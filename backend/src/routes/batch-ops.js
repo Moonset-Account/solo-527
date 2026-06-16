@@ -3,6 +3,7 @@ import { auth, requireRole, ROLE, WRITE_ROLES, ALL_INTERNAL_ROLES } from '../mid
 import {
   getBatchOps,
   previewBatchOp,
+  createBatchOp,
   confirmBatchOp,
   getBatchOpDetail,
 } from '../controllers/batchOps.js';
@@ -13,7 +14,8 @@ router.use(auth);
 
 router.get('/', requireRole(...ALL_INTERNAL_ROLES, ROLE.VIEWER), getBatchOps);
 router.post('/preview', requireRole(...WRITE_ROLES), previewBatchOp);
-router.post('/confirm', requireRole(...WRITE_ROLES), confirmBatchOp);
+router.post('/', requireRole(...WRITE_ROLES), createBatchOp);
+router.post('/:id/confirm', requireRole(...WRITE_ROLES), confirmBatchOp);
 router.get('/:id', requireRole(...ALL_INTERNAL_ROLES, ROLE.VIEWER), getBatchOpDetail);
 
 export default router;
