@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Optional, List
 from datetime import datetime, date
@@ -149,8 +149,15 @@ def compare_quotes(
 
     db.add_all(comparisons)
     db.commit()
-    for c in comparisons:
-        db.refresh(c)
+
+    comparison_ids = [c.id for c in comparisons]
+    comparisons = db.query(models.QuoteComparison).filter(
+        models.QuoteComparison.id.in_(comparison_ids)
+    ).options(
+        joinedload(models.QuoteComparison.quote).options(
+            joinedload(models.Quote.supplier)
+        )
+    ).order_by(models.QuoteComparison.rank_by_price).all()
 
     result = schemas.QuoteComparisonResult(
         material_id=material_id, material_name=material.name, material_code=material.code,

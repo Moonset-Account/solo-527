@@ -53,6 +53,7 @@ import * as echarts from 'echarts'
 import { listMaterials, compareQuotes } from '~/api'
 import dayjs from 'dayjs'
 
+const route = useRoute()
 const message = useMessage()
 const selectedMaterial = ref<number | null>(null)
 const materialOptions = ref<any[]>([])
@@ -64,8 +65,12 @@ const columns: DataTableColumns = [
   { title: '排名', key: 'rank_by_price', width: 70, render: (row: any) =>
     h('n-tag', { type: row.is_lowest ? 'success' : 'default', round: true }, { default: () => `#${row.rank_by_price}` })
   },
-  { title: '供应商', key: 'supplier', width: 160 },
-  { title: '报价单价', key: 'price', width: 120, render: () => '-' },
+  { title: '供应商', key: 'supplier', width: 160, render: (row: any) =>
+    row.quote?.supplier?.name || '-'
+  },
+  { title: '报价单价', key: 'price', width: 120, render: (row: any) =>
+    row.quote?.unit_price ? `¥${row.quote.unit_price.toFixed(2)}` : '-'
+  },
   { title: '偏离均价', key: 'variance', width: 120, render: (row: any) => {
       const val = row.price_variance_percent || 0
       return h('n-text', { type: val > 0 ? 'error' : val < 0 ? 'success' : 'default' }, {
@@ -122,7 +127,7 @@ function renderChart() {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { data: ['供应商报价', '历史均价', '历史最低价', '历史最高价'] },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', data: quotes.map((q: any, i: number) => `供应商${i + 1}`) },
+    xAxis: { type: 'category', data: quotes.map((q: any) => q.quote?.supplier?.name || '未知') },
     yAxis: { type: 'value', name: '价格(¥)', axisLabel: { formatter: '¥{value}' } },
     series: [
       {
@@ -159,5 +164,13 @@ function renderChart() {
 
 window.addEventListener('resize', () => chart?.resize())
 
-onMounted(loadMaterials)
+onMounted(async () => {
+  await loadMaterials()
+  const materialId = route.query.material_id
+  if (materialId) {
+    const id = Number(materialId)
+    selectedMaterial.value = id
+    await handleCompare(id)
+  }
+})
 </script>

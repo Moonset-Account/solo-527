@@ -12,10 +12,13 @@ def get_password_hash(password: str) -> str:
 
 
 def init_database():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        user_count = db.query(models.User).count()
+        if user_count > 0:
+            print("Database already initialized, skipping data initialization.")
+            return
+
         print("Creating users...")
         users = [
             {
@@ -476,6 +479,16 @@ def init_database():
             confirmed_at=today,
         )
         db.add(po2)
+        db.commit()
+        db.refresh(po2)
+        po2_items = [
+            {"po_id": po2.id, "pr_id": pr2.id, "material_id": mat_objs[3].id, "quantity": 2,
+             "unit_price": 420.00, "quote_id": quote_objs[6].id,
+             "subtotal": 840.00, "tax_rate": 13.0, "tax_amount": 109.20, "total": 949.20,
+             "delivered_qty": 0},
+        ]
+        for item in po2_items:
+            db.add(models.PurchaseOrderItem(**item))
         db.commit()
 
         print("Creating sample audit logs...")

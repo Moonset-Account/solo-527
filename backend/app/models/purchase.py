@@ -77,6 +77,7 @@ class PurchaseOrder(Base):
 
     purchase_request = relationship("PurchaseRequest", back_populates="orders")
     items = relationship("PurchaseOrderItem", back_populates="purchase_order")
+    supplier = relationship("Supplier", back_populates="purchase_orders")
 
 
 class PurchaseOrderItem(Base):

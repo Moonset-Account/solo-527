@@ -66,11 +66,11 @@ def get_dashboard_summary(
 
     avg_variance = db.query(func.coalesce(func.avg(models.QuoteComparison.price_variance_percent), 0)).scalar()
 
-    cost_saving = db.query(func.coalesce(func.sum(
-        models.QuoteComparison.historical_avg_price * 1
-    ), 0)).scalar() - db.query(func.coalesce(func.sum(
-        models.QuoteComparison.quote.has(models.Quote.unit_price)
-    ), 0)).scalar() if False else 0
+    total_avg_price = db.query(func.coalesce(func.sum(models.QuoteComparison.historical_avg_price), 0)).scalar()
+    total_actual_price = db.query(func.coalesce(func.sum(models.Quote.unit_price), 0)).join(
+        models.QuoteComparison, models.QuoteComparison.quote_id == models.Quote.id
+    ).filter(models.QuoteComparison.is_lowest == True).scalar()
+    cost_saving = max(0, float(total_avg_price or 0) - float(total_actual_price or 0))
 
     high_risk = db.query(func.count(models.Supplier.id)).filter(
         models.Supplier.risk_level.in_([

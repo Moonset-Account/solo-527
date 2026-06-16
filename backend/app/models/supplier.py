@@ -47,6 +47,7 @@ class Supplier(Base):
     quotes = relationship("Quote", back_populates="supplier")
     risk_logs = relationship("SupplierRiskLog", back_populates="supplier")
     agreements = relationship("FrameworkAgreement", back_populates="supplier")
+    purchase_orders = relationship("PurchaseOrder", back_populates="supplier")
 
 
 class SupplierRiskLog(Base):
