@@ -5,10 +5,10 @@
       <el-descriptions :column="5" border size="small">
         <el-descriptions-item label="订单号">{{ orderInfo.orderNo }}</el-descriptions-item>
         <el-descriptions-item label="收件人">{{ orderInfo.receiverName }}</el-descriptions-item>
-        <el-descriptions-item label="地址">{{ orderInfo.address }}</el-descriptions-item>
-        <el-descriptions-item label="骑手">{{ orderInfo.riderName }}</el-descriptions-item>
+        <el-descriptions-item label="地址">{{ orderInfo.receiverAddress }}</el-descriptions-item>
+        <el-descriptions-item label="站点">{{ orderInfo.stationName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="orderInfo.status === 'SIGNED' ? 'success' : 'warning'" size="small">{{ orderInfo.statusLabel }}</el-tag>
+          <el-tag :type="statusTagType(orderInfo.status)" size="small">{{ orderInfo.statusLabel || orderInfo.status }}</el-tag>
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
@@ -28,6 +28,9 @@
             </el-table-column>
             <el-table-column prop="diffReason" label="差异原因" show-overflow-tooltip />
           </el-table>
+          <div v-if="signDiffList.length === 0" style="text-align:center; padding:20px; color:#909399">
+            暂无签收数据
+          </div>
         </el-card>
       </el-col>
 
@@ -51,13 +54,14 @@
           <template #header>配送订单详情</template>
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="订单状态">
-              <el-tag :type="deliveryDetail.statusType" size="small">{{ deliveryDetail.status }}</el-tag>
+              <el-tag :type="statusTagType(orderInfo.status)" size="small">{{ orderInfo.statusLabel || orderInfo.status }}</el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="下单时间">{{ deliveryDetail.orderTime }}</el-descriptions-item>
-            <el-descriptions-item label="接单时间">{{ deliveryDetail.acceptTime }}</el-descriptions-item>
-            <el-descriptions-item label="取货时间">{{ deliveryDetail.pickupTime }}</el-descriptions-item>
-            <el-descriptions-item label="送达时间">{{ deliveryDetail.deliverTime }}</el-descriptions-item>
-            <el-descriptions-item label="承诺时效">{{ deliveryDetail.promiseTime }}</el-descriptions-item>
+            <el-descriptions-item label="下单时间">{{ formatTime(orderInfo.createTime) }}</el-descriptions-item>
+            <el-descriptions-item label="接单时间">{{ formatTime(orderInfo.acceptTime) }}</el-descriptions-item>
+            <el-descriptions-item label="取货时间">{{ formatTime(orderInfo.pickupTime) }}</el-descriptions-item>
+            <el-descriptions-item label="送达时间">{{ formatTime(orderInfo.deliverTime) }}</el-descriptions-item>
+            <el-descriptions-item label="签收时间">{{ formatTime(orderInfo.signTime) }}</el-descriptions-item>
+            <el-descriptions-item label="承诺时效">{{ formatTime(orderInfo.promiseTime) }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>
@@ -67,8 +71,8 @@
       <template #header>操作留痕</template>
       <el-timeline>
         <el-timeline-item
-          v-for="log in operationLogs"
-          :key="log.time"
+          v-for="(log, idx) in operationLogs"
+          :key="idx"
           :timestamp="log.time"
           :type="log.type"
           placement="top"
@@ -85,81 +89,79 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getTodoDetail } from '../api/order'
-import { getStationInventory } from '../api/station'
+import dayjs from 'dayjs'
 
 const route = useRoute()
 const orderId = route.params.id
 
-const orderInfo = ref({
-  orderNo: '',
-  receiverName: '',
-  address: '',
-  riderName: '',
-  status: '',
-  statusLabel: ''
-})
-
+const orderInfo = ref({})
 const signDiffList = ref([])
 const inventoryList = ref([])
-const deliveryDetail = ref({
-  status: '',
-  statusType: '',
-  orderTime: '',
-  acceptTime: '',
-  pickupTime: '',
-  deliverTime: '',
-  promiseTime: ''
-})
 const operationLogs = ref([])
+
+function statusTagType(status) {
+  const map = {
+    PENDING: 'info', ACCEPTED: '', PICKED_UP: 'warning',
+    DELIVERING: 'primary', SIGNED: 'success', EXCEPTION: 'danger'
+  }
+  return map[status] || ''
+}
+
+function formatTime(t) {
+  return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
+}
 
 async function loadData() {
   try {
     const res = await getTodoDetail(orderId)
     const data = res.data
-    orderInfo.value = data.orderInfo || orderInfo.value
-    signDiffList.value = data.signDiffList || []
-    deliveryDetail.value = data.deliveryDetail || deliveryDetail.value
-    operationLogs.value = data.operationLogs || []
-    if (data.orderInfo?.stationId) {
-      const invRes = await getStationInventory(data.orderInfo.stationId)
-      inventoryList.value = invRes.data?.list || []
+    orderInfo.value = data || {}
+
+    if (data.signRecord) {
+      signDiffList.value = [
+        {
+          skuName: '主商品',
+          expectedQty: data.signRecord.expectedQty || 0,
+          actualQty: data.signRecord.actualQty || 0,
+          diffQty: data.signRecord.diffQty || 0,
+          diffReason: data.signRecord.diffReason || ''
+        }
+      ]
     }
-  } catch {
-    orderInfo.value = {
-      orderNo: `ORD-${orderId}`,
-      receiverName: '张三',
-      address: '朝阳区建国路88号',
-      riderName: '骑手A',
-      status: 'DELIVERING',
-      statusLabel: '配送中'
-    }
-    signDiffList.value = [
-      { skuName: '商品A', expectedQty: 10, actualQty: 10, diffQty: 0, diffReason: '' },
-      { skuName: '商品B', expectedQty: 5, actualQty: 4, diffQty: -1, diffReason: '配送途中破损' },
-      { skuName: '商品C', expectedQty: 8, actualQty: 7, diffQty: -1, diffReason: '数量不足' }
-    ]
-    inventoryList.value = [
-      { skuCode: 'SKU-001', skuName: '商品A', quantity: 120 },
-      { skuCode: 'SKU-002', skuName: '商品B', quantity: 8 },
-      { skuCode: 'SKU-003', skuName: '商品C', quantity: 45 },
-      { skuCode: 'SKU-004', skuName: '商品D', quantity: 3 }
-    ]
-    deliveryDetail.value = {
-      status: '配送中',
-      statusType: 'warning',
-      orderTime: '2026-06-16 10:00',
-      acceptTime: '2026-06-16 10:05',
-      pickupTime: '2026-06-16 10:30',
-      deliverTime: '-',
-      promiseTime: '90分钟'
-    }
-    operationLogs.value = [
-      { time: '2026-06-16 10:30', content: '骑手取货出发', type: 'primary', operator: '骑手A' },
-      { time: '2026-06-16 10:05', content: '骑手确认接单', type: 'primary', operator: '骑手A' },
-      { time: '2026-06-16 10:00', content: '系统派单', type: 'info', operator: '系统' }
-    ]
+
+    inventoryList.value = data.stationInventoryList || []
+
+    operationLogs.value = buildOperationLogs(data)
+  } catch (e) {
+    console.error('待办详情加载失败', e)
   }
+}
+
+function buildOperationLogs(data) {
+  const logs = []
+  if (data.signTime) {
+    logs.push({ time: formatTime(data.signTime), content: '订单已签收', type: 'success', operator: '骑手' })
+  }
+  if (data.deliverTime) {
+    logs.push({ time: formatTime(data.deliverTime), content: '骑手正在配送', type: 'primary', operator: '骑手' })
+  }
+  if (data.pickupTime) {
+    logs.push({ time: formatTime(data.pickupTime), content: '骑手取货出发', type: 'primary', operator: '骑手' })
+  }
+  if (data.acceptTime) {
+    logs.push({ time: formatTime(data.acceptTime), content: '骑手确认接单', type: 'primary', operator: '骑手' })
+  }
+  if (data.createTime) {
+    logs.push({ time: formatTime(data.createTime), content: '系统派单', type: 'info', operator: '系统' })
+  }
+  return logs
 }
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.page-container {
+  padding: 16px;
+}
+</style>

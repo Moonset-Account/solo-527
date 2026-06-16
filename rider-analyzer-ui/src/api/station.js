@@ -1,9 +1,9 @@
 import request from './request'
 
-export function getStations(params) {
-  return request.get('/stations', { params })
+export function getStations() {
+  return request.get('/stations')
 }
 
-export function getStationInventory(stationId, params) {
-  return request.get(`/stations/${stationId}/inventory`, { params })
+export function getStationInventory(stationId) {
+  return request.get(`/stations/${stationId}/inventory`)
 }

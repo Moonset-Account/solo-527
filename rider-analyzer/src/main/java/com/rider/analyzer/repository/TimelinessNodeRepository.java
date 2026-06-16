@@ -13,4 +13,6 @@ public interface TimelinessNodeRepository extends JpaRepository<TimelinessNode, 
     List<TimelinessNode> findByIsTimeoutAndCreateTimeBetween(Integer isTimeout, LocalDateTime start, LocalDateTime end);
 
     List<TimelinessNode> findByNodeTypeAndIsTimeout(String nodeType, Integer isTimeout);
+
+    List<TimelinessNode> findByNodeTypeAndCreateTimeBetween(String nodeType, LocalDateTime start, LocalDateTime end);
 }

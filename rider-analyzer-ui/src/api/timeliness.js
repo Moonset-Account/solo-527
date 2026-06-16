@@ -8,6 +8,10 @@ export function getFulfillmentData(params) {
   return request.get('/timeliness/fulfillment', { params })
 }
 
-export function getNodeStats(params) {
-  return request.get('/timeliness/node-stats', { params })
+export function getFulfillmentByStation(params) {
+  return request.get('/timeliness/fulfillment-by-station', { params })
+}
+
+export function getNodeStats() {
+  return request.get('/timeliness/stats')
 }

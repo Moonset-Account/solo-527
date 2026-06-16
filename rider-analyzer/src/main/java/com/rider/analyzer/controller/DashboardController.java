@@ -2,11 +2,10 @@ package com.rider.analyzer.controller;
 
 import com.rider.analyzer.common.Result;
 import com.rider.analyzer.dto.DashboardStatsDTO;
+import com.rider.analyzer.dto.SettlementAccuracyVO;
 import com.rider.analyzer.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -21,7 +20,8 @@ public class DashboardController {
     }
 
     @GetMapping("/settlement-accuracy")
-    public Result<BigDecimal> getSettlementAccuracy() {
-        return Result.success(dashboardService.getSettlementAccuracy());
+    public Result<SettlementAccuracyVO> getSettlementAccuracy(
+            @RequestParam(defaultValue = "7") int days) {
+        return Result.success(dashboardService.getSettlementAccuracyTrend(days));
     }
 }

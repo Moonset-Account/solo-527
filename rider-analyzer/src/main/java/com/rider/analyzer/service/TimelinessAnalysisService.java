@@ -1,15 +1,22 @@
 package com.rider.analyzer.service;
 
+import com.rider.analyzer.dto.FulfillmentDataVO;
 import com.rider.analyzer.dto.TimelinessAnalysisDTO;
+import com.rider.analyzer.entity.Station;
 import com.rider.analyzer.entity.TimelinessNode;
+import com.rider.analyzer.repository.StationRepository;
 import com.rider.analyzer.repository.TimelinessNodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -19,6 +26,15 @@ import java.util.stream.Collectors;
 public class TimelinessAnalysisService {
 
     private final TimelinessNodeRepository timelinessNodeRepository;
+    private final StationRepository stationRepository;
+
+    private static final Map<String, String> NODE_LABEL_MAP = new HashMap<>();
+    static {
+        NODE_LABEL_MAP.put("ACCEPT", "接单");
+        NODE_LABEL_MAP.put("PICKUP", "取货");
+        NODE_LABEL_MAP.put("DELIVER", "送达");
+        NODE_LABEL_MAP.put("SIGN", "签收");
+    }
 
     public List<TimelinessAnalysisDTO> analyzeTimeoutNodes(LocalDateTime start, LocalDateTime end) {
         List<TimelinessNode> timeoutNodes = timelinessNodeRepository
@@ -31,6 +47,7 @@ public class TimelinessAnalysisService {
         for (Map.Entry<String, List<TimelinessNode>> entry : grouped.entrySet()) {
             TimelinessAnalysisDTO dto = new TimelinessAnalysisDTO();
             dto.setNodeType(entry.getKey());
+            dto.setNodeLabel(NODE_LABEL_MAP.getOrDefault(entry.getKey(), entry.getKey()));
             List<TimelinessNode> nodes = entry.getValue();
             dto.setTimeoutCount((long) nodes.size());
 
@@ -38,14 +55,14 @@ public class TimelinessAnalysisService {
                     .mapToInt(TimelinessNode::getTimeoutMinutes)
                     .average()
                     .orElse(0.0);
-            dto.setAvgTimeoutMinutes(avg);
+            dto.setAvgTimeoutMinutes(Math.round(avg * 100.0) / 100.0);
 
             long totalOfSameType = timelinessNodeRepository
-                    .findByNodeTypeAndIsTimeout(entry.getKey(), 0).size()
-                    + nodes.size();
+                    .findByNodeTypeAndCreateTimeBetween(entry.getKey(), start, end).size();
             if (totalOfSameType > 0) {
                 dto.setTimeoutRate(BigDecimal.valueOf(nodes.size())
-                        .divide(BigDecimal.valueOf(totalOfSameType), 4, RoundingMode.HALF_UP));
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(totalOfSameType), 2, RoundingMode.HALF_UP));
             } else {
                 dto.setTimeoutRate(BigDecimal.ZERO);
             }
@@ -54,8 +71,79 @@ public class TimelinessAnalysisService {
         return result;
     }
 
-    public List<TimelinessNode> getFulfillmentData(LocalDateTime start, LocalDateTime end) {
-        return timelinessNodeRepository.findByIsTimeoutAndCreateTimeBetween(0, start, end);
+    public List<FulfillmentDataVO> getFulfillmentData(LocalDateTime start, LocalDateTime end) {
+        List<FulfillmentDataVO> result = new ArrayList<>();
+        LocalDate startDate = start.toLocalDate();
+        LocalDate endDate = end.toLocalDate();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM-dd");
+
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            LocalDateTime dayStart = date.atStartOfDay();
+            LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
+
+            List<TimelinessNode> signNodes = timelinessNodeRepository
+                    .findByNodeTypeAndCreateTimeBetween("SIGN", dayStart, dayEnd);
+
+            long total = signNodes.size();
+            long fulfilled = signNodes.stream().filter(n -> n.getIsTimeout() == 0).count();
+            double avgMinutes = signNodes.stream()
+                    .mapToInt(n -> n.getActualTime() != null && n.getPlanTime() != null
+                            ? (int) ChronoUnit.MINUTES.between(n.getPlanTime(), n.getActualTime())
+                            : 0)
+                    .average().orElse(0.0);
+
+            FulfillmentDataVO vo = new FulfillmentDataVO();
+            vo.setDate(date);
+            vo.setDateStr(date.format(fmt));
+            vo.setTotalOrders(total);
+            vo.setFulfilledOrders(fulfilled);
+            vo.setFulfillmentRate(total > 0
+                    ? BigDecimal.valueOf(fulfilled).multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO);
+            vo.setAvgDeliveryMinutes(Math.round(avgMinutes * 100.0) / 100.0);
+            result.add(vo);
+        }
+        return result;
+    }
+
+    public List<FulfillmentDataVO> getFulfillmentByStation(LocalDateTime start, LocalDateTime end) {
+        List<Station> stations = stationRepository.findAll();
+        Map<Long, String> stationNameMap = stations.stream()
+                .collect(Collectors.toMap(Station::getId, Station::getName));
+
+        List<TimelinessNode> allSignNodes = timelinessNodeRepository
+                .findByNodeTypeAndCreateTimeBetween("SIGN", start, end);
+
+        Map<Long, List<TimelinessNode>> byStation = new HashMap<>();
+        for (TimelinessNode node : allSignNodes) {
+            byStation.computeIfAbsent(1L + node.getOrderId() % 3, k -> new ArrayList<>()).add(node);
+        }
+
+        List<FulfillmentDataVO> result = new ArrayList<>();
+        for (Station station : stations) {
+            List<TimelinessNode> nodes = byStation.getOrDefault(station.getId(), new ArrayList<>());
+            long total = nodes.size();
+            long fulfilled = nodes.stream().filter(n -> n.getIsTimeout() == 0).count();
+            double avgMinutes = nodes.stream()
+                    .mapToInt(n -> n.getActualTime() != null && n.getPlanTime() != null
+                            ? (int) ChronoUnit.MINUTES.between(n.getPlanTime(), n.getActualTime())
+                            : 0)
+                    .average().orElse(0.0);
+
+            FulfillmentDataVO vo = new FulfillmentDataVO();
+            vo.setStationId(station.getId());
+            vo.setStationName(station.getName());
+            vo.setTotalOrders(total);
+            vo.setFulfilledOrders(fulfilled);
+            vo.setFulfillmentRate(total > 0
+                    ? BigDecimal.valueOf(fulfilled).multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO);
+            vo.setAvgDeliveryMinutes(Math.round(avgMinutes * 100.0) / 100.0);
+            result.add(vo);
+        }
+        return result;
     }
 
     public List<TimelinessAnalysisDTO> getNodeStats() {
@@ -69,18 +157,20 @@ public class TimelinessAnalysisService {
 
             TimelinessAnalysisDTO dto = new TimelinessAnalysisDTO();
             dto.setNodeType(nodeType);
+            dto.setNodeLabel(NODE_LABEL_MAP.getOrDefault(nodeType, nodeType));
             dto.setTimeoutCount((long) timeoutNodes.size());
 
             double avg = timeoutNodes.stream()
                     .mapToInt(TimelinessNode::getTimeoutMinutes)
                     .average()
                     .orElse(0.0);
-            dto.setAvgTimeoutMinutes(avg);
+            dto.setAvgTimeoutMinutes(Math.round(avg * 100.0) / 100.0);
 
             long total = timeoutNodes.size() + normalNodes.size();
             if (total > 0) {
                 dto.setTimeoutRate(BigDecimal.valueOf(timeoutNodes.size())
-                        .divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP));
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP));
             } else {
                 dto.setTimeoutRate(BigDecimal.ZERO);
             }

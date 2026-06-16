@@ -10,15 +10,19 @@ public class TodoDetailDTO {
 
     private Long orderId;
     private String orderNo;
+    private Long stationId;
+    private String stationName;
     private String receiverName;
     private String receiverPhone;
     private String receiverAddress;
     private String status;
+    private String statusLabel;
     private LocalDateTime promiseTime;
     private LocalDateTime acceptTime;
     private LocalDateTime pickupTime;
     private LocalDateTime deliverTime;
     private LocalDateTime signTime;
+    private LocalDateTime createTime;
 
     private SignRecordInfo signRecord;
     private List<StationInventoryInfo> stationInventoryList;

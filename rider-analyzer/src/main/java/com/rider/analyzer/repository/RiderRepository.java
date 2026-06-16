@@ -10,4 +10,6 @@ public interface RiderRepository extends JpaRepository<Rider, Long> {
     List<Rider> findByStationId(Long stationId);
 
     List<Rider> findByStatus(String status);
+
+    List<Rider> findByStationIdAndStatus(Long stationId, String status);
 }

@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public class TimelinessAnalysisDTO {
 
     private String nodeType;
+    private String nodeLabel;
     private Long timeoutCount;
     private Double avgTimeoutMinutes;
     private BigDecimal timeoutRate;

@@ -1,8 +1,8 @@
 package com.rider.analyzer.controller;
 
 import com.rider.analyzer.common.Result;
+import com.rider.analyzer.dto.FulfillmentDataVO;
 import com.rider.analyzer.dto.TimelinessAnalysisDTO;
-import com.rider.analyzer.entity.TimelinessNode;
 import com.rider.analyzer.service.TimelinessAnalysisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,10 +26,17 @@ public class TimelinessController {
     }
 
     @GetMapping("/fulfillment")
-    public Result<List<TimelinessNode>> getFulfillmentData(
+    public Result<List<FulfillmentDataVO>> getFulfillmentData(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         return Result.success(timelinessAnalysisService.getFulfillmentData(start, end));
+    }
+
+    @GetMapping("/fulfillment-by-station")
+    public Result<List<FulfillmentDataVO>> getFulfillmentByStation(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+        return Result.success(timelinessAnalysisService.getFulfillmentByStation(start, end));
     }
 
     @GetMapping("/stats")

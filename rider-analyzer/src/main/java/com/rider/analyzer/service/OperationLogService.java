@@ -27,8 +27,11 @@ public class OperationLogService {
         operationLog.setIp(ip);
         operationLogRepository.save(operationLog);
 
-        String key = "op_log:" + module + ":" + System.currentTimeMillis();
-        redisTemplate.opsForValue().set(key, operationLog, 7, TimeUnit.DAYS);
+        try {
+            String key = "op_log:" + module + ":" + System.currentTimeMillis();
+            redisTemplate.opsForValue().set(key, operationLog, 7, TimeUnit.DAYS);
+        } catch (Exception ignored) {
+        }
     }
 
     public List<OperationLog> queryLogs(String module, LocalDateTime start, LocalDateTime end) {

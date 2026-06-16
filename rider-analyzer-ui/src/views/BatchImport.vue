@@ -17,7 +17,7 @@
                 ref="uploadRef"
                 :auto-upload="false"
                 :limit="1"
-                accept=".xlsx,.xls,.csv"
+                accept=".csv"
                 :on-change="handleFileChange"
                 :on-exceed="() => ElMessage.warning('只能上传一个文件')"
                 :file-list="fileList"
@@ -26,7 +26,7 @@
                   <el-icon><Upload /></el-icon>选择文件
                 </el-button>
                 <template #tip>
-                  <div style="font-size: 12px; color: #909399; margin-top: 4px">支持 .xlsx / .xls / .csv 格式</div>
+                  <div style="font-size: 12px; color: #909399; margin-top: 4px">支持 .csv 格式</div>
                 </template>
               </el-upload>
             </el-form-item>
@@ -37,12 +37,16 @@
 
           <div v-if="importResult" style="margin-top: 16px">
             <el-alert
-              :title="`校验完成：成功 ${importResult.successCount} 条，失败 ${importResult.failCount} 条`"
+              :title="`校验完成：共 ${importResult.totalCount} 条，成功 ${importResult.successCount} 条，失败 ${importResult.failCount} 条`"
               :type="importResult.failCount > 0 ? 'warning' : 'success'"
               show-icon
               :closable="false"
               style="margin-bottom: 12px"
             />
+            <div style="margin-bottom: 8px">
+              <el-tag type="info" size="small">批次号：{{ importResult.batchNo }}</el-tag>
+              <el-tag size="small" style="margin-left: 8px">状态：{{ statusLabel(importResult.status) }}</el-tag>
+            </div>
             <div v-if="importResult.failCount > 0">
               <el-button type="danger" size="small" @click="downloadErrorFile">
                 <el-icon><Download /></el-icon>下载错误记录
@@ -60,23 +64,53 @@
 
       <el-col :span="12">
         <el-card>
-          <template #header>待审批列表</template>
-          <el-table :data="pendingList" stripe size="small">
-            <el-table-column prop="batchNo" label="批次号" width="150" />
+          <template #header>
+            <span>审批列表</span>
+            <el-select v-model="listStatus" placeholder="状态筛选" clearable size="small" style="width: 120px; margin-left: 12px" @change="loadBatchList">
+              <el-option label="待审批" value="PENDING" />
+              <el-option label="已通过" value="APPROVED" />
+              <el-option label="已拒绝" value="REJECTED" />
+            </el-select>
+          </template>
+          <el-table :data="batchList" stripe size="small" v-loading="listLoading">
+            <el-table-column prop="batchNo" label="批次号" width="170" />
             <el-table-column prop="type" label="类型" width="80">
               <template #default="{ row }">
                 <el-tag size="small">{{ typeLabel(row.type) }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="count" label="数量" width="70" align="center" />
-            <el-table-column prop="createdAt" label="提交时间" width="160" />
-            <el-table-column label="操作" width="150">
+            <el-table-column prop="totalCount" label="总数" width="70" align="center" />
+            <el-table-column prop="successCount" label="成功" width="70" align="center" />
+            <el-table-column prop="failCount" label="失败" width="70" align="center" />
+            <el-table-column prop="status" label="状态" width="90">
               <template #default="{ row }">
-                <el-button type="success" size="small" @click="handleApprove(row, true)">通过</el-button>
-                <el-button type="danger" size="small" @click="handleApprove(row, false)">拒绝</el-button>
+                <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="createTime" label="提交时间" width="160">
+              <template #default="{ row }">
+                {{ formatTime(row.createTime) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150" fixed="right">
+              <template #default="{ row }">
+                <el-button v-if="row.status === 'PENDING'" type="success" size="small" link @click="handleApprove(row, true)">通过</el-button>
+                <el-button v-if="row.status === 'PENDING'" type="danger" size="small" link @click="handleApprove(row, false)">拒绝</el-button>
+                <el-button v-if="row.failCount > 0" type="primary" size="small" link @click="downloadErrors(row.batchNo)">下载错误</el-button>
               </template>
             </el-table-column>
           </el-table>
+
+          <el-pagination
+            v-model:current-page="page"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50]"
+            layout="total, sizes, prev, pager, next"
+            style="margin-top: 16px; justify-content: flex-end; display: flex"
+            @current-change="loadBatchList"
+            @size-change="loadBatchList"
+          />
         </el-card>
       </el-col>
     </el-row>
@@ -86,9 +120,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { batchImport, batchApprove, downloadErrors } from '../api/batch'
-import * as XLSX from 'xlsx'
-import { saveAs } from 'file-saver'
+import { Upload, Download } from '@element-plus/icons-vue'
+import { batchImport, batchApprove, getBatchList, downloadErrors as downloadErrorsApi } from '../api/batch'
+import dayjs from 'dayjs'
 
 const importType = ref('order')
 const uploadRef = ref(null)
@@ -96,11 +130,31 @@ const fileList = ref([])
 const selectedFile = ref(null)
 const importing = ref(false)
 const importResult = ref(null)
-const pendingList = ref([])
+
+const listLoading = ref(false)
+const listStatus = ref('')
+const batchList = ref([])
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 function typeLabel(type) {
   const map = { rider: '骑手', order: '订单', inventory: '库存' }
   return map[type] || type
+}
+
+function statusLabel(status) {
+  const map = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已拒绝' }
+  return map[status] || status
+}
+
+function statusTagType(status) {
+  const map = { PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger' }
+  return map[status] || ''
+}
+
+function formatTime(t) {
+  return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
 }
 
 function handleFileChange(file) {
@@ -121,46 +175,63 @@ async function handleImport() {
     formData.append('type', importType.value)
     const res = await batchImport(formData)
     importResult.value = res.data
-    loadPendingList()
-  } catch {
-    importResult.value = {
-      successCount: 45,
-      failCount: 5,
-      batchId: 'BATCH-001',
-      errorRecords: [
-        { row: 3, field: '手机号', value: '138', reason: '手机号格式不正确' },
-        { row: 7, field: '地址', value: '', reason: '地址不能为空' },
-        { row: 12, field: '数量', value: '-1', reason: '数量必须为正整数' },
-        { row: 18, field: 'SKU编码', value: 'XXX', reason: 'SKU编码不存在' },
-        { row: 25, field: '承诺时间', value: '2026-13-01', reason: '日期格式不正确' }
-      ]
-    }
-    loadPendingList()
+    ElMessage.success('校验完成')
+    loadBatchList()
+  } catch (e) {
+    console.error('导入失败', e)
   } finally {
     importing.value = false
   }
 }
 
-function downloadErrorFile() {
-  if (!importResult.value?.errorRecords?.length) return
-  const ws = XLSX.utils.json_to_sheet(importResult.value.errorRecords)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '错误记录')
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `导入错误记录_${importType.value}.xlsx`)
-  ElMessage.success('错误记录已下载')
+async function downloadErrorFile() {
+  if (!importResult.value?.batchNo) return
+  try {
+    const res = await downloadErrorsApi(importResult.value.batchNo)
+    const url = window.URL.createObjectURL(new Blob([res]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `errors_${importResult.value.batchNo}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    ElMessage.success('下载成功')
+  } catch (e) {
+    console.error('下载失败', e)
+  }
 }
 
-async function loadPendingList() {
+async function downloadErrors(batchNo) {
   try {
-    const res = await batchApprove({ action: 'list' })
-    pendingList.value = res.data?.list || []
-  } catch {
-    pendingList.value = [
-      { id: 1, batchNo: 'BATCH-20260615001', type: 'order', count: 50, createdAt: '2026-06-15 10:00' },
-      { id: 2, batchNo: 'BATCH-20260615002', type: 'rider', count: 20, createdAt: '2026-06-15 14:30' },
-      { id: 3, batchNo: 'BATCH-20260616001', type: 'inventory', count: 100, createdAt: '2026-06-16 09:00' }
-    ]
+    const res = await downloadErrorsApi(batchNo)
+    const url = window.URL.createObjectURL(new Blob([res]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `errors_${batchNo}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    ElMessage.success('下载成功')
+  } catch (e) {
+    console.error('下载失败', e)
+  }
+}
+
+async function loadBatchList() {
+  listLoading.value = true
+  try {
+    const params = {
+      page: page.value,
+      pageSize: pageSize.value,
+      status: listStatus.value || undefined
+    }
+    const res = await getBatchList(params)
+    batchList.value = res.data.list || []
+    total.value = res.data.total || 0
+  } catch (e) {
+    console.error('列表加载失败', e)
+  } finally {
+    listLoading.value = false
   }
 }
 
@@ -168,11 +239,21 @@ async function handleApprove(row, approved) {
   const action = approved ? '通过' : '拒绝'
   try {
     await ElMessageBox.confirm(`确认${action}批次 ${row.batchNo}？`, '审批确认', { type: 'warning' })
-    await batchApprove({ id: row.id, approved })
+    await batchApprove(row.batchNo, approved)
     ElMessage.success(`${action}成功`)
-    loadPendingList()
-  } catch {}
+    loadBatchList()
+  } catch (e) {
+    if (e !== 'cancel') {
+      console.error('审批失败', e)
+    }
+  }
 }
 
-onMounted(loadPendingList)
+onMounted(loadBatchList)
 </script>
+
+<style scoped>
+.page-container {
+  padding: 16px;
+}
+</style>

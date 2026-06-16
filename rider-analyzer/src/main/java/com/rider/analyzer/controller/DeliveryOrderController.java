@@ -2,14 +2,14 @@ package com.rider.analyzer.controller;
 
 import com.rider.analyzer.common.Result;
 import com.rider.analyzer.dto.OrderAcceptDTO;
+import com.rider.analyzer.dto.OrderVO;
+import com.rider.analyzer.dto.PageResult;
 import com.rider.analyzer.dto.TodoDetailDTO;
 import com.rider.analyzer.entity.DeliveryOrder;
 import com.rider.analyzer.service.DeliveryOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -34,9 +34,12 @@ public class DeliveryOrderController {
     }
 
     @GetMapping("/list")
-    public Result<List<DeliveryOrder>> getOrderList(
+    public Result<PageResult<OrderVO>> getOrderList(
             @RequestParam(required = false) Long riderId,
-            @RequestParam(required = false) String status) {
-        return Result.success(deliveryOrderService.getOrderList(riderId, status));
+            @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return Result.success(deliveryOrderService.getOrderList(riderId, stationId, status, page, pageSize));
     }
 }

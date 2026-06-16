@@ -1,17 +1,21 @@
 import request from './request'
 
-export function acceptOrder(orderId) {
-  return request.post(`/orders/${orderId}/accept`)
+export function acceptOrder(data) {
+  return request.post('/orders/accept', data)
 }
 
-export function getTodoDetail(orderId) {
-  return request.get(`/orders/${orderId}/todo`)
+export function getTodoDetail(id) {
+  return request.get(`/orders/todo/${id}`)
 }
 
-export function getRouteInfo(orderId) {
-  return request.get(`/orders/${orderId}/route`)
+export function getRouteInfo(id) {
+  return request.get(`/orders/route/${id}`)
 }
 
 export function getOrderList(params) {
-  return request.get('/orders', { params })
+  return request.get('/orders/list', { params })
+}
+
+export function updateOrderStatus(orderId, status) {
+  return request.put(`/orders/${orderId}/status`, { status })
 }

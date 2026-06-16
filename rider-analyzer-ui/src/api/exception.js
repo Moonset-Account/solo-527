@@ -9,5 +9,5 @@ export function handleException(id, data) {
 }
 
 export function getExceptionList(params) {
-  return request.get('/exceptions', { params })
+  return request.get('/exceptions/list', { params })
 }

@@ -2,16 +2,18 @@
   <div class="page-container">
     <div class="filter-bar">
       <el-select v-model="filters.type" placeholder="异常类型" clearable style="width: 140px">
-        <el-option label="温度异常" value="温度异常" />
-        <el-option label="超时" value="超时" />
-        <el-option label="破损" value="破损" />
-        <el-option label="其他" value="其他" />
+        <el-option label="温度异常" value="TEMPERATURE" />
+        <el-option label="超时" value="DELAY" />
+        <el-option label="破损" value="DAMAGE" />
+        <el-option label="其他" value="OTHER" />
       </el-select>
       <el-select v-model="filters.status" placeholder="状态筛选" clearable style="width: 140px">
         <el-option label="待处理" value="PENDING" />
-        <el-option label="已处理" value="HANDLED" />
+        <el-option label="已处理" value="RESOLVED" />
       </el-select>
-      <el-date-picker v-model="filters.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 280px" />
+      <el-date-picker v-model="filters.dateRange" type="daterange" range-separator="至"
+        start-placeholder="开始日期" end-placeholder="结束日期"
+        value-format="YYYY-MM-DD" style="width: 280px" />
       <el-button type="primary" @click="handleSearch">
         <el-icon><Search /></el-icon>查询
       </el-button>
@@ -19,29 +21,33 @@
     </div>
 
     <el-table :data="exceptionList" stripe v-loading="loading" size="small">
-      <el-table-column prop="orderNo" label="订单号" width="170" />
-      <el-table-column prop="type" label="异常类型" width="100">
+      <el-table-column prop="orderNo" label="订单号" width="190" />
+      <el-table-column label="异常类型" width="100">
         <template #default="{ row }">
-          <el-tag :type="typeTagMap[row.type] || ''" size="small">{{ row.type }}</el-tag>
+          <el-tag :type="typeTagMap[row.type] || ''" size="small">{{ row.typeLabel }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="description" label="描述" show-overflow-tooltip />
-      <el-table-column prop="tempReason" label="温度异常原因" width="140" show-overflow-tooltip />
-      <el-table-column prop="handleDuration" label="处理耗时(分钟)" width="120" align="center">
+      <el-table-column prop="tempAnomalyReason" label="温度异常原因" width="150" show-overflow-tooltip />
+      <el-table-column label="处理耗时(分钟)" width="120" align="center">
         <template #default="{ row }">
-          {{ row.handleDuration != null ? row.handleDuration : '-' }}
+          {{ row.handleDurationMin != null ? row.handleDurationMin : '-' }}
         </template>
       </el-table-column>
-      <el-table-column prop="handler" label="负责人" width="90" />
-      <el-table-column prop="status" label="状态" width="80" align="center">
+      <el-table-column prop="handlerName" label="负责人" width="100" />
+      <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'HANDLED' ? 'success' : 'danger'" size="small">{{ row.status === 'HANDLED' ? '已处理' : '待处理' }}</el-tag>
+          <el-tag :type="row.status === 'RESOLVED' ? 'success' : 'danger'" size="small">{{ row.statusLabel }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="170" />
+      <el-table-column label="创建时间" width="170">
+        <template #default="{ row }">
+          {{ formatTime(row.createTime) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.status !== 'HANDLED'" type="primary" size="small" link @click="openHandleDialog(row)">处理</el-button>
+          <el-button v-if="row.status !== 'RESOLVED'" type="primary" size="small" link @click="openHandleDialog(row)">处理</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -58,14 +64,14 @@
 
     <el-dialog v-model="dialogVisible" title="处理异常" width="480px" destroy-on-close>
       <el-form ref="formRef" :model="handleForm" :rules="formRules" label-width="120px">
-        <el-form-item label="温度异常原因" prop="tempReason">
-          <el-input v-model="handleForm.tempReason" type="textarea" :rows="3" placeholder="请输入温度异常原因" />
+        <el-form-item label="温度异常原因" prop="tempAnomalyReason">
+          <el-input v-model="handleForm.tempAnomalyReason" type="textarea" :rows="3" placeholder="请输入温度异常原因" />
         </el-form-item>
-        <el-form-item label="处理耗时(分钟)" prop="handleDuration">
-          <el-input-number v-model="handleForm.handleDuration" :min="0" :max="9999" style="width: 100%" />
+        <el-form-item label="处理耗时(分钟)" prop="handleDurationMin">
+          <el-input-number v-model="handleForm.handleDurationMin" :min="0" :max="9999" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="负责人" prop="handler">
-          <el-input v-model="handleForm.handler" placeholder="请输入负责人" />
+        <el-form-item label="负责人" prop="handlerName">
+          <el-input v-model="handleForm.handlerName" placeholder="请输入负责人" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -79,9 +85,11 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { getExceptionList, handleException } from '../api/exception'
+import dayjs from 'dayjs'
 
-const typeTagMap = { '温度异常': 'danger', '超时': 'warning', '破损': 'info', '其他': '' }
+const typeTagMap = { TEMPERATURE: 'danger', DELAY: 'warning', DAMAGE: 'info', OTHER: '' }
 
 const loading = ref(false)
 const exceptionList = ref([])
@@ -99,15 +107,19 @@ const filters = ref({
 })
 
 const handleForm = reactive({
-  tempReason: '',
-  handleDuration: 0,
-  handler: ''
+  tempAnomalyReason: '',
+  handleDurationMin: 0,
+  handlerName: ''
 })
 
 const formRules = {
-  tempReason: [{ required: true, message: '请输入温度异常原因', trigger: 'blur' }],
-  handleDuration: [{ required: true, message: '请输入处理耗时', trigger: 'change' }],
-  handler: [{ required: true, message: '请输入负责人', trigger: 'blur' }]
+  tempAnomalyReason: [{ required: true, message: '请输入温度异常原因', trigger: 'blur' }],
+  handleDurationMin: [{ required: true, message: '请输入处理耗时', trigger: 'change' }],
+  handlerName: [{ required: true, message: '请输入负责人', trigger: 'blur' }]
+}
+
+function formatTime(t) {
+  return t ? dayjs(t).format('YYYY-MM-DD HH:mm') : '-'
 }
 
 async function fetchData() {
@@ -116,23 +128,12 @@ async function fetchData() {
     const params = {
       page: page.value,
       pageSize: pageSize.value,
-      type: filters.value.type,
-      status: filters.value.status,
-      startDate: filters.value.dateRange?.[0],
-      endDate: filters.value.dateRange?.[1]
+      type: filters.value.type || undefined,
+      status: filters.value.status || undefined
     }
     const res = await getExceptionList(params)
-    exceptionList.value = res.data?.list || []
-    total.value = res.data?.total || 0
-  } catch {
-    exceptionList.value = [
-      { id: 1, orderNo: 'ORD-20260616001', type: '温度异常', description: '冷链配送温度超标2度', tempReason: '', handleDuration: null, handler: '', status: 'PENDING', createdAt: '2026-06-16 14:30:00' },
-      { id: 2, orderNo: 'ORD-20260616002', type: '超时', description: '配送延迟30分钟', tempReason: '不适用', handleDuration: 25, handler: '张主管', status: 'HANDLED', createdAt: '2026-06-16 12:15:00' },
-      { id: 3, orderNo: 'ORD-20260615003', type: '破损', description: '商品外包装破损', tempReason: '不适用', handleDuration: 15, handler: '李主管', status: 'HANDLED', createdAt: '2026-06-15 16:45:00' },
-      { id: 4, orderNo: 'ORD-20260615004', type: '温度异常', description: '冷冻品温度异常升高', tempReason: '冷链箱密封不严', handleDuration: 40, handler: '王主管', status: 'HANDLED', createdAt: '2026-06-15 09:20:00' },
-      { id: 5, orderNo: 'ORD-20260614005', type: '其他', description: '客户拒收', tempReason: '', handleDuration: null, handler: '', status: 'PENDING', createdAt: '2026-06-14 17:00:00' }
-    ]
-    total.value = 5
+    exceptionList.value = res.data.list || []
+    total.value = res.data.total || 0
   } finally {
     loading.value = false
   }
@@ -140,9 +141,9 @@ async function fetchData() {
 
 function openHandleDialog(row) {
   currentExceptionId.value = row.id
-  handleForm.tempReason = row.tempReason || ''
-  handleForm.handleDuration = row.handleDuration || 0
-  handleForm.handler = row.handler || ''
+  handleForm.tempAnomalyReason = row.tempAnomalyReason || ''
+  handleForm.handleDurationMin = row.handleDurationMin || 0
+  handleForm.handlerName = row.handlerName || ''
   dialogVisible.value = true
 }
 
@@ -170,3 +171,21 @@ function handleReset() {
 
 onMounted(fetchData)
 </script>
+
+<style scoped>
+.page-container {
+  padding: 16px;
+}
+.filter-bar {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.el-pagination {
+  margin-top: 16px;
+  justify-content: flex-end;
+  display: flex;
+}
+</style>

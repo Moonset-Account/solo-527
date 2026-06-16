@@ -1,6 +1,8 @@
 package com.rider.analyzer.repository;
 
 import com.rider.analyzer.entity.BatchImportRecord;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -8,4 +10,6 @@ import java.util.Optional;
 public interface BatchImportRecordRepository extends JpaRepository<BatchImportRecord, Long> {
 
     Optional<BatchImportRecord> findByBatchNo(String batchNo);
+
+    Page<BatchImportRecord> findByStatus(String status, Pageable pageable);
 }
