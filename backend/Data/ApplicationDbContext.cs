@@ -59,7 +59,8 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Grid)
                   .WithMany(g => g.Residents)
                   .HasForeignKey(e => e.GridId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<GridEvent>(entity =>
