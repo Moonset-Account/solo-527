@@ -1,5 +1,6 @@
 package com.pm.workstation.entity;
 
+import com.pm.workstation.config.RemindMethodListConverter;
 import com.pm.workstation.enums.ReminderType;
 import com.pm.workstation.enums.RemindMethod;
 import jakarta.persistence.*;
@@ -32,6 +33,7 @@ public class ReminderRule {
     @Column(columnDefinition = "JSON")
     private String triggerCondition;
 
+    @Convert(converter = RemindMethodListConverter.class)
     @Column(columnDefinition = "JSON")
     private List<RemindMethod> remindMethod;
 

@@ -4,7 +4,6 @@ import com.pm.workstation.dto.ApiResponseDTO;
 import com.pm.workstation.dto.ReminderRuleDTO;
 import com.pm.workstation.entity.ReminderRule;
 import com.pm.workstation.service.ReminderService;
-import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,12 +23,12 @@ public class ReminderController {
     private ReminderService reminderService;
 
     @PostMapping("/rules")
-    public ApiResponseDTO<ReminderRule> createRule(@Valid @RequestBody ReminderRuleDTO dto) {
+    public ApiResponseDTO<ReminderRule> createRule(@RequestBody ReminderRuleDTO dto) {
         return ApiResponseDTO.success(reminderService.createRule(dto));
     }
 
     @PutMapping("/rules/{id}")
-    public ApiResponseDTO<ReminderRule> updateRule(@PathVariable Long id, @Valid @RequestBody ReminderRuleDTO dto) {
+    public ApiResponseDTO<ReminderRule> updateRule(@PathVariable Long id, @RequestBody ReminderRuleDTO dto) {
         return ApiResponseDTO.success(reminderService.updateRule(id, dto));
     }
 

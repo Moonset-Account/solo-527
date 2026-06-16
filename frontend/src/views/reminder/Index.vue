@@ -206,10 +206,13 @@ function openDialog(row) {
 async function handleSave() {
   try {
     const payload = {
-      ...form.value,
-      triggerCondition: { hours: form.value.triggerHours }
+      ruleName: form.value.ruleName,
+      ruleType: form.value.ruleType,
+      triggerHours: form.value.triggerHours,
+      remindMethod: form.value.remindMethod,
+      remindBeforeHours: form.value.remindBeforeHours,
+      enabled: form.value.enabled
     }
-    delete payload.triggerHours
     if (editingId.value) {
       await updateRule(editingId.value, payload)
       ElMessage.success('更新成功')

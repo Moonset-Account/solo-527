@@ -1,5 +1,6 @@
 package com.pm.workstation.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pm.workstation.dto.ReminderRuleDTO;
 import com.pm.workstation.entity.Comment;
 import com.pm.workstation.entity.MeetingMinutes;
@@ -35,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReminderServiceImpl implements ReminderService {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     @Autowired
     private ReminderRuleRepository reminderRuleRepository;
 
@@ -66,13 +69,13 @@ public class ReminderServiceImpl implements ReminderService {
     @Transactional
     public ReminderRule createRule(ReminderRuleDTO dto) {
         ReminderRule rule = new ReminderRule();
-        rule.setRuleName(dto.getRuleName());
-        rule.setRuleType(dto.getRuleType());
-        if (dto.getTriggerHours() != null) {
-            rule.setTriggerCondition("{\"hours\":" + dto.getTriggerHours() + "}");
-        } else {
-            rule.setTriggerCondition(dto.getTriggerCondition());
+        if (dto.getRuleName() != null) {
+            rule.setRuleName(dto.getRuleName());
         }
+        if (dto.getRuleType() != null) {
+            rule.setRuleType(dto.getRuleType());
+        }
+        rule.setTriggerCondition(resolveTriggerCondition(dto));
         rule.setRemindMethod(dto.getRemindMethod());
         rule.setRemindBeforeHours(dto.getRemindBeforeHours());
         rule.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : true);
@@ -87,12 +90,15 @@ public class ReminderServiceImpl implements ReminderService {
     public ReminderRule updateRule(Long id, ReminderRuleDTO dto) {
         ReminderRule rule = reminderRuleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("提醒规则不存在"));
-        rule.setRuleName(dto.getRuleName());
-        rule.setRuleType(dto.getRuleType());
-        if (dto.getTriggerHours() != null) {
-            rule.setTriggerCondition("{\"hours\":" + dto.getTriggerHours() + "}");
-        } else if (dto.getTriggerCondition() != null) {
-            rule.setTriggerCondition(dto.getTriggerCondition());
+        if (dto.getRuleName() != null) {
+            rule.setRuleName(dto.getRuleName());
+        }
+        if (dto.getRuleType() != null) {
+            rule.setRuleType(dto.getRuleType());
+        }
+        String tc = resolveTriggerCondition(dto);
+        if (tc != null) {
+            rule.setTriggerCondition(tc);
         }
         if (dto.getRemindMethod() != null) {
             rule.setRemindMethod(dto.getRemindMethod());
@@ -105,6 +111,23 @@ public class ReminderServiceImpl implements ReminderService {
         }
         rule.setUpdatedAt(LocalDateTime.now());
         return reminderRuleRepository.save(rule);
+    }
+
+    private String resolveTriggerCondition(ReminderRuleDTO dto) {
+        if (dto.getTriggerHours() != null) {
+            return "{\"hours\":" + dto.getTriggerHours() + "}";
+        }
+        if (dto.getTriggerCondition() != null) {
+            try {
+                if (dto.getTriggerCondition() instanceof String) {
+                    return (String) dto.getTriggerCondition();
+                }
+                return OBJECT_MAPPER.writeValueAsString(dto.getTriggerCondition());
+            } catch (Exception e) {
+                return dto.getTriggerCondition().toString();
+            }
+        }
+        return null;
     }
 
     @Override
