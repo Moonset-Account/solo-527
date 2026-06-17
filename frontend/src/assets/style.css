@@ -1,0 +1,10 @@
+html, body, #app { height: 100%; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.page-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 20px; }
+.stat-card { padding: 20px; border-radius: 8px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.stat-card .stat-value { font-size: 28px; font-weight: 600; margin: 10px 0; }
+.stat-card .stat-label { color: #909399; font-size: 14px; }
+.filter-bar { margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+.status-tag { margin: 0 4px; }
