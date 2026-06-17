@@ -5,7 +5,6 @@ import {
   Input,
   Button,
   DatePicker,
-  TimePicker,
   Select,
   Card,
   message,
@@ -13,14 +12,17 @@ import {
   Spin,
   Row,
   Col,
+  Radio,
+  Tag,
 } from 'antd';
-import { SafetyOutlined } from '@ant-design/icons';
+import { SafetyOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { counselorApi, appointmentApi, waitlistApi, schedulesApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 
 const { TextArea } = Input;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 function AppointmentForm() {
   const [searchParams] = useSearchParams();
@@ -33,7 +35,10 @@ function AppointmentForm() {
   const [selectedCounselor, setSelectedCounselor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState(null);
   const [joinWaitlist, setJoinWaitlist] = useState(false);
+  const [waitlistInfo, setWaitlistInfo] = useState(null);
+  const [loadingWaitlist, setLoadingWaitlist] = useState(false);
 
   const counselorId = searchParams.get('counselorId');
   const serviceId = searchParams.get('serviceId');
@@ -64,25 +69,44 @@ function AppointmentForm() {
   const handleCounselorChange = async (value) => {
     const counselor = counselors.find(c => c.id === value);
     setSelectedCounselor(counselor);
-    form.setFieldsValue({ startTime: null, endTime: null });
+    form.setFieldsValue({ startTime: null, endTime: null, slotId: null });
     setAvailableSlots([]);
+    setSelectedSlot(null);
     setSelectedDate(null);
+    setJoinWaitlist(false);
+    setWaitlistInfo(null);
+  };
+
+  const loadWaitlistInfo = async (cId, date) => {
+    setLoadingWaitlist(true);
+    try {
+      const info = await waitlistApi.getPosition({ counselorId: cId, preferredDate: date });
+      setWaitlistInfo(info);
+    } catch (error) {
+      console.error('加载候补信息失败', error);
+    } finally {
+      setLoadingWaitlist(false);
+    }
   };
 
   const handleDateChange = async (date) => {
     setSelectedDate(date);
-    form.setFieldsValue({ startTime: null, endTime: null });
+    form.setFieldsValue({ startTime: null, endTime: null, slotId: null });
+    setSelectedSlot(null);
+    setJoinWaitlist(false);
+    setWaitlistInfo(null);
+
     if (date && selectedCounselor) {
       try {
         const slots = await schedulesApi.getByCounselorAndDate(
           selectedCounselor.id,
           date.format('YYYY-MM-DD')
         );
-        setAvailableSlots(slots.filter(s => s.status === 'available'));
-        if (slots.filter(s => s.status === 'available').length === 0) {
+        const available = slots.filter(s => s.status === 'available');
+        setAvailableSlots(available);
+        if (available.length === 0) {
           setJoinWaitlist(true);
-        } else {
-          setJoinWaitlist(false);
+          loadWaitlistInfo(selectedCounselor.id, date.format('YYYY-MM-DD'));
         }
       } catch (error) {
         console.error('加载可用时段失败', error);
@@ -91,10 +115,15 @@ function AppointmentForm() {
     }
   };
 
-  const handleTimeChange = (time, timeString) => {
-    if (time && selectedCounselor) {
-      const endTime = time.add(50, 'minute');
-      form.setFieldsValue({ endTime: endTime });
+  const handleSlotSelect = (slotId) => {
+    const slot = availableSlots.find(s => s.id === slotId);
+    setSelectedSlot(slot);
+    if (slot) {
+      form.setFieldsValue({
+        startTime: dayjs(slot.startTime, 'HH:mm'),
+        endTime: dayjs(slot.endTime, 'HH:mm'),
+        slotId: slot.id,
+      });
     }
   };
 
@@ -105,19 +134,18 @@ function AppointmentForm() {
       return;
     }
 
+    if (!joinWaitlist && !selectedSlot) {
+      message.error('请选择一个可用时段');
+      return;
+    }
+
+    if (joinWaitlist && waitlistInfo && !waitlistInfo.canJoin) {
+      message.error(`候补队列已满（最多${waitlistInfo.maxQueueSize}人），请选择其他日期或咨询师`);
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const appointmentData = {
-        counselorId: values.counselorId,
-        serviceId: serviceId,
-        appointmentDate: values.appointmentDate.format('YYYY-MM-DD'),
-        startTime: values.startTime.format('HH:mm'),
-        endTime: values.endTime?.format('HH:mm') || values.startTime.add(50, 'minute').format('HH:mm'),
-        visitReason: values.visitReason,
-        clientNotes: values.clientNotes,
-        amount: selectedCounselor?.hourlyRate || 0,
-      };
-
       if (joinWaitlist) {
         await waitlistApi.join({
           counselorId: values.counselorId,
@@ -130,6 +158,16 @@ function AppointmentForm() {
         message.success('已加入候补队列，有空位我们会及时通知您');
         navigate('/my-waitlist');
       } else {
+        const appointmentData = {
+          counselorId: values.counselorId,
+          serviceId: serviceId,
+          appointmentDate: values.appointmentDate.format('YYYY-MM-DD'),
+          startTime: values.startTime.format('HH:mm'),
+          endTime: values.endTime.format('HH:mm'),
+          visitReason: values.visitReason,
+          clientNotes: values.clientNotes,
+          amount: selectedCounselor?.hourlyRate || 0,
+        };
         await appointmentApi.create(appointmentData);
         message.success('预约成功');
         navigate('/my-appointments');
@@ -206,86 +244,92 @@ function AppointmentForm() {
               </Col>
             </Row>
 
-            <Row gutter={24}>
-              <Col span={8}>
-                <Form.Item
-                  label="咨询日期"
-                  name="appointmentDate"
-                  rules={[{ required: true, message: '请选择咨询日期' }]}
-                >
-                  <DatePicker
-                    style={{ width: '100%' }}
-                    disabledDate={disabledDate}
-                    onChange={handleDateChange}
-                    placeholder="选择日期"
-                  />
-                </Form.Item>
-              </Col>
+            <Form.Item
+              label="咨询日期"
+              name="appointmentDate"
+              rules={[{ required: true, message: '请选择咨询日期' }]}
+            >
+              <DatePicker
+                style={{ width: '100%' }}
+                disabledDate={disabledDate}
+                onChange={handleDateChange}
+                placeholder="选择日期"
+                disabled={!selectedCounselor}
+              />
+            </Form.Item>
 
-              <Col span={8}>
-                <Form.Item
-                  label="开始时间"
-                  name="startTime"
-                  rules={[{ required: true, message: '请选择开始时间' }]}
+            {selectedDate && availableSlots.length > 0 && (
+              <Form.Item
+                label="选择时段"
+                name="slotId"
+                rules={[{ required: !joinWaitlist, message: '请选择咨询时段' }]}
+              >
+                <Radio.Group
+                  style={{ width: '100%' }}
+                  onChange={(e) => handleSlotSelect(e.target.value)}
+                  value={selectedSlot?.id}
                 >
-                  <TimePicker
-                    style={{ width: '100%' }}
-                    format="HH:mm"
-                    minuteStep={30}
-                    onChange={handleTimeChange}
-                    placeholder="选择时间"
-                    disabled={!selectedDate}
-                  />
-                </Form.Item>
-              </Col>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {availableSlots.map(slot => (
+                      <Radio.Button
+                        key={slot.id}
+                        value={slot.id}
+                        style={{
+                          marginRight: 0,
+                          marginBottom: 8,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <ClockCircleOutlined style={{ marginRight: 4 }} />
+                        {slot.startTime} - {slot.endTime}
+                      </Radio.Button>
+                    ))}
+                  </div>
+                </Radio.Group>
+              </Form.Item>
+            )}
 
-              <Col span={8}>
-                <Form.Item
-                  label="结束时间"
-                  name="endTime"
-                >
-                  <TimePicker
-                    style={{ width: '100%' }}
-                    format="HH:mm"
-                    minuteStep={30}
-                    placeholder="自动计算"
-                    disabled
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            {selectedDate && availableSlots.length === 0 && (
+            {selectedDate && availableSlots.length === 0 && !loadingWaitlist && (
               <Alert
                 message="该日期暂无可用时段"
-                description="您可以选择加入候补队列，一旦有空位我们会优先通知您。"
+                description={
+                  waitlistInfo
+                    ? `当前候补队列：${waitlistInfo.queueLength}/${waitlistInfo.maxQueueSize}人（规则：${waitlistInfo.ruleName}）。${waitlistInfo.canJoin ? '您可以加入候补队列，一旦有空位我们会优先通知您。' : '候补队列已满，请选择其他日期或咨询师。'}`
+                    : '您可以选择加入候补队列，一旦有空位我们会优先通知您。'
+                }
                 type="warning"
                 showIcon
                 style={{ marginBottom: 16 }}
               />
             )}
 
-            {selectedDate && availableSlots.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ color: '#666', marginBottom: 8 }}>可用时段：</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {availableSlots.map(slot => (
-                    <span
-                      key={slot.id}
-                      style={{
-                        padding: '4px 12px',
-                        background: '#e6f7ff',
-                        border: '1px solid #91d5ff',
-                        borderRadius: 4,
-                        fontSize: 13,
-                        color: '#1890ff',
-                      }}
-                    >
-                      {slot.startTime} - {slot.endTime}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {selectedDate && (availableSlots.length > 0 || joinWaitlist) && (
+              <Row gutter={24}>
+                <Col span={12}>
+                  <Form.Item label="开始时间" name="startTime">
+                    <div style={{
+                      padding: '8px 12px',
+                      background: '#f5f7fa',
+                      borderRadius: 4,
+                      color: selectedSlot ? '#333' : '#999',
+                    }}>
+                      {selectedSlot ? selectedSlot.startTime : (joinWaitlist ? '候补时段' : '请选择时段')}
+                    </div>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="结束时间" name="endTime">
+                    <div style={{
+                      padding: '8px 12px',
+                      background: '#f5f7fa',
+                      borderRadius: 4,
+                      color: selectedSlot ? '#333' : '#999',
+                    }}>
+                      {selectedSlot ? selectedSlot.endTime : (joinWaitlist ? '以实际安排为准' : '请选择时段')}
+                    </div>
+                  </Form.Item>
+                </Col>
+              </Row>
             )}
 
             <Form.Item
@@ -315,14 +359,21 @@ function AppointmentForm() {
 
             <Form.Item>
               <div className="flex" style={{ gap: 12, alignItems: 'center' }}>
-                <Button type="primary" htmlType="submit" loading={submitting} size="large">
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={submitting}
+                  size="large"
+                  disabled={joinWaitlist && waitlistInfo && !waitlistInfo.canJoin}
+                >
                   {joinWaitlist ? '加入候补队列' : '提交预约'}
                 </Button>
                 <Button size="large" onClick={() => navigate(-1)}>取消</Button>
-                {joinWaitlist && (
-                  <span style={{ color: '#faad14', fontSize: 13 }}>
-                    当前时段已满，将加入候补队列
-                  </span>
+                {joinWaitlist && waitlistInfo && (
+                  <Tag color={waitlistInfo.canJoin ? 'orange' : 'default'}>
+                    <UserOutlined style={{ marginRight: 4 }} />
+                    队列 {waitlistInfo.queueLength}/{waitlistInfo.maxQueueSize}
+                  </Tag>
                 )}
               </div>
             </Form.Item>

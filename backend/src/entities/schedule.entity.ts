@@ -33,6 +33,12 @@ export class Schedule {
   @Column({ type: 'text', nullable: true })
   remarks: string;
 
+  @Column({ nullable: true })
+  processedBy: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  processedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Refund } from '../../entities/refund.entity';
 import { Appointment } from '../../entities/appointment.entity';
 import { ProcessingRecord } from '../../entities/processing-record.entity';
+import { User } from '../../entities/user.entity';
 
 @Injectable()
 export class RefundsService {
@@ -14,6 +15,8 @@ export class RefundsService {
     private appointmentsRepository: Repository<Appointment>,
     @InjectRepository(ProcessingRecord)
     private processingRecordsRepository: Repository<ProcessingRecord>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   async create(createRefundDto: any, userId?: string) {
@@ -39,9 +42,11 @@ export class RefundsService {
       reason,
       description,
       status: 'pending',
+      processedBy: userId,
+      processedAt: new Date(),
     });
 
-    const saved = await this.refundsRepository.save(refund);
+    const saved = await this.refundsRepository.save(refund) as unknown as Refund;
 
     await this.appointmentsRepository.update(appointmentId, {
       paymentStatus: 'refunded',
@@ -75,17 +80,35 @@ export class RefundsService {
       query.andWhere('refund.clientId = :clientId', { clientId: filters.clientId });
     }
 
-    query.orderBy('refund.createdAt', 'DESC')
+    query.orderBy('refund.updatedAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 
     const [items, total] = await query.getManyAndCount();
+    const userMap = new Map();
+    const userIds = new Set<string>();
+
+    items.forEach(item => {
+      if (item.processedBy) userIds.add(item.processedBy);
+      if (item.approvedBy) userIds.add(item.approvedBy);
+    });
+
+    if (userIds.size > 0) {
+      const users = await this.usersRepository.findByIds([...userIds]);
+      users.forEach(u => userMap.set(u.id, u));
+    }
 
     return {
       items: items.map(item => ({
         ...item,
         client: item.client ? { id: item.client.id, name: item.client.name, phone: item.client.phone } : null,
         appointment: item.appointment ? { id: item.appointment.id, appointmentDate: item.appointment.appointmentDate } : null,
+        processedByUser: item.processedBy && userMap.get(item.processedBy)
+          ? { id: userMap.get(item.processedBy).id, name: userMap.get(item.processedBy).name, role: userMap.get(item.processedBy).role }
+          : null,
+        approvedByUser: item.approvedBy && userMap.get(item.approvedBy)
+          ? { id: userMap.get(item.approvedBy).id, name: userMap.get(item.approvedBy).name, role: userMap.get(item.approvedBy).role }
+          : null,
       })),
       total,
       page,
@@ -101,10 +124,27 @@ export class RefundsService {
     if (!refund) {
       throw new NotFoundException('退款记录不存在');
     }
+
+    const userMap = new Map();
+    const userIds = new Set<string>();
+    if (refund.processedBy) userIds.add(refund.processedBy);
+    if (refund.approvedBy) userIds.add(refund.approvedBy);
+
+    if (userIds.size > 0) {
+      const users = await this.usersRepository.findByIds([...userIds]);
+      users.forEach(u => userMap.set(u.id, u));
+    }
+
     return {
       ...refund,
       client: refund.client ? { id: refund.client.id, name: refund.client.name, phone: refund.client.phone } : null,
       appointment: refund.appointment ? { id: refund.appointment.id, appointmentDate: refund.appointment.appointmentDate } : null,
+      processedByUser: refund.processedBy && userMap.get(refund.processedBy)
+        ? { id: userMap.get(refund.processedBy).id, name: userMap.get(refund.processedBy).name, role: userMap.get(refund.processedBy).role }
+        : null,
+      approvedByUser: refund.approvedBy && userMap.get(refund.approvedBy)
+        ? { id: userMap.get(refund.approvedBy).id, name: userMap.get(refund.approvedBy).name, role: userMap.get(refund.approvedBy).role }
+        : null,
     };
   }
 

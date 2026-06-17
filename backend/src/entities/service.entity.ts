@@ -40,6 +40,12 @@ export class Service {
   @OneToMany(() => Appointment, (appointment) => appointment.service)
   appointments: Appointment[];
 
+  @Column({ nullable: true })
+  processedBy: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  processedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

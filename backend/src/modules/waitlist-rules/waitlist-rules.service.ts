@@ -74,4 +74,36 @@ export class WaitlistRulesService {
       order: { priority: 'DESC' },
     });
   }
+
+  async getApplicableRule(counselorId?: string) {
+    const activeRules = await this.rulesRepository.find({
+      where: { isActive: true },
+      order: { priority: 'DESC' },
+    });
+
+    if (counselorId) {
+      const counselorRule = activeRules.find(
+        (rule) => rule.counselorId === counselorId
+      );
+      if (counselorRule) {
+        return counselorRule;
+      }
+    }
+
+    const globalRule = activeRules.find((rule) => !rule.counselorId);
+    if (globalRule) {
+      return globalRule;
+    }
+
+    return {
+      id: 'default',
+      ruleName: '系统默认规则',
+      ruleType: 'time_window' as const,
+      notificationWindowMinutes: 30,
+      responseTimeoutMinutes: 15,
+      maxQueueSize: 10,
+      priority: 0,
+      isActive: true,
+    };
+  }
 }

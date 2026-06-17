@@ -7,12 +7,11 @@ import {
   DatePicker,
   Space,
   Button,
-  Input,
   Drawer,
   Descriptions,
 } from 'antd';
-import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
-import { statisticsApi } from '../../api';
+import { EyeOutlined } from '@ant-design/icons';
+import { statisticsApi, usersApi } from '../../api';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -32,6 +31,13 @@ const typeMap = {
   other: { text: '其他', color: 'default' },
 };
 
+const roleMap = {
+  admin: { text: '管理员', color: 'red' },
+  dispatcher: { text: '调度员', color: 'orange' },
+  counselor: { text: '咨询师', color: 'blue' },
+  client: { text: '客户', color: 'green' },
+};
+
 function ProcessingRecords() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,27 +45,45 @@ function ProcessingRecords() {
   const [filters, setFilters] = useState({});
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentRecord, setCurrentRecord] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   useEffect(() => {
     loadData();
   }, [pagination.current, pagination.pageSize, filters]);
 
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const result = await usersApi.getList({ page: 1, pageSize: 100 });
+      setUsers(result.items || []);
+    } catch (error) {
+      console.error('加载用户列表失败', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
       const result = await statisticsApi.getProcessingRecords({
-      page: pagination.current,
-      pageSize: pagination.pageSize,
-      ...filters,
-    });
-    setData(result.items);
-    setPagination(prev => ({ ...prev, total: result.total }));
-  } catch (error) {
-    console.error('加载操作记录失败', error);
-  } finally {
-    setLoading(false);
-  }
-};
+        page: pagination.current,
+        pageSize: pagination.pageSize,
+        ...filters,
+      });
+      setData(result.items);
+      setPagination(prev => ({ ...prev, total: result.total }));
+    } catch (error) {
+      console.error('加载操作记录失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (values) => {
     setFilters(prev => ({ ...prev, ...values }));
@@ -91,14 +115,14 @@ function ProcessingRecords() {
       title: '操作人',
       dataIndex: ['operator', 'name'],
       key: 'operator',
-      width: 120,
+      width: 140,
       render: (name, record) => (
         <div>
           <div>{name || '系统'}</div>
           {record.operator?.role && (
-            <div style={{ color: '#999', fontSize: 12 }}>
-              {record.operator.role}
-            </div>
+            <Tag style={{ marginTop: 4, fontSize: 11 }} color={roleMap[record.operator.role]?.color}>
+              {roleMap[record.operator.role]?.text || record.operator.role}
+            </Tag>
           )}
         </div>
       ),
@@ -138,13 +162,6 @@ function ProcessingRecords() {
       ellipsis: true,
     },
     {
-      title: 'IP地址',
-      dataIndex: 'ipAddress',
-      key: 'ipAddress',
-      width: 120,
-      render: (ip) => ip || '-',
-    },
-    {
       title: '操作时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
@@ -168,12 +185,21 @@ function ProcessingRecords() {
       <Card title="操作记录">
         <div style={{ marginBottom: 16 }}>
           <Space wrap>
-            <Input
-              placeholder="搜索操作人"
-              prefix={<SearchOutlined />}
-              style={{ width: 200 }}
+            <Select
+              placeholder="操作人"
               allowClear
-            />
+              loading={usersLoading}
+              style={{ width: 160 }}
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) => handleSearch({ operatorId: value })}
+            >
+              {users.map(user => (
+                <Option key={user.id} value={user.id}>
+                  {user.name} ({roleMap[user.role]?.text || user.role})
+                </Option>
+              ))}
+            </Select>
             <Select
               placeholder="操作类型"
               allowClear
@@ -239,7 +265,9 @@ function ProcessingRecords() {
             <Descriptions.Item label="操作人">
               {currentRecord.operator?.name || '系统'}
               {currentRecord.operator?.role && (
-                <Tag style={{ marginLeft: 8 }}>{currentRecord.operator.role}</Tag>
+                <Tag style={{ marginLeft: 8 }} color={roleMap[currentRecord.operator.role]?.color}>
+                  {roleMap[currentRecord.operator.role]?.text || currentRecord.operator.role}
+                </Tag>
               )}
             </Descriptions.Item>
             <Descriptions.Item label="操作人ID">
@@ -256,9 +284,6 @@ function ProcessingRecords() {
             </Descriptions.Item>
             <Descriptions.Item label="备注">
               {currentRecord.remarks || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="IP地址">
-              {currentRecord.ipAddress || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="操作时间">
               {new Date(currentRecord.createdAt).toLocaleString('zh-CN')}

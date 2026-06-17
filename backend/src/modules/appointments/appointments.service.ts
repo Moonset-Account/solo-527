@@ -22,20 +22,19 @@ export class AppointmentsService {
   async create(createAppointmentDto: any, userId: string) {
     const { counselorId, serviceId, appointmentDate, startTime, endTime, visitReason, clientNotes, amount } = createAppointmentDto;
 
-    const conflict = await this.appointmentsRepository.findOne({
-      where: {
-        counselorId,
-        appointmentDate,
-        status: 'confirmed',
-      },
-    });
+    const availableSchedule = await this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .where('schedule.counselorId = :counselorId', { counselorId })
+      .andWhere('schedule.date = :date', { date: appointmentDate })
+      .andWhere('schedule.status = :status', { status: 'available' })
+      .andWhere(
+        'schedule.startTime <= :startTime AND schedule.endTime >= :endTime',
+        { startTime, endTime }
+      )
+      .getOne();
 
-    if (conflict) {
-      const existingStart = conflict.startTime;
-      const existingEnd = conflict.endTime;
-      if (!(endTime <= existingStart || startTime >= existingEnd)) {
-        throw new BadRequestException('该时段已被预约，请选择其他时间');
-      }
+    if (!availableSchedule) {
+      throw new BadRequestException('该时段不可用，请选择其他时间');
     }
 
     const appointment = this.appointmentsRepository.create({
@@ -52,7 +51,7 @@ export class AppointmentsService {
       paymentStatus: 'unpaid',
     });
 
-    const saved = await this.appointmentsRepository.save(appointment);
+    const saved = await this.appointmentsRepository.save(appointment) as unknown as Appointment;
 
     await this.processingRecordsRepository.save({
       type: 'appointment_create',
@@ -175,6 +174,26 @@ export class AppointmentsService {
       throw new BadRequestException('只有待确认状态的预约才能确认');
     }
 
+    const schedule = await this.schedulesRepository
+      .createQueryBuilder('schedule')
+      .where('schedule.counselorId = :counselorId', { counselorId: appointment.counselorId })
+      .andWhere('schedule.date = :date', { date: appointment.appointmentDate })
+      .andWhere('schedule.status = :status', { status: 'available' })
+      .andWhere(
+        'schedule.startTime <= :startTime AND schedule.endTime >= :endTime',
+        { startTime: appointment.startTime, endTime: appointment.endTime }
+      )
+      .getOne();
+
+    if (!schedule) {
+      throw new BadRequestException('该时段排班已不可用，请重新选择时间');
+    }
+
+    await this.schedulesRepository.update(schedule.id, {
+      status: 'booked',
+      remarks: `预约ID: ${id}`,
+    });
+
     await this.appointmentsRepository.update(id, {
       status: 'confirmed',
       processedBy: userId,
@@ -187,6 +206,7 @@ export class AppointmentsService {
       relatedType: 'appointment',
       operatorId: userId,
       action: '确认预约',
+      remarks: `占用排班ID: ${schedule.id}`,
     });
 
     return this.findOne(id);
@@ -196,6 +216,26 @@ export class AppointmentsService {
     const appointment = await this.findOne(id);
     if (appointment.status === 'completed' || appointment.status === 'cancelled') {
       throw new BadRequestException('该状态的预约不能取消');
+    }
+
+    if (appointment.status === 'confirmed') {
+      const schedule = await this.schedulesRepository
+        .createQueryBuilder('schedule')
+        .where('schedule.counselorId = :counselorId', { counselorId: appointment.counselorId })
+        .andWhere('schedule.date = :date', { date: appointment.appointmentDate })
+        .andWhere('schedule.status = :status', { status: 'booked' })
+        .andWhere(
+          'schedule.startTime <= :startTime AND schedule.endTime >= :endTime',
+          { startTime: appointment.startTime, endTime: appointment.endTime }
+        )
+        .getOne();
+
+      if (schedule) {
+        await this.schedulesRepository.update(schedule.id, {
+          status: 'available',
+          remarks: `预约取消，已释放`,
+        });
+      }
     }
 
     await this.appointmentsRepository.update(id, {

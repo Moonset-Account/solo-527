@@ -237,6 +237,20 @@ function ScheduleManage() {
       ellipsis: true,
     },
     {
+      title: '最后处理人',
+      dataIndex: ['processedByUser', 'name'],
+      key: 'processedBy',
+      width: 120,
+      render: (name) => name || '-',
+    },
+    {
+      title: '最后处理时间',
+      dataIndex: 'processedAt',
+      key: 'processedAt',
+      width: 160,
+      render: (date) => date ? new Date(date).toLocaleString('zh-CN') : '-',
+    },
+    {
       title: '操作',
       key: 'action',
       width: 180,
@@ -521,6 +535,12 @@ function ScheduleManage() {
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="备注">{currentRecord.remarks || '-'}</Descriptions.Item>
+            <Descriptions.Item label="最后处理人">
+              {currentRecord.processedByUser?.name || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="最后处理时间">
+              {currentRecord.processedAt ? new Date(currentRecord.processedAt).toLocaleString('zh-CN') : '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="创建时间">
               {new Date(currentRecord.createdAt).toLocaleString('zh-CN')}
             </Descriptions.Item>

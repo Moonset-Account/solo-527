@@ -5,9 +5,10 @@ import { ServicesController } from './services.controller';
 import { Service } from '../../entities/service.entity';
 import { Counselor } from '../../entities/counselor.entity';
 import { ProcessingRecord } from '../../entities/processing-record.entity';
+import { User } from '../../entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Service, Counselor, ProcessingRecord])],
+  imports: [TypeOrmModule.forFeature([Service, Counselor, ProcessingRecord, User])],
   controllers: [ServicesController],
   providers: [ServicesService],
   exports: [ServicesService],

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Schedule } from '../../entities/schedule.entity';
 import { ProcessingRecord } from '../../entities/processing-record.entity';
+import { User } from '../../entities/user.entity';
 
 @Injectable()
 export class SchedulesService {
@@ -11,6 +12,8 @@ export class SchedulesService {
     private schedulesRepository: Repository<Schedule>,
     @InjectRepository(ProcessingRecord)
     private processingRecordsRepository: Repository<ProcessingRecord>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   async create(createScheduleDto: any, userId?: string) {
@@ -30,7 +33,11 @@ export class SchedulesService {
       throw new BadRequestException('该时段已有排班');
     }
 
-    const schedule = this.schedulesRepository.create(createScheduleDto);
+    const schedule = this.schedulesRepository.create({
+      ...createScheduleDto,
+      processedBy: userId,
+      processedAt: new Date(),
+    });
     const saved = await this.schedulesRepository.save(schedule) as unknown as Schedule;
 
     await this.processingRecordsRepository.save({
@@ -57,6 +64,8 @@ export class SchedulesService {
           startTime,
           endTime,
           status: status || 'available',
+          processedBy: userId,
+          processedAt: new Date(),
         });
         const saved = await this.schedulesRepository.save(schedule);
         results.push(saved);
@@ -99,11 +108,21 @@ export class SchedulesService {
       .take(pageSize);
 
     const [items, total] = await query.getManyAndCount();
+    const processorMap = new Map();
+    const processorIds = [...new Set(items.map(i => i.processedBy).filter(Boolean))];
+
+    if (processorIds.length > 0) {
+      const processors = await this.usersRepository.findByIds(processorIds);
+      processors.forEach(p => processorMap.set(p.id, p));
+    }
 
     return {
       items: items.map(item => ({
         ...item,
         counselor: item.counselor ? { id: item.counselor.id, name: item.counselor.name } : null,
+        processedByUser: item.processedBy && processorMap.get(item.processedBy)
+          ? { id: processorMap.get(item.processedBy).id, name: processorMap.get(item.processedBy).name, role: processorMap.get(item.processedBy).role }
+          : null,
       })),
       total,
       page,
@@ -143,9 +162,19 @@ export class SchedulesService {
     if (!schedule) {
       throw new NotFoundException('排班不存在');
     }
+
+    let processedByUser = null;
+    if (schedule.processedBy) {
+      const user = await this.usersRepository.findOne({ where: { id: schedule.processedBy } });
+      if (user) {
+        processedByUser = { id: user.id, name: user.name, role: user.role };
+      }
+    }
+
     return {
       ...schedule,
       counselor: schedule.counselor ? { id: schedule.counselor.id, name: schedule.counselor.name } : null,
+      processedByUser,
     };
   }
 
@@ -153,7 +182,11 @@ export class SchedulesService {
     const schedule = await this.findOne(id);
     const beforeState = JSON.stringify(schedule);
 
-    await this.schedulesRepository.update(id, updateScheduleDto);
+    await this.schedulesRepository.update(id, {
+      ...updateScheduleDto,
+      processedBy: userId,
+      processedAt: new Date(),
+    });
     const updated = await this.findOne(id);
 
     await this.processingRecordsRepository.save({

@@ -199,6 +199,20 @@ function RefundManage() {
       render: (date) => new Date(date).toLocaleString('zh-CN'),
     },
     {
+      title: '处理人',
+      dataIndex: ['processedByUser', 'name'],
+      key: 'processedBy',
+      width: 100,
+      render: (name) => name || '-',
+    },
+    {
+      title: '处理时间',
+      dataIndex: 'processedAt',
+      key: 'processedAt',
+      width: 160,
+      render: (date) => date ? new Date(date).toLocaleString('zh-CN') : '-',
+    },
+    {
       title: '操作',
       key: 'action',
       width: 200,
@@ -301,15 +315,29 @@ function RefundManage() {
             <Descriptions.Item label="退款原因">{reasonMap[currentRecord.reason] || currentRecord.reason}</Descriptions.Item>
             <Descriptions.Item label="详细说明">{currentRecord.description || '-'}</Descriptions.Item>
             <Descriptions.Item label="拒绝原因">{currentRecord.rejectReason || '-'}</Descriptions.Item>
-            <Descriptions.Item label="处理人">{currentRecord.processedBy || '-'}</Descriptions.Item>
-            <Descriptions.Item label="处理时间">
-              {currentRecord.processedAt ? new Date(currentRecord.processedAt).toLocaleString('zh-CN') : '-'}
+            <Descriptions.Item label="申请人">
+              {currentRecord.processedByUser?.name || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="退款方式">{currentRecord.refundMethod || '-'}</Descriptions.Item>
-            <Descriptions.Item label="交易单号">{currentRecord.transactionId || '-'}</Descriptions.Item>
             <Descriptions.Item label="申请时间">
               {new Date(currentRecord.createdAt).toLocaleString('zh-CN')}
             </Descriptions.Item>
+            <Descriptions.Item label="批准人">
+              {currentRecord.approvedByUser?.name || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="批准时间">
+              {currentRecord.approvedAt ? new Date(currentRecord.approvedAt).toLocaleString('zh-CN') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="最后处理人">
+              {currentRecord.processedByUser?.name || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="最后处理时间">
+              {currentRecord.processedAt ? new Date(currentRecord.processedAt).toLocaleString('zh-CN') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="完成时间">
+              {currentRecord.completedAt ? new Date(currentRecord.completedAt).toLocaleString('zh-CN') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="退款方式">{currentRecord.refundMethod || '-'}</Descriptions.Item>
+            <Descriptions.Item label="交易单号">{currentRecord.transactionId || '-'}</Descriptions.Item>
           </Descriptions>
         )}
       </Drawer>
