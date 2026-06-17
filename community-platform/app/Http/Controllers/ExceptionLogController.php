@@ -29,7 +29,7 @@ class ExceptionLogController extends Controller
     {
         $exceptionLog->update([
             'status' => 'resolved',
-            'resolved_by' => $request->validated('resolved_by'),
+            'resolved_by' => auth()->id(),
             'resolved_at' => now(),
         ]);
 

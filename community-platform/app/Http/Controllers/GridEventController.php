@@ -24,7 +24,7 @@ class GridEventController extends Controller
             ->withQueryString();
 
         return Inertia::render('GridEvent/Index', [
-            'events' => $events,
+            'gridEvents' => $events,
             'filters' => $filters,
             'handlers' => User::where('role', 'department')->get(['id', 'name']),
         ]);

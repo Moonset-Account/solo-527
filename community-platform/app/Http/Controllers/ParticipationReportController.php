@@ -42,9 +42,10 @@ class ParticipationReportController extends Controller
 
     public function export(ParticipationReportRequest $request): StreamedResponse
     {
-        $validated = $request->validated();
+        $startDate = $request->validated('start_date', now()->subMonth()->toDateString());
+        $endDate = $request->validated('end_date', now()->toDateString());
 
-        $stats = ParticipationStat::whereBetween('stat_date', [$validated['start_date'], $validated['end_date']])
+        $stats = ParticipationStat::whereBetween('stat_date', [$startDate, $endDate])
             ->selectRaw('user_id,
                 SUM(event_count) as event_count,
                 SUM(issue_count) as issue_count,

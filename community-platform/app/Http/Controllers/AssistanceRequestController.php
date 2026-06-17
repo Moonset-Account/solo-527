@@ -52,7 +52,7 @@ class AssistanceRequestController extends Controller
         $assistanceRequest->load(['resident', 'department', 'handler']);
 
         return Inertia::render('Assistance/Show', [
-            'assistanceRequest' => $assistanceRequest,
+            'assistance' => $assistanceRequest,
         ]);
     }
 

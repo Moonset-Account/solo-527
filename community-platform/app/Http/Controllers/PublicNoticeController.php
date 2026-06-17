@@ -22,4 +22,13 @@ class PublicNoticeController extends Controller
             'filters' => $filters,
         ]);
     }
+
+    public function show(PublicNotice $notice)
+    {
+        $notice->load('publisher');
+
+        return Inertia::render('Notice/Show', [
+            'notice' => $notice,
+        ]);
+    }
 }

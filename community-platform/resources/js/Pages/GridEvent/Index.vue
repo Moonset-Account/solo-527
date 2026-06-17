@@ -3,7 +3,7 @@
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-900">网格事件台</h1>
-        <Link href="/grid-events/create" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">新增事件</Link>
+        <Link v-if="canCreate" href="/grid-events/create" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">新增事件</Link>
       </div>
 
       <div class="bg-white rounded-lg shadow p-4">

@@ -73,12 +73,20 @@
 
 <script setup>
 import MainLayout from '@/Layouts/MainLayout.vue'
-import { Link, useForm } from '@inertiajs/vue3'
+import { Link, useForm, usePage } from '@inertiajs/vue3'
+import { computed } from 'vue'
+
+const page = usePage()
 
 const props = defineProps({
   assistanceRequests: Object,
   handlers: Array,
   filters: Object,
+})
+
+const canCreate = computed(() => {
+  const role = page.props.auth.user?.role
+  return ['resident', 'representative', 'admin'].includes(role)
 })
 
 const form = useForm({

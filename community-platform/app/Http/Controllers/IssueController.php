@@ -51,9 +51,11 @@ class IssueController extends Controller
     public function show(Issue $issue)
     {
         $issue->load(['reporter', 'department', 'assigner', 'votes.user']);
+        $issue->loadCount('votes');
 
         return Inertia::render('Issue/Show', [
             'issue' => $issue,
+            'departments' => \App\Models\Department::all(['id', 'name']),
         ]);
     }
 

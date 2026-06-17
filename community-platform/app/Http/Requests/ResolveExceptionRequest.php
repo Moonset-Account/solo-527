@@ -13,15 +13,11 @@ class ResolveExceptionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'resolved_by' => 'required|exists:users,id',
-        ];
+        return [];
     }
 
     public function attributes(): array
     {
-        return [
-            'resolved_by' => '解决人',
-        ];
+        return [];
     }
 }
