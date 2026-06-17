@@ -44,7 +44,12 @@
                 {{ n.reminderType.includes('RECTIFY') ? '⚠️' : '⏰' }}
               </div>
               <div class="flex-1">
-                <div class="notif-title">{{ n.title }}</div>
+                <div class="notif-title">
+                  {{ n.title }}
+                  <span v-if="isManager && n.user && n.user.id !== currentUserId" class="ml-2" style="font-size:12px;font-weight:normal;color:var(--primary)">
+                    · {{ n.user.name }}({{ getRoleShortLabel(n.user.role) }})
+                  </span>
+                </div>
                 <div class="notif-msg">{{ n.message }}</div>
                 <div class="notif-meta">
                   <span :class="{ 'text-danger': isDeadlineOverdue(n.deadlineDate) }">
@@ -67,12 +72,25 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 
 const auth = useAuthStore()
 const ui = useUiStore()
 
 const showPanel = ref(false)
+
+const isManager = computed(() => auth.hasRole('LEGAL_MANAGER', 'ADMIN'))
+const currentUserId = computed(() => auth.user?.id || '')
+
+function getRoleShortLabel(role: string): string {
+  const map: Record<string, string> = {
+    LEGAL_MANAGER: '法务负责人',
+    LAWYER: '律师',
+    REVIEWER: '复核人',
+    ADMIN: '管理员'
+  }
+  return map[role] || role
+}
 
 function toggleNotifications(e: Event) {
   e.stopPropagation()

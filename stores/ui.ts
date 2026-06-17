@@ -37,8 +37,10 @@ export const useUiStore = defineStore('ui', () => {
       })
       notifications.value = list || []
       unreadCount.value = notifications.value.filter((n: any) => n.status === 'PENDING').length
-    } catch (e) {
-      console.warn('获取通知失败', e)
+    } catch (e: any) {
+      if (e?.status !== 401) {
+        console.warn('获取通知失败', e)
+      }
     }
   }
 
