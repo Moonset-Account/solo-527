@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap');
+
+:root {
+  --background: 0 0% 97%;
+  --foreground: 220 18% 12%;
+  --nav-bg: 220 25% 12%;
+  --nav-fg: 220 10% 65%;
+  --nav-active: 40 65% 56%;
+}
+
+body {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-500 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-navy-800 text-white hover:bg-navy-700 active:bg-navy-900;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-navy-800 border border-gray-200 hover:bg-gray-50 active:bg-gray-100;
+  }
+  .btn-danger {
+    @apply btn bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800;
+  }
+  .btn-success {
+    @apply btn bg-success-600 text-white hover:bg-success-700 active:bg-green-800;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-gray-600 hover:bg-gray-100 active:bg-gray-200;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide uppercase;
+  }
+  .card {
+    @apply rounded-lg border border-gray-200/80 bg-white shadow-card;
+  }
+  .card-dark {
+    @apply rounded-lg bg-navy-800 border border-navy-700 text-white;
+  }
+  .input {
+    @apply flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:border-brand-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors;
+  }
+  .label {
+    @apply text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+  }
+  .table {
+    @apply w-full caption-bottom text-sm;
+  }
+  .table-th {
+    @apply h-11 px-4 text-left align-middle font-semibold text-xs uppercase tracking-wider text-gray-500;
+  }
+  .table-td {
+    @apply p-4 align-middle text-sm;
+  }
+  .section-title {
+    @apply text-lg font-display font-semibold text-navy-800;
+  }
+  .section-subtitle {
+    @apply text-sm text-gray-500 mt-0.5;
+  }
+}
+
+::selection {
+  background-color: rgba(212, 168, 83, 0.2);
+  color: #1a1f2e;
+}
