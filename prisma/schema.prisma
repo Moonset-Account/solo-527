@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  LEGAL_MANAGER
+  LAWYER
+  REVIEWER
+  ADMIN
+}
+
+enum ContractStatus {
+  NEW
+  ASSIGNED_LAWYER
+  LAWYER_REVIEWING
+  LAWYER_COMPLETED
+  ASSIGNED_REVIEWER
+  REVIEWER_REVIEWING
+  REVIEWER_COMPLETED
+  PENDING_RECTIFICATION
+  RECTIFYING
+  COMPLETED
+  ERROR
+}
+
+enum OpinionType {
+  LAW_REVIEW
+  FINAL_REVIEW
+  RECTIFICATION
+  COMMENT
+}
+
+enum LogAction {
+  CREATE_CONTRACT
+  UPLOAD_VERSION
+  ASSIGN_LAWYER
+  ASSIGN_REVIEWER
+  SUBMIT_OPINION
+  CHANGE_STATUS
+  DOWNLOAD
+  RECTIFY
+  COMPLETE
+  ERROR
+  REMIND_SENT
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  ACKNOWLEDGED
+  DISMISSED
+}
+
+enum GapSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum GapStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  name          String
+  email         String    @unique
+  password      String
+  role          Role
+  department    String?
+  phone         String?
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  contractsCreated   Contract[]        @relation("ContractCreator")
+  lawyerAssignments  Assignment[]      @relation("LawyerAssignments")
+  reviewerAssignments Assignment[]     @relation("ReviewerAssignments")
+  uploadedVersions   ContractVersion[]
+  opinions           ReviewOpinion[]
+  logs               OperationLog[]
+  downloads          DownloadRecord[]
+  reminders          Reminder[]
+  complianceGaps     ComplianceGap[]   @relation("GapReporter")
+  resolvedGaps       ComplianceGap[]   @relation("GapResolver")
+
+  @@map("users")
+}
+
+model Contract {
+  id               String           @id @default(cuid())
+  contractNo       String           @unique
+  title            String
+  partyA           String
+  partyB           String
+  contractType     String
+  amount           Decimal?         @db.Decimal(18, 2)
+  currency         String?          @default("CNY")
+  signDate         DateTime?
+  effectiveDate    DateTime?
+  expiryDate       DateTime?
+  rectifyDeadline  DateTime?
+  description      String?
+  keywords         String?
+  priority         String           @default("NORMAL")
+  status           ContractStatus   @default(NEW)
+  currentVersionId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  creatorId        String
+  creator          User             @relation("ContractCreator", fields: [creatorId], references: [id])
+
+  versions         ContractVersion[]
+  assignments      Assignment[]
+  opinions         ReviewOpinion[]
+  logs             OperationLog[]
+  downloads        DownloadRecord[]
+  reminders        Reminder[]
+  complianceGaps   ComplianceGap[]
+
+  @@index([status])
+  @@index([contractType])
+  @@index([rectifyDeadline])
+  @@index([createdAt])
+  @@map("contracts")
+}
+
+model ContractVersion {
+  id          String   @id @default(cuid())
+  versionNo   Int
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  fileHash    String?
+  mimeType    String?
+  note        String?
+  isCurrent   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  contractId  String
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  uploaderId  String
+  uploader    User     @relation(fields: [uploaderId], references: [id])
+
+  opinions    ReviewOpinion[]
+  downloads   DownloadRecord[]
+
+  @@unique([contractId, versionNo])
+  @@map("contract_versions")
+}
+
+model Assignment {
+  id              String   @id @default(cuid())
+  contractId      String
+  contract        Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  lawyerId        String
+  lawyer          User     @relation("LawyerAssignments", fields: [lawyerId], references: [id])
+  lawyerAssignedAt DateTime @default(now())
+  lawyerDeadline  DateTime?
+  lawyerCompletedAt DateTime?
+
+  reviewerId      String?
+  reviewer        User?    @relation("ReviewerAssignments", fields: [reviewerId], references: [id])
+  reviewerAssignedAt DateTime?
+  reviewerDeadline DateTime?
+  reviewerCompletedAt DateTime?
+
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([lawyerId])
+  @@index([reviewerId])
+  @@map("assignments")
+}
+
+model ReviewOpinion {
+  id            String      @id @default(cuid())
+  contractId    String
+  contract      Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  versionId     String?
+  version       ContractVersion? @relation(fields: [versionId], references: [id])
+
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id])
+
+  opinionType   OpinionType
+  title         String?
+  content       String      @db.Text
+  clauseRef     String?
+  severity      String?
+  suggestion    String?     @db.Text
+  hasGap        Boolean     @default(false)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([opinionType])
+  @@index([createdAt])
+  @@map("review_opinions")
+}
+
+model OperationLog {
+  id          String     @id @default(cuid())
+  contractId  String?
+  contract    Contract?  @relation(fields: [contractId], references: [id], onDelete: SetNull)
+
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+
+  action      LogAction
+  description String?    @db.Text
+  fromStatus  String?
+  toStatus    String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  @@index([action])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("operation_logs")
+}
+
+model DownloadRecord {
+  id          String           @id @default(cuid())
+  contractId  String
+  contract    Contract         @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  versionId   String?
+  version     ContractVersion? @relation(fields: [versionId], references: [id])
+
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+
+  downloadReason String?
+  createdAt   DateTime         @default(now())
+  ipAddress   String?
+
+  @@index([contractId])
+  @@index([createdAt])
+  @@map("download_records")
+}
+
+model Reminder {
+  id             String          @id @default(cuid())
+  contractId     String
+  contract       Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+
+  reminderType   String
+  title          String
+  message        String          @db.Text
+  deadlineDate   DateTime
+  daysBefore     Int
+  status         ReminderStatus  @default(PENDING)
+  sentAt         DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime        @default(now())
+
+  @@index([status])
+  @@index([deadlineDate])
+  @@map("reminders")
+}
+
+model ComplianceGap {
+  id           String      @id @default(cuid())
+  contractId   String
+  contract     Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  title        String
+  description  String      @db.Text
+  category     String
+  severity     GapSeverity
+  status       GapStatus   @default(OPEN)
+  clauseRef    String?
+  regulation   String?
+
+  reporterId   String
+  reporter     User        @relation("GapReporter", fields: [reporterId], references: [id])
+
+  resolverId   String?
+  resolver     User?       @relation("GapResolver", fields: [resolverId], references: [id])
+
+  resolution   String?     @db.Text
+  resolvedAt   DateTime?
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([severity])
+  @@index([status])
+  @@index([category])
+  @@map("compliance_gaps")
+}
