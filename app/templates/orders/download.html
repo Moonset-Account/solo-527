@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}下载成片 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}下载成片{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">{{ order.title }} · #{{ order.order_no }}</span>{% endblock %}
+
+{% block top_bar_actions %}
+<div class="top-bar-actions">
+    <button class="btn btn-ghost" onclick="location.href='/orders/{{ order.id }}'">
+        返回详情
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="download-header">
+    <div class="download-info">
+        <div class="download-stats">
+            <div class="stat-item">
+                <span class="stat-label">文件总数</span>
+                <span class="stat-value">{{ files|length }} 个</span>
+            </div>
+            <div class="stat-item highlight">
+                <span class="stat-label">总大小</span>
+                <span class="stat-value">{{ total_size_human }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">已下载</span>
+                <span class="stat-value" id="downloadedCount">0 个</span>
+            </div>
+        </div>
+    </div>
+    <div class="download-actions">
+        <button class="btn btn-primary btn-lg" onclick="downloadAll()">
+            <span>⬇️</span> 全部下载
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">文件列表</h3>
+        <span class="card-meta">点击文件名预览，点击下载按钮单独下载</span>
+    </div>
+    <div class="card-body">
+        <div class="file-list file-list-download" id="fileList">
+            {% for file in files %}
+            <div class="file-item" data-file-id="{{ file.id }}">
+                <div class="file-preview">
+                    {% if file.is_image %}
+                    <img src="{{ file.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ file.file_name }}">
+                    {% else %}
+                    <div class="file-icon-large">
+                        {% if file.file_type == 'video' %}🎬
+                        {% elif file.file_type == 'archive' %}📦
+                        {% else %}📄{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="file-info">
+                    <div class="file-name" onclick="previewFile({{ file.id }})">{{ file.file_name }}</div>
+                    <div class="file-meta">
+                        <span>{{ file.file_size_human }}</span>
+                        <span>·</span>
+                        <span>{{ file.file_type_label }}</span>
+                        <span>·</span>
+                        <span>{{ file.uploaded_at.strftime('%Y-%m-%d') }}</span>
+                    </div>
+                    {% if file.description %}
+                    <div class="file-desc">{{ file.description }}</div>
+                    {% endif %}
+                </div>
+                <div class="file-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="downloadFile({{ file.id }})">
+                        <span>⬇️</span> 下载
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="download-notice">
+    <div class="notice-icon">💡</div>
+    <div class="notice-content">
+        <h4>下载提示</h4>
+        <ul>
+            <li>建议使用电脑浏览器下载，避免文件损坏</li>
+            <li>全部下载功能会打包所有文件为一个压缩包</li>
+            <li>文件有效期为 {{ order.download_expire_days or 30 }} 天，请及时保存</li>
+            <li>如遇下载问题，请联系客服处理</li>
+        </ul>
+    </div>
+</div>
+
+<div id="previewModal" class="modal-overlay" onclick="closeModal(event, 'previewModal')">
+    <div class="modal modal-large" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title" id="previewTitle">文件预览</h3>
+            <button class="modal-close" onclick="closeModal(null, 'previewModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="preview-content" id="previewContent">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal(null, 'previewModal')">关闭</button>
+            <button class="btn btn-primary" onclick="downloadCurrentPreview()">下载此文件</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

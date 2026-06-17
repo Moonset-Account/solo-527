@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}发票周期 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}发票周期{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">查看开票和回款情况</span>{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">🧾</div>
+        <div class="stat-content">
+            <div class="stat-value">¥{{ "%.2f"|format(summary.total_amount) }}</div>
+            <div class="stat-label">总开票金额</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">¥{{ "%.2f"|format(summary.paid_amount) }}</div>
+            <div class="stat-label">已回款</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-content">
+            <div class="stat-value">¥{{ "%.2f"|format(summary.pending_amount) }}</div>
+            <div class="stat-label">待回款</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-content">
+            <div class="stat-value">¥{{ "%.2f"|format(summary.overdue_amount) }}</div>
+            <div class="stat-label">已逾期</div>
+        </div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <form class="filter-form" method="get">
+        <div class="filter-group">
+            <label class="filter-label">状态</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">全部状态</option>
+                <option value="uninvoiced" {% if status == 'uninvoiced' %}selected{% endif %}>待开票</option>
+                <option value="invoiced" {% if status == 'invoiced' %}selected{% endif %}>已开票</option>
+                <option value="paid" {% if status == 'paid' %}selected{% endif %}>已回款</option>
+                <option value="overdue" {% if status == 'overdue' %}selected{% endif %}>已逾期</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">时间</label>
+            <input type="month" name="month" class="form-input" value="{{ month or '' }}" onchange="this.form.submit()">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">搜索</label>
+            <input type="text" name="search" class="form-input" placeholder="订单号、发票号" value="{{ search or '' }}">
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a href="/query/invoices" class="btn btn-ghost">重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if invoices.items %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>客户名称</th>
+                        <th>开票金额</th>
+                        <th>发票号</th>
+                        <th>开票日期</th>
+                        <th>回款日期</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices.items %}
+                    <tr>
+                        <td><code>{{ invoice.order_no }}</code></td>
+                        <td>{{ invoice.client_name }}</td>
+                        <td class="font-medium">¥{{ "%.2f"|format(invoice.amount) }}</td>
+                        <td>{{ invoice.invoice_no or '-' }}</td>
+                        <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}</td>
+                        <td>{{ invoice.payment_date.strftime('%Y-%m-%d') if invoice.payment_date else '-' }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if invoice.status == 'uninvoiced' %}badge-secondary
+                                {% elif invoice.status == 'invoiced' %}badge-primary
+                                {% elif invoice.status == 'paid' %}badge-success
+                                {% elif invoice.status == 'overdue' %}badge-danger
+                                {% endif %}">
+                                {% if invoice.status == 'uninvoiced' %}待开票
+                                {% elif invoice.status == 'invoiced' %}已开票
+                                {% elif invoice.status == 'paid' %}已回款
+                                {% elif invoice.status == 'overdue' %}已逾期
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="table-actions">
+                            <a href="/orders/{{ invoice.order_id }}" class="btn btn-link">查看订单</a>
+                            {% if current_user.role == 'admin' and invoice.status == 'uninvoiced' %}
+                            <button class="btn btn-primary btn-sm" onclick="markInvoiced({{ invoice.id }})">标记开票</button>
+                            {% endif %}
+                            {% if current_user.role == 'admin' and invoice.status == 'invoiced' %}
+                            <button class="btn btn-success btn-sm" onclick="markPaid({{ invoice.id }})">标记回款</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if invoices.total_pages > 1 %}
+        <div class="pagination">
+            {% if invoices.page > 1 %}
+            <a href="?page={{ invoices.page - 1 }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if month %}&month={{ month }}{% endif %}" class="pagination-btn">上一页</a>
+            {% endif %}
+            
+            {% for p in range(1, invoices.total_pages + 1) %}
+                {% if p == 1 or p == invoices.total_pages or (p >= invoices.page - 2 and p <= invoices.page + 2) %}
+                <a href="?page={{ p }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if month %}&month={{ month }}{% endif %}" class="pagination-btn {% if p == invoices.page %}active{% endif %}">{{ p }}</a>
+                {% elif p == invoices.page - 3 or p == invoices.page + 3 %}
+                <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if invoices.page < invoices.total_pages %}
+            <a href="?page={{ invoices.page + 1 }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if month %}&month={{ month }}{% endif %}" class="pagination-btn">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无发票记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

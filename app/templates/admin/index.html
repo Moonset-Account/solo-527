@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}系统管理 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}系统管理{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">用户管理和系统配置</span>{% endblock %}
+
+{% block content %}
+<div class="admin-tabs">
+    <div class="tab-list">
+        <button class="tab-btn active" onclick="switchTab('users')">用户管理</button>
+        <button class="tab-btn" onclick="switchTab('test-data')">测试数据</button>
+        <button class="tab-btn" onclick="switchTab('system')">系统统计</button>
+    </div>
+    
+    <div class="tab-content active" id="tab-users">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">用户列表</h3>
+                <button class="btn btn-primary btn-sm" onclick="showModal('addUserModal')">
+                    <span>+</span> 添加用户
+                </button>
+            </div>
+            <div class="card-body">
+                {% if users.items %}
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>用户名</th>
+                                <th>姓名</th>
+                                <th>角色</th>
+                                <th>邮箱</th>
+                                <th>电话</th>
+                                <th>测试账号</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users.items %}
+                            <tr>
+                                <td><code>{{ user.username }}</code></td>
+                                <td class="font-medium">{{ user.name }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if user.role == 'admin' %}badge-primary
+                                        {% elif user.role == 'photographer' %}badge-accent
+                                        {% elif user.role == 'video_lead' %}badge-info
+                                        {% elif user.role == 'client' %}badge-secondary
+                                        {% endif %}">
+                                        {% if user.role == 'admin' %}管理员
+                                        {% elif user.role == 'photographer' %}摄影师
+                                        {% elif user.role == 'video_lead' %}视频负责人
+                                        {% elif user.role == 'client' %}客户
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ user.email or '-' }}</td>
+                                <td>{{ user.phone or '-' }}</td>
+                                <td>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" 
+                                               {% if user.is_test_account %}checked{% endif %}
+                                               onchange="toggleTestAccount({{ user.id }}, this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </td>
+                                <td>
+                                    <span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                        {{ '正常' if user.is_active else '禁用' }}
+                                    </span>
+                                </td>
+                                <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td class="table-actions">
+                                    <button class="btn btn-secondary btn-sm" onclick="resetPassword({{ user.id }})">重置密码</button>
+                                    {% if user.is_active %}
+                                    <button class="btn btn-danger btn-sm" onclick="toggleUserStatus({{ user.id }}, false)">禁用</button>
+                                    {% else %}
+                                    <button class="btn btn-success btn-sm" onclick="toggleUserStatus({{ user.id }}, true)">启用</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">👥</div>
+                    <p>暂无用户</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-content" id="tab-test-data">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">测试数据管理</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <p><strong>测试数据隔离机制：</strong></p>
+                    <ul>
+                        <li>标记为"测试账号"的用户创建的所有订单会自动标记为测试数据</li>
+                        <li>所有业务统计、报表分析会自动排除测试数据</li>
+                        <li>测试数据仅在后台管理中可见，用于功能验证</li>
+                    </ul>
+                </div>
+                
+                <div class="test-data-stats">
+                    <div class="test-data-stat-item">
+                        <div class="stat-label">测试账号数量</div>
+                        <div class="stat-value">{{ test_stats.test_accounts }}</div>
+                    </div>
+                    <div class="test-data-stat-item">
+                        <div class="stat-label">测试订单数量</div>
+                        <div class="stat-value">{{ test_stats.test_orders }}</div>
+                    </div>
+                    <div class="test-data-stat-item">
+                        <div class="stat-label">排除的统计次数</div>
+                        <div class="stat-value">{{ test_stats.excluded_count }}</div>
+                    </div>
+                </div>
+                
+                {% if current_user.role == 'admin' %}
+                <div class="test-data-actions">
+                    <button class="btn btn-danger" onclick="clearTestData()">
+                        <span>🗑️</span> 清除所有测试数据
+                    </button>
+                    <p class="text-muted" style="margin-top: 8px;">此操作将删除所有测试账号创建的订单数据，不可恢复</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-content" id="tab-system">
+        <div class="stats-grid">
+            <div class="stat-card stat-card-primary">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ system_stats.total_users }}</div>
+                    <div class="stat-label">总用户数</div>
+                </div>
+            </div>
+            <div class="stat-card stat-card-accent">
+                <div class="stat-icon">📸</div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ system_stats.photographers }}</div>
+                    <div class="stat-label">摄影师</div>
+                </div>
+            </div>
+            <div class="stat-card stat-card-success">
+                <div class="stat-icon">📋</div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ system_stats.total_orders }}</div>
+                    <div class="stat-label">总订单数</div>
+                </div>
+            </div>
+            <div class="stat-card stat-card-warning">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <div class="stat-value">¥{{ "%.0f"|format(system_stats.total_revenue) }}</div>
+                    <div class="stat-label">总营收</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">按日期、状态和人员定位记录</h3>
+            </div>
+            <div class="card-body">
+                <form class="filter-form" method="get" action="/admin/audit">
+                    <div class="filter-group">
+                        <label class="filter-label">日期范围</label>
+                        <input type="date" name="start_date" class="form-input" value="{{ start_date or '' }}">
+                        <span class="filter-sep">至</span>
+                        <input type="date" name="end_date" class="form-input" value="{{ end_date or '' }}">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">订单状态</label>
+                        <select name="status" class="form-select">
+                            <option value="">全部状态</option>
+                            <option value="pending">待开始</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="cancelled">已取消</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">操作人员</label>
+                        <select name="user_id" class="form-select">
+                            <option value="">全部人员</option>
+                            {% for u in users.items %}
+                            <option value="{{ u.id }}">{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">查询记录</button>
+                        <button type="button" class="btn btn-ghost" onclick="exportAuditLog()">导出</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="addUserModal" class="modal-overlay" onclick="closeModal(event, 'addUserModal')">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">添加用户</h3>
+            <button class="modal-close" onclick="closeModal(null, 'addUserModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <form hx-post="/api/admin/users" hx-target="#addUserModal" hx-swap="outerHTML">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" name="username" class="form-input" required placeholder="登录用户名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">姓名</label>
+                    <input type="text" name="name" class="form-input" required placeholder="真实姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">角色</label>
+                    <select name="role" class="form-select" required>
+                        <option value="photographer">摄影师</option>
+                        <option value="admin">管理员</option>
+                        <option value="video_lead">视频团队负责人</option>
+                        <option value="client">客户</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">初始密码</label>
+                    <input type="password" name="password" class="form-input" required placeholder="请设置初始密码">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">邮箱</label>
+                    <input type="email" name="email" class="form-input" placeholder="可选">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">电话</label>
+                    <input type="tel" name="phone" class="form-input" placeholder="可选">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_test_account">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">标记为测试账号</span>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal(null, 'addUserModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">创建用户</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

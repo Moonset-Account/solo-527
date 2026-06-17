@@ -1,0 +1,13 @@
+<div class="toast toast-{{ type }}" id="toast-{{ id }}">
+    <div class="toast-icon">
+        {% if type == 'success' %}✓
+        {% elif type == 'error' %}✕
+        {% elif type == 'warning' %}⚠
+        {% else %}ℹ{% endif %}
+    </div>
+    <div class="toast-content">
+        <div class="toast-title">{{ title }}</div>
+        {% if message %}<div class="toast-message">{{ message }}</div>{% endif %}
+    </div>
+    <button class="toast-close" onclick="removeToast('{{ id }}')">×</button>
+</div>

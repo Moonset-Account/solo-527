@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}作品交付 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}作品交付{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">查看所有交付记录</span>{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.total }}</div>
+            <div class="stat-label">总交付订单</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.on_time }}</div>
+            <div class="stat-label">按时交付</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-icon">⏰</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.delayed }}</div>
+            <div class="stat-label">延迟交付</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-accent">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ "%.1f"|format(summary.avg_rating) }}</div>
+            <div class="stat-label">平均评分</div>
+        </div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <form class="filter-form" method="get">
+        <div class="filter-group">
+            <label class="filter-label">状态</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">全部状态</option>
+                <option value="on_time" {% if status == 'on_time' %}selected{% endif %}>按时交付</option>
+                <option value="delayed" {% if status == 'delayed' %}selected{% endif %}>延迟交付</option>
+            </select>
+        </div>
+        {% if current_user.role == 'admin' %}
+        <div class="filter-group">
+            <label class="filter-label">摄影师</label>
+            <select name="photographer_id" class="form-select" onchange="this.form.submit()">
+                <option value="">全部摄影师</option>
+                {% for p in photographers %}
+                <option value="{{ p.id }}" {% if photographer_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="filter-group">
+            <label class="filter-label">时间</label>
+            <input type="date" name="start_date" class="form-input" value="{{ start_date or '' }}" onchange="this.form.submit()">
+            <span class="filter-sep">至</span>
+            <input type="date" name="end_date" class="form-input" value="{{ end_date or '' }}" onchange="this.form.submit()">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">搜索</label>
+            <input type="text" name="search" class="form-input" placeholder="订单号、客户名称" value="{{ search or '' }}">
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a href="/query/deliveries" class="btn btn-ghost">重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if deliveries.items %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>订单标题</th>
+                        <th>客户名称</th>
+                        {% if current_user.role == 'admin' %}
+                        <th>摄影师</th>
+                        {% endif %}
+                        <th>预期交付</th>
+                        <th>实际交付</th>
+                        <th>状态</th>
+                        <th>评分</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for delivery in deliveries.items %}
+                    <tr class="table-row-clickable" onclick="location.href='/orders/{{ delivery.order_id }}'">
+                        <td><code>{{ delivery.order_no }}</code></td>
+                        <td class="font-medium">{{ delivery.title }}</td>
+                        <td>{{ delivery.client_name }}</td>
+                        {% if current_user.role == 'admin' %}
+                        <td>{{ delivery.photographer_name or '-' }}</td>
+                        {% endif %}
+                        <td>{{ delivery.expected_delivery.strftime('%Y-%m-%d') if delivery.expected_delivery else '-' }}</td>
+                        <td>{{ delivery.actual_delivery.strftime('%Y-%m-%d') if delivery.actual_delivery else '-' }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if delivery.is_delayed %}badge-danger
+                                {% else %}badge-success
+                                {% endif %}">
+                                {{ '延迟交付' if delivery.is_delayed else '按时交付' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if delivery.rating %}
+                            <div class="rating-display">
+                                {% for i in range(5) %}
+                                <span class="star {% if i < delivery.rating %}filled{% endif %}">★</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">未评价</span>
+                            {% endif %}
+                        </td>
+                        <td class="table-actions">
+                            <a href="/orders/{{ delivery.order_id }}" class="btn btn-link">详情</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if deliveries.total_pages > 1 %}
+        <div class="pagination">
+            {% if deliveries.page > 1 %}
+            <a href="?page={{ deliveries.page - 1 }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}" class="pagination-btn">上一页</a>
+            {% endif %}
+            
+            {% for p in range(1, deliveries.total_pages + 1) %}
+                {% if p == 1 or p == deliveries.total_pages or (p >= deliveries.page - 2 and p <= deliveries.page + 2) %}
+                <a href="?page={{ p }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}" class="pagination-btn {% if p == deliveries.page %}active{% endif %}">{{ p }}</a>
+                {% elif p == deliveries.page - 3 or p == deliveries.page + 3 %}
+                <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if deliveries.page < deliveries.total_pages %}
+            <a href="?page={{ deliveries.page + 1 }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}" class="pagination-btn">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无交付记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

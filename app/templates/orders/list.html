@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}订单管理 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}订单管理{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">共 {{ orders.total }} 个订单</span>{% endblock %}
+
+{% block top_bar_actions %}
+<div class="top-bar-actions">
+    <button class="btn btn-primary" onclick="location.href='/orders/create'">
+        <span>+</span> 新建订单
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="filter-bar">
+    <form class="filter-form" method="get">
+        <div class="filter-group">
+            <label class="filter-label">状态</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">全部状态</option>
+                <option value="pending" {% if status == 'pending' %}selected{% endif %}>待开始</option>
+                <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>进行中</option>
+                <option value="awaiting_selection" {% if status == 'awaiting_selection' %}selected{% endif %}>待选片</option>
+                <option value="selection_confirmed" {% if status == 'selection_confirmed' %}selected{% endif %}>已选片</option>
+                <option value="ready_for_download" {% if status == 'ready_for_download' %}selected{% endif %}>可下载</option>
+                <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+                <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>已取消</option>
+            </select>
+        </div>
+        {% if current_user.role == 'admin' %}
+        <div class="filter-group">
+            <label class="filter-label">摄影师</label>
+            <select name="photographer_id" class="form-select" onchange="this.form.submit()">
+                <option value="">全部摄影师</option>
+                {% for p in photographers %}
+                <option value="{{ p.id }}" {% if photographer_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="filter-group">
+            <label class="filter-label">时间</label>
+            <input type="date" name="start_date" class="form-input" value="{{ start_date or '' }}" onchange="this.form.submit()">
+            <span class="filter-sep">至</span>
+            <input type="date" name="end_date" class="form-input" value="{{ end_date or '' }}" onchange="this.form.submit()">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">搜索</label>
+            <input type="text" name="search" class="form-input" placeholder="订单号、客户名称" value="{{ search or '' }}">
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a href="/orders" class="btn btn-ghost">重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if orders.items %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>订单标题</th>
+                        <th>客户名称</th>
+                        {% if current_user.role == 'admin' %}
+                        <th>摄影师</th>
+                        {% endif %}
+                        <th>金额</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders.items %}
+                    <tr class="table-row-clickable" onclick="location.href='/orders/{{ order.id }}'">
+                        <td>
+                            <code class="order-no">{{ order.order_no }}</code>
+                            {% if order.is_test_data %}
+                            <span class="badge badge-warning" style="margin-left: 4px;">测试</span>
+                            {% endif %}
+                        </td>
+                        <td class="font-medium">{{ order.title }}</td>
+                        <td>{{ order.client_name }}</td>
+                        {% if current_user.role == 'admin' %}
+                        <td>{{ order.photographer_name or '-' }}</td>
+                        {% endif %}
+                        <td>¥{{ "%.2f"|format(order.total_amount) }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if order.status == 'pending' %}badge-secondary
+                                {% elif order.status == 'in_progress' %}badge-primary
+                                {% elif order.status == 'awaiting_selection' %}badge-accent
+                                {% elif order.status == 'selection_confirmed' %}badge-info
+                                {% elif order.status == 'ready_for_download' %}badge-success
+                                {% elif order.status == 'completed' %}badge-success
+                                {% elif order.status == 'cancelled' %}badge-danger
+                                {% endif %}">
+                                {% if order.status == 'pending' %}待开始
+                                {% elif order.status == 'in_progress' %}进行中
+                                {% elif order.status == 'awaiting_selection' %}待选片
+                                {% elif order.status == 'selection_confirmed' %}已选片
+                                {% elif order.status == 'ready_for_download' %}可下载
+                                {% elif order.status == 'completed' %}已完成
+                                {% elif order.status == 'cancelled' %}已取消
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td class="table-actions">
+                            <a href="/orders/{{ order.id }}" class="btn btn-link">详情</a>
+                            {% if order.status == 'awaiting_selection' %}
+                            <a href="/orders/{{ order.id }}/selection" class="btn btn-accent btn-sm">选片</a>
+                            {% endif %}
+                            {% if order.status == 'ready_for_download' %}
+                            <a href="/orders/{{ order.id }}/download" class="btn btn-success btn-sm">下载</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if orders.total_pages > 1 %}
+        <div class="pagination">
+            {% if orders.page > 1 %}
+            <a href="?page={{ orders.page - 1 }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}" class="pagination-btn">上一页</a>
+            {% endif %}
+            
+            {% for p in range(1, orders.total_pages + 1) %}
+                {% if p == 1 or p == orders.total_pages or (p >= orders.page - 2 and p <= orders.page + 2) %}
+                <a href="?page={{ p }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}" class="pagination-btn {% if p == orders.page %}active{% endif %}">{{ p }}</a>
+                {% elif p == orders.page - 3 or p == orders.page + 3 %}
+                <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if orders.page < orders.total_pages %}
+            <a href="?page={{ orders.page + 1 }}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}" class="pagination-btn">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无订单</p>
+            <button class="btn btn-primary" onclick="location.href='/orders/create'">创建第一个订单</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

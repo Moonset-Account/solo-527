@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}订单详情 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}订单详情{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">#{{ order.order_no }} · {{ order.title }}</span>{% endblock %}
+
+{% block top_bar_actions %}
+<div class="top-bar-actions">
+    {% if order.status == 'awaiting_selection' %}
+    <a href="/orders/{{ order.id }}/selection" class="btn btn-accent">
+        <span>🖼️</span> 确认选片
+    </a>
+    {% endif %}
+    {% if order.status == 'ready_for_download' %}
+    <a href="/orders/{{ order.id }}/download" class="btn btn-success">
+        <span>⬇️</span> 下载成片
+    </a>
+    {% endif %}
+    {% if current_user.role == 'admin' %}
+    <button class="btn btn-secondary" onclick="showModal('statusModal')">
+        <span>🔄</span> 更新状态
+    </button>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="detail-grid">
+    <div class="detail-main">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">基本信息</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">订单标题</div>
+                        <div class="info-value">{{ order.title }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">订单号</div>
+                        <div class="info-value"><code>{{ order.order_no }}</code></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">客户名称</div>
+                        <div class="info-value">{{ order.client_name }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">联系电话</div>
+                        <div class="info-value">{{ order.client_phone or '-' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">摄影师</div>
+                        <div class="info-value">{{ order.photographer_name or '-' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">订单金额</div>
+                        <div class="info-value highlight">¥{{ "%.2f"|format(order.total_amount) }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">拍摄日期</div>
+                        <div class="info-value">{{ order.shoot_date.strftime('%Y-%m-%d') if order.shoot_date else '-' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">订单状态</div>
+                        <div class="info-value">
+                            <span class="badge 
+                                {% if order.status == 'pending' %}badge-secondary
+                                {% elif order.status == 'in_progress' %}badge-primary
+                                {% elif order.status == 'awaiting_selection' %}badge-accent
+                                {% elif order.status == 'selection_confirmed' %}badge-info
+                                {% elif order.status == 'ready_for_download' %}badge-success
+                                {% elif order.status == 'completed' %}badge-success
+                                {% elif order.status == 'cancelled' %}badge-danger
+                                {% endif %}">
+                                {% if order.status == 'pending' %}待开始
+                                {% elif order.status == 'in_progress' %}进行中
+                                {% elif order.status == 'awaiting_selection' %}待选片
+                                {% elif order.status == 'selection_confirmed' %}已选片
+                                {% elif order.status == 'ready_for_download' %}可下载
+                                {% elif order.status == 'completed' %}已完成
+                                {% elif order.status == 'cancelled' %}已取消
+                                {% endif %}
+                            </span>
+                            {% if order.is_test_data %}
+                            <span class="badge badge-warning" style="margin-left: 8px;">测试数据</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if order.description %}
+                    <div class="info-item info-item-full">
+                        <div class="info-label">备注说明</div>
+                        <div class="info-value">{{ order.description }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">交付节点</h3>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% for node in delivery_nodes %}
+                    <div class="timeline-item {% if node.completed_at %}completed{% endif %}">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <h4 class="timeline-title">{{ node.node_name }}</h4>
+                                <span class="badge {% if node.completed_at %}badge-success{% else %}badge-secondary{% endif %}">
+                                    {{ '已完成' if node.completed_at else '待完成' }}
+                                </span>
+                            </div>
+                            <div class="timeline-meta">
+                                <span>预期：{{ node.expected_time.strftime('%Y-%m-%d') if node.expected_time else '-' }}</span>
+                                {% if node.completed_at %}
+                                <span>实际：{{ node.completed_at.strftime('%Y-%m-%d') }}</span>
+                                {% endif %}
+                            </div>
+                            {% if node.remark %}
+                            <p class="timeline-desc">{{ node.remark }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        {% if photos %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">选片情况</h3>
+                <span class="card-meta">已选 {{ selected_count }} / {{ photos|length }} 张</span>
+            </div>
+            <div class="card-body">
+                <div class="photo-grid">
+                    {% for photo in photos %}
+                    <div class="photo-item {% if photo.selected %}selected{% endif %}">
+                        <img src="{{ photo.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ photo.file_name }}">
+                        {% if photo.selected %}
+                        <div class="photo-checkmark">✓</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if delivery_files %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">交付文件</h3>
+            </div>
+            <div class="card-body">
+                <div class="file-list">
+                    {% for file in delivery_files %}
+                    <div class="file-item">
+                        <div class="file-icon">📄</div>
+                        <div class="file-info">
+                            <div class="file-name">{{ file.file_name }}</div>
+                            <div class="file-meta">
+                                <span>{{ file.file_size_human }}</span>
+                                <span>·</span>
+                                <span>{{ file.uploaded_at.strftime('%Y-%m-%d') }}</span>
+                            </div>
+                        </div>
+                        <a href="/api/orders/{{ order.id }}/files/{{ file.id }}/download" class="btn btn-secondary btn-sm">下载</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="detail-side">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">订单时间线</h3>
+            </div>
+            <div class="card-body">
+                <div class="mini-timeline">
+                    <div class="mini-timeline-item">
+                        <div class="mini-timeline-dot"></div>
+                        <div class="mini-timeline-content">
+                            <div class="mini-timeline-title">订单创建</div>
+                            <div class="mini-timeline-time">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                    </div>
+                    {% if order.status != 'pending' %}
+                    <div class="mini-timeline-item">
+                        <div class="mini-timeline-dot"></div>
+                        <div class="mini-timeline-content">
+                            <div class="mini-timeline-title">开始拍摄</div>
+                            <div class="mini-timeline-time">{{ order.shoot_date.strftime('%Y-%m-%d') if order.shoot_date else '-' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if order.status in ['awaiting_selection', 'selection_confirmed', 'ready_for_download', 'completed'] %}
+                    <div class="mini-timeline-item">
+                        <div class="mini-timeline-dot"></div>
+                        <div class="mini-timeline-content">
+                            <div class="mini-timeline-title">选片完成</div>
+                            <div class="mini-timeline-time">{{ order.selection_confirmed_at.strftime('%Y-%m-%d %H:%M') if order.selection_confirmed_at else '-' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if order.status in ['ready_for_download', 'completed'] %}
+                    <div class="mini-timeline-item">
+                        <div class="mini-timeline-dot"></div>
+                        <div class="mini-timeline-content">
+                            <div class="mini-timeline-title">文件上传</div>
+                            <div class="mini-timeline-time">{{ order.files_uploaded_at.strftime('%Y-%m-%d %H:%M') if order.files_uploaded_at else '-' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if order.status == 'completed' %}
+                    <div class="mini-timeline-item completed">
+                        <div class="mini-timeline-dot"></div>
+                        <div class="mini-timeline-content">
+                            <div class="mini-timeline-title">订单完成</div>
+                            <div class="mini-timeline-time">{{ order.completed_at.strftime('%Y-%m-%d %H:%M') if order.completed_at else '-' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% if satisfaction %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">客户评价</h3>
+            </div>
+            <div class="card-body">
+                <div class="satisfaction-display">
+                    <div class="satisfaction-score">
+                        <div class="score-value">{{ satisfaction.rating }}<span class="score-max">/5</span></div>
+                        <div class="score-stars">
+                            {% for i in range(5) %}
+                            <span class="star {% if i < satisfaction.rating %}filled{% endif %}">★</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if satisfaction.feedback %}
+                    <p class="satisfaction-feedback">"{{ satisfaction.feedback }}"</p>
+                    {% endif %}
+                    <div class="satisfaction-meta">
+                        评价于 {{ satisfaction.created_at.strftime('%Y-%m-%d') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% if current_user.role == 'admin' %}
+<div id="statusModal" class="modal-overlay" onclick="closeModal(event, 'statusModal')">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">更新订单状态</h3>
+            <button class="modal-close" onclick="closeModal(null, 'statusModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <form hx-post="/api/orders/{{ order.id }}/status" hx-target="#statusModal" hx-swap="outerHTML">
+                <div class="form-group">
+                    <label class="form-label">新状态</label>
+                    <select name="status" class="form-select" required>
+                        <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待开始</option>
+                        <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>进行中</option>
+                        <option value="awaiting_selection" {% if order.status == 'awaiting_selection' %}selected{% endif %}>待选片</option>
+                        <option value="selection_confirmed" {% if order.status == 'selection_confirmed' %}selected{% endif %}>已选片</option>
+                        <option value="ready_for_download" {% if order.status == 'ready_for_download' %}selected{% endif %}>可下载</option>
+                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <textarea name="remark" class="form-textarea" rows="3" placeholder="可选，说明状态变更原因"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal(null, 'statusModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">确认更新</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

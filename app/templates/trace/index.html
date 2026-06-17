@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}追溯中心 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}追溯中心{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">交付满意度多维度追溯分析</span>{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ "%.1f"|format(overall_stats.avg_rating) }}</div>
+            <div class="stat-label">平均满意度</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ overall_stats.total_evaluations }}</div>
+            <div class="stat-label">评价总数</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-accent">
+        <div class="stat-icon">😊</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ "%.1f"|format(overall_stats.satisfaction_rate) }}%</div>
+            <div class="stat-label">满意率（4-5分）</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-icon">😞</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ overall_stats.low_rating_count }}</div>
+            <div class="stat-label">低分评价（1-2分）</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">多维度筛选</h3>
+    </div>
+    <div class="card-body">
+        <form class="filter-form" method="get">
+            <div class="filter-group">
+                <label class="filter-label">时间范围</label>
+                <input type="date" name="start_date" class="form-input" value="{{ start_date or '' }}" onchange="this.form.submit()">
+                <span class="filter-sep">至</span>
+                <input type="date" name="end_date" class="form-input" value="{{ end_date or '' }}" onchange="this.form.submit()">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">摄影师</label>
+                <select name="photographer_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">全部摄影师</option>
+                    {% for p in photographers %}
+                    <option value="{{ p.id }}" {% if photographer_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">评分范围</label>
+                <select name="min_rating" class="form-select" onchange="this.form.submit()">
+                    <option value="">全部评分</option>
+                    <option value="5" {% if min_rating == 5 %}selected{% endif %}>5星</option>
+                    <option value="4" {% if min_rating == 4 %}selected{% endif %}>4星及以上</option>
+                    <option value="3" {% if min_rating == 3 %}selected{% endif %}>3星及以上</option>
+                    <option value="1" {% if min_rating == 1 %}selected{% endif %}>1-2星（低分）</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">订单状态</label>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">全部状态</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="ready_for_download" {% if status == 'ready_for_download' %}selected{% endif %}>可下载</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-secondary">查询</button>
+                <a href="/trace" class="btn btn-ghost">重置</a>
+                <button type="button" class="btn btn-primary" onclick="exportTraceReport()">
+                    <span>📥</span> 导出报告
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="trace-grid">
+    <div class="trace-section">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">评分分布</h3>
+            </div>
+            <div class="card-body">
+                <div class="rating-distribution">
+                    {% for item in rating_distribution %}
+                    <div class="rating-bar-item">
+                        <div class="rating-bar-label">{{ item.rating }} 星</div>
+                        <div class="rating-bar-track">
+                            <div class="rating-bar-fill" style="width: {{ item.percentage }}%;">
+                                <span class="rating-bar-value">{{ item.count }} ({{ "%.1f"|format(item.percentage) }}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="trace-section">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">按摄影师统计</h3>
+            </div>
+            <div class="card-body">
+                {% if stats_by_photographer %}
+                <div class="table-container">
+                    <table class="table table-compact">
+                        <thead>
+                            <tr>
+                                <th>摄影师</th>
+                                <th>订单数</th>
+                                <th>平均分</th>
+                                <th>满意率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in stats_by_photographer %}
+                            <tr>
+                                <td class="font-medium">{{ item.photographer_name }}</td>
+                                <td>{{ item.order_count }}</td>
+                                <td>
+                                    <div class="rating-display">
+                                        <span class="rating-score">{{ "%.1f"|format(item.avg_rating) }}</span>
+                                        {% for i in range(5) %}
+                                        <span class="star {% if i < item.avg_rating|round(0, 'floor')|int %}filled{% endif %}">★</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge {% if item.satisfaction_rate >= 90 %}badge-success
+                                                      {% elif item.satisfaction_rate >= 70 %}badge-info
+                                                      {% elif item.satisfaction_rate >= 50 %}badge-warning
+                                                      {% else %}badge-danger{% endif %}">
+                                        {{ "%.1f"|format(item.satisfaction_rate) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state-mini">
+                    <p>暂无数据</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="trace-section trace-section-full">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">满意度趋势（近30天）</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container chart-large">
+                    {% for item in trend_data %}
+                    <div class="chart-bar-wrapper">
+                        <div class="chart-bar {% if item.avg_rating >= 4 %}chart-bar-success
+                                             {% elif item.avg_rating >= 3 %}chart-bar-info
+                                             {% else %}chart-bar-danger{% endif %}" 
+                             style="height: {{ item.avg_rating * 20 }}%;">
+                            <span class="chart-bar-value">{{ "%.1f"|format(item.avg_rating) }}</span>
+                        </div>
+                        <div class="chart-bar-label">{{ item.date }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="trace-section trace-section-full">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">评价详情记录</h3>
+                <span class="card-meta">共 {{ satisfactions.total }} 条记录</span>
+            </div>
+            <div class="card-body">
+                {% if satisfactions.items %}
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>客户名称</th>
+                                <th>摄影师</th>
+                                <th>评分</th>
+                                <th>评价内容</th>
+                                <th>评价时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sat in satisfactions.items %}
+                            <tr>
+                                <td><code>{{ sat.order_no }}</code></td>
+                                <td>{{ sat.client_name }}</td>
+                                <td>{{ sat.photographer_name or '-' }}</td>
+                                <td>
+                                    <div class="rating-display">
+                                        {% for i in range(5) %}
+                                        <span class="star {% if i < sat.rating %}filled{% endif %}">★</span>
+                                        {% endfor %}
+                                        <span class="rating-score">{{ sat.rating }}.0</span>
+                                    </div>
+                                </td>
+                                <td class="feedback-cell">{{ sat.feedback or '未填写评价' }}</td>
+                                <td>{{ sat.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="table-actions">
+                                    <a href="/orders/{{ sat.order_id }}" class="btn btn-link">查看订单</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if satisfactions.total_pages > 1 %}
+                <div class="pagination">
+                    {% if satisfactions.page > 1 %}
+                    <a href="?page={{ satisfactions.page - 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="pagination-btn">上一页</a>
+                    {% endif %}
+                    
+                    {% for p in range(1, satisfactions.total_pages + 1) %}
+                        {% if p == 1 or p == satisfactions.total_pages or (p >= satisfactions.page - 2 and p <= satisfactions.page + 2) %}
+                        <a href="?page={{ p }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="pagination-btn {% if p == satisfactions.page %}active{% endif %}">{{ p }}</a>
+                        {% elif p == satisfactions.page - 3 or p == satisfactions.page + 3 %}
+                        <span class="pagination-ellipsis">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if satisfactions.page < satisfactions.total_pages %}
+                    <a href="?page={{ satisfactions.page + 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="pagination-btn">下一页</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <p>暂无评价记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}工作台 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}工作台{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">欢迎回来，{{ current_user.name }}！今天是 {{ today.strftime('%Y年%m月%d日') }}</span>{% endblock %}
+
+{% block top_bar_actions %}
+<div class="top-bar-actions">
+    <button class="btn btn-primary" onclick="location.href='/orders/create'">
+        <span>+</span> 新建订单
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">📋</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.total_orders }}</div>
+            <div class="stat-label">总订单数</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-accent">
+        <div class="stat-icon">🖼️</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.pending_selection }}</div>
+            <div class="stat-label">待选片</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.completed_orders }}</div>
+            <div class="stat-label">本月完成</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.pending_exceptions }}</div>
+            <div class="stat-label">待处理异常</div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-section">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">快捷操作</h3>
+            </div>
+            <div class="card-body">
+                <div class="quick-actions">
+                    <a href="/orders?status=awaiting_selection" class="quick-action-card">
+                        <div class="quick-action-icon">🖼️</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">确认选片</div>
+                            <div class="quick-action-desc">{{ stats.pending_selection }} 个订单待处理</div>
+                        </div>
+                    </a>
+                    <a href="/orders?status=ready_for_download" class="quick-action-card">
+                        <div class="quick-action-icon">⬇️</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">下载成片</div>
+                            <div class="quick-action-desc">{{ stats.ready_download }} 个订单可下载</div>
+                        </div>
+                    </a>
+                    <a href="/query/invoices" class="quick-action-card">
+                        <div class="quick-action-icon">🧾</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">发票周期</div>
+                            <div class="quick-action-desc">查看开票和回款情况</div>
+                        </div>
+                    </a>
+                    <a href="/exceptions" class="quick-action-card">
+                        <div class="quick-action-icon">⚠️</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">异常池</div>
+                            <div class="quick-action-desc">{{ stats.pending_exceptions }} 个异常待处理</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-section">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">最近订单</h3>
+                <a href="/orders" class="card-link">查看全部</a>
+            </div>
+            <div class="card-body">
+                {% if recent_orders and recent_orders.items %}
+                <div class="order-list">
+                    {% for order in recent_orders.items %}
+                    <div class="order-item">
+                        <div class="order-info">
+                            <div class="order-title">{{ order.title }}</div>
+                            <div class="order-meta">
+                                <span>#{{ order.order_no }}</span>
+                                <span>·</span>
+                                <span>{{ order.client_name }}</span>
+                            </div>
+                        </div>
+                        <div class="order-right">
+                            <span class="badge 
+                                {% if order.status == 'pending' %}badge-secondary
+                                {% elif order.status == 'in_progress' %}badge-primary
+                                {% elif order.status == 'awaiting_selection' %}badge-accent
+                                {% elif order.status == 'selection_confirmed' %}badge-info
+                                {% elif order.status == 'ready_for_download' %}badge-success
+                                {% elif order.status == 'completed' %}badge-success
+                                {% elif order.status == 'cancelled' %}badge-danger
+                                {% endif %}">
+                                {% if order.status == 'pending' %}待开始
+                                {% elif order.status == 'in_progress' %}进行中
+                                {% elif order.status == 'awaiting_selection' %}待选片
+                                {% elif order.status == 'selection_confirmed' %}已选片
+                                {% elif order.status == 'ready_for_download' %}可下载
+                                {% elif order.status == 'completed' %}已完成
+                                {% elif order.status == 'cancelled' %}已取消
+                                {% endif %}
+                            </span>
+                            <span class="order-date">{{ order.created_at.strftime('%m-%d') }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>暂无订单</p>
+                    <button class="btn btn-primary" onclick="location.href='/orders/create'">创建第一个订单</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    {% if current_user.role == 'admin' or current_user.role == 'photographer' %}
+    <div class="dashboard-section dashboard-section-full">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">本月交付趋势</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    {% for item in delivery_trend %}
+                    <div class="chart-bar-wrapper">
+                        <div class="chart-bar" style="height: {{ item.count * 10 }}%;">
+                            <span class="chart-bar-value">{{ item.count }}</span>
+                        </div>
+                        <div class="chart-bar-label">{{ item.date }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if stats.pending_exceptions > 0 and (current_user.role == 'admin' or current_user.role == 'video_lead') %}
+    <div class="dashboard-section dashboard-section-full">
+        <div class="card card-warning">
+            <div class="card-header">
+                <h3 class="card-title">⚠️ 待处理异常</h3>
+                <a href="/exceptions" class="card-link">处理全部</a>
+            </div>
+            <div class="card-body">
+                <div class="exception-summary">
+                    <div class="exception-summary-item">
+                        <span class="exception-summary-label">结算差异</span>
+                        <span class="exception-summary-value">{{ stats.exceptions_by_type.settlement_diff or 0 }}</span>
+                    </div>
+                    <div class="exception-summary-item">
+                        <span class="exception-summary-label">交付延迟</span>
+                        <span class="exception-summary-value">{{ stats.exceptions_by_type.delivery_delay or 0 }}</span>
+                    </div>
+                    <div class="exception-summary-item">
+                        <span class="exception-summary-label">质量问题</span>
+                        <span class="exception-summary-value">{{ stats.exceptions_by_type.quality_issue or 0 }}</span>
+                    </div>
+                    <div class="exception-summary-item">
+                        <span class="exception-summary-label">其他</span>
+                        <span class="exception-summary-value">{{ stats.exceptions_by_type.other or 0 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

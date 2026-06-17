@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}素材授权 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}素材授权{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">查看素材授权记录</span>{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">📜</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.total }}</div>
+            <div class="stat-label">总授权次数</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.active }}</div>
+            <div class="stat-label">有效授权</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.expiring_soon }}</div>
+            <div class="stat-label">即将到期</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.expired }}</div>
+            <div class="stat-label">已过期</div>
+        </div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <form class="filter-form" method="get">
+        <div class="filter-group">
+            <label class="filter-label">状态</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">全部状态</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>有效</option>
+                <option value="expiring_soon" {% if status == 'expiring_soon' %}selected{% endif %}>即将到期</option>
+                <option value="expired" {% if status == 'expired' %}selected{% endif %}>已过期</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">授权类型</label>
+            <select name="auth_type" class="form-select" onchange="this.form.submit()">
+                <option value="">全部类型</option>
+                <option value="commercial" {% if auth_type == 'commercial' %}selected{% endif %}>商业使用</option>
+                <option value="personal" {% if auth_type == 'personal' %}selected{% endif %}>个人使用</option>
+                <option value="editorial" {% if auth_type == 'editorial' %}selected{% endif %}>编辑使用</option>
+                <option value="exclusive" {% if auth_type == 'exclusive' %}selected{% endif %}>独家授权</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">搜索</label>
+            <input type="text" name="search" class="form-input" placeholder="订单号、授权编号" value="{{ search or '' }}">
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a href="/query/authorizations" class="btn btn-ghost">重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if authorizations.items %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>授权编号</th>
+                        <th>订单号</th>
+                        <th>客户名称</th>
+                        <th>授权类型</th>
+                        <th>使用范围</th>
+                        <th>授权开始</th>
+                        <th>授权到期</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for auth in authorizations.items %}
+                    <tr class="table-row-clickable" onclick="location.href='/orders/{{ auth.order_id }}'">
+                        <td><code>{{ auth.auth_no }}</code></td>
+                        <td><code>{{ auth.order_no }}</code></td>
+                        <td>{{ auth.client_name }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if auth.auth_type == 'commercial' %}badge-primary
+                                {% elif auth.auth_type == 'personal' %}badge-secondary
+                                {% elif auth.auth_type == 'editorial' %}badge-info
+                                {% elif auth.auth_type == 'exclusive' %}badge-accent
+                                {% endif %}">
+                                {% if auth.auth_type == 'commercial' %}商业使用
+                                {% elif auth.auth_type == 'personal' %}个人使用
+                                {% elif auth.auth_type == 'editorial' %}编辑使用
+                                {% elif auth.auth_type == 'exclusive' %}独家授权
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-muted">{{ auth.usage_scope or '-' }}</td>
+                        <td>{{ auth.start_date.strftime('%Y-%m-%d') if auth.start_date else '-' }}</td>
+                        <td>{{ auth.end_date.strftime('%Y-%m-%d') if auth.end_date else '永久' }}</td>
+                        <td>
+                            {% set status = auth.get_status() if auth.get_status else 'active' %}
+                            <span class="badge 
+                                {% if status == 'active' %}badge-success
+                                {% elif status == 'expiring_soon' %}badge-warning
+                                {% elif status == 'expired' %}badge-danger
+                                {% endif %}">
+                                {% if status == 'active' %}有效
+                                {% elif status == 'expiring_soon' %}即将到期
+                                {% elif status == 'expired' %}已过期
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="table-actions">
+                            <a href="/orders/{{ auth.order_id }}" class="btn btn-link">查看</a>
+                            {% if current_user.role == 'admin' %}
+                            <button class="btn btn-secondary btn-sm" onclick="extendAuth({{ auth.id }})">续期</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if authorizations.total_pages > 1 %}
+        <div class="pagination">
+            {% if authorizations.page > 1 %}
+            <a href="?page={{ authorizations.page - 1 }}{% if status %}&status={{ status }}{% endif %}{% if auth_type %}&auth_type={{ auth_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="pagination-btn">上一页</a>
+            {% endif %}
+            
+            {% for p in range(1, authorizations.total_pages + 1) %}
+                {% if p == 1 or p == authorizations.total_pages or (p >= authorizations.page - 2 and p <= authorizations.page + 2) %}
+                <a href="?page={{ p }}{% if status %}&status={{ status }}{% endif %}{% if auth_type %}&auth_type={{ auth_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="pagination-btn {% if p == authorizations.page %}active{% endif %}">{{ p }}</a>
+                {% elif p == authorizations.page - 3 or p == authorizations.page + 3 %}
+                <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if authorizations.page < authorizations.total_pages %}
+            <a href="?page={{ authorizations.page + 1 }}{% if status %}&status={{ status }}{% endif %}{% if auth_type %}&auth_type={{ auth_type }}{% endif %}{% if search %}&search={{ search }}{% endif %}" class="pagination-btn">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无授权记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

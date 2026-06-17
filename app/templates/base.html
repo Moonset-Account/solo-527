@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}摄影师订单作品交付台{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="/static/js/main.js"></script>
+</head>
+<body>
+    {% if current_user %}
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">📷</span>
+                    <span class="logo-text">Lumina</span>
+                </div>
+                <span class="logo-subtitle">作品交付台</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">工作台</div>
+                    <a href="/dashboard" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">工作台</span>
+                    </a>
+                    <a href="/orders" class="nav-item {% if active_page == 'orders' %}active{% endif %}">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">订单管理</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">交付中心</div>
+                    <a href="/orders?status=awaiting_selection" class="nav-item {% if active_page == 'selection' %}active{% endif %}">
+                        <span class="nav-icon">🖼️</span>
+                        <span class="nav-text">确认选片</span>
+                        {% if pending_selection_count and pending_selection_count > 0 %}
+                        <span class="badge badge-primary">{{ pending_selection_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="/orders?status=ready_for_download" class="nav-item {% if active_page == 'download' %}active{% endif %}">
+                        <span class="nav-icon">⬇️</span>
+                        <span class="nav-text">下载成片</span>
+                        {% if ready_download_count and ready_download_count > 0 %}
+                        <span class="badge badge-accent">{{ ready_download_count }}</span>
+                        {% endif %}
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">查询中心</div>
+                    <a href="/query/invoices" class="nav-item {% if active_page == 'invoices' %}active{% endif %}">
+                        <span class="nav-icon">🧾</span>
+                        <span class="nav-text">发票周期</span>
+                    </a>
+                    <a href="/query/deliveries" class="nav-item {% if active_page == 'deliveries' %}active{% endif %}">
+                        <span class="nav-icon">📦</span>
+                        <span class="nav-text">作品交付</span>
+                    </a>
+                    <a href="/query/authorizations" class="nav-item {% if active_page == 'authorizations' %}active{% endif %}">
+                        <span class="nav-icon">📜</span>
+                        <span class="nav-text">素材授权</span>
+                    </a>
+                </div>
+                
+                {% if current_user.role in ['admin', 'video_lead'] %}
+                <div class="nav-section">
+                    <div class="nav-section-title">管理中心</div>
+                    {% if current_user.role == 'admin' %}
+                    <a href="/admin" class="nav-item {% if active_page == 'admin' %}active{% endif %}">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-text">系统管理</span>
+                    </a>
+                    <a href="/trace" class="nav-item {% if active_page == 'trace' %}active{% endif %}">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">追溯中心</span>
+                    </a>
+                    {% endif %}
+                    <a href="/exceptions" class="nav-item {% if active_page == 'exceptions' %}active{% endif %}">
+                        <span class="nav-icon">⚠️</span>
+                        <span class="nav-text">异常池</span>
+                        {% if pending_exception_count and pending_exception_count > 0 %}
+                        <span class="badge badge-danger">{{ pending_exception_count }}</span>
+                        {% endif %}
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">{{ current_user.name[0] if current_user.name else 'U' }}</div>
+                    <div class="user-details">
+                        <div class="user-name">{{ current_user.name }}</div>
+                        <div class="user-role">
+                            {% if current_user.role == 'photographer' %}摄影师
+                            {% elif current_user.role == 'admin' %}管理员
+                            {% elif current_user.role == 'video_lead' %}视频团队负责人
+                            {% elif current_user.role == 'client' %}客户
+                            {% endif %}
+                            {% if current_user.is_test_account %}
+                            <span class="badge badge-warning" style="margin-left: 4px;">测试</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <a href="/logout" class="logout-btn">
+                    <span>🚪</span>
+                </a>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+                    {% block page_subtitle %}{% endblock %}
+                </div>
+                <div class="top-bar-right">
+                    {% block top_bar_actions %}{% endblock %}
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error_message }}
+                </div>
+                {% endif %}
+                {% if success_message %}
+                <div class="alert alert-success" role="alert">
+                    {{ success_message }}
+                </div>
+                {% endif %}
+                
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% else %}
+    {% block auth_content %}{% endblock %}
+    {% endif %}
+    
+    {% block modals %}{% endblock %}
+    
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>

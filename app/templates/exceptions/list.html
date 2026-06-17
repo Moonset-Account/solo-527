@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}异常池 - 摄影师订单作品交付台{% endblock %}
+
+{% block page_title %}异常池{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">按结算差异归类处理</span>{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-card-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.pending }}</div>
+            <div class="stat-label">待处理</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">🔄</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.processing }}</div>
+            <div class="stat-label">处理中</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.resolved }}</div>
+            <div class="stat-label">已解决</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-secondary">
+        <div class="stat-icon">📋</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.closed }}</div>
+            <div class="stat-label">已关闭</div>
+        </div>
+    </div>
+</div>
+
+<div class="exception-type-tabs">
+    <div class="type-tabs">
+        <a href="/exceptions" class="type-tab {% if not exception_type %}active{% endif %}">
+            <span class="tab-icon">📋</span>
+            <span class="tab-text">全部</span>
+            <span class="tab-count">{{ stats.total }}</span>
+        </a>
+        <a href="/exceptions?type=settlement_diff" class="type-tab {% if exception_type == 'settlement_diff' %}active{% endif %}">
+            <span class="tab-icon">💰</span>
+            <span class="tab-text">结算差异</span>
+            <span class="tab-count">{{ stats.by_type.settlement_diff or 0 }}</span>
+        </a>
+        <a href="/exceptions?type=delivery_delay" class="type-tab {% if exception_type == 'delivery_delay' %}active{% endif %}">
+            <span class="tab-icon">⏰</span>
+            <span class="tab-text">交付延迟</span>
+            <span class="tab-count">{{ stats.by_type.delivery_delay or 0 }}</span>
+        </a>
+        <a href="/exceptions?type=quality_issue" class="type-tab {% if exception_type == 'quality_issue' %}active{% endif %}">
+            <span class="tab-icon">📷</span>
+            <span class="tab-text">质量问题</span>
+            <span class="tab-count">{{ stats.by_type.quality_issue or 0 }}</span>
+        </a>
+        <a href="/exceptions?type=other" class="type-tab {% if exception_type == 'other' %}active{% endif %}">
+            <span class="tab-icon">❓</span>
+            <span class="tab-text">其他</span>
+            <span class="tab-count">{{ stats.by_type.other or 0 }}</span>
+        </a>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <form class="filter-form" method="get">
+        <input type="hidden" name="type" value="{{ exception_type or '' }}">
+        <div class="filter-group">
+            <label class="filter-label">状态</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">全部状态</option>
+                <option value="pending" {% if status == 'pending' %}selected{% endif %}>待处理</option>
+                <option value="processing" {% if status == 'processing' %}selected{% endif %}>处理中</option>
+                <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>已解决</option>
+                <option value="closed" {% if status == 'closed' %}selected{% endif %}>已关闭</option>
+            </select>
+        </div>
+        {% if current_user.role == 'admin' %}
+        <div class="filter-group">
+            <label class="filter-label">处理人</label>
+            <select name="handler_id" class="form-select" onchange="this.form.submit()">
+                <option value="">全部处理人</option>
+                {% for h in handlers %}
+                <option value="{{ h.id }}" {% if handler_id == h.id %}selected{% endif %}>{{ h.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="filter-group">
+            <label class="filter-label">时间</label>
+            <input type="date" name="start_date" class="form-input" value="{{ start_date or '' }}" onchange="this.form.submit()">
+            <span class="filter-sep">至</span>
+            <input type="date" name="end_date" class="form-input" value="{{ end_date or '' }}" onchange="this.form.submit()">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">搜索</label>
+            <input type="text" name="search" class="form-input" placeholder="订单号、异常标题" value="{{ search or '' }}">
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a href="/exceptions{% if exception_type %}?type={{ exception_type }}{% endif %}" class="btn btn-ghost">重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if exceptions.items %}
+        <div class="exception-list">
+            {% for exception in exceptions.items %}
+            <div class="exception-card {% if exception.status == 'pending' %}exception-pending
+                                      {% elif exception.status == 'processing' %}exception-processing
+                                      {% elif exception.status == 'resolved' %}exception-resolved
+                                      {% else %}exception-closed{% endif %}">
+                <div class="exception-header">
+                    <div class="exception-title-row">
+                        <h4 class="exception-title">{{ exception.title }}</h4>
+                        <span class="badge 
+                            {% if exception.exception_type == 'settlement_diff' %}badge-danger
+                            {% elif exception.exception_type == 'delivery_delay' %}badge-warning
+                            {% elif exception.exception_type == 'quality_issue' %}badge-info
+                            {% else %}badge-secondary{% endif %}">
+                            {% if exception.exception_type == 'settlement_diff' %}结算差异
+                            {% elif exception.exception_type == 'delivery_delay' %}交付延迟
+                            {% elif exception.exception_type == 'quality_issue' %}质量问题
+                            {% else %}其他{% endif %}
+                        </span>
+                        <span class="badge 
+                            {% if exception.status == 'pending' %}badge-danger
+                            {% elif exception.status == 'processing' %}badge-warning
+                            {% elif exception.status == 'resolved' %}badge-success
+                            {% else %}badge-secondary{% endif %}">
+                            {% if exception.status == 'pending' %}待处理
+                            {% elif exception.status == 'processing' %}处理中
+                            {% elif exception.status == 'resolved' %}已解决
+                            {% else %}已关闭{% endif %}
+                        </span>
+                    </div>
+                    <div class="exception-meta">
+                        <span>订单号：<code>{{ exception.order_no }}</code></span>
+                        <span>·</span>
+                        <span>客户：{{ exception.client_name }}</span>
+                        <span>·</span>
+                        <span>创建时间：{{ exception.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                </div>
+                
+                <div class="exception-body">
+                    <div class="exception-desc">
+                        <p><strong>问题描述：</strong>{{ exception.description }}</p>
+                        {% if exception.amount_diff is not none %}
+                        <p class="amount-diff">
+                            <strong>金额差异：</strong>
+                            <span class="diff-value {% if exception.amount_diff > 0 %}diff-positive{% elif exception.amount_diff < 0 %}diff-negative{% endif %}">
+                                {{ '+' if exception.amount_diff > 0 }}¥{{ "%.2f"|format(exception.amount_diff) }}
+                            </span>
+                            <span class="diff-detail">
+                                （应收：¥{{ "%.2f"|format(exception.expected_amount or 0) }}，
+                                 实收：¥{{ "%.2f"|format(exception.actual_amount or 0) }}）
+                            </span>
+                        </p>
+                        {% endif %}
+                    </div>
+                    
+                    {% if exception.handler_name %}
+                    <div class="exception-handler">
+                        <span>处理人：{{ exception.handler_name }}</span>
+                        {% if exception.handled_at %}
+                        <span>·</span>
+                        <span>处理时间：{{ exception.handled_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if exception.result or exception.reason %}
+                    <div class="exception-result">
+                        {% if exception.result %}
+                        <p><strong>处理结果：</strong>{{ exception.result }}</p>
+                        {% endif %}
+                        {% if exception.reason %}
+                        <p><strong>原因分析：</strong>{{ exception.reason }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="exception-footer">
+                    <div class="exception-logs">
+                        {% if exception.logs and exception.logs|length > 0 %}
+                        <div class="exception-logs-preview">
+                            <span class="logs-count">{{ exception.logs|length }} 条处理记录</span>
+                            <button class="btn btn-link btn-sm" onclick="showLogs({{ exception.id }})">查看详情</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="exception-actions">
+                        {% if exception.status in ['pending', 'processing'] and (current_user.role == 'video_lead' or current_user.role == 'admin') %}
+                        <button class="btn btn-primary btn-sm" onclick="handleException({{ exception.id }})">
+                            <span>✏️</span> 处理
+                        </button>
+                        {% endif %}
+                        {% if exception.status == 'resolved' and current_user.role == 'admin' %}
+                        <button class="btn btn-success btn-sm" onclick="closeException({{ exception.id }})">
+                            <span>✓</span> 关闭
+                        </button>
+                        {% endif %}
+                        <a href="/orders/{{ exception.order_id }}" class="btn btn-secondary btn-sm">查看订单</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if exceptions.total_pages > 1 %}
+        <div class="pagination">
+            {% if exceptions.page > 1 %}
+            <a href="?page={{ exceptions.page - 1 }}{% if exception_type %}&type={{ exception_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if handler_id %}&handler_id={{ handler_id }}{% endif %}" class="pagination-btn">上一页</a>
+            {% endif %}
+            
+            {% for p in range(1, exceptions.total_pages + 1) %}
+                {% if p == 1 or p == exceptions.total_pages or (p >= exceptions.page - 2 and p <= exceptions.page + 2) %}
+                <a href="?page={{ p }}{% if exception_type %}&type={{ exception_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if handler_id %}&handler_id={{ handler_id }}{% endif %}" class="pagination-btn {% if p == exceptions.page %}active{% endif %}">{{ p }}</a>
+                {% elif p == exceptions.page - 3 or p == exceptions.page + 3 %}
+                <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if exceptions.page < exceptions.total_pages %}
+            <a href="?page={{ exceptions.page + 1 }}{% if exception_type %}&type={{ exception_type }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if handler_id %}&handler_id={{ handler_id }}{% endif %}" class="pagination-btn">下一页</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">✅</div>
+            <p>暂无异常工单</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div id="handleModal" class="modal-overlay" onclick="closeModal(event, 'handleModal')">
+    <div class="modal modal-large" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">处理异常工单</h3>
+            <button class="modal-close" onclick="closeModal(null, 'handleModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="handleForm" hx-post="/api/exceptions/0/handle" hx-target="#handleModal" hx-swap="outerHTML">
+                <div class="form-group">
+                    <label class="form-label">状态</label>
+                    <select name="status" class="form-select" required>
+                        <option value="processing">处理中</option>
+                        <option value="resolved">已解决</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">处理结果 <span class="required">*</span></label>
+                    <textarea name="result" class="form-textarea" rows="4" required placeholder="请详细描述处理结果"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">原因分析 <span class="required">*</span></label>
+                    <textarea name="reason" class="form-textarea" rows="4" required placeholder="请分析异常产生的原因"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <textarea name="remark" class="form-textarea" rows="2" placeholder="可选，其他需要说明的内容"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal(null, 'handleModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">提交处理</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="logsModal" class="modal-overlay" onclick="closeModal(event, 'logsModal')">
+    <div class="modal modal-large" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">处理记录</h3>
+            <button class="modal-close" onclick="closeModal(null, 'logsModal')">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="logsContent" class="logs-content">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeModal(null, 'logsModal')">关闭</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
