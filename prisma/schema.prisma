@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  SALES_MANAGER
+  CONSULTANT
+}
+
+enum LeadSource {
+  ONLINE_AD
+  OFFLINE_ACTIVITY
+  REFERRAL
+  WEBSITE
+  PHONE_INQUIRY
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum LeadStage {
+  NEW_LEAD
+  CONTACTED
+  SURVEY_SCHEDULED
+  SURVEY_COMPLETED
+  QUOTE_SENT
+  NEGOTIATION
+  CONTRACT_SIGNED
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum DealConfidence {
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum TodoType {
+  PUBLIC_SEA_ASSIGN
+  LEAD_FOLLOW_UP
+  QUOTE_REVIEW
+  SURVEY_REMINDER
+  CONTRACT_REMINDER
+}
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReportType {
+  LEAD_SOURCE
+  FOLLOW_UP_STAGE
+  DEAL_PREDICTION
+  EXCEPTION_RECORD
+  SALES_PERFORMANCE
+}
+
+enum ChurnReason {
+  PRICE_TOO_HIGH
+  POOR_SERVICE
+  BAD_TIMING
+  CHOSE_COMPETITOR
+  CHANGED_PLAN
+  OTHER
+}
+
+model User {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  passwordHash    String
+  role            UserRole @default(CONSULTANT)
+  phone           String?
+  avatar          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  isActive        Boolean  @default(true)
+
+  leads           Lead[]           @relation("ConsultantLeads")
+  assignedLeads   Lead[]           @relation("AssignedLeads")
+  surveyRecords   SurveyRecord[]
+  followUps       FollowUpRecord[]
+  dealPredictions DealPrediction[]
+  exceptionRecords ExceptionRecord[]
+  todos           Todo[]
+  reportTasks     ReportTask[]
+  operationHistory OperationHistory[]
+}
+
+model Customer {
+  id              String   @id @default(cuid())
+  name            String
+  phone           String
+  email           String?
+  address         String?
+  city            String?
+  district        String?
+  propertyType    String?
+  area            Float?
+  budgetRange     String?
+  decorationStyle String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  leads           Lead[]
+  surveyRecords   SurveyRecord[]
+  exceptionRecords ExceptionRecord[]
+}
+
+model Lead {
+  id              String     @id @default(cuid())
+  customerId      String
+  source          LeadSource
+  stage           LeadStage  @default(NEW_LEAD)
+  consultantId    String?
+  assignedToId    String?
+  isPublicSea     Boolean    @default(true)
+  publicSeaSince  DateTime?
+  lastFollowUpAt  DateTime?
+  nextFollowUpAt  DateTime?
+  estimatedValue  Decimal?   @db.Decimal(12, 2)
+  dealConfidence  DealConfidence?
+  description     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  customer        Customer   @relation(fields: [customerId], references: [id])
+  consultant      User?      @relation("ConsultantLeads", fields: [consultantId], references: [id])
+  assignedTo      User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  surveyRecords   SurveyRecord[]
+  followUps       FollowUpRecord[]
+  dealPredictions DealPrediction[]
+  quoteVersions   QuoteVersion[]
+  exceptionRecords ExceptionRecord[]
+  todos           Todo[]
+}
+
+model SurveyRecord {
+  id              String   @id @default(cuid())
+  leadId          String
+  customerId      String
+  consultantId    String
+  surveyDate      DateTime
+  address         String
+  area            Float
+  houseType       String
+  floor           String
+  orientation     String
+  structure       String
+  currentStatus   String
+  decorationNeeds String
+  specialRequirements String?
+  photos          String[]
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  customer        Customer @relation(fields: [customerId], references: [id])
+  consultant      User     @relation(fields: [consultantId], references: [id])
+  followUps       FollowUpRecord[]
+}
+
+model FollowUpRecord {
+  id              String   @id @default(cuid())
+  leadId          String
+  consultantId    String
+  surveyRecordId  String?
+  stage           LeadStage
+  followUpDate    DateTime
+  followUpType    String
+  content         String
+  nextStep        String?
+  nextFollowUpAt  DateTime?
+  durationMinutes Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lead            Lead         @relation(fields: [leadId], references: [id])
+  consultant      User         @relation(fields: [consultantId], references: [id])
+  surveyRecord    SurveyRecord? @relation(fields: [surveyRecordId], references: [id])
+}
+
+model DealPrediction {
+  id              String   @id @default(cuid())
+  leadId          String
+  consultantId    String
+  predictedAmount Decimal  @db.Decimal(12, 2)
+  predictedDate   DateTime
+  confidence      DealConfidence
+  factors         Json
+  notes           String?
+  isFinal         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  consultant      User     @relation(fields: [consultantId], references: [id])
+}
+
+model QuoteVersion {
+  id              String   @id @default(cuid())
+  leadId          String
+  version         Int
+  totalAmount     Decimal  @db.Decimal(12, 2)
+  items           Json
+  sentAt          DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectReason    String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lead            Lead     @relation(fields: [leadId], references: [id])
+}
+
+model ExceptionRecord {
+  id              String     @id @default(cuid())
+  leadId          String
+  customerId      String
+  responsibleId   String
+  churnReason     ChurnReason
+  churnReasonDetail String?
+  handlingStartAt DateTime
+  handlingEndAt   DateTime?
+  handlingMinutes Int?
+  resolution      String?
+  isResolved      Boolean    @default(false)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  lead            Lead       @relation(fields: [leadId], references: [id])
+  customer        Customer   @relation(fields: [customerId], references: [id])
+  responsible     User       @relation(fields: [responsibleId], references: [id])
+}
+
+model Todo {
+  id              String     @id @default(cuid())
+  type            TodoType
+  status          TodoStatus @default(PENDING)
+  title           String
+  description     String?
+  leadId          String?
+  assignedToId    String
+  dueDate         DateTime?
+  completedAt     DateTime?
+  metadata        Json
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  lead            Lead?      @relation(fields: [leadId], references: [id])
+  assignedTo      User       @relation(fields: [assignedToId], references: [id])
+}
+
+model ReportTask {
+  id              String       @id @default(cuid())
+  type            ReportType
+  status          ReportStatus @default(PENDING)
+  requestedById   String
+  parameters      Json
+  fileUrl         String?
+  fileName        String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  requestedBy     User         @relation(fields: [requestedById], references: [id])
+}
+
+model OperationHistory {
+  id              String   @id @default(cuid())
+  entityType      String
+  entityId        String
+  action          String
+  userId          String
+  oldValues       Json?
+  newValues       Json?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model PublicSeaRule {
+  id              String   @id @default(cuid())
+  name            String
+  autoAssignHours Int
+  maxLeadsPerConsultant Int
+  returnToPublicHours Int
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
