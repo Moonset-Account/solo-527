@@ -1,0 +1,17 @@
+<div class="navbar" style="position:fixed;top:0;left:0;right:0;z-index:100;">
+    <div style="font-weight:700;font-size:18px;">🐾 宠物洗护预约商城</div>
+    <div>
+        <span style="margin-right:20px;">{{ user.full_name or user.username }}
+            {% if user.is_test_account %}
+                <span class="badge badge-abnormal" style="background:#fef3c7;color:#92400e;">测试账号</span>
+            {% endif %}
+        </span>
+        <a href="/api/auth/logout" onclick="event.preventDefault();document.cookie='access_token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';window.location.href='/login';">退出登录</a>
+    </div>
+</div>
+<div class="sidebar">
+    <a href="/customer/dashboard" class="{% if request.url.path == '/customer/dashboard' %}active{% endif %}">📊 概览</a>
+    <a href="/customer/services" class="{% if request.url.path == '/customer/services' %}active{% endif %}">🛁 服务与套餐</a>
+    <a href="/customer/appointments" class="{% if request.url.path == '/customer/appointments' %}active{% endif %}">📅 我的预约</a>
+    <a href="/customer/pets" class="{% if request.url.path == '/customer/pets' %}active{% endif %}">🐕 我的宠物</a>
+</div>

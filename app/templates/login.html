@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}登录 - 宠物洗护预约商城{% endblock %}
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h1>🐾 宠物洗护预约</h1>
+        <p>欢迎回来，请登录您的账号</p>
+        <div id="login-alert"></div>
+        <form hx-post="/api/auth/login" hx-target="#login-alert" hx-swap="innerHTML"
+              hx-on::after-request="if(event.detail.successful) { window.location.href = '/'; }">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" required placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" required placeholder="请输入密码">
+            </div>
+            <button type="submit" class="btn btn-primary w-full mb-4">登 录</button>
+        </form>
+        <p class="text-sm text-gray" style="text-align:center;">
+            还没有账号？<a href="/register" style="color:#667eea;">立即注册</a>
+        </p>
+        <div class="mt-4" style="background:#f7fafc;padding:12px;border-radius:8px;">
+            <p class="text-sm text-gray"><strong>测试账号提示：</strong>用户名以 test_ 开头，或邮箱以 @test.petgrooming.local 结尾的账号会被标记为测试账号，其操作数据不影响业务统计。</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

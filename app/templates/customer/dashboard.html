@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}客户首页 - 宠物洗护预约商城{% endblock %}
+{% block content %}
+{% include "customer/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">欢迎回来，{{ user.full_name or user.username }} 👋</h1>
+    <div class="grid">
+        <div class="stat-card">
+            <h3>我的宠物</h3>
+            <div class="value" id="stat-pets">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>待服务预约</h3>
+            <div class="value" id="stat-pending">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>已完成服务</h3>
+            <div class="value" id="stat-completed">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>累计消费</h3>
+            <div class="value" id="stat-revenue">-</div>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <h2>最近预约</h2>
+        <div id="recent-appointments">
+            <p class="text-gray">加载中...</p>
+        </div>
+    </div>
+    <div class="flex gap-4 mt-4">
+        <a href="/customer/services" class="btn btn-primary">立即预约服务</a>
+        <a href="/customer/pets" class="btn btn-secondary">管理我的宠物</a>
+    </div>
+</div>
+<script>
+async function loadDashboard() {
+    const headers = apiHeaders();
+    try {
+        const [petsResp, apptsResp] = await Promise.all([
+            fetch('/api/pets', { headers }),
+            fetch('/api/appointments?limit=50', { headers })
+        ]);
+        const pets = await petsResp.json();
+        const appts = await apptsResp.json();
+        document.getElementById('stat-pets').textContent = pets.length;
+        document.getElementById('stat-pending').textContent = appts.filter(a => ['pending','confirmed','in_progress'].includes(a.status)).length;
+        document.getElementById('stat-completed').textContent = appts.filter(a => a.status === 'completed').length;
+        document.getElementById('stat-revenue').textContent = '¥' + appts.filter(a => a.status === 'completed').reduce((s,a) => s + a.total_price, 0).toFixed(2);
+        const recent = appts.slice(0, 5);
+        document.getElementById('recent-appointments').innerHTML = recent.length ? `
+            <table>
+                <thead><tr><th>日期</th><th>时间</th><th>宠物</th><th>服务</th><th>状态</th></tr></thead>
+                <tbody>
+                    ${recent.map(a => `<tr>
+                        <td>${a.appointment_date}</td>
+                        <td>${a.start_time}</td>
+                        <td>${a.pet_name || '-'}</td>
+                        <td>${a.services.map(s => s.service_name).join(', ')}</td>
+                        <td><span class="badge badge-${a.status}">${a.status}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '<p class="text-gray">暂无预约记录</p>';
+    } catch (e) {
+        console.error(e);
+    }
+}
+loadDashboard();
+</script>
+{% endblock %}

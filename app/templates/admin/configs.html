@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}系统配置 - 宠物洗护管理后台{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">⚙️ 系统配置管理</h1>
+    <div class="card">
+        <div class="flex justify-between items-center mb-4">
+            <h2 style="margin:0;">配置列表</h2>
+            <button class="btn btn-primary" onclick="openConfigModal()">新增配置</button>
+        </div>
+        <div class="mb-4">
+            <select id="filter-type" onchange="loadConfigs()">
+                <option value="">全部类型</option>
+                <option value="boarding_cage">寄养笼位规则</option>
+                <option value="health_change">健康变化规则</option>
+                <option value="vaccine_allergy">疫苗过敏规则</option>
+                <option value="repurchase_rule">复购异常规则</option>
+            </select>
+        </div>
+        <div id="configs-list">加载中...</div>
+    </div>
+    <div id="config-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div class="card" style="width:500px;max-height:90vh;overflow-y:auto;">
+            <h2>新增配置</h2>
+            <div class="form-group">
+                <label>配置类型</label>
+                <select id="cfg-type">
+                    <option value="boarding_cage">寄养笼位规则</option>
+                    <option value="health_change">健康变化规则</option>
+                    <option value="vaccine_allergy">疫苗过敏规则</option>
+                    <option value="repurchase_rule">复购异常规则</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="cfg-name" placeholder="如：小型犬笼位配置">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="cfg-desc" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>配置值 (JSON格式)</label>
+                <textarea id="cfg-value" rows="4" style="font-family:monospace;" placeholder='{"key": "value"}'></textarea>
+            </div>
+            <div class="form-group">
+                <label>生效条件 (JSON格式)</label>
+                <textarea id="cfg-conditions" rows="3" style="font-family:monospace;" placeholder='{"store_id": 1}'></textarea>
+            </div>
+            <div class="form-group">
+                <label>优先级 (数字越大越优先)</label>
+                <input type="number" id="cfg-priority" value="0">
+            </div>
+            <div class="grid" style="grid-template-columns:1fr 1fr;">
+                <div class="form-group">
+                    <label>生效开始日期</label>
+                    <input type="date" id="cfg-from">
+                </div>
+                <div class="form-group">
+                    <label>生效结束日期</label>
+                    <input type="date" id="cfg-to">
+                </div>
+            </div>
+            <div class="flex gap-2" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeConfigModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+async function loadConfigs() {
+    const type = document.getElementById('filter-type').value;
+    let url = '/api/configs';
+    if (type) url += '?config_type=' + type;
+    try {
+        const resp = await fetch(url, { headers: apiHeaders() });
+        const configs = await resp.json();
+        if (!configs.length) {
+            document.getElementById('configs-list').innerHTML = '<p class="text-gray">暂无配置</p>';
+            return;
+        }
+        document.getElementById('configs-list').innerHTML = `
+            <table>
+                <thead><tr><th>类型</th><th>名称</th><th>优先级</th><th>状态</th><th>有效期</th><th>操作</th></tr></thead>
+                <tbody>
+                    ${configs.map(c => `<tr>
+                        <td><span class="badge badge-confirmed">${c.config_type}</span></td>
+                        <td>
+                            <div><strong>${c.name}</strong></div>
+                            <div class="text-sm text-gray">${c.description || ''}</div>
+                            <div class="text-sm" style="margin-top:4px;"><code style="background:#f7fafc;padding:2px 6px;border-radius:4px;">${JSON.stringify(c.config_value)}</code></div>
+                        </td>
+                        <td>${c.priority}</td>
+                        <td>${c.is_active ? '<span class="badge badge-completed">生效中</span>' : '<span class="badge badge-cancelled">已停用</span>'}</td>
+                        <td class="text-sm">${c.valid_from || '-'} ~ ${c.valid_to || '-'}</td>
+                        <td><button class="btn btn-secondary btn-sm" onclick="toggleConfig(${c.id})">${c.is_active ? '停用' : '启用'}</button></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) { console.error(e); }
+}
+
+async function toggleConfig(id) {
+    const resp = await fetch(`/api/configs/${id}/toggle`, { method: 'PATCH', headers: apiHeaders() });
+    if (resp.ok) { showToast('状态已更新'); loadConfigs(); }
+}
+
+function openConfigModal() { document.getElementById('config-modal').style.display = 'flex'; }
+function closeConfigModal() { document.getElementById('config-modal').style.display = 'none'; }
+
+async function submitConfig() {
+    try {
+        const data = {
+            config_type: document.getElementById('cfg-type').value,
+            name: document.getElementById('cfg-name').value,
+            description: document.getElementById('cfg-desc').value || null,
+            config_value: JSON.parse(document.getElementById('cfg-value').value || '{}'),
+            conditions: JSON.parse(document.getElementById('cfg-conditions').value || '{}'),
+            priority: parseInt(document.getElementById('cfg-priority').value) || 0,
+            valid_from: document.getElementById('cfg-from').value || null,
+            valid_to: document.getElementById('cfg-to').value || null
+        };
+        if (!data.name) { showToast('请输入名称', true); return; }
+        const resp = await fetch('/api/configs', {
+            method: 'POST',
+            headers: apiHeaders(),
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) { showToast('配置已保存'); closeConfigModal(); loadConfigs(); }
+        else { const err = await resp.json(); showToast(err.detail || '保存失败', true); }
+    } catch (e) {
+        showToast('JSON格式错误', true);
+    }
+}
+
+loadConfigs();
+</script>
+{% endblock %}

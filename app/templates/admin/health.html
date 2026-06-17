@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}健康记录 - 宠物洗护管理后台{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">❤️ 健康记录管理</h1>
+    <div class="grid">
+        <div class="card">
+            <h2>按日期统计</h2>
+            <div id="stats-date">加载中...</div>
+        </div>
+        <div class="card">
+            <h2>按异常原因统计</h2>
+            <div id="stats-reason">加载中...</div>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <div class="flex justify-between items-center mb-4">
+            <h2 style="margin:0;">健康记录列表</h2>
+            <button class="btn btn-primary" onclick="openRecordModal()">新增记录</button>
+        </div>
+        <div id="records-list">加载中...</div>
+    </div>
+    <div id="record-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div class="card" style="width:450px;">
+            <h2>新增健康记录</h2>
+            <div class="form-group">
+                <label>宠物ID</label>
+                <input type="number" id="hr-pet">
+            </div>
+            <div class="form-group">
+                <label>记录日期</label>
+                <input type="date" id="hr-date">
+            </div>
+            <div class="form-group">
+                <label>健康状态</label>
+                <select id="hr-status">
+                    <option value="normal">正常</option>
+                    <option value="abnormal">异常</option>
+                    <option value="critical">危重</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>异常原因</label>
+                <input type="text" id="hr-reason" placeholder="如：皮肤过敏、食欲不振等">
+            </div>
+            <div class="form-group">
+                <label>体温 (°C)</label>
+                <input type="number" step="0.1" id="hr-temp">
+            </div>
+            <div class="form-group">
+                <label>体重 (kg)</label>
+                <input type="number" step="0.1" id="hr-weight">
+            </div>
+            <div class="form-group">
+                <label>症状</label>
+                <textarea id="hr-symptoms" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>处理方案</label>
+                <textarea id="hr-treatment" rows="2"></textarea>
+            </div>
+            <div class="flex gap-2" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeRecordModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitRecord()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+async function loadStats() {
+    try {
+        const [dateResp, reasonResp] = await Promise.all([
+            fetch('/api/health-stats?group_by=date', { headers: apiHeaders() }),
+            fetch('/api/health-stats?group_by=reason', { headers: apiHeaders() })
+        ]);
+        const byDate = await dateResp.json();
+        const byReason = await reasonResp.json();
+
+        document.getElementById('stats-date').innerHTML = byDate.length ? `
+            <table>
+                <thead><tr><th>日期</th><th>总数</th><th>异常</th><th>危重</th></tr></thead>
+                <tbody>
+                    ${byDate.slice(0, 7).map(h => `<tr>
+                        <td>${h.date}</td>
+                        <td>${h.total_count}</td>
+                        <td class="badge badge-abnormal" style="display:inline-block;">${h.abnormal_count || 0}</td>
+                        <td class="badge badge-critical" style="display:inline-block;">${h.critical_count || 0}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '<p class="text-gray">暂无数据</p>';
+
+        document.getElementById('stats-reason').innerHTML = byReason.length ? `
+            <table>
+                <thead><tr><th>异常原因</th><th>数量</th></tr></thead>
+                <tbody>
+                    ${byReason.filter(h => h.abnormal_reason).map(h => `<tr>
+                        <td>${h.abnormal_reason}</td>
+                        <td>${(h.abnormal_count || 0) + (h.critical_count || 0)}</td>
+                    </tr>`).join('') || '<tr><td colspan="2" class="text-gray">暂无异常记录</td></tr>'}
+                </tbody>
+            </table>
+        ` : '<p class="text-gray">暂无数据</p>';
+    } catch (e) { console.error(e); }
+}
+
+async function loadRecords() {
+    try {
+        const resp = await fetch('/api/health-records?limit=50', { headers: apiHeaders() });
+        const records = await resp.json();
+        if (!records.length) {
+            document.getElementById('records-list').innerHTML = '<p class="text-gray">暂无健康记录</p>';
+            return;
+        }
+        document.getElementById('records-list').innerHTML = `
+            <table>
+                <thead><tr><th>日期</th><th>宠物ID</th><th>状态</th><th>异常原因</th><th>体温</th><th>体重</th></tr></thead>
+                <tbody>
+                    ${records.map(r => `<tr>
+                        <td>${r.record_date}</td>
+                        <td>#${r.pet_id}</td>
+                        <td><span class="badge badge-${r.health_status}">${r.health_status}</span></td>
+                        <td>${r.abnormal_reason || '-'}</td>
+                        <td>${r.temperature ? r.temperature + '°C' : '-'}</td>
+                        <td>${r.weight ? r.weight + ' kg' : '-'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) { console.error(e); }
+}
+
+function openRecordModal() {
+    document.getElementById('hr-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('record-modal').style.display = 'flex';
+}
+function closeRecordModal() { document.getElementById('record-modal').style.display = 'none'; }
+
+async function submitRecord() {
+    const data = {
+        pet_id: parseInt(document.getElementById('hr-pet').value),
+        record_date: document.getElementById('hr-date').value,
+        health_status: document.getElementById('hr-status').value,
+        abnormal_reason: document.getElementById('hr-reason').value || null,
+        temperature: parseFloat(document.getElementById('hr-temp').value) || null,
+        weight: parseFloat(document.getElementById('hr-weight').value) || null,
+        symptoms: document.getElementById('hr-symptoms').value || null,
+        treatment: document.getElementById('hr-treatment').value || null,
+        store_id: 1
+    };
+    if (!data.pet_id || !data.record_date) {
+        showToast('请填写宠物ID和日期', true); return;
+    }
+    const resp = await fetch('/api/health-records', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify(data)
+    });
+    if (resp.ok) { showToast('记录已保存'); closeRecordModal(); loadRecords(); loadStats(); }
+}
+
+loadStats();
+loadRecords();
+</script>
+{% endblock %}

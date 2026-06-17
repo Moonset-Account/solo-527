@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}预约管理 - 宠物洗护管理后台{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">📅 预约管理</h1>
+    <div class="card">
+        <div class="flex gap-4 items-center mb-4">
+            <select id="filter-status" onchange="loadAppointments()">
+                <option value="">全部状态</option>
+                <option value="pending">待确认</option>
+                <option value="confirmed">已确认</option>
+                <option value="in_progress">服务中</option>
+                <option value="completed">已完成</option>
+                <option value="cancelled">已取消</option>
+            </select>
+            <input type="date" id="filter-date" onchange="loadAppointments()">
+        </div>
+        <div id="appointments-list">加载中...</div>
+    </div>
+    <div id="staff-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div class="card" style="width:400px;">
+            <h2>分配服务人员</h2>
+            <div class="form-group">
+                <label>选择人员</label>
+                <select id="staff-select"></select>
+            </div>
+            <div class="flex gap-2" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeStaffModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitStaff()">确认</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let currentApptId = null;
+
+async function loadAppointments() {
+    const status = document.getElementById('filter-status').value;
+    const date = document.getElementById('filter-date').value;
+    let url = '/api/appointments?limit=100';
+    if (status) url += '&status=' + status;
+    if (date) url += '&date_from=' + date + '&date_to=' + date;
+    try {
+        const resp = await fetch(url, { headers: apiHeaders() });
+        const appts = await resp.json();
+        if (!appts.length) {
+            document.getElementById('appointments-list').innerHTML = '<p class="text-gray">暂无预约</p>';
+            return;
+        }
+        document.getElementById('appointments-list').innerHTML = `
+            <table>
+                <thead><tr><th>日期</th><th>时间</th><th>客户</th><th>宠物</th><th>服务</th><th>金额</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                    ${appts.map(a => `<tr>
+                        <td>${a.appointment_date}</td>
+                        <td>${a.start_time}</td>
+                        <td>#${a.customer_id}</td>
+                        <td>${a.pet_name || '-'}</td>
+                        <td>${a.services.map(s => s.service_name).join(', ')}</td>
+                        <td>¥${a.total_price.toFixed(2)}</td>
+                        <td><span class="badge badge-${a.status}">${a.status}</span></td>
+                        <td class="flex gap-2">
+                            ${['pending','confirmed'].includes(a.status) ? `<button class="btn btn-success btn-sm" onclick="updateStatus(${a.id}, 'in_progress')">开始</button>` : ''}
+                            ${a.status === 'in_progress' ? `<button class="btn btn-success btn-sm" onclick="updateStatus(${a.id}, 'completed')">完成</button>` : ''}
+                            ${['pending','confirmed'].includes(a.status) ? `<button class="btn btn-secondary btn-sm" onclick="assignStaff(${a.id})">派单</button>` : ''}
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) { console.error(e); }
+}
+
+async function updateStatus(id, status) {
+    const resp = await fetch(`/api/appointments/${id}/status?new_status=${status}`, {
+        method: 'PATCH',
+        headers: apiHeaders()
+    });
+    if (resp.ok) { showToast('状态已更新'); loadAppointments(); }
+}
+
+async function assignStaff(apptId) {
+    currentApptId = apptId;
+    const resp = await fetch('/api/staff', { headers: apiHeaders() });
+    const staff = await resp.json();
+    document.getElementById('staff-select').innerHTML = staff.map(s =>
+        `<option value="${s.id}">${s.user?.full_name || s.user?.username || '员工#' + s.id} (${s.position || '-'})</option>`
+    ).join('');
+    document.getElementById('staff-modal').style.display = 'flex';
+}
+
+function closeStaffModal() { document.getElementById('staff-modal').style.display = 'none'; }
+
+async function submitStaff() {
+    const staffId = document.getElementById('staff-select').value;
+    const resp = await fetch(`/api/appointments/${currentApptId}/assign-staff`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ staff_id: parseInt(staffId), role: 'primary' })
+    });
+    if (resp.ok) { showToast('人员已分配'); closeStaffModal(); }
+}
+
+loadAppointments();
+</script>
+{% endblock %}

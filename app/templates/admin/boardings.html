@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}寄养管理 - 宠物洗护管理后台{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">🐾 寄养管理</h1>
+    <div class="card">
+        <div class="flex justify-between items-center mb-4">
+            <h2 style="margin:0;">寄养列表</h2>
+            <button class="btn btn-primary" onclick="openBoardingModal()">新增寄养</button>
+        </div>
+        <div id="boardings-list">加载中...</div>
+    </div>
+    <div id="boarding-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div class="card" style="width:450px;">
+            <h2>新增寄养</h2>
+            <div class="form-group">
+                <label>宠物ID</label>
+                <input type="number" id="boarding-pet">
+            </div>
+            <div class="form-group">
+                <label>笼位</label>
+                <select id="boarding-cage"></select>
+            </div>
+            <div class="form-group">
+                <label>入住日期</label>
+                <input type="date" id="boarding-checkin">
+            </div>
+            <div class="form-group">
+                <label>离店日期</label>
+                <input type="date" id="boarding-checkout">
+            </div>
+            <div class="form-group">
+                <label>每日费用</label>
+                <input type="number" step="0.01" id="boarding-rate" value="80">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="boarding-notes" rows="2"></textarea>
+            </div>
+            <div class="flex gap-2" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeBoardingModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitBoarding()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+async function loadBoardings() {
+    try {
+        const resp = await fetch('/api/boardings', { headers: apiHeaders() });
+        const boardings = await resp.json();
+        if (!boardings.length) {
+            document.getElementById('boardings-list').innerHTML = '<p class="text-gray">暂无寄养记录</p>';
+            return;
+        }
+        document.getElementById('boardings-list').innerHTML = `
+            <table>
+                <thead><tr><th>宠物ID</th><th>笼位</th><th>入住</th><th>离店</th><th>日费</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                    ${boardings.map(b => `<tr>
+                        <td>#${b.pet_id}</td>
+                        <td>#${b.cage_id}</td>
+                        <td>${b.check_in_date}</td>
+                        <td>${b.check_out_date}</td>
+                        <td>¥${b.daily_rate}</td>
+                        <td><span class="badge badge-${b.status}">${b.status}</span></td>
+                        <td class="flex gap-2">
+                            ${b.status === 'reserved' ? `<button class="btn btn-success btn-sm" onclick="checkIn(${b.id})">办理入住</button>` : ''}
+                            ${b.status === 'checked_in' ? `<button class="btn btn-primary btn-sm" onclick="checkOut(${b.id})">办理离店</button>` : ''}
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) { console.error(e); }
+}
+
+async function checkIn(id) {
+    const resp = await fetch(`/api/boardings/${id}/checkin`, { method: 'PATCH', headers: apiHeaders() });
+    if (resp.ok) { showToast('已办理入住'); loadBoardings(); }
+}
+async function checkOut(id) {
+    const resp = await fetch(`/api/boardings/${id}/checkout`, { method: 'PATCH', headers: apiHeaders() });
+    if (resp.ok) { showToast('已办理离店'); loadBoardings(); }
+}
+
+async function openBoardingModal() {
+    const cagesResp = await fetch('/api/cages?status=available', { headers: apiHeaders() });
+    const cages = await cagesResp.json();
+    document.getElementById('boarding-cage').innerHTML = cages.map(c =>
+        `<option value="${c.id}">${c.name} (${c.cage_type || '通用'})</option>`
+    ).join('');
+    document.getElementById('boarding-modal').style.display = 'flex';
+}
+function closeBoardingModal() { document.getElementById('boarding-modal').style.display = 'none'; }
+
+async function submitBoarding() {
+    const data = {
+        pet_id: parseInt(document.getElementById('boarding-pet').value),
+        cage_id: parseInt(document.getElementById('boarding-cage').value),
+        store_id: 1,
+        check_in_date: document.getElementById('boarding-checkin').value,
+        check_out_date: document.getElementById('boarding-checkout').value,
+        daily_rate: parseFloat(document.getElementById('boarding-rate').value),
+        notes: document.getElementById('boarding-notes').value || null
+    };
+    if (!data.pet_id || !data.check_in_date || !data.check_out_date) {
+        showToast('请填写完整信息', true); return;
+    }
+    const resp = await fetch('/api/boardings', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify(data)
+    });
+    if (resp.ok) { showToast('添加成功'); closeBoardingModal(); loadBoardings(); }
+}
+
+loadBoardings();
+</script>
+{% endblock %}

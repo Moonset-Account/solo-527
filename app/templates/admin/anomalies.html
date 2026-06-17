@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}复购异常 - 宠物洗护管理后台{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">⚠️ 复购异常监控</h1>
+    <div class="grid">
+        <div class="stat-card">
+            <h3>总异常数</h3>
+            <div class="value" id="stat-total">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>待处理</h3>
+            <div class="value" id="stat-pending" style="color:#f56565;">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>间隔过短</h3>
+            <div class="value" id="stat-too-frequent" style="color:#f56565;">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>间隔过长</h3>
+            <div class="value" id="stat-too-infrequent" style="color:#f56565;">-</div>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <div class="flex justify-between items-center mb-4">
+            <h2 style="margin:0;">异常列表</h2>
+            <div class="flex gap-2">
+                <select id="filter-resolved" onchange="loadAnomalies()">
+                    <option value="">全部</option>
+                    <option value="false">待处理</option>
+                    <option value="true">已处理</option>
+                </select>
+                <button class="btn btn-secondary" onclick="scanAnomalies()">🔍 扫描异常</button>
+            </div>
+        </div>
+        <div id="anomalies-list">加载中...</div>
+    </div>
+</div>
+<script>
+async function loadAnomalies() {
+    const resolved = document.getElementById('filter-resolved').value;
+    let url = '/api/repurchase-anomalies';
+    if (resolved !== '') url += '?is_resolved=' + resolved;
+    try {
+        const resp = await fetch(url, { headers: apiHeaders() });
+        const anomalies = await resp.json();
+        document.getElementById('stat-total').textContent = anomalies.length;
+        document.getElementById('stat-pending').textContent = anomalies.filter(a => !a.is_resolved).length;
+        document.getElementById('stat-too-frequent').textContent = anomalies.filter(a => a.anomaly_type === 'too_frequent').length;
+        document.getElementById('stat-too-infrequent').textContent = anomalies.filter(a => a.anomaly_type === 'too_infrequent').length;
+
+        if (!anomalies.length) {
+            document.getElementById('anomalies-list').innerHTML = '<p class="text-gray">暂无异常记录</p>';
+            return;
+        }
+        document.getElementById('anomalies-list').innerHTML = `
+            <table>
+                <thead><tr><th>ID</th><th>客户ID</th><th>异常类型</th><th>描述</th><th>间隔天数</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                    ${anomalies.map(a => `<tr>
+                        <td>#${a.id}</td>
+                        <td>#${a.customer_id}</td>
+                        <td><span class="badge badge-${a.anomaly_type === 'too_frequent' ? 'critical' : 'abnormal'}">${a.anomaly_type}</span></td>
+                        <td>${a.description || '-'}</td>
+                        <td>${a.gap_days || '-'}天</td>
+                        <td>${a.is_resolved ? '<span class="badge badge-completed">已处理</span>' : '<span class="badge badge-pending">待处理</span>'}</td>
+                        <td>
+                            ${!a.is_resolved ? `<button class="btn btn-success btn-sm" onclick="resolveAnomaly(${a.id})">处理</button>` : a.resolution_notes}
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) { console.error(e); }
+}
+
+async function scanAnomalies() {
+    const resp = await fetch('/api/repurchase-anomalies/scan', { method: 'POST', headers: apiHeaders() });
+    if (resp.ok) {
+        const data = await resp.json();
+        showToast(`扫描完成，发现 ${data.anomalies_found} 个异常`);
+        loadAnomalies();
+    }
+}
+
+async function resolveAnomaly(id) {
+    const notes = prompt('请输入处理备注：');
+    if (!notes) return;
+    const resp = await fetch(`/api/repurchase-anomalies/${id}/resolve?resolution_notes=${encodeURIComponent(notes)}`, {
+        method: 'POST',
+        headers: apiHeaders()
+    });
+    if (resp.ok) { showToast('已标记为处理'); loadAnomalies(); }
+}
+
+loadAnomalies();
+</script>
+{% endblock %}

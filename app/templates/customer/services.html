@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}服务与套餐 - 宠物洗护预约商城{% endblock %}
+{% block content %}
+{% include "customer/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">🛁 服务与套餐</h1>
+    <div class="card">
+        <h2>单项服务</h2>
+        <div id="services-list" class="grid">加载中...</div>
+    </div>
+    <div class="card mt-4">
+        <h2>优惠套餐</h2>
+        <div id="packages-list" class="grid">加载中...</div>
+    </div>
+    <div id="booking-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div class="card" style="width:500px;max-width:90vw;">
+            <h2>预约服务</h2>
+            <div id="booking-form"></div>
+            <div class="flex gap-2" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeBooking()">取消</button>
+                <button class="btn btn-primary" onclick="submitBooking()">确认预约</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let selectedServices = [];
+let selectedPackages = [];
+
+async function loadServices() {
+    try {
+        const [svcResp, pkgResp, petsResp] = await Promise.all([
+            fetch('/api/services'),
+            fetch('/api/packages'),
+            fetch('/api/pets', { headers: apiHeaders() })
+        ]);
+        const services = await svcResp.json();
+        const packages = await pkgResp.json();
+        window.pets = await petsResp.json();
+
+        document.getElementById('services-list').innerHTML = services.map(s => `
+            <div class="card" style="margin:0;">
+                <h3 style="margin-bottom:8px;">${s.name}</h3>
+                <p class="text-sm text-gray" style="margin-bottom:12px;">${s.description || ''}</p>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span style="font-size:24px;font-weight:700;color:#667eea;">¥${s.price}</span>
+                        <span class="text-sm text-gray" style="margin-left:8px;">${s.duration_minutes}分钟</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="openBooking(${s.id}, '${s.name}')">预约</button>
+                </div>
+            </div>
+        `).join('') || '<p class="text-gray">暂无服务</p>';
+
+        document.getElementById('packages-list').innerHTML = packages.map(p => `
+            <div class="card" style="margin:0;">
+                <h3 style="margin-bottom:8px;">${p.name}</h3>
+                <p class="text-sm text-gray" style="margin-bottom:12px;">${p.description || ''}</p>
+                <p class="text-sm" style="margin-bottom:8px;">包含：${p.items.map(i => i.service_name || '服务' + i.service_id).join(', ')}</p>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span style="font-size:24px;font-weight:700;color:#667eea;">¥${p.price}</span>
+                        ${p.original_price ? `<span class="text-sm text-gray" style="text-decoration:line-through;margin-left:8px;">¥${p.original_price}</span>` : ''}
+                    </div>
+                    <button class="btn btn-success" onclick="openBookingPackage(${p.id}, '${p.name}')">购买</button>
+                </div>
+            </div>
+        `).join('') || '<p class="text-gray">暂无套餐</p>';
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function openBooking(serviceId, serviceName) {
+    selectedServices = [{ id: serviceId, name: serviceName }];
+    selectedPackages = [];
+    renderBookingForm();
+}
+
+function openBookingPackage(pkgId, pkgName) {
+    selectedServices = [];
+    selectedPackages = [{ id: pkgId, name: pkgName }];
+    renderBookingForm();
+}
+
+function renderBookingForm() {
+    const petsOptions = window.pets.map(p => `<option value="${p.id}">${p.name} (${p.pet_type})</option>`).join('');
+    const serviceNames = selectedServices.map(s => s.name).concat(selectedPackages.map(p => p.name)).join(', ');
+    document.getElementById('booking-form').innerHTML = `
+        <div class="form-group">
+            <label>已选项目</label>
+            <p style="padding:10px;background:#f7fafc;border-radius:8px;">${serviceNames}</p>
+        </div>
+        <div class="form-group">
+            <label>选择宠物</label>
+            <select id="booking-pet">${petsOptions || '<option value="">请先添加宠物</option>'}</select>
+        </div>
+        <div class="form-group">
+            <label>门店</label>
+            <select id="booking-store"><option value="1">总店</option></select>
+        </div>
+        <div class="form-group">
+            <label>预约日期</label>
+            <input type="date" id="booking-date">
+        </div>
+        <div class="form-group">
+            <label>预约时间</label>
+            <input type="time" id="booking-time" value="10:00">
+        </div>
+        <div class="form-group">
+            <label>备注</label>
+            <textarea id="booking-notes" rows="2"></textarea>
+        </div>
+    `;
+    document.getElementById('booking-modal').style.display = 'flex';
+}
+
+function closeBooking() {
+    document.getElementById('booking-modal').style.display = 'none';
+}
+
+async function submitBooking() {
+    const petId = document.getElementById('booking-pet').value;
+    if (!petId) { showToast('请先添加宠物', true); return; }
+    const data = {
+        pet_id: parseInt(petId),
+        store_id: parseInt(document.getElementById('booking-store').value),
+        appointment_date: document.getElementById('booking-date').value,
+        start_time: document.getElementById('booking-time').value,
+        notes: document.getElementById('booking-notes').value,
+        services: selectedServices.map(s => ({ service_id: s.id })),
+        packages: selectedPackages.map(p => ({ package_id: p.id }))
+    };
+    const resp = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify(data)
+    });
+    if (resp.ok) {
+        showToast('预约成功！');
+        closeBooking();
+    } else {
+        const err = await resp.json();
+        showToast(err.detail || '预约失败', true);
+    }
+}
+
+loadServices();
+</script>
+{% endblock %}

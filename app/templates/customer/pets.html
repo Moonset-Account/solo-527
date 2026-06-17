@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}我的宠物 - 宠物洗护预约商城{% endblock %}
+{% block content %}
+{% include "customer/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">🐕 我的宠物</h1>
+    <div class="card">
+        <div class="flex justify-between items-center mb-4">
+            <h2 style="margin:0;">宠物列表</h2>
+            <button class="btn btn-primary" onclick="openPetModal()">添加宠物</button>
+        </div>
+        <div id="pets-list">加载中...</div>
+    </div>
+    <div id="pet-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div class="card" style="width:450px;max-width:90vw;">
+            <h2>添加宠物</h2>
+            <div class="form-group">
+                <label>名字</label>
+                <input type="text" id="pet-name">
+            </div>
+            <div class="form-group">
+                <label>类型</label>
+                <select id="pet-type">
+                    <option value="dog">狗</option>
+                    <option value="cat">猫</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>品种</label>
+                <input type="text" id="pet-breed">
+            </div>
+            <div class="form-group">
+                <label>体重 (kg)</label>
+                <input type="number" step="0.1" id="pet-weight">
+            </div>
+            <div class="form-group">
+                <label>年龄</label>
+                <input type="number" id="pet-age">
+            </div>
+            <div class="form-group">
+                <label>性别</label>
+                <select id="pet-gender">
+                    <option value="">未知</option>
+                    <option value="male">公</option>
+                    <option value="female">母</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="pet-notes" rows="2"></textarea>
+            </div>
+            <div class="flex gap-2" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closePetModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitPet()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+async function loadPets() {
+    try {
+        const resp = await fetch('/api/pets', { headers: apiHeaders() });
+        const pets = await resp.json();
+        if (!pets.length) {
+            document.getElementById('pets-list').innerHTML = '<p class="text-gray">暂无宠物信息，点击"添加宠物"开始</p>';
+            return;
+        }
+        document.getElementById('pets-list').innerHTML = `
+            <table>
+                <thead><tr><th>名字</th><th>类型</th><th>品种</th><th>体重</th><th>年龄</th><th>性别</th><th>操作</th></tr></thead>
+                <tbody>
+                    ${pets.map(p => `<tr>
+                        <td>${p.name}</td>
+                        <td>${p.pet_type}</td>
+                        <td>${p.breed || '-'}</td>
+                        <td>${p.weight ? p.weight + ' kg' : '-'}</td>
+                        <td>${p.age ? p.age + '岁' : '-'}</td>
+                        <td>${p.gender || '-'}</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deletePet(${p.id})">删除</button></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) { console.error(e); }
+}
+function openPetModal() { document.getElementById('pet-modal').style.display = 'flex'; }
+function closePetModal() { document.getElementById('pet-modal').style.display = 'none'; }
+async function submitPet() {
+    const data = {
+        name: document.getElementById('pet-name').value,
+        pet_type: document.getElementById('pet-type').value,
+        breed: document.getElementById('pet-breed').value || null,
+        weight: parseFloat(document.getElementById('pet-weight').value) || null,
+        age: parseInt(document.getElementById('pet-age').value) || null,
+        gender: document.getElementById('pet-gender').value || null,
+        notes: document.getElementById('pet-notes').value || null
+    };
+    if (!data.name) { showToast('请输入宠物名字', true); return; }
+    const resp = await fetch('/api/pets', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify(data)
+    });
+    if (resp.ok) {
+        showToast('添加成功');
+        closePetModal();
+        loadPets();
+    } else {
+        const err = await resp.json();
+        showToast(err.detail || '添加失败', true);
+    }
+}
+async function deletePet(petId) {
+    if (!confirm('确定删除这只宠物吗？')) return;
+    const resp = await fetch('/api/pets/' + petId, { method: 'DELETE', headers: apiHeaders() });
+    if (resp.ok) { showToast('已删除'); loadPets(); }
+}
+loadPets();
+</script>
+{% endblock %}

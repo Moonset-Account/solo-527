@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}数据概览 - 宠物洗护管理后台{% endblock %}
+{% block content %}
+{% include "admin/_sidebar.html" %}
+<div class="main-content">
+    <h1 class="page-title">📊 数据概览</h1>
+    <div class="grid">
+        <div class="stat-card">
+            <h3>今日预约</h3>
+            <div class="value" id="stat-today-appts">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>本月营收</h3>
+            <div class="value" id="stat-revenue">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>在寄养宠物</h3>
+            <div class="value" id="stat-boarding">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>待处理异常</h3>
+            <div class="value" id="stat-anomalies" style="color:#f56565;">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>健康异常数</h3>
+            <div class="value" id="stat-health-abnormal">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>可用笼位</h3>
+            <div class="value" id="stat-cages">-</div>
+        </div>
+    </div>
+    <div class="grid mt-4">
+        <div class="card">
+            <h2>健康异常趋势（按日期）</h2>
+            <div id="health-by-date">加载中...</div>
+        </div>
+        <div class="card">
+            <h2>健康异常原因分布</h2>
+            <div id="health-by-reason">加载中...</div>
+        </div>
+    </div>
+</div>
+<script>
+async function loadDashboard() {
+    const headers = apiHeaders();
+    const today = new Date().toISOString().slice(0, 10);
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+    try {
+        const [overviewResp, healthDateResp, healthReasonResp, cagesResp, boardingsResp] = await Promise.all([
+            fetch(`/api/analytics/overview?date_from=${monthStart}`, { headers }),
+            fetch('/api/health-stats?group_by=date', { headers }),
+            fetch('/api/health-stats?group_by=reason', { headers }),
+            fetch('/api/cages', { headers }),
+            fetch('/api/boardings?status=checked_in', { headers })
+        ]);
+        const overview = await overviewResp.json();
+        const healthByDate = await healthDateResp.json();
+        const healthByReason = await healthReasonResp.json();
+        const cages = await cagesResp.json();
+        const boardings = await boardingsResp.json();
+
+        document.getElementById('stat-revenue').textContent = '¥' + (overview.appointments?.revenue || 0).toFixed(2);
+        document.getElementById('stat-anomalies').textContent = overview.repurchase_anomalies?.unresolved || 0;
+        document.getElementById('stat-boarding').textContent = boardings.length;
+        document.getElementById('stat-cages').textContent = cages.filter(c => c.status === 'available').length;
+
+        const todayAppts = await fetch(`/api/appointments?date_from=${today}&date_to=${today}`, { headers });
+        const todayApptsData = await todayAppts.json();
+        document.getElementById('stat-today-appts').textContent = todayApptsData.length;
+
+        const abnormalTotal = healthByDate.reduce((s, h) => s + (h.abnormal_count || 0) + (h.critical_count || 0), 0);
+        document.getElementById('stat-health-abnormal').textContent = abnormalTotal;
+
+        document.getElementById('health-by-date').innerHTML = healthByDate.length ? `
+            <table>
+                <thead><tr><th>日期</th><th>总数</th><th>异常</th><th>危重</th></tr></thead>
+                <tbody>
+                    ${healthByDate.slice(0, 10).map(h => `<tr>
+                        <td>${h.date}</td>
+                        <td>${h.total_count}</td>
+                        <td><span class="badge badge-abnormal">${h.abnormal_count || 0}</span></td>
+                        <td><span class="badge badge-critical">${h.critical_count || 0}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '<p class="text-gray">暂无数据</p>';
+
+        document.getElementById('health-by-reason').innerHTML = healthByReason.length ? `
+            <table>
+                <thead><tr><th>异常原因</th><th>数量</th></tr></thead>
+                <tbody>
+                    ${healthByReason.filter(h => h.abnormal_reason).map(h => `<tr>
+                        <td>${h.abnormal_reason}</td>
+                        <td>${(h.abnormal_count || 0) + (h.critical_count || 0)}</td>
+                    </tr>`).join('') || '<tr><td colspan="2" class="text-gray">暂无数据</td></tr>'}
+                </tbody>
+            </table>
+        ` : '<p class="text-gray">暂无数据</p>';
+    } catch (e) { console.error(e); }
+}
+loadDashboard();
+</script>
+{% endblock %}
