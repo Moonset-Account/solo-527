@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,117 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Wrench,
   Search,
-  Filter,
   Plus,
   Clock,
   MapPin,
   User,
   Calendar,
   Check,
-  AlertTriangle,
   ArrowUp,
-  MessageSquare,
   Link2,
 } from "lucide-react";
-import { formatDateTime, getStatusText, getStatusColor } from "@/lib/utils";
-
-const mockRepairs = [
-  {
-    id: "1",
-    title: "宿舍灯管更换",
-    description: "宿舍阳台的灯管坏了，晚上很黑不方便",
-    dormitory: "1号楼",
-    room_number: "302",
-    category: "水电",
-    priority: "medium",
-    status: "completed",
-    reporter_name: "张三",
-    reporter_id: "user1",
-    handler_name: "物业王师傅",
-    handler_id: "user2",
-    related_activity_id: "1",
-    related_activity_title: "春季团建活动",
-    created_at: "2026-06-15T10:30:00",
-    updated_at: "2026-06-16T14:00:00",
-    completed_at: "2026-06-16T14:00:00",
-  },
-  {
-    id: "2",
-    title: "水龙头漏水",
-    description: "卫生间水龙头一直滴水，关不紧",
-    dormitory: "2号楼",
-    room_number: "405",
-    category: "水电",
-    priority: "high",
-    status: "processing",
-    reporter_name: "李四",
-    reporter_id: "user3",
-    handler_name: "物业李师傅",
-    handler_id: "user4",
-    related_activity_id: null,
-    related_activity_title: null,
-    created_at: "2026-06-17T08:00:00",
-    updated_at: "2026-06-17T09:30:00",
-    completed_at: null,
-  },
-  {
-    id: "3",
-    title: "空调不制冷",
-    description: "空调开了但吹出来的是热风，需要维修",
-    dormitory: "3号楼",
-    room_number: "208",
-    category: "电器",
-    priority: "high",
-    status: "pending",
-    reporter_name: "王五",
-    reporter_id: "user5",
-    handler_name: null,
-    handler_id: null,
-    related_activity_id: "2",
-    related_activity_title: "编程技术分享会",
-    created_at: "2026-06-18T12:00:00",
-    updated_at: "2026-06-18T12:00:00",
-    completed_at: null,
-  },
-  {
-    id: "4",
-    title: "门锁损坏",
-    description: "宿舍门锁不好用，经常打不开",
-    dormitory: "1号楼",
-    room_number: "101",
-    category: "家具",
-    priority: "medium",
-    status: "pending",
-    reporter_name: "赵六",
-    reporter_id: "user6",
-    handler_name: null,
-    handler_id: null,
-    related_activity_id: null,
-    related_activity_title: null,
-    created_at: "2026-06-18T09:00:00",
-    updated_at: "2026-06-18T09:00:00",
-    completed_at: null,
-  },
-  {
-    id: "5",
-    title: "桌子松动",
-    description: "书桌的螺丝松了，晃得厉害",
-    dormitory: "4号楼",
-    room_number: "506",
-    category: "家具",
-    priority: "low",
-    status: "cancelled",
-    reporter_name: "钱七",
-    reporter_id: "user7",
-    handler_name: null,
-    handler_id: null,
-    related_activity_id: null,
-    related_activity_title: null,
-    created_at: "2026-06-14T15:00:00",
-    updated_at: "2026-06-15T08:00:00",
-    completed_at: null,
-  },
-];
+import { formatDateTime } from "@/lib/utils";
+import { useRepairRequests } from "@/lib/hooks";
+import { createClient } from "@/lib/supabase/client";
 
 const tabs = [
   { key: "all", label: "全部" },
@@ -141,14 +42,18 @@ export default function RepairsPage() {
   const [selectedRepair, setSelectedRepair] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部");
 
-  const filteredRepairs = mockRepairs.filter((repair) => {
-    const matchesTab = activeTab === "all" || repair.status === activeTab;
-    const matchesCategory = selectedCategory === "全部" || repair.category === selectedCategory;
+  const filterStatus = activeTab === "all" ? undefined : activeTab;
+  const { data: repairs, loading, refetch } = useRepairRequests({
+    status: filterStatus,
+    category: selectedCategory === "全部" ? undefined : selectedCategory,
+  });
+
+  const filteredRepairs = (repairs || []).filter((repair: any) => {
     const matchesSearch =
       repair.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repair.reporter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repair.room_number.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesCategory && matchesSearch;
+      (repair.reporter_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (repair.room_number || "").toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   const handleView = (repair: any) => {
@@ -156,21 +61,31 @@ export default function RepairsPage() {
     setShowDetailDialog(true);
   };
 
-  const handleAssign = (id: string) => {
-    alert(`已指派报修单 ${id}`);
+  const handleAssign = async (id: string) => {
+    const supabase = createClient();
+    await supabase
+      .from("repair_requests")
+      .update({ status: "processing", handler_id: "current_user", updated_at: new Date().toISOString() })
+      .eq("id", id);
     setShowDetailDialog(false);
+    refetch();
   };
 
-  const handleComplete = (id: string) => {
-    alert(`报修单 ${id} 已完成`);
+  const handleComplete = async (id: string) => {
+    const supabase = createClient();
+    await supabase
+      .from("repair_requests")
+      .update({ status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", id);
     setShowDetailDialog(false);
+    refetch();
   };
 
   const stats = {
-    total: mockRepairs.length,
-    pending: mockRepairs.filter((r) => r.status === "pending").length,
-    processing: mockRepairs.filter((r) => r.status === "processing").length,
-    completed: mockRepairs.filter((r) => r.status === "completed").length,
+    total: (repairs || []).length,
+    pending: (repairs || []).filter((r: any) => r.status === "pending").length,
+    processing: (repairs || []).filter((r: any) => r.status === "processing").length,
+    completed: (repairs || []).filter((r: any) => r.status === "completed").length,
   };
 
   return (
@@ -277,73 +192,80 @@ export default function RepairsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {filteredRepairs.map((repair) => (
-                <div
-                  key={repair.id}
-                  className="rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow cursor-pointer"
-                  onClick={() => handleView(repair)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="font-semibold text-gray-900">{repair.title}</h3>
-                        <Badge status={repair.status} />
-                        <Badge
-                          variant={
-                            repair.priority === "high"
-                              ? "destructive"
-                              : repair.priority === "medium"
-                              ? "warning"
-                              : "secondary"
-                          }
-                        >
-                          {repair.priority === "high" ? "高优先级" : repair.priority === "medium" ? "中优先级" : "低优先级"}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-sm text-gray-500 line-clamp-1">{repair.description}</p>
-                      
-                      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
-                        <span className="flex items-center">
-                          <MapPin className="mr-1.5 h-4 w-4" />
-                          {repair.dormitory} {repair.room_number}
-                        </span>
-                        <span className="flex items-center">
-                          <Wrench className="mr-1.5 h-4 w-4" />
-                          {repair.category}
-                        </span>
-                        <span className="flex items-center">
-                          <User className="mr-1.5 h-4 w-4" />
-                          报修人：{repair.reporter_name}
-                        </span>
-                        {repair.handler_name && (
+            {loading ? (
+              <div className="py-12 text-center text-gray-500">
+                <Wrench className="mx-auto h-12 w-12 animate-pulse text-gray-300" />
+                <p className="mt-2">加载中...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredRepairs.map((repair: any) => (
+                  <div
+                    key={repair.id}
+                    className="rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow cursor-pointer"
+                    onClick={() => handleView(repair)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="font-semibold text-gray-900">{repair.title}</h3>
+                          <Badge status={repair.status} />
+                          <Badge
+                            variant={
+                              repair.priority === "high"
+                                ? "destructive"
+                                : repair.priority === "medium"
+                                ? "warning"
+                                : "secondary"
+                            }
+                          >
+                            {repair.priority === "high" ? "高优先级" : repair.priority === "medium" ? "中优先级" : "低优先级"}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-500 line-clamp-1">{repair.description}</p>
+
+                        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
+                          <span className="flex items-center">
+                            <MapPin className="mr-1.5 h-4 w-4" />
+                            {repair.dormitory} {repair.room_number}
+                          </span>
+                          <span className="flex items-center">
+                            <Wrench className="mr-1.5 h-4 w-4" />
+                            {repair.category}
+                          </span>
                           <span className="flex items-center">
                             <User className="mr-1.5 h-4 w-4" />
-                            处理人：{repair.handler_name}
+                            报修人：{repair.reporter_name}
                           </span>
-                        )}
-                        <span className="flex items-center">
-                          <Calendar className="mr-1.5 h-4 w-4" />
-                          {formatDateTime(repair.created_at)}
-                        </span>
-                      </div>
-
-                      {repair.related_activity_id && (
-                        <div className="mt-3 flex items-center text-sm">
-                          <Link2 className="mr-2 h-4 w-4 text-primary-500" />
-                          <span className="text-gray-500">关联活动：</span>
-                          <span className="ml-1 text-primary-600 hover:underline">
-                            {repair.related_activity_title}
+                          {repair.handler_name && (
+                            <span className="flex items-center">
+                              <User className="mr-1.5 h-4 w-4" />
+                              处理人：{repair.handler_name}
+                            </span>
+                          )}
+                          <span className="flex items-center">
+                            <Calendar className="mr-1.5 h-4 w-4" />
+                            {formatDateTime(repair.created_at)}
                           </span>
                         </div>
-                      )}
+
+                        {repair.related_activity_id && (
+                          <div className="mt-3 flex items-center text-sm">
+                            <Link2 className="mr-2 h-4 w-4 text-primary-500" />
+                            <span className="text-gray-500">关联活动：</span>
+                            <span className="ml-1 text-primary-600 hover:underline">
+                              {repair.related_activity_title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
-            {filteredRepairs.length === 0 && (
+            {!loading && filteredRepairs.length === 0 && (
               <div className="py-12 text-center text-gray-500">
                 <Wrench className="mx-auto h-12 w-12 text-gray-300" />
                 <p className="mt-2">暂无报修记录</p>

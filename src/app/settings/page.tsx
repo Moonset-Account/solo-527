@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Settings,
   User,
+  Users,
   Bell,
   Shield,
   Download,
@@ -16,6 +17,7 @@ import {
   Globe,
   Save,
   ChevronDown,
+  Calendar,
 } from "lucide-react";
 
 const sections = [

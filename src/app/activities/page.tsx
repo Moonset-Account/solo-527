@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -24,105 +24,8 @@ import {
 } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
-
-const mockActivities = [
-  {
-    id: "1",
-    title: "春季团建活动",
-    description: "一年一度的春季团建活动，增进社团成员之间的友谊",
-    club: "篮球社",
-    club_id: "1",
-    location: "学校体育馆",
-    start_time: "2026-06-20T14:00:00",
-    end_time: "2026-06-20T18:00:00",
-    max_participants: 50,
-    current_participants: 45,
-    status: "approved",
-    category: "体育",
-    created_by: "张三",
-    created_at: "2026-06-10T10:00:00",
-  },
-  {
-    id: "2",
-    title: "编程技术分享会",
-    description: "邀请业界专家分享最新的前端技术趋势",
-    club: "计算机协会",
-    club_id: "2",
-    location: "教学楼A101",
-    start_time: "2026-06-22T19:00:00",
-    end_time: "2026-06-22T21:00:00",
-    max_participants: 100,
-    current_participants: 78,
-    status: "pending",
-    category: "学术",
-    created_by: "李四",
-    created_at: "2026-06-12T14:30:00",
-  },
-  {
-    id: "3",
-    title: "校园歌手大赛",
-    description: "展示你的歌喉，赢取丰厚奖品",
-    club: "音乐社",
-    club_id: "3",
-    location: "大礼堂",
-    start_time: "2026-06-25T19:00:00",
-    end_time: "2026-06-25T22:00:00",
-    max_participants: 150,
-    current_participants: 120,
-    status: "approved",
-    category: "文艺",
-    created_by: "王五",
-    created_at: "2026-06-08T09:00:00",
-  },
-  {
-    id: "4",
-    title: "读书分享会",
-    description: "每月一次的读书分享，本期主题：科幻小说",
-    club: "文学社",
-    club_id: "4",
-    location: "图书馆会议室",
-    start_time: "2026-06-18T15:00:00",
-    end_time: "2026-06-18T17:00:00",
-    max_participants: 30,
-    current_participants: 28,
-    status: "ongoing",
-    category: "学术",
-    created_by: "赵六",
-    created_at: "2026-06-05T11:00:00",
-  },
-  {
-    id: "5",
-    title: "摄影作品展",
-    description: "年度摄影作品展览活动",
-    club: "摄影协会",
-    club_id: "5",
-    location: "美术馆",
-    start_time: "2026-06-15T09:00:00",
-    end_time: "2026-06-15T18:00:00",
-    max_participants: 200,
-    current_participants: 200,
-    status: "completed",
-    category: "文艺",
-    created_by: "钱七",
-    created_at: "2026-06-01T10:00:00",
-  },
-  {
-    id: "6",
-    title: "创业沙龙",
-    description: "与成功创业者面对面交流",
-    club: "创业协会",
-    club_id: "6",
-    location: "创业孵化中心",
-    start_time: "2026-06-28T14:00:00",
-    end_time: "2026-06-28T17:00:00",
-    max_participants: 60,
-    current_participants: 35,
-    status: "draft",
-    category: "实践",
-    created_by: "孙八",
-    created_at: "2026-06-15T16:00:00",
-  },
-];
+import { useActivities } from "@/lib/hooks";
+import { createClient } from "@/lib/supabase/client";
 
 const tabs = [
   { key: "all", label: "全部" },
@@ -142,11 +45,13 @@ export default function ActivitiesPage() {
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [showMenu, setShowMenu] = useState<string | null>(null);
 
-  const filteredActivities = mockActivities.filter((activity) => {
+  const { data: activities, loading, refetch } = useActivities();
+
+  const filteredActivities = (activities || []).filter((activity) => {
     const matchesTab = activeTab === "all" || activity.status === activeTab;
     const matchesSearch =
-      activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      activity.club.toLowerCase().includes(searchQuery.toLowerCase());
+      (activity.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (activity.club_name || "").toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
@@ -156,15 +61,31 @@ export default function ActivitiesPage() {
     setShowMenu(null);
   };
 
-  const handleApprove = (id: string) => {
-    alert(`活动 ${id} 已通过审核`);
+  const handleApprove = async (id: string) => {
+    const supabase = createClient();
+    await supabase.from("activities").update({ status: "approved", updated_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("audit_logs").insert({ entity_type: "activity", entity_id: id, action: "approve", user_id: "current", details: "活动审核通过" });
+    refetch();
     setShowMenu(null);
   };
 
-  const handleReject = (id: string) => {
-    alert(`活动 ${id} 已拒绝`);
+  const handleReject = async (id: string) => {
+    const supabase = createClient();
+    await supabase.from("activities").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("audit_logs").insert({ entity_type: "activity", entity_id: id, action: "reject", user_id: "current", details: "活动审核拒绝" });
+    refetch();
     setShowMenu(null);
   };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-24">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -226,11 +147,11 @@ export default function ActivitiesPage() {
                     <div className="mb-2 flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-gray-900">{activity.title}</h3>
-                        <p className="text-sm text-gray-500">{activity.club}</p>
+                        <p className="text-sm text-gray-500">{activity.club_name}</p>
                       </div>
                       <Badge status={activity.status} />
                     </div>
-                    
+
                     <div className="mt-3 space-y-2 text-sm text-gray-500">
                       <div className="flex items-center">
                         <MapPin className="mr-2 h-4 w-4" />
@@ -398,10 +319,10 @@ export default function ActivitiesPage() {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Badge status={selectedActivity.status} />
-              <span className="text-sm text-gray-500">{selectedActivity.club}</span>
+              <span className="text-sm text-gray-500">{selectedActivity.club_name}</span>
             </div>
             <p className="text-gray-600">{selectedActivity.description}</p>
-            
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">活动地点</p>

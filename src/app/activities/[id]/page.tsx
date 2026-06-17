@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
@@ -19,61 +19,47 @@ import {
   Edit,
   Check,
   X,
-  Trash2,
   AlertTriangle,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import Link from "next/link";
-
-const mockActivity = {
-  id: "1",
-  title: "春季团建活动",
-  description: "一年一度的春季团建活动，增进社团成员之间的友谊。活动内容包括篮球比赛、趣味游戏、团队建设等环节。通过本次活动，期望能够增强社团凝聚力，提升成员间的默契度。",
-  club: "篮球社",
-  club_id: "1",
-  location: "学校体育馆",
-  start_time: "2026-06-20T14:00:00",
-  end_time: "2026-06-20T18:00:00",
-  max_participants: 50,
-  current_participants: 45,
-  waitlist_count: 8,
-  status: "approved",
-  category: "体育",
-  cover_image: "",
-  created_by: "张三",
-  created_by_id: "user1",
-  reviewed_by: "李老师",
-  review_comment: "活动内容丰富，符合社团宗旨，同意举办。",
-  created_at: "2026-06-10T10:00:00",
-  updated_at: "2026-06-12T15:30:00",
-};
-
-const participants = [
-  { id: "1", name: "张三", student_id: "2023001", department: "计算机学院", phone: "13800138001", status: "registered", registered_at: "2026-06-11T10:00:00", seat_number: 1, has_reminder: true, reminder_sent: true },
-  { id: "2", name: "李四", student_id: "2023002", department: "经济学院", phone: "13800138002", status: "registered", registered_at: "2026-06-11T10:05:00", seat_number: 2, has_reminder: true, reminder_sent: true },
-  { id: "3", name: "王五", student_id: "2023003", department: "管理学院", phone: "13800138003", status: "registered", registered_at: "2026-06-11T10:10:00", seat_number: 3, has_reminder: false, reminder_sent: false },
-  { id: "4", name: "赵六", student_id: "2023004", department: "文学院", phone: "13800138004", status: "registered", registered_at: "2026-06-11T10:15:00", seat_number: 4, has_reminder: true, reminder_sent: true },
-  { id: "5", name: "钱七", student_id: "2023005", department: "理学院", phone: "13800138005", status: "waitlisted", registered_at: "2026-06-11T10:20:00", seat_number: null, has_reminder: true, reminder_sent: false },
-  { id: "6", name: "孙八", student_id: "2023006", department: "工学院", phone: "13800138006", status: "waitlisted", registered_at: "2026-06-11T10:25:00", seat_number: null, has_reminder: true, reminder_sent: false },
-  { id: "7", name: "周九", student_id: "2023007", department: "法学院", phone: "13800138007", status: "cancelled", registered_at: "2026-06-11T10:30:00", cancelled_at: "2026-06-15T09:00:00", seat_number: null, has_reminder: false, reminder_sent: false },
-];
-
-const relatedRecords = [
-  { id: "r1", type: "repair", title: "体育馆灯光维修", status: "completed", handler: "物业王师傅", time: "2026-06-18 10:00" },
-  { id: "r2", type: "trade", title: "二手篮球出售", status: "sold", handler: "张三", time: "2026-06-16 14:30" },
-];
-
-const auditLogs = [
-  { id: "1", action: "创建活动", user: "张三", time: "2026-06-10 10:00:00", details: "创建了春季团建活动" },
-  { id: "2", action: "提交审核", user: "张三", time: "2026-06-11 09:00:00", details: "提交活动审核" },
-  { id: "3", action: "审核通过", user: "李老师", time: "2026-06-12 15:30:00", details: "活动内容丰富，符合社团宗旨" },
-];
+import { useActivityReview, sendRemindersClient } from "@/lib/hooks";
+import { exportToExcel, formatRegistrationExport, formatReviewExport } from "@/lib/export";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ActivityDetailPage({ params }: { params: { id: string } }) {
   const [activeTab, setActiveTab] = useState("participants");
   const [showSendReminder, setShowSendReminder] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showQrDialog, setShowQrDialog] = useState(false);
+  const [reminderContent, setReminderContent] = useState("");
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const { data: reviewData, loading, refetch } = useActivityReview(params.id);
+
+  const activity = reviewData?.activity;
+  const registrations = reviewData?.registrations || [];
+  const checkIns = reviewData?.checkIns || [];
+  const repairs = reviewData?.repairs || [];
+  const trades = reviewData?.trades || [];
+  const auditLogs = reviewData?.auditLogs || [];
+
+  const relatedRecords = [
+    ...repairs.map((r: any) => ({ ...r, type: "repair" as const, handler: r.reporter_name, time: r.created_at })),
+    ...trades.map((t: any) => ({ ...t, type: "trade" as const, handler: t.seller_name, time: t.created_at })),
+  ];
+
+  const registeredCount = registrations.filter((r: any) => r.status === "registered" || r.status === "checked_in").length;
+  const waitlistCount = registrations.filter((r: any) => r.status === "waitlisted").length;
+  const cancelledCount = registrations.filter((r: any) => r.status === "cancelled").length;
+  const totalRegistrations = registrations.length;
+
+  const registrationRate = activity?.max_participants ? Math.round((activity.current_participants / activity.max_participants) * 100) : 0;
+  const reminderRate = registrations.filter((r: any) => r.has_reminder).length > 0
+    ? Math.round((registrations.filter((r: any) => r.reminder_sent).length / registrations.filter((r: any) => r.has_reminder).length) * 100)
+    : 0;
+  const cancelRate = totalRegistrations > 0 ? Math.round((cancelledCount / totalRegistrations) * 100) : 0;
 
   const tabs = [
     { key: "participants", label: "报名名单" },
@@ -81,6 +67,65 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
     { key: "related", label: "关联记录" },
     { key: "audit", label: "操作日志" },
   ];
+
+  const handleSendReminder = async () => {
+    if (!activity) return;
+    setSendingReminder(true);
+    const title = `【活动提醒】您报名的「${activity.title}」即将开始`;
+    const content = reminderContent || `您报名的「${activity.title}」将于${formatDateTime(activity.start_time)}在${activity.location}开始，请准时参加。`;
+    await sendRemindersClient(params.id, title, content);
+    setSendingReminder(false);
+    setShowSendReminder(false);
+    setReminderContent("");
+    refetch();
+  };
+
+  const handleExportRegistrations = () => {
+    const exportData = formatRegistrationExport(
+      registrations.map((r: any) => ({ ...r, activity_title: activity?.title }))
+    );
+    exportToExcel(exportData, `${activity?.title || "活动"}_报名名单`, "报名名单");
+  };
+
+  const handleExportReview = () => {
+    const exportData = formatReviewExport(reviewData);
+    exportToExcel(exportData, `${activity?.title || "活动"}_审核报告`, "审核报告");
+  };
+
+  const handleCancelActivity = async () => {
+    setCancelling(true);
+    const supabase = createClient();
+    await supabase
+      .from("activities")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", params.id);
+    setCancelling(false);
+    setShowCancelDialog(false);
+    refetch();
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+            <p className="mt-2 text-gray-500">加载中...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (!activity) {
+    return (
+      <AdminLayout>
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-gray-500">活动不存在</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -94,10 +139,10 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
           </Link>
           <div className="flex-1">
             <div className="flex items-center space-x-3">
-              <h1 className="text-2xl font-bold text-gray-900">{mockActivity.title}</h1>
-              <Badge status={mockActivity.status} />
+              <h1 className="text-2xl font-bold text-gray-900">{activity.title}</h1>
+              <Badge status={activity.status} />
             </div>
-            <p className="mt-1 text-gray-500">{mockActivity.club} · {mockActivity.category}</p>
+            <p className="mt-1 text-gray-500">{activity.club_name} · {activity.category}</p>
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" size="sm" onClick={() => setShowQrDialog(true)}>
@@ -108,7 +153,7 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
               <Mail className="mr-2 h-4 w-4" />
               发送提醒
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportRegistrations}>
               <Download className="mr-2 h-4 w-4" />
               导出名单
             </Button>
@@ -132,21 +177,21 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                       <MapPin className="mt-0.5 h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">活动地点</p>
-                        <p className="font-medium">{mockActivity.location}</p>
+                        <p className="font-medium">{activity.location}</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
                       <Calendar className="mt-0.5 h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">开始时间</p>
-                        <p className="font-medium">{formatDateTime(mockActivity.start_time)}</p>
+                        <p className="font-medium">{formatDateTime(activity.start_time)}</p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-3">
                       <Clock className="mt-0.5 h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">结束时间</p>
-                        <p className="font-medium">{formatDateTime(mockActivity.end_time)}</p>
+                        <p className="font-medium">{formatDateTime(activity.end_time)}</p>
                       </div>
                     </div>
                   </div>
@@ -156,16 +201,16 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                       <div>
                         <p className="text-sm text-gray-500">报名人数</p>
                         <p className="font-medium">
-                          {mockActivity.current_participants}/{mockActivity.max_participants} 人
+                          {activity.current_participants}/{activity.max_participants} 人
                           <span className="ml-2 text-sm text-gray-500">
-                            (候补 {mockActivity.waitlist_count} 人)
+                            (候补 {waitlistCount} 人)
                           </span>
                         </p>
                         <div className="mt-1 h-2 w-full rounded-full bg-gray-200">
                           <div
                             className="h-full rounded-full bg-primary-500"
                             style={{
-                              width: `${(mockActivity.current_participants / mockActivity.max_participants) * 100}%`,
+                              width: `${registrationRate}%`,
                             }}
                           />
                         </div>
@@ -175,8 +220,8 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                       <MessageSquare className="mt-0.5 h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">审核意见</p>
-                        <p className="font-medium">{mockActivity.review_comment}</p>
-                        <p className="text-xs text-gray-400">审核人：{mockActivity.reviewed_by}</p>
+                        <p className="font-medium">{activity.review_comment}</p>
+                        <p className="text-xs text-gray-400">审核人：{activity.reviewed_by}</p>
                       </div>
                     </div>
                   </div>
@@ -184,7 +229,7 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
 
                 <div className="mt-6">
                   <h3 className="font-medium text-gray-900">活动介绍</h3>
-                  <p className="mt-2 text-gray-600 leading-relaxed">{mockActivity.description}</p>
+                  <p className="mt-2 text-gray-600 leading-relaxed">{activity.description}</p>
                 </div>
               </CardContent>
             </Card>
@@ -210,7 +255,7 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
               <CardContent>
                 {activeTab === "participants" && (
                   <div className="space-y-3">
-                    {participants.map((p) => (
+                    {registrations.map((p: any) => (
                       <div
                         key={p.id}
                         className="flex items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50"
@@ -218,11 +263,11 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                         <div className="flex items-center space-x-4">
                           <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
                             <span className="text-sm font-medium text-primary-700">
-                              {p.name.charAt(0)}
+                              {(p.user_name || "").charAt(0)}
                             </span>
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{p.name}</p>
+                            <p className="font-medium text-gray-900">{p.user_name}</p>
                             <p className="text-sm text-gray-500">
                               {p.student_id} · {p.department}
                             </p>
@@ -244,19 +289,49 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                         </div>
                       </div>
                     ))}
+                    {registrations.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">暂无报名记录</div>
+                    )}
                   </div>
                 )}
 
                 {activeTab === "checkin" && (
-                  <div className="py-8 text-center text-gray-500">
-                    <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400" />
-                    <p className="mt-2">活动尚未开始，暂无签到记录</p>
+                  <div className="space-y-3">
+                    {checkIns.map((c: any) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <Check className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{c.user_name}</p>
+                            <p className="text-sm text-gray-500">{c.student_id}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-900">{formatDateTime(c.check_in_time)}</p>
+                          <p className="text-xs text-gray-500">
+                            {c.check_in_method === "qrcode" ? "扫码签到" : c.check_in_method === "gps" ? "GPS签到" : "手动签到"}
+                            {c.location && ` · ${c.location}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {checkIns.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">
+                        <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400" />
+                        <p className="mt-2">暂无签到记录</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {activeTab === "related" && (
                   <div className="space-y-3">
-                    {relatedRecords.map((record) => (
+                    {relatedRecords.map((record: any) => (
                       <div
                         key={record.id}
                         className="flex items-center justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50"
@@ -279,19 +354,22 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                           <div>
                             <p className="font-medium text-gray-900">{record.title}</p>
                             <p className="text-sm text-gray-500">
-                              处理人：{record.handler} · {record.time}
+                              处理人：{record.handler} · {formatDateTime(record.time)}
                             </p>
                           </div>
                         </div>
                         <Badge status={record.status} />
                       </div>
                     ))}
+                    {relatedRecords.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">暂无关联记录</div>
+                    )}
                   </div>
                 )}
 
                 {activeTab === "audit" && (
                   <div className="space-y-3">
-                    {auditLogs.map((log) => (
+                    {auditLogs.map((log: any) => (
                       <div
                         key={log.id}
                         className="flex items-start space-x-4 border-l-2 border-gray-200 pl-4 py-2"
@@ -300,13 +378,20 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <p className="font-medium text-gray-900">{log.action}</p>
-                            <p className="text-sm text-gray-500">{log.time}</p>
+                            <p className="text-sm text-gray-500">{formatDateTime(log.created_at)}</p>
                           </div>
-                          <p className="text-sm text-gray-500">操作人：{log.user}</p>
-                          <p className="mt-1 text-sm text-gray-600">{log.details}</p>
+                          <p className="text-sm text-gray-500">操作人：{log.user_name}</p>
+                          {log.details && (
+                            <p className="mt-1 text-sm text-gray-600">
+                              {typeof log.details === "string" ? log.details : JSON.stringify(log.details)}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
+                    {auditLogs.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">暂无操作日志</div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -327,14 +412,19 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                   <Mail className="mr-2 h-4 w-4" />
                   批量发送提醒
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start" onClick={handleExportRegistrations}>
                   <Download className="mr-2 h-4 w-4" />
                   导出报名数据
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={handleExportReview}>
+                  <Download className="mr-2 h-4 w-4" />
+                  导出审核报告
                 </Button>
                 <Button
                   variant="destructive"
                   className="w-full justify-start"
                   onClick={() => setShowCancelDialog(true)}
+                  disabled={activity.status === "cancelled"}
                 >
                   <X className="mr-2 h-4 w-4" />
                   取消活动
@@ -350,28 +440,28 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
                 <div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">报名率</span>
-                    <span className="font-medium">90%</span>
+                    <span className="font-medium">{registrationRate}%</span>
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-gray-200">
-                    <div className="h-full w-[90%] rounded-full bg-primary-500" />
+                    <div className="h-full rounded-full bg-primary-500" style={{ width: `${registrationRate}%` }} />
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">提醒发送率</span>
-                    <span className="font-medium">75%</span>
+                    <span className="font-medium">{reminderRate}%</span>
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-gray-200">
-                    <div className="h-full w-[75%] rounded-full bg-green-500" />
+                    <div className="h-full rounded-full bg-green-500" style={{ width: `${reminderRate}%` }} />
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">取消率</span>
-                    <span className="font-medium">6.5%</span>
+                    <span className="font-medium">{cancelRate}%</span>
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-gray-200">
-                    <div className="h-full w-[6.5%] rounded-full bg-red-500" />
+                    <div className="h-full rounded-full bg-red-500" style={{ width: `${cancelRate}%` }} />
                   </div>
                 </div>
               </CardContent>
@@ -391,16 +481,20 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
             <label className="text-sm font-medium text-gray-700">提醒内容</label>
             <textarea
               className="h-24 w-full rounded-md border border-gray-300 p-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              defaultValue="【活动提醒】您报名的「春季团建活动」将于明天下午2点在学校体育馆开始，请准时参加。"
+              value={reminderContent}
+              onChange={(e) => setReminderContent(e.target.value)}
+              placeholder={`【活动提醒】您报名的「${activity?.title}」将于${formatDateTime(activity?.start_time)}在${activity?.location}开始，请准时参加。`}
             />
           </div>
           <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-600">
-            <p>将向 <span className="font-medium text-gray-900">45</span> 位已报名用户发送提醒</p>
+            <p>将向 <span className="font-medium text-gray-900">{registeredCount + waitlistCount}</span> 位已报名用户发送提醒</p>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowSendReminder(false)}>取消</Button>
-          <Button onClick={() => setShowSendReminder(false)}>发送提醒</Button>
+          <Button onClick={handleSendReminder} disabled={sendingReminder}>
+            {sendingReminder ? "发送中..." : "发送提醒"}
+          </Button>
         </DialogFooter>
       </Dialog>
 
@@ -436,7 +530,9 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowCancelDialog(false)}>保留活动</Button>
-          <Button variant="destructive" onClick={() => setShowCancelDialog(false)}>确认取消</Button>
+          <Button variant="destructive" onClick={handleCancelActivity} disabled={cancelling}>
+            {cancelling ? "取消中..." : "确认取消"}
+          </Button>
         </DialogFooter>
       </Dialog>
 

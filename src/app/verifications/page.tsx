@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,122 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Shield,
   Search,
-  Filter,
-  User,
-  Calendar,
   Check,
   X,
   Eye,
-  AlertTriangle,
   Clock,
-  BookOpen,
-  Building,
   CheckCircle,
 } from "lucide-react";
 import { formatDateTime, getStatusText } from "@/lib/utils";
-
-const mockVerifications = [
-  {
-    id: "1",
-    user_name: "李四",
-    user_id: "user2",
-    email: "lisi@club.com",
-    type: "club_leader",
-    real_name: "李四",
-    student_id: "2022002",
-    department: "计算机学院",
-    club_id: "1",
-    club_name: "篮球社",
-    id_card_front: "",
-    id_card_back: "",
-    status: "pending",
-    review_comment: null,
-    reviewed_by: null,
-    reviewed_by_name: null,
-    submitted_at: "2026-06-18T14:20:00",
-    reviewed_at: null,
-  },
-  {
-    id: "2",
-    user_name: "王五",
-    user_id: "user3",
-    email: "wangwu@club.com",
-    type: "student",
-    real_name: "王五",
-    student_id: "2023003",
-    department: "经济学院",
-    club_id: null,
-    club_name: null,
-    id_card_front: "",
-    id_card_back: "",
-    status: "approved",
-    review_comment: "信息完整，认证通过",
-    reviewed_by: "admin",
-    reviewed_by_name: "管理员",
-    submitted_at: "2026-06-10T09:30:00",
-    reviewed_at: "2026-06-11T10:00:00",
-  },
-  {
-    id: "3",
-    user_name: "赵六",
-    user_id: "user4",
-    email: "zhaoliu@club.com",
-    type: "department",
-    real_name: "赵六",
-    student_id: "2021004",
-    department: "学生工作处",
-    club_id: null,
-    club_name: null,
-    id_card_front: "",
-    id_card_back: "",
-    status: "pending",
-    review_comment: null,
-    reviewed_by: null,
-    reviewed_by_name: null,
-    submitted_at: "2026-06-17T16:00:00",
-    reviewed_at: null,
-  },
-  {
-    id: "4",
-    user_name: "钱七",
-    user_id: "user5",
-    email: "qianqi@club.com",
-    type: "club_leader",
-    real_name: "钱七",
-    student_id: "2022005",
-    department: "文学院",
-    club_id: "4",
-    club_name: "文学社",
-    id_card_front: "",
-    id_card_back: "",
-    status: "rejected",
-    review_comment: "请补充社团证明材料",
-    reviewed_by: "admin",
-    reviewed_by_name: "管理员",
-    submitted_at: "2026-06-08T11:00:00",
-    reviewed_at: "2026-06-09T14:00:00",
-  },
-  {
-    id: "5",
-    user_name: "孙八",
-    user_id: "user6",
-    email: "sunba@club.com",
-    type: "student",
-    real_name: "孙八",
-    student_id: "2023006",
-    department: "工学院",
-    club_id: null,
-    club_name: null,
-    id_card_front: "",
-    id_card_back: "",
-    status: "approved",
-    review_comment: "认证通过",
-    reviewed_by: "admin",
-    reviewed_by_name: "管理员",
-    submitted_at: "2026-06-05T15:00:00",
-    reviewed_at: "2026-06-06T09:00:00",
-  },
-];
+import { useIdentityVerifications } from "@/lib/hooks";
+import { createClient } from "@/lib/supabase/client";
 
 const tabs = [
   { key: "all", label: "全部" },
@@ -156,13 +49,14 @@ export default function VerificationsPage() {
   const [selectedVerification, setSelectedVerification] = useState<any>(null);
   const [reviewComment, setReviewComment] = useState("");
 
-  const filteredVerifications = mockVerifications.filter((v) => {
-    const matchesTab = activeTab === "all" || v.status === activeTab;
-    const matchesSearch =
-      v.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.real_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.student_id.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesSearch;
+  const filterStatus = activeTab === "all" ? undefined : activeTab;
+  const { data: verifications, loading, refetch } = useIdentityVerifications({ status: filterStatus });
+
+  const filteredVerifications = (verifications || []).filter((v: any) => {
+    const name = (v.real_name || v.user_name || "").toLowerCase();
+    const sid = (v.student_id || "").toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return name.includes(query) || sid.includes(query);
   });
 
   const handleView = (verification: any) => {
@@ -171,22 +65,55 @@ export default function VerificationsPage() {
     setShowDetailDialog(true);
   };
 
-  const handleApprove = (id: string) => {
-    alert(`认证申请 ${id} 已通过`);
+  const handleApprove = async (id: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase
+      .from("identity_verifications")
+      .update({
+        status: "approved",
+        review_comment: reviewComment || null,
+        reviewed_by: user?.id || null,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", id);
     setShowDetailDialog(false);
+    refetch();
   };
 
-  const handleReject = (id: string) => {
-    alert(`认证申请 ${id} 已拒绝，原因：${reviewComment}`);
+  const handleReject = async (id: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase
+      .from("identity_verifications")
+      .update({
+        status: "rejected",
+        review_comment: reviewComment || null,
+        reviewed_by: user?.id || null,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", id);
     setShowDetailDialog(false);
+    refetch();
   };
 
+  const allVerifications = verifications || [];
   const stats = {
-    total: mockVerifications.length,
-    pending: mockVerifications.filter((v) => v.status === "pending").length,
-    approved: mockVerifications.filter((v) => v.status === "approved").length,
-    rejected: mockVerifications.filter((v) => v.status === "rejected").length,
+    total: allVerifications.length,
+    pending: allVerifications.filter((v: any) => v.status === "pending").length,
+    approved: allVerifications.filter((v: any) => v.status === "approved").length,
+    rejected: allVerifications.filter((v: any) => v.status === "rejected").length,
   };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -294,7 +221,7 @@ export default function VerificationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredVerifications.map((v) => (
+                  {filteredVerifications.map((v: any) => (
                     <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3">
                         <div className="flex items-center space-x-3">

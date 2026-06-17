@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,137 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ShoppingBag,
   Search,
-  Filter,
   Plus,
   User,
   Calendar,
   DollarSign,
   Tag,
   Link2,
-  Eye,
   Check,
-  X,
-  Phone,
   MessageSquare,
 } from "lucide-react";
 import { formatDateTime, formatPrice } from "@/lib/utils";
-
-const mockItems = [
-  {
-    id: "1",
-    title: "数据结构教材",
-    description: "九成新的《数据结构与算法分析》教材，附带笔记",
-    price: 25.0,
-    category: "书籍",
-    condition: "good",
-    seller_name: "张三",
-    seller_id: "user1",
-    seller_phone: "13800138001",
-    buyer_name: "李四",
-    buyer_id: "user2",
-    status: "sold",
-    related_activity_id: "2",
-    related_activity_title: "编程技术分享会",
-    images: [],
-    created_at: "2026-06-10T10:00:00",
-    updated_at: "2026-06-14T11:20:00",
-  },
-  {
-    id: "2",
-    title: "二手篮球",
-    description: "斯伯丁篮球，用了半年，弹性还很好",
-    price: 80.0,
-    category: "运动器材",
-    condition: "like_new",
-    seller_name: "王五",
-    seller_id: "user3",
-    seller_phone: "13800138002",
-    buyer_name: null,
-    buyer_id: null,
-    status: "available",
-    related_activity_id: "1",
-    related_activity_title: "春季团建活动",
-    images: [],
-    created_at: "2026-06-12T14:30:00",
-    updated_at: "2026-06-12T14:30:00",
-  },
-  {
-    id: "3",
-    title: "机械键盘",
-    description: "Cherry红轴机械键盘，87键，手感很好",
-    price: 200.0,
-    category: "数码产品",
-    condition: "like_new",
-    seller_name: "赵六",
-    seller_id: "user4",
-    seller_phone: "13800138003",
-    buyer_name: null,
-    buyer_id: null,
-    status: "reserved",
-    related_activity_id: null,
-    related_activity_title: null,
-    images: [],
-    created_at: "2026-06-15T09:00:00",
-    updated_at: "2026-06-17T16:00:00",
-  },
-  {
-    id: "4",
-    title: "台灯",
-    description: "护眼台灯，可调节亮度，USB供电",
-    price: 35.0,
-    category: "生活用品",
-    condition: "good",
-    seller_name: "钱七",
-    seller_id: "user5",
-    seller_phone: "13800138004",
-    buyer_name: null,
-    buyer_id: null,
-    status: "available",
-    related_activity_id: null,
-    related_activity_title: null,
-    images: [],
-    created_at: "2026-06-16T11:00:00",
-    updated_at: "2026-06-16T11:00:00",
-  },
-  {
-    id: "5",
-    title: "吉他",
-    description: "入门级民谣吉他，送琴包和拨片",
-    price: 300.0,
-    category: "乐器",
-    condition: "fair",
-    seller_name: "孙八",
-    seller_id: "user6",
-    seller_phone: "13800138005",
-    buyer_name: "周九",
-    buyer_id: "user7",
-    status: "sold",
-    related_activity_id: "3",
-    related_activity_title: "校园歌手大赛",
-    images: [],
-    created_at: "2026-06-08T08:00:00",
-    updated_at: "2026-06-12T10:00:00",
-  },
-  {
-    id: "6",
-    title: "羽毛球拍",
-    description: "一对羽毛球拍，送一桶球",
-    price: 60.0,
-    category: "运动器材",
-    condition: "good",
-    seller_name: "吴十",
-    seller_id: "user8",
-    seller_phone: "13800138006",
-    buyer_name: null,
-    buyer_id: null,
-    status: "cancelled",
-    related_activity_id: null,
-    related_activity_title: null,
-    images: [],
-    created_at: "2026-06-14T15:00:00",
-    updated_at: "2026-06-16T09:00:00",
-  },
-];
+import { useSecondHandItems } from "@/lib/hooks";
 
 const tabs = [
   { key: "all", label: "全部" },
@@ -168,14 +48,20 @@ export default function SecondHandPage() {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  const filteredItems = mockItems.filter((item) => {
-    const matchesTab = activeTab === "all" || item.status === activeTab;
-    const matchesCategory = selectedCategory === "全部" || item.category === selectedCategory;
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.seller_name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesCategory && matchesSearch;
+  const filterStatus = activeTab === "all" ? undefined : activeTab;
+  const { data: items, loading, refetch } = useSecondHandItems({
+    status: filterStatus,
+    category: selectedCategory === "全部" ? undefined : selectedCategory,
+  });
+
+  const filteredItems = (items || []).filter((item: any) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.title?.toLowerCase().includes(q) ||
+      item.description?.toLowerCase().includes(q) ||
+      item.seller_name?.toLowerCase().includes(q)
+    );
   });
 
   const handleView = (item: any) => {
@@ -184,10 +70,10 @@ export default function SecondHandPage() {
   };
 
   const stats = {
-    total: mockItems.length,
-    available: mockItems.filter((i) => i.status === "available").length,
-    sold: mockItems.filter((i) => i.status === "sold").length,
-    total_amount: mockItems.filter((i) => i.status === "sold").reduce((sum, i) => sum + i.price, 0),
+    total: (items || []).length,
+    available: (items || []).filter((i: any) => i.status === "available").length,
+    sold: (items || []).filter((i: any) => i.status === "sold").length,
+    total_amount: (items || []).filter((i: any) => i.status === "sold").reduce((sum: number, i: any) => sum + (i.price || 0), 0),
   };
 
   return (
@@ -294,59 +180,68 @@ export default function SecondHandPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredItems.map((item) => (
-                <Card
-                  key={item.id}
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleView(item)}
-                >
-                  <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <ShoppingBag className="h-12 w-12 text-gray-400" />
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <h3 className="font-semibold text-gray-900 line-clamp-1">{item.title}</h3>
-                      <Badge status={item.status} />
-                    </div>
-                    <p className="mt-1 text-lg font-bold text-orange-600">
-                      {formatPrice(item.price)}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500 line-clamp-2">
-                      {item.description}
-                    </p>
-                    
-                    <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <User className="mr-1 h-4 w-4" />
-                        {item.seller_name}
-                      </div>
-                      <div className="flex items-center">
-                        <Tag className="mr-1 h-4 w-4" />
-                        {conditionText[item.condition]}
-                      </div>
-                    </div>
-
-                    {item.related_activity_id && (
-                      <div className="mt-2 flex items-center text-xs text-primary-600">
-                        <Link2 className="mr-1 h-3 w-3" />
-                        关联活动：{item.related_activity_title}
-                      </div>
-                    )}
-
-                    <div className="mt-2 text-xs text-gray-400">
-                      发布于 {formatDateTime(item.created_at)}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {filteredItems.length === 0 && (
+            {loading ? (
               <div className="py-12 text-center text-gray-500">
-                <ShoppingBag className="mx-auto h-12 w-12 text-gray-300" />
-                <p className="mt-2">暂无物品</p>
+                <ShoppingBag className="mx-auto h-12 w-12 text-gray-300 animate-pulse" />
+                <p className="mt-2">加载中...</p>
               </div>
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredItems.map((item: any) => (
+                    <Card
+                      key={item.id}
+                      className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => handleView(item)}
+                    >
+                      <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <ShoppingBag className="h-12 w-12 text-gray-400" />
+                      </div>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <h3 className="font-semibold text-gray-900 line-clamp-1">{item.title}</h3>
+                          <Badge status={item.status} />
+                        </div>
+                        <p className="mt-1 text-lg font-bold text-orange-600">
+                          {formatPrice(item.price)}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                          {item.description}
+                        </p>
+
+                        <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <User className="mr-1 h-4 w-4" />
+                            {item.seller_name}
+                          </div>
+                          <div className="flex items-center">
+                            <Tag className="mr-1 h-4 w-4" />
+                            {conditionText[item.condition]}
+                          </div>
+                        </div>
+
+                        {item.related_activity_id && (
+                          <div className="mt-2 flex items-center text-xs text-primary-600">
+                            <Link2 className="mr-1 h-3 w-3" />
+                            关联活动：{item.related_activity_title}
+                          </div>
+                        )}
+
+                        <div className="mt-2 text-xs text-gray-400">
+                          发布于 {formatDateTime(item.created_at)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {filteredItems.length === 0 && (
+                  <div className="py-12 text-center text-gray-500">
+                    <ShoppingBag className="mx-auto h-12 w-12 text-gray-300" />
+                    <p className="mt-2">暂无物品</p>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

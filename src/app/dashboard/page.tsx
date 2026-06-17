@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,145 +14,165 @@ import {
   Clock,
   AlertTriangle,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { useActivities } from "@/lib/hooks";
 import Link from "next/link";
 
-const stats = [
-  {
-    title: "总活动数",
-    value: "128",
-    change: "+12%",
-    icon: Calendar,
-    trend: "up",
-  },
-  {
-    title: "总报名人数",
-    value: "3,456",
-    change: "+8%",
-    icon: Users,
-    trend: "up",
-  },
-  {
-    title: "签到率",
-    value: "89.5%",
-    change: "+3.2%",
-    icon: CheckSquare,
-    trend: "up",
-  },
-  {
-    title: "待处理消息",
-    value: "23",
-    change: "-5%",
-    icon: Bell,
-    trend: "down",
-  },
-];
-
-const recentActivities = [
-  {
-    id: "1",
-    title: "春季团建活动",
-    club: "篮球社",
-    date: "2026-06-20",
-    status: "approved",
-    participants: 45,
-    maxParticipants: 50,
-  },
-  {
-    id: "2",
-    title: "编程技术分享会",
-    club: "计算机协会",
-    date: "2026-06-22",
-    status: "pending",
-    participants: 78,
-    maxParticipants: 100,
-  },
-  {
-    id: "3",
-    title: "校园歌手大赛",
-    club: "音乐社",
-    date: "2026-06-25",
-    status: "approved",
-    participants: 120,
-    maxParticipants: 150,
-  },
-  {
-    id: "4",
-    title: "读书分享会",
-    club: "文学社",
-    date: "2026-06-18",
-    status: "ongoing",
-    participants: 28,
-    maxParticipants: 30,
-  },
-  {
-    id: "5",
-    title: "摄影作品展",
-    club: "摄影协会",
-    date: "2026-06-15",
-    status: "completed",
-    participants: 200,
-    maxParticipants: 200,
-  },
-];
-
-const recentRegistrations = [
-  {
-    id: "1",
-    userName: "张三",
-    studentId: "2023001",
-    activity: "春季团建活动",
-    time: "10分钟前",
-    status: "registered",
-  },
-  {
-    id: "2",
-    userName: "李四",
-    studentId: "2023002",
-    activity: "编程技术分享会",
-    time: "25分钟前",
-    status: "registered",
-  },
-  {
-    id: "3",
-    userName: "王五",
-    studentId: "2023003",
-    activity: "校园歌手大赛",
-    time: "1小时前",
-    status: "waitlisted",
-  },
-  {
-    id: "4",
-    userName: "赵六",
-    studentId: "2023004",
-    activity: "读书分享会",
-    time: "2小时前",
-    status: "registered",
-  },
-];
-
-const upcomingReminders = [
-  {
-    id: "1",
-    title: "春季团建活动",
-    time: "明天 14:00",
-    type: "activity",
-  },
-  {
-    id: "2",
-    title: "编程技术分享会",
-    time: "后天 19:00",
-    type: "activity",
-  },
-  {
-    id: "3",
-    title: "宿舍报修 #1234",
-    time: "今天 16:00",
-    type: "repair",
-  },
-];
-
 export default function DashboardPage() {
+  const { data: activitiesData } = useActivities();
+  const recentActivities = activitiesData.slice(0, 5);
+
+  const [dashboardStats, setDashboardStats] = useState({
+    totalActivities: 0,
+    totalRegistrations: 0,
+    checkInRate: "0%",
+    pendingMessages: 0,
+  });
+  const [recentRegs, setRecentRegs] = useState<any[]>([]);
+  const [upcomingActivities, setUpcomingActivities] = useState<any[]>([]);
+  const [pendingItems, setPendingItems] = useState({
+    activities: 0,
+    verifications: 0,
+    repairs: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      setLoading(true);
+      const supabase = createClient();
+
+      const [
+        actRes,
+        regRes,
+        checkInRes,
+        msgRes,
+        regListRes,
+        upcomingRes,
+        pendingActRes,
+        pendingVerRes,
+        pendingRepairRes,
+      ] = await Promise.all([
+        supabase.from("activities").select("id", { count: "exact", head: true }),
+        supabase.from("registrations").select("id", { count: "exact", head: true }),
+        supabase
+          .from("registrations")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "checked_in"),
+        supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("is_read", false),
+        supabase
+          .from("registrations")
+          .select("*, user_profiles(name, student_id), activities(title)")
+          .order("registered_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("activities")
+          .select("id, title, start_time")
+          .gte("start_time", new Date().toISOString())
+          .order("start_time", { ascending: true })
+          .limit(5),
+        supabase
+          .from("activities")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("identity_verifications")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("repair_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
+      ]);
+
+      const totalRegs = regRes.count || 0;
+      const checkedIn = checkInRes.count || 0;
+      const rate = totalRegs > 0 ? ((checkedIn / totalRegs) * 100).toFixed(1) : "0";
+
+      setDashboardStats({
+        totalActivities: actRes.count || 0,
+        totalRegistrations: totalRegs,
+        checkInRate: `${rate}%`,
+        pendingMessages: msgRes.count || 0,
+      });
+
+      setRecentRegs(
+        (regListRes.data || []).map((r: any) => ({
+          id: r.id,
+          userName: r.user_profiles?.name,
+          studentId: r.user_profiles?.student_id,
+          activity: r.activities?.title,
+          time: formatDateTime(r.registered_at),
+          status: r.status,
+        }))
+      );
+
+      setUpcomingActivities(
+        (upcomingRes.data || []).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          time: formatDateTime(a.start_time),
+          type: "activity",
+        }))
+      );
+
+      setPendingItems({
+        activities: pendingActRes.count || 0,
+        verifications: pendingVerRes.count || 0,
+        repairs: pendingRepairRes.count || 0,
+      });
+
+      setLoading(false);
+    }
+
+    fetchDashboardData();
+  }, []);
+
+  const stats = [
+    {
+      title: "总活动数",
+      value: dashboardStats.totalActivities.toLocaleString(),
+      change: "+12%",
+      icon: Calendar,
+      trend: "up",
+    },
+    {
+      title: "总报名人数",
+      value: dashboardStats.totalRegistrations.toLocaleString(),
+      change: "+8%",
+      icon: Users,
+      trend: "up",
+    },
+    {
+      title: "签到率",
+      value: dashboardStats.checkInRate,
+      change: "+3.2%",
+      icon: CheckSquare,
+      trend: "up",
+    },
+    {
+      title: "待处理消息",
+      value: dashboardStats.pendingMessages.toLocaleString(),
+      change: "-5%",
+      icon: Bell,
+      trend: "down",
+    },
+  ];
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -211,14 +234,14 @@ export default function DashboardPage() {
                       <div>
                         <p className="font-medium text-gray-900">{activity.title}</p>
                         <p className="text-sm text-gray-500">
-                          {activity.club} · {activity.date}
+                          {activity.club_name} · {activity.start_time ? formatDate(activity.start_time) : ""}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">
-                          {activity.participants}/{activity.maxParticipants}
+                          {activity.current_participants}/{activity.max_participants}
                         </p>
                         <p className="text-xs text-gray-500">报名人数</p>
                       </div>
@@ -237,7 +260,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {upcomingReminders.map((reminder) => (
+                  {upcomingActivities.map((reminder) => (
                     <div
                       key={reminder.id}
                       className="flex items-center space-x-3 rounded-md p-2 hover:bg-gray-50"
@@ -264,21 +287,21 @@ export default function DashboardPage() {
                   <div className="flex items-center space-x-3 rounded-md p-2">
                     <AlertTriangle className="h-4 w-4 text-yellow-500" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">3 个活动待审核</p>
+                      <p className="text-sm font-medium text-gray-900">{pendingItems.activities} 个活动待审核</p>
                       <p className="text-xs text-gray-500">需要您的审批</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 rounded-md p-2">
                     <AlertTriangle className="h-4 w-4 text-red-500" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">5 个身份待审核</p>
+                      <p className="text-sm font-medium text-gray-900">{pendingItems.verifications} 个身份待审核</p>
                       <p className="text-xs text-gray-500">新提交的认证申请</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 rounded-md p-2">
                     <AlertTriangle className="h-4 w-4 text-blue-500" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">8 条报修待处理</p>
+                      <p className="text-sm font-medium text-gray-900">{pendingItems.repairs} 条报修待处理</p>
                       <p className="text-xs text-gray-500">宿舍维修请求</p>
                     </div>
                   </div>
@@ -313,7 +336,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentRegistrations.map((reg) => (
+                  {recentRegs.map((reg) => (
                     <tr key={reg.id} className="border-b border-gray-100">
                       <td className="py-3 font-medium text-gray-900">{reg.userName}</td>
                       <td className="py-3 text-gray-500">{reg.studentId}</td>

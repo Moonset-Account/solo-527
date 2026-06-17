@@ -22,87 +22,8 @@ import {
   Info,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
-
-const mockMessages = [
-  {
-    id: "1",
-    title: "活动审核通过通知",
-    content: "您提交的「春季团建活动」已通过审核，活动将于 6月20日 下午2点在学校体育馆举行。",
-    type: "review",
-    related_type: "activity",
-    related_id: "1",
-    is_read: false,
-    created_at: "2026-06-12T15:30:00",
-  },
-  {
-    id: "2",
-    title: "活动提醒：春季团建活动",
-    content: "您报名的「春季团建活动」将于明天下午2点开始，请准时参加。地点：学校体育馆。",
-    type: "reminder",
-    related_type: "activity",
-    related_id: "1",
-    is_read: false,
-    created_at: "2026-06-19T09:00:00",
-  },
-  {
-    id: "3",
-    title: "新的身份审核申请",
-    content: "用户「李四」提交了社团负责人认证申请，等待您的审核。",
-    type: "system",
-    related_type: "verification",
-    related_id: "1",
-    is_read: false,
-    created_at: "2026-06-18T14:20:00",
-  },
-  {
-    id: "4",
-    title: "宿舍报修处理完成",
-    content: "您提交的报修单「宿舍灯管更换」已处理完成，请确认是否满意。",
-    type: "notification",
-    related_type: "repair",
-    related_id: "1",
-    is_read: true,
-    created_at: "2026-06-17T16:45:00",
-  },
-  {
-    id: "5",
-    title: "报名成功通知",
-    content: "恭喜您成功报名「编程技术分享会」，请准时参加活动。座位号：15号。",
-    type: "activity",
-    related_type: "activity",
-    related_id: "2",
-    is_read: true,
-    created_at: "2026-06-15T10:30:00",
-  },
-  {
-    id: "6",
-    title: "二手物品售出通知",
-    content: "您发布的二手物品「数据结构教材」已被拍下，请及时与买家联系。",
-    type: "notification",
-    related_type: "trade",
-    related_id: "1",
-    is_read: true,
-    created_at: "2026-06-14T11:20:00",
-  },
-  {
-    id: "7",
-    title: "系统维护通知",
-    content: "系统将于本周六凌晨2点-4点进行例行维护，期间服务可能短暂中断。",
-    type: "system",
-    is_read: true,
-    created_at: "2026-06-13T09:00:00",
-  },
-  {
-    id: "8",
-    title: "活动取消通知",
-    content: "很抱歉，「创业沙龙」活动因特殊原因取消，给您带来不便敬请谅解。",
-    type: "activity",
-    related_type: "activity",
-    related_id: "6",
-    is_read: true,
-    created_at: "2026-06-12T16:00:00",
-  },
-];
+import { useMessages } from "@/lib/hooks";
+import { createClient } from "@/lib/supabase/client";
 
 const tabs = [
   { key: "all", label: "全部" },
@@ -133,8 +54,9 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
+  const { data: messages, loading, refetch } = useMessages();
 
-  const filteredMessages = mockMessages.filter((msg) => {
+  const filteredMessages = (messages || []).filter((msg: any) => {
     const matchesTab =
       activeTab === "all"
         ? true
@@ -152,7 +74,7 @@ export default function MessagesPage() {
     setShowDetailDialog(true);
   };
 
-  const unreadCount = mockMessages.filter((m) => !m.is_read).length;
+  const unreadCount = (messages || []).filter((m: any) => !m.is_read).length;
 
   const getRelatedIcon = (type: string) => {
     const icons: Record<string, any> = {
@@ -163,6 +85,37 @@ export default function MessagesPage() {
     };
     return icons[type] || Bell;
   };
+
+  const handleMarkAllRead = async () => {
+    const supabase = createClient();
+    await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("is_read", false);
+    refetch();
+  };
+
+  const handleMarkRead = async (msg: any) => {
+    if (!msg.is_read) {
+      const supabase = createClient();
+      await supabase
+        .from("messages")
+        .update({ is_read: true })
+        .eq("id", msg.id);
+      refetch();
+    }
+    setShowDetailDialog(false);
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -180,7 +133,7 @@ export default function MessagesPage() {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
               <CheckCheck className="mr-2 h-4 w-4" />
               全部标为已读
             </Button>
@@ -228,7 +181,7 @@ export default function MessagesPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {filteredMessages.map((msg) => {
+                  {filteredMessages.map((msg: any) => {
                     const TypeIcon = typeIcons[msg.type] || Bell;
                     return (
                       <div
@@ -293,7 +246,7 @@ export default function MessagesPage() {
                     </div>
                     <span className="text-sm text-gray-600">全部消息</span>
                   </div>
-                  <span className="font-medium">{mockMessages.length}</span>
+                  <span className="font-medium">{(messages || []).length}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -312,7 +265,7 @@ export default function MessagesPage() {
                     <span className="text-sm text-gray-600">活动通知</span>
                   </div>
                   <span className="font-medium">
-                    {mockMessages.filter((m) => m.type === "activity").length}
+                    {(messages || []).filter((m: any) => m.type === "activity").length}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -323,7 +276,7 @@ export default function MessagesPage() {
                     <span className="text-sm text-gray-600">审核通知</span>
                   </div>
                   <span className="font-medium">
-                    {mockMessages.filter((m) => m.type === "review").length}
+                    {(messages || []).filter((m: any) => m.type === "review").length}
                   </span>
                 </div>
               </CardContent>
@@ -334,7 +287,7 @@ export default function MessagesPage() {
                 <CardTitle className="text-base">快捷操作</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start" onClick={handleMarkAllRead}>
                   <CheckCheck className="mr-2 h-4 w-4" />
                   全部标为已读
                 </Button>
@@ -400,7 +353,7 @@ export default function MessagesPage() {
           <Button variant="outline" onClick={() => setShowDetailDialog(false)}>
             关闭
           </Button>
-          <Button onClick={() => setShowDetailDialog(false)}>
+          <Button onClick={() => handleMarkRead(selectedMessage)}>
             <Check className="mr-2 h-4 w-4" />
             标为已读
           </Button>
