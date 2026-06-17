@@ -20,9 +20,12 @@
         </div>
         <div id="configs-list">加载中...</div>
     </div>
-    <div id="config-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
-        <div class="card" style="width:500px;max-height:90vh;overflow-y:auto;">
-            <h2>新增配置</h2>
+    <div id="config-modal" class="modal-mask hidden">
+        <div class="modal-box" style="width:500px;max-height:85vh;overflow-y:auto;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 style="margin:0;">新增配置</h2>
+                <button onclick="closeConfigModal()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#718096;">&times;</button>
+            </div>
             <div class="form-group">
                 <label>配置类型</label>
                 <select id="cfg-type">
@@ -108,8 +111,8 @@ async function toggleConfig(id) {
     if (resp.ok) { showToast('状态已更新'); loadConfigs(); }
 }
 
-function openConfigModal() { document.getElementById('config-modal').style.display = 'flex'; }
-function closeConfigModal() { document.getElementById('config-modal').style.display = 'none'; }
+function openConfigModal() { document.getElementById('config-modal').classList.remove('hidden'); }
+function closeConfigModal() { document.getElementById('config-modal').classList.add('hidden'); }
 
 async function submitConfig() {
     try {

@@ -176,7 +176,16 @@ class Appointment(Base):
     packages = relationship("AppointmentPackage", back_populates="appointment", cascade="all, delete-orphan")
     assigned_staff = relationship("AppointmentStaff", back_populates="appointment", cascade="all, delete-orphan")
     health_record = relationship("HealthRecord", back_populates="appointment", uselist=False)
-    repurchase_anomaly = relationship("RepurchaseAnomaly", back_populates="appointment", uselist=False)
+    repurchase_anomaly = relationship(
+        "RepurchaseAnomaly",
+        back_populates="appointment",
+        uselist=False,
+        foreign_keys="RepurchaseAnomaly.appointment_id",
+    )
+    repurchase_anomaly_as_previous = relationship(
+        "RepurchaseAnomaly",
+        foreign_keys="RepurchaseAnomaly.previous_appointment_id",
+    )
 
 
 class AppointmentService(Base):
@@ -416,4 +425,12 @@ class RepurchaseAnomaly(Base):
     is_test_data = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    appointment = relationship("Appointment", back_populates="repurchase_anomaly", foreign_keys=[appointment_id])
+    appointment = relationship(
+        "Appointment",
+        back_populates="repurchase_anomaly",
+        foreign_keys=[appointment_id],
+    )
+    previous_appointment = relationship(
+        "Appointment",
+        foreign_keys=[previous_appointment_id],
+    )

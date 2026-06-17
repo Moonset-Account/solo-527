@@ -4,26 +4,30 @@
 {% include "admin/_sidebar.html" %}
 <div class="main-content">
     <h1 class="page-title">❤️ 健康记录管理</h1>
-    <div class="grid">
-        <div class="card">
-            <h2>按日期统计</h2>
-            <div id="stats-date">加载中...</div>
+    <div class="card mb-6">
+        <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">
+            <button class="btn btn-secondary tab-btn active" onclick="switchTab('date')" data-tab="date">按日期</button>
+            <button class="btn btn-secondary tab-btn" onclick="switchTab('reason')" data-tab="reason">按异常原因</button>
+            <button class="btn btn-secondary tab-btn" onclick="switchTab('store')" data-tab="store">按门店(店长)</button>
+            <button class="btn btn-secondary tab-btn" onclick="switchTab('store_date')" data-tab="store_date">门店+日期</button>
+            <button class="btn btn-secondary tab-btn" onclick="switchTab('store_reason')" data-tab="store_reason">门店+原因</button>
+            <button class="btn btn-secondary tab-btn" onclick="switchTab('all')" data-tab="all">三维度拆分</button>
         </div>
-        <div class="card">
-            <h2>按异常原因统计</h2>
-            <div id="stats-reason">加载中...</div>
-        </div>
+        <div id="stats-container">加载中...</div>
     </div>
-    <div class="card mt-4">
+    <div class="card">
         <div class="flex justify-between items-center mb-4">
             <h2 style="margin:0;">健康记录列表</h2>
             <button class="btn btn-primary" onclick="openRecordModal()">新增记录</button>
         </div>
         <div id="records-list">加载中...</div>
     </div>
-    <div id="record-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
-        <div class="card" style="width:450px;">
-            <h2>新增健康记录</h2>
+    <div id="record-modal" class="modal-mask hidden">
+        <div class="modal-box" style="width:500px;max-height:85vh;overflow-y:auto;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 style="margin:0;">新增健康记录</h2>
+                <button onclick="closeRecordModal()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#718096;">&times;</button>
+            </div>
             <div class="form-group">
                 <label>宠物ID</label>
                 <input type="number" id="hr-pet">
@@ -67,41 +71,93 @@
         </div>
     </div>
 </div>
+<style>
+.modal-mask {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+}
+.modal-box {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    max-width: 90vw;
+}
+.tab-btn.active {
+    background: #667eea !important;
+    color: white !important;
+}
+.hidden { display: none !important; }
+</style>
 <script>
+let currentTab = 'date';
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    loadStats();
+}
+
+function renderStatsTable(data, columns) {
+    if (!data.length) return '<p class="text-gray">暂无数据</p>';
+    const colHeaders = {
+        store_name: '门店(店长)',
+        date: '日期',
+        abnormal_reason: '异常原因',
+        total_count: '总数',
+        abnormal_count: '异常',
+        critical_count: '危重'
+    };
+    return `
+        <div style="overflow-x:auto;">
+        <table>
+            <thead><tr>
+                ${columns.map(c => `<th>${colHeaders[c] || c}</th>`).join('')}
+            </tr></thead>
+            <tbody>
+                ${data.map(h => `<tr>
+                    ${columns.map(c => {
+                        if (c === 'abnormal_count') return `<td><span class="badge badge-abnormal">${h.abnormal_count || 0}</span></td>`;
+                        if (c === 'critical_count') return `<td><span class="badge badge-critical">${h.critical_count || 0}</span></td>`;
+                        if (c === 'abnormal_reason') return `<td>${h.abnormal_reason || '<span class="text-gray">正常</span>'}</td>`;
+                        if (c === 'store_name') return `<td><strong>${h.store_name || h.store_id ? '#'+h.store_id : '-'}</strong></td>`;
+                        return `<td>${h[c] ?? '-'}</td>`;
+                    }).join('')}
+                </tr>`).join('')}
+            </tbody>
+        </table>
+        </div>
+    `;
+}
+
 async function loadStats() {
+    const groupMap = {
+        date: 'date',
+        reason: 'reason',
+        store: 'store',
+        store_date: 'store,date',
+        store_reason: 'store,reason',
+        all: 'store,date,reason'
+    };
+    const colMap = {
+        date: ['date','total_count','abnormal_count','critical_count'],
+        reason: ['abnormal_reason','abnormal_count','critical_count'],
+        store: ['store_name','total_count','abnormal_count','critical_count'],
+        store_date: ['store_name','date','total_count','abnormal_count','critical_count'],
+        store_reason: ['store_name','abnormal_reason','abnormal_count','critical_count'],
+        all: ['store_name','date','abnormal_reason','abnormal_count','critical_count']
+    };
     try {
-        const [dateResp, reasonResp] = await Promise.all([
-            fetch('/api/health-stats?group_by=date', { headers: apiHeaders() }),
-            fetch('/api/health-stats?group_by=reason', { headers: apiHeaders() })
-        ]);
-        const byDate = await dateResp.json();
-        const byReason = await reasonResp.json();
-
-        document.getElementById('stats-date').innerHTML = byDate.length ? `
-            <table>
-                <thead><tr><th>日期</th><th>总数</th><th>异常</th><th>危重</th></tr></thead>
-                <tbody>
-                    ${byDate.slice(0, 7).map(h => `<tr>
-                        <td>${h.date}</td>
-                        <td>${h.total_count}</td>
-                        <td class="badge badge-abnormal" style="display:inline-block;">${h.abnormal_count || 0}</td>
-                        <td class="badge badge-critical" style="display:inline-block;">${h.critical_count || 0}</td>
-                    </tr>`).join('')}
-                </tbody>
-            </table>
-        ` : '<p class="text-gray">暂无数据</p>';
-
-        document.getElementById('stats-reason').innerHTML = byReason.length ? `
-            <table>
-                <thead><tr><th>异常原因</th><th>数量</th></tr></thead>
-                <tbody>
-                    ${byReason.filter(h => h.abnormal_reason).map(h => `<tr>
-                        <td>${h.abnormal_reason}</td>
-                        <td>${(h.abnormal_count || 0) + (h.critical_count || 0)}</td>
-                    </tr>`).join('') || '<tr><td colspan="2" class="text-gray">暂无异常记录</td></tr>'}
-                </tbody>
-            </table>
-        ` : '<p class="text-gray">暂无数据</p>';
+        const resp = await fetch('/api/health-stats?group_by=' + groupMap[currentTab], { headers: apiHeaders() });
+        const data = await resp.json();
+        const filtered = currentTab === 'reason' || currentTab === 'store_reason' || currentTab === 'all'
+            ? data.filter(h => (h.abnormal_count || 0) + (h.critical_count || 0) > 0 || h.abnormal_reason)
+            : data;
+        document.getElementById('stats-container').innerHTML = renderStatsTable(filtered.slice(0, 30), colMap[currentTab]);
     } catch (e) { console.error(e); }
 }
 
@@ -115,7 +171,7 @@ async function loadRecords() {
         }
         document.getElementById('records-list').innerHTML = `
             <table>
-                <thead><tr><th>日期</th><th>宠物ID</th><th>状态</th><th>异常原因</th><th>体温</th><th>体重</th></tr></thead>
+                <thead><tr><th>日期</th><th>宠物ID</th><th>状态</th><th>异常原因</th><th>体温</th><th>体重</th><th>处理</th></tr></thead>
                 <tbody>
                     ${records.map(r => `<tr>
                         <td>${r.record_date}</td>
@@ -124,6 +180,7 @@ async function loadRecords() {
                         <td>${r.abnormal_reason || '-'}</td>
                         <td>${r.temperature ? r.temperature + '°C' : '-'}</td>
                         <td>${r.weight ? r.weight + ' kg' : '-'}</td>
+                        <td class="text-sm text-gray">${r.treatment || '-'}</td>
                     </tr>`).join('')}
                 </tbody>
             </table>
@@ -133,14 +190,22 @@ async function loadRecords() {
 
 function openRecordModal() {
     document.getElementById('hr-date').value = new Date().toISOString().slice(0, 10);
-    document.getElementById('record-modal').style.display = 'flex';
+    const modal = document.getElementById('record-modal');
+    modal.classList.remove('hidden');
 }
-function closeRecordModal() { document.getElementById('record-modal').style.display = 'none'; }
+function closeRecordModal() {
+    document.getElementById('record-modal').classList.add('hidden');
+}
 
 async function submitRecord() {
+    const petId = parseInt(document.getElementById('hr-pet').value);
+    const recordDate = document.getElementById('hr-date').value;
+    if (!petId || !recordDate) {
+        showToast('请填写宠物ID和日期', true); return;
+    }
     const data = {
-        pet_id: parseInt(document.getElementById('hr-pet').value),
-        record_date: document.getElementById('hr-date').value,
+        pet_id: petId,
+        record_date: recordDate,
         health_status: document.getElementById('hr-status').value,
         abnormal_reason: document.getElementById('hr-reason').value || null,
         temperature: parseFloat(document.getElementById('hr-temp').value) || null,
@@ -149,16 +214,28 @@ async function submitRecord() {
         treatment: document.getElementById('hr-treatment').value || null,
         store_id: 1
     };
-    if (!data.pet_id || !data.record_date) {
-        showToast('请填写宠物ID和日期', true); return;
-    }
     const resp = await fetch('/api/health-records', {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify(data)
     });
-    if (resp.ok) { showToast('记录已保存'); closeRecordModal(); loadRecords(); loadStats(); }
+    if (resp.ok) {
+        showToast('记录已保存');
+        closeRecordModal();
+        loadRecords();
+        loadStats();
+    } else {
+        const err = await resp.json();
+        showToast(err.detail || '保存失败', true);
+    }
 }
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeRecordModal();
+        document.querySelectorAll('.modal-mask').forEach(m => m.classList.add('hidden'));
+    }
+});
 
 loadStats();
 loadRecords();

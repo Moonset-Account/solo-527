@@ -18,9 +18,12 @@
         </div>
         <div id="appointments-list">加载中...</div>
     </div>
-    <div id="staff-modal" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
-        <div class="card" style="width:400px;">
-            <h2>分配服务人员</h2>
+    <div id="staff-modal" class="modal-mask hidden">
+        <div class="modal-box" style="width:400px;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 style="margin:0;">分配服务人员</h2>
+                <button onclick="closeStaffModal()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#718096;">&times;</button>
+            </div>
             <div class="form-group">
                 <label>选择人员</label>
                 <select id="staff-select"></select>
@@ -87,10 +90,10 @@ async function assignStaff(apptId) {
     document.getElementById('staff-select').innerHTML = staff.map(s =>
         `<option value="${s.id}">${s.user?.full_name || s.user?.username || '员工#' + s.id} (${s.position || '-'})</option>`
     ).join('');
-    document.getElementById('staff-modal').style.display = 'flex';
+    document.getElementById('staff-modal').classList.remove('hidden');
 }
 
-function closeStaffModal() { document.getElementById('staff-modal').style.display = 'none'; }
+function closeStaffModal() { document.getElementById('staff-modal').classList.add('hidden'); }
 
 async function submitStaff() {
     const staffId = document.getElementById('staff-select').value;

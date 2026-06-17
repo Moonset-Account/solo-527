@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func, case, String
+from sqlalchemy import select, and_, func, case, String, Integer, Date
 from typing import List, Optional, Dict, Any
 
 from app.core.database import get_db
@@ -91,15 +91,46 @@ async def get_health_stats(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)),
 ):
-    query = select(
-        HealthRecord.store_id,
-        func.cast(None, String).label("store_name"),
-        HealthRecord.record_date.label("date"),
-        HealthRecord.abnormal_reason,
+    has_store = "store" in group_by
+    has_date = "date" in group_by
+    has_reason = "reason" in group_by
+
+    if not (has_store or has_date or has_reason):
+        has_date = True
+
+    select_cols = []
+    group_cols = []
+
+    if has_store:
+        select_cols.append(HealthRecord.store_id)
+        select_cols.append(Store.name.label("store_name"))
+        group_cols.append(HealthRecord.store_id)
+        group_cols.append(Store.name)
+    else:
+        select_cols.append(func.cast(None, Integer).label("store_id"))
+        select_cols.append(func.cast(None, String).label("store_name"))
+
+    if has_date:
+        select_cols.append(HealthRecord.record_date.label("date"))
+        group_cols.append(HealthRecord.record_date)
+    else:
+        select_cols.append(func.cast(None, Date).label("date"))
+
+    if has_reason:
+        select_cols.append(HealthRecord.abnormal_reason)
+        group_cols.append(HealthRecord.abnormal_reason)
+    else:
+        select_cols.append(func.cast(None, String).label("abnormal_reason"))
+
+    select_cols += [
         func.count(HealthRecord.id).label("total_count"),
         func.sum(case((HealthRecord.health_status == HealthStatus.ABNORMAL, 1), else_=0)).label("abnormal_count"),
         func.sum(case((HealthRecord.health_status == HealthStatus.CRITICAL, 1), else_=0)).label("critical_count"),
-    )
+    ]
+
+    query = select(*select_cols)
+    if has_store:
+        query = query.outerjoin(Store, HealthRecord.store_id == Store.id)
 
     if exclude_test and not is_test_user(current_user):
         query = query.where(HealthRecord.is_test_data == False)
@@ -110,18 +141,11 @@ async def get_health_stats(
     if date_to:
         query = query.where(HealthRecord.record_date <= datetime.strptime(date_to, "%Y-%m-%d").date())
 
-    group_cols = []
-    if "store" in group_by:
-        group_cols.append(HealthRecord.store_id)
-    if "date" in group_by:
-        group_cols.append(HealthRecord.record_date)
-    if "reason" in group_by:
-        group_cols.append(HealthRecord.abnormal_reason)
-
-    if group_cols:
-        query = query.group_by(*group_cols)
-    else:
-        query = query.group_by(HealthRecord.record_date)
+    query = query.group_by(*group_cols)
+    query = query.order_by(
+        (func.sum(case((HealthRecord.health_status == HealthStatus.ABNORMAL, 1), else_=0)) +
+         func.sum(case((HealthRecord.health_status == HealthStatus.CRITICAL, 1), else_=0))).desc()
+    )
 
     result = await db.execute(query)
     rows = result.all()
@@ -129,9 +153,6 @@ async def get_health_stats(
     stats = []
     for row in rows:
         row_dict = dict(row._mapping)
-        if row_dict.get("store_id"):
-            store_result = await db.execute(select(Store.name).where(Store.id == row_dict["store_id"]))
-            row_dict["store_name"] = store_result.scalar_one_or_none()
         stats.append(HealthStatsResponse(**row_dict))
     return stats
 
