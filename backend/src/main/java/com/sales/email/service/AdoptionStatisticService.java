@@ -25,6 +25,52 @@ public class AdoptionStatisticService {
 
     private final AdoptionStatisticMapper statisticMapper;
 
+    public void recordAiGenerated(EmailDraft draft) {
+        try {
+            LocalDate today = LocalDate.now();
+            List<String> riskReasons = parseRiskReasons(draft.getRiskHitReasons());
+            if (riskReasons.isEmpty()) {
+                riskReasons.add("无风险命中");
+            }
+            for (String reason : riskReasons) {
+                incrementGenerated(today, draft.getSupervisorId(), draft.getSupervisorName(),
+                        draft.getAgentId(), draft.getAgentName(), reason);
+            }
+        } catch (Exception e) {
+            log.error("记录AI生成统计失败", e);
+        }
+    }
+
+    private void incrementGenerated(LocalDate statDate, Long supervisorId, String supervisorName,
+                                     Long agentId, String agentName, String riskReason) {
+        LambdaQueryWrapper<AdoptionStatistic> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AdoptionStatistic::getStatDate, statDate);
+        wrapper.eq(supervisorId != null, AdoptionStatistic::getSupervisorId, supervisorId);
+        wrapper.eq(agentId != null, AdoptionStatistic::getAgentId, agentId);
+        wrapper.eq(AdoptionStatistic::getRiskHitReason, riskReason);
+        AdoptionStatistic stat = statisticMapper.selectOne(wrapper);
+
+        if (stat == null) {
+            stat = new AdoptionStatistic();
+            stat.setStatDate(statDate);
+            stat.setSupervisorId(supervisorId);
+            stat.setSupervisorName(supervisorName);
+            stat.setAgentId(agentId);
+            stat.setAgentName(agentName);
+            stat.setRiskHitReason(riskReason);
+            stat.setTotalGenerated(1);
+            stat.setAdoptedCount(0);
+            stat.setPartialAdoptedCount(0);
+            stat.setRejectedCount(0);
+            stat.setAdoptionRate(BigDecimal.ZERO);
+            statisticMapper.insert(stat);
+        } else {
+            stat.setTotalGenerated(stat.getTotalGenerated() + 1);
+            recalculateRate(stat);
+            statisticMapper.updateById(stat);
+        }
+    }
+
     public void recordAdoption(EmailDraft draft, EmailReviewDTO reviewDTO) {
         try {
             LocalDate today = LocalDate.now();
@@ -65,7 +111,6 @@ public class AdoptionStatisticService {
             stat.setPartialAdoptedCount("MODIFY".equals(reviewResult) ? 1 : 0);
             stat.setRejectedCount("REJECT".equals(reviewResult) ? 1 : 0);
         } else {
-            stat.setTotalGenerated(stat.getTotalGenerated() + 1);
             if ("PASS".equals(reviewResult)) {
                 stat.setAdoptedCount(stat.getAdoptedCount() + 1);
             } else if ("MODIFY".equals(reviewResult)) {
@@ -75,6 +120,16 @@ public class AdoptionStatisticService {
             }
         }
 
+        recalculateRate(stat);
+
+        if (stat.getId() == null) {
+            statisticMapper.insert(stat);
+        } else {
+            statisticMapper.updateById(stat);
+        }
+    }
+
+    private void recalculateRate(AdoptionStatistic stat) {
         int total = stat.getTotalGenerated();
         int adopted = stat.getAdoptedCount();
         if (total > 0) {
@@ -83,12 +138,6 @@ public class AdoptionStatisticService {
             stat.setAdoptionRate(rate);
         } else {
             stat.setAdoptionRate(BigDecimal.ZERO);
-        }
-
-        if (stat.getId() == null) {
-            statisticMapper.insert(stat);
-        } else {
-            statisticMapper.updateById(stat);
         }
     }
 

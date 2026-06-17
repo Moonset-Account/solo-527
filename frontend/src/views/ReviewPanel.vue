@@ -61,12 +61,27 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column label="AI审核" width="200" align="center">
+              <template #default="{ row }">
+                <div v-if="row._aiReview">
+                  <el-tag size="small" :type="getResultTagType(row._aiReview.reviewResult)" style="margin-right: 4px">
+                    {{ getResultLabel(row._aiReview.reviewResult) }}
+                  </el-tag>
+                  <span style="font-size: 12px; color: #909399">评分: {{ row._aiReview.aiRiskScore }}</span>
+                  <div v-if="row._forbiddenWords && row._forbiddenWords.length > 0" style="margin-top: 4px">
+                    <el-tag v-for="w in row._forbiddenWords" :key="w" type="danger" size="small" style="margin: 2px">
+                      {{ w }}
+                    </el-tag>
+                  </div>
+                </div>
+                <el-tag v-else size="small" type="info">加载中</el-tag>
+              </template>
+            </el-table-column>
             <el-table-column prop="createdAt" label="创建时间" width="170" />
-            <el-table-column label="操作" width="180" fixed="right" align="center">
+            <el-table-column label="操作" width="120" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button type="primary" link @click="openReview(row)">审核</el-button>
                 <el-button type="success" link @click="viewDraft(row)">查看</el-button>
-                <el-button type="warning" link @click="viewAiReview(row)">AI审核记录</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -274,7 +289,6 @@ const passedCount = ref(0)
 const modifiedCount = ref(0)
 const rejectedCount = ref(0)
 const pendingList = ref([])
-
 const historyQuery = reactive({
   pageNum: 1,
   pageSize: 10,
@@ -320,6 +334,28 @@ async function loadPending() {
     if (res.success) {
       pendingList.value = res.data.records
       pendingCount.value = res.data.total
+      for (const draft of pendingList.value) {
+        loadAiReviewForDraft(draft)
+      }
+    }
+  } catch (e) {}
+}
+
+async function loadAiReviewForDraft(draft) {
+  try {
+    const res = await reviewApi.queryReviews({
+      pageNum: 1,
+      pageSize: 1,
+      draftId: draft.id,
+      reviewType: 'AI'
+    })
+    if (res.success && res.data.records.length > 0) {
+      draft._aiReview = res.data.records[0]
+      if (draft._aiReview.forbiddenWordsHit) {
+        try {
+          draft._forbiddenWords = JSON.parse(draft._aiReview.forbiddenWordsHit)
+        } catch (e) {}
+      }
     }
   } catch (e) {}
 }
@@ -331,9 +367,15 @@ async function loadSummary() {
     if (res.success) {
       pendingCount.value = res.data.count || pendingCount.value
     }
-    passedCount.value = Math.floor(Math.random() * 50) + 20
-    modifiedCount.value = Math.floor(Math.random() * 30) + 5
-    rejectedCount.value = Math.floor(Math.random() * 15) + 2
+
+    const [passRes, modifyRes, rejectRes] = await Promise.all([
+      reviewApi.queryReviews({ pageNum: 1, pageSize: 1, reviewType: 'MANUAL', reviewResult: 'PASS', reviewerId: user.role === 'SUPERVISOR' ? user.id : undefined }),
+      reviewApi.queryReviews({ pageNum: 1, pageSize: 1, reviewType: 'MANUAL', reviewResult: 'MODIFY', reviewerId: user.role === 'SUPERVISOR' ? user.id : undefined }),
+      reviewApi.queryReviews({ pageNum: 1, pageSize: 1, reviewType: 'MANUAL', reviewResult: 'REJECT', reviewerId: user.role === 'SUPERVISOR' ? user.id : undefined })
+    ])
+    if (passRes.success) passedCount.value = passRes.data.total
+    if (modifyRes.success) modifiedCount.value = modifyRes.data.total
+    if (rejectRes.success) rejectedCount.value = rejectRes.data.total
   } catch (e) {}
 }
 
@@ -426,10 +468,6 @@ async function submitReview() {
 
 function viewDraft(draft) {
   router.push(`/draft/${draft.id}`)
-}
-
-async function viewAiReview(draft) {
-  openReview(draft)
 }
 
 function getSourceLabel(type) {

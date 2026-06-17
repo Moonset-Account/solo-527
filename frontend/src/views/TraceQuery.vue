@@ -163,8 +163,12 @@
                   :value="t.id" />
               </el-select>
             </el-form-item>
+            <el-form-item label="来源单据号">
+              <el-input v-model="promptQuery.sourceOrderNo" placeholder="请输入" clearable style="width: 180px" />
+            </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="loadTemplateList">刷新</el-button>
+              <el-button type="primary" @click="filterPromptVersions">查询</el-button>
+              <el-button @click="loadTemplateList">刷新</el-button>
             </el-form-item>
           </el-form>
 
@@ -315,8 +319,9 @@ const hitQuery = reactive({
 const hitList = ref([])
 const hitTotal = ref(0)
 
-const promptQuery = reactive({ templateId: null })
+const promptQuery = reactive({ templateId: null, sourceOrderNo: '' })
 const templateList = ref([])
+const allVersionList = ref([])
 const versionList = ref([])
 const currentTemplate = ref(null)
 
@@ -341,6 +346,7 @@ async function loadReviewList() {
     pageSize: reviewQuery.pageSize,
     reviewType: reviewQuery.reviewType || undefined,
     reviewResult: reviewQuery.reviewResult || undefined,
+    sourceOrderNo: reviewQuery.sourceOrderNo || undefined,
     startDate: reviewQuery.dateRange?.[0],
     endDate: reviewQuery.dateRange?.[1]
   }
@@ -410,9 +416,20 @@ async function loadPromptVersions() {
   try {
     const res = await promptApi.getTemplateVersions(promptQuery.templateId)
     if (res.success) {
-      versionList.value = res.data
+      allVersionList.value = res.data
+      filterPromptVersions()
     }
   } catch (e) {}
+}
+
+function filterPromptVersions() {
+  let filtered = allVersionList.value
+  if (promptQuery.sourceOrderNo) {
+    filtered = filtered.filter(v =>
+      v.sourceOrderNo && v.sourceOrderNo.includes(promptQuery.sourceOrderNo)
+    )
+  }
+  versionList.value = filtered
 }
 
 function viewDraft(draftId) {

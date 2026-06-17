@@ -386,13 +386,39 @@ async function revertToVersion(version) {
 
 async function submitReview(row) {
   try {
-    await ElMessageBox.confirm('确定提交审核？', '确认提交', { type: 'warning' })
-    const res = await draftApi.updateStatus(row.id, { status: 'PENDING_REVIEW', remark: '提交审核' })
+    await ElMessageBox.confirm(
+      '确定提交审核？提交后将自动触发AI审核，生成禁用词命中记录，如需人工复核将发送提醒。',
+      '确认提交审核',
+      { type: 'warning' }
+    )
+    const user = userStore.currentUser
+    const res = await draftApi.submitForReview(row.id, {
+      operatorId: user.id,
+      operatorName: user.realName
+    })
     if (res.success) {
-      ElMessage.success('已提交审核')
+      const aiReview = res.data.aiReview
+      const needManual = res.data.needManualReview
+      if (needManual) {
+        ElMessageBox.alert(
+          `<div style="line-height: 2">
+            <p><strong>AI审核已完成</strong></p>
+            <p>审核结果：<el-tag type="${aiReview.reviewResult === 'PASS' ? 'success' : 'warning'}">${aiReview.reviewResult === 'PASS' ? '通过' : '需修改'}</el-tag></p>
+            <p>风险评分：${aiReview.aiRiskScore}</p>
+            <p>审核意见：${aiReview.reviewComment}</p>
+            <p style="color: #E6A23C">已进入人工复核流程，等待主管审核</p>
+          </div>`,
+          '提交审核成功',
+          { dangerouslyUseHTMLString: true, type: 'warning' }
+        )
+      } else {
+        ElMessage.success('AI审核通过，无需人工复核')
+      }
       loadList()
     }
-  } catch (e) {}
+  } catch (e) {
+    if (e !== 'cancel') {}
+  }
 }
 
 function getSourceLabel(type) {

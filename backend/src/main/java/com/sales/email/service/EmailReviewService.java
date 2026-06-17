@@ -66,6 +66,7 @@ public class EmailReviewService {
                 hit.setWord(word.getWord());
                 hit.setSourceOrderNo(draft.getSourceOrderNo());
                 hit.setHitCount(1);
+                hit.setOperatorRemark("AI审核自动检测命中");
                 forbiddenWordHitMapper.insert(hit);
             }
 
@@ -98,6 +99,8 @@ public class EmailReviewService {
         } else {
             review.setReviewComment("AI检测到禁用词：" + String.join("、", hitWordList) + "，请修改后重试");
         }
+        review.setOperatorRemark("提交审核时自动触发AI审核");
+        review.setReminderSent(hitWords.isEmpty() ? 0 : 1);
         reviewMapper.insert(review);
 
         draft.setStatus(hitWords.isEmpty() ? "REVIEWED" : "PENDING_REVIEW");
@@ -108,6 +111,8 @@ public class EmailReviewService {
             log.error("序列化风险原因失败", e);
         }
         draftMapper.updateById(draft);
+
+        adoptionStatisticService.recordAiGenerated(draft);
 
         operationLogService.log("AI_REVIEW", "EMAIL_REVIEW", review.getId().toString(),
                 draft.getSourceOrderNo(), 0L, "AI系统",
@@ -168,7 +173,8 @@ public class EmailReviewService {
 
     public PageResult<EmailReview> queryReviews(Long pageNum, Long pageSize, Long draftId,
                                                 String reviewType, String reviewResult,
-                                                Long reviewerId, String startDate, String endDate) {
+                                                Long reviewerId, String sourceOrderNo,
+                                                String startDate, String endDate) {
         Page<EmailReview> page = new Page<>(pageNum != null ? pageNum : 1, pageSize != null ? pageSize : 10);
         LambdaQueryWrapper<EmailReview> wrapper = new LambdaQueryWrapper<>();
 
@@ -183,6 +189,9 @@ public class EmailReviewService {
         }
         if (reviewerId != null) {
             wrapper.eq(EmailReview::getReviewerId, reviewerId);
+        }
+        if (sourceOrderNo != null && !sourceOrderNo.isEmpty()) {
+            wrapper.like(EmailReview::getSourceOrderNo, sourceOrderNo);
         }
         if (startDate != null) {
             wrapper.ge(EmailReview::getCreatedAt, startDate + " 00:00:00");

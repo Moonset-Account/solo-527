@@ -7,6 +7,7 @@ import com.sales.email.common.PageResult;
 import com.sales.email.dto.EmailDraftDTO;
 import com.sales.email.dto.EmailDraftQueryDTO;
 import com.sales.email.entity.EmailDraft;
+import com.sales.email.entity.EmailReview;
 import com.sales.email.entity.EmailVersion;
 import com.sales.email.mapper.EmailDraftMapper;
 import com.sales.email.mapper.EmailVersionMapper;
@@ -19,7 +20,9 @@ import cn.hutool.core.util.StrUtil;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 @Slf4j
@@ -30,6 +33,7 @@ public class EmailDraftService {
     private final EmailDraftMapper draftMapper;
     private final EmailVersionMapper versionMapper;
     private final OperationLogService operationLogService;
+    private final EmailReviewService emailReviewService;
 
     private static final DateTimeFormatter DRAFT_NO_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
@@ -267,6 +271,31 @@ public class EmailDraftService {
             draft.setRemark(remark);
         }
         draftMapper.updateById(draft);
+    }
+
+    @Transactional
+    public Map<String, Object> submitForReview(Long draftId, Long operatorId, String operatorName) {
+        EmailDraft draft = draftMapper.selectById(draftId);
+        if (draft == null) {
+            throw BusinessException.retryable("草稿不存在，请刷新后重试");
+        }
+        if (!"DRAFT".equals(draft.getStatus()) && !"AI_GENERATED".equals(draft.getStatus()) && !"REJECTED".equals(draft.getStatus())) {
+            throw BusinessException.skippable("当前状态不允许提交审核");
+        }
+
+        EmailReview aiReview = emailReviewService.aiReview(draftId, draft.getCurrentVersion());
+
+        draft = draftMapper.selectById(draftId);
+
+        operationLogService.log("SUBMIT_REVIEW", "EMAIL_DRAFT", draftId.toString(),
+                draft.getSourceOrderNo(), operatorId, operatorName,
+                "提交审核，AI审核结果：" + aiReview.getReviewResult() + "，风险评分：" + aiReview.getAiRiskScore());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("draft", draft);
+        result.put("aiReview", aiReview);
+        result.put("needManualReview", "PENDING_REVIEW".equals(draft.getStatus()));
+        return result;
     }
 
     private String generateDraftNo() {

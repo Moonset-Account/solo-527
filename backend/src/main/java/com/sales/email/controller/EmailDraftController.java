@@ -70,4 +70,11 @@ public class EmailDraftController {
         draftService.updateStatus(id, status, remark);
         return Result.success();
     }
+
+    @PostMapping("/{id}/submit-review")
+    public Result<Map<String, Object>> submitForReview(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long operatorId = body.get("operatorId") != null ? Long.valueOf(body.get("operatorId").toString()) : null;
+        String operatorName = body.get("operatorName") != null ? body.get("operatorName").toString() : null;
+        return Result.success(draftService.submitForReview(id, operatorId, operatorName));
+    }
 }

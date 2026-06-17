@@ -27,6 +27,9 @@ export const draftApi = {
   },
   updateStatus(id, data) {
     return request.put(`/email-draft/${id}/status`, data)
+  },
+  submitForReview(id, data) {
+    return request.post(`/email-draft/${id}/submit-review`, data)
   }
 }
 

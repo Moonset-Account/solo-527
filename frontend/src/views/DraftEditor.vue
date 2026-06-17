@@ -334,10 +334,28 @@ async function checkForbidden() {
 
 async function submitReview() {
   try {
-    await ElMessageBox.confirm('确定提交审核吗？提交后将进入审核流程。', '确认提交', { type: 'warning' })
-    const res = await draftApi.updateStatus(draftId.value, { status: 'PENDING_REVIEW', remark: '提交审核' })
+    await ElMessageBox.confirm(
+      '确定提交审核？提交后将自动触发AI审核，生成禁用词命中记录，如需人工复核将发送提醒。',
+      '确认提交审核',
+      { type: 'warning' }
+    )
+    const user = userStore.currentUser
+    const res = await draftApi.submitForReview(draftId.value, {
+      operatorId: user.id,
+      operatorName: user.realName
+    })
     if (res.success) {
-      ElMessage.success('已提交审核')
+      const aiReview = res.data.aiReview
+      const needManual = res.data.needManualReview
+      if (needManual) {
+        ElMessageBox.alert(
+          `AI审核已完成\n审核结果：${aiReview.reviewResult === 'PASS' ? '通过' : '需修改'}\n风险评分：${aiReview.aiRiskScore}\n审核意见：${aiReview.reviewComment}\n\n已进入人工复核流程，等待主管审核`,
+          '提交审核成功 - 需人工复核',
+          { type: 'warning' }
+        )
+      } else {
+        ElMessage.success('AI审核通过，无需人工复核')
+      }
       loadDraft()
     }
   } catch (e) {}

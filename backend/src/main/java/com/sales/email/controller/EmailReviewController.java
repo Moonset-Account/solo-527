@@ -36,10 +36,11 @@ public class EmailReviewController {
             @RequestParam(required = false) String reviewType,
             @RequestParam(required = false) String reviewResult,
             @RequestParam(required = false) Long reviewerId,
+            @RequestParam(required = false) String sourceOrderNo,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
         return Result.success(reviewService.queryReviews(pageNum, pageSize, draftId, reviewType,
-                reviewResult, reviewerId, startDate, endDate));
+                reviewResult, reviewerId, sourceOrderNo, startDate, endDate));
     }
 
     @GetMapping("/pending/{supervisorId}")
