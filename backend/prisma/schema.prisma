@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String   @unique
+  email         String?
+  idCardHash    String?
+  company       String?
+  title         String?
+  channelSource String?  @default("direct")
+  createdAt     DateTime @default(now())
+  registrations Registration[]
+  refunds       Refund[]
+}
+
+model TicketType {
+  id               String   @id @default(uuid())
+  name             String
+  level            String
+  price            Decimal  @db.Decimal(10, 2)
+  totalInventory   Int
+  soldCount        Int      @default(0)
+  warningThreshold Int      @default(10)
+  isOnSale         Boolean  @default(true)
+  description      String?
+  qualityWeight    Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  registrations    Registration[]
+}
+
+model Session {
+  id            String   @id @default(uuid())
+  name          String
+  startTime     DateTime
+  endTime       DateTime
+  venue         String
+  capacity      Int
+  qualityWeight Float    @default(1.0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  seats         Seat[]
+  registrations Registration[]
+}
+
+model Seat {
+  id             String        @id @default(uuid())
+  sessionId      String
+  row            String
+  number         String
+  zone           String?
+  status         String        @default("available")
+  registrationId String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  session        Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  registration   Registration? @relation(fields: [registrationId], references: [id])
+  @@index([sessionId, status])
+}
+
+model Guest {
+  id           String            @id @default(uuid())
+  name         String
+  company      String?
+  totalQuota   Int
+  usedQuota    Int               @default(0)
+  priorityLevel Int              @default(1)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  allocations  GuestAllocation[]
+}
+
+model GuestAllocation {
+  id             String        @id @default(uuid())
+  guestId        String
+  registrationId String        @unique
+  priority       Int           @default(1)
+  note           String?
+  assignedById   String?
+  createdAt      DateTime      @default(now())
+  guest          Guest         @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  registration   Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+}
+
+enum RegistrationStatus {
+  pending
+  reviewing
+  approved
+  rejected
+  paid
+  checked_in
+  refunded
+  closed
+}
+
+model Registration {
+  id                String              @id @default(uuid())
+  orderNo           String              @unique
+  userId            String
+  ticketTypeId      String
+  sessionId         String
+  seatId            String?  @unique
+  guestAllocationId String?  @unique
+  status            RegistrationStatus  @default(pending)
+  amount            Decimal             @db.Decimal(10, 2)
+  reviewResult      String?
+  reviewAt          DateTime?
+  reviewedById      String?
+  reviewNote        String?
+  qualityScore      Int?
+  idCardFile        String?
+  businessCardFile  String?
+  invoiceInfo       Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  user              User                @relation(fields: [userId], references: [id])
+  ticketType        TicketType          @relation(fields: [ticketTypeId], references: [id])
+  session           Session             @relation(fields: [sessionId], references: [id])
+  seat              Seat?
+  guestAllocation   GuestAllocation?
+  checkinCode       CheckinCode?
+  refunds           Refund[]
+  closeException    CloseException?
+  qualityMetric     QualityMetric?
+  @@index([status, createdAt])
+  @@index([ticketTypeId, status])
+}
+
+model CheckinCode {
+  id              String        @id @default(uuid())
+  registrationId  String        @unique
+  code            String        @unique
+  qrSvg           String?
+  isUsed          Boolean       @default(false)
+  usedAt          DateTime?
+  usedLocation    String?
+  usedById        String?
+  createdAt       DateTime      @default(now())
+  registration    Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+}
+
+enum RefundStatus {
+  pending
+  approved
+  rejected
+  executed
+  failed
+}
+
+model Refund {
+  id             String         @id @default(uuid())
+  refundNo       String         @unique
+  registrationId String
+  userId         String
+  amount         Decimal        @db.Decimal(10, 2)
+  reason         String
+  note           String?
+  status         RefundStatus   @default(pending)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  executedAt     DateTime?
+  transactionId  String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  registration   Registration   @relation(fields: [registrationId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
+}
+
+model CloseReason {
+  id         String          @id @default(uuid())
+  name       String
+  category   String
+  isActive   Boolean         @default(true)
+  sortOrder  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  exceptions CloseException[]
+}
+
+model CloseException {
+  id              String       @id @default(uuid())
+  registrationId  String       @unique
+  closeReasonId   String
+  customReason    String?
+  note            String?
+  closedById      String?
+  createdAt       DateTime     @default(now())
+  registration    Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  closeReason     CloseReason  @relation(fields: [closeReasonId], references: [id])
+}
+
+model NotificationTemplate {
+  id         String             @id @default(uuid())
+  code       String             @unique
+  name       String
+  type       String
+  subject    String
+  contentBody String
+  variables  Json?
+  isActive   Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  logs       NotificationLog[]
+}
+
+model NotificationLog {
+  id           String               @id @default(uuid())
+  templateId   String
+  recipient    String
+  subject      String
+  content      String
+  status       String               @default("sent")
+  variables    Json?
+  createdAt    DateTime             @default(now())
+  template     NotificationTemplate @relation(fields: [templateId], references: [id])
+}
+
+model QualityMetric {
+  id                String       @id @default(uuid())
+  registrationId    String       @unique
+  channelScore      Int
+  companyScore      Int
+  positionScore     Int
+  paymentSpeedScore Int
+  totalScore        Int
+  detailsJson       String?
+  createdAt         DateTime     @default(now())
+  registration      Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+}
+
+model InventoryLog {
+  id           String   @id @default(uuid())
+  ticketTypeId String
+  delta        Int
+  beforeCount  Int
+  afterCount   Int
+  reason       String
+  operatorId   String?
+  createdAt    DateTime @default(now())
+}
+
+model GapTodo {
+  id             String        @id @default(uuid())
+  registrationId String        @unique
+  gapType        String
+  priority       Int
+  status         String        @default("pending")
+  handleAction   String?
+  handleNote     String?
+  handledById    String?
+  handledAt      DateTime?
+  createdAt      DateTime      @default(now())
+  @@index([status, priority])
+}
