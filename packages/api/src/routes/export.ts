@@ -261,13 +261,30 @@ app.get('/subsidies', async (c) => {
 });
 
 app.get('/offline', async (c) => {
+  const keyword = c.req.query('keyword');
   const zoneId = c.req.query('zoneId');
   const reasonCategory = c.req.query('reasonCategory');
   const status = c.req.query('status');
+  const assignee = c.req.query('assignee');
+  const from = c.req.query('from');
+  const to = c.req.query('to');
 
   const conditions: any[] = [];
+  if (keyword) {
+    conditions.push(or(
+      like(meterOfflineRecords.reason, `%${keyword}%`),
+      like(meterOfflineRecords.resolutionNote, `%${keyword}%`)
+    ));
+  }
   if (zoneId) conditions.push(eq(meterOfflineRecords.zoneId, zoneId));
   if (reasonCategory) conditions.push(eq(meterOfflineRecords.reasonCategory, reasonCategory));
+  if (assignee) conditions.push(like(meterOfflineRecords.assignee, `%${assignee}%`));
+  if (from) conditions.push(gte(meterOfflineRecords.offlineAt, new Date(from)));
+  if (to) {
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    conditions.push(lte(meterOfflineRecords.offlineAt, end));
+  }
   if (status === 'open') conditions.push(isNull(meterOfflineRecords.onlineAt));
   else if (status === 'resolved') conditions.push(isNotNull(meterOfflineRecords.onlineAt));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -304,7 +321,15 @@ app.get('/offline', async (c) => {
       totalRecords: rows.length,
       totalDurationHours: Number((totalDurationMinutes / 60).toFixed(2)),
       avgResponseMinutes,
-      filters: { zoneId, reasonCategory, status },
+      filters: {
+        keyword,
+        zoneId,
+        reasonCategory,
+        status,
+        assignee,
+        from,
+        to,
+      },
     },
     null,
     2

@@ -81,6 +81,7 @@ function OfflinePage() {
   const [data, setData] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [zones, setZones] = useState<any[]>([]);
+  const [createMeters, setCreateMeters] = useState<any[]>([]);
   const [showFilter, setShowFilter] = useState(false);
   const [detail, setDetail] = useState<any>(null);
   const [createModal, setCreateModal] = useState(false);
@@ -142,11 +143,19 @@ function OfflinePage() {
       return toast('error', '请填写必要字段');
     }
     endpoints.offline
-      .create({ ...form, zoneId: zones.find((z) => z.id === form.zoneId)?.id })
+      .create({
+        meterId: form.meterId,
+        zoneId: form.zoneId,
+        reason: form.reason,
+        reasonCategory: form.reasonCategory,
+        assignee: form.assignee || undefined,
+        offlineAt: form.offlineAt || undefined,
+      })
       .then(() => {
         toast('success', '离线记录已创建');
         setCreateModal(false);
         setForm({});
+        setCreateMeters([]);
         load();
         endpoints.offline.summary().then(setSummary);
       })
@@ -170,7 +179,15 @@ function OfflinePage() {
 
   const handleExport = () => {
     const params: any = {};
-    Object.entries({ zoneId, reasonCategory, status }).forEach(([k, v]) => {
+    Object.entries({
+      keyword,
+      zoneId,
+      reasonCategory,
+      status,
+      assignee,
+      from,
+      to,
+    }).forEach(([k, v]) => {
       if (v) params[k] = v;
     });
     window.location.href = endpoints.exportUrl.offline(params);
@@ -749,7 +766,15 @@ function OfflinePage() {
             <select
               className="select"
               value={form.zoneId || ''}
-              onChange={(e) => setForm({ ...form, zoneId: e.target.value, meterId: '' })}
+              onChange={(e) => {
+                const zid = e.target.value;
+                setForm({ ...form, zoneId: zid, meterId: '' });
+                if (zid) {
+                  endpoints.meters.listAll({ zoneId: zid }).then(setCreateMeters);
+                } else {
+                  setCreateMeters([]);
+                }
+              }}
             >
               <option value="">请选择</option>
               {zones.map((z) => (
@@ -765,24 +790,14 @@ function OfflinePage() {
               className="select"
               value={form.meterId || ''}
               onChange={(e) => setForm({ ...form, meterId: e.target.value })}
+              disabled={!form.zoneId}
             >
               <option value="">请选择</option>
-              {zones
-                .find((z) => z.id === form.zoneId)
-                ?.meters?.map((m: any) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                )) ||
-                (form.zoneId ? (
-                  (() => {
-                    const zMeters = [];
-                    endpoints.meters
-                      .listAll({ zoneId: form.zoneId })
-                      .then((ms) => (form._meters = ms));
-                    return null;
-                  })()
-                ) : null)}
+              {createMeters.map((m: any) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.model || ''} · {m.serialNumber || ''})
+                </option>
+              ))}
             </select>
           </div>
           <div>
