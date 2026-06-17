@@ -1,0 +1,428 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATIONS_MANAGER
+  OPERATIONS_SPECIALIST
+  SALES_DIRECTOR
+  VIEWER
+}
+
+enum MetricCategory {
+  USER_GROWTH
+  ENGAGEMENT
+  RETENTION
+  CONVERSION
+  REVENUE
+}
+
+enum MetricStatus {
+  NORMAL
+  WARNING
+  CRITICAL
+}
+
+enum TrendDirection {
+  UP
+  DOWN
+  STABLE
+}
+
+enum AnomalySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AnomalyStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  IGNORED
+}
+
+enum RootCauseCategory {
+  DATA_QUALITY
+  BUSINESS_CHANGE
+  SYSTEM_FAILURE
+  EXTERNAL_FACTOR
+  OTHER
+}
+
+enum AlertType {
+  THRESHOLD
+  TREND
+  ANOMALY
+}
+
+enum AlertOperator {
+  GT
+  LT
+  GTE
+  LTE
+  BETWEEN
+}
+
+enum DetectionAlgorithm {
+  THREE_SIGMA
+  ISOLATION_FOREST
+  MOVING_AVERAGE
+}
+
+enum NotificationChannel {
+  EMAIL
+  WECHAT
+  SMS
+}
+
+enum ApprovalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DeliveryStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DELAYED
+  COMPLETED
+}
+
+enum MilestoneStatus {
+  PENDING
+  COMPLETED
+  DELAYED
+}
+
+enum EntityType {
+  USER_PERMISSION
+  METRIC_THRESHOLD
+  AMOUNT_SETTING
+  DEFINITION_CHANGE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  role         UserRole
+  department   String?
+  permissions  Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  metrics      Metric[]          @relation("MetricCreator")
+  subscriptions Subscription[]    @relation("SubscriptionCreator")
+  anomaliesAssigned Anomaly[]    @relation("AnomalyAssignee")
+  definitionsCreated MetricDefinition[] @relation("DefinitionCreator")
+  definitionsApproved MetricDefinition[] @relation("DefinitionApprover")
+  definitionsBusinessOwner MetricDefinition[] @relation("DefinitionBusinessOwner")
+  definitionsTechnicalOwner MetricDefinition[] @relation("DefinitionTechnicalOwner")
+  audits       AuditLog[]        @relation("AuditOperator")
+  ownedProjects DeliveryProject[] @relation("ProjectOwner")
+  progressRemarks ProgressRemark[]
+
+  @@map("users")
+}
+
+model Metric {
+  id             String   @id @default(uuid())
+  name           String
+  code           String   @unique
+  description    String?
+  category       MetricCategory
+  unit           String
+  currentValue   Decimal  @db.Decimal(18, 4)
+  previousValue  Decimal  @db.Decimal(18, 4)
+  changeRate     Decimal  @db.Decimal(10, 4)
+  trend          TrendDirection
+  status         MetricStatus
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdBy      User               @relation("MetricCreator", fields: [createdById], references: [id])
+  data           MetricData[]
+  dimensions     DimensionConfig[]
+  alertRules     AlertRule[]
+  subscriptions  Subscription[]
+  anomalies      Anomaly[]
+  definitions    MetricDefinition[]
+
+  @@index([category, status])
+  @@index([createdById])
+  @@map("metrics")
+}
+
+model MetricData {
+  id         String   @id @default(uuid())
+  metricId   String
+  date       DateTime
+  value      Decimal  @db.Decimal(18, 4)
+  dimensions Json?
+  createdAt  DateTime @default(now())
+
+  metric     Metric   @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+  @@index([metricId, date])
+  @@index([metricId, date, dimensions])
+  @@map("metric_data")
+}
+
+model DimensionConfig {
+  id        String   @id @default(uuid())
+  metricId  String
+  name      String
+  key       String
+  values    Json
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  metric    Metric   @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+  @@index([metricId, isActive])
+  @@map("dimension_configs")
+}
+
+model AlertRule {
+  id                    String                @id @default(uuid())
+  metricId              String
+  name                  String
+  type                  AlertType
+  operator              AlertOperator
+  threshold             Decimal               @db.Decimal(18, 4)
+  thresholdMin          Decimal?              @db.Decimal(18, 4)
+  thresholdMax          Decimal?              @db.Decimal(18, 4)
+  detectionAlgorithm    DetectionAlgorithm
+  notificationChannels  NotificationChannel[]
+  notifyUsers           Json
+  silentPeriodStart     String?
+  silentPeriodEnd       String?
+  isEnabled             Boolean               @default(true)
+  createdAt             DateTime              @default(now())
+
+  metric                Metric                @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  alerts                Alert[]
+
+  @@index([metricId, isEnabled])
+  @@map("alert_rules")
+}
+
+model Alert {
+  id              String   @id @default(uuid())
+  alertRuleId     String
+  anomalyId       String?
+  message         String
+  severity        AnomalySeverity
+  status          AnomalyStatus
+  triggeredAt     DateTime @default(now())
+  acknowledgedAt  DateTime?
+  acknowledgedById String?
+  resolvedAt      DateTime?
+
+  alertRule       AlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  anomaly         Anomaly?  @relation(fields: [anomalyId], references: [id], onDelete: SetNull)
+  acknowledgedBy  User?     @relation(fields: [acknowledgedById], references: [id], onDelete: SetNull)
+  notifications   Notification[]
+
+  @@index([status, triggeredAt])
+  @@index([severity, status])
+  @@map("alerts")
+}
+
+model Subscription {
+  id          String                @id @default(uuid())
+  metricId    String
+  name        String
+  dimensions  Json?
+  channels    NotificationChannel[]
+  subscribers Json
+  schedule    Json
+  templateId  String?
+  isEnabled   Boolean               @default(true)
+  createdById String
+  createdAt   DateTime              @default(now())
+
+  metric      Metric                @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  createdBy   User                  @relation("SubscriptionCreator", fields: [createdById], references: [id])
+  notifications Notification[]
+
+  @@index([metricId, isEnabled])
+  @@index([createdById])
+  @@map("subscriptions")
+}
+
+model Anomaly {
+  id                 String             @id @default(uuid())
+  metricId           String
+  detectedAt         DateTime           @default(now())
+  severity           AnomalySeverity
+  actualValue        Decimal            @db.Decimal(18, 4)
+  expectedValue      Decimal            @db.Decimal(18, 4)
+  deviation          Decimal            @db.Decimal(18, 4)
+  deviationPercent   Decimal            @db.Decimal(10, 4)
+  status             AnomalyStatus      @default(OPEN)
+  rootCause          String?
+  rootCauseCategory  RootCauseCategory?
+  impactAssessment   String?
+  resolution         String?
+  assigneeId         String?
+  resolvedAt         DateTime?
+  relatedAnomalies   Json?
+  createdAt          DateTime           @default(now())
+
+  metric             Metric             @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  assignee           User?              @relation("AnomalyAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  alerts             Alert[]
+
+  @@index([status, detectedAt])
+  @@index([metricId, detectedAt])
+  @@index([severity, status])
+  @@map("anomalies")
+}
+
+model MetricDefinition {
+  id               String         @id @default(uuid())
+  metricId         String
+  version          Int
+  name             String
+  description      String?
+  calculationLogic String
+  sqlQuery         String?
+  dataSource       String?
+  businessOwnerId  String?
+  technicalOwnerId String?
+  changeReason     String
+  changeImpact     String?
+  approvalStatus   ApprovalStatus @default(DRAFT)
+  approvedById     String?
+  approvedAt       DateTime?
+  createdById      String
+  createdAt        DateTime       @default(now())
+  isCurrent        Boolean        @default(false)
+
+  metric           Metric         @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  businessOwner    User?          @relation("DefinitionBusinessOwner", fields: [businessOwnerId], references: [id], onDelete: SetNull)
+  technicalOwner   User?          @relation("DefinitionTechnicalOwner", fields: [technicalOwnerId], references: [id], onDelete: SetNull)
+  approvedBy       User?          @relation("DefinitionApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdBy        User           @relation("DefinitionCreator", fields: [createdById], references: [id])
+
+  @@index([metricId, version])
+  @@index([metricId, isCurrent])
+  @@index([approvalStatus])
+  @@unique([metricId, version])
+  @@map("metric_definitions")
+}
+
+model DeliveryProject {
+  id          String           @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  startDate   DateTime
+  endDate     DateTime
+  progress    Int              @default(0)
+  status      DeliveryStatus   @default(NOT_STARTED)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  owner       User             @relation("ProjectOwner", fields: [ownerId], references: [id])
+  milestones  Milestone[]
+  remarks     ProgressRemark[]
+
+  @@index([ownerId, status])
+  @@map("delivery_projects")
+}
+
+model Milestone {
+  id          String          @id @default(uuid())
+  projectId   String
+  name        String
+  dueDate     DateTime
+  completedAt DateTime?
+  status      MilestoneStatus @default(PENDING)
+  sortOrder   Int             @default(0)
+
+  project     DeliveryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+  @@map("milestones")
+}
+
+model ProgressRemark {
+  id               String          @id @default(uuid())
+  projectId        String
+  content          String
+  createdById      String
+  createdAt        DateTime        @default(now())
+  progressSnapshot Int
+
+  project          DeliveryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy        User            @relation(fields: [createdById], references: [id])
+
+  @@index([projectId, createdAt])
+  @@map("progress_remarks")
+}
+
+model ReviewReport {
+  id                String   @id @default(uuid())
+  month             String
+  metricsSummary    Json
+  anomaliesSummary  Json
+  deliverySummary   Json
+  generatedById     String
+  generatedAt       DateTime @default(now())
+
+  generatedBy       User     @relation(fields: [generatedById], references: [id])
+
+  @@index([month])
+  @@unique([month])
+  @@map("review_reports")
+}
+
+model AuditLog {
+  id           String     @id @default(uuid())
+  action       String
+  entityType   EntityType
+  entityId     String
+  oldValue     Json?
+  newValue     Json?
+  remark       String
+  operatorId   String
+  operatorName String
+  createdAt    DateTime   @default(now())
+
+  operator     User       @relation("AuditOperator", fields: [operatorId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  type      String
+  channel   NotificationChannel
+  recipient String
+  content   String
+  status    String              @default("PENDING")
+  sentAt    DateTime?
+  relatedId String?
+  createdAt DateTime            @default(now())
+
+  alert     Alert?              @relation(fields: [relatedId], references: [id], onDelete: SetNull)
+  subscription Subscription?    @relation(fields: [relatedId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@map("notifications")
+}
