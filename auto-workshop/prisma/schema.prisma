@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  vehicles  Vehicle[]
+  orders    WorkOrder[]
+}
+
+model Vehicle {
+  id         String    @id @default(cuid())
+  plateNo    String    @unique
+  brand      String
+  model      String
+  year       Int?
+  vin        String?
+  mileage    Int?
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  orders     WorkOrder[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Technician {
+  id       String   @id @default(cuid())
+  name     String
+  phone    String
+  specialty String?
+  isActive Boolean  @default(true)
+  orders   WorkOrder[]
+  capacityReports TechnicianCapacity[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InspectionTemplate {
+  id          String              @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean             @default(true)
+  items       InspectionTemplateItem[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model InspectionTemplateItem {
+  id         String              @id @default(cuid())
+  templateId String
+  template   InspectionTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  category   String
+  isRequired Boolean            @default(true)
+  sortOrder  Int                @default(0)
+}
+
+enum WorkOrderStatus {
+  CREATED
+  INSPECTING
+  QUOTED
+  APPROVED
+  IN_PROGRESS
+  PARTS_WAITING
+  TEST_DRIVE
+  COMPLETED
+  ABNORMAL_CLOSED
+  CASHIERED
+}
+
+model WorkOrder {
+  id              String           @id @default(cuid())
+  orderNo         String           @unique
+  vehicleId       String
+  vehicle         Vehicle          @relation(fields: [vehicleId], references: [id])
+  customerId      String
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  status          WorkOrderStatus  @default(CREATED)
+  technicianId    String?
+  technician      Technician?      @relation(fields: [technicianId], references: [id])
+  totalAmount     Decimal?         @db.Decimal(10, 2)
+  abnormalReason  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  items           WorkOrderItem[]
+  parts           WorkOrderPart[]
+  statusLogs      WorkOrderStatusLog[]
+  testDrives      TestDrive[]
+  cashierOrders   CashierOrder[]
+  followUps       FollowUp[]
+  partShortages   PartShortage[]
+}
+
+model WorkOrderItem {
+  id              String    @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  name            String
+  category        String
+  price           Decimal   @db.Decimal(10, 2)
+  laborFee        Decimal   @default(0) @db.Decimal(10, 2)
+  status          String    @default("pending")
+  remark          String?
+}
+
+model WorkOrderStatusLog {
+  id              String          @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fromStatus      WorkOrderStatus
+  toStatus        WorkOrderStatus
+  changedBy       String?
+  changeReason    String?
+  snapshot        Json?
+  createdAt       DateTime        @default(now())
+}
+
+model Part {
+  id        String   @id @default(cuid())
+  name      String
+  partNo    String   @unique
+  category  String?
+  price     Decimal  @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  unit      String   @default("个")
+  isActive  Boolean  @default(true)
+  workOrderParts WorkOrderPart[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkOrderPart {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  partId      String
+  part        Part      @relation(fields: [partId], references: [id])
+  quantity    Int
+  unitPrice   Decimal   @db.Decimal(10, 2)
+  totalPrice  Decimal   @db.Decimal(10, 2)
+  status      String    @default("pending")
+  shortages   PartShortage[]
+}
+
+model PartShortage {
+  id              String    @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  workOrderPartId String
+  workOrderPart   WorkOrderPart @relation(fields: [workOrderPartId], references: [id])
+  handledBy       String?
+  handleResult    String?
+  handledAt       DateTime?
+  status          String    @default("pending")
+  createdAt       DateTime  @default(now())
+}
+
+model TestDrive {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  startTime   DateTime
+  endTime     DateTime?
+  driverName  String
+  mileage     Int?
+  remark      String?
+  createdAt   DateTime  @default(now())
+}
+
+model CashierOrder {
+  id              String    @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  orderNo         String    @unique
+  totalAmount     Decimal   @db.Decimal(10, 2)
+  discount        Decimal   @default(0) @db.Decimal(10, 2)
+  finalAmount     Decimal   @db.Decimal(10, 2)
+  paymentMethod   String?
+  paymentStatus   String    @default("unpaid")
+  previousAmount  Decimal?  @db.Decimal(10, 2)
+  amountChanged   Boolean   @default(false)
+  changeReason    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model FollowUp {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  followUpAt  DateTime
+  contactResult String?
+  satisfaction Int?
+  issue       String?
+  resolved    Boolean   @default(false)
+  remark      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model TechnicianCapacity {
+  id            String     @id @default(cuid())
+  technicianId  String
+  technician    Technician @relation(fields: [technicianId], references: [id])
+  periodStart   DateTime
+  periodEnd     DateTime
+  completedOrders Int      @default(0)
+  totalLaborFee   Decimal  @default(0) @db.Decimal(10, 2)
+  abnormalCloses  Int      @default(0)
+  shortageHandles Int     @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  customerName String
+  customerPhone String
+  plateNo     String
+  serviceType String
+  appointmentDate DateTime
+  timeSlot    String
+  status      String   @default("pending")
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

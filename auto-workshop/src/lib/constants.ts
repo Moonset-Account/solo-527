@@ -1,0 +1,52 @@
+export const WORK_ORDER_STATUS = {
+  CREATED: 'CREATED',
+  INSPECTING: 'INSPECTING',
+  QUOTED: 'QUOTED',
+  APPROVED: 'APPROVED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  PARTS_WAITING: 'PARTS_WAITING',
+  TEST_DRIVE: 'TEST_DRIVE',
+  COMPLETED: 'COMPLETED',
+  ABNORMAL_CLOSED: 'ABNORMAL_CLOSED',
+  CASHIERED: 'CASHIERED',
+} as const;
+
+export const STATUS_LABELS: Record<string, string> = {
+  CREATED: '已创建',
+  INSPECTING: '检测中',
+  QUOTED: '已报价',
+  APPROVED: '客户已确认',
+  IN_PROGRESS: '维修中',
+  PARTS_WAITING: '等待配件',
+  TEST_DRIVE: '试驾中',
+  COMPLETED: '已完成',
+  ABNORMAL_CLOSED: '异常关闭',
+  CASHIERED: '已收银',
+};
+
+export const STATUS_TRANSITIONS: Record<string, string[]> = {
+  CREATED: ['INSPECTING', 'ABNORMAL_CLOSED'],
+  INSPECTING: ['QUOTED', 'ABNORMAL_CLOSED'],
+  QUOTED: ['APPROVED', 'ABNORMAL_CLOSED'],
+  APPROVED: ['IN_PROGRESS', 'ABNORMAL_CLOSED'],
+  IN_PROGRESS: ['PARTS_WAITING', 'TEST_DRIVE', 'COMPLETED', 'ABNORMAL_CLOSED'],
+  PARTS_WAITING: ['IN_PROGRESS', 'ABNORMAL_CLOSED'],
+  TEST_DRIVE: ['COMPLETED', 'ABNORMAL_CLOSED'],
+  COMPLETED: ['CASHIERED'],
+  ABNORMAL_CLOSED: [],
+  CASHIERED: [],
+};
+
+export const CACHE_KEYS = {
+  WORK_ORDER: (id: string) => `workorder:${id}`,
+  WORK_ORDER_LIST: (params: string) => `workorders:${params}`,
+  TECHNICIAN_CAPACITY: (id: string, period: string) => `capacity:${id}:${period}`,
+  INSPECTION_TEMPLATES: 'templates:active',
+};
+
+export const CACHE_TTL = {
+  WORK_ORDER: 300,
+  WORK_ORDER_LIST: 60,
+  TECHNICIAN_CAPACITY: 600,
+  INSPECTION_TEMPLATES: 3600,
+};
