@@ -328,7 +328,7 @@ function Dashboard() {
                 key: 'level',
                 label: '等级',
                 width: '80px',
-                render: (r) => (
+                render: (r: any) => (
                   <TagBadge className={alertLevelColors[r.level]}>
                     {alertLevelLabels[r.level]}
                   </TagBadge>
@@ -337,7 +337,7 @@ function Dashboard() {
               {
                 key: 'title',
                 label: '告警内容',
-                render: (r) => (
+                render: (r: any) => (
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-slate-800">{r.title}</div>
                     <div className="truncate text-xs text-slate-500">
@@ -350,7 +350,7 @@ function Dashboard() {
                 key: 'status',
                 label: '状态',
                 width: '80px',
-                render: (r) => (
+                render: (r: any) => (
                   <TagBadge className={alertStatusColors[r.status]}>
                     {alertStatusLabels[r.status]}
                   </TagBadge>
@@ -360,7 +360,7 @@ function Dashboard() {
                 key: 'createdAt',
                 label: '时间',
                 width: '100px',
-                render: (r) => (
+                render: (r: any) => (
                   <div className="text-xs">
                     <div className="text-slate-700">{timeAgo(r.createdAt)}</div>
                   </div>
@@ -369,7 +369,7 @@ function Dashboard() {
             ]}
             data={alertSum?.recent?.slice(0, 10) || []}
             rowKey="id"
-            onRowClick={(r) => {
+            onRowClick={(r: any) => {
               window.location.href = `/alerts?id=${r.id}`;
             }}
           />

@@ -421,7 +421,7 @@ function SubsidyConfigPage() {
             key: 'zoneName',
             label: '分区',
             width: '180px',
-            render: (r) => (
+            render: (r: any) => (
               <div>
                 <div className="flex items-center gap-1 text-sm font-medium text-slate-800">
                   <MapPin size={12} />
@@ -434,7 +434,7 @@ function SubsidyConfigPage() {
             key: 'period',
             label: '补贴周期',
             width: '180px',
-            render: (r) => (
+            render: (r: any) => (
               <div>
                 <div className="flex items-center gap-1 text-sm text-slate-800">
                   <Calendar size={12} />
@@ -448,7 +448,7 @@ function SubsidyConfigPage() {
             key: 'productionKwh',
             label: '发电量 / 单价',
             width: '170px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-sm">
                 <div className="text-slate-800">
                   {formatNumber(r.productionKwh, 1)}
@@ -462,7 +462,7 @@ function SubsidyConfigPage() {
             key: 'subsidyAmount',
             label: '补贴金额',
             width: '130px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-base font-bold text-primary-700">
                 ¥{formatNumber(r.subsidyAmount, 2)}
               </div>
@@ -472,7 +472,7 @@ function SubsidyConfigPage() {
             key: 'status',
             label: '状态',
             width: '90px',
-            render: (r) => (
+            render: (r: any) => (
               <TagBadge className={subsidyStatusColors[r.status]}>
                 {subsidyStatusLabels[r.status]}
               </TagBadge>
@@ -482,7 +482,7 @@ function SubsidyConfigPage() {
             key: 'approvedBy',
             label: '审批人 / 修改人',
             width: '130px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-xs">
                 <div className="flex items-center gap-1 text-slate-700">
                   <User size={11} />
@@ -498,7 +498,7 @@ function SubsidyConfigPage() {
             key: 'updatedAt',
             label: '更新时间',
             width: '150px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-xs text-slate-600">
                 <div>创建 {formatDate(r.createdAt)}</div>
                 <div className="mt-0.5">修改 {formatDateTime(r.updatedAt)}</div>
@@ -509,7 +509,7 @@ function SubsidyConfigPage() {
             key: 'action',
             label: '操作',
             width: '180px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="flex items-center gap-1">
                 <button
                   className="btn-ghost h-7 px-2 py-1 text-primary-700"
@@ -556,7 +556,7 @@ function SubsidyConfigPage() {
         ]}
         data={data?.data || []}
         rowKey="id"
-        onRowClick={(r) => openDetail(r.id)}
+        onRowClick={(r: any) => openDetail(r.id)}
         footer={
           <Pagination
             page={page}

@@ -60,7 +60,7 @@ function TargetDetailPage() {
   const [pageSize, setPageSize] = useState(Number(search.pageSize || 30));
 
   useEffect(() => {
-    endpoints.targets.get(id).then(setTarget).catch((e) => toast('error', e.message));
+    endpoints.targets.get(id).then(setTarget).catch((e: any) => toast('error', e.message));
     endpoints.targets.trend(id).then(setTrend).catch(() => {});
   }, [id]);
 
@@ -71,7 +71,7 @@ function TargetDetailPage() {
     endpoints.targets
       .details(id, params)
       .then(setDetails)
-      .catch((e) => toast('error', e.message));
+      .catch((e: any) => toast('error', e.message));
     navigate({
       to: '/targets/$id',
       params: { id },
@@ -131,7 +131,7 @@ function TargetDetailPage() {
       formatNumber(d.baselineKwh),
       formatNumber(d.savedKwh),
     ]);
-    const csv = '\ufeff' + [...header, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+    const csv = '\ufeff' + [...header, ...rows].map((r: any[]) => r.map((c: any) => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -384,7 +384,7 @@ function TargetDetailPage() {
               key: 'date',
               label: '日期',
               width: '120px',
-              render: (r) => (
+              render: (r: any) => (
                 <span className="font-medium text-slate-800">{formatDate(r.date)}</span>
               ),
             },
@@ -392,7 +392,7 @@ function TargetDetailPage() {
               key: 'zoneName',
               label: '分区',
               width: '120px',
-              render: (r) =>
+              render: (r: any) =>
                 r.zoneName ? (
                   <TagBadge className="bg-slate-100 text-slate-700">
                     <MapPin size={11} /> {r.zoneName}
@@ -405,7 +405,7 @@ function TargetDetailPage() {
               key: 'baselineKwh',
               label: '基准用电',
               width: '130px',
-              render: (r) => (
+              render: (r: any) => (
                 <span className="text-slate-700">
                   {formatNumber(r.baselineKwh, 2)}
                   <span className="ml-0.5 text-xs text-slate-400">kWh</span>
@@ -416,7 +416,7 @@ function TargetDetailPage() {
               key: 'actualKwh',
               label: '实际用电',
               width: '130px',
-              render: (r) => (
+              render: (r: any) => (
                 <span className="text-slate-700">
                   {formatNumber(r.actualKwh, 2)}
                   <span className="ml-0.5 text-xs text-slate-400">kWh</span>
@@ -427,7 +427,7 @@ function TargetDetailPage() {
               key: 'savedKwh',
               label: '节电量',
               width: '140px',
-              render: (r) => (
+              render: (r: any) => (
                 <span
                   className={
                     Number(r.savedKwh) >= 0
@@ -445,7 +445,7 @@ function TargetDetailPage() {
               key: 'rate',
               label: '当日节能率',
               width: '160px',
-              render: (r) => {
+              render: (r: any) => {
                 const rate =
                   Number(r.baselineKwh) > 0
                     ? (Number(r.savedKwh) / Number(r.baselineKwh)) * 100

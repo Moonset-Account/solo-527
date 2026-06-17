@@ -386,14 +386,14 @@ function AlertsPage() {
             key: 'level',
             label: '等级',
             width: '80px',
-            render: (r) => (
+            render: (r: any) => (
               <TagBadge className={alertLevelColors[r.level]}>{alertLevelLabels[r.level]}</TagBadge>
             ),
           },
           {
             key: 'title',
             label: '告警标题',
-            render: (r) => (
+            render: (r: any) => (
               <div className="min-w-0">
                 <div className="truncate font-medium text-slate-800">{r.title}</div>
                 <div className="truncate text-xs text-slate-500">{r.description}</div>
@@ -404,7 +404,7 @@ function AlertsPage() {
             key: 'zoneName',
             label: '分区 / 设备',
             width: '180px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-sm">
                 <div className="text-slate-700">{r.zoneName}</div>
                 <div className="text-xs text-slate-500">{r.deviceName}</div>
@@ -415,7 +415,7 @@ function AlertsPage() {
             key: 'status',
             label: '状态',
             width: '90px',
-            render: (r) => (
+            render: (r: any) => (
               <TagBadge className={alertStatusColors[r.status]}>
                 {alertStatusLabels[r.status]}
               </TagBadge>
@@ -425,7 +425,7 @@ function AlertsPage() {
             key: 'assignee',
             label: '处理人',
             width: '100px',
-            render: (r) => (
+            render: (r: any) => (
               <span className="flex items-center gap-1 text-sm text-slate-600">
                 {r.assignee ? (
                   <>
@@ -442,7 +442,7 @@ function AlertsPage() {
             key: 'createdAt',
             label: '告警时间',
             width: '160px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-sm">
                 <div className="text-slate-700">{formatDateTime(r.createdAt)}</div>
                 <div className="text-xs text-slate-500">{timeAgo(r.createdAt)}</div>
@@ -453,7 +453,7 @@ function AlertsPage() {
             key: 'action',
             label: '操作',
             width: '80px',
-            render: (r) => (
+            render: (r: any) => (
               <button
                 className="btn-ghost h-7 px-2 py-1 text-primary-700"
                 onClick={(e) => {
@@ -468,7 +468,7 @@ function AlertsPage() {
         ]}
         data={data?.data || []}
         rowKey="id"
-        onRowClick={(r) => openDetail(r.id)}
+        onRowClick={(r: any) => openDetail(r.id)}
         footer={
           <Pagination
             page={page}

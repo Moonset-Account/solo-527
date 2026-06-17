@@ -249,7 +249,7 @@ function MeterConfigPage() {
             key: 'status',
             label: '状态',
             width: '80px',
-            render: (r) => (
+            render: (r: any) => (
               <TagBadge className={meterStatusColors[r.status]}>
                 {r.status === 'online' ? <Wifi size={11} /> : r.status === 'offline' ? <WifiOff size={11} /> : <Zap size={11} />}
                 {meterStatusLabels[r.status]}
@@ -259,7 +259,7 @@ function MeterConfigPage() {
           {
             key: 'name',
             label: '表计信息',
-            render: (r) => (
+            render: (r: any) => (
               <div>
                 <div className="font-medium text-slate-800">{r.name}</div>
                 <div className="text-xs text-slate-500">
@@ -272,7 +272,7 @@ function MeterConfigPage() {
             key: 'zoneName',
             label: '所属分区',
             width: '180px',
-            render: (r) => (
+            render: (r: any) => (
               <span className="flex items-center gap-1 text-sm text-slate-700">
                 <MapPin size={12} />
                 {r.zoneName}
@@ -283,7 +283,7 @@ function MeterConfigPage() {
             key: 'lastHeartbeat',
             label: '最后心跳',
             width: '150px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-xs">
                 <div className="text-slate-700">{r.lastHeartbeat ? timeAgo(r.lastHeartbeat) : '-'}</div>
                 <div className="text-slate-500">
@@ -296,13 +296,13 @@ function MeterConfigPage() {
             key: 'installedAt',
             label: '安装时间',
             width: '130px',
-            render: (r) => <span className="text-sm text-slate-600">{formatDate(r.installedAt)}</span>,
+            render: (r: any) => <span className="text-sm text-slate-600">{formatDate(r.installedAt)}</span>,
           },
           {
             key: 'action',
             label: '操作',
             width: '140px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="flex items-center gap-1">
                 <button
                   className="btn-ghost h-7 px-2 py-1 text-primary-700"
@@ -337,7 +337,7 @@ function MeterConfigPage() {
         ]}
         data={data?.data || []}
         rowKey="id"
-        onRowClick={(r) => openDetail(r.id)}
+        onRowClick={(r: any) => openDetail(r.id)}
         footer={
           <Pagination
             page={page}

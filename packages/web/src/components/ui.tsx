@@ -106,7 +106,7 @@ export function DataTable<T extends Record<string, any>>({
 }: {
   columns: { key: string; label: string; render?: (row: T) => React.ReactNode; width?: string }[];
   data: T[];
-  rowKey: keyof T | ((row: T) => string);
+  rowKey: string | ((row: T) => string);
   onRowClick?: (row: T) => void;
   emptyText?: string;
   footer?: React.ReactNode;
@@ -133,7 +133,7 @@ export function DataTable<T extends Record<string, any>>({
               </tr>
             ) : (
               data.map((row) => {
-                const key = typeof rowKey === 'function' ? rowKey(row) : (row[rowKey] as string);
+                const key = typeof rowKey === 'function' ? rowKey(row) : String(row[rowKey]);
                 return (
                   <tr
                     key={key}

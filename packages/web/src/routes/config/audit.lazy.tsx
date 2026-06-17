@@ -84,7 +84,7 @@ function AuditLogPage() {
     endpoints.audit
       .list(params)
       .then((r) => setData(r))
-      .catch((e) => toast('error', e.message));
+      .catch((e: any) => toast('error', e.message));
   };
 
   useEffect(() => {

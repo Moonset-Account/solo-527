@@ -134,7 +134,7 @@ function OfflinePage() {
     endpoints.offline
       .get(id)
       .then((d) => setDetail(d))
-      .catch((e) => toast('error', e.message));
+      .catch((e: any) => toast('error', e.message));
   };
 
   const handleCreate = () => {
@@ -150,7 +150,7 @@ function OfflinePage() {
         load();
         endpoints.offline.summary().then(setSummary);
       })
-      .catch((e) => toast('error', e.message));
+      .catch((e: any) => toast('error', e.message));
   };
 
   const handleAction = (type: string) => {
@@ -165,7 +165,7 @@ function OfflinePage() {
         endpoints.offline.summary().then(setSummary);
         openDetail(actionModal.data.id);
       })
-      .catch((e) => toast('error', e.message));
+      .catch((e: any) => toast('error', e.message));
   };
 
   const handleExport = () => {
@@ -448,7 +448,7 @@ function OfflinePage() {
             key: 'status',
             label: '状态',
             width: '80px',
-            render: (r) =>
+            render: (r: any) =>
               r.onlineAt ? (
                 <TagBadge className="bg-primary-100 text-primary-700">
                   <Wifi size={11} /> 已恢复
@@ -463,7 +463,7 @@ function OfflinePage() {
             key: 'meterName',
             label: '表计 / 分区',
             width: '200px',
-            render: (r) => (
+            render: (r: any) => (
               <div>
                 <div className="font-medium text-slate-800">{r.meterName}</div>
                 <div className="text-xs text-slate-500">
@@ -476,7 +476,7 @@ function OfflinePage() {
             key: 'reasonCategory',
             label: '原因分类',
             width: '100px',
-            render: (r) => (
+            render: (r: any) => (
               <TagBadge className={offlineReasonColors[r.reasonCategory]}>
                 {offlineReasonLabels[r.reasonCategory]}
               </TagBadge>
@@ -485,7 +485,7 @@ function OfflinePage() {
           {
             key: 'reason',
             label: '具体原因',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-sm text-slate-700 line-clamp-2">{r.reason}</div>
             ),
           },
@@ -493,7 +493,7 @@ function OfflinePage() {
             key: 'times',
             label: '离线 / 恢复',
             width: '180px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-xs">
                 <div className="text-slate-700">
                   <span className="text-slate-400">离:</span> {formatDateTime(r.offlineAt)}
@@ -509,7 +509,7 @@ function OfflinePage() {
             key: 'duration',
             label: '持续/响应',
             width: '120px',
-            render: (r) => (
+            render: (r: any) => (
               <div className="text-xs">
                 <div className="flex items-center gap-1 text-slate-700">
                   <Clock size={11} />
@@ -530,7 +530,7 @@ function OfflinePage() {
             key: 'assignee',
             label: '责任人',
             width: '90px',
-            render: (r) => (
+            render: (r: any) => (
               <span className="flex items-center gap-1 text-sm text-slate-700">
                 <User size={12} />
                 {r.assignee || '-'}
@@ -541,7 +541,7 @@ function OfflinePage() {
             key: 'action',
             label: '操作',
             width: '70px',
-            render: (r) => (
+            render: (r: any) => (
               <button
                 className="btn-ghost h-7 px-2 py-1 text-primary-700"
                 onClick={(e) => {
@@ -556,7 +556,7 @@ function OfflinePage() {
         ]}
         data={data?.data || []}
         rowKey="id"
-        onRowClick={(r) => openDetail(r.id)}
+        onRowClick={(r: any) => openDetail(r.id)}
         footer={
           <Pagination
             page={page}
