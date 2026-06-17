@@ -1,0 +1,18 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold"><%= @consumable_rule.name %></h1>
+    <%= link_to "编辑", edit_admin_consumable_rule_path(@consumable_rule), class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">关联疗程</p><p class="text-lg"><%= @consumable_rule.treatment.name %></p></div>
+      <div><p class="text-sm text-gray-500">次数阈值</p><p class="text-lg"><%= @consumable_rule.threshold_sessions %>次</p></div>
+      <div><p class="text-sm text-gray-500">百分比阈值</p><p class="text-lg"><%= @consumable_rule.threshold_percentage ? "#{@consumable_rule.threshold_percentage}%" : "-" %></p></div>
+      <div><p class="text-sm text-gray-500">检查间隔</p><p class="text-lg"><%= @consumable_rule.check_interval %>小时</p></div>
+      <div><p class="text-sm text-gray-500">状态</p><p><%= @consumable_rule.active ? tag.span("启用", class: "text-green-600") : tag.span("停用", class: "text-red-600") %></p></div>
+    </div>
+  </div>
+
+  <%= link_to "← 返回列表", admin_consumable_rules_path, class: "text-blue-600 hover:underline" %>
+</div>

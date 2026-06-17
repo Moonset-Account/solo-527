@@ -1,0 +1,13 @@
+production:
+  renewal_notification_job:
+    class: RenewalNotificationJob
+    queue: notifications
+    cron: "0 9 * * *"
+  consumable_check_job:
+    class: ConsumableCheckJob
+    queue: notifications
+    cron: "0 */4 * * *"
+  treatment_card_expire_job:
+    class: TreatmentCardExpireJob
+    queue: default
+    cron: "0 0 * * *"

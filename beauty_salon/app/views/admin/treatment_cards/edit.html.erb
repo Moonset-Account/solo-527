@@ -1,0 +1,63 @@
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">编辑疗程卡</h1>
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: [:admin, @treatment_card], local: true do |f| %>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= f.label :card_number, "卡号", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.text_field :card_number, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+          <div>
+            <%= f.label :status, "状态", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :status, TreatmentCard.statuses.keys.map { |k| [k.humanize, k] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+          <div>
+            <%= f.label :total_amount, "总金额", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.number_field :total_amount, step: 0.01, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+          <div>
+            <%= f.label :remaining_amount, "剩余金额", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.number_field :remaining_amount, step: 0.01, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+          <div>
+            <%= f.label :expired_at, "到期日期", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.date_field :expired_at, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+        </div>
+
+        <div class="border-t pt-4">
+          <h3 class="text-lg font-medium mb-3">疗程项目明细</h3>
+          <div class="space-y-2">
+            <%= f.fields_for :treatment_card_items do |item_form| %>
+              <div class="grid grid-cols-4 gap-4 items-center">
+                <div>
+                  <p class="font-medium"><%= item_form.object.treatment.name %></p>
+                </div>
+                <div>
+                  <%= item_form.label :total_sessions, "总次数", class: "text-sm text-gray-500" %>
+                  <%= item_form.number_field :total_sessions, class: "block w-full border rounded px-3 py-2" %>
+                </div>
+                <div>
+                  <%= item_form.label :remaining_sessions, "剩余次数", class: "text-sm text-gray-500" %>
+                  <%= item_form.number_field :remaining_sessions, class: "block w-full border rounded px-3 py-2" %>
+                </div>
+                <div>
+                  <label class="flex items-center gap-2">
+                    <%= item_form.check_box :_destroy, class: "rounded" %>
+                    <span class="text-sm text-red-600">删除</span>
+                  </label>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <%= f.submit "保存", class: "bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer" %>
+          <%= link_to "取消", admin_treatment_card_path(@treatment_card), class: "bg-gray-200 px-6 py-2 rounded hover:bg-gray-300" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

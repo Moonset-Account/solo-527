@@ -1,0 +1,35 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">新建排班</h1>
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: [:admin, @schedule], local: true do |f| %>
+      <div class="space-y-4">
+        <div>
+          <%= f.label :technician_id, "技师", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :technician_id, @technicians.map { |t| [t.name, t.id] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :work_date, "工作日期", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.date_field :work_date, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= f.label :start_time, "上班时间", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.time_field :start_time, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+          <div>
+            <%= f.label :end_time, "下班时间", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.time_field :end_time, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          </div>
+        </div>
+        <div>
+          <%= f.label :status, "状态", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :status, Schedule.statuses.keys.map { |k| [k.humanize, k] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div class="flex gap-2">
+          <%= f.submit "创建", class: "bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer" %>
+          <%= link_to "取消", admin_schedules_path, class: "bg-gray-200 px-6 py-2 rounded hover:bg-gray-300" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

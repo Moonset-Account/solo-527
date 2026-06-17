@@ -1,0 +1,23 @@
+<div class="space-y-4">
+  <h1 class="text-2xl font-bold"><%= @todo_item.title %></h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <p class="text-gray-600 mb-4"><%= @todo_item.body %></p>
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">状态</p><p><%= status_badge(@todo_item.status) %></p></div>
+      <div><p class="text-sm text-gray-500">分类</p><p class="text-lg"><%= @todo_item.category %></p></div>
+      <div><p class="text-sm text-gray-500">截止时间</p><p class="text-lg <%= @todo_item.due_at && @todo_item.due_at < Time.current ? 'text-red-600 font-semibold' : '' %>"><%= @todo_item.due_at&.strftime("%Y-%m-%d %H:%M") || "无" %></p></div>
+      <div><p class="text-sm text-gray-500">创建时间</p><p class="text-lg"><%= @todo_item.created_at.strftime("%Y-%m-%d %H:%M") %></p></div>
+    </div>
+  </div>
+
+  <div class="flex gap-2">
+    <%= form_with model: [:admin, @todo_item], local: true, class: "inline" do |f| %>
+      <%= f.hidden_field :status, value: "completed" %>
+      <%= f.submit "标记完成", class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer" %>
+    <% end %>
+    <%= button_to "忽略", dismiss_admin_todo_item_path(@todo_item), method: :patch, class: "bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 cursor-pointer" %>
+  </div>
+
+  <%= link_to "← 返回列表", admin_todo_items_path, class: "text-blue-600 hover:underline" %>
+</div>

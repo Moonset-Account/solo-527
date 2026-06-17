@@ -1,0 +1,54 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">预约管理</h1>
+    <div class="flex gap-2">
+      <%= link_to "新建预约", new_admin_appointment_path, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+      <%= form_with url: admin_exports_path, method: :post, class: "inline" do |f| %>
+        <%= f.hidden_field :model_name, value: "Appointment" %>
+        <%= f.submit "导出CSV", class: "bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4">
+    <div class="flex gap-2 flex-wrap">
+      <%= form_with url: admin_appointments_path, method: :get, local: true, class: "flex gap-2 flex-wrap" do |f| %>
+        <%= f.select :status, @statuses.map { |s| [s.humanize, s] }, { selected: params[:status], prompt: "全部状态" }, class: "border rounded px-3 py-2" %>
+        <%= f.select :technician_id, @technicians.map { |t| [t.name, t.id] }, { selected: params[:technician_id], prompt: "全部技师" }, class: "border rounded px-3 py-2" %>
+        <%= f.date_field :start_date, value: params[:start_date], class: "border rounded px-3 py-2" %>
+        <%= f.date_field :end_date, value: params[:end_date], class: "border rounded px-3 py-2" %>
+        <%= f.submit "筛选", class: "bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">预约时间</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">客户</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">技师</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">疗程</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">状态</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <% @appointments.each do |a| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm"><%= a.scheduled_at.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="px-4 py-3"><%= a.customer.name %></td>
+            <td class="px-4 py-3"><%= a.technician.name %></td>
+            <td class="px-4 py-3"><%= a.treatment.name %></td>
+            <td class="px-4 py-3"><%= status_badge(a.status) %></td>
+            <td class="px-4 py-3 space-x-2">
+              <%= link_to "查看", admin_appointment_path(a), class: "text-blue-600 hover:underline" %>
+              <%= link_to "编辑", edit_admin_appointment_path(a), class: "text-blue-600 hover:underline" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

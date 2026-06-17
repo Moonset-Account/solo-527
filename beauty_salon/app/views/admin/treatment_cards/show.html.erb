@@ -1,0 +1,63 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">疗程卡 <%= @treatment_card.card_number %></h1>
+    <%= link_to "编辑", edit_admin_treatment_card_path(@treatment_card), class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-3 gap-4">
+      <div><p class="text-sm text-gray-500">客户</p><p class="text-lg"><%= @treatment_card.customer.name %></p></div>
+      <div><p class="text-sm text-gray-500">总金额</p><p class="text-lg font-semibold">¥<%= number_with_delimiter(@treatment_card.total_amount, delimiter: ',') %></p></div>
+      <div><p class="text-sm text-gray-500">剩余金额</p><p class="text-lg font-semibold">¥<%= number_with_delimiter(@treatment_card.remaining_amount, delimiter: ',') %></p></div>
+      <div><p class="text-sm text-gray-500">状态</p><p><%= status_badge(@treatment_card.status) %></p></div>
+      <div><p class="text-sm text-gray-500">购买日期</p><p class="text-lg"><%= @treatment_card.purchased_at&.strftime("%Y-%m-%d") %></p></div>
+      <div><p class="text-sm text-gray-500">到期日期</p><p class="text-lg <%= @treatment_card.expired? ? 'text-red-600 font-semibold' : '' %>"><%= @treatment_card.expired_at&.strftime("%Y-%m-%d") || "永久" %></p></div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-3">疗程明细</h2>
+    <div class="space-y-3">
+      <% @treatment_card.treatment_card_items.each do |item| %>
+        <div class="border rounded p-4">
+          <div class="flex justify-between items-center">
+            <span class="font-medium"><%= item.treatment.name %></span>
+            <div>
+              <span class="font-semibold <%= item.low_remaining? ? 'text-orange-600' : item.depleted? ? 'text-red-600' : 'text-green-600' %>">
+                <%= item.remaining_sessions %>/<%= item.total_sessions %>次
+              </span>
+            </div>
+          </div>
+          <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+            <div class="h-2 rounded-full <%= item.depleted? ? 'bg-gray-400' : item.low_remaining? ? 'bg-orange-500' : 'bg-green-500' %>"
+                 style="width: <%= item.total_sessions > 0 ? (item.remaining_sessions.to_f / item.total_sessions * 100).round : 0 %>%"></div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-3">变更记录</h2>
+    <% if @audit_logs.any? %>
+      <div class="space-y-3">
+        <% @audit_logs.each do |log| %>
+          <div class="border-l-4 border-blue-400 pl-4 py-2">
+            <div class="flex justify-between items-center">
+              <span class="font-medium"><%= log.action.humanize %></span>
+              <span class="text-sm text-gray-500"><%= log.created_at.strftime("%Y-%m-%d %H:%M") %></span>
+            </div>
+            <p class="text-sm text-gray-600 mt-1"><%= log.description %></p>
+            <% if log.changes_data.present? %>
+              <pre class="mt-1 text-xs bg-gray-50 p-2 rounded overflow-auto"><%= JSON.pretty_generate(log.changes_data) %></pre>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无变更记录</p>
+    <% end %>
+  </div>
+
+  <%= link_to "← 返回列表", admin_treatment_cards_path, class: "text-blue-600 hover:underline" %>
+</div>

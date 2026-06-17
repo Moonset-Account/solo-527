@@ -1,0 +1,43 @@
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <h1 class="text-2xl font-bold mb-6">我的疗程卡</h1>
+
+  <div class="space-y-4">
+    <% @treatment_cards.each do |card| %>
+      <div class="border rounded-lg p-4">
+        <div class="flex justify-between items-start">
+          <div>
+            <h2 class="text-lg font-semibold"><%= card.card_number %></h2>
+            <p class="text-sm text-gray-500 mt-1">
+              购买时间: <%= card.purchased_at&.strftime("%Y-%m-%d") %>
+              <% if card.expired_at %>
+                · 到期时间: <span class="<%= card.expired? ? 'text-red-600 font-semibold' : '' %>"><%= card.expired_at.strftime("%Y-%m-%d") %></span>
+              <% end %>
+            </p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-sm
+            <%= card.active? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' %>">
+            <%= card.status.humanize %>
+          </span>
+        </div>
+
+        <div class="mt-4 space-y-2">
+          <% card.treatment_card_items.each do |item| %>
+            <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+              <span><%= item.treatment.name %></span>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">剩余</span>
+                <span class="font-semibold <%= item.low_remaining? ? 'text-orange-600' : 'text-green-600' %>">
+                  <%= item.remaining_sessions %>/<%= item.total_sessions %>次
+                </span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @treatment_cards.empty? %>
+    <p class="text-center text-gray-500 mt-8">暂无疗程卡</p>
+  <% end %>
+</div>

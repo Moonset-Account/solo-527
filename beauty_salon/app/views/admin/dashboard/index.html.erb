@@ -1,0 +1,90 @@
+<div class="space-y-6">
+  <h1 class="text-2xl font-bold">仪表盘</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-lg shadow p-4">
+      <p class="text-sm text-gray-500">今日预约</p>
+      <p class="text-2xl font-bold mt-1"><%= @today_appointments.count %></p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <p class="text-sm text-gray-500">活跃疗程卡</p>
+      <p class="text-2xl font-bold mt-1"><%= @active_cards %></p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <p class="text-sm text-gray-500">即将到期</p>
+      <p class="text-2xl font-bold mt-1 text-orange-600"><%= @expiring_cards %></p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+      <p class="text-sm text-gray-500">待办事项</p>
+      <p class="text-2xl font-bold mt-1 text-red-600"><%= @pending_todos.count %></p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-lg shadow p-4">
+      <h2 class="text-lg font-semibold mb-3">今日预约</h2>
+      <% if @today_appointments.any? %>
+        <div class="space-y-2">
+          <% @today_appointments.each do |appt| %>
+            <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+              <div>
+                <span class="font-medium"><%= appt.customer.name %></span>
+                <span class="text-gray-500 text-sm"> - <%= appt.treatment.name %></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500"><%= appt.scheduled_at.strftime("%H:%M") %></span>
+                <%= status_badge(appt.status) %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-sm">今日暂无预约</p>
+      <% end %>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4">
+      <h2 class="text-lg font-semibold mb-3">紧急待办</h2>
+      <% if @pending_todos.any? %>
+        <div class="space-y-2">
+          <% @pending_todos.each do |todo| %>
+            <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+              <div>
+                <span class="font-medium text-red-600"><%= todo.title %></span>
+                <p class="text-sm text-gray-500"><%= todo.category %></p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-400"><%= time_ago_in_words(todo.created_at) %>前</span>
+                <%= link_to "处理", admin_todo_item_path(todo), class: "text-blue-600 text-sm hover:underline" %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-sm">暂无紧急待办</p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-semibold">未读消息</h2>
+      <%= link_to "全部标记已读", mark_all_read_admin_notifications_path, method: :post, class: "text-blue-600 text-sm hover:underline" if @unread_notifications.any? %>
+    </div>
+    <% if @unread_notifications.any? %>
+      <div class="space-y-2">
+        <% @unread_notifications.each do |n| %>
+          <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+            <div>
+              <span class="font-medium"><%= n.title %></span>
+              <p class="text-sm text-gray-500"><%= n.body %></p>
+            </div>
+            <%= link_to "查看", admin_notification_path(n), class: "text-blue-600 text-sm hover:underline" %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无未读消息</p>
+    <% end %>
+  </div>
+</div>

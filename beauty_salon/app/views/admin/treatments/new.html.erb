@@ -1,0 +1,33 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">新建疗程项目</h1>
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: [:admin, @treatment], local: true do |f| %>
+      <div class="space-y-4">
+        <div>
+          <%= f.label :name, "名称", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_field :name, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :category, "分类", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :category, Treatment.categories.keys.map { |k| [k.humanize, k] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :price, "价格", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.number_field :price, step: 0.01, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :duration, "时长(分钟)", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.number_field :duration, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :description, "描述", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_area :description, rows: 3, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div class="flex gap-2">
+          <%= f.submit "创建", class: "bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer" %>
+          <%= link_to "取消", admin_treatments_path, class: "bg-gray-200 px-6 py-2 rounded hover:bg-gray-300" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

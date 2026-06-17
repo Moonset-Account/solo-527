@@ -1,0 +1,33 @@
+<div class="space-y-4">
+  <h1 class="text-2xl font-bold">待办事项</h1>
+
+  <div class="bg-white rounded-lg shadow p-4 flex gap-2">
+    <%= link_to "全部", admin_todo_items_path, class: "px-3 py-1 rounded #{params[:status].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% TodoItem.statuses.each do |name, _| %>
+      <%= link_to name.humanize, admin_todo_items_path(status: name), class: "px-3 py-1 rounded #{params[:status] == name ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% end %>
+  </div>
+
+  <div class="space-y-2">
+    <% @todo_items.each do |todo| %>
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-medium <%= todo.status == 'pending' ? 'text-red-600' : '' %>"><%= todo.title %></h3>
+            <p class="text-sm text-gray-600 mt-1"><%= todo.body %></p>
+            <div class="flex gap-2 mt-2">
+              <span class="text-xs text-gray-400"><%= todo.category %></span>
+              <% if todo.due_at %>
+                <span class="text-xs <%= todo.due_at < Time.current ? 'text-red-500' : 'text-gray-400' %>">截止: <%= todo.due_at.strftime("%Y-%m-%d %H:%M") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <%= status_badge(todo.status) %>
+            <%= link_to "处理", admin_todo_item_path(todo), class: "text-blue-600 text-sm hover:underline" %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

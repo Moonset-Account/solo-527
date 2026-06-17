@@ -1,0 +1,56 @@
+<div class="space-y-4">
+  <h1 class="text-2xl font-bold"><%= @customer.name %></h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">手机号</p><p class="text-lg"><%= @customer.phone %></p></div>
+      <div><p class="text-sm text-gray-500">备注</p><p class="text-lg"><%= @customer.notes.presence || "无" %></p></div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-semibold">疗程卡</h2>
+      <%= link_to "新建疗程卡", new_admin_treatment_card_path(customer_id: @customer.id), class: "text-blue-600 text-sm hover:underline" %>
+    </div>
+    <% if @treatment_cards.any? %>
+      <div class="space-y-2">
+        <% @treatment_cards.each do |card| %>
+          <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+            <div>
+              <span class="font-medium"><%= card.card_number %></span>
+              <span class="text-sm text-gray-500 ml-2"><%= card.purchased_at&.strftime("%Y-%m-%d") %></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <%= status_badge(card.status) %>
+              <%= link_to "查看", admin_treatment_card_path(card), class: "text-blue-600 text-sm hover:underline" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无疗程卡</p>
+    <% end %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-3">预约记录</h2>
+    <% if @appointments.any? %>
+      <div class="space-y-2">
+        <% @appointments.each do |appt| %>
+          <div class="flex justify-between items-center py-2 border-b last:border-b-0">
+            <span><%= appt.treatment.name %> - <%= appt.technician.name %></span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-500"><%= appt.scheduled_at.strftime("%Y-%m-%d %H:%M") %></span>
+              <%= status_badge(appt.status) %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无预约记录</p>
+    <% end %>
+  </div>
+
+  <%= link_to "← 返回列表", admin_customers_path, class: "text-blue-600 hover:underline" %>
+</div>

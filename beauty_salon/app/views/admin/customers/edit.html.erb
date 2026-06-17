@@ -1,0 +1,25 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">编辑客户</h1>
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: [:admin, @customer], local: true do |f| %>
+      <div class="space-y-4">
+        <div>
+          <%= f.label :name, "姓名", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_field :name, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :phone, "手机号", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_field :phone, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :notes, "备注", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_area :notes, rows: 3, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div class="flex gap-2">
+          <%= f.submit "保存", class: "bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer" %>
+          <%= link_to "取消", admin_customer_path(@customer), class: "bg-gray-200 px-6 py-2 rounded hover:bg-gray-300" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

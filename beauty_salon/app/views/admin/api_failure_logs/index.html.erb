@@ -1,0 +1,42 @@
+<div class="space-y-4">
+  <h1 class="text-2xl font-bold">API异常日志</h1>
+
+  <div class="bg-white rounded-lg shadow p-4 flex gap-2">
+    <%= link_to "全部", admin_api_failure_logs_path, class: "px-3 py-1 rounded #{params[:status].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% ApiFailureLog.statuses.each do |name, _| %>
+      <%= link_to name.humanize, admin_api_failure_logs_path(status: name), class: "px-3 py-1 rounded #{params[:status] == name ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% end %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">接口</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">方法</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">状态码</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">重试次数</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">状态</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <% @api_failure_logs.each do |log| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm font-mono"><%= log.endpoint.truncate(50) %></td>
+            <td class="px-4 py-3"><%= log.method %></td>
+            <td class="px-4 py-3"><%= log.response_code || "-" %></td>
+            <td class="px-4 py-3"><%= log.retry_count %>/<%= log.max_retries %></td>
+            <td class="px-4 py-3"><%= status_badge(log.status) %></td>
+            <td class="px-4 py-3 space-x-2">
+              <%= link_to "查看", admin_api_failure_log_path(log), class: "text-blue-600 hover:underline" %>
+              <% if log.can_retry? %>
+                <%= button_to "重试", retry_admin_api_failure_log_path(log), method: :post, class: "text-orange-600 hover:underline cursor-pointer bg-transparent border-0 p-0" %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

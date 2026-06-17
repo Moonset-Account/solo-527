@@ -1,0 +1,49 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">API异常详情</h1>
+    <% if @api_failure_log.can_retry? %>
+      <%= button_to "手动重试", retry_admin_api_failure_log_path(@api_failure_log), method: :post, class: "bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 cursor-pointer" %>
+    <% end %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">接口地址</p><p class="text-lg font-mono break-all"><%= @api_failure_log.endpoint %></p></div>
+      <div><p class="text-sm text-gray-500">请求方法</p><p class="text-lg"><%= @api_failure_log.method %></p></div>
+      <div><p class="text-sm text-gray-500">响应状态码</p><p class="text-lg"><%= @api_failure_log.response_code || "-" %></p></div>
+      <div><p class="text-sm text-gray-500">状态</p><p><%= status_badge(@api_failure_log.status) %></p></div>
+      <div><p class="text-sm text-gray-500">重试次数</p><p class="text-lg"><%= @api_failure_log.retry_count %>/<%= @api_failure_log.max_retries %></p></div>
+      <div><p class="text-sm text-gray-500">创建时间</p><p class="text-lg"><%= @api_failure_log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></p></div>
+    </div>
+  </div>
+
+  <% if @api_failure_log.request_body.present? %>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-3">请求内容</h2>
+      <pre class="bg-gray-50 p-4 rounded overflow-auto text-sm"><%= @api_failure_log.request_body %></pre>
+    </div>
+  <% end %>
+
+  <% if @api_failure_log.response_body.present? %>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-3">响应内容</h2>
+      <pre class="bg-gray-50 p-4 rounded overflow-auto text-sm"><%= @api_failure_log.response_body %></pre>
+    </div>
+  <% end %>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-3">备注</h2>
+    <% if @api_failure_log.notes.present? %>
+      <pre class="bg-gray-50 p-4 rounded text-sm whitespace-pre-wrap"><%= @api_failure_log.notes %></pre>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无备注</p>
+    <% end %>
+
+    <%= form_with url: add_note_admin_api_failure_log_path(@api_failure_log), method: :post, local: true, class: "mt-4 flex gap-2" do |f| %>
+      <%= f.text_field :note, placeholder: "添加备注...", class: "flex-1 border rounded px-3 py-2" %>
+      <%= f.submit "添加", class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 cursor-pointer" %>
+    <% end %>
+  </div>
+
+  <%= link_to "← 返回列表", admin_api_failure_logs_path, class: "text-blue-600 hover:underline" %>
+</div>

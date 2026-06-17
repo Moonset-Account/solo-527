@@ -1,0 +1,49 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">疗程卡管理</h1>
+    <div class="flex gap-2">
+      <%= link_to "新建疗程卡", new_admin_treatment_card_path, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+      <%= form_with url: admin_exports_path, method: :post, class: "inline" do |f| %>
+        <%= f.hidden_field :model_name, value: "TreatmentCard" %>
+        <%= f.submit "导出CSV", class: "bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4 flex gap-2 flex-wrap">
+    <%= link_to "全部", admin_treatment_cards_path, class: "px-3 py-1 rounded #{params[:status].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% TreatmentCard.statuses.each do |name, _| %>
+      <%= link_to name.humanize, admin_treatment_cards_path(status: name), class: "px-3 py-1 rounded #{params[:status] == name ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% end %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">卡号</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">客户</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">总金额</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">状态</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">到期时间</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <% @treatment_cards.each do |card| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 font-mono"><%= card.card_number %></td>
+            <td class="px-4 py-3"><%= card.customer.name %></td>
+            <td class="px-4 py-3">¥<%= number_with_delimiter(card.total_amount, delimiter: ',') %></td>
+            <td class="px-4 py-3"><%= status_badge(card.status) %></td>
+            <td class="px-4 py-3 text-sm <%= card.expired? ? 'text-red-600 font-semibold' : '' %>"><%= card.expired_at&.strftime("%Y-%m-%d") || "永久" %></td>
+            <td class="px-4 py-3 space-x-2">
+              <%= link_to "查看", admin_treatment_card_path(card), class: "text-blue-600 hover:underline" %>
+              <%= link_to "编辑", edit_admin_treatment_card_path(card), class: "text-blue-600 hover:underline" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

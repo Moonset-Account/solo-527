@@ -1,0 +1,44 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold"><%= @treatment.name %></h1>
+    <%= link_to "编辑", edit_admin_treatment_path(@treatment), class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">分类</p><p class="text-lg"><%= @treatment.category.humanize %></p></div>
+      <div><p class="text-sm text-gray-500">价格</p><p class="text-lg font-semibold">¥<%= number_with_delimiter(@treatment.price, delimiter: ',') %></p></div>
+      <div><p class="text-sm text-gray-500">时长</p><p class="text-lg"><%= @treatment.duration %>分钟</p></div>
+      <div><p class="text-sm text-gray-500">状态</p><p><%= @treatment.active ? tag.span("启用", class: "text-green-600") : tag.span("停用", class: "text-red-600") %></p></div>
+      <div class="col-span-2"><p class="text-sm text-gray-500">描述</p><p class="text-lg"><%= @treatment.description %></p></div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-3">价格变更记录</h2>
+    <% if @price_histories.any? %>
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-2 text-left text-sm text-gray-600">原价格</th>
+            <th class="px-4 py-2 text-left text-sm text-gray-600">新价格</th>
+            <th class="px-4 py-2 text-left text-sm text-gray-600">变更时间</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <% @price_histories.each do |ph| %>
+            <tr>
+              <td class="px-4 py-2">¥<%= number_with_delimiter(ph.old_price, delimiter: ',') %></td>
+              <td class="px-4 py-2">¥<%= number_with_delimiter(ph.new_price, delimiter: ',') %></td>
+              <td class="px-4 py-2 text-sm text-gray-500"><%= ph.changed_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无价格变更记录</p>
+    <% end %>
+  </div>
+
+  <%= link_to "← 返回列表", admin_treatments_path, class: "text-blue-600 hover:underline" %>
+</div>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>美容院 - 客户端</title>
+  <meta name="viewport" content="stylesheet" content="width=device-width,initial-scale=1">
+  <%= stylesheet_link_tag "application" %>
+  <%= javascript_importmap_tags %>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+      <%= link_to "美容院", external_treatments_path, class: "text-xl font-bold text-blue-600" %>
+      <div class="flex gap-4">
+        <%= link_to "疗程项目", external_treatments_path, class: "text-gray-600 hover:text-blue-600" %>
+      </div>
+    </div>
+  </nav>
+  <%= yield %>
+</body>
+</html>

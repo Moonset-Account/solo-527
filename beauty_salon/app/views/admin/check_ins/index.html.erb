@@ -1,0 +1,44 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">到店核销</h1>
+    <%= link_to "新建核销", new_admin_check_in_path, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4">
+    <div class="flex gap-2 flex-wrap">
+      <%= link_to "全部", admin_check_ins_path, class: "px-3 py-1 rounded #{params[:status].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+      <% CheckIn.statuses.each do |name, _| %>
+        <%= link_to name.humanize, admin_check_ins_path(status: name), class: "px-3 py-1 rounded #{params[:status] == name ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">核销时间</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">客户</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">技师</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">疗程</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">状态</th>
+          <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <% @check_ins.each do |ci| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm"><%= ci.checked_in_at.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="px-4 py-3"><%= ci.customer.name %></td>
+            <td class="px-4 py-3"><%= ci.technician.name %></td>
+            <td class="px-4 py-3"><%= ci.treatment.name %></td>
+            <td class="px-4 py-3"><%= status_badge(ci.status) %></td>
+            <td class="px-4 py-3">
+              <%= link_to "查看", admin_check_in_path(ci), class: "text-blue-600 hover:underline" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

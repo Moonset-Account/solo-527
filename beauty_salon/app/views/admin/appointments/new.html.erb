@@ -1,0 +1,33 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">新建预约</h1>
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: [:admin, @appointment], local: true do |f| %>
+      <div class="space-y-4">
+        <div>
+          <%= f.label :customer_id, "客户", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :customer_id, @customers.map { |c| [c.name, c.id] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :technician_id, "技师", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :technician_id, @technicians.map { |t| [t.name, t.id] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :treatment_id, "疗程", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :treatment_id, @treatments.map { |t| [t.name, t.id] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :scheduled_at, "预约时间", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.datetime_field :scheduled_at, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div>
+          <%= f.label :notes, "备注", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_area :notes, rows: 3, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        </div>
+        <div class="flex gap-2">
+          <%= f.submit "创建", class: "bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 cursor-pointer" %>
+          <%= link_to "取消", admin_appointments_path, class: "bg-gray-200 px-6 py-2 rounded hover:bg-gray-300" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

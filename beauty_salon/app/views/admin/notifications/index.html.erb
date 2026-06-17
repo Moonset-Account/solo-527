@@ -1,0 +1,39 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">消息中心</h1>
+    <%= link_to "全部标记已读", mark_all_read_admin_notifications_path, method: :post, class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4 flex gap-2">
+    <%= link_to "全部", admin_notifications_path, class: "px-3 py-1 rounded #{params[:unread].blank? && params[:category].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <%= link_to "未读", admin_notifications_path(unread: "true"), class: "px-3 py-1 rounded #{params[:unread] == 'true' ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% ["renewal", "consumable_alert", "export", "api_failure"].each do |cat| %>
+      <%= link_to cat.humanize, admin_notifications_path(category: cat), class: "px-3 py-1 rounded #{params[:category] == cat ? 'bg-blue-600 text-white' : 'bg-gray-200'}" %>
+    <% end %>
+  </div>
+
+  <div class="space-y-2">
+    <% @notifications.each do |n| %>
+      <div class="bg-white rounded-lg shadow p-4 <%= n.read? ? '' : 'border-l-4 border-blue-500' %>">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-medium"><%= n.title %></h3>
+              <% if n.urgent? %>
+                <span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">紧急</span>
+              <% end %>
+              <% unless n.read? %>
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">未读</span>
+              <% end %>
+            </div>
+            <p class="text-sm text-gray-600 mt-1"><%= n.body %></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-400"><%= time_ago_in_words(n.created_at) %>前</span>
+            <%= link_to "查看", admin_notification_path(n), class: "text-blue-600 text-sm hover:underline" %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,51 @@
+<div class="space-y-4">
+  <h1 class="text-2xl font-bold">核销详情</h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">客户</p><p class="text-lg"><%= @check_in.customer.name %></p></div>
+      <div><p class="text-sm text-gray-500">技师</p><p class="text-lg"><%= @check_in.technician.name %></p></div>
+      <div><p class="text-sm text-gray-500">疗程</p><p class="text-lg"><%= @check_in.treatment.name %></p></div>
+      <div><p class="text-sm text-gray-500">核销时间</p><p class="text-lg"><%= @check_in.checked_in_at.strftime("%Y-%m-%d %H:%M") %></p></div>
+      <div><p class="text-sm text-gray-500">状态</p><p><%= status_badge(@check_in.status) %></p></div>
+      <div>
+        <p class="text-sm text-gray-500">疗程卡扣减</p>
+        <p class="text-lg"><%= @check_in.treatment_card_item ? "#{@check_in.treatment_card_item.treatment.name}" : "未使用" %></p>
+      </div>
+    </div>
+  </div>
+
+  <% if @check_in.status != "completed" %>
+    <div class="flex gap-2">
+      <%= form_with model: [:admin, @check_in], local: true, class: "inline" do |f| %>
+        <%= f.hidden_field :status, value: "in_service" %>
+        <%= f.submit "开始服务", class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 cursor-pointer" if @check_in.status == "checked_in" %>
+      <% end %>
+      <%= form_with model: [:admin, @check_in], local: true, class: "inline" do |f| %>
+        <%= f.hidden_field :status, value: "completed" %>
+        <%= f.submit "完成服务", class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer" if @check_in.status == "in_service" %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-3">变更记录</h2>
+    <% if @audit_logs.any? %>
+      <div class="space-y-2">
+        <% @audit_logs.each do |log| %>
+          <div class="border-l-4 border-blue-400 pl-4 py-2">
+            <div class="flex justify-between">
+              <span class="font-medium"><%= log.action.humanize %></span>
+              <span class="text-sm text-gray-500"><%= log.created_at.strftime("%Y-%m-%d %H:%M") %></span>
+            </div>
+            <p class="text-sm text-gray-600"><%= log.description %></p>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-gray-500 text-sm">暂无变更记录</p>
+    <% end %>
+  </div>
+
+  <%= link_to "← 返回列表", admin_check_ins_path, class: "text-blue-600 hover:underline" %>
+</div>

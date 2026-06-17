@@ -1,0 +1,19 @@
+<div class="space-y-4">
+  <div class="flex justify-between items-center">
+    <h1 class="text-2xl font-bold">预约详情</h1>
+    <%= link_to "编辑", edit_admin_appointment_path(@appointment), class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-4">
+      <div><p class="text-sm text-gray-500">客户</p><p class="text-lg"><%= @appointment.customer.name %></p></div>
+      <div><p class="text-sm text-gray-500">技师</p><p class="text-lg"><%= @appointment.technician.name %></p></div>
+      <div><p class="text-sm text-gray-500">疗程</p><p class="text-lg"><%= @appointment.treatment.name %></p></div>
+      <div><p class="text-sm text-gray-500">预约时间</p><p class="text-lg"><%= @appointment.scheduled_at.strftime("%Y-%m-%d %H:%M") %></p></div>
+      <div><p class="text-sm text-gray-500">状态</p><p><%= status_badge(@appointment.status) %></p></div>
+      <div><p class="text-sm text-gray-500">备注</p><p class="text-lg"><%= @appointment.notes.presence || "无" %></p></div>
+    </div>
+  </div>
+
+  <%= link_to "← 返回列表", admin_appointments_path, class: "text-blue-600 hover:underline" %>
+</div>

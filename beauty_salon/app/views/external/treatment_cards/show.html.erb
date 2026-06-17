@@ -1,0 +1,61 @@
+<div class="max-w-2xl mx-auto px-4 py-8">
+  <%= link_to "← 返回", external_customer_treatment_cards_path(@customer), class: "text-blue-600 hover:underline" %>
+
+  <div class="mt-6 bg-white rounded-lg border p-6">
+    <div class="flex justify-between items-start">
+      <h1 class="text-2xl font-bold"><%= @treatment_card.card_number %></h1>
+      <span class="px-3 py-1 rounded-full text-sm
+        <%= @treatment_card.active? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' %>">
+        <%= @treatment_card.status.humanize %>
+      </span>
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 gap-4">
+      <div>
+        <p class="text-sm text-gray-500">购买金额</p>
+        <p class="text-lg font-semibold">¥<%= number_with_delimiter(@treatment_card.total_amount, delimiter: ',') %></p>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">剩余金额</p>
+        <p class="text-lg font-semibold">¥<%= number_with_delimiter(@treatment_card.remaining_amount, delimiter: ',') %></p>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">购买日期</p>
+        <p class="text-lg"><%= @treatment_card.purchased_at&.strftime("%Y-%m-%d") %></p>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">到期日期</p>
+        <p class="text-lg <%= @treatment_card.expired? ? 'text-red-600 font-semibold' : '' %>">
+          <%= @treatment_card.expired_at&.strftime("%Y-%m-%d") || "永久" %>
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <h2 class="text-lg font-semibold mb-3">疗程明细</h2>
+      <div class="space-y-3">
+        <% @treatment_card.treatment_card_items.each do |item| %>
+          <div class="border rounded p-3">
+            <div class="flex justify-between items-center">
+              <span class="font-medium"><%= item.treatment.name %></span>
+              <div class="text-right">
+                <span class="font-semibold <%= item.low_remaining? ? 'text-orange-600' : 'text-green-600' %>">
+                  <%= item.remaining_sessions %>
+                </span>
+                <span class="text-gray-500">/<%= item.total_sessions %>次</span>
+              </div>
+            </div>
+            <div class="mt-2">
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="h-2 rounded-full
+                  <%= item.depleted? ? 'bg-gray-400' : item.low_remaining? ? 'bg-orange-500' : 'bg-green-500' %>"
+                  style="width: <%= (item.remaining_sessions.to_f / item.total_sessions * 100).round %>%">
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
