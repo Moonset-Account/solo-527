@@ -19,28 +19,26 @@
         <div class="selection-stats">
             <div class="stat-item">
                 <span class="stat-label">总计</span>
-                <span class="stat-value">{{ photo_selections|length }} 张</span>
+                <span class="stat-value" id="totalCount">{{ photo_selections|length }} 张</span>
             </div>
             <div class="stat-item highlight">
                 <span class="stat-label">已选</span>
-                <span class="stat-value" id="selectedCount">{{ order.selected_count }} 张</span>
+                {% include "partials/selection_count.html" with context %}
             </div>
             <div class="stat-item">
                 <span class="stat-label">套餐包含</span>
-                <span class="stat-value">{{ order.photo_count or 0 }} 张</span>
+                <span class="stat-value" id="packageCount">{{ order.photo_count or 0 }} 张</span>
             </div>
-            {% if order.selected_count > (order.photo_count or 0) %}
-            <div class="stat-item warning">
+            <div class="stat-item warning" id="overCountBox" style="{% if order.selected_count <= (order.photo_count or 0) %}display:none{% endif %}">
                 <span class="stat-label">超出</span>
-                <span class="stat-value">{{ order.selected_count - (order.photo_count or 0) }} 张</span>
+                <span class="stat-value" id="overCount">{{ order.selected_count - (order.photo_count or 0) if order.selected_count > (order.photo_count or 0) else 0 }} 张</span>
             </div>
-            {% endif %}
         </div>
     </div>
     <div class="selection-actions">
-        <button class="btn btn-secondary" onclick="selectAllPhotos()">全选</button>
-        <button class="btn btn-ghost" onclick="clearAllPhotos()">清除</button>
-        <button class="btn btn-ghost" onclick="invertSelection()">反选</button>
+        <button class="btn btn-secondary" onclick="batchSelectAll()">全选</button>
+        <button class="btn btn-ghost" onclick="batchClearAll()">清除</button>
+        <button class="btn btn-ghost" onclick="batchInvert()">反选</button>
     </div>
 </div>
 
@@ -48,15 +46,17 @@
     <div class="card-body">
         <div class="photo-grid photo-grid-selectable" id="photoGrid">
             {% for photo in photo_selections %}
-            <div class="photo-item {% if photo.is_selected %}selected{% endif %}" 
+            <div class="photo-item {% if photo.is_selected %}selected{% endif %}"
+                 id="photoItem-{{ photo.id }}"
                  data-photo-id="{{ photo.id }}"
-                 onclick="togglePhoto(this, {{ photo.id }})"
                  hx-post="/api/orders/{{ order.id }}/photos/{{ photo.id }}/toggle"
-                 hx-trigger="click from:body"
+                 hx-trigger="click"
                  hx-target="#selectedCount"
-                 hx-swap="innerHTML">
-                <img src="{{ photo.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ photo.photo_key }}">
-                <div class="photo-checkbox">
+                 hx-swap="outerHTML"
+                 hx-confirm=""
+                 style="cursor:pointer;">
+                <img src="{{ photo.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ photo.photo_key }}" onclick="event.stopPropagation()">
+                <div class="photo-checkbox" onclick="event.stopPropagation()">
                     <div class="photo-checkbox-inner">
                         <span class="check-icon">✓</span>
                     </div>
@@ -73,14 +73,17 @@
         <span class="toolbar-text">
             已选择 <strong id="toolbarSelectedCount">{{ order.selected_count }}</strong> 张照片
             {% if order.photo_count and order.selected_count > order.photo_count %}
-            <span class="toolbar-warning">（超出套餐 {{ order.selected_count - order.photo_count }} 张）</span>
+            <span class="toolbar-warning" id="toolbarOverWarning">（超出套餐 {{ order.selected_count - order.photo_count }} 张）</span>
+            {% else %}
+            <span class="toolbar-warning" id="toolbarOverWarning" style="display:none"></span>
             {% endif %}
         </span>
     </div>
     <div class="toolbar-right">
         <button class="btn btn-ghost" onclick="location.href='/orders/{{ order.id }}'">取消</button>
-        <button class="btn btn-primary btn-lg" 
-                onclick="confirmSelection()"
+        <button class="btn btn-primary btn-lg"
+                id="confirmBtn"
+                onclick="openConfirmModal()"
                 {% if order.selected_count == 0 %}disabled{% endif %}>
             <span>✓</span> 确认选片
         </button>
@@ -111,14 +114,195 @@
         </div>
         <div class="modal-actions">
             <button class="btn btn-ghost" onclick="closeModal(null, 'confirmModal')">再想想</button>
-            <button class="btn btn-primary" 
+            <button class="btn btn-primary"
+                    id="confirmSubmitBtn"
                     hx-post="/api/orders/{{ order.id }}/confirm-selection"
                     hx-target="#confirmModal"
-                    hx-swap="outerHTML"
+                    hx-swap="innerHTML"
                     hx-redirect="/orders/{{ order.id }}">
                 确认提交
             </button>
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var ORDER_ID = {{ order.id | tojson }};
+    var PHOTO_IDS = [
+        {% for photo in photo_selections %}
+        {{ photo.id }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    var PACKAGE_COUNT = {{ (order.photo_count or 0) | int }};
+
+    function updateCounters(count) {
+        var total = PHOTO_IDS.length;
+
+        document.getElementById('toolbarSelectedCount').textContent = count;
+        var modalCount = document.getElementById('confirmCount');
+        if (modalCount) modalCount.textContent = count;
+
+        var over = Math.max(0, count - PACKAGE_COUNT);
+        var overBox = document.getElementById('overCountBox');
+        var overEl = document.getElementById('overCount');
+        if (overBox) overBox.style.display = over > 0 ? '' : 'none';
+        if (overEl) overEl.textContent = over;
+
+        var warnEl = document.getElementById('toolbarOverWarning');
+        if (warnEl) {
+            if (over > 0) {
+                warnEl.style.display = '';
+                warnEl.textContent = '（超出套餐 ' + over + ' 张）';
+            } else {
+                warnEl.style.display = 'none';
+                warnEl.textContent = '';
+            }
+        }
+
+        var btn = document.getElementById('confirmBtn');
+        if (btn) {
+            if (count === 0) btn.setAttribute('disabled', 'disabled');
+            else btn.removeAttribute('disabled');
+        }
+    }
+
+    document.body.addEventListener('htmx:responseHeader', function(evt) {
+        var headers = evt.detail.xhr ? evt.detail.xhr.getAllResponseHeaders() : '';
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target && evt.detail.target.id === 'selectedCount') {
+            var newCountEl = document.getElementById('selectedCount');
+            if (!newCountEl) return;
+            var m = newCountEl.textContent.match(/(\d+)/);
+            if (m) updateCounters(parseInt(m[1], 10));
+        }
+    });
+
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        var elt = evt.detail.elt;
+        if (!elt || !elt.classList || !elt.classList.contains('photo-item')) return;
+        if (evt.detail.verb !== 'post') return;
+        var photoId = elt.getAttribute('data-photo-id');
+        if (!photoId) return;
+        var selected = elt.classList.toggle('selected');
+        if (!selected) elt.classList.remove('selected');
+    });
+
+    function _getPhotoItem(id) {
+        return document.getElementById('photoItem-' + id);
+    }
+
+    function _selectedIds() {
+        return PHOTO_IDS.filter(function(id) {
+            var it = _getPhotoItem(id);
+            return it && it.classList.contains('selected');
+        });
+    }
+
+    function _unselectedIds() {
+        return PHOTO_IDS.filter(function(id) {
+            var it = _getPhotoItem(id);
+            return it && !it.classList.contains('selected');
+        });
+    }
+
+    function _syncAllSelection(selectedMap) {
+        for (var i = 0; i < PHOTO_IDS.length; i++) {
+            var id = PHOTO_IDS[i];
+            var it = _getPhotoItem(id);
+            if (!it) continue;
+            var sel = !!selectedMap[id];
+            it.classList.toggle('selected', sel);
+        }
+        var cnt = Object.values(selectedMap).filter(Boolean).length;
+        var span = document.createElement('span');
+        span.id = 'selectedCount';
+        span.textContent = cnt + ' 张';
+        var cur = document.getElementById('selectedCount');
+        if (cur && cur.parentNode) cur.parentNode.replaceChild(span, cur);
+        updateCounters(cnt);
+    }
+
+    function _batchSubmit(ids, is_selected) {
+        if (!ids || ids.length === 0) return;
+        var formData = new FormData();
+        formData.append('photo_ids', ids.join(','));
+        formData.append('is_selected', is_selected ? 'true' : 'false');
+        htmx.ajax('POST', '/api/orders/' + ORDER_ID + '/photos/batch', {
+            target: '#selectedCount',
+            swap: 'outerHTML',
+            values: {
+                photo_ids: ids.join(','),
+                is_selected: is_selected
+            },
+            headers: {
+                'HX-Request': 'true'
+            }
+        }).then(function() {
+            var cur = document.getElementById('selectedCount');
+            if (cur) {
+                var m = cur.textContent.match(/(\d+)/);
+                if (m) updateCounters(parseInt(m[1], 10));
+            }
+        });
+    }
+
+    window.batchSelectAll = function() {
+        var toSelect = _unselectedIds();
+        for (var i = 0; i < toSelect.length; i++) {
+            var it = _getPhotoItem(toSelect[i]);
+            if (it) it.classList.add('selected');
+        }
+        _batchSubmit(toSelect, true);
+    };
+
+    window.batchClearAll = function() {
+        var toClear = _selectedIds();
+        for (var i = 0; i < toClear.length; i++) {
+            var it = _getPhotoItem(toClear[i]);
+            if (it) it.classList.remove('selected');
+        }
+        _batchSubmit(toClear, false);
+    };
+
+    window.batchInvert = function() {
+        var selected = _selectedIds();
+        var unselected = _unselectedIds();
+        for (var i = 0; i < selected.length; i++) {
+            var it = _getPhotoItem(selected[i]);
+            if (it) it.classList.remove('selected');
+        }
+        for (var j = 0; j < unselected.length; j++) {
+            var it2 = _getPhotoItem(unselected[j]);
+            if (it2) it2.classList.add('selected');
+        }
+        _batchSubmit(unselected, true);
+        _batchSubmit(selected, false);
+    };
+
+    window.openConfirmModal = function() {
+        var cur = document.getElementById('selectedCount');
+        if (cur) {
+            var m = cur.textContent.match(/(\d+)/);
+            if (m) {
+                var cnt = parseInt(m[1], 10);
+                if (cnt === 0) return;
+                document.getElementById('confirmCount').textContent = cnt;
+            }
+        }
+        var m = document.getElementById('confirmModal');
+        if (m) m.style.display = 'flex';
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var cur = document.getElementById('selectedCount');
+        if (cur) {
+            var m = cur.textContent.match(/(\d+)/);
+            if (m) updateCounters(parseInt(m[1], 10));
+        }
+    });
+})();
+</script>
 {% endblock %}

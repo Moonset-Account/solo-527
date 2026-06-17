@@ -183,6 +183,79 @@ class ExceptionService:
         self.db.refresh(ticket)
         return ticket
 
+    def handle_exception_form(
+        self, ticket_id: int, status: str, result: str, reason: str,
+        remark: Optional[str], current_user: User
+    ) -> ExceptionTicket:
+        ticket = self.get_exception(ticket_id, current_user)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="异常工单不存在")
+        
+        if ticket.assignee_id and ticket.assignee_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="无权处理此工单")
+        
+        try:
+            new_status = ExceptionStatus(status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"无效的工单状态: {status}")
+        
+        if not ticket.assignee_id:
+            ticket.assignee_id = current_user.id
+        
+        old_status = ticket.status
+        
+        if old_status == ExceptionStatus.PENDING and new_status in (ExceptionStatus.PROCESSING, ExceptionStatus.RESOLVED):
+            log1 = ExceptionLog(
+                ticket_id=ticket.id,
+                action="开始处理",
+                operator_id=current_user.id
+            )
+            self.db.add(log1)
+        
+        parts = []
+        if result:
+            parts.append(f"处理结果: {result}")
+        if reason:
+            parts.append(f"原因分析: {reason}")
+        if remark:
+            parts.append(f"备注: {remark}")
+        full_resolution = "\n".join(parts) if parts else None
+        if full_resolution:
+            ticket.resolution = full_resolution
+        
+        if new_status == ExceptionStatus.RESOLVED:
+            ticket.resolved_at = datetime.now()
+            ticket.resolved_by = current_user.id
+            log_done = ExceptionLog(
+                ticket_id=ticket.id,
+                action="处理完成",
+                remark=full_resolution or "处理结果已提交",
+                operator_id=current_user.id
+            )
+            self.db.add(log_done)
+        
+        if new_status != old_status:
+            ticket.status = new_status
+            log_status = ExceptionLog(
+                ticket_id=ticket.id,
+                action=f"状态变更: {old_status} -> {new_status}",
+                operator_id=current_user.id
+            )
+            self.db.add(log_status)
+        elif full_resolution and new_status == ExceptionStatus.PROCESSING:
+            log_upd = ExceptionLog(
+                ticket_id=ticket.id,
+                action="更新处理信息",
+                remark=full_resolution,
+                operator_id=current_user.id
+            )
+            self.db.add(log_upd)
+        
+        ticket.updated_at = datetime.now()
+        self.db.commit()
+        self.db.refresh(ticket)
+        return ticket
+
     def close_exception(self, ticket_id: int, current_user: User) -> ExceptionTicket:
         ticket = self.get_exception(ticket_id, current_user)
         if not ticket:

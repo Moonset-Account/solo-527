@@ -8,7 +8,8 @@ import os
 from ..config import settings
 from ..database import get_db
 from ..auth import get_current_user
-from ..models import User
+from sqlalchemy import and_
+from ..models import User, PhotoSelection
 from ..schemas import (
     BatchPhotoSelection, OrderCreate, OrderUpdate, OrderStatus,
     ExceptionTicketCreate, ExceptionTicketUpdate, UserCreate, UserUpdate,
@@ -29,15 +30,21 @@ async def toggle_photo_selection(
     request: Request,
     order_id: int,
     photo_id: int,
-    is_selected: bool = Form(...),
-    selection_note: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     order_service = OrderService(db)
     
+    existing = db.query(PhotoSelection).filter(
+        and_(PhotoSelection.id == photo_id, PhotoSelection.order_id == order_id)
+    ).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    
+    new_is_selected = not existing.is_selected
+    
     selection = order_service.update_photo_selection(
-        order_id, photo_id, is_selected, selection_note, current_user
+        order_id, photo_id, new_is_selected, None, current_user
     )
     
     order = order_service.get_order(order_id, current_user)
@@ -45,7 +52,8 @@ async def toggle_photo_selection(
     
     selected_count = sum(1 for p in photo_selections if p.is_selected)
     
-    return templates.TemplateResponse(
+    from fastapi.responses import HTMLResponse as HTML
+    resp = templates.TemplateResponse(
         "partials/selection_count.html",
         {
             "request": request,
@@ -55,6 +63,8 @@ async def toggle_photo_selection(
             "selected_count": selected_count
         }
     )
+    resp.headers["HX-Trigger-After-Swap"] = '{"selectionChanged": {"count": ' + str(selected_count) + ', "photoId": ' + str(photo_id) + ', "selected": ' + str(bool(new_is_selected)).lower() + '}}'
+    return resp
 
 
 @router.post("/orders/{order_id}/photos/batch")
@@ -195,6 +205,70 @@ async def update_order_status_api(
     return ApiResponse(code=200, message="状态更新成功", data={"id": order.id, "status": order.status})
 
 
+@router.post("/orders/{order_id}/status-form")
+async def update_order_status_form(
+    request: Request,
+    order_id: int,
+    status: str = Form(...),
+    remark: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    order_service = OrderService(db)
+    try:
+        enum_status = OrderStatus(status)
+    except ValueError:
+        return HTMLResponse(
+            content=f"<div class='alert alert-error'>无效的订单状态: {status}</div>",
+            status_code=400
+        )
+    try:
+        order = order_service.update_order_status(order_id, enum_status, current_user)
+        status_label = {
+            'pending': '待开始', 'shooting': '拍摄中', 'selecting': '选片中',
+            'selected': '已选片', 'editing': '精修中', 'delivered': '已交付',
+            'confirmed': '已确认', 'completed': '已完成', 'cancelled': '已取消'
+        }.get(order.status, order.status)
+        return HTMLResponse(
+            content=f"""
+            <div id="statusModal" class="modal-overlay" style="display:flex;">
+                <div class="modal modal-medium">
+                    <div class="modal-header">
+                        <h3 class="modal-title">状态更新成功</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success" style="margin-bottom:16px;">
+                            订单状态已更新为: <strong>{status_label}</strong>
+                        </div>
+                        <p class="text-muted">3 秒后自动刷新订单详情页...</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-primary" onclick="window.location.href='/orders/{order_id}'">
+                            立即刷新
+                        </button>
+                    </div>
+                    <script>
+                        setTimeout(function() {{ window.location.href = '/orders/{order_id}'; }}, 3000);
+                    </script>
+                </div>
+            </div>
+            """,
+            status_code=200
+        )
+    except HTTPException as e:
+        return HTMLResponse(
+            content=f"""
+            <div class="alert alert-error">
+                操作失败: {e.detail}
+            </div>
+            <div class="modal-actions" style="margin-top:16px;">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('statusModal').style.display='none'">关闭</button>
+            </div>
+            """,
+            status_code=400
+        )
+
+
 @router.post("/files/{file_id}/download")
 async def mark_file_downloaded(
     file_id: int,
@@ -213,6 +287,36 @@ async def mark_file_downloaded(
         )
     
     return ApiResponse(code=404, message="文件不存在")
+
+
+@router.get("/files/{file_id}/download")
+async def download_file_get(
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    order_service = OrderService(db)
+    file = order_service.mark_file_downloaded(file_id, current_user)
+    
+    file_path = os.path.join(settings.UPLOAD_DIR, file.file_path)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    return FileResponse(
+        path=file_path,
+        filename=file.file_name,
+        media_type="application/octet-stream"
+    )
+
+
+@router.get("/orders/{order_id}/files/{file_id}/download")
+async def download_order_file_get(
+    order_id: int,
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return await download_file_get(file_id, current_user, db)
 
 
 @router.post("/exceptions")
@@ -264,6 +368,104 @@ async def process_exception_api(
         """,
         status_code=200
     )
+
+
+@router.post("/exceptions/{ticket_id}/handle")
+async def handle_exception_form_api(
+    request: Request,
+    ticket_id: int,
+    status: str = Form(...),
+    result: str = Form(...),
+    reason: str = Form(...),
+    remark: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    exception_service = ExceptionService(db)
+    try:
+        ticket = exception_service.handle_exception_form(
+            ticket_id, status, result, reason, remark, current_user
+        )
+        status_label = {
+            'pending': '待处理', 'processing': '处理中',
+            'resolved': '已解决', 'closed': '已关闭'
+        }.get(ticket.status, ticket.status)
+        return HTMLResponse(
+            content=f"""
+            <div id="handleModal" class="modal-overlay" style="display:flex;">
+                <div class="modal modal-medium">
+                    <div class="modal-header">
+                        <h3 class="modal-title">提交成功</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success" style="margin-bottom:16px;">
+                            异常工单处理完成！工单状态已更新为：<strong>{status_label}</strong>
+                        </div>
+                        <p class="text-muted">3 秒后自动刷新异常池列表...</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-primary" onclick="window.location.href='/exceptions'">
+                            立即刷新
+                        </button>
+                    </div>
+                    <script>
+                        setTimeout(function() {{ window.location.href = '/exceptions'; }}, 3000);
+                    </script>
+                </div>
+            </div>
+            """,
+            status_code=200
+        )
+    except HTTPException as e:
+        return HTMLResponse(
+            content=f"""
+            <div class="alert alert-error">
+                操作失败: {e.detail}
+            </div>
+            <div class="modal-actions" style="margin-top:16px;">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('handleModal').style.display='none'">关闭</button>
+            </div>
+            """,
+            status_code=400
+        )
+
+
+@router.post("/exceptions/{ticket_id}/close-form")
+async def close_exception_form_api(
+    ticket_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    exception_service = ExceptionService(db)
+    try:
+        ticket = exception_service.close_exception(ticket_id, current_user)
+        return HTMLResponse(
+            content=f"""
+            <div id="handleModal" class="modal-overlay" style="display:flex;">
+                <div class="modal modal-medium">
+                    <div class="modal-header">
+                        <h3 class="modal-title">关闭成功</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success">工单已成功关闭！</div>
+                        <p class="text-muted">3 秒后自动刷新...</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-primary" onclick="window.location.href='/exceptions'">立即刷新</button>
+                    </div>
+                    <script>
+                        setTimeout(function() {{ window.location.href = '/exceptions'; }}, 3000);
+                    </script>
+                </div>
+            </div>
+            """,
+            status_code=200
+        )
+    except HTTPException as e:
+        return HTMLResponse(
+            content=f"<div class='alert alert-error'>关闭失败: {e.detail}</div>",
+            status_code=400
+        )
 
 
 @router.post("/exceptions/{ticket_id}/close")
@@ -392,4 +594,43 @@ async def auto_detect_exceptions_api(
         code=200,
         message=f"检测完成，发现 {len(detected)} 个新异常",
         data={"count": len(detected)}
+    )
+
+
+@router.get("/exceptions/{ticket_id}/logs")
+async def get_exception_logs_api(
+    ticket_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    exception_service = ExceptionService(db)
+    logs = exception_service.get_exception_logs(ticket_id, current_user)
+    if not logs:
+        return HTMLResponse(
+            content='<p class="text-muted" style="text-align:center;padding:24px;">暂无处理记录</p>',
+            status_code=200
+        )
+    def _status_label(s):
+        return {'pending':'待处理','processing':'处理中','resolved':'已解决','closed':'已关闭'}.get(s, s)
+    rows = []
+    for lg in logs:
+        op_name = '-'
+        try:
+            if lg.operator:
+                op_name = lg.operator.name
+        except Exception:
+            pass
+        rows.append(f"""
+        <div class="log-item" style="padding:12px 16px;border-left:3px solid #e5e7eb;margin-bottom:12px;background:#fafafa;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <strong style="font-size:14px;">{lg.action or '-'}</strong>
+                <span style="font-size:12px;color:#6b7280;">{lg.created_at.strftime('%Y-%m-%d %H:%M') if lg.created_at else '-'}</span>
+            </div>
+            <div style="font-size:13px;color:#4b5563;">操作人: {op_name or '系统'}</div>
+            {f'<div style="font-size:13px;color:#374151;margin-top:6px;white-space:pre-line;">{lg.remark or ""}</div>' if lg.remark else ''}
+        </div>
+        """)
+    return HTMLResponse(
+        content='<div style="max-height:60vh;overflow:auto;">' + ''.join(rows) + '</div>',
+        status_code=200
     )

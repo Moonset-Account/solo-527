@@ -206,6 +206,7 @@ async def order_detail_page(
 
 
 @router.get("/orders/{order_id}/select", response_class=HTMLResponse)
+@router.get("/orders/{order_id}/select/", response_class=HTMLResponse)
 async def order_select_page(
     request: Request,
     order_id: int,
@@ -383,11 +384,56 @@ async def admin_users_page(
 async def trace_satisfaction_page(
     request: Request,
     current_user: User = Depends(get_current_user),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    photographer_id: Optional[int] = None,
+    min_rating: Optional[int] = None,
+    status: Optional[str] = None,
+    page: int = 1,
     db: Session = Depends(get_db)
 ):
+    from datetime import datetime as _dt
     trace_service = TraceService(db)
     
-    filter_params = SatisfactionTraceFilter(exclude_test_data=True)
+    sd = None
+    ed = None
+    try:
+        if start_date and start_date.strip():
+            sd = _dt.strptime(start_date, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        sd = None
+    try:
+        if end_date and end_date.strip():
+            ed = _dt.strptime(end_date, "%Y-%m-%d")
+            ed = ed.replace(hour=23, minute=59, second=59)
+    except (ValueError, TypeError):
+        ed = None
+    
+    order_status_enum = None
+    try:
+        if status:
+            order_status_enum = OrderStatus(status)
+    except ValueError:
+        order_status_enum = None
+    
+    filter_params = SatisfactionTraceFilter(
+        exclude_test_data=True,
+        start_date=sd,
+        end_date=ed,
+        photographer_id=photographer_id,
+        min_rating=min_rating,
+        order_status=order_status_enum
+    )
+    
+    class _FilterProxy:
+        pass
+    fp = _FilterProxy()
+    fp.start_date = sd
+    fp.end_date = ed
+    fp.photographer_id = photographer_id
+    fp.min_rating = min_rating
+    fp.order_status = status
+    
     stats = trace_service.get_satisfaction_stats(filter_params, current_user)
     details = trace_service.get_satisfaction_details(filter_params, current_user)
     
@@ -397,7 +443,7 @@ async def trace_satisfaction_page(
             request, current_user,
             stats=stats,
             details=details,
-            filter_params=filter_params
+            filter_params=fp
         )
     )
 
@@ -406,14 +452,57 @@ async def trace_satisfaction_page(
 async def exceptions_page(
     request: Request,
     current_user: User = Depends(get_current_user),
+    type: Optional[str] = None,
+    status: Optional[str] = None,
+    handler_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
     page: int = 1,
     page_size: int = 20,
     db: Session = Depends(get_db)
 ):
+    from datetime import datetime as _dt
     exception_service = ExceptionService(db)
     
+    ex_type_enum = None
+    try:
+        if type:
+            ex_type_enum = ExceptionType(type)
+    except ValueError:
+        ex_type_enum = None
+    
+    ex_status_enum = None
+    try:
+        if status:
+            ex_status_enum = ExceptionStatus(status)
+    except ValueError:
+        ex_status_enum = None
+    
+    sd = None
+    ed = None
+    try:
+        if start_date and start_date.strip():
+            sd = _dt.strptime(start_date, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        sd = None
+    try:
+        if end_date and end_date.strip():
+            ed = _dt.strptime(end_date, "%Y-%m-%d")
+            ed = ed.replace(hour=23, minute=59, second=59)
+    except (ValueError, TypeError):
+        ed = None
+    
     exceptions = exception_service.list_exceptions(
-        current_user, page=page, page_size=page_size
+        current_user,
+        exception_type=ex_type_enum,
+        status=ex_status_enum,
+        assignee_id=handler_id,
+        start_date=sd,
+        end_date=ed,
+        keyword=search,
+        page=page,
+        page_size=page_size
     )
     stats = exception_service.get_exception_stats(current_user)
     
@@ -422,7 +511,13 @@ async def exceptions_page(
         get_template_context(
             request, current_user,
             exceptions=exceptions,
-            stats=stats
+            stats=stats,
+            exception_type=type,
+            status=status,
+            handler_id=handler_id,
+            start_date=start_date,
+            end_date=end_date,
+            search=search
         )
     )
 

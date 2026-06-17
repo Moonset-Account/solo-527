@@ -22,18 +22,18 @@
                 <span class="stat-value">{{ delivery_files|length }} 个</span>
             </div>
             <div class="stat-item highlight">
-                <span class="stat-label">总大小</span>
-                <span class="stat-value">{{ delivery_files|sum(attribute='file_size') }} 字节</span>
+                <span class="stat-label">已下载</span>
+                <span class="stat-value" id="downloadedCount">{{ delivery_files|selectattr('is_downloaded', 'equalto', True)|list|length }} 个</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">已下载</span>
-                <span class="stat-value" id="downloadedCount">0 个</span>
+                <span class="stat-label">剩余</span>
+                <span class="stat-value" id="remainCount">{{ delivery_files|rejectattr('is_downloaded', 'equalto', True)|list|length }} 个</span>
             </div>
         </div>
     </div>
     <div class="download-actions">
         <button class="btn btn-primary btn-lg" onclick="downloadAll()">
-            <span>⬇️</span> 全部下载
+            <span>⬇️</span> 依次下载全部
         </button>
     </div>
 </div>
@@ -46,12 +46,12 @@
     <div class="card-body">
         <div class="file-list file-list-download" id="fileList">
             {% for file in delivery_files %}
-            <div class="file-item" data-file-id="{{ file.id }}">
+            <div class="file-item" id="fileItem-{{ file.id }}" data-file-id="{{ file.id }}" data-downloaded="{{ 'true' if file.is_downloaded else 'false' }}">
                 <div class="file-preview">
                     {% if file.file_type == 'image' %}
-                    <img src="/static/images/placeholder.svg" alt="{{ file.file_name }}">
+                    <img src="{{ file.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ file.file_name }}" onclick="previewFile({{ file.id }})">
                     {% else %}
-                    <div class="file-icon-large">
+                    <div class="file-icon-large" onclick="previewFile({{ file.id }})">
                         {% if file.file_type == 'video' %}🎬
                         {% elif file.file_type == 'archive' %}📦
                         {% else %}📄{% endif %}
@@ -59,22 +59,39 @@
                     {% endif %}
                 </div>
                 <div class="file-info">
-                    <div class="file-name" onclick="previewFile({{ file.id }})">{{ file.file_name }}</div>
+                    <div class="file-name" onclick="previewFile({{ file.id }})" style="cursor:pointer;">
+                        {{ file.file_name }}
+                        {% if file.is_downloaded %}
+                        <span class="badge badge-success" style="margin-left:8px;">已下载</span>
+                        {% endif %}
+                    </div>
                     <div class="file-meta">
-                        <span>{{ file.file_size }}</span>
+                        <span>{{ '%.2f MB'|format((file.file_size or 0) / (1024 * 1024)) }}</span>
                         <span>·</span>
-                        <span>{{ file.file_type }}</span>
+                        <span>{{ file.file_type or '其他' }}</span>
                         <span>·</span>
-                        <span>{{ file.uploaded_at.strftime('%Y-%m-%d') }}</span>
+                        <span>{{ file.uploaded_at.strftime('%Y-%m-%d') if file.uploaded_at else '-' }}</span>
+                        {% if file.last_downloaded_at %}
+                        <span>·</span>
+                        <span>上次下载: {{ file.last_downloaded_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="file-actions">
-                    <button class="btn btn-secondary btn-sm" onclick="downloadFile({{ file.id }})">
+                    <a class="btn btn-secondary btn-sm" 
+                       href="/api/files/{{ file.id }}/download"
+                       onclick="markDownloading({{ file.id }})"
+                       target="_blank" rel="noopener">
                         <span>⬇️</span> 下载
-                    </button>
+                    </a>
                 </div>
             </div>
             {% endfor %}
+            {% if not delivery_files %}
+            <div class="empty-state-mini">
+                <p>暂时没有可下载的文件，请等待文件上传完成</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -85,7 +102,7 @@
         <h4>下载提示</h4>
         <ul>
             <li>建议使用电脑浏览器下载，避免文件损坏</li>
-            <li>全部下载功能会打包所有文件为一个压缩包</li>
+            <li>"依次下载全部" 会按顺序触发所有文件的浏览器下载</li>
             <li>文件有效期为 30 天，请及时保存</li>
             <li>如遇下载问题，请联系客服处理</li>
         </ul>
@@ -103,9 +120,111 @@
             </div>
         </div>
         <div class="modal-actions">
-            <button class="btn btn-ghost" onclick="closeModal(null, 'previewModal')">关闭</button>
-            <button class="btn btn-primary" onclick="downloadCurrentPreview()">下载此文件</button>
+            <button type="button" class="btn btn-ghost" onclick="closeModal(null, 'previewModal')">关闭</button>
+            <button type="button" class="btn btn-primary" id="previewDownloadBtn" onclick="downloadCurrentPreview()">下载此文件</button>
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var FILE_IDS = [
+        {% for file in delivery_files %}
+        {{ file.id }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    var currentPreviewId = null;
+
+    function _fmtSize(b) {
+        b = b || 0;
+        if (b < 1024) return b + ' B';
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+        return (b / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function recountDownloads() {
+        var done = 0;
+        FILE_IDS.forEach(function(id) {
+            var it = document.getElementById('fileItem-' + id);
+            if (it && it.getAttribute('data-downloaded') === 'true') done++;
+        });
+        var doneEl = document.getElementById('downloadedCount');
+        if (doneEl) doneEl.textContent = done + ' 个';
+        var remEl = document.getElementById('remainCount');
+        if (remEl) remEl.textContent = (FILE_IDS.length - done) + ' 个';
+    }
+
+    window.markDownloading = function(id) {
+        var it = document.getElementById('fileItem-' + id);
+        if (!it) return;
+        it.setAttribute('data-downloaded', 'true');
+        var badgePlaceholder = it.querySelector('.file-name .badge');
+        if (!badgePlaceholder) {
+            var nameEl = it.querySelector('.file-name');
+            if (nameEl) {
+                var b = document.createElement('span');
+                b.className = 'badge badge-success';
+                b.style.marginLeft = '8px';
+                b.textContent = '已下载';
+                nameEl.appendChild(b);
+            }
+        }
+        recountDownloads();
+    };
+
+    window.downloadFile = function(id) {
+        markDownloading(id);
+        window.open('/api/files/' + id + '/download', '_blank', 'noopener');
+    };
+
+    window.downloadAll = function() {
+        var delay = 0;
+        FILE_IDS.forEach(function(id, idx) {
+            setTimeout(function() {
+                markDownloading(id);
+                var a = document.createElement('a');
+                a.href = '/api/files/' + id + '/download';
+                a.target = '_blank';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }, delay);
+            delay += 400;
+        });
+    };
+
+    window.previewFile = function(id) {
+        currentPreviewId = id;
+        var it = document.getElementById('fileItem-' + id);
+        var name = it ? it.querySelector('.file-name').textContent.trim() : ('文件 #' + id);
+        var titleEl = document.getElementById('previewTitle');
+        if (titleEl) titleEl.textContent = '预览 - ' + name;
+
+        var content = document.getElementById('previewContent');
+        if (!content) return;
+
+        var img = it ? it.querySelector('img') : null;
+        if (img) {
+            content.innerHTML = '<div style="text-align:center;"><img src="' + (img.getAttribute('src')) + '" style="max-width:100%;max-height:60vh;"></div>';
+        } else {
+            content.innerHTML = '<div style="padding:40px;text-align:center;"><div style="font-size:72px;">📄</div><p style="margin-top:16px;color:#6b7280;">此类型文件暂不支持在线预览，请点击下方按钮下载</p></div>';
+        }
+        var m = document.getElementById('previewModal');
+        if (m) m.style.display = 'flex';
+    };
+
+    window.downloadCurrentPreview = function() {
+        if (currentPreviewId) {
+            downloadFile(currentPreviewId);
+        }
+    };
+
+    window.closeModal = function(evt, id) {
+        if (evt && evt.target !== evt.currentTarget) return;
+        var m = document.getElementById(id);
+        if (m) m.style.display = 'none';
+    };
+})();
+</script>
 {% endblock %}

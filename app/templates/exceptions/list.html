@@ -113,7 +113,8 @@
             <div class="exception-card {% if exception.status == 'pending' %}exception-pending
                                       {% elif exception.status == 'processing' %}exception-processing
                                       {% elif exception.status == 'resolved' %}exception-resolved
-                                      {% else %}exception-closed{% endif %}">
+                                      {% else %}exception-closed{% endif %}"
+                 id="ticketCard-{{ exception.id }}">
                 <div class="exception-header">
                     <div class="exception-title-row">
                         <h4 class="exception-title">{{ exception.title }}</h4>
@@ -129,9 +130,7 @@
                         </span>
                         <span class="badge 
                             {% if exception.status == 'pending' %}badge-danger
-                            {% elif exception.status == 'processing' %}badge-warning
-                            {% elif exception.status == 'resolved' %}badge-success
-                            {% else %}badge-secondary{% endif %}">
+                            {% elif exception.status == 'processing' %}badge-warning{% endif %}">
                             {% if exception.status == 'pending' %}待处理
                             {% elif exception.status == 'processing' %}处理中
                             {% elif exception.status == 'resolved' %}已解决
@@ -139,6 +138,8 @@
                         </span>
                     </div>
                     <div class="exception-meta">
+                        <span>工单编号：<code>#TK{{ '%05d' % exception.id }}</code></span>
+                        <span>·</span>
                         <span>订单号：<code>{{ exception.order.order_no if exception.order else '-' }}</code></span>
                         <span>·</span>
                         <span>客户：{{ exception.order.customer_name if exception.order else '-' }}</span>
@@ -172,7 +173,7 @@
                     
                     {% if exception.resolution %}
                     <div class="exception-result">
-                        <p><strong>处理结果：</strong>{{ exception.resolution }}</p>
+                        <p><strong>处理结果：</strong><br><span style="white-space:pre-line;">{{ exception.resolution }}</span></p>
                     </div>
                     {% endif %}
                 </div>
@@ -184,6 +185,10 @@
                             <span class="logs-count">{{ exception.logs|length }} 条处理记录</span>
                             <button class="btn btn-link btn-sm" onclick="showLogs({{ exception.id }})">查看详情</button>
                         </div>
+                        {% else %}
+                        <div class="exception-logs-preview">
+                            <span class="logs-count">暂无处理记录</span>
+                        </div>
                         {% endif %}
                     </div>
                     <div class="exception-actions">
@@ -193,8 +198,11 @@
                         </button>
                         {% endif %}
                         {% if exception.status == 'resolved' and current_user.role == 'admin' %}
-                        <button class="btn btn-success btn-sm" onclick="closeException({{ exception.id }})">
-                            <span>✓</span> 关闭
+                        <button class="btn btn-success btn-sm" 
+                                hx-post="/api/exceptions/{{ exception.id }}/close-form"
+                                hx-target="body"
+                                hx-swap="beforeend">
+                            <span>✓</span> 关闭工单
                         </button>
                         {% endif %}
                         <a href="/orders/{{ exception.order_id }}" class="btn btn-secondary btn-sm">查看订单</a>
@@ -235,29 +243,32 @@
 <div id="handleModal" class="modal-overlay" onclick="closeModal(event, 'handleModal')">
     <div class="modal modal-large" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h3 class="modal-title">处理异常工单</h3>
+            <h3 class="modal-title">处理异常工单 <code id="handleTicketTag"></code></h3>
             <button class="modal-close" onclick="closeModal(null, 'handleModal')">×</button>
         </div>
         <div class="modal-body">
-            <form id="handleForm" hx-post="/api/exceptions/0/handle" hx-target="#handleModal" hx-swap="outerHTML">
+            <form id="handleForm" 
+                  hx-post="/api/exceptions/PLACEHOLDER/handle"
+                  hx-target="body"
+                  hx-swap="beforeend">
                 <div class="form-group">
-                    <label class="form-label">状态</label>
+                    <label class="form-label">工单状态</label>
                     <select name="status" class="form-select" required>
-                        <option value="processing">处理中</option>
-                        <option value="resolved">已解决</option>
+                        <option value="processing">处理中（正在处理，未解决）</option>
+                        <option value="resolved">已解决（处理完成，等待关闭）</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">处理结果 <span class="required">*</span></label>
-                    <textarea name="result" class="form-textarea" rows="4" required placeholder="请详细描述处理结果"></textarea>
+                    <textarea name="result" class="form-textarea" rows="3" required placeholder="请详细描述采取了哪些处理措施、最终结果如何"></textarea>
                 </div>
                 <div class="form-group">
                     <label class="form-label">原因分析 <span class="required">*</span></label>
-                    <textarea name="reason" class="form-textarea" rows="4" required placeholder="请分析异常产生的原因"></textarea>
+                    <textarea name="reason" class="form-textarea" rows="3" required placeholder="请分析导致异常的根本原因"></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">备注</label>
-                    <textarea name="remark" class="form-textarea" rows="2" placeholder="可选，其他需要说明的内容"></textarea>
+                    <label class="form-label">补充备注</label>
+                    <textarea name="remark" class="form-textarea" rows="2" placeholder="可选，其他需要记录的内容"></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-ghost" onclick="closeModal(null, 'handleModal')">取消</button>
@@ -276,6 +287,7 @@
         </div>
         <div class="modal-body">
             <div id="logsContent" class="logs-content">
+                <p class="text-muted" style="text-align:center;padding:24px;">加载中...</p>
             </div>
         </div>
         <div class="modal-actions">
@@ -283,4 +295,72 @@
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    var TICKET_LOGS_CACHE = {};
+
+    window.closeModal = function(evt, id) {
+        if (evt && evt.target && evt.currentTarget && evt.target !== evt.currentTarget) return;
+        var m = document.getElementById(id);
+        if (m) m.style.display = 'none';
+    };
+
+    window.handleException = function(ticketId) {
+        var tag = document.getElementById('handleTicketTag');
+        if (tag) tag.textContent = '#TK' + String(ticketId).padStart(5, '0');
+        var form = document.getElementById('handleForm');
+        if (form) {
+            form.setAttribute('hx-post', '/api/exceptions/' + ticketId + '/handle');
+            form.querySelectorAll('textarea, select').forEach(function(el) {
+                if (el.tagName === 'TEXTAREA') el.value = '';
+                if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            });
+        }
+        var m = document.getElementById('handleModal');
+        if (m) m.style.display = 'flex';
+    };
+
+    window.showLogs = function(ticketId) {
+        var content = document.getElementById('logsContent');
+        if (!content) return;
+        var cached = TICKET_LOGS_CACHE[ticketId];
+        if (cached) {
+            content.innerHTML = cached;
+            var m = document.getElementById('logsModal');
+            if (m) m.style.display = 'flex';
+            return;
+        }
+        content.innerHTML = '<p class="text-muted" style="text-align:center;padding:24px;">正在加载处理记录...</p>';
+        var m = document.getElementById('logsModal');
+        if (m) m.style.display = 'flex';
+
+        fetch('/api/exceptions/' + ticketId + '/logs', {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'fetch' }
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        }).then(function(html) {
+            TICKET_LOGS_CACHE[ticketId] = html;
+            content.innerHTML = html;
+        }).catch(function(err) {
+            content.innerHTML = '<div class="alert alert-error">加载失败: ' + err.message + '</div>';
+        });
+    };
+
+    window.closeException = function(ticketId) {
+        if (!confirm('确定关闭此异常工单？关闭后不可再修改。')) return;
+        htmx.ajax('POST', '/api/exceptions/' + ticketId + '/close-form', {
+            target: 'body', swap: 'beforeend'
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.modal-overlay').forEach(function(m) {
+            m.style.display = 'none';
+        });
+    });
+})();
+</script>
 {% endblock %}

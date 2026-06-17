@@ -8,7 +8,7 @@
 {% block top_bar_actions %}
 <div class="top-bar-actions">
     {% if order.status == 'selecting' %}
-    <a href="/orders/{{ order.id }}/selection" class="btn btn-accent">
+    <a href="/orders/{{ order.id }}/select" class="btn btn-accent">
         <span>🖼️</span> 确认选片
     </a>
     {% endif %}
@@ -274,7 +274,7 @@
             <button class="modal-close" onclick="closeModal(null, 'statusModal')">×</button>
         </div>
         <div class="modal-body">
-            <form hx-post="/api/orders/{{ order.id }}/status" hx-target="#statusModal" hx-swap="outerHTML">
+            <form hx-post="/api/orders/{{ order.id }}/status-form" hx-target="#statusModal" hx-swap="outerHTML">
                 <div class="form-group">
                     <label class="form-label">新状态</label>
                     <select name="status" class="form-select" required>
