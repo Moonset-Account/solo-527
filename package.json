@@ -1,0 +1,15 @@
+{
+  "name": "member-reach-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "会员触达台 - 母婴会员积分商城",
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:server": "pnpm --filter server dev",
+    "dev": "pnpm run --parallel dev:frontend dev:server",
+    "build": "pnpm run --parallel build",
+    "db:generate": "pnpm --filter server db:generate",
+    "db:migrate": "pnpm --filter server db:migrate",
+    "db:seed": "pnpm --filter server db:seed"
+  }
+}
