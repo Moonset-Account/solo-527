@@ -39,7 +39,6 @@ app.route('/api/admin/members', memberRoutes);
 app.route('/api/admin/member-levels', levelRoutes);
 app.route('/api/admin/reach-tasks', reachRoutes);
 app.route('/api/admin/statistics', statisticsRoutes);
-app.route('/api/admin/users', adminRoutes);
-app.route('/api/admin/audit-logs', adminRoutes);
+app.route('/api/admin', adminRoutes);
 
 export default app;

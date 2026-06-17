@@ -25,7 +25,7 @@ reach.get('/', async (c) => {
 });
 
 reach.get('/:id', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const task = await getReachTaskById(id);
 
   if (!task) {
@@ -60,7 +60,7 @@ reach.post('/', async (c) => {
 });
 
 reach.put('/:id', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const body = await c.req.json();
 
   const task = await updateReachTask(id, {
@@ -73,7 +73,7 @@ reach.put('/:id', async (c) => {
 });
 
 reach.post('/:id/verify', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const body = await c.req.json();
 
   try {
@@ -85,7 +85,7 @@ reach.post('/:id/verify', async (c) => {
 });
 
 reach.post('/:id/execute', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
 
   try {
     const result = await executeReachTask(id);
@@ -103,7 +103,7 @@ reach.post('/:id/execute', async (c) => {
 });
 
 reach.get('/:id/logs', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const query = c.req.query();
 
   const result = await getReachLogs(id, {
@@ -116,7 +116,7 @@ reach.get('/:id/logs', async (c) => {
 });
 
 reach.post('/:id/retry', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
 
   try {
     const result = await retryFailedReach(id);

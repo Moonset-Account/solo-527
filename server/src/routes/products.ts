@@ -21,7 +21,7 @@ products.get('/', async (c) => {
 });
 
 products.get('/:id', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const product = await getProductById(id);
 
   if (!product) {
@@ -58,7 +58,7 @@ products.post('/', async (c) => {
 });
 
 products.put('/:id', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const body = await c.req.json();
 
   const product = await updateProduct(id, {
@@ -82,7 +82,7 @@ products.put('/:id', async (c) => {
 });
 
 products.patch('/:id/status', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const { status } = await c.req.json();
 
   if (!['active', 'inactive'].includes(status)) {

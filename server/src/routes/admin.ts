@@ -5,12 +5,12 @@ import { setAuditAction } from '../middleware/audit';
 
 const admin = new Hono();
 
-admin.get('/', requireRole('admin'), async (c) => {
+admin.get('/users', requireRole('admin'), async (c) => {
   const users = await getAdminUsers();
   return c.json({ success: true, data: users });
 });
 
-admin.post('/', requireRole('admin'), async (c) => {
+admin.post('/users', requireRole('admin'), async (c) => {
   const body = await c.req.json();
 
   if (!body.username || !body.password || !body.role) {
@@ -36,8 +36,8 @@ admin.post('/', requireRole('admin'), async (c) => {
   }
 });
 
-admin.put('/:id', requireRole('admin'), async (c) => {
-  const id = c.req.param('id');
+admin.put('/users/:id', requireRole('admin'), async (c) => {
+  const id = c.req.param('id') as string;
   const body = await c.req.json();
 
   const user = await updateAdminUser(id, {

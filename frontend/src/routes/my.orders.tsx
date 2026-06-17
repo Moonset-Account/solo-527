@@ -93,7 +93,8 @@ function MyOrdersPage() {
             {orders.map((order, index) => (
               <Link
                 key={order.id}
-                to={`/my/orders/${order.id}`}
+                to="/my/orders/$id"
+                params={{ id: order.id }}
                 className="block p-5 hover:bg-gray-50 transition-colors animate-fadeInUp"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >

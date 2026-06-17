@@ -64,7 +64,6 @@ export async function verifyReachTask(taskId: string, filterCriteria: Record<str
   const task = await getReachTaskById(taskId);
   if (!task) throw new Error('任务不存在');
 
-  let memberQuery = db.select({ id: members.id, phone: members.phone }).from(members);
   const conditions = [];
 
   if (filterCriteria.level) {
@@ -77,11 +76,12 @@ export async function verifyReachTask(taskId: string, filterCriteria: Record<str
     conditions.push(lte(members.points, filterCriteria.maxPoints));
   }
 
-  if (conditions.length > 0) {
-    memberQuery = memberQuery.where(and(...conditions));
-  }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const targetMembers = await memberQuery;
+  const targetMembers = await db
+    .select({ id: members.id, phone: members.phone })
+    .from(members)
+    .where(whereClause);
   const total = targetMembers.length;
 
   await db.update(reachTasks).set({
@@ -166,7 +166,17 @@ export async function getReachLogs(taskId: string, params: { status?: string; pa
 
   const [itemsResult, countResult] = await Promise.all([
     db
-      .select()
+      .select({
+        id: reachLogs.id,
+        taskId: reachLogs.taskId,
+        memberId: reachLogs.memberId,
+        memberPhone: reachLogs.memberPhone,
+        status: reachLogs.status,
+        errorMessage: reachLogs.errorMessage,
+        retryCount: reachLogs.retryCount,
+        createdAt: reachLogs.createdAt,
+        member: members,
+      })
       .from(reachLogs)
       .leftJoin(members, eq(reachLogs.memberId, members.id))
       .where(whereClause)
@@ -177,8 +187,15 @@ export async function getReachLogs(taskId: string, params: { status?: string; pa
   ]);
 
   const items = itemsResult.map((row) => ({
-    ...row.reach_logs,
-    member: row.members || undefined,
+    id: row.id,
+    taskId: row.taskId,
+    memberId: row.memberId,
+    memberPhone: row.memberPhone,
+    status: row.status,
+    errorMessage: row.errorMessage,
+    retryCount: row.retryCount,
+    createdAt: row.createdAt,
+    member: row.member || undefined,
   }));
 
   return {

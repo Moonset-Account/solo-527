@@ -7,7 +7,7 @@ import {
   redeemOrder,
   getOrderByRedeemCode,
 } from '../services/order';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireAdminRoles } from '../middleware/auth';
 import { setAuditAction } from '../middleware/audit';
 
 const orders = new Hono();
@@ -51,7 +51,7 @@ orders.get('/mine', authMiddleware, async (c) => {
 });
 
 orders.get('/:id', authMiddleware, async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const order = await getOrderDetail(id);
 
   if (!order) {
@@ -66,7 +66,7 @@ orders.get('/:id', authMiddleware, async (c) => {
   return c.json({ success: true, data: order });
 });
 
-orders.get('/', async (c) => {
+orders.get('/', authMiddleware, requireAdminRoles(), async (c) => {
   const query = c.req.query();
   const result = await getAdminOrders({
     page: query.page ? Number(query.page) : undefined,
@@ -80,8 +80,8 @@ orders.get('/', async (c) => {
   return c.json({ success: true, data: result });
 });
 
-orders.post('/:id/redeem', async (c) => {
-  const id = c.req.param('id');
+orders.post('/:id/redeem', authMiddleware, requireAdminRoles(), async (c) => {
+  const id = c.req.param('id') as string;
   const user = c.get('user');
   const body = await c.req.json();
 
@@ -100,8 +100,8 @@ orders.post('/:id/redeem', async (c) => {
   }
 });
 
-orders.get('/redeem-code/:code', async (c) => {
-  const code = c.req.param('code');
+orders.get('/redeem-code/:code', authMiddleware, requireAdminRoles(), async (c) => {
+  const code = c.req.param('code') as string;
   const order = await getOrderByRedeemCode(code);
 
   if (!order) {

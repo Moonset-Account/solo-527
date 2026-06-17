@@ -12,7 +12,7 @@ levels.get('/', async (c) => {
 });
 
 levels.get('/:id', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const level = await getMemberLevelById(id);
 
   if (!level) {
@@ -47,7 +47,7 @@ levels.post('/', requireRole('admin'), async (c) => {
 });
 
 levels.put('/:id', requireRole('admin'), async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const body = await c.req.json();
 
   const level = await updateMemberLevel(id, {
@@ -68,7 +68,7 @@ levels.put('/:id', requireRole('admin'), async (c) => {
 });
 
 levels.delete('/:id', requireRole('admin'), async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const success = await deleteMemberLevel(id);
 
   setAuditAction(c, 'level.delete', {

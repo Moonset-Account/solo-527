@@ -20,7 +20,7 @@ members.get('/', async (c) => {
 });
 
 members.get('/:id', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const member = await getMemberById(id);
 
   if (!member) {
@@ -31,7 +31,7 @@ members.get('/:id', async (c) => {
 });
 
 members.get('/:id/points', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const query = c.req.query();
   const result = await getMemberPointsDetail(id, {
     page: query.page ? Number(query.page) : undefined,
@@ -42,7 +42,7 @@ members.get('/:id/points', async (c) => {
 });
 
 members.post('/:id/points', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const body = await c.req.json();
 
   if (body.points === undefined || !body.reason) {
@@ -65,7 +65,7 @@ members.post('/:id/points', async (c) => {
 });
 
 members.post('/:id/recalculate-level', async (c) => {
-  const id = c.req.param('id');
+  const id = c.req.param('id') as string;
   const level = await recalculateMemberLevel(id);
   return c.json({ success: true, data: level });
 });

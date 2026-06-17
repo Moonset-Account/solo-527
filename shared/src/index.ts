@@ -89,6 +89,7 @@ export interface ReachLog {
   id: string;
   taskId: string;
   memberId?: string;
+  memberPhone?: string;
   member?: Member;
   status: ReachLogStatus;
   errorMessage?: string;
