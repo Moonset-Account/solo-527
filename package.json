@@ -1,0 +1,17 @@
+{
+  "name": "solar-dashboard",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:web": "pnpm --filter web run dev",
+    "dev:api": "pnpm --filter api run dev",
+    "build": "pnpm -r run build",
+    "db:generate": "pnpm --filter api run db:generate",
+    "db:migrate": "pnpm --filter api run db:migrate",
+    "db:seed": "pnpm --filter api run db:seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
