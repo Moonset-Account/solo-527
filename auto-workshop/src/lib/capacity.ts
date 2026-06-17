@@ -83,6 +83,13 @@ export async function recalculateCapacity(
     },
   });
 
+  const shortageMarks = await prisma.partShortage.count({
+    where: {
+      createdAt: { gte: periodStart, lte: periodEnd },
+      workOrder: { technicianId },
+    },
+  });
+
   const existing = await prisma.technicianCapacity.findFirst({
     where: { technicianId, periodStart, periodEnd },
   });
@@ -95,6 +102,7 @@ export async function recalculateCapacity(
         totalLaborFee: laborFeeResult._sum.laborFee || 0,
         abnormalCloses,
         shortageHandles,
+        shortageMarks,
       },
     });
   }
@@ -108,6 +116,7 @@ export async function recalculateCapacity(
       totalLaborFee: laborFeeResult._sum.laborFee || 0,
       abnormalCloses,
       shortageHandles,
+      shortageMarks,
     },
   });
 }

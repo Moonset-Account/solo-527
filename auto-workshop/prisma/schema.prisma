@@ -218,6 +218,7 @@ model TechnicianCapacity {
   totalLaborFee   Decimal  @default(0) @db.Decimal(10, 2)
   abnormalCloses  Int      @default(0)
   shortageHandles Int     @default(0)
+  shortageMarks   Int     @default(0)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 }

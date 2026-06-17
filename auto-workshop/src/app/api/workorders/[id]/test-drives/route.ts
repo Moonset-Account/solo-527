@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { redis } from '@/lib/redis';
+import { CACHE_KEYS } from '@/lib/constants';
+import { recordWorkOrderSnapshot } from '@/lib/workorder-snapshot';
 
 export async function GET(
   request: Request,
@@ -21,7 +24,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { startTime, driverName, mileage, remark } = body;
+  const { startTime, driverName, mileage, remark, changedBy } = body;
 
   if (!startTime || !driverName) {
     return NextResponse.json(
@@ -39,6 +42,13 @@ export async function POST(
       remark,
     },
   });
+
+  await recordWorkOrderSnapshot(
+    id,
+    changedBy || driverName,
+    `新增试驾记录: ${driverName}, ${new Date(startTime).toLocaleString('zh-CN')}`,
+    { testDriveAction: 'created', testDriveId: testDrive.id }
+  );
 
   return NextResponse.json(testDrive, { status: 201 });
 }

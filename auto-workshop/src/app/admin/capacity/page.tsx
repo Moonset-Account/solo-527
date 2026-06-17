@@ -18,6 +18,7 @@ interface CapacityReport {
   totalLaborFee: number;
   abnormalCloses: number;
   shortageHandles: number;
+  shortageMarks: number;
   createdAt: string;
 }
 
@@ -126,6 +127,7 @@ export default function CapacityPage() {
                   <th className="text-right py-3 px-2 font-medium text-gray-600">工时费总计</th>
                   <th className="text-right py-3 px-2 font-medium text-gray-600">异常关闭数</th>
                   <th className="text-right py-3 px-2 font-medium text-gray-600">缺货处理数</th>
+                  <th className="text-right py-3 px-2 font-medium text-gray-600">缺货标记数</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,6 +145,7 @@ export default function CapacityPage() {
                         </span>
                       </td>
                       <td className="py-3 px-2 text-right">{report?.shortageHandles ?? 0}</td>
+                      <td className="py-3 px-2 text-right">{report?.shortageMarks ?? 0}</td>
                     </tr>
                   );
                 })}
@@ -156,6 +159,7 @@ export default function CapacityPage() {
                     <td className="py-3 px-2 text-right">¥{reports.reduce((s, r) => s + Number(r.totalLaborFee), 0).toFixed(2)}</td>
                     <td className="py-3 px-2 text-right">{reports.reduce((s, r) => s + r.abnormalCloses, 0)}</td>
                     <td className="py-3 px-2 text-right">{reports.reduce((s, r) => s + r.shortageHandles, 0)}</td>
+                    <td className="py-3 px-2 text-right">{reports.reduce((s, r) => s + (r.shortageMarks ?? 0), 0)}</td>
                   </tr>
                 </tfoot>
               )}

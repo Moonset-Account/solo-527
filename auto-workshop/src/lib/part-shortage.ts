@@ -1,6 +1,7 @@
 import { prisma, type TransactionClient } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
 import { CACHE_KEYS, STATUS_TRANSITIONS } from '@/lib/constants';
+import { recordWorkOrderSnapshot } from '@/lib/workorder-snapshot';
 
 export async function handlePartShortage(
   shortageId: string,
@@ -84,6 +85,7 @@ export async function handlePartShortage(
             periodStart,
             periodEnd,
             shortageHandles: 1,
+            shortageMarks: 0,
           },
         });
       }
@@ -92,8 +94,7 @@ export async function handlePartShortage(
     return updated;
   });
 
-  await redis.del(CACHE_KEYS.WORK_ORDER(shortage.workOrderId));
-  await redis.del(CACHE_KEYS.WORK_ORDER_LIST('*'));
+  await recordWorkOrderSnapshot(shortage.workOrderId, handledBy, `缺货处理: ${handleResult}`, { handledShortageId: shortageId });
 
   return result;
 }
@@ -116,7 +117,7 @@ export async function markPartShortage(
 
   const workOrder = await prisma.workOrder.findUnique({
     where: { id: workOrderId },
-    include: { technician: true, items: true, parts: { include: { part: true } }, testDrives: true, cashierOrders: true },
+    include: { technician: true },
   });
   if (!workOrder) {
     throw new Error('工单不存在');
@@ -139,50 +140,6 @@ export async function markPartShortage(
     if (workOrder.status !== 'PARTS_WAITING' && workOrder.status !== 'ABNORMAL_CLOSED' && workOrder.status !== 'CASHIERED') {
       const canTransition = STATUS_TRANSITIONS[workOrder.status]?.includes('PARTS_WAITING');
       if (canTransition) {
-        const snapshot = {
-          status: workOrder.status,
-          totalAmount: workOrder.totalAmount?.toString(),
-          serviceItems: workOrder.items.map((i: { id: string; name: string; category: string; price: { toString: () => string }; laborFee: { toString: () => string }; status: string; remark: string | null }) => ({
-            id: i.id,
-            name: i.name,
-            category: i.category,
-            price: i.price.toString(),
-            laborFee: i.laborFee.toString(),
-            status: i.status,
-            remark: i.remark,
-          })),
-          parts: workOrder.parts.map((p: { id: string; partId: string; part: { name: string; partNo: string }; quantity: number; unitPrice: { toString: () => string }; totalPrice: { toString: () => string }; status: string }) => ({
-            id: p.id,
-            partId: p.partId,
-            partName: p.part?.name,
-            partNo: p.part?.partNo,
-            quantity: p.quantity,
-            unitPrice: p.unitPrice.toString(),
-            totalPrice: p.totalPrice.toString(),
-            status: p.status,
-          })),
-          testDrives: workOrder.testDrives.map((t: { id: string; startTime: string | Date; endTime: string | Date | null; driverName: string; mileage: number | null; remark: string | null }) => ({
-            id: t.id,
-            startTime: typeof t.startTime === 'string' ? t.startTime : t.startTime.toISOString(),
-            endTime: t.endTime ? (typeof t.endTime === 'string' ? t.endTime : t.endTime.toISOString()) : null,
-            driverName: t.driverName,
-            mileage: t.mileage,
-            remark: t.remark,
-          })),
-          cashierOrders: workOrder.cashierOrders.map((c: { id: string; orderNo: string; totalAmount: { toString: () => string }; discount: { toString: () => string }; finalAmount: { toString: () => string }; previousAmount: { toString: () => string } | null; amountChanged: boolean; changeReason: string | null; paymentStatus: string }) => ({
-            id: c.id,
-            orderNo: c.orderNo,
-            totalAmount: c.totalAmount.toString(),
-            discount: c.discount.toString(),
-            finalAmount: c.finalAmount.toString(),
-            previousAmount: c.previousAmount?.toString(),
-            amountChanged: c.amountChanged,
-            changeReason: c.changeReason,
-            paymentStatus: c.paymentStatus,
-          })),
-          markedShortagePartId: workOrderPartId,
-        };
-
         await tx.workOrder.update({
           where: { id: workOrderId },
           data: { status: 'PARTS_WAITING' },
@@ -194,7 +151,6 @@ export async function markPartShortage(
             toStatus: 'PARTS_WAITING',
             changedBy: markedBy,
             changeReason: remark || `配件缺货标记`,
-            snapshot,
           },
         });
       }
@@ -216,7 +172,7 @@ export async function markPartShortage(
       if (existingCapacity) {
         await tx.technicianCapacity.update({
           where: { id: existingCapacity.id },
-          data: { shortageHandles: { increment: 0 } },
+          data: { shortageMarks: { increment: 1 } },
         });
       } else {
         await tx.technicianCapacity.create({
@@ -225,6 +181,7 @@ export async function markPartShortage(
             periodStart,
             periodEnd,
             shortageHandles: 0,
+            shortageMarks: 1,
           },
         });
       }
@@ -233,8 +190,7 @@ export async function markPartShortage(
     return shortage;
   });
 
-  await redis.del(CACHE_KEYS.WORK_ORDER(workOrderId));
-  await redis.del(CACHE_KEYS.WORK_ORDER_LIST('*'));
+  await recordWorkOrderSnapshot(workOrderId, markedBy, remark || '配件缺货标记', { markedShortagePartId: workOrderPartId });
 
   return result;
 }

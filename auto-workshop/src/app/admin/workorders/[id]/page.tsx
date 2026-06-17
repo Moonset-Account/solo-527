@@ -132,10 +132,14 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const [showPartForm, setShowPartForm] = useState(false);
   const [partForm, setPartForm] = useState({ partId: '', quantity: 1, unitPrice: 0 });
   const [showTestDriveForm, setShowTestDriveForm] = useState(false);
-  const [testDriveForm, setTestDriveForm] = useState({ startTime: '', driverName: '', mileage: '', remark: '' });
+  const [testDriveForm, setTestDriveForm] = useState({ startTime: '', driverName: '', mileage: '', remark: '', changedBy: '' });
   const [shortageForm, setShortageForm] = useState({ shortageId: '', handledBy: '', handleResult: '' });
   const [markShortageForm, setMarkShortageForm] = useState({ workOrderPartId: '', markedBy: '', remark: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemEditForm, setItemEditForm] = useState({ price: '', laborFee: '', status: '', remark: '', changedBy: '' });
+  const [showCashierForm, setShowCashierForm] = useState(false);
+  const [cashierForm, setCashierForm] = useState({ totalAmount: '', discount: '0', paymentMethod: '现金', changedBy: '' });
 
   const fetchData = () => {
     fetch(`/api/workorders/${id}`)
@@ -232,11 +236,12 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
           driverName: testDriveForm.driverName,
           mileage: testDriveForm.mileage ? Number(testDriveForm.mileage) : undefined,
           remark: testDriveForm.remark || undefined,
+          changedBy: testDriveForm.changedBy,
         }),
       });
       if (res.ok) {
         setShowTestDriveForm(false);
-        setTestDriveForm({ startTime: '', driverName: '', mileage: '', remark: '' });
+        setTestDriveForm({ startTime: '', driverName: '', mileage: '', remark: '', changedBy: '' });
         fetchData();
       }
     } finally {
@@ -290,6 +295,84 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
       } else {
         const data = await res.json();
         alert(data.error || '标记失败');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startEditItem = (item: WorkOrderItem) => {
+    setEditingItemId(item.id);
+    setItemEditForm({
+      price: String(item.price),
+      laborFee: String(item.laborFee),
+      status: item.status,
+      remark: item.remark || '',
+      changedBy: '',
+    });
+  };
+
+  const cancelEditItem = () => {
+    setEditingItemId(null);
+    setItemEditForm({ price: '', laborFee: '', status: '', remark: '', changedBy: '' });
+  };
+
+  const handleSaveItem = async (itemId: string) => {
+    if (!itemEditForm.changedBy.trim()) {
+      alert('请填写操作人');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/workorders/${id}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId,
+          price: Number(itemEditForm.price),
+          laborFee: Number(itemEditForm.laborFee),
+          status: itemEditForm.status,
+          remark: itemEditForm.remark || null,
+          changedBy: itemEditForm.changedBy,
+        }),
+      });
+      if (res.ok) {
+        cancelEditItem();
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || '编辑失败');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateCashierOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cashierForm.changedBy.trim()) {
+      alert('请填写操作人');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/workorders/${id}/cashier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          totalAmount: Number(cashierForm.totalAmount),
+          discount: Number(cashierForm.discount),
+          paymentMethod: cashierForm.paymentMethod,
+          changedBy: cashierForm.changedBy,
+        }),
+      });
+      if (res.ok) {
+        setShowCashierForm(false);
+        setCashierForm({ totalAmount: '', discount: '0', paymentMethod: '现金', changedBy: '' });
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || '创建收银单失败');
       }
     } finally {
       setSubmitting(false);
@@ -382,16 +465,101 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                   <th className="text-left py-2 px-2 font-medium text-gray-600">价格</th>
                   <th className="text-left py-2 px-2 font-medium text-gray-600">工时费</th>
                   <th className="text-left py-2 px-2 font-medium text-gray-600">状态</th>
+                  <th className="text-left py-2 px-2 font-medium text-gray-600">备注</th>
+                  <th className="text-left py-2 px-2 font-medium text-gray-600">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {workOrder.items.map((item) => (
                   <tr key={item.id} className="border-b border-gray-100">
-                    <td className="py-2 px-2">{item.name}</td>
-                    <td className="py-2 px-2">{item.category}</td>
-                    <td className="py-2 px-2">¥{Number(item.price).toFixed(2)}</td>
-                    <td className="py-2 px-2">¥{Number(item.laborFee).toFixed(2)}</td>
-                    <td className="py-2 px-2">{item.status}</td>
+                    {editingItemId === item.id ? (
+                      <>
+                        <td className="py-2 px-2">{item.name}</td>
+                        <td className="py-2 px-2">{item.category}</td>
+                        <td className="py-2 px-2">
+                          <input
+                            type="number"
+                            className="input-field text-xs py-1 w-24"
+                            step="0.01"
+                            value={itemEditForm.price}
+                            onChange={(e) => setItemEditForm({ ...itemEditForm, price: e.target.value })}
+                          />
+                        </td>
+                        <td className="py-2 px-2">
+                          <input
+                            type="number"
+                            className="input-field text-xs py-1 w-24"
+                            step="0.01"
+                            value={itemEditForm.laborFee}
+                            onChange={(e) => setItemEditForm({ ...itemEditForm, laborFee: e.target.value })}
+                          />
+                        </td>
+                        <td className="py-2 px-2">
+                          <select
+                            className="input-field text-xs py-1 w-24"
+                            value={itemEditForm.status}
+                            onChange={(e) => setItemEditForm({ ...itemEditForm, status: e.target.value })}
+                          >
+                            <option value="pending">待处理</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="skipped">已跳过</option>
+                          </select>
+                        </td>
+                        <td className="py-2 px-2">
+                          <input
+                            type="text"
+                            className="input-field text-xs py-1 w-32"
+                            value={itemEditForm.remark}
+                            onChange={(e) => setItemEditForm({ ...itemEditForm, remark: e.target.value })}
+                            placeholder="备注"
+                          />
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              className="input-field text-xs py-1 w-20"
+                              placeholder="操作人"
+                              value={itemEditForm.changedBy}
+                              onChange={(e) => setItemEditForm({ ...itemEditForm, changedBy: e.target.value })}
+                            />
+                            <div className="flex gap-1">
+                              <button
+                                className="btn-success text-xs py-1 px-2"
+                                onClick={() => handleSaveItem(item.id)}
+                                disabled={submitting}
+                              >
+                                保存
+                              </button>
+                              <button
+                                className="btn-secondary text-xs py-1 px-2"
+                                onClick={cancelEditItem}
+                              >
+                                取消
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="py-2 px-2">{item.name}</td>
+                        <td className="py-2 px-2">{item.category}</td>
+                        <td className="py-2 px-2">¥{Number(item.price).toFixed(2)}</td>
+                        <td className="py-2 px-2">¥{Number(item.laborFee).toFixed(2)}</td>
+                        <td className="py-2 px-2">{item.status}</td>
+                        <td className="py-2 px-2">{item.remark || '-'}</td>
+                        <td className="py-2 px-2">
+                          <button
+                            className="btn-secondary text-xs py-1 px-2"
+                            onClick={() => startEditItem(item)}
+                          >
+                            编辑
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -635,6 +803,16 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                   onChange={(e) => setTestDriveForm({ ...testDriveForm, remark: e.target.value })}
                 />
               </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">操作人</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={testDriveForm.changedBy}
+                  onChange={(e) => setTestDriveForm({ ...testDriveForm, changedBy: e.target.value })}
+                  required
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <button type="submit" className="btn-primary text-sm" disabled={submitting}>
@@ -675,7 +853,70 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       <div className="card">
-        <h2 className="text-lg font-semibold mb-4">收银记录</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">收银记录</h2>
+          {workOrder.status === 'COMPLETED' && (
+            <button className="btn-success text-sm" onClick={() => setShowCashierForm(!showCashierForm)}>
+              创建收银单
+            </button>
+          )}
+        </div>
+        {showCashierForm && (
+          <form onSubmit={handleCreateCashierOrder} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">总金额</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  step="0.01"
+                  value={cashierForm.totalAmount}
+                  onChange={(e) => setCashierForm({ ...cashierForm, totalAmount: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">折扣</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  step="0.01"
+                  value={cashierForm.discount}
+                  onChange={(e) => setCashierForm({ ...cashierForm, discount: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">支付方式</label>
+                <select
+                  className="input-field"
+                  value={cashierForm.paymentMethod}
+                  onChange={(e) => setCashierForm({ ...cashierForm, paymentMethod: e.target.value })}
+                >
+                  <option value="现金">现金</option>
+                  <option value="微信">微信</option>
+                  <option value="支付宝">支付宝</option>
+                  <option value="银行卡">银行卡</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">操作人</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={cashierForm.changedBy}
+                  onChange={(e) => setCashierForm({ ...cashierForm, changedBy: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary text-sm" disabled={submitting}>
+                {submitting ? '提交中...' : '确认创建'}
+              </button>
+              <button type="button" className="btn-secondary text-sm" onClick={() => setShowCashierForm(false)}>取消</button>
+            </div>
+          </form>
+        )}
         {workOrder.cashierOrders.length === 0 ? (
           <p className="text-gray-500 text-sm">暂无收银记录</p>
         ) : (

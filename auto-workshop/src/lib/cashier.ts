@@ -2,12 +2,14 @@ import { prisma } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
 import { CACHE_KEYS } from '@/lib/constants';
 import { generateCashierNo } from '@/lib/utils';
+import { recordWorkOrderSnapshot } from '@/lib/workorder-snapshot';
 
 export async function createCashierOrder(
   workOrderId: string,
   totalAmount: number,
   discount: number,
-  paymentMethod?: string
+  paymentMethod?: string,
+  changedBy?: string
 ) {
   const workOrder = await prisma.workOrder.findUnique({
     where: { id: workOrderId },
@@ -39,7 +41,24 @@ export async function createCashierOrder(
     },
   });
 
-  await redis.del(CACHE_KEYS.WORK_ORDER(workOrderId));
+  if (amountChanged) {
+    await prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: { totalAmount: finalAmount },
+    });
+  }
+
+  const operator = changedBy || '系统';
+  const reason = amountChanged
+    ? `收银单金额变更: 原 ¥${previousAmount} → 现 ¥${finalAmount}`
+    : `创建收银单 ${cashierOrder.orderNo}，金额 ¥${finalAmount}`;
+
+  await recordWorkOrderSnapshot(workOrderId, operator, reason, {
+    cashierAction: amountChanged ? 'amount_changed' : 'created',
+    cashierOrderNo: cashierOrder.orderNo,
+    previousAmount: previousAmount.toString(),
+    newAmount: finalAmount.toString(),
+  });
 
   return cashierOrder;
 }

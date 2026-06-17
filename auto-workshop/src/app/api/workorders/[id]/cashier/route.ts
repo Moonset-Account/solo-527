@@ -18,7 +18,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { totalAmount, discount, paymentMethod } = body;
+  const { totalAmount, discount, paymentMethod, changedBy } = body;
 
   if (totalAmount === undefined || totalAmount === null) {
     return NextResponse.json({ error: 'totalAmount is required' }, { status: 400 });
@@ -29,7 +29,8 @@ export async function POST(
       id,
       totalAmount,
       discount ?? 0,
-      paymentMethod
+      paymentMethod,
+      changedBy
     );
 
     return NextResponse.json(cashierOrder, { status: 201 });
