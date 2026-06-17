@@ -115,11 +115,63 @@ async function main() {
     }),
   ]);
 
+  const workOrders = await Promise.all([
+    prisma.workOrder.upsert({
+      where: { orderNo: 'WO-2024-001' },
+      update: {},
+      create: {
+        orderNo: 'WO-2024-001',
+        productName: '塑料外壳A',
+        productCode: 'PROD-A001',
+        quantity: 1000,
+        plannedQuantity: 1000,
+        plannedDate: new Date(),
+        deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        customer: '客户A公司',
+        status: 'DRAFT',
+        remark: '首批试产订单',
+      },
+    }),
+    prisma.workOrder.upsert({
+      where: { orderNo: 'WO-2024-002' },
+      update: {},
+      create: {
+        orderNo: 'WO-2024-002',
+        productName: '塑料外壳B',
+        productCode: 'PROD-B002',
+        quantity: 2000,
+        plannedQuantity: 2000,
+        plannedDate: new Date(),
+        deliveryDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        customer: '客户B公司',
+        status: 'CONFIRMED',
+        remark: '批量订单',
+      },
+    }),
+    prisma.workOrder.upsert({
+      where: { orderNo: 'WO-2024-003' },
+      update: {},
+      create: {
+        orderNo: 'WO-2024-003',
+        productName: '塑料齿轮',
+        productCode: 'PROD-C003',
+        quantity: 5000,
+        plannedQuantity: 5000,
+        plannedDate: new Date(),
+        deliveryDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
+        customer: '客户C公司',
+        status: 'DRAFT',
+        materialReady: true,
+      },
+    }),
+  ]);
+
   console.log('种子数据创建完成:');
   console.log('管理员账号: admin / 123456');
   console.log('车间主任账号: director / 123456');
   console.log(`设备: ${equipments.length} 台`);
   console.log(`工序: ${processes.length} 道`);
+  console.log(`工单: ${workOrders.length} 张`);
 }
 
 main()

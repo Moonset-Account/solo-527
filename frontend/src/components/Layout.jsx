@@ -5,15 +5,15 @@ import {
   DashboardOutlined,
   ScanOutlined,
   DesktopOutlined,
-  GitBranchOutlined,
+  AppstoreOutlined,
   FileTextOutlined,
   ScheduleOutlined,
   BarChartOutlined,
   WarningOutlined,
-  BoxOutlined,
+  ShoppingOutlined,
   BellOutlined,
   HistoryOutlined,
-  ImportOutlined,
+  CloudUploadOutlined,
   TeamOutlined,
   LogoutOutlined,
   UserOutlined,
@@ -64,7 +64,7 @@ const MainLayout = () => {
     },
     {
       key: '/processes',
-      icon: <GitBranchOutlined />,
+      icon: <AppstoreOutlined />,
       label: '工序管理',
     },
     {
@@ -89,7 +89,7 @@ const MainLayout = () => {
     },
     {
       key: '/materials',
-      icon: <BoxOutlined />,
+      icon: <ShoppingOutlined />,
       label: '物料齐套',
     },
     {

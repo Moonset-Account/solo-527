@@ -93,7 +93,7 @@ const ProductionPlan = () => {
   const handleStart = async (record) => {
     modal.confirm({
       title: '确认开始',
-      content: `确定要开始计划【${record.planNo}】吗？',
+      content: `确定要开始计划【${record.planNo}】吗？`,
       onOk: async () => {
         const res = await planApi.start(record.id)
         if (res.code === 200) {
@@ -271,13 +271,13 @@ const ProductionPlan = () => {
               完成
             </Button>
           )}
-          {(record.status === 'DRAFT' || record.status === 'CONFIRMED' ? (
+          {(record.status === 'DRAFT' || record.status === 'CONFIRMED') && (
             <Popconfirm title="确定删除该计划吗？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
               <Button type="link" size="small" danger icon={<DeleteOutlined />}>
                 删除
               </Button>
             </Popconfirm>
-          ) : null}
+          )}
         </Space>
       ),
     },
