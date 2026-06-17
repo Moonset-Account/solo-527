@@ -96,4 +96,8 @@ export const operationLogApi = {
     request.get(`/operation-logs/operator/${operatorId}`, {
       params: { page, size }
     }),
+  search: (params, page = 0, size = 20) =>
+    request.post('/operation-logs/search', params, {
+      params: { page, size }
+    }),
 }

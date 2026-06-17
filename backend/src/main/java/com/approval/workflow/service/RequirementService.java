@@ -266,6 +266,16 @@ public class RequirementService {
         NodeInstance node = nodeInstanceRepository.findById(nodeId)
                 .orElseThrow(() -> new RuntimeException("节点不存在"));
 
+        checkNodePermission(node);
+
+        if (node.getStatus() != NodeStatus.IN_PROGRESS) {
+            throw new RuntimeException("只有进行中的节点才能标记卡住");
+        }
+
+        if (Boolean.TRUE.equals(node.getStuck())) {
+            throw new RuntimeException("该节点已标记为卡住");
+        }
+
         node.setStuck(true);
         node.setDelayReason(reason);
         nodeInstanceRepository.save(node);

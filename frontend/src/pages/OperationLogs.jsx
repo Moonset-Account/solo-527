@@ -49,7 +49,15 @@ const OperationLogs = () => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const result = await operationLogApi.getAll(
+      const values = form.getFieldsValue()
+      const params = {
+        operationType: values.operationType || undefined,
+        operatorId: values.operatorId && values.operatorId !== '' ? Number(values.operatorId) : undefined,
+        requirementId: values.requirementId && values.requirementId !== '' ? Number(values.requirementId) : undefined,
+      }
+
+      const result = await operationLogApi.search(
+        params,
         pagination.current - 1,
         pagination.pageSize
       )
@@ -73,7 +81,9 @@ const OperationLogs = () => {
   const handleReset = () => {
     form.resetFields()
     setPagination({ current: 1, pageSize: 20, total: 0 })
-    setTimeout(fetchData, 0)
+    setTimeout(() => {
+      fetchData()
+    }, 0)
   }
 
   const columns = [

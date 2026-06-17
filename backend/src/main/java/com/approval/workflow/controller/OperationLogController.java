@@ -1,6 +1,7 @@
 package com.approval.workflow.controller;
 
 import com.approval.workflow.dto.ApiResponse;
+import com.approval.workflow.dto.OperationLogQueryDTO;
 import com.approval.workflow.entity.OperationLog;
 import com.approval.workflow.enums.OperationType;
 import com.approval.workflow.service.OperationLogService;
@@ -56,6 +57,16 @@ public class OperationLogController {
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<OperationLog> logs = operationLogService.getLogsByOperator(operatorId, pageable);
+        return ApiResponse.success(logs);
+    }
+
+    @PostMapping("/search")
+    public ApiResponse<Page<OperationLog>> searchLogs(
+            @RequestBody OperationLogQueryDTO query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<OperationLog> logs = operationLogService.searchLogs(query, pageable);
         return ApiResponse.success(logs);
     }
 }
