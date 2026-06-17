@@ -27,14 +27,17 @@ def _gen_code(prefix, db, model):
     return f"{p}{seq:04d}"
 
 
-@router.get("", response_model=List[NotificationResponse])
+@router.get("", response_model=dict)
 def list_notifications(
     class_id: Optional[int] = Query(None),
     campus_id: Optional[int] = Query(None),
     publisher_id: Optional[int] = Query(None),
     type: Optional[NotificationType] = Query(None),
+    priority: Optional[NotificationPriority] = Query(None),
     is_draft: Optional[bool] = Query(None),
     require_receipt: Optional[bool] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -48,16 +51,28 @@ def list_notifications(
         query = query.filter(Notification.publisher_id == publisher_id)
     if type:
         query = query.filter(Notification.type == type)
+    if priority:
+        query = query.filter(Notification.priority == priority)
     if is_draft is not None:
         query = query.filter(Notification.is_draft == is_draft)
     if require_receipt is not None:
         query = query.filter(Notification.require_receipt == require_receipt)
+    if start_date:
+        query = query.filter(Notification.created_at >= start_date)
+    if end_date:
+        query = query.filter(Notification.created_at <= end_date + " 23:59:59")
+    total = query.count()
     items = query.order_by(Notification.created_at.desc()).offset((page-1)*page_size).limit(page_size).all()
-    return [NotificationResponse(
-        **{c.name: getattr(n, c.name) for c in n.__table__.columns},
-        class_name=n.class_group.name if n.class_group else None,
-        publisher_name=n.publisher.real_name if hasattr(n, "publisher") and n.publisher else None,
-    ) for n in items]
+    results = []
+    for n in items:
+        cls = n.class_group if hasattr(n, "class_group") else None
+        pub = n.publisher if hasattr(n, "publisher") else None
+        results.append({
+            **{c.name: getattr(n, c.name) for c in n.__table__.columns},
+            "class_name": cls.name if cls else None,
+            "publisher_name": pub.real_name if pub else None,
+        })
+    return {"total": total, "items": results}
 
 
 @router.post("", response_model=NotificationResponse)

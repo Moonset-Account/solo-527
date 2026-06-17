@@ -50,6 +50,7 @@ class Notification(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     class_group = relationship("ClassGroup", back_populates="notifications")
+    publisher = relationship("User", foreign_keys=[publisher_id])
     receipts = relationship("Receipt", back_populates="notification", cascade="all, delete-orphan")
 
 
