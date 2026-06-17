@@ -1,16 +1,15 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
+import { db } from './index';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-const DATABASE_URL =
-  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/solar_dashboard';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main() {
-  const sql = postgres(DATABASE_URL, { max: 1 });
-  const db = drizzle(sql);
-  await migrate(db, { migrationsFolder: 'drizzle' });
-  await sql.end();
-  console.log('Migrations completed successfully');
+  console.log('Running migrations...');
+  await migrate(db, { migrationsFolder: path.join(__dirname, '../../drizzle') });
+  console.log('Migrations completed!');
+  process.exit(0);
 }
 
 main().catch((err) => {

@@ -111,7 +111,7 @@ function AuditLogPage() {
       r.newValue ? JSON.stringify(r.newValue) : '',
     ]);
     const csv =
-      '\ufeff' + [...header, ...body].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      '\ufeff' + [...header, ...body].map((row: any[]) => row.map((c: any) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -96,10 +96,7 @@ export function Modal({
   );
 }
 
-export function DataTable<
-  T extends Record<string, any>,
-  C extends { key: string; label: string; render?: (row: T) => React.ReactNode; width?: string }[]
->({
+export function DataTable<T extends Record<string, any>>({
   columns,
   data,
   rowKey,
@@ -107,7 +104,7 @@ export function DataTable<
   emptyText = '暂无数据',
   footer,
 }: {
-  columns: C;
+  columns: { key: string; label: string; render?: (row: T) => React.ReactNode; width?: string }[];
   data: T[];
   rowKey: keyof T | ((row: T) => string);
   onRowClick?: (row: T) => void;

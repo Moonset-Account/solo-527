@@ -1,108 +1,274 @@
 import { Hono } from 'hono';
-import { store, paginate, auditLog, CURRENT_USER_ID, uid, nowISO } from '../store';
+import { db } from '../db/index';
+import { meters, zones, devices, energyRecords, auditLogs, users } from '../db/schema';
+import { eq, and, or, like, desc, asc, sql, gte } from 'drizzle-orm';
 
 const app = new Hono();
 
-app.get('/', (c) => {
+async function getCurrentUser() {
+  const user = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+  return user[0] || { id: '00000000-0000-0000-0000-000000000000', name: '系统管理员' };
+}
+
+async function addAuditLog(input: {
+  userId: string;
+  userName: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  oldValue?: any;
+  newValue?: any;
+  ip?: string;
+}) {
+  await db.insert(auditLogs).values({
+    userId: input.userId,
+    userName: input.userName,
+    action: input.action,
+    entityType: input.entityType,
+    entityId: input.entityId as any,
+    oldValue: input.oldValue,
+    newValue: input.newValue,
+    ip: input.ip || '127.0.0.1',
+  });
+}
+
+function parseNum(v: any): number {
+  if (v == null) return 0;
+  return Number(v);
+}
+
+app.get('/', async (c) => {
   const page = Number(c.req.query('page') || '1');
   const pageSize = Number(c.req.query('pageSize') || '20');
-  const keyword = c.req.query('keyword')?.toLowerCase();
+  const keyword = c.req.query('keyword');
   const zoneId = c.req.query('zoneId');
   const status = c.req.query('status');
-  let list = [...store.meters];
-  if (keyword)
-    list = list.filter(
-      (m) =>
-        m.name.toLowerCase().includes(keyword) ||
-        m.serialNumber?.toLowerCase().includes(keyword) ||
-        m.model?.toLowerCase().includes(keyword)
+  const p = Math.max(1, page);
+  const ps = Math.max(1, Math.min(100, pageSize));
+
+  const conditions: any[] = [];
+  if (keyword) {
+    conditions.push(
+      or(
+        like(meters.name, `%${keyword}%`),
+        like(meters.serialNumber, `%${keyword}%`),
+        like(meters.model, `%${keyword}%`)
+      )
     );
-  if (zoneId) list = list.filter((m) => m.zoneId === zoneId);
-  if (status) list = list.filter((m) => m.status === status);
-  list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const enriched = list.map((m) => ({
-    ...m,
-    zoneName: store.zones.find((z) => z.id === m.zoneId)?.name,
+  }
+  if (zoneId) conditions.push(eq(meters.zoneId, zoneId));
+  if (status) conditions.push(eq(meters.status, status));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult, listResult] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(meters).where(where),
+    db
+      .select({
+        meter: meters,
+        zoneName: zones.name,
+      })
+      .from(meters)
+      .leftJoin(zones, eq(meters.zoneId, zones.id))
+      .where(where)
+      .orderBy(desc(meters.createdAt))
+      .limit(ps)
+      .offset((p - 1) * ps),
+  ]);
+
+  const total = Number(totalResult[0]?.count || 0);
+  const data = listResult.map((row) => ({
+    ...row.meter,
+    zoneName: row.zoneName,
   }));
-  return c.json({ success: true, data: paginate(enriched, page, pageSize) });
+
+  return c.json({ success: true, data: { data, total, page: p, pageSize: ps } });
 });
 
-app.get('/list', (c) => {
+app.get('/list', async (c) => {
   const zoneId = c.req.query('zoneId');
-  let list = store.meters;
-  if (zoneId) list = list.filter((m) => m.zoneId === zoneId);
-  return c.json({ success: true, data: list });
+  const conditions: any[] = [];
+  if (zoneId) conditions.push(eq(meters.zoneId, zoneId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const list = await db
+    .select()
+    .from(meters)
+    .where(where)
+    .orderBy(asc(meters.name));
+
+  const data = list.map((m) => ({
+    ...m,
+  }));
+
+  return c.json({ success: true, data });
 });
 
-app.get('/:id', (c) => {
+app.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const meter = store.meters.find((m) => m.id === id);
-  if (!meter) return c.json({ success: false, error: '表计不存在' }, 404);
-  const devices = store.devices.filter((d) => d.meterId === id);
+  const result = await db
+    .select({
+      meter: meters,
+      zoneName: zones.name,
+    })
+    .from(meters)
+    .leftJoin(zones, eq(meters.zoneId, zones.id))
+    .where(eq(meters.id, id))
+    .limit(1);
+
+  const row = result[0];
+  if (!row) return c.json({ success: false, error: '表计不存在' }, 404);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayRecs = store.energyRecords.filter((r) => r.meterId === id && new Date(r.timestamp) >= today);
+
+  const [devicesResult, todayRecsResult] = await Promise.all([
+    db.select().from(devices).where(eq(devices.meterId, id)).orderBy(asc(devices.name)),
+    db
+      .select({
+        production: sql<string>`sum(${energyRecords.production})`,
+        consumption: sql<string>`sum(${energyRecords.consumption})`,
+        avgEfficiency: sql<string>`avg(${energyRecords.efficiency})`,
+        count: sql<number>`count(*)`,
+      })
+      .from(energyRecords)
+      .where(and(eq(energyRecords.meterId, id), gte(energyRecords.timestamp, today))),
+  ]);
+
+  const devicesData = devicesResult.map((d) => ({
+    ...d,
+    capacity: parseNum(d.capacity),
+  }));
+
+  const todayStats = {
+    production: Number(todayRecsResult[0]?.production || 0),
+    consumption: Number(todayRecsResult[0]?.consumption || 0),
+    efficiency: todayRecsResult[0]?.count && todayRecsResult[0].count > 0
+      ? Number(todayRecsResult[0].avgEfficiency || 0)
+      : 0,
+  };
+
   return c.json({
     success: true,
     data: {
-      ...meter,
-      zoneName: store.zones.find((z) => z.id === meter.zoneId)?.name,
-      devices,
+      ...row.meter,
+      zoneName: row.zoneName,
+      devices: devicesData,
       todayStats: {
-        production: Number(todayRecs.reduce((s, r) => s + Number(r.production), 0).toFixed(1)),
-        consumption: Number(todayRecs.reduce((s, r) => s + Number(r.consumption), 0).toFixed(1)),
-        efficiency:
-          todayRecs.length > 0
-            ? Number((todayRecs.reduce((s, r) => s + Number(r.efficiency), 0) / todayRecs.length).toFixed(2))
-            : 0,
+        production: Number(todayStats.production.toFixed(1)),
+        consumption: Number(todayStats.consumption.toFixed(1)),
+        efficiency: Number(todayStats.efficiency.toFixed(2)),
       },
     },
   });
 });
 
-app.post('/', (c) => {
-  const body = (c.req as any).valid || {};
-  const meter = {
-    id: uid(),
-    zoneId: body.zoneId,
-    name: body.name,
-    model: body.model || '',
-    serialNumber: body.serialNumber || '',
-    status: (body.status as any) || 'online',
-    lastHeartbeat: body.lastHeartbeat || nowISO(),
-    installedAt: body.installedAt || nowISO(),
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  };
-  store.meters.unshift(meter);
-  auditLog({ userId: CURRENT_USER_ID, action: 'create', entityType: 'meter', entityId: meter.id, newValue: meter });
+app.get('/:id/devices', async (c) => {
+  const id = c.req.param('id');
+  const meterResult = await db.select().from(meters).where(eq(meters.id, id)).limit(1);
+  if (!meterResult[0]) return c.json({ success: false, error: '表计不存在' }, 404);
+
+  const list = await db
+    .select({
+      device: devices,
+      zoneName: zones.name,
+    })
+    .from(devices)
+    .leftJoin(zones, eq(devices.zoneId, zones.id))
+    .where(eq(devices.meterId, id))
+    .orderBy(asc(devices.name));
+
+  const data = list.map((row) => ({
+    ...row.device,
+    zoneName: row.zoneName,
+    capacity: parseNum(row.device.capacity),
+  }));
+
+  return c.json({ success: true, data });
+});
+
+app.post('/', async (c) => {
+  const body = (c.req as any).valid || (await c.req.json().catch(() => ({})));
+  const currentUser = await getCurrentUser();
+
+  const result = await db
+    .insert(meters)
+    .values({
+      zoneId: body.zoneId,
+      name: body.name,
+      model: body.model || '',
+      serialNumber: body.serialNumber || '',
+      status: body.status || 'online',
+      lastHeartbeat: body.lastHeartbeat ? new Date(body.lastHeartbeat) : new Date(),
+      installedAt: body.installedAt ? new Date(body.installedAt) : new Date(),
+    })
+    .returning();
+
+  const meter = result[0];
+
+  await addAuditLog({
+    userId: currentUser.id,
+    userName: currentUser.name,
+    action: 'create',
+    entityType: 'meter',
+    entityId: meter.id,
+    newValue: meter,
+  });
+
   return c.json({ success: true, data: meter });
 });
 
-app.put('/:id', (c) => {
+app.put('/:id', async (c) => {
   const id = c.req.param('id');
-  const idx = store.meters.findIndex((m) => m.id === id);
-  if (idx === -1) return c.json({ success: false, error: '表计不存在' }, 404);
-  const old = { ...store.meters[idx] };
-  const body = (c.req as any).valid || {};
-  store.meters[idx] = { ...store.meters[idx], ...body, updatedAt: nowISO() };
-  auditLog({
-    userId: CURRENT_USER_ID,
+  const oldResult = await db.select().from(meters).where(eq(meters.id, id)).limit(1);
+  const old = oldResult[0];
+  if (!old) return c.json({ success: false, error: '表计不存在' }, 404);
+
+  const body = (c.req as any).valid || (await c.req.json().catch(() => ({})));
+  const currentUser = await getCurrentUser();
+
+  const updateData: any = { ...body };
+  if (body.lastHeartbeat) updateData.lastHeartbeat = new Date(body.lastHeartbeat);
+  if (body.installedAt) updateData.installedAt = new Date(body.installedAt);
+  delete updateData.id;
+  delete updateData.createdAt;
+  delete updateData.updatedAt;
+  delete updateData.zoneId;
+
+  const result = await db.update(meters).set(updateData).where(eq(meters.id, id)).returning();
+  const updated = result[0];
+
+  await addAuditLog({
+    userId: currentUser.id,
+    userName: currentUser.name,
     action: 'update',
     entityType: 'meter',
     entityId: id,
     oldValue: old,
-    newValue: store.meters[idx],
+    newValue: updated,
   });
-  return c.json({ success: true, data: store.meters[idx] });
+
+  return c.json({ success: true, data: updated });
 });
 
-app.delete('/:id', (c) => {
+app.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const idx = store.meters.findIndex((m) => m.id === id);
-  if (idx === -1) return c.json({ success: false, error: '表计不存在' }, 404);
-  const old = store.meters.splice(idx, 1)[0];
-  auditLog({ userId: CURRENT_USER_ID, action: 'delete', entityType: 'meter', entityId: id, oldValue: old });
+  const oldResult = await db.select().from(meters).where(eq(meters.id, id)).limit(1);
+  const old = oldResult[0];
+  if (!old) return c.json({ success: false, error: '表计不存在' }, 404);
+
+  const currentUser = await getCurrentUser();
+
+  await db.delete(meters).where(eq(meters.id, id));
+
+  await addAuditLog({
+    userId: currentUser.id,
+    userName: currentUser.name,
+    action: 'delete',
+    entityType: 'meter',
+    entityId: id,
+    oldValue: old,
+  });
+
   return c.json({ success: true });
 });
 

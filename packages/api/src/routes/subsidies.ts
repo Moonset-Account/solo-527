@@ -1,169 +1,329 @@
 import { Hono } from 'hono';
-import { store, paginate, auditLog, CURRENT_USER_ID, uid, nowISO } from '../store';
+import { db } from '../db/index';
+import { subsidyRecords, zones, users, auditLogs } from '../db/schema';
+import { eq, and, or, like, desc, gte, lte, sql, count } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 const app = new Hono();
 
-app.get('/', (c) => {
+const approvedByUser = alias(users, 'approvedByUser');
+const updatedByUser = alias(users, 'updatedByUser');
+
+async function getCurrentUser() {
+  const [user] = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+  return user;
+}
+
+function parseNum(val: any): number {
+  if (val === null || val === undefined) return 0;
+  return Number(val);
+}
+
+async function writeAudit(userId: string, userName: string, action: string, entityType: string, entityId: string, oldValue?: any, newValue?: any) {
+  await db.insert(auditLogs).values({
+    userId,
+    userName,
+    action,
+    entityType,
+    entityId,
+    oldValue: oldValue || null,
+    newValue: newValue || null,
+    ip: '127.0.0.1',
+  });
+}
+
+app.get('/', async (c) => {
   const page = Number(c.req.query('page') || '1');
   const pageSize = Number(c.req.query('pageSize') || '20');
   const zoneId = c.req.query('zoneId');
   const status = c.req.query('status');
   const year = c.req.query('year');
   const month = c.req.query('month');
-  let list = [...store.subsidyRecords];
-  if (zoneId) list = list.filter((r) => r.zoneId === zoneId);
-  if (status) list = list.filter((r) => r.status === status);
-  if (year) list = list.filter((r) => new Date(r.periodStart).getFullYear() === Number(year));
-  if (month) list = list.filter((r) => new Date(r.periodStart).getMonth() === Number(month) - 1);
-  list.sort((a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
-  const enriched = list.map((r) => ({
-    ...r,
-    zoneName: store.zones.find((z) => z.id === r.zoneId)?.name,
-    approvedByName: store.users.find((u) => u.id === r.approvedBy)?.name,
-    updatedByName: store.users.find((u) => u.id === r.updatedBy)?.name,
+  const keyword = c.req.query('keyword');
+
+  const conditions: any[] = [];
+  if (zoneId) conditions.push(eq(subsidyRecords.zoneId, zoneId));
+  if (status) conditions.push(eq(subsidyRecords.status, status));
+  if (year) {
+    conditions.push(sql`EXTRACT(YEAR FROM ${subsidyRecords.periodStart}) = ${year}`);
+  }
+  if (month) {
+    conditions.push(sql`EXTRACT(MONTH FROM ${subsidyRecords.periodStart}) = ${month}`);
+  }
+  if (keyword) {
+    conditions.push(or(like(subsidyRecords.remark, `%${keyword}%`)));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(subsidyRecords)
+    .where(where);
+  const total = totalResult[0]?.count || 0;
+
+  const data = await db
+    .select({
+      id: subsidyRecords.id,
+      zoneId: subsidyRecords.zoneId,
+      periodStart: subsidyRecords.periodStart,
+      periodEnd: subsidyRecords.periodEnd,
+      productionKwh: subsidyRecords.productionKwh,
+      subsidyRate: subsidyRecords.subsidyRate,
+      subsidyAmount: subsidyRecords.subsidyAmount,
+      status: subsidyRecords.status,
+      approvedBy: subsidyRecords.approvedBy,
+      approvedAt: subsidyRecords.approvedAt,
+      remark: subsidyRecords.remark,
+      updatedBy: subsidyRecords.updatedBy,
+      createdAt: subsidyRecords.createdAt,
+      updatedAt: subsidyRecords.updatedAt,
+      zoneName: zones.name,
+      approvedByName: approvedByUser.name,
+      updatedByName: updatedByUser.name,
+    })
+    .from(subsidyRecords)
+    .leftJoin(zones, eq(subsidyRecords.zoneId, zones.id))
+    .leftJoin(approvedByUser, eq(subsidyRecords.approvedBy, approvedByUser.id))
+    .leftJoin(updatedByUser, eq(subsidyRecords.updatedBy, updatedByUser.id))
+    .where(where)
+    .orderBy(desc(subsidyRecords.periodStart))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+
+  const transformed = data.map((item) => ({
+    ...item,
+    productionKwh: parseNum(item.productionKwh),
+    subsidyRate: parseNum(item.subsidyRate),
+    subsidyAmount: parseNum(item.subsidyAmount),
   }));
-  return c.json({ success: true, data: paginate(enriched, page, pageSize) });
+
+  return c.json({
+    success: true,
+    data: {
+      data: transformed,
+      total,
+      page,
+      pageSize,
+    },
+  });
 });
 
-app.get('/summary', (c) => {
-  const byStatus = store.subsidyRecords.reduce(
-    (acc, r) => {
-      acc[r.status] = (acc[r.status] || 0) + Number(r.subsidyAmount);
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-  const byZone = store.zones.map((z) => {
-    const records = store.subsidyRecords.filter((r) => r.zoneId === z.id);
-    return {
-      zoneId: z.id,
-      zoneName: z.name,
-      totalAmount: Number(records.reduce((s, r) => s + Number(r.subsidyAmount), 0).toFixed(2)),
-      totalKwh: Number(records.reduce((s, r) => s + Number(r.productionKwh), 0).toFixed(2)),
-      count: records.length,
-    };
-  });
-  const last12: Array<{ month: string; amount: number; production: number }> = [];
+app.get('/summary', async (c) => {
+  const byStatusResult = await db
+    .select({
+      status: subsidyRecords.status,
+      totalAmount: sql<number>`sum(${subsidyRecords.subsidyAmount})`.mapWith(Number),
+    })
+    .from(subsidyRecords)
+    .groupBy(subsidyRecords.status);
+
+  const byStatus: Record<string, number> = {};
+  for (const row of byStatusResult) {
+    byStatus[row.status] = parseNum(row.totalAmount);
+  }
+
+  const byZoneResult = await db
+    .select({
+      zoneId: zones.id,
+      zoneName: zones.name,
+      totalAmount: sql<number>`sum(${subsidyRecords.subsidyAmount})`.mapWith(Number),
+      totalKwh: sql<number>`sum(${subsidyRecords.productionKwh})`.mapWith(Number),
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(subsidyRecords)
+    .leftJoin(zones, eq(subsidyRecords.zoneId, zones.id))
+    .groupBy(zones.id, zones.name)
+    .orderBy(zones.name);
+
+  const byZone = byZoneResult.map((row) => ({
+    zoneId: row.zoneId,
+    zoneName: row.zoneName,
+    totalAmount: parseNum(row.totalAmount),
+    totalKwh: parseNum(row.totalKwh),
+    count: row.count,
+  }));
+
+  const last12Months: Array<{ month: string; amount: number; production: number }> = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date();
     d.setMonth(d.getMonth() - i, 1);
     d.setHours(0, 0, 0, 0);
     const next = new Date(d);
     next.setMonth(next.getMonth() + 1);
-    const recs = store.subsidyRecords.filter(
-      (r) => new Date(r.periodStart) >= d && new Date(r.periodStart) < next
-    );
-    last12.push({
+
+    const [monthResult] = await db
+      .select({
+        amount: sql<number>`COALESCE(sum(${subsidyRecords.subsidyAmount}), 0)`.mapWith(Number),
+        production: sql<number>`COALESCE(sum(${subsidyRecords.productionKwh}), 0)`.mapWith(Number),
+      })
+      .from(subsidyRecords)
+      .where(
+        and(
+          gte(subsidyRecords.periodStart, d),
+          lte(subsidyRecords.periodStart, next)
+        )
+      );
+
+    last12Months.push({
       month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      amount: Number(recs.reduce((s, r) => s + Number(r.subsidyAmount), 0).toFixed(2)),
-      production: Number(recs.reduce((s, r) => s + Number(r.productionKwh), 0).toFixed(2)),
+      amount: parseNum(monthResult?.amount || 0),
+      production: parseNum(monthResult?.production || 0),
     });
   }
+
+  const [totalResult] = await db
+    .select({ totalAmount: sql<number>`COALESCE(sum(${subsidyRecords.subsidyAmount}), 0)`.mapWith(Number) })
+    .from(subsidyRecords);
+
   return c.json({
     success: true,
     data: {
-      totalAmount: Number(
-        store.subsidyRecords.reduce((s, r) => s + Number(r.subsidyAmount), 0).toFixed(2)
-      ),
+      totalAmount: parseNum(totalResult?.totalAmount || 0),
       byStatus,
       byZone,
-      last12Months: last12,
+      last12Months,
     },
   });
 });
 
-app.get('/:id', (c) => {
+app.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const rec = store.subsidyRecords.find((r) => r.id === id);
-  if (!rec) return c.json({ success: false, error: '补贴记录不存在' }, 404);
-  return c.json({
-    success: true,
-    data: {
-      ...rec,
-      zoneName: store.zones.find((z) => z.id === rec.zoneId)?.name,
-      approvedByName: store.users.find((u) => u.id === rec.approvedBy)?.name,
-      updatedByName: store.users.find((u) => u.id === rec.updatedBy)?.name,
-    },
-  });
+
+  const [record] = await db
+    .select({
+      id: subsidyRecords.id,
+      zoneId: subsidyRecords.zoneId,
+      periodStart: subsidyRecords.periodStart,
+      periodEnd: subsidyRecords.periodEnd,
+      productionKwh: subsidyRecords.productionKwh,
+      subsidyRate: subsidyRecords.subsidyRate,
+      subsidyAmount: subsidyRecords.subsidyAmount,
+      status: subsidyRecords.status,
+      approvedBy: subsidyRecords.approvedBy,
+      approvedAt: subsidyRecords.approvedAt,
+      remark: subsidyRecords.remark,
+      updatedBy: subsidyRecords.updatedBy,
+      createdAt: subsidyRecords.createdAt,
+      updatedAt: subsidyRecords.updatedAt,
+      zoneName: zones.name,
+      approvedByName: approvedByUser.name,
+      updatedByName: updatedByUser.name,
+    })
+    .from(subsidyRecords)
+    .leftJoin(zones, eq(subsidyRecords.zoneId, zones.id))
+    .leftJoin(approvedByUser, eq(subsidyRecords.approvedBy, approvedByUser.id))
+    .leftJoin(updatedByUser, eq(subsidyRecords.updatedBy, updatedByUser.id))
+    .where(eq(subsidyRecords.id, id))
+    .limit(1);
+
+  if (!record) return c.json({ success: false, error: '补贴记录不存在' }, 404);
+
+  const transformed = {
+    ...record,
+    productionKwh: parseNum(record.productionKwh),
+    subsidyRate: parseNum(record.subsidyRate),
+    subsidyAmount: parseNum(record.subsidyAmount),
+  };
+
+  return c.json({ success: true, data: transformed });
 });
 
 app.post('/', async (c) => {
   const body: any = await c.req.json().catch(() => ({}));
-  const r = {
-    id: uid(),
-    zoneId: body.zoneId,
-    periodStart: body.periodStart,
-    periodEnd: body.periodEnd,
-    productionKwh: Number(body.productionKwh || 0),
-    subsidyRate: Number(body.subsidyRate || 0),
-    subsidyAmount: Number(body.subsidyAmount || 0),
-    status: body.status || 'pending',
-    remark: body.remark,
-    updatedBy: CURRENT_USER_ID,
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
-  };
-  store.subsidyRecords.unshift(r);
-  auditLog({ userId: CURRENT_USER_ID, action: 'create', entityType: 'subsidy', entityId: r.id, newValue: r });
-  return c.json({ success: true, data: r });
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return c.json({ success: false, error: '用户未找到' }, 401);
+
+  const [inserted] = await db
+    .insert(subsidyRecords)
+    .values({
+      zoneId: body.zoneId,
+      periodStart: new Date(body.periodStart),
+      periodEnd: new Date(body.periodEnd),
+      productionKwh: String(body.productionKwh || 0),
+      subsidyRate: String(body.subsidyRate || 0),
+      subsidyAmount: String(body.subsidyAmount || 0),
+      status: body.status || 'pending',
+      remark: body.remark,
+      updatedBy: currentUser.id,
+    })
+    .returning();
+
+  await writeAudit(currentUser.id, currentUser.name, 'create', 'subsidy', inserted.id, null, inserted);
+
+  return c.json({ success: true, data: inserted });
 });
 
 app.put('/:id', async (c) => {
   const id = c.req.param('id');
-  const idx = store.subsidyRecords.findIndex((r) => r.id === id);
-  if (idx === -1) return c.json({ success: false, error: '记录不存在' }, 404);
-  const old = { ...store.subsidyRecords[idx] };
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return c.json({ success: false, error: '用户未找到' }, 401);
+
+  const [old] = await db.select().from(subsidyRecords).where(eq(subsidyRecords.id, id)).limit(1);
+  if (!old) return c.json({ success: false, error: '记录不存在' }, 404);
+
   const body: any = await c.req.json().catch(() => ({}));
-  store.subsidyRecords[idx] = {
-    ...store.subsidyRecords[idx],
-    ...body,
-    productionKwh: body.productionKwh != null ? Number(body.productionKwh) : store.subsidyRecords[idx].productionKwh,
-    subsidyRate: body.subsidyRate != null ? Number(body.subsidyRate) : store.subsidyRecords[idx].subsidyRate,
-    subsidyAmount: body.subsidyAmount != null ? Number(body.subsidyAmount) : store.subsidyRecords[idx].subsidyAmount,
-    updatedBy: CURRENT_USER_ID,
-    updatedAt: nowISO(),
+
+  const updateData: any = {
+    updatedBy: currentUser.id,
+    updatedAt: new Date(),
   };
-  auditLog({
-    userId: CURRENT_USER_ID,
-    action: 'update',
-    entityType: 'subsidy',
-    entityId: id,
-    oldValue: old,
-    newValue: store.subsidyRecords[idx],
-  });
-  return c.json({ success: true, data: store.subsidyRecords[idx] });
+  if (body.zoneId !== undefined) updateData.zoneId = body.zoneId;
+  if (body.periodStart !== undefined) updateData.periodStart = new Date(body.periodStart);
+  if (body.periodEnd !== undefined) updateData.periodEnd = new Date(body.periodEnd);
+  if (body.productionKwh !== undefined) updateData.productionKwh = String(body.productionKwh);
+  if (body.subsidyRate !== undefined) updateData.subsidyRate = String(body.subsidyRate);
+  if (body.subsidyAmount !== undefined) updateData.subsidyAmount = String(body.subsidyAmount);
+  if (body.status !== undefined) updateData.status = body.status;
+  if (body.remark !== undefined) updateData.remark = body.remark;
+
+  await db.update(subsidyRecords).set(updateData).where(eq(subsidyRecords.id, id));
+
+  const [updated] = await db.select().from(subsidyRecords).where(eq(subsidyRecords.id, id)).limit(1);
+
+  await writeAudit(currentUser.id, currentUser.name, 'update', 'subsidy', id, old, updated);
+
+  return c.json({ success: true, data: updated });
 });
 
 app.post('/:id/approve', async (c) => {
   const id = c.req.param('id');
-  const idx = store.subsidyRecords.findIndex((r) => r.id === id);
-  if (idx === -1) return c.json({ success: false, error: '记录不存在' }, 404);
-  const old = { ...store.subsidyRecords[idx] };
-  store.subsidyRecords[idx] = {
-    ...store.subsidyRecords[idx],
-    status: 'approved',
-    approvedBy: CURRENT_USER_ID,
-    approvedAt: nowISO(),
-    updatedBy: CURRENT_USER_ID,
-    updatedAt: nowISO(),
-  };
-  auditLog({
-    userId: CURRENT_USER_ID,
-    action: 'approve',
-    entityType: 'subsidy',
-    entityId: id,
-    oldValue: old,
-    newValue: store.subsidyRecords[idx],
-  });
-  return c.json({ success: true, data: store.subsidyRecords[idx] });
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return c.json({ success: false, error: '用户未找到' }, 401);
+
+  const [old] = await db.select().from(subsidyRecords).where(eq(subsidyRecords.id, id)).limit(1);
+  if (!old) return c.json({ success: false, error: '记录不存在' }, 404);
+
+  await db
+    .update(subsidyRecords)
+    .set({
+      status: 'approved',
+      approvedBy: currentUser.id,
+      approvedAt: new Date(),
+      updatedBy: currentUser.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(subsidyRecords.id, id));
+
+  const [updated] = await db.select().from(subsidyRecords).where(eq(subsidyRecords.id, id)).limit(1);
+
+  await writeAudit(currentUser.id, currentUser.name, 'approve', 'subsidy', id, old, updated);
+
+  return c.json({ success: true, data: updated });
 });
 
-app.delete('/:id', (c) => {
+app.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const idx = store.subsidyRecords.findIndex((r) => r.id === id);
-  if (idx === -1) return c.json({ success: false, error: '记录不存在' }, 404);
-  const old = store.subsidyRecords.splice(idx, 1)[0];
-  auditLog({ userId: CURRENT_USER_ID, action: 'delete', entityType: 'subsidy', entityId: id, oldValue: old });
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return c.json({ success: false, error: '用户未找到' }, 401);
+
+  const [old] = await db.select().from(subsidyRecords).where(eq(subsidyRecords.id, id)).limit(1);
+  if (!old) return c.json({ success: false, error: '记录不存在' }, 404);
+
+  await db.delete(subsidyRecords).where(eq(subsidyRecords.id, id));
+
+  await writeAudit(currentUser.id, currentUser.name, 'delete', 'subsidy', id, old, null);
+
   return c.json({ success: true });
 });
 

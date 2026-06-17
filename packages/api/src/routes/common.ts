@@ -1,144 +1,355 @@
 import { Hono } from 'hono';
-import { store, CURRENT_USER, paginate, auditLog, CURRENT_USER_ID } from '../store';
+import { db } from '../db/index';
+import {
+  zones,
+  energyRecords,
+  alerts,
+  meters,
+  devices,
+  subsidyRecords,
+  energySavingTargets,
+  energySavingDetails,
+  users,
+} from '../db/schema';
+import { eq, and, gte, lte, sql, desc, count, isNull } from 'drizzle-orm';
 
 const app = new Hono();
 
-app.get('/summary', (c) => {
-  const totalCapacity = store.zones.reduce((s, z) => s + Number(z.capacity), 0);
-  const totalProduction = store.energyRecords.reduce((s, r) => s + Number(r.production), 0);
+async function getCurrentUser() {
+  const [user] = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+  return user;
+}
+
+function parseNum(val: any): number {
+  if (val === null || val === undefined) return 0;
+  return Number(val);
+}
+
+app.get('/summary', async (c) => {
+  const [capacityResult] = await db
+    .select({ totalCapacity: sql<number>`COALESCE(sum(${zones.capacity}), 0)`.mapWith(Number) })
+    .from(zones);
+  const totalCapacity = parseNum(capacityResult?.totalCapacity || 0);
+
+  const [productionResult] = await db
+    .select({ totalProduction: sql<number>`COALESCE(sum(${energyRecords.production}), 0)`.mapWith(Number) })
+    .from(energyRecords);
+  const totalProduction = parseNum(productionResult?.totalProduction || 0);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayProd = store.energyRecords
-    .filter((r) => new Date(r.timestamp) >= today)
-    .reduce((s, r) => s + Number(r.production), 0);
-  const todayCons = store.energyRecords
-    .filter((r) => new Date(r.timestamp) >= today)
-    .reduce((s, r) => s + Number(r.consumption), 0);
-  const activeAlerts = store.alerts.filter((a) => a.status === 'pending' || a.status === 'processing').length;
-  const onlineMeters = store.meters.filter((m) => m.status === 'online').length;
-  const offlineMeters = store.meters.filter((m) => m.status === 'offline').length;
-  const monthlySubsidy = store.subsidyRecords
-    .filter((s) => s.status === 'approved' || s.status === 'paid')
-    .reduce((s, r) => s + Number(r.subsidyAmount), 0);
-  const currentTarget = store.energySavingTargets.find((t) => t.period === 'yearly');
-  const targetProgress = currentTarget
-    ? store.energySavingDetails
-        .filter((d) => d.targetId === currentTarget.id)
-        .reduce((s, d) => s + Number(d.savedKwh), 0) / Number(currentTarget.targetKwh)
-    : 0;
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [todayResult] = await db
+    .select({
+      todayProduction: sql<number>`COALESCE(sum(${energyRecords.production}), 0)`.mapWith(Number),
+      todayConsumption: sql<number>`COALESCE(sum(${energyRecords.consumption}), 0)`.mapWith(Number),
+    })
+    .from(energyRecords)
+    .where(
+      and(
+        gte(energyRecords.timestamp, today),
+        lte(energyRecords.timestamp, tomorrow)
+      )
+    );
+  const todayProduction = parseNum(todayResult?.todayProduction || 0);
+  const todayConsumption = parseNum(todayResult?.todayConsumption || 0);
+
+  const activeAlertsResult = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(alerts)
+    .where(sql`${alerts.status} IN ('pending', 'processing')`);
+  const activeAlerts = activeAlertsResult[0]?.count || 0;
+
+  const onlineMetersResult = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(meters)
+    .where(eq(meters.status, 'online'));
+  const onlineMeters = onlineMetersResult[0]?.count || 0;
+
+  const offlineMetersResult = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(meters)
+    .where(eq(meters.status, 'offline'));
+  const offlineMeters = offlineMetersResult[0]?.count || 0;
+
+  const [subsidyResult] = await db
+    .select({ monthlySubsidy: sql<number>`COALESCE(sum(${subsidyRecords.subsidyAmount}), 0)`.mapWith(Number) })
+    .from(subsidyRecords)
+    .where(sql`${subsidyRecords.status} IN ('approved', 'paid')`);
+  const monthlySubsidy = parseNum(subsidyResult?.monthlySubsidy || 0);
+
+  const [yearlyTarget] = await db
+    .select()
+    .from(energySavingTargets)
+    .where(eq(energySavingTargets.period, 'yearly'))
+    .limit(1);
+
+  let targetProgress = 0;
+  if (yearlyTarget) {
+    const [savedResult] = await db
+      .select({ saved: sql<number>`COALESCE(sum(${energySavingDetails.savedKwh}), 0)`.mapWith(Number) })
+      .from(energySavingDetails)
+      .where(eq(energySavingDetails.targetId, yearlyTarget.id));
+    const saved = parseNum(savedResult?.saved || 0);
+    const targetKwh = parseNum(yearlyTarget.targetKwh);
+    targetProgress = targetKwh > 0 ? Math.min(1, saved / targetKwh) * 100 : 0;
+  }
+
+  const [zoneCountResult] = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(zones);
+  const zoneCount = zoneCountResult?.count || 0;
+
+  const [deviceCountResult] = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(devices);
+  const deviceCount = deviceCountResult?.count || 0;
+
+  const user = await getCurrentUser();
 
   return c.json({
     success: true,
     data: {
       totalCapacity: Number(totalCapacity.toFixed(0)),
       totalProduction: Number(totalProduction.toFixed(1)),
-      todayProduction: Number(todayProd.toFixed(1)),
-      todayConsumption: Number(todayCons.toFixed(1)),
+      todayProduction: Number(todayProduction.toFixed(1)),
+      todayConsumption: Number(todayConsumption.toFixed(1)),
       activeAlerts,
       onlineMeters,
       offlineMeters,
       monthlySubsidy: Number(monthlySubsidy.toFixed(2)),
-      targetProgress: Number((Math.min(1, targetProgress) * 100).toFixed(1)),
-      zoneCount: store.zones.length,
-      deviceCount: store.devices.length,
-      user: CURRENT_USER,
+      targetProgress: Number(targetProgress.toFixed(1)),
+      zoneCount,
+      deviceCount,
+      user,
     },
   });
 });
 
-app.get('/zone-stats', (c) => {
-  const stats = store.zones.map((zone) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const prodToday = store.energyRecords
-      .filter((r) => r.zoneId === zone.id && new Date(r.timestamp) >= today)
-      .reduce((s, r) => s + Number(r.production), 0);
-    const prodMonth = store.energyRecords
-      .filter((r) => {
-        const d = new Date(r.timestamp);
-        return r.zoneId === zone.id && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-      })
-      .reduce((s, r) => s + Number(r.production), 0);
-    const activeAlerts = store.alerts.filter(
-      (a) => a.zoneId === zone.id && (a.status === 'pending' || a.status === 'processing')
-    ).length;
-    const devices = store.devices.filter((d) => d.zoneId === zone.id).length;
-    const meters = store.meters.filter((m) => m.zoneId === zone.id).length;
-    const eff = store.energyRecords
-      .filter((r) => r.zoneId === zone.id)
-      .slice(-50)
-      .reduce((s, r, i, arr) => s + Number(r.efficiency) / arr.length, 0);
-    return {
+app.get('/zone-stats', async (c) => {
+  const zoneList = await db.select().from(zones).orderBy(zones.name);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+
+  const stats = [];
+  for (const zone of zoneList) {
+    const [todayProdResult] = await db
+      .select({ production: sql<number>`COALESCE(sum(${energyRecords.production}), 0)`.mapWith(Number) })
+      .from(energyRecords)
+      .where(
+        and(
+          eq(energyRecords.zoneId, zone.id),
+          gte(energyRecords.timestamp, today),
+          lte(energyRecords.timestamp, tomorrow)
+        )
+      );
+    const prodToday = parseNum(todayProdResult?.production || 0);
+
+    const [monthProdResult] = await db
+      .select({ production: sql<number>`COALESCE(sum(${energyRecords.production}), 0)`.mapWith(Number) })
+      .from(energyRecords)
+      .where(
+        and(
+          eq(energyRecords.zoneId, zone.id),
+          gte(energyRecords.timestamp, monthStart),
+          lte(energyRecords.timestamp, nextMonth)
+        )
+      );
+    const prodMonth = parseNum(monthProdResult?.production || 0);
+
+    const [activeAlertsResult] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(alerts)
+      .where(
+        and(
+          eq(alerts.zoneId, zone.id),
+          sql`${alerts.status} IN ('pending', 'processing')`
+        )
+      );
+    const activeAlerts = activeAlertsResult?.count || 0;
+
+    const [deviceCountResult] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(devices)
+      .where(eq(devices.zoneId, zone.id));
+    const deviceCount = deviceCountResult?.count || 0;
+
+    const [meterCountResult] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(meters)
+      .where(eq(meters.zoneId, zone.id));
+    const meterCount = meterCountResult?.count || 0;
+
+    const recentEffRecords = await db
+      .select({ efficiency: energyRecords.efficiency })
+      .from(energyRecords)
+      .where(eq(energyRecords.zoneId, zone.id))
+      .orderBy(desc(energyRecords.timestamp))
+      .limit(50);
+    const eff = recentEffRecords.length > 0
+      ? recentEffRecords.reduce((s, r) => s + parseNum(r.efficiency), 0) / recentEffRecords.length
+      : 0;
+
+    stats.push({
       zoneId: zone.id,
       zoneName: zone.name,
-      capacity: Number(zone.capacity),
+      capacity: parseNum(zone.capacity),
       productionToday: Number(prodToday.toFixed(1)),
       productionMonth: Number(prodMonth.toFixed(1)),
       activeAlerts,
-      deviceCount: devices,
-      meterCount: meters,
+      deviceCount,
+      meterCount,
       avgEfficiency: Number(eff.toFixed(2)),
-    };
-  });
+    });
+  }
+
   return c.json({ success: true, data: stats });
 });
 
-app.get('/energy-trend', (c) => {
+app.get('/energy-trend', async (c) => {
   const days = Number(c.req.query('days') || '7');
   const zoneId = c.req.query('zoneId');
+
   const data: Array<{ date: string; production: number; consumption: number; gridExport: number; gridImport: number }> = [];
+
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     d.setHours(0, 0, 0, 0);
     const next = new Date(d);
     next.setDate(next.getDate() + 1);
-    const recs = store.energyRecords.filter((r) => {
-      const t = new Date(r.timestamp);
-      const inZone = !zoneId || r.zoneId === zoneId;
-      return inZone && t >= d && t < next;
-    });
+
+    const conditions: any[] = [
+      gte(energyRecords.timestamp, d),
+      lte(energyRecords.timestamp, next),
+    ];
+    if (zoneId) conditions.push(eq(energyRecords.zoneId, zoneId));
+    const where = and(...conditions);
+
+    const [dayResult] = await db
+      .select({
+        production: sql<number>`COALESCE(sum(${energyRecords.production}), 0)`.mapWith(Number),
+        consumption: sql<number>`COALESCE(sum(${energyRecords.consumption}), 0)`.mapWith(Number),
+        gridExport: sql<number>`COALESCE(sum(${energyRecords.gridExport}), 0)`.mapWith(Number),
+        gridImport: sql<number>`COALESCE(sum(${energyRecords.gridImport}), 0)`.mapWith(Number),
+      })
+      .from(energyRecords)
+      .where(where);
+
     data.push({
       date: d.toISOString().slice(0, 10),
-      production: Number(recs.reduce((s, r) => s + Number(r.production), 0).toFixed(1)),
-      consumption: Number(recs.reduce((s, r) => s + Number(r.consumption), 0).toFixed(1)),
-      gridExport: Number(recs.reduce((s, r) => s + Number(r.gridExport), 0).toFixed(1)),
-      gridImport: Number(recs.reduce((s, r) => s + Number(r.gridImport), 0).toFixed(1)),
+      production: Number(parseNum(dayResult?.production || 0).toFixed(1)),
+      consumption: Number(parseNum(dayResult?.consumption || 0).toFixed(1)),
+      gridExport: Number(parseNum(dayResult?.gridExport || 0).toFixed(1)),
+      gridImport: Number(parseNum(dayResult?.gridImport || 0).toFixed(1)),
     });
   }
+
   return c.json({ success: true, data });
 });
 
-app.get('/alert-summary', (c) => {
+app.get('/alert-summary', async (c) => {
+  const levelsResult = await db
+    .select({
+      level: alerts.level,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(alerts)
+    .groupBy(alerts.level);
   const levels: Record<string, number> = { critical: 0, warning: 0, info: 0 };
-  const statuses: Record<string, number> = { pending: 0, processing: 0, resolved: 0, ignored: 0 };
-  for (const a of store.alerts) {
-    levels[a.level] = (levels[a.level] || 0) + 1;
-    statuses[a.status] = (statuses[a.status] || 0) + 1;
+  for (const row of levelsResult) {
+    levels[row.level] = row.count;
   }
-  const recent = [...store.alerts]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 10)
-    .map((a) => ({
-      ...a,
-      zoneName: store.zones.find((z) => z.id === a.zoneId)?.name,
-      deviceName: store.devices.find((d) => d.id === a.deviceId)?.name,
-    }));
+
+  const statusesResult = await db
+    .select({
+      status: alerts.status,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(alerts)
+    .groupBy(alerts.status);
+  const statuses: Record<string, number> = { pending: 0, processing: 0, resolved: 0, ignored: 0 };
+  for (const row of statusesResult) {
+    statuses[row.status] = row.count;
+  }
+
+  const recent = await db
+    .select({
+      id: alerts.id,
+      deviceId: alerts.deviceId,
+      zoneId: alerts.zoneId,
+      level: alerts.level,
+      title: alerts.title,
+      description: alerts.description,
+      status: alerts.status,
+      assignee: alerts.assignee,
+      acknowledgedBy: alerts.acknowledgedBy,
+      acknowledgedAt: alerts.acknowledgedAt,
+      resolvedBy: alerts.resolvedBy,
+      resolvedAt: alerts.resolvedAt,
+      sourceData: alerts.sourceData,
+      createdAt: alerts.createdAt,
+      updatedAt: alerts.updatedAt,
+      zoneName: zones.name,
+      deviceName: devices.name,
+    })
+    .from(alerts)
+    .leftJoin(zones, eq(alerts.zoneId, zones.id))
+    .leftJoin(devices, eq(alerts.deviceId, devices.id))
+    .orderBy(desc(alerts.createdAt))
+    .limit(10);
+
   return c.json({ success: true, data: { levels, statuses, recent } });
 });
 
-app.get('/users', (c) => {
+app.get('/users', async (c) => {
   const page = Number(c.req.query('page') || '1');
   const pageSize = Number(c.req.query('pageSize') || '20');
-  return c.json({ success: true, data: paginate(store.users, page, pageSize) });
+
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(users);
+  const total = totalResult[0]?.count || 0;
+
+  const data = await db
+    .select()
+    .from(users)
+    .orderBy(users.name)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+
+  return c.json({
+    success: true,
+    data: {
+      data,
+      total,
+      page,
+      pageSize,
+    },
+  });
 });
 
-app.get('/users/list', (c) => {
-  return c.json({ success: true, data: store.users });
+app.get('/users/list', async (c) => {
+  const data = await db.select().from(users).orderBy(users.name);
+  return c.json({ success: true, data });
 });
 
-app.get('/me', (c) => {
-  return c.json({ success: true, data: CURRENT_USER });
+app.get('/current-user', async (c) => {
+  const user = await getCurrentUser();
+  return c.json({ success: true, data: user });
+});
+
+app.get('/me', async (c) => {
+  const user = await getCurrentUser();
+  return c.json({ success: true, data: user });
 });
 
 export default app;

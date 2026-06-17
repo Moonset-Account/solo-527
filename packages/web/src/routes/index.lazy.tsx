@@ -87,9 +87,6 @@ function Dashboard() {
             <Link to="/alerts" className="btn-secondary h-9">
               <AlertTriangle size={15} /> 查看告警
             </Link>
-            <Link to="/export" className="btn-primary h-9 hidden" search={(prev) => prev}>
-              导出报表
-            </Link>
           </>
         }
       />

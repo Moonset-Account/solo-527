@@ -1,5 +1,8 @@
 import { Hono } from 'hono';
-import { store } from '../store';
+import { db } from '../db/index';
+import { alerts, zones, devices, energyRecords, meters, subsidyRecords, users, meterOfflineRecords } from '../db/schema';
+import { eq, and, or, like, desc, asc, sql, gte, lte, isNull, isNotNull } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 const app = new Hono();
 
@@ -18,8 +21,13 @@ function toCSV<T extends Record<string, any>>(rows: T[], headers: Array<{ key: k
   return [head, ...lines].join('\n');
 }
 
-app.get('/alerts', (c) => {
-  const keyword = c.req.query('keyword')?.toLowerCase();
+function parseNum(v: any): number {
+  if (v == null) return 0;
+  return Number(v);
+}
+
+app.get('/alerts', async (c) => {
+  const keyword = c.req.query('keyword');
   const zoneId = c.req.query('zoneId');
   const deviceId = c.req.query('deviceId');
   const level = c.req.query('level');
@@ -27,30 +35,57 @@ app.get('/alerts', (c) => {
   const assignee = c.req.query('assignee');
   const from = c.req.query('from');
   const to = c.req.query('to');
-  let list = [...store.alerts];
-  if (keyword)
-    list = list.filter((a) => a.title.toLowerCase().includes(keyword) || a.description?.toLowerCase().includes(keyword));
-  if (zoneId) list = list.filter((a) => a.zoneId === zoneId);
-  if (deviceId) list = list.filter((a) => a.deviceId === deviceId);
-  if (level) list = list.filter((a) => a.level === level);
-  if (status) list = list.filter((a) => a.status === status);
-  if (assignee) list = list.filter((a) => a.assignee?.includes(assignee));
-  if (from) list = list.filter((a) => new Date(a.createdAt) >= new Date(from));
+
+  const conditions: any[] = [];
+  if (keyword) {
+    conditions.push(
+      or(
+        like(alerts.title, `%${keyword}%`),
+        like(alerts.description, `%${keyword}%`)
+      )
+    );
+  }
+  if (zoneId) conditions.push(eq(alerts.zoneId, zoneId));
+  if (deviceId) conditions.push(eq(alerts.deviceId, deviceId));
+  if (level) conditions.push(eq(alerts.level, level));
+  if (status) conditions.push(eq(alerts.status, status));
+  if (assignee) conditions.push(like(alerts.assignee, `%${assignee}%`));
+  if (from) conditions.push(gte(alerts.createdAt, new Date(from)));
   if (to) {
     const end = new Date(to);
     end.setHours(23, 59, 59, 999);
-    list = list.filter((a) => new Date(a.createdAt) <= end);
+    conditions.push(lte(alerts.createdAt, end));
   }
-  const rows = list.map((a) => ({
-    ...a,
-    zoneName: store.zones.find((z) => z.id === a.zoneId)?.name || '',
-    deviceName: store.devices.find((d) => d.id === a.deviceId)?.name || '',
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const listResult = await db
+    .select({
+      alert: alerts,
+      zoneName: zones.name,
+      deviceName: devices.name,
+    })
+    .from(alerts)
+    .leftJoin(zones, eq(alerts.zoneId, zones.id))
+    .leftJoin(devices, eq(alerts.deviceId, devices.id))
+    .where(where)
+    .orderBy(desc(alerts.createdAt));
+
+  const rows = listResult.map((row) => ({
+    ...row.alert,
+    zoneName: row.zoneName || '',
+    deviceName: row.deviceName || '',
   }));
-  const filterInfo = JSON.stringify({
-    exportTime: new Date().toISOString(),
-    totalRecords: rows.length,
-    filters: { keyword, zoneId, deviceId, level, status, assignee, from, to },
-  }, null, 2);
+
+  const filterInfo = JSON.stringify(
+    {
+      exportTime: new Date().toISOString(),
+      totalRecords: rows.length,
+      filters: { keyword, zoneId, deviceId, level, status, assignee, from, to },
+    },
+    null,
+    2
+  );
+
   const csv = toCSV(rows, [
     { key: 'id', label: '告警ID' },
     { key: 'zoneName', label: '所属分区' },
@@ -64,6 +99,7 @@ app.get('/alerts', (c) => {
     { key: 'resolvedAt', label: '解决时间' },
     { key: 'createdAt', label: '创建时间' },
   ]);
+
   const body = `筛选口径:\n${filterInfo}\n\n数据:\n${csv}`;
   return new Response(body, {
     status: 200,
@@ -74,33 +110,53 @@ app.get('/alerts', (c) => {
   });
 });
 
-app.get('/energy', (c) => {
+app.get('/energy', async (c) => {
   const zoneId = c.req.query('zoneId');
   const meterId = c.req.query('meterId');
   const from = c.req.query('from');
   const to = c.req.query('to');
-  let list = [...store.energyRecords];
-  if (zoneId) list = list.filter((r) => r.zoneId === zoneId);
-  if (meterId) list = list.filter((r) => r.meterId === meterId);
-  if (from) list = list.filter((r) => new Date(r.timestamp) >= new Date(from));
+
+  const conditions: any[] = [];
+  if (zoneId) conditions.push(eq(energyRecords.zoneId, zoneId));
+  if (meterId) conditions.push(eq(energyRecords.meterId, meterId));
+  if (from) conditions.push(gte(energyRecords.timestamp, new Date(from)));
   if (to) {
     const end = new Date(to);
     end.setHours(23, 59, 59, 999);
-    list = list.filter((r) => new Date(r.timestamp) <= end);
+    conditions.push(lte(energyRecords.timestamp, end));
   }
-  const rows = list
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-    .map((r) => ({
-      ...r,
-      zoneName: store.zones.find((z) => z.id === r.zoneId)?.name || '',
-      meterName: store.meters.find((m) => m.id === r.meterId)?.name || '',
-    }));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const listResult = await db
+    .select({
+      record: energyRecords,
+      zoneName: zones.name,
+      meterName: meters.name,
+    })
+    .from(energyRecords)
+    .leftJoin(zones, eq(energyRecords.zoneId, zones.id))
+    .leftJoin(meters, eq(energyRecords.meterId, meters.id))
+    .where(where)
+    .orderBy(asc(energyRecords.timestamp));
+
+  const rows = listResult.map((row) => ({
+    ...row.record,
+    zoneName: row.zoneName || '',
+    meterName: row.meterName || '',
+    production: parseNum(row.record.production),
+    consumption: parseNum(row.record.consumption),
+    gridExport: parseNum(row.record.gridExport),
+    gridImport: parseNum(row.record.gridImport),
+    efficiency: parseNum(row.record.efficiency),
+  }));
+
   const totals = {
     production: rows.reduce((s, r) => s + Number(r.production), 0),
     consumption: rows.reduce((s, r) => s + Number(r.consumption), 0),
     gridExport: rows.reduce((s, r) => s + Number(r.gridExport), 0),
     gridImport: rows.reduce((s, r) => s + Number(r.gridImport), 0),
   };
+
   const filterInfo = JSON.stringify(
     {
       exportTime: new Date().toISOString(),
@@ -111,6 +167,7 @@ app.get('/energy', (c) => {
     null,
     2
   );
+
   const csv = toCSV(rows, [
     { key: 'timestamp', label: '时间' },
     { key: 'zoneName', label: '分区' },
@@ -121,6 +178,7 @@ app.get('/energy', (c) => {
     { key: 'gridImport', label: '购电量(kWh)' },
     { key: 'efficiency', label: '转换效率(%)' },
   ]);
+
   const body = `筛选口径:\n${filterInfo}\n\n数据:\n${csv}`;
   return new Response(body, {
     status: 200,
@@ -131,18 +189,42 @@ app.get('/energy', (c) => {
   });
 });
 
-app.get('/subsidies', (c) => {
+app.get('/subsidies', async (c) => {
   const zoneId = c.req.query('zoneId');
   const status = c.req.query('status');
-  let list = [...store.subsidyRecords];
-  if (zoneId) list = list.filter((r) => r.zoneId === zoneId);
-  if (status) list = list.filter((r) => r.status === status);
-  const rows = list.map((r) => ({
-    ...r,
-    zoneName: store.zones.find((z) => z.id === r.zoneId)?.name || '',
-    approvedByName: store.users.find((u) => u.id === r.approvedBy)?.name || '',
-    updatedByName: store.users.find((u) => u.id === r.updatedBy)?.name || '',
+
+  const conditions: any[] = [];
+  if (zoneId) conditions.push(eq(subsidyRecords.zoneId, zoneId));
+  if (status) conditions.push(eq(subsidyRecords.status, status));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const approvedByUsers = alias(users, 'approved_by_users');
+  const updatedByUsers = alias(users, 'updated_by_users');
+
+  const listResult = await db
+    .select({
+      record: subsidyRecords,
+      zoneName: zones.name,
+      approvedByName: approvedByUsers.name,
+      updatedByName: updatedByUsers.name,
+    })
+    .from(subsidyRecords)
+    .leftJoin(zones, eq(subsidyRecords.zoneId, zones.id))
+    .leftJoin(approvedByUsers, eq(subsidyRecords.approvedBy, approvedByUsers.id))
+    .leftJoin(updatedByUsers, eq(subsidyRecords.updatedBy, updatedByUsers.id))
+    .where(where)
+    .orderBy(desc(subsidyRecords.periodStart));
+
+  const rows = listResult.map((row) => ({
+    ...row.record,
+    zoneName: row.zoneName || '',
+    approvedByName: row.approvedByName || '',
+    updatedByName: row.updatedByName || '',
+    productionKwh: parseNum(row.record.productionKwh),
+    subsidyRate: parseNum(row.record.subsidyRate),
+    subsidyAmount: parseNum(row.record.subsidyAmount),
   }));
+
   const filterInfo = JSON.stringify(
     {
       exportTime: new Date().toISOString(),
@@ -153,6 +235,7 @@ app.get('/subsidies', (c) => {
     null,
     2
   );
+
   const csv = toCSV(rows, [
     { key: 'zoneName', label: '分区' },
     { key: 'periodStart', label: '周期开始' },
@@ -166,6 +249,7 @@ app.get('/subsidies', (c) => {
     { key: 'updatedByName', label: '最后修改人' },
     { key: 'remark', label: '备注' },
   ]);
+
   const body = `筛选口径:\n${filterInfo}\n\n数据:\n${csv}`;
   return new Response(body, {
     status: 200,
@@ -176,38 +260,56 @@ app.get('/subsidies', (c) => {
   });
 });
 
-app.get('/offline', (c) => {
+app.get('/offline', async (c) => {
   const zoneId = c.req.query('zoneId');
   const reasonCategory = c.req.query('reasonCategory');
   const status = c.req.query('status');
-  let list = [...store.meterOfflineRecords];
-  if (zoneId) list = list.filter((r) => r.zoneId === zoneId);
-  if (reasonCategory) list = list.filter((r) => r.reasonCategory === reasonCategory);
-  if (status === 'open') list = list.filter((r) => !r.onlineAt);
-  else if (status === 'resolved') list = list.filter((r) => r.onlineAt);
-  const rows = list.map((r) => ({
-    ...r,
-    zoneName: store.zones.find((z) => z.id === r.zoneId)?.name || '',
-    meterName: store.meters.find((m) => m.id === r.meterId)?.name || '',
-    serialNumber: store.meters.find((m) => m.id === r.meterId)?.serialNumber || '',
+
+  const conditions: any[] = [];
+  if (zoneId) conditions.push(eq(meterOfflineRecords.zoneId, zoneId));
+  if (reasonCategory) conditions.push(eq(meterOfflineRecords.reasonCategory, reasonCategory));
+  if (status === 'open') conditions.push(isNull(meterOfflineRecords.onlineAt));
+  else if (status === 'resolved') conditions.push(isNotNull(meterOfflineRecords.onlineAt));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const listResult = await db
+    .select({
+      record: meterOfflineRecords,
+      zoneName: zones.name,
+      meterName: meters.name,
+      serialNumber: meters.serialNumber,
+    })
+    .from(meterOfflineRecords)
+    .leftJoin(zones, eq(meterOfflineRecords.zoneId, zones.id))
+    .leftJoin(meters, eq(meterOfflineRecords.meterId, meters.id))
+    .where(where)
+    .orderBy(desc(meterOfflineRecords.offlineAt));
+
+  const rows = listResult.map((row) => ({
+    ...row.record,
+    zoneName: row.zoneName || '',
+    meterName: row.meterName || '',
+    serialNumber: row.serialNumber || '',
   }));
+
+  const totalDurationMinutes = rows.reduce((s, r) => s + (r.durationMinutes || 0), 0);
+  const responseRows = rows.filter((r) => r.responseMinutes != null);
+  const avgResponseMinutes = responseRows.length > 0
+    ? Math.round(responseRows.reduce((s, r) => s + (r.responseMinutes || 0), 0) / responseRows.length)
+    : 0;
+
   const filterInfo = JSON.stringify(
     {
       exportTime: new Date().toISOString(),
       totalRecords: rows.length,
-      totalDurationHours: Number((rows.reduce((s, r) => s + (r.durationMinutes || 0), 0) / 60).toFixed(2)),
-      avgResponseMinutes:
-        rows.filter((r) => r.responseMinutes != null).length > 0
-          ? Math.round(
-              rows.filter((r) => r.responseMinutes != null).reduce((s, r) => s + (r.responseMinutes || 0), 0) /
-                rows.filter((r) => r.responseMinutes != null).length
-            )
-          : 0,
+      totalDurationHours: Number((totalDurationMinutes / 60).toFixed(2)),
+      avgResponseMinutes,
       filters: { zoneId, reasonCategory, status },
     },
     null,
     2
   );
+
   const csv = toCSV(rows, [
     { key: 'zoneName', label: '分区' },
     { key: 'meterName', label: '表计名称' },
@@ -221,6 +323,7 @@ app.get('/offline', (c) => {
     { key: 'responseMinutes', label: '响应时长(分钟)' },
     { key: 'resolutionNote', label: '处理说明' },
   ]);
+
   const body = `筛选口径:\n${filterInfo}\n\n数据:\n${csv}`;
   return new Response(body, {
     status: 200,
