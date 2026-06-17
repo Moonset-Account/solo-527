@@ -1,4 +1,5 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsString, MinLength, IsOptional, IsArray } from 'class-validator';
+import { UserRole } from '@/common/enums/index.enum';
 
 export class LoginDto {
   @IsString()
@@ -7,6 +8,42 @@ export class LoginDto {
   @IsString()
   @MinLength(1)
   password: string;
+}
+
+export class RegisterDto {
+  @IsString()
+  username: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @IsString()
+  realName: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  laboratory?: string;
+
+  @IsOptional()
+  @IsArray()
+  roles?: UserRole[];
 }
 
 export class LoginResponse {

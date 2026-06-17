@@ -2,11 +2,11 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { InstrumentService } from './instrument.service';
 import { CreateInstrumentDto, QueryInstrumentDto, CreateBookingDto, QueryBookingDto } from './dto/instrument.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '../../common/enums/index.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@/common/enums/index.enum';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 @ApiTags('instruments')
 @ApiBearerAuth()

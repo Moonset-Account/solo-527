@@ -2,11 +2,11 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ReagentService } from './reagent.service';
 import { CreateReagentDto, UpdateReagentDto, QueryReagentDto } from './dto/reagent.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '../../common/enums/index.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@/common/enums/index.enum';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 @ApiTags('reagents')
 @ApiBearerAuth()

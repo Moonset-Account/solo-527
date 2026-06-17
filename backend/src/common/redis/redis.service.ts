@@ -56,4 +56,22 @@ export class RedisService {
   async publish(channel: string, message: any): Promise<void> {
     await this.redisClient.publish(channel, typeof message === 'string' ? message : JSON.stringify(message));
   }
+
+  async hgetall(key: string): Promise<Record<string, any>> {
+    const data = await this.redisClient.hGetAll(key);
+    if (!data || Object.keys(data).length === 0) return {};
+    const result: Record<string, any> = {};
+    for (const [field, value] of Object.entries(data)) {
+      try {
+        result[field] = JSON.parse(value as string);
+      } catch {
+        result[field] = value;
+      }
+    }
+    return result;
+  }
+
+  async hdel(key: string, field: string): Promise<void> {
+    await this.redisClient.hDel(key, field);
+  }
 }

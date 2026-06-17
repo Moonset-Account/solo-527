@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsArray, IsEnum, IsBoolean, IsObject, IsNumber, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DictionaryType, NotificationType, NotificationPriority, UserRole } from '../../../common/enums/index.enum';
+import { DictionaryType, NotificationType, NotificationPriority, UserRole } from '@/common/enums/index.enum';
 
 export class DictionaryItemDto {
   @IsString()

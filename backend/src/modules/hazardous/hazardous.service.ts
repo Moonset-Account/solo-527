@@ -4,7 +4,7 @@ import { Model, Types } from 'mongoose';
 import { HazardousLabel, HazardousLabelDocument } from './schemas/hazardous.schema';
 import { CreateHazardousLabelDto, QueryHazardousLabelDto } from './dto/hazardous.dto';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 @Injectable()
 export class HazardousService {

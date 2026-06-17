@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto, UpdateUserDto, ChangePasswordDto, QueryUsersDto } from './dto/user.dto';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 @Injectable()
 export class UsersService {

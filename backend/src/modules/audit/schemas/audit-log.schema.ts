@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 export type AuditLogDocument = AuditLog & Document;
 

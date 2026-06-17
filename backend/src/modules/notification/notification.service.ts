@@ -5,8 +5,8 @@ import { Notification, NotificationDocument } from './schemas/notification.schem
 import { CreateNotificationDto, QueryNotificationDto } from './dto/notification.dto';
 import { DictionaryService } from '../dictionary/dictionary.service';
 import { UsersService } from '../users/users.service';
-import { UserRole, NotificationType, NotificationPriority } from '../../common/enums/index.enum';
-import { RedisService } from '../../common/redis/redis.service';
+import { UserRole, NotificationType, NotificationPriority } from '@/common/enums/index.enum';
+import { RedisService } from '@/common/redis/redis.service';
 
 @Injectable()
 export class NotificationService {
@@ -227,12 +227,12 @@ export class NotificationService {
       type: notification.type,
       title: notification.title,
       content: notification.content,
-      createdAt: notification.createdAt,
+      createdAt: (notification as any).createdAt,
       confirmed: false,
     }));
   }
 
-  async syncToDashboard(notification: Notification): Promise<void> {
+  async syncToDashboard(notification: NotificationDocument): Promise<void> {
     notification.syncedToDashboardAt = new Date();
     await notification.save();
 
@@ -252,9 +252,9 @@ export class NotificationService {
   }
 
   async getMaintenanceBoard(): Promise<{ pending: any[]; confirmed: any[] }> {
-    const [pendingObj, confirmedObj] = await Promise.all([
-      this.redisService.redisClient ? null : null,
-      null,
+    const [pendingFromRedis, confirmedFromRedis] = await Promise.all([
+      this.redisService.hgetall('maintenance-board:pending'),
+      this.redisService.hgetall('maintenance-board:confirmed'),
     ]);
 
     const [pendingNotifs, confirmedNotifs] = await Promise.all([

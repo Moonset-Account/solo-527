@@ -4,12 +4,12 @@ import { Observable, interval, fromEvent } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NotificationService } from './notification.service';
 import { QueryNotificationDto, CreateNotificationDto } from './dto/notification.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '../../common/enums/index.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { RedisService } from '../../common/redis/redis.service';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@/common/enums/index.enum';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RedisService } from '@/common/redis/redis.service';
 
 @ApiTags('notifications')
 @ApiBearerAuth()

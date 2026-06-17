@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { NotificationType, NotificationPriority } from '../../common/enums/index.enum';
+import { NotificationType, NotificationPriority } from '@/common/enums/index.enum';
 
 export type NotificationDocument = Notification & Document;
 
@@ -49,6 +49,9 @@ export class Notification {
 
   @Prop({ type: Date })
   expireAt: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

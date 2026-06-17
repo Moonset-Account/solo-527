@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsDateString, IsArray, Min, IsEnum } from 'class-validator';
 import { Types } from 'mongoose';
-import { HazardousCategory } from '../../../common/enums/index.enum';
+import { HazardousCategory } from '@/common/enums/index.enum';
 
 export class CreateReagentDto {
   @IsString()

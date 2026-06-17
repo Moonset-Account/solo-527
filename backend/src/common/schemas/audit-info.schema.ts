@@ -1,8 +1,7 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
 
 @Schema({ _id: false })
-export class AuditInfo extends Document {
+export class AuditInfo {
   @Prop({ type: Date, default: Date.now })
   createdAt: Date;
 
@@ -14,6 +13,8 @@ export class AuditInfo extends Document {
 
   @Prop({ type: String, required: false })
   updatedBy: string;
+
+  [key: string]: any;
 }
 
 export const AuditInfoSchema = SchemaFactory.createForClass(AuditInfo);

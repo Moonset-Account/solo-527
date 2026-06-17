@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsDateString, IsArray, IsEnum, IsNumber, Min } from 'class-validator';
-import { SampleStatus } from '../../../common/enums/index.enum';
+import { IsString, IsOptional, IsDateString, IsArray, IsEnum, IsNumber, IsBoolean, Min } from 'class-validator';
+import { SampleStatus } from '@/common/enums/index.enum';
 
 export class CreateSampleDto {
   @IsString()

@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsDateString, IsArray, IsEnum, IsBoolean, IsMongoId } from 'class-validator';
-import { InstrumentStatus } from '../../../common/enums/index.enum';
+import { InstrumentStatus } from '@/common/enums/index.enum';
 import { Types } from 'mongoose';
 
 export class CreateInstrumentDto {

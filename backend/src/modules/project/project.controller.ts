@@ -2,11 +2,11 @@ import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nest
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ProjectService } from './project.service';
 import { CreateProjectDto, QueryProjectDto, CreateProjectReportDto } from './dto/project.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '../../common/enums/index.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@/common/enums/index.enum';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 @ApiTags('projects')
 @ApiBearerAuth()

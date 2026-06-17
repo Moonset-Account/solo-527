@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsArray, IsEnum, IsBoolean, IsObject } from 'class-validator';
-import { NotificationType, NotificationPriority } from '../../../common/enums/index.enum';
+import { NotificationType, NotificationPriority } from '@/common/enums/index.enum';
 
 export class CreateNotificationDto {
   @IsEnum(NotificationType)

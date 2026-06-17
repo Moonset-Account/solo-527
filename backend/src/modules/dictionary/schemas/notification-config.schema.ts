@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { NotificationType, NotificationPriority, UserRole } from '../../common/enums/index.enum';
-import { AuditInfo, AuditInfoSchema } from '../../common/schemas/audit-info.schema';
+import { NotificationType, NotificationPriority, UserRole } from '@/common/enums/index.enum';
+import { AuditInfo, AuditInfoSchema } from '@/common/schemas/audit-info.schema';
 
 export type NotificationConfigDocument = NotificationConfig & Document;
 

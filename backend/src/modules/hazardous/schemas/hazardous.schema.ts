@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { HazardousCategory } from '../../common/enums/index.enum';
-import { AuditInfo, AuditInfoSchema } from '../../common/schemas/audit-info.schema';
+import { HazardousCategory } from '@/common/enums/index.enum';
+import { AuditInfo, AuditInfoSchema } from '@/common/schemas/audit-info.schema';
 
 export type HazardousLabelDocument = HazardousLabel & Document;
 

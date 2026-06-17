@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsArray, IsEnum, IsBoolean } from 'class-validator';
-import { HazardousCategory } from '../../../common/enums/index.enum';
+import { HazardousCategory } from '@/common/enums/index.enum';
 
 export class CreateHazardousLabelDto {
   @IsString()

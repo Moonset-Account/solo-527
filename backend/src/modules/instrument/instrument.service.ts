@@ -5,7 +5,7 @@ import { Instrument, InstrumentDocument, InstrumentBooking, InstrumentBookingDoc
 import { CreateInstrumentDto, QueryInstrumentDto, CreateBookingDto, QueryBookingDto } from './dto/instrument.dto';
 import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
-import { AuditAction, InstrumentStatus } from '../../common/enums/index.enum';
+import { AuditAction, InstrumentStatus } from '@/common/enums/index.enum';
 
 @Injectable()
 export class InstrumentService {

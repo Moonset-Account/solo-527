@@ -7,7 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
 import { ReagentService } from '../reagent/reagent.service';
 import { ApplicationService } from '../application/application.service';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()

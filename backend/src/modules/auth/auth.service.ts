@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { LoginDto, LoginResponse } from './dto/auth.dto';
+import { LoginDto, RegisterDto, LoginResponse } from './dto/auth.dto';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '../../common/enums/index.enum';
-import { RedisService } from '../../common/redis/redis.service';
+import { AuditAction, UserRole } from '@/common/enums/index.enum';
+import { RedisService } from '@/common/redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +16,19 @@ export class AuthService {
     private auditService: AuditService,
     private redisService: RedisService,
   ) {}
+
+  async register(dto: RegisterDto): Promise<any> {
+    const existing = await this.usersService.findByUsername(dto.username);
+    if (existing) {
+      throw new ConflictException('用户名已存在');
+    }
+    const user = await this.usersService.create({
+      ...dto,
+      roles: dto.roles || [UserRole.USER],
+      isActive: true,
+    });
+    return { id: user._id, username: user.username, realName: user.realName };
+  }
 
   async login(loginDto: LoginDto, ip?: string): Promise<LoginResponse> {
     const user = await this.usersService.findByUsername(loginDto.username);

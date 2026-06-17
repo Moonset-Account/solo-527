@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsObject, IsDateString } from 'class-validator';
-import { AuditAction } from '../../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 export class CreateAuditLogDto {
   @IsEnum(AuditAction)

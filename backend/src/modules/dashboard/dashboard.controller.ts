@@ -2,11 +2,11 @@ import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/co
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { CreateOriginalDocumentDto, QueryOriginalDocumentDto } from './dto/dashboard.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '../../common/enums/index.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { UserRole } from '@/common/enums/index.enum';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 import configuration from './config/configuration';
 import { RedisModule } from './common/redis/redis.module';
@@ -18,6 +19,21 @@ import { AuditModule } from './modules/audit/audit.module';
 import { DictionaryModule } from './modules/dictionary/dictionary.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 
+let mongoMemoryServer: MongoMemoryServer | null = null;
+
+async function getMongoUri(configService: ConfigService): Promise<string> {
+  const envUri = configService.get<string>('database.uri');
+  if (envUri && !envUri.includes('localhost') && !envUri.includes('127.0.0.1')) {
+    return envUri;
+  }
+  try {
+    mongoMemoryServer = await MongoMemoryServer.create();
+    return mongoMemoryServer.getUri();
+  } catch {
+    return envUri;
+  }
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -27,7 +43,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('database.uri'),
+        uri: await getMongoUri(configService),
       }),
       inject: [ConfigService],
     }),

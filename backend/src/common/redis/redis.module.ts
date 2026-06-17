@@ -10,9 +10,14 @@ import { RedisService } from './redis.service';
     {
       provide: 'REDIS_CLIENT',
       useFactory: async (configService: ConfigService) => {
-        const client = createClient({
-          url: `redis://:${configService.get('redis.password')}@${configService.get('redis.host')}:${configService.get('redis.port')}/${configService.get('redis.db')}`,
-        });
+        const host = configService.get('redis.host');
+        const port = configService.get('redis.port');
+        const password = configService.get('redis.password');
+        const db = configService.get('redis.db');
+        const url = password
+          ? `redis://:${password}@${host}:${port}/${db}`
+          : `redis://${host}:${port}/${db}`;
+        const client = createClient({ url });
         client.on('error', (err) => console.error('Redis Client Error', err));
         await client.connect();
         return client;

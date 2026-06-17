@@ -7,7 +7,7 @@ import { CreateSampleDto, UpdateSampleStatusDto, QuerySampleDto } from './dto/sa
 import { AuditService } from '../audit/audit.service';
 import { NotificationService } from '../notification/notification.service';
 import { UsersService } from '../users/users.service';
-import { AuditAction, SampleStatus } from '../../common/enums/index.enum';
+import { AuditAction, SampleStatus } from '@/common/enums/index.enum';
 
 @Injectable()
 export class SampleService {
@@ -42,6 +42,7 @@ export class SampleService {
         status: dto.status || SampleStatus.STORAGE,
         time: new Date(),
         operatorId,
+        operatorName: holderName,
         location: dto.storageLocation,
       }],
     });
@@ -114,10 +115,18 @@ export class SampleService {
       sample.currentHolderName = holderName;
     }
     sample.lastCheckedAt = new Date();
+    let opName = '';
+    if (operatorId) {
+      try {
+        const op = await this.usersService.findById(operatorId);
+        opName = op.realName;
+      } catch {}
+    }
     sample.trackingHistory.push({
       status: dto.status,
       time: new Date(),
       operatorId,
+      operatorName: opName,
       location: dto.location || sample.storageLocation,
       remark: dto.remark,
     });

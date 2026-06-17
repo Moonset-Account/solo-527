@@ -15,7 +15,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationService } from '../notification/notification.service';
 import { ReagentService } from '../reagent/reagent.service';
 import { UsersService } from '../users/users.service';
-import { ApplicationStatus, AuditAction, UserRole } from '../../common/enums/index.enum';
+import { ApplicationStatus, AuditAction, UserRole } from '@/common/enums/index.enum';
 
 @Injectable()
 export class ApplicationService {

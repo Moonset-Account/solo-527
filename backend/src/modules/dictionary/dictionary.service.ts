@@ -11,7 +11,7 @@ import {
   QueryDictionaryDto,
 } from './dto/dictionary.dto';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 @Injectable()
 export class DictionaryService {

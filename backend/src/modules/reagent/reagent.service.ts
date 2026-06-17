@@ -5,7 +5,7 @@ import { Reagent, ReagentDocument } from './schemas/reagent.schema';
 import { CreateReagentDto, UpdateReagentDto, QueryReagentDto } from './dto/reagent.dto';
 import { AuditService } from '../audit/audit.service';
 import { NotificationService } from '../notification/notification.service';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 @Injectable()
 export class ReagentService {

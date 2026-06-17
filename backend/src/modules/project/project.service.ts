@@ -5,7 +5,7 @@ import { Project, ProjectDocument, ProjectReport, ProjectReportDocument } from '
 import { CreateProjectDto, QueryProjectDto, CreateProjectReportDto } from './dto/project.dto';
 import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
-import { AuditAction } from '../../common/enums/index.enum';
+import { AuditAction } from '@/common/enums/index.enum';
 
 @Injectable()
 export class ProjectService {

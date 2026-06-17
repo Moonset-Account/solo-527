@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsArray, IsEnum, IsDateString, IsNumber, ValidateNested, Min, IsMongoId } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApplicationStatus, ApplicationType } from '../../../common/enums/index.enum';
+import { ApplicationStatus, ApplicationType } from '@/common/enums/index.enum';
 
 export class ApplicationItemDto {
   @IsString()
