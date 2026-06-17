@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id           Int              @id @default(autoincrement())
+  name         String
+  address      String
+  supervisorId Int?
+  supervisor   User?            @relation("SupervisedStores", fields: [supervisorId], references: [id])
+  employees    Employee[]
+  batches      BakingBatch[]
+  lossReports  LossReport[]
+  inventories  Inventory[]
+  shifts       ShiftSchedule[]
+  inspections  StoreInspection[]
+  cashFlows    CashFlow[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model User {
+  id                Int              @id @default(autoincrement())
+  username          String           @unique
+  name              String
+  password          String
+  role              UserRole
+  supervisedStores  Store[]          @relation("SupervisedStores")
+  assignedShifts    ShiftSchedule[]  @relation("AssignedShifts")
+  createdInspections StoreInspection[] @relation("Inspector")
+  approvals         Approval[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  STORE_MANAGER
+  STAFF
+}
+
+model Employee {
+  id           Int              @id @default(autoincrement())
+  name         String
+  phone        String?
+  position     String
+  storeId      Int
+  store        Store            @relation(fields: [storeId], references: [id])
+  shifts       ShiftSchedule[]  @relation("EmployeeShifts")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Ingredient {
+  id              Int              @id @default(autoincrement())
+  name            String
+  unit            String
+  category        String?
+  inventories     Inventory[]
+  batchItems      BatchIngredient[]
+  lossItems       LossIngredient[]
+  safetyStocks    SafetyStock[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Inventory {
+  id            Int        @id @default(autoincrement())
+  storeId       Int
+  ingredientId  Int
+  quantity      Float
+  unit          String
+  lastUpdated   DateTime   @default(now())
+  store         Store      @relation(fields: [storeId], references: [id])
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  @@unique([storeId, ingredientId])
+}
+
+model SafetyStock {
+  id            Int        @id @default(autoincrement())
+  storeId       Int
+  ingredientId  Int
+  minQuantity   Float
+  maxQuantity   Float
+  store         Store      @relation(fields: [storeId], references: [id])
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  @@unique([storeId, ingredientId])
+}
+
+model BakingBatch {
+  id            Int                @id @default(autoincrement())
+  batchNo       String             @unique
+  storeId       Int
+  productName   String
+  planQuantity  Float
+  actualQuantity Float
+  bakingTime    DateTime
+  operator      String?
+  status        BatchStatus        @default(COMPLETED)
+  store         Store              @relation(fields: [storeId], references: [id])
+  ingredients   BatchIngredient[]
+  lossReports   LossReport[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+enum BatchStatus {
+  PENDING
+  BAKING
+  COMPLETED
+  CANCELLED
+}
+
+model BatchIngredient {
+  id           Int        @id @default(autoincrement())
+  batchId      Int
+  ingredientId Int
+  quantity     Float
+  unit         String
+  batch        BakingBatch @relation(fields: [batchId], references: [id])
+  ingredient   Ingredient  @relation(fields: [ingredientId], references: [id])
+}
+
+model LossReason {
+  id           Int          @id @default(autoincrement())
+  name         String
+  description  String?
+  category     String?
+  isActive     Boolean      @default(true)
+  lossReports  LossReport[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model LossReport {
+  id               Int                @id @default(autoincrement())
+  reportNo         String             @unique
+  storeId          Int
+  batchId          Int?
+  lossReasonId     Int
+  lossAmount       Float
+  lossValue        Float
+  reportTime       DateTime
+  reporter         String?
+  description      String?
+  approvalStatus   ApprovalStatus     @default(PENDING)
+  approvalId       Int?
+  approval         Approval?          @relation(fields: [approvalId], references: [id])
+  store            Store              @relation(fields: [storeId], references: [id])
+  batch            BakingBatch?       @relation(fields: [batchId], references: [id])
+  lossReason       LossReason         @relation(fields: [lossReasonId], references: [id])
+  ingredients      LossIngredient[]
+  followUpAction   String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model LossIngredient {
+  id             Int        @id @default(autoincrement())
+  lossReportId   Int
+  ingredientId   Int
+  quantity       Float
+  unit           String
+  unitPrice      Float
+  totalValue     Float
+  lossReport     LossReport @relation(fields: [lossReportId], references: [id])
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Approval {
+  id             Int              @id @default(autoincrement())
+  approverId     Int
+  status         ApprovalStatus
+  comment        String?
+  batchApproval  Boolean          @default(false)
+  batchItems     String?
+  approver       User             @relation(fields: [approverId], references: [id])
+  lossReports    LossReport[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model ShiftSchedule {
+  id             Int              @id @default(autoincrement())
+  storeId        Int
+  employeeId     Int
+  assignedToId   Int?
+  shiftDate      DateTime
+  shiftType      String
+  startTime      String
+  endTime        String
+  hasConflict    Boolean          @default(false)
+  conflictNote   String?
+  resolution     String?
+  repurchaseContribution Float?    @default(0)
+  store          Store            @relation(fields: [storeId], references: [id])
+  employee       Employee         @relation("EmployeeShifts", fields: [employeeId], references: [id])
+  assignedTo     User?            @relation("AssignedShifts", fields: [assignedToId], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model StoreInspection {
+  id             Int              @id @default(autoincrement())
+  inspectionNo   String           @unique
+  storeId        Int
+  inspectorId    Int
+  inspectionDate DateTime
+  status         InspectionStatus @default(PENDING)
+  items          Json?
+  issues         String?
+  followUp       String?
+  followUpDue    DateTime?
+  store          Store            @relation(fields: [storeId], references: [id])
+  inspector      User             @relation("Inspector", fields: [inspectorId], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FOLLOW_UP
+}
+
+model CashFlow {
+  id             Int              @id @default(autoincrement())
+  storeId        Int
+  flowType       CashFlowType
+  amount         Float
+  description    String?
+  occurredAt     DateTime
+  operator       String?
+  relatedShiftId Int?
+  store          Store            @relation(fields: [storeId], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+enum CashFlowType {
+  INCOME
+  EXPENSE
+  PETTY_CASH_IN
+  PETTY_CASH_OUT
+}

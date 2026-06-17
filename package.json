@@ -1,0 +1,22 @@
+{
+  "name": "bakery-inventory-system",
+  "version": "1.0.0",
+  "description": "烘焙门店库存损耗管理系统",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "prisma:generate": "cd server && npx prisma generate",
+    "prisma:migrate": "cd server && npx prisma migrate dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
