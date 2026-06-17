@@ -385,7 +385,13 @@
 
         <el-tab-pane label="提示词版本追溯" name="prompt">
           <el-form :inline="true" class="search-form">
-            <el-form-item label="提示词模板">
+            <el-form-item label="查询方式">
+              <el-radio-group v-model="promptQuery.mode">
+                <el-radio value="template">按提示词模板</el-radio>
+                <el-radio value="source">按来源单据号</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="提示词模板" v-if="promptQuery.mode === 'template'">
               <el-select v-model="promptQuery.templateId" placeholder="全部" clearable style="width: 200px" @change="loadPromptVersions">
                 <el-option
                   v-for="t in templateList"
@@ -394,16 +400,18 @@
                   :value="t.id" />
               </el-select>
             </el-form-item>
-            <el-form-item label="来源单据号">
-              <el-input v-model="promptQuery.sourceOrderNo" placeholder="请输入" clearable style="width: 180px" />
+            <el-form-item label="来源单据号" v-if="promptQuery.mode === 'source'">
+              <el-input v-model="promptQuery.sourceOrderNo" placeholder="请输入来源单据号" clearable style="width: 220px" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="filterPromptVersions">查询</el-button>
-              <el-button @click="loadTemplateList">刷新</el-button>
+              <el-button type="primary" :loading="promptQuery.mode === 'source' && promptBySourceLoading" @click="doPromptQuery">
+                查询
+              </el-button>
+              <el-button @click="resetPromptQuery">重置</el-button>
             </el-form-item>
           </el-form>
 
-          <el-row :gutter="16">
+          <el-row :gutter="16" v-if="promptQuery.mode === 'template'">
             <el-col :span="8">
               <div class="template-list">
                 <div class="list-title">提示词模板</div>
@@ -463,6 +471,63 @@
               <el-empty v-else description="请选择左侧模板查看版本历史" />
             </el-col>
           </el-row>
+
+          <div v-if="promptQuery.mode === 'source'" v-loading="promptBySourceLoading">
+            <el-table v-if="promptBySourceList.length > 0" :data="promptBySourceList" border stripe>
+              <el-table-column label="邮件版本" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" type="primary">v{{ row.emailVersion.version }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="emailVersion.draftNo" label="草稿编号" width="160" />
+              <el-table-column label="提示词版本ID" width="160" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.promptVersion" style="font-family: monospace; font-size: 12px">{{ row.promptVersion.id }}</span>
+                  <el-tag v-else size="small" type="info">无</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="提示词版本号" width="120" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.promptVersion">v{{ row.promptVersion.version }}</span>
+                  <span v-else style="color: #909399">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="提示词内容" min-width="220" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span v-if="row.promptVersion" style="font-size: 12px">{{ row.promptVersion.promptContent }}</span>
+                  <span v-else style="color: #909399">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="提示词操作备注" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span v-if="row.promptVersion?.operatorRemark">{{ row.promptVersion.operatorRemark }}</span>
+                  <span v-else style="color: #909399">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="邮件变更备注" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span v-if="row.emailVersion.changeSummary">{{ row.emailVersion.changeSummary }}</span>
+                  <span v-else style="color: #909399">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="emailVersion.operatorName" label="生成操作人" width="100" />
+              <el-table-column prop="emailVersion.createdAt" label="生成时间" width="170" />
+              <el-table-column label="操作" width="140" align="center">
+                <template #default="{ row }">
+                  <el-button type="primary" link @click="viewDraft(row.emailVersion.draftId)">查看草稿</el-button>
+                  <el-button
+                    v-if="row.promptVersion"
+                    type="success"
+                    link
+                    @click="viewPromptVersion(row.promptVersion)">
+                    查看提示词
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else-if="promptQuery.sourceOrderNo" description="该来源单据号下无AI生成的邮件版本" />
+            <el-empty v-else description="请输入来源单据号进行查询" />
+          </div>
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -558,11 +623,13 @@ const hitQuery = reactive({
 const hitList = ref([])
 const hitTotal = ref(0)
 
-const promptQuery = reactive({ templateId: null, sourceOrderNo: '' })
+const promptQuery = reactive({ mode: 'template', templateId: null, sourceOrderNo: '' })
 const templateList = ref([])
 const allVersionList = ref([])
 const versionList = ref([])
 const currentTemplate = ref(null)
+const promptBySourceList = ref([])
+const promptBySourceLoading = ref(false)
 
 const showVersionDetail = ref(false)
 const viewingPromptVersion = ref(null)
@@ -660,20 +727,44 @@ async function loadPromptVersions() {
   try {
     const res = await promptApi.getTemplateVersions(promptQuery.templateId)
     if (res.success) {
-      allVersionList.value = res.data
-      filterPromptVersions()
+      versionList.value = res.data
     }
   } catch (e) {}
 }
 
-function filterPromptVersions() {
-  let filtered = allVersionList.value
-  if (promptQuery.sourceOrderNo) {
-    filtered = filtered.filter(v =>
-      v.sourceOrderNo && v.sourceOrderNo.includes(promptQuery.sourceOrderNo)
-    )
+async function doPromptQuery() {
+  if (promptQuery.mode === 'source') {
+    if (!promptQuery.sourceOrderNo) {
+      ElMessage.warning('请输入来源单据号')
+      return
+    }
+    promptBySourceLoading.value = true
+    try {
+      const res = await traceApi.getPromptVersionsBySourceOrderNo(promptQuery.sourceOrderNo)
+      if (res.success) {
+        promptBySourceList.value = res.data
+      }
+    } catch (e) {} finally {
+      promptBySourceLoading.value = false
+    }
+  } else {
+    if (promptQuery.templateId) {
+      loadPromptVersions()
+    } else {
+      ElMessage.warning('请选择提示词模板')
+    }
   }
-  versionList.value = filtered
+}
+
+function resetPromptQuery() {
+  if (promptQuery.mode === 'source') {
+    promptQuery.sourceOrderNo = ''
+    promptBySourceList.value = []
+  } else {
+    promptQuery.templateId = null
+    currentTemplate.value = null
+    versionList.value = []
+  }
 }
 
 function viewDraft(draftId) {
