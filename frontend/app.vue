@@ -2,7 +2,9 @@
   <n-config-provider :locale="zhCN" :date-locale="dateZhCN">
     <n-message-provider>
       <n-dialog-provider>
-        <slot />
+        <NuxtLayout>
+          <NuxtPage />
+        </NuxtLayout>
       </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>

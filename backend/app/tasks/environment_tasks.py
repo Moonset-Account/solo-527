@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import func, cast, Date
 
 from ..celery_app import celery_app
 from ..database import SessionLocal
@@ -158,7 +159,7 @@ def generate_daily_todos():
                     models.TodoItem.title == todo_title,
                     models.TodoItem.related_type == "batch",
                     models.TodoItem.related_id == batch.id,
-                    func(models.TodoItem.created_at).cast(Date) == today,
+                    cast(models.TodoItem.created_at, Date) == today,
                 )
                 .first()
             )

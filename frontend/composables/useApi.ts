@@ -20,11 +20,14 @@ export function useApi() {
     }
   }
 
+  const del = <T = any>(path: string) => request<T>(path, { method: 'DELETE' })
+
   return {
     get: <T = any>(path: string, query?: any) => request<T>(path, { method: 'GET', query }),
     post: <T = any>(path: string, body?: any) => request<T>(path, { method: 'POST', body }),
     put: <T = any>(path: string, body?: any) => request<T>(path, { method: 'PUT', body }),
-    delete: <T = any>(path: string) => request<T>(path, { method: 'DELETE' }),
+    delete: del,
+    del,
   }
 }
 
