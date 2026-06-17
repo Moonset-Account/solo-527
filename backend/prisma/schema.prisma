@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  WORKSHOP_DIRECTOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum NotificationType {
+  REWORK
+  WORK_ORDER
+  MATERIAL
+  PLAN_CHANGE
+  SYSTEM
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum PlanStatus {
+  DRAFT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ProcessStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REWORK
+  SKIPPED
+}
+
+enum EquipmentStatus {
+  IDLE
+  RUNNING
+  MAINTENANCE
+  ERROR
+}
+
+enum ImportType {
+  EQUIPMENT
+  WORK_ORDER
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  username        String   @unique
+  password        String
+  name            String
+  role            Role     @default(WORKSHOP_DIRECTOR)
+  email           String?
+  phone           String?
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  operationLogs   OperationLog[]
+  createdPlans    ProductionPlan[] @relation("CreatedBy")
+  updatedPlans    ProductionPlan[] @relation("UpdatedBy")
+}
+
+model Equipment {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  name            String
+  model           String?
+  status          EquipmentStatus @default(IDLE)
+  qrCode          String   @unique
+  location        String?
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  processFlows    EquipmentProcessFlow[]
+  utilizations    EquipmentUtilization[]
+  currentPlan     ProductionPlan? @relation(fields: [currentPlanId], references: [id])
+  currentPlanId   Int?
+}
+
+model Process {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  name            String
+  sequence        Int
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  processFlows    EquipmentProcessFlow[]
+}
+
+model WorkOrder {
+  id              Int      @id @default(autoincrement())
+  orderNo         String   @unique
+  productName     String
+  productCode     String
+  quantity        Int
+  plannedDate     DateTime
+  status          PlanStatus @default(DRAFT)
+  materialReady   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plans           ProductionPlan[]
+  materialChecks  MaterialCheck[]
+}
+
+model ProductionPlan {
+  id              Int      @id @default(autoincrement())
+  planNo          String   @unique
+  workOrderId     Int
+  equipmentId     Int
+  plannedStart    DateTime
+  plannedEnd      DateTime
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  status          PlanStatus @default(DRAFT)
+  priority        Int      @default(1)
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdById     Int
+  updatedById     Int
+
+  workOrder       WorkOrder  @relation(fields: [workOrderId], references: [id])
+  equipment       Equipment  @relation(fields: [equipmentId], references: [id])
+  createdBy       User       @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy       User       @relation("UpdatedBy", fields: [updatedById], references: [id])
+  processFlows    EquipmentProcessFlow[]
+  utilizations    EquipmentUtilization[]
+
+  @@index([workOrderId])
+  @@index([equipmentId])
+  @@index([status])
+}
+
+model EquipmentProcessFlow {
+  id              Int      @id @default(autoincrement())
+  planId          Int
+  equipmentId     Int
+  processId       Int
+  status          ProcessStatus @default(PENDING)
+  operator        String?
+  startTime       DateTime?
+  endTime         DateTime?
+  outputQuantity  Int      @default(0)
+  defectQuantity  Int      @default(0)
+  remark          String?
+  scannedAt       DateTime?
+  scannedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan            ProductionPlan @relation(fields: [planId], references: [id])
+  equipment       Equipment @relation(fields: [equipmentId], references: [id])
+  process         Process   @relation(fields: [processId], references: [id])
+  reworks         ReworkRecord[]
+
+  @@index([planId])
+  @@index([equipmentId])
+  @@index([processId])
+  @@index([status])
+}
+
+model EquipmentUtilization {
+  id              Int      @id @default(autoincrement())
+  planId          Int
+  equipmentId     Int
+  recordDate      DateTime
+  runTime         Int      @default(0)
+  stopTime        Int      @default(0)
+  idleTime        Int      @default(0)
+  outputQuantity  Int      @default(0)
+  utilizationRate Float    @default(0)
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan            ProductionPlan @relation(fields: [planId], references: [id])
+  equipment       Equipment @relation(fields: [equipmentId], references: [id])
+
+  @@index([planId])
+  @@index([equipmentId])
+  @@index([recordDate])
+}
+
+model ReworkRecord {
+  id              Int      @id @default(autoincrement())
+  processFlowId   Int
+  reason          String
+  description     String?
+  quantity        Int
+  handled         Boolean  @default(false)
+  handledBy       String?
+  handledAt       DateTime?
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  processFlow     EquipmentProcessFlow @relation(fields: [processFlowId], references: [id])
+  notifications   Notification[]
+
+  @@index([processFlowId])
+}
+
+model MaterialCheck {
+  id              Int      @id @default(autoincrement())
+  workOrderId     Int
+  materialName    String
+  materialCode    String
+  requiredQty     Int
+  availableQty    Int
+  isComplete      Boolean  @default(false)
+  checkedBy       String?
+  checkedAt       DateTime?
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id])
+  notifications   Notification[]
+
+  @@index([workOrderId])
+}
+
+model Notification {
+  id              Int      @id @default(autoincrement())
+  type            NotificationType
+  title           String
+  content         String
+  status          NotificationStatus @default(UNREAD)
+  reworkRecordId  Int?
+  materialCheckId Int?
+  relatedId       Int?
+  relatedType     String?
+  createdAt       DateTime @default(now())
+  readAt          DateTime?
+
+  reworkRecord    ReworkRecord?   @relation(fields: [reworkRecordId], references: [id])
+  materialCheck   MaterialCheck?  @relation(fields: [materialCheckId], references: [id])
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OperationLog {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  action          String
+  module          String
+  targetId        Int?
+  targetType      String?
+  oldValue        String?  @db.Text
+  newValue        String?  @db.Text
+  ipAddress       String?
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model ImportBatch {
+  id              Int      @id @default(autoincrement())
+  batchNo         String   @unique
+  type            ImportType?
+  fileName        String
+  totalCount      Int      @default(0)
+  successCount    Int      @default(0)
+  failCount       Int      @default(0)
+  status          ImportStatus @default(PENDING)
+  errors          String?  @db.Text
+  operatorName    String?
+  createdAt       DateTime @default(now())
+  processedAt     DateTime?
+}
