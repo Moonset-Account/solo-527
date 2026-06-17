@@ -46,6 +46,41 @@ export class RegisterDto {
   roles?: UserRole[];
 }
 
+export class InitAdminDto {
+  @IsString()
+  username: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @IsString()
+  realName: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  laboratory?: string;
+
+  @IsString()
+  seedToken: string;
+}
+
 export class LoginResponse {
   accessToken: string;
   tokenType: string;

@@ -1,20 +1,52 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto, UpdateUserDto, ChangePasswordDto, QueryUsersDto } from './dto/user.dto';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '@/common/enums/index.enum';
+import { AuditAction, UserRole } from '@/common/enums/index.enum';
 
 @Injectable()
 export class UsersService {
+  private readonly ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.REAGENT_MANAGER];
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private auditService: AuditService,
   ) {}
 
+  async hasAnyUser(): Promise<boolean> {
+    const count = await this.userModel.countDocuments().exec();
+    return count > 0;
+  }
+
+  private async validateRoles(
+    targetRoles: string[],
+    operatorId?: string,
+  ): Promise<void> {
+    if (!operatorId || operatorId === 'seed') return;
+
+    const targetAdminRoles = targetRoles?.filter((r) => this.ADMIN_ROLES.includes(r as UserRole)) || [];
+    if (targetAdminRoles.length === 0) return;
+
+    const operator = await this.userModel.findById(operatorId).select('roles').exec();
+    if (!operator) {
+      throw new ForbiddenException('操作人不存在');
+    }
+    const operatorIsSuperAdmin = operator.roles?.includes(UserRole.SUPER_ADMIN);
+
+    if (targetAdminRoles.length > 0 && !operatorIsSuperAdmin) {
+      throw new ForbiddenException('只有超级管理员可以授予管理员角色');
+    }
+    if (targetAdminRoles.includes(UserRole.SUPER_ADMIN) && !operatorIsSuperAdmin) {
+      throw new ForbiddenException('只有超级管理员可以创建超级管理员');
+    }
+  }
+
   async create(createUserDto: CreateUserDto, operatorId?: string): Promise<User> {
+    await this.validateRoles(createUserDto.roles || [], operatorId);
+
     const existing = await this.userModel.findOne({
       $or: [
         { username: createUserDto.username },
@@ -35,13 +67,15 @@ export class UsersService {
 
     await user.save();
 
+    const operatorName = await this.safeGetOperatorName(operatorId);
+
     await this.auditService.create({
       action: AuditAction.CREATE,
       module: 'users',
       targetId: user._id.toString(),
       targetName: user.username,
       operatorId,
-      operatorName: operatorId ? (await this.findById(operatorId))?.realName : 'system',
+      operatorName,
       details: createUserDto,
     });
 
@@ -86,9 +120,24 @@ export class UsersService {
     return this.userModel.findOne({ username }).exec();
   }
 
+  private async safeGetOperatorName(operatorId?: string): Promise<string> {
+    if (!operatorId) return 'system';
+    if (operatorId === 'seed') return 'seed-initialization';
+    if (!Types.ObjectId.isValid(operatorId)) return 'system';
+    try {
+      return (await this.findById(operatorId))?.realName || 'system';
+    } catch {
+      return 'system';
+    }
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto, operatorId?: string): Promise<User> {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('用户不存在');
+
+    if (updateUserDto.roles) {
+      await this.validateRoles(updateUserDto.roles, operatorId);
+    }
 
     Object.assign(user, updateUserDto, {
       audit: { ...user.audit, updatedBy: operatorId, updatedAt: new Date() },
@@ -101,7 +150,7 @@ export class UsersService {
       targetId: id,
       targetName: user.username,
       operatorId,
-      operatorName: operatorId ? (await this.findById(operatorId))?.realName : 'system',
+      operatorName: await this.safeGetOperatorName(operatorId),
       details: updateUserDto,
     });
 
@@ -122,7 +171,7 @@ export class UsersService {
       targetId: id,
       targetName: user.username,
       operatorId,
-      operatorName: operatorId ? (await this.findById(operatorId))?.realName : 'system',
+      operatorName: await this.safeGetOperatorName(operatorId),
     });
   }
 

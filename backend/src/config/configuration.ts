@@ -14,6 +14,9 @@ export default () => ({
     secret: process.env.JWT_SECRET || 'default-secret',
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
+  security: {
+    seedToken: process.env.SEED_TOKEN || 'change-in-production-seed-token',
+  },
   swagger: {
     enabled: process.env.SWAGGER_ENABLED === 'true',
   },
