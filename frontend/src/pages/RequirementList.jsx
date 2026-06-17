@@ -150,25 +150,54 @@ const RequirementList = () => {
     try {
       const values = form.getFieldsValue()
       const params = {
-        ...values,
+        keyword: values.keyword || undefined,
+        status: values.status || undefined,
+        deptId: values.deptId || undefined,
+        priority: values.priority || undefined,
+        category: values.category || undefined,
+        startDate: values.dateRange?.[0]?.startOf('day')?.toISOString() || undefined,
+        endDate: values.dateRange?.[1]?.endOf('day')?.toISOString() || undefined,
         sortBy: sortInfo.sortBy,
         sortDirection: sortInfo.sortDirection,
-        startDate: values.dateRange?.[0]?.toISOString(),
-        endDate: values.dateRange?.[1]?.toISOString(),
       }
-      delete params.dateRange
 
-      const blob = await exportApi.exportRequirements(params, true)
-      const url = window.URL.createObjectURL(new Blob([blob]))
+      const dupCheck = await exportApi.checkDuplicate(params)
+      if (dupCheck.hasExported) {
+        Modal.confirm({
+          title: '导出去重提醒',
+          content: `该筛选条件的数据已于 ${dupCheck.exportInfo || '之前'} 导出过，是否继续导出？`,
+          okText: '仍然导出',
+          cancelText: '取消',
+          onOk: () => doExport(params, false),
+        })
+        return
+      }
+
+      await doExport(params, true)
+    } catch (error) {
+      console.error('导出检查失败:', error)
+    }
+  }
+
+  const doExport = async (params, checkDuplicate) => {
+    try {
+      const blob = await exportApi.exportRequirements(params, checkDuplicate)
+      if (!blob || blob.size === 0) {
+        message.error('导出数据为空')
+        return
+      }
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
       link.setAttribute('download', `需求导出_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
       message.success('导出成功')
     } catch (error) {
       console.error('导出失败:', error)
+      message.error('导出失败，请重试')
     }
   }
 

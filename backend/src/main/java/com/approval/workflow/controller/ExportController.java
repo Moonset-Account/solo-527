@@ -26,8 +26,8 @@ public class ExportController {
         this.exportService = exportService;
     }
 
-    @PostMapping("/requirements")
-    public ResponseEntity<byte[]> exportRequirements(
+    @PostMapping(value = "/requirements", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<?> exportRequirements(
             @RequestBody RequirementQueryDTO query,
             @RequestParam(defaultValue = "true") boolean checkDuplicate) {
         try {
@@ -39,16 +39,21 @@ public class ExportController {
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .contentLength(data.length)
                     .body(data);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage().getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error(400, e.getMessage()));
         } catch (IOException e) {
-            return ResponseEntity.internalServerError().body("导出失败".getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.internalServerError()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error(500, "导出失败: " + e.getMessage()));
         }
     }
 
-    @PostMapping("/requirements/batch")
-    public ResponseEntity<byte[]> exportRequirementsByIds(@RequestBody List<Long> ids) {
+    @PostMapping(value = "/requirements/batch", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<?> exportRequirementsByIds(@RequestBody List<Long> ids) {
         try {
             byte[] data = exportService.exportRequirementsByIds(ids);
 
@@ -58,11 +63,16 @@ public class ExportController {
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .contentLength(data.length)
                     .body(data);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage().getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error(400, e.getMessage()));
         } catch (IOException e) {
-            return ResponseEntity.internalServerError().body("导出失败".getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.internalServerError()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error(500, "导出失败: " + e.getMessage()));
         }
     }
 

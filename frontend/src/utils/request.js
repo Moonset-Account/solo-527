@@ -22,6 +22,29 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      const contentType = response.headers['content-type'] || ''
+      if (
+        contentType.includes('application/json') &&
+        response.data instanceof Blob &&
+        response.data.size < 4096
+      ) {
+        return response.data.text().then((text) => {
+          try {
+            const json = JSON.parse(text)
+            if (json.code !== 200) {
+              message.error(json.message || '导出失败')
+              return Promise.reject(new Error(json.message || '导出失败'))
+            }
+          } catch (e) {
+            // ignore
+          }
+          return response.data
+        })
+      }
+      return response.data
+    }
+
     const data = response.data
     if (data.code === 200) {
       return data.data

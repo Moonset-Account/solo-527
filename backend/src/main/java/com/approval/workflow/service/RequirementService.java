@@ -1,6 +1,7 @@
 package com.approval.workflow.service;
 
 import com.approval.workflow.dto.RequirementQueryDTO;
+import com.approval.workflow.entity.DelayRecord;
 import com.approval.workflow.entity.NodeInstance;
 import com.approval.workflow.entity.Requirement;
 import com.approval.workflow.entity.User;
@@ -9,6 +10,7 @@ import com.approval.workflow.enums.NodeStatus;
 import com.approval.workflow.enums.OperationType;
 import com.approval.workflow.enums.RequirementStatus;
 import com.approval.workflow.enums.RoleType;
+import com.approval.workflow.repository.DelayRecordRepository;
 import com.approval.workflow.repository.NodeInstanceRepository;
 import com.approval.workflow.repository.RequirementRepository;
 import com.approval.workflow.repository.UserRepository;
@@ -34,17 +36,20 @@ public class RequirementService {
     private final WorkflowNodeRepository workflowNodeRepository;
     private final UserRepository userRepository;
     private final OperationLogService operationLogService;
+    private final DelayRecordRepository delayRecordRepository;
 
     public RequirementService(RequirementRepository requirementRepository,
                               NodeInstanceRepository nodeInstanceRepository,
                               WorkflowNodeRepository workflowNodeRepository,
                               UserRepository userRepository,
-                              OperationLogService operationLogService) {
+                              OperationLogService operationLogService,
+                              DelayRecordRepository delayRecordRepository) {
         this.requirementRepository = requirementRepository;
         this.nodeInstanceRepository = nodeInstanceRepository;
         this.workflowNodeRepository = workflowNodeRepository;
         this.userRepository = userRepository;
         this.operationLogService = operationLogService;
+        this.delayRecordRepository = delayRecordRepository;
     }
 
     @Transactional
@@ -90,6 +95,8 @@ public class RequirementService {
 
     private void initWorkflowNodes(Requirement requirement, Long workflowId) {
         List<WorkflowNode> nodes = workflowNodeRepository.findByWorkflowIdOrderByNodeOrder(workflowId);
+        User creator = userRepository.findById(requirement.getCreatorId()).orElse(null);
+
         for (WorkflowNode nodeDef : nodes) {
             NodeInstance nodeInstance = new NodeInstance();
             nodeInstance.setRequirementId(requirement.getId());
@@ -100,17 +107,65 @@ public class RequirementService {
             nodeInstance.setAssigneeDeptId(nodeDef.getAssigneeDeptId());
             nodeInstance.setAssigneeUserId(nodeDef.getAssigneeUserId());
 
-            if (nodeDef.getAssigneeUserId() != null) {
-                nodeInstance.setAssigneeId(nodeDef.getAssigneeUserId());
-            } else if (nodeDef.getAssigneeDeptId() != null) {
-                List<User> managers = userRepository.findByDeptIdAndRole(nodeDef.getAssigneeDeptId(), RoleType.DEPT_MANAGER);
-                if (!managers.isEmpty()) {
-                    nodeInstance.setAssigneeId(managers.get(0).getId());
-                }
+            Long resolvedAssignee = resolveAssignee(nodeDef, requirement, creator);
+            nodeInstance.setAssigneeId(resolvedAssignee);
+
+            if (nodeDef.getNodeOrder() == 1) {
+                nodeInstance.setStatus(NodeStatus.APPROVED);
+                nodeInstance.setStartTime(LocalDateTime.now());
+                nodeInstance.setEndTime(LocalDateTime.now());
+                nodeInstance.setAssigneeId(requirement.getCreatorId());
+                nodeInstance.setComment("提交需求时自动完成");
             }
 
             nodeInstanceRepository.save(nodeInstance);
         }
+    }
+
+    private Long resolveAssignee(WorkflowNode nodeDef, Requirement requirement, User creator) {
+        if (nodeDef.getAssigneeUserId() != null) {
+            return nodeDef.getAssigneeUserId();
+        }
+
+        if (nodeDef.getAssigneeDeptId() != null) {
+            List<User> managers = userRepository.findByDeptIdAndRole(
+                    nodeDef.getAssigneeDeptId(), RoleType.DEPT_MANAGER);
+            if (!managers.isEmpty()) {
+                return managers.get(0).getId();
+            }
+        }
+
+        String role = nodeDef.getAssigneeRole();
+        if (role == null) {
+            return null;
+        }
+
+        switch (role) {
+            case "NORMAL":
+                return requirement.getCreatorId();
+
+            case "DEPT_MANAGER":
+                if (requirement.getDeptId() != null) {
+                    List<User> deptManagers = userRepository.findByDeptIdAndRole(
+                            requirement.getDeptId(), RoleType.DEPT_MANAGER);
+                    if (!deptManagers.isEmpty()) {
+                        return deptManagers.get(0).getId();
+                    }
+                }
+                break;
+
+            case "ADMIN":
+                List<User> admins = userRepository.findByRole(RoleType.ADMIN);
+                if (!admins.isEmpty()) {
+                    return admins.get(0).getId();
+                }
+                break;
+
+            default:
+                break;
+        }
+
+        return null;
     }
 
     @Transactional
@@ -212,10 +267,22 @@ public class RequirementService {
                 .orElseThrow(() -> new RuntimeException("节点不存在"));
 
         node.setStuck(true);
+        node.setDelayReason(reason);
         nodeInstanceRepository.save(node);
 
+        DelayRecord delayRecord = new DelayRecord();
+        delayRecord.setRequirementId(node.getRequirementId());
+        delayRecord.setNodeId(nodeId);
+        delayRecord.setDeptId(node.getAssigneeDeptId());
+        delayRecord.setResponsibleDeptId(node.getAssigneeDeptId());
+        delayRecord.setReason("节点卡住：" + reason);
+        delayRecord.setDelayDays(0);
+        delayRecord.setOperatorId(SecurityUtil.getCurrentUserId());
+        delayRecordRepository.save(delayRecord);
+
         operationLogService.log(OperationType.STUCK, node.getRequirementId(), nodeId,
-                "节点标记卡住：" + node.getNodeName() + "，原因：" + reason);
+                "节点标记卡住：" + node.getNodeName() + "，原因：" + reason,
+                NodeStatus.IN_PROGRESS.name(), NodeStatus.IN_PROGRESS.name(), reason);
 
         return node;
     }
