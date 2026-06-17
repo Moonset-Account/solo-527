@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   Table, Button, Space, Input, Select, DatePicker, Modal, Form, Tag, App, Popconfirm, Card, Checkbox } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, PlayCircleOutlined, CheckCircleOutlined, EyeOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, PlayCircleOutlined, CheckCircleOutlined, EyeOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { planApi, workOrderApi, equipmentApi, processApi } from '../services/api'
 
@@ -88,6 +88,22 @@ const ProductionPlan = () => {
     } catch (e) {
       message.error('删除失败')
     }
+  }
+
+  const handleConfirm = async (record) => {
+    modal.confirm({
+      title: '确认计划',
+      content: `确定要确认计划【${record.planNo}】吗？确认后计划将进入待执行状态。`,
+      onOk: async () => {
+        const res = await planApi.confirm(record.id)
+        if (res.code === 200) {
+          message.success('计划已确认')
+          fetchData()
+        } else {
+          message.error(res.message)
+        }
+      },
+    })
   }
 
   const handleStart = async (record) => {
@@ -257,9 +273,14 @@ const ProductionPlan = () => {
             详情
           </Button>
           {record.status === 'DRAFT' && (
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-              编辑
-            </Button>
+            <>
+              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+                编辑
+              </Button>
+              <Button type="link" size="small" icon={<SafetyCertificateOutlined />} onClick={() => handleConfirm(record)}>
+                确认
+              </Button>
+            </>
           )}
           {record.status === 'CONFIRMED' && (
             <Button type="link" size="small" icon={<PlayCircleOutlined />} onClick={() => handleStart(record)}>
@@ -383,7 +404,51 @@ const ProductionPlan = () => {
         title="计划详情"
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
-        footer={[<Button key="close" onClick={() => setDetailVisible(false)}>关闭</Button>]}
+        footer={[
+          detail && detail.status === 'DRAFT' && (
+            <Button key="confirm" type="primary" icon={<SafetyCertificateOutlined />} onClick={async () => {
+              const res = await planApi.confirm(detail.id)
+              if (res.code === 200) {
+                message.success('计划已确认')
+                setDetailVisible(false)
+                fetchData()
+              } else {
+                message.error(res.message)
+              }
+            }}>
+              确认计划
+            </Button>
+          ),
+          detail && detail.status === 'CONFIRMED' && (
+            <Button key="start" type="primary" icon={<PlayCircleOutlined />} onClick={async () => {
+              const res = await planApi.start(detail.id)
+              if (res.code === 200) {
+                message.success('计划已开始')
+                setDetailVisible(false)
+                fetchData()
+              } else {
+                message.error(res.message)
+              }
+            }}>
+              开始生产
+            </Button>
+          ),
+          detail && detail.status === 'IN_PROGRESS' && (
+            <Button key="complete" type="primary" icon={<CheckCircleOutlined />} onClick={async () => {
+              const res = await planApi.complete(detail.id)
+              if (res.code === 200) {
+                message.success('计划已完成，设备稼动数据已生成')
+                setDetailVisible(false)
+                fetchData()
+              } else {
+                message.error(res.message)
+              }
+            }}>
+              完成计划
+            </Button>
+          ),
+          <Button key="close" onClick={() => setDetailVisible(false)}>关闭</Button>,
+        ].filter(Boolean)}
         width={800}
       >
         {detail && (
@@ -400,6 +465,12 @@ const ProductionPlan = () => {
                 {dayjs(detail.plannedStart).format('YYYY-MM-DD HH:mm')} ~{' '}
                 {dayjs(detail.plannedEnd).format('YYYY-MM-DD HH:mm')}
               </p>
+              {detail.actualStart && (
+                <p><strong>实际开始：</strong>{dayjs(detail.actualStart).format('YYYY-MM-DD HH:mm')}</p>
+              )}
+              {detail.actualEnd && (
+                <p><strong>实际结束：</strong>{dayjs(detail.actualEnd).format('YYYY-MM-DD HH:mm')}</p>
+              )}
               <p>
                 <strong>状态：</strong>
                 <Tag color={statusColor(detail.status)}>{statusText(detail.status)}</Tag>
@@ -425,20 +496,29 @@ const ProductionPlan = () => {
               />
             </Card>
 
-            <Card size="small" title="稼动记录">
-              <Table
-                size="small"
-                dataSource={detail.utilizations}
-                rowKey="id"
-                columns={[
-                  { title: '日期', key: 'recordDate', render: (_, r) => dayjs(r.recordDate).format('YYYY-MM-DD'), },
-                  { title: '运行时间(分钟)', dataIndex: 'runTime', key: 'runTime', },
-                  { title: '停机时间(分钟)', dataIndex: 'stopTime', key: 'stopTime', },
-                  { title: '产量', dataIndex: 'outputQuantity', key: 'outputQuantity', },
-                  { title: '稼动率(%)', dataIndex: 'utilizationRate', key: 'utilizationRate', render: (v) => `${v}%`, },
-                ]}
-                pagination={false}
-              />
+            <Card size="small" title="设备稼动记录">
+              {detail.utilizations && detail.utilizations.length > 0 ? (
+                <Table
+                  size="small"
+                  dataSource={detail.utilizations}
+                  rowKey="id"
+                  columns={[
+                    { title: '日期', key: 'recordDate', render: (_, r) => dayjs(r.recordDate).format('YYYY-MM-DD'), },
+                    { title: '运行时间(分钟)', dataIndex: 'runTime', key: 'runTime', },
+                    { title: '停机时间(分钟)', dataIndex: 'stopTime', key: 'stopTime', },
+                    { title: '空闲时间(分钟)', dataIndex: 'idleTime', key: 'idleTime', },
+                    { title: '产量', dataIndex: 'outputQuantity', key: 'outputQuantity', },
+                    { title: '稼动率(%)', dataIndex: 'utilizationRate', key: 'utilizationRate', render: (v) => `${v.toFixed(1)}%`, },
+                  ]}
+                  pagination={false}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: '#999', padding: '24px 0' }}>
+                  {detail.status === 'COMPLETED'
+                    ? '暂无稼动记录数据'
+                    : '计划完成后系统将自动生成设备稼动记录'}
+                </div>
+              )}
             </Card>
           </div>
         )}

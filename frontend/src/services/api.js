@@ -75,6 +75,7 @@ export const planApi = {
   getDetail: (id) => api.get(`/plans/${id}`),
   create: (data) => api.post('/plans', data),
   update: (id, data) => api.put(`/plans/${id}`, data),
+  confirm: (id) => api.post(`/plans/${id}/confirm`),
   start: (id) => api.post(`/plans/${id}/start`),
   complete: (id) => api.post(`/plans/${id}/complete`),
   delete: (id) => api.delete(`/plans/${id}`),

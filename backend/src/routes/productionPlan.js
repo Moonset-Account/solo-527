@@ -132,6 +132,37 @@ router.put('/:id', requireDirector,
   }
 );
 
+router.post('/:id/confirm', requireDirector,
+  logOperation('CONFIRM', 'ProductionPlan', (req) => ({ targetId: parseInt(req.params.id) })),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const oldPlan = await prisma.productionPlan.findUnique({ where: { id: parseInt(id) } });
+
+      if (!oldPlan) {
+        return res.status(404).json({ code: 404, message: '计划不存在' });
+      }
+
+      if (oldPlan.status !== 'DRAFT') {
+        return res.status(400).json({ code: 400, message: '只有草稿状态的计划可以确认' });
+      }
+
+      const plan = await prisma.productionPlan.update({
+        where: { id: parseInt(id) },
+        data: {
+          status: 'CONFIRMED',
+          updatedById: req.user.id,
+        },
+      });
+
+      await notifyPlanChange(plan, oldPlan, '确认');
+      res.json({ code: 200, message: '计划已确认', data: plan });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 router.post('/:id/start', requireDirector,
   logOperation('START', 'ProductionPlan', (req) => ({ targetId: parseInt(req.params.id) })),
   async (req, res, next) => {
