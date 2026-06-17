@@ -342,7 +342,7 @@ async def init_db():
 
         from app.models.models import (
             Appointment, AppointmentStatus, AppointmentService,
-            HealthRecord, HealthStatus
+            HealthRecord, HealthStatus, RepurchaseAnomaly
         )
         from datetime import time
 
@@ -467,6 +467,35 @@ async def init_db():
                 is_test_data=False,
             ))
         print(f"✅ 创建 {len(health_records_data)} 条示例健康记录")
+
+        repurchase_anomalies_data = [
+            {
+                "appointment_id": created_appointments[1].id,
+                "previous_appointment_id": created_appointments[0].id,
+                "customer_id": customer.id,
+                "anomaly_type": "too_infrequent",
+                "description": "复购间隔过长（超过90天未复购）",
+                "rule_triggered": "超90天未复购",
+                "gap_days": 5,
+                "is_resolved": False,
+            },
+            {
+                "appointment_id": created_appointments[2].id,
+                "previous_appointment_id": created_appointments[1].id,
+                "customer_id": customer.id,
+                "anomaly_type": "too_frequent",
+                "description": "复购间隔过短（24小时内重复预约）",
+                "rule_triggered": "24小时内重复预约",
+                "gap_days": 5,
+                "is_resolved": False,
+            },
+        ]
+        for anomaly_data in repurchase_anomalies_data:
+            db.add(RepurchaseAnomaly(
+                **anomaly_data,
+                is_test_data=False,
+            ))
+        print(f"✅ 创建 {len(repurchase_anomalies_data)} 条复购异常记录")
 
         await db.commit()
         print("\n🎉 数据初始化完成！")

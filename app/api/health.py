@@ -70,11 +70,12 @@ async def create_health_record(
 
     test_flag = is_test_user(current_user)
 
-    record = HealthRecord(
-        **record_in.model_dump(),
-        staff_id=record_in.staff_id or current_user.id,
-        is_test_data=test_flag,
-    )
+    record_data = record_in.model_dump()
+    record_data.pop("staff_id", None)
+    record_data["staff_id"] = record_in.staff_id or current_user.id
+    record_data["is_test_data"] = test_flag
+
+    record = HealthRecord(**record_data)
     db.add(record)
     await db.commit()
     await db.refresh(record)
