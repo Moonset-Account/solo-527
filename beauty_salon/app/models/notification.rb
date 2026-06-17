@@ -13,7 +13,7 @@ class Notification < ApplicationRecord
   end
 
   def self.create_renewal_notice!(treatment_card)
-    admin = AdminUser.first
+    admin = AdminUser.default
     create!(
       recipient: admin,
       title: "疗程续费提醒",
@@ -24,7 +24,7 @@ class Notification < ApplicationRecord
   end
 
   def self.create_consumable_alert!(treatment_card_item, rule)
-    admin = AdminUser.first
+    admin = AdminUser.default
     create!(
       recipient: admin,
       title: "耗材异常告警",

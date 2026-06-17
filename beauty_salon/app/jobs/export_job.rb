@@ -13,7 +13,7 @@ class ExportJob < ApplicationJob
     tempfile.rewind
 
     notification = Notification.create!(
-      recipient: AdminUser.first,
+      recipient: AdminUser.default,
       title: "导出完成",
       body: "#{model_name} 数据已导出完成，共 #{records.count} 条记录",
       category: "export"

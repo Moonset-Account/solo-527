@@ -70,7 +70,7 @@ class ApiRetryJob < ApplicationJob
       ApiRetryJob.set(wait: 30.seconds).perform_later(log)
     else
       log.update!(status: :failed)
-      admin = AdminUser.first
+      admin = AdminUser.default
       notification = Notification.create!(
         recipient: admin,
         title: "API 重试失败",
