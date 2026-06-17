@@ -10,28 +10,28 @@
     <div class="stat-card stat-card-primary">
         <div class="stat-icon">⭐</div>
         <div class="stat-content">
-            <div class="stat-value">{{ "%.1f"|format(overall_stats.avg_rating) }}</div>
+            <div class="stat-value">{{ "%.1f"|format(stats.avg_rating) }}</div>
             <div class="stat-label">平均满意度</div>
         </div>
     </div>
     <div class="stat-card stat-card-success">
         <div class="stat-icon">📊</div>
         <div class="stat-content">
-            <div class="stat-value">{{ overall_stats.total_evaluations }}</div>
+            <div class="stat-value">{{ stats.total_orders }}</div>
             <div class="stat-label">评价总数</div>
         </div>
     </div>
     <div class="stat-card stat-card-accent">
         <div class="stat-icon">😊</div>
         <div class="stat-content">
-            <div class="stat-value">{{ "%.1f"|format(overall_stats.satisfaction_rate) }}%</div>
-            <div class="stat-label">满意率（4-5分）</div>
+            <div class="stat-value">{{ "%.1f"|format(stats.rating_distribution.get("4", 0) + stats.rating_distribution.get("5", 0)) }}</div>
+            <div class="stat-label">满意评价（4-5分）</div>
         </div>
     </div>
     <div class="stat-card stat-card-warning">
         <div class="stat-icon">😞</div>
         <div class="stat-content">
-            <div class="stat-value">{{ overall_stats.low_rating_count }}</div>
+            <div class="stat-value">{{ stats.rating_distribution.get("1", 0) + stats.rating_distribution.get("2", 0) }}</div>
             <div class="stat-label">低分评价（1-2分）</div>
         </div>
     </div>
@@ -45,16 +45,16 @@
         <form class="filter-form" method="get">
             <div class="filter-group">
                 <label class="filter-label">时间范围</label>
-                <input type="date" name="start_date" class="form-input" value="{{ start_date or '' }}" onchange="this.form.submit()">
+                <input type="date" name="start_date" class="form-input" value="{{ filter_params.start_date.strftime('%Y-%m-%d') if filter_params.start_date else '' }}" onchange="this.form.submit()">
                 <span class="filter-sep">至</span>
-                <input type="date" name="end_date" class="form-input" value="{{ end_date or '' }}" onchange="this.form.submit()">
+                <input type="date" name="end_date" class="form-input" value="{{ filter_params.end_date.strftime('%Y-%m-%d') if filter_params.end_date else '' }}" onchange="this.form.submit()">
             </div>
             <div class="filter-group">
                 <label class="filter-label">摄影师</label>
                 <select name="photographer_id" class="form-select" onchange="this.form.submit()">
                     <option value="">全部摄影师</option>
-                    {% for p in photographers %}
-                    <option value="{{ p.id }}" {% if photographer_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                    {% for p in stats.by_photographer %}
+                    <option value="{{ p.photographer_id }}" {% if filter_params.photographer_id == p.photographer_id %}selected{% endif %}>{{ p.photographer_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -62,23 +62,23 @@
                 <label class="filter-label">评分范围</label>
                 <select name="min_rating" class="form-select" onchange="this.form.submit()">
                     <option value="">全部评分</option>
-                    <option value="5" {% if min_rating == 5 %}selected{% endif %}>5星</option>
-                    <option value="4" {% if min_rating == 4 %}selected{% endif %}>4星及以上</option>
-                    <option value="3" {% if min_rating == 3 %}selected{% endif %}>3星及以上</option>
-                    <option value="1" {% if min_rating == 1 %}selected{% endif %}>1-2星（低分）</option>
+                    <option value="5" {% if filter_params.min_rating == 5 %}selected{% endif %}>5星</option>
+                    <option value="4" {% if filter_params.min_rating == 4 %}selected{% endif %}>4星及以上</option>
+                    <option value="3" {% if filter_params.min_rating == 3 %}selected{% endif %}>3星及以上</option>
+                    <option value="1" {% if filter_params.min_rating == 1 %}selected{% endif %}>1-2星（低分）</option>
                 </select>
             </div>
             <div class="filter-group">
                 <label class="filter-label">订单状态</label>
                 <select name="status" class="form-select" onchange="this.form.submit()">
                     <option value="">全部状态</option>
-                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
-                    <option value="ready_for_download" {% if status == 'ready_for_download' %}selected{% endif %}>可下载</option>
+                    <option value="completed" {% if filter_params.order_status == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="delivered" {% if filter_params.order_status == 'delivered' %}selected{% endif %}>已交付</option>
                 </select>
             </div>
             <div class="filter-actions">
                 <button type="submit" class="btn btn-secondary">查询</button>
-                <a href="/trace" class="btn btn-ghost">重置</a>
+                <a href="/trace/satisfaction" class="btn btn-ghost">重置</a>
                 <button type="button" class="btn btn-primary" onclick="exportTraceReport()">
                     <span>📥</span> 导出报告
                 </button>
@@ -95,12 +95,14 @@
             </div>
             <div class="card-body">
                 <div class="rating-distribution">
-                    {% for item in rating_distribution %}
+                    {% for rating in ["5", "4", "3", "2", "1"] %}
+                    {% set count = stats.rating_distribution.get(rating, 0) %}
+                    {% set percentage = (count / stats.total_orders * 100) if stats.total_orders > 0 else 0 %}
                     <div class="rating-bar-item">
-                        <div class="rating-bar-label">{{ item.rating }} 星</div>
+                        <div class="rating-bar-label">{{ rating }} 星</div>
                         <div class="rating-bar-track">
-                            <div class="rating-bar-fill" style="width: {{ item.percentage }}%;">
-                                <span class="rating-bar-value">{{ item.count }} ({{ "%.1f"|format(item.percentage) }}%)</span>
+                            <div class="rating-bar-fill" style="width: {{ percentage }}%;">
+                                <span class="rating-bar-value">{{ count }} ({{ "%.1f"|format(percentage) }}%)</span>
                             </div>
                         </div>
                     </div>
@@ -116,7 +118,7 @@
                 <h3 class="card-title">按摄影师统计</h3>
             </div>
             <div class="card-body">
-                {% if stats_by_photographer %}
+                {% if stats.by_photographer %}
                 <div class="table-container">
                     <table class="table table-compact">
                         <thead>
@@ -124,14 +126,13 @@
                                 <th>摄影师</th>
                                 <th>订单数</th>
                                 <th>平均分</th>
-                                <th>满意率</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in stats_by_photographer %}
+                            {% for item in stats.by_photographer %}
                             <tr>
                                 <td class="font-medium">{{ item.photographer_name }}</td>
-                                <td>{{ item.order_count }}</td>
+                                <td>{{ item.total_orders }}</td>
                                 <td>
                                     <div class="rating-display">
                                         <span class="rating-score">{{ "%.1f"|format(item.avg_rating) }}</span>
@@ -139,14 +140,6 @@
                                         <span class="star {% if i < item.avg_rating|round(0, 'floor')|int %}filled{% endif %}">★</span>
                                         {% endfor %}
                                     </div>
-                                </td>
-                                <td>
-                                    <span class="badge {% if item.satisfaction_rate >= 90 %}badge-success
-                                                      {% elif item.satisfaction_rate >= 70 %}badge-info
-                                                      {% elif item.satisfaction_rate >= 50 %}badge-warning
-                                                      {% else %}badge-danger{% endif %}">
-                                        {{ "%.1f"|format(item.satisfaction_rate) }}%
-                                    </span>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -169,7 +162,7 @@
             </div>
             <div class="card-body">
                 <div class="chart-container chart-large">
-                    {% for item in trend_data %}
+                    {% for item in stats.by_date %}
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar {% if item.avg_rating >= 4 %}chart-bar-success
                                              {% elif item.avg_rating >= 3 %}chart-bar-info
@@ -189,10 +182,10 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">评价详情记录</h3>
-                <span class="card-meta">共 {{ satisfactions.total }} 条记录</span>
+                <span class="card-meta">共 {{ details.total }} 条记录</span>
             </div>
             <div class="card-body">
-                {% if satisfactions.items %}
+                {% if details.items %}
                 <div class="table-container">
                     <table class="table">
                         <thead>
@@ -207,10 +200,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for sat in satisfactions.items %}
+                            {% for sat in details.items %}
                             <tr>
                                 <td><code>{{ sat.order_no }}</code></td>
-                                <td>{{ sat.client_name }}</td>
+                                <td>{{ sat.customer_name }}</td>
                                 <td>{{ sat.photographer_name or '-' }}</td>
                                 <td>
                                     <div class="rating-display">
@@ -221,7 +214,7 @@
                                     </div>
                                 </td>
                                 <td class="feedback-cell">{{ sat.feedback or '未填写评价' }}</td>
-                                <td>{{ sat.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ sat.rated_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td class="table-actions">
                                     <a href="/orders/{{ sat.order_id }}" class="btn btn-link">查看订单</a>
                                 </td>
@@ -231,22 +224,22 @@
                     </table>
                 </div>
                 
-                {% if satisfactions.total_pages > 1 %}
+                {% if details.total_pages > 1 %}
                 <div class="pagination">
-                    {% if satisfactions.page > 1 %}
-                    <a href="?page={{ satisfactions.page - 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="pagination-btn">上一页</a>
+                    {% if details.page > 1 %}
+                    <a href="?page={{ details.page - 1 }}{% if filter_params.start_date %}&start_date={{ filter_params.start_date.strftime('%Y-%m-%d') }}{% endif %}{% if filter_params.end_date %}&end_date={{ filter_params.end_date.strftime('%Y-%m-%d') }}{% endif %}{% if filter_params.photographer_id %}&photographer_id={{ filter_params.photographer_id }}{% endif %}{% if filter_params.min_rating %}&min_rating={{ filter_params.min_rating }}{% endif %}{% if filter_params.order_status %}&status={{ filter_params.order_status }}{% endif %}" class="pagination-btn">上一页</a>
                     {% endif %}
                     
-                    {% for p in range(1, satisfactions.total_pages + 1) %}
-                        {% if p == 1 or p == satisfactions.total_pages or (p >= satisfactions.page - 2 and p <= satisfactions.page + 2) %}
-                        <a href="?page={{ p }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="pagination-btn {% if p == satisfactions.page %}active{% endif %}">{{ p }}</a>
-                        {% elif p == satisfactions.page - 3 or p == satisfactions.page + 3 %}
+                    {% for p in range(1, details.total_pages + 1) %}
+                        {% if p == 1 or p == details.total_pages or (p >= details.page - 2 and p <= details.page + 2) %}
+                        <a href="?page={{ p }}{% if filter_params.start_date %}&start_date={{ filter_params.start_date.strftime('%Y-%m-%d') }}{% endif %}{% if filter_params.end_date %}&end_date={{ filter_params.end_date.strftime('%Y-%m-%d') }}{% endif %}{% if filter_params.photographer_id %}&photographer_id={{ filter_params.photographer_id }}{% endif %}{% if filter_params.min_rating %}&min_rating={{ filter_params.min_rating }}{% endif %}{% if filter_params.order_status %}&status={{ filter_params.order_status }}{% endif %}" class="pagination-btn {% if p == details.page %}active{% endif %}">{{ p }}</a>
+                        {% elif p == details.page - 3 or p == details.page + 3 %}
                         <span class="pagination-ellipsis">...</span>
                         {% endif %}
                     {% endfor %}
                     
-                    {% if satisfactions.page < satisfactions.total_pages %}
-                    <a href="?page={{ satisfactions.page + 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if photographer_id %}&photographer_id={{ photographer_id }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if status %}&status={{ status }}{% endif %}" class="pagination-btn">下一页</a>
+                    {% if details.page < details.total_pages %}
+                    <a href="?page={{ details.page + 1 }}{% if filter_params.start_date %}&start_date={{ filter_params.start_date.strftime('%Y-%m-%d') }}{% endif %}{% if filter_params.end_date %}&end_date={{ filter_params.end_date.strftime('%Y-%m-%d') }}{% endif %}{% if filter_params.photographer_id %}&photographer_id={{ filter_params.photographer_id }}{% endif %}{% if filter_params.min_rating %}&min_rating={{ filter_params.min_rating }}{% endif %}{% if filter_params.order_status %}&status={{ filter_params.order_status }}{% endif %}" class="pagination-btn">下一页</a>
                     {% endif %}
                 </div>
                 {% endif %}

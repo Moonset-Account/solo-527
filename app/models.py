@@ -13,12 +13,13 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    real_name = Column(String(100), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=False)
     email = Column(String(100))
     phone = Column(String(20))
     role = Column(String(20), nullable=False, index=True)
     is_test_account = Column(Boolean, default=False, index=True)
+    is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login_at = Column(DateTime(timezone=True))
 

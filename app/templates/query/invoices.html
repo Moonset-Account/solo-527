@@ -17,22 +17,22 @@
     <div class="stat-card stat-card-success">
         <div class="stat-icon">✅</div>
         <div class="stat-content">
-            <div class="stat-value">¥{{ "%.2f"|format(summary.paid_amount) }}</div>
+            <div class="stat-value">{{ summary.received_count }}</div>
             <div class="stat-label">已回款</div>
         </div>
     </div>
     <div class="stat-card stat-card-warning">
         <div class="stat-icon">⏳</div>
         <div class="stat-content">
-            <div class="stat-value">¥{{ "%.2f"|format(summary.pending_amount) }}</div>
+            <div class="stat-value">{{ summary.pending_count }}</div>
             <div class="stat-label">待回款</div>
         </div>
     </div>
-    <div class="stat-card stat-card-danger">
-        <div class="stat-icon">⚠️</div>
+    <div class="stat-card stat-card-info">
+        <div class="stat-icon">📄</div>
         <div class="stat-content">
-            <div class="stat-value">¥{{ "%.2f"|format(summary.overdue_amount) }}</div>
-            <div class="stat-label">已逾期</div>
+            <div class="stat-value">{{ summary.issued_count }}</div>
+            <div class="stat-label">已开票</div>
         </div>
     </div>
 </div>
@@ -84,12 +84,12 @@
                 <tbody>
                     {% for invoice in invoices.items %}
                     <tr>
-                        <td><code>{{ invoice.order_no }}</code></td>
-                        <td>{{ invoice.client_name }}</td>
+                        <td><code>{{ invoice.order.order_no if invoice.order else '-' }}</code></td>
+                        <td>{{ invoice.order.customer_name if invoice.order else '-' }}</td>
                         <td class="font-medium">¥{{ "%.2f"|format(invoice.amount) }}</td>
                         <td>{{ invoice.invoice_no or '-' }}</td>
                         <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else '-' }}</td>
-                        <td>{{ invoice.payment_date.strftime('%Y-%m-%d') if invoice.payment_date else '-' }}</td>
+                        <td>{{ '已回款' if invoice.is_received else '-' }}</td>
                         <td>
                             <span class="badge 
                                 {% if invoice.status == 'uninvoiced' %}badge-secondary

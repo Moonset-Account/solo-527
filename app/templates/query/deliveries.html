@@ -10,29 +10,29 @@
     <div class="stat-card stat-card-primary">
         <div class="stat-icon">📦</div>
         <div class="stat-content">
-            <div class="stat-value">{{ summary.total }}</div>
-            <div class="stat-label">总交付订单</div>
-        </div>
-    </div>
-    <div class="stat-card stat-card-success">
-        <div class="stat-icon">✅</div>
-        <div class="stat-content">
-            <div class="stat-value">{{ summary.on_time }}</div>
-            <div class="stat-label">按时交付</div>
+            <div class="stat-value">{{ summary.total_completed }}</div>
+            <div class="stat-label">已完成交付</div>
         </div>
     </div>
     <div class="stat-card stat-card-warning">
         <div class="stat-icon">⏰</div>
         <div class="stat-content">
-            <div class="stat-value">{{ summary.delayed }}</div>
-            <div class="stat-label">延迟交付</div>
+            <div class="stat-value">{{ summary.pending_deliveries }}</div>
+            <div class="stat-label">待处理交付</div>
         </div>
     </div>
     <div class="stat-card stat-card-accent">
+        <div class="stat-icon">📅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ summary.upcoming_deliveries }}</div>
+            <div class="stat-label">即将交付</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
         <div class="stat-icon">⭐</div>
         <div class="stat-content">
-            <div class="stat-value">{{ "%.1f"|format(summary.avg_rating) }}</div>
-            <div class="stat-label">平均评分</div>
+            <div class="stat-value">{{ "%.1f"|format(summary.completion_rate) }}%</div>
+            <div class="stat-label">完成率</div>
         </div>
     </div>
 </div>
@@ -99,31 +99,23 @@
                     {% for delivery in deliveries.items %}
                     <tr class="table-row-clickable" onclick="location.href='/orders/{{ delivery.order_id }}'">
                         <td><code>{{ delivery.order_no }}</code></td>
-                        <td class="font-medium">{{ delivery.title }}</td>
-                        <td>{{ delivery.client_name }}</td>
+                        <td class="font-medium">{{ delivery.node_name }}</td>
+                        <td>{{ delivery.customer_name }}</td>
                         {% if current_user.role == 'admin' %}
-                        <td>{{ delivery.photographer_name or '-' }}</td>
+                        <td>{{ delivery.operator_name or '-' }}</td>
                         {% endif %}
-                        <td>{{ delivery.expected_delivery.strftime('%Y-%m-%d') if delivery.expected_delivery else '-' }}</td>
-                        <td>{{ delivery.actual_delivery.strftime('%Y-%m-%d') if delivery.actual_delivery else '-' }}</td>
+                        <td>{{ delivery.expected_at.strftime('%Y-%m-%d') if delivery.expected_at else '-' }}</td>
+                        <td>{{ delivery.actual_at.strftime('%Y-%m-%d') if delivery.actual_at else '-' }}</td>
                         <td>
                             <span class="badge 
-                                {% if delivery.is_delayed %}badge-danger
+                                {% if not delivery.is_completed %}badge-danger
                                 {% else %}badge-success
                                 {% endif %}">
-                                {{ '延迟交付' if delivery.is_delayed else '按时交付' }}
+                                {{ '待完成' if not delivery.is_completed else '已完成' }}
                             </span>
                         </td>
                         <td>
-                            {% if delivery.rating %}
-                            <div class="rating-display">
-                                {% for i in range(5) %}
-                                <span class="star {% if i < delivery.rating %}filled{% endif %}">★</span>
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                            <span class="text-muted">未评价</span>
-                            {% endif %}
+                            <span class="text-muted">-</span>
                         </td>
                         <td class="table-actions">
                             <a href="/orders/{{ delivery.order_id }}" class="btn btn-link">详情</a>

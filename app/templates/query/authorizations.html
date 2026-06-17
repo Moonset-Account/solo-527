@@ -17,7 +17,7 @@
     <div class="stat-card stat-card-success">
         <div class="stat-icon">✅</div>
         <div class="stat-content">
-            <div class="stat-value">{{ summary.active }}</div>
+            <div class="stat-value">{{ summary.valid_now }}</div>
             <div class="stat-label">有效授权</div>
         </div>
     </div>
@@ -90,37 +90,32 @@
                 <tbody>
                     {% for auth in authorizations.items %}
                     <tr class="table-row-clickable" onclick="location.href='/orders/{{ auth.order_id }}'">
-                        <td><code>{{ auth.auth_no }}</code></td>
-                        <td><code>{{ auth.order_no }}</code></td>
-                        <td>{{ auth.client_name }}</td>
+                        <td><code>AUTH-{{ auth.id }}</code></td>
+                        <td><code>{{ auth.order.order_no if auth.order else '-' }}</code></td>
+                        <td>{{ auth.order.customer_name if auth.order else '-' }}</td>
                         <td>
                             <span class="badge 
-                                {% if auth.auth_type == 'commercial' %}badge-primary
-                                {% elif auth.auth_type == 'personal' %}badge-secondary
-                                {% elif auth.auth_type == 'editorial' %}badge-info
-                                {% elif auth.auth_type == 'exclusive' %}badge-accent
+                                {% if auth.material_type == 'commercial' %}badge-primary
+                                {% elif auth.material_type == 'personal' %}badge-secondary
+                                {% elif auth.material_type == 'editorial' %}badge-info
+                                {% elif auth.material_type == 'exclusive' %}badge-accent
                                 {% endif %}">
-                                {% if auth.auth_type == 'commercial' %}商业使用
-                                {% elif auth.auth_type == 'personal' %}个人使用
-                                {% elif auth.auth_type == 'editorial' %}编辑使用
-                                {% elif auth.auth_type == 'exclusive' %}独家授权
+                                {% if auth.material_type == 'commercial' %}商业使用
+                                {% elif auth.material_type == 'personal' %}个人使用
+                                {% elif auth.material_type == 'editorial' %}编辑使用
+                                {% elif auth.material_type == 'exclusive' %}独家授权
                                 {% endif %}
                             </span>
                         </td>
-                        <td class="text-muted">{{ auth.usage_scope or '-' }}</td>
-                        <td>{{ auth.start_date.strftime('%Y-%m-%d') if auth.start_date else '-' }}</td>
-                        <td>{{ auth.end_date.strftime('%Y-%m-%d') if auth.end_date else '永久' }}</td>
+                        <td class="text-muted">{{ auth.scope or '-' }}</td>
+                        <td>{{ auth.valid_from.strftime('%Y-%m-%d') if auth.valid_from else '-' }}</td>
+                        <td>{{ auth.valid_to.strftime('%Y-%m-%d') if auth.valid_to else '永久' }}</td>
                         <td>
-                            {% set status = auth.get_status() if auth.get_status else 'active' %}
                             <span class="badge 
-                                {% if status == 'active' %}badge-success
-                                {% elif status == 'expiring_soon' %}badge-warning
-                                {% elif status == 'expired' %}badge-danger
+                                {% if auth.is_approved %}badge-success
+                                {% else %}badge-warning
                                 {% endif %}">
-                                {% if status == 'active' %}有效
-                                {% elif status == 'expiring_soon' %}即将到期
-                                {% elif status == 'expired' %}已过期
-                                {% endif %}
+                                {{ '已批准' if auth.is_approved else '待审批' }}
                             </span>
                         </td>
                         <td class="table-actions">

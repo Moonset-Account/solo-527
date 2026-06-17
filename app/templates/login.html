@@ -18,9 +18,9 @@
             <p class="auth-desc">请登录您的账号继续工作</p>
             
             <form id="login-form" class="auth-form" hx-post="/login" hx-target="#login-form" hx-swap="outerHTML">
-                {% if error_message %}
+                {% if error %}
                 <div class="alert alert-danger" style="margin-bottom: 24px;">
-                    {{ error_message }}
+                    {{ error }}
                 </div>
                 {% endif %}
                 

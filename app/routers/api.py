@@ -43,13 +43,16 @@ async def toggle_photo_selection(
     order = order_service.get_order(order_id, current_user)
     photo_selections = order_service.get_photo_selections(order_id, current_user)
     
+    selected_count = sum(1 for p in photo_selections if p.is_selected)
+    
     return templates.TemplateResponse(
-        "partials/photo_grid.html",
+        "partials/selection_count.html",
         {
             "request": request,
             "order": order,
             "photo_selections": photo_selections,
-            "current_user": current_user
+            "current_user": current_user,
+            "selected_count": selected_count
         }
     )
 
@@ -76,12 +79,13 @@ async def batch_photo_selection(
     photo_selections = order_service.get_photo_selections(order_id, current_user)
     
     return templates.TemplateResponse(
-        "partials/photo_grid.html",
+        "partials/selection_count.html",
         {
             "request": request,
             "order": order,
             "photo_selections": photo_selections,
             "current_user": current_user,
+            "selected_count": selected_count,
             "message": f"已更新 {updated_count} 张照片，已选择 {selected_count} 张"
         }
     )
@@ -314,7 +318,7 @@ async def toggle_test_account_api(
         <tr>
             <td>{user.id}</td>
             <td>{user.username}</td>
-            <td>{user.real_name}</td>
+            <td>{user.name}</td>
             <td>{user.role}</td>
             <td>
                 <span class="badge {'bg-warning' if user.is_test_account else 'bg-success'}">

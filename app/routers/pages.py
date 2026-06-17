@@ -76,7 +76,7 @@ async def login(
     
     session_id = redis.set_session(
         user.id,
-        {"username": user.username, "role": user.role, "real_name": user.real_name}
+        {"username": user.username, "role": user.role, "name": user.name}
     )
     
     admin_service = AdminService(db)
@@ -221,7 +221,7 @@ async def order_select_page(
     photo_selections = order_service.get_photo_selections(order_id, current_user)
     
     return templates.TemplateResponse(
-        "orders/select.html",
+        "orders/selection.html",
         get_template_context(
             request, current_user,
             order=order,
@@ -324,35 +324,11 @@ async def authorizations_page(
     )
 
 
-@router.get("/admin/orders", response_class=HTMLResponse)
-async def admin_orders_page(
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_page(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "admin":
-        return RedirectResponse(url="/dashboard")
-    
-    order_service = OrderService(db)
-    filter_params = OrderListFilter(page=1, page_size=20)
-    orders = order_service.list_orders(filter_params, current_user)
-    
-    photographers = db.query(User).filter(User.role == "photographer").all()
-    
-    return templates.TemplateResponse(
-        "admin/orders.html",
-        get_template_context(
-            request, current_user,
-            orders=orders,
-            photographers=photographers
-        )
-    )
-
-
-@router.get("/admin/users", response_class=HTMLResponse)
-async def admin_users_page(
-    request: Request,
-    current_user: User = Depends(get_current_user),
+    tab: Optional[str] = None,
     page: int = 1,
     page_size: int = 20,
     db: Session = Depends(get_db)
@@ -361,38 +337,46 @@ async def admin_users_page(
         return RedirectResponse(url="/dashboard")
     
     admin_service = AdminService(db)
+    order_service = OrderService(db)
+    
+    filter_params = OrderListFilter(page=page, page_size=page_size)
+    orders = order_service.list_orders(filter_params, current_user)
+    photographers = db.query(User).filter(User.role == "photographer").all()
+    
     users = admin_service.list_users(current_user, page=page, page_size=page_size)
-    
-    return templates.TemplateResponse(
-        "admin/users.html",
-        get_template_context(
-            request, current_user,
-            users=users
-        )
-    )
-
-
-@router.get("/admin/settings/test-accounts", response_class=HTMLResponse)
-async def admin_test_accounts_page(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "admin":
-        return RedirectResponse(url="/dashboard")
-    
-    admin_service = AdminService(db)
     test_accounts = admin_service.get_test_accounts(current_user)
     stats = admin_service.get_test_data_stats(current_user)
     
     return templates.TemplateResponse(
-        "admin/test_accounts.html",
+        "admin/index.html",
         get_template_context(
             request, current_user,
+            orders=orders,
+            photographers=photographers,
+            users=users,
             test_accounts=test_accounts,
-            stats=stats
+            test_data_stats=stats,
+            active_tab=tab or "orders"
         )
     )
+
+
+@router.get("/admin/orders", response_class=HTMLResponse)
+async def admin_orders_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return RedirectResponse(url="/admin?tab=orders")
+
+
+@router.get("/admin/users", response_class=HTMLResponse)
+async def admin_users_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return RedirectResponse(url="/admin?tab=users")
 
 
 @router.get("/trace/satisfaction", response_class=HTMLResponse)
@@ -408,7 +392,7 @@ async def trace_satisfaction_page(
     details = trace_service.get_satisfaction_details(filter_params, current_user)
     
     return templates.TemplateResponse(
-        "trace/satisfaction.html",
+        "trace/index.html",
         get_template_context(
             request, current_user,
             stats=stats,
@@ -457,12 +441,16 @@ async def exception_detail_page(
         return RedirectResponse(url="/exceptions")
     
     logs = exception_service.get_exception_logs(ticket_id, current_user)
+    stats = exception_service.get_exception_stats(current_user)
+    exceptions = exception_service.list_exceptions(current_user)
     
     return templates.TemplateResponse(
-        "exceptions/detail.html",
+        "exceptions/list.html",
         get_template_context(
             request, current_user,
-            ticket=ticket,
-            logs=logs
+            exceptions=exceptions,
+            stats=stats,
+            active_ticket=ticket,
+            ticket_logs=logs
         )
     )

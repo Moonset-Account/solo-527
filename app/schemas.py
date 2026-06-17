@@ -59,7 +59,7 @@ class ApiResponse(BaseModel, Generic[T]):
 
 class UserBase(BaseModel):
     username: str
-    real_name: str
+    name: str
     email: Optional[str] = None
     phone: Optional[str] = None
     role: UserRole
@@ -71,7 +71,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    real_name: Optional[str] = None
+    name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[UserRole] = None
@@ -342,9 +342,10 @@ class DashboardStats(BaseModel):
     avg_satisfaction: float = 0.0
 
 
-class PaginationResult[T](BaseModel):
-    items: List[T]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
+class PaginationResult:
+    def __init__(self, items, total, page, page_size, total_pages):
+        self.items = items
+        self.total = total
+        self.page = page
+        self.page_size = page_size
+        self.total_pages = total_pages

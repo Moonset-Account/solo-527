@@ -91,7 +91,7 @@ class AdminService:
         keyword: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[User]:
+    ) -> PaginationResult:
         if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="只有管理员可以查看用户列表")
         

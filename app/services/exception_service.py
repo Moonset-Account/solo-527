@@ -26,7 +26,7 @@ class ExceptionService:
         log = ExceptionLog(
             ticket_id=ticket.id,
             action="创建异常工单",
-            remark=f"由 {current_user.real_name} 创建",
+            remark=f"由 {current_user.name} 创建",
             operator_id=current_user.id
         )
         self.db.add(log)
@@ -61,7 +61,7 @@ class ExceptionService:
         keyword: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[ExceptionTicket]:
+    ) -> PaginationResult:
         query = self.db.query(ExceptionTicket).join(Order)
         
         if not current_user.is_test_account:

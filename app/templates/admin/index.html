@@ -8,9 +8,10 @@
 {% block content %}
 <div class="admin-tabs">
     <div class="tab-list">
-        <button class="tab-btn active" onclick="switchTab('users')">用户管理</button>
-        <button class="tab-btn" onclick="switchTab('test-data')">测试数据</button>
-        <button class="tab-btn" onclick="switchTab('system')">系统统计</button>
+        <button class="tab-btn {% if active_tab == 'orders' or not active_tab %}active{% endif %}" onclick="switchTab('orders')">订单管理</button>
+        <button class="tab-btn {% if active_tab == 'users' %}active{% endif %}" onclick="switchTab('users')">用户管理</button>
+        <button class="tab-btn {% if active_tab == 'test-data' %}active{% endif %}" onclick="switchTab('test-data')">测试数据</button>
+        <button class="tab-btn {% if active_tab == 'system' %}active{% endif %}" onclick="switchTab('system')">系统统计</button>
     </div>
     
     <div class="tab-content active" id="tab-users">
@@ -114,15 +115,15 @@
                 <div class="test-data-stats">
                     <div class="test-data-stat-item">
                         <div class="stat-label">测试账号数量</div>
-                        <div class="stat-value">{{ test_stats.test_accounts }}</div>
+                        <div class="stat-value">{{ test_data_stats.test_users }}</div>
                     </div>
                     <div class="test-data-stat-item">
                         <div class="stat-label">测试订单数量</div>
-                        <div class="stat-value">{{ test_stats.test_orders }}</div>
+                        <div class="stat-value">{{ test_data_stats.test_orders }}</div>
                     </div>
                     <div class="test-data-stat-item">
-                        <div class="stat-label">排除的统计次数</div>
-                        <div class="stat-value">{{ test_stats.excluded_count }}</div>
+                        <div class="stat-label">测试订单占比</div>
+                        <div class="stat-value">{{ "%.1f"|format(test_data_stats.test_order_ratio) }}%</div>
                     </div>
                 </div>
                 
@@ -143,29 +144,29 @@
             <div class="stat-card stat-card-primary">
                 <div class="stat-icon">👥</div>
                 <div class="stat-content">
-                    <div class="stat-value">{{ system_stats.total_users }}</div>
+                    <div class="stat-value">{{ users.total }}</div>
                     <div class="stat-label">总用户数</div>
                 </div>
             </div>
             <div class="stat-card stat-card-accent">
                 <div class="stat-icon">📸</div>
                 <div class="stat-content">
-                    <div class="stat-value">{{ system_stats.photographers }}</div>
+                    <div class="stat-value">{{ photographers|length }}</div>
                     <div class="stat-label">摄影师</div>
                 </div>
             </div>
             <div class="stat-card stat-card-success">
                 <div class="stat-icon">📋</div>
                 <div class="stat-content">
-                    <div class="stat-value">{{ system_stats.total_orders }}</div>
+                    <div class="stat-value">{{ orders.total }}</div>
                     <div class="stat-label">总订单数</div>
                 </div>
             </div>
             <div class="stat-card stat-card-warning">
                 <div class="stat-icon">💰</div>
                 <div class="stat-content">
-                    <div class="stat-value">¥{{ "%.0f"|format(system_stats.total_revenue) }}</div>
-                    <div class="stat-label">总营收</div>
+                    <div class="stat-value">¥{{ "%.0f"|format(test_data_stats.total_orders) }}</div>
+                    <div class="stat-label">订单总数(含测试)</div>
                 </div>
             </div>
         </div>

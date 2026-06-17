@@ -57,10 +57,10 @@ class TraceService:
         
         by_photographer_query = query.with_entities(
             User.id,
-            User.real_name,
+            User.name,
             func.count(Satisfaction.id).label("total"),
             func.avg(Satisfaction.rating).label("avg_rating")
-        ).group_by(User.id, User.real_name).all()
+        ).group_by(User.id, User.name).all()
         
         by_photographer = [
             {
@@ -129,7 +129,7 @@ class TraceService:
         self, filter_params: SatisfactionTraceFilter, current_user: User,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[dict]:
+    ) -> PaginationResult:
         query = self.db.query(Satisfaction, Order, User).join(
             Order, Satisfaction.order_id == Order.id
         ).join(
@@ -176,7 +176,7 @@ class TraceService:
                 "customer_name": order.customer_name,
                 "shoot_type": order.shoot_type,
                 "photographer_id": photographer.id,
-                "photographer_name": photographer.real_name,
+                "photographer_name": photographer.name,
                 "rating": satisfaction.rating,
                 "feedback": satisfaction.feedback,
                 "order_status": order.status,
@@ -202,7 +202,7 @@ class TraceService:
         current_user: User = None,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[dict]:
+    ) -> PaginationResult:
         query = self.db.query(DeliveryNode, Order, User).join(
             Order, DeliveryNode.order_id == Order.id
         ).join(
@@ -250,7 +250,7 @@ class TraceService:
                 "expected_at": node.expected_at,
                 "actual_at": node.actual_at,
                 "is_completed": node.is_completed,
-                "operator_name": operator.real_name if operator else None,
+                "operator_name": operator.name if operator else None,
                 "delay_days": delay_days,
                 "remark": node.remark
             })

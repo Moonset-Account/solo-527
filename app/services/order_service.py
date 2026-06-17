@@ -64,7 +64,7 @@ class OrderService:
 
     def list_orders(
         self, filter_params: OrderListFilter, current_user: User
-    ) -> PaginationResult[Order]:
+    ) -> PaginationResult:
         query = self.db.query(Order)
         
         if not current_user.is_test_account:

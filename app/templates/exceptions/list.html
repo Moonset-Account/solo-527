@@ -44,25 +44,25 @@
             <span class="tab-text">全部</span>
             <span class="tab-count">{{ stats.total }}</span>
         </a>
-        <a href="/exceptions?type=settlement_diff" class="type-tab {% if exception_type == 'settlement_diff' %}active{% endif %}">
+        <a href="/exceptions?type=price_diff" class="type-tab {% if exception_type == 'price_diff' %}active{% endif %}">
             <span class="tab-icon">💰</span>
             <span class="tab-text">结算差异</span>
-            <span class="tab-count">{{ stats.by_type.settlement_diff or 0 }}</span>
+            <span class="tab-count">{{ stats.by_type.price_diff or 0 }}</span>
         </a>
-        <a href="/exceptions?type=delivery_delay" class="type-tab {% if exception_type == 'delivery_delay' %}active{% endif %}">
+        <a href="/exceptions?type=timeout_diff" class="type-tab {% if exception_type == 'timeout_diff' %}active{% endif %}">
             <span class="tab-icon">⏰</span>
             <span class="tab-text">交付延迟</span>
-            <span class="tab-count">{{ stats.by_type.delivery_delay or 0 }}</span>
+            <span class="tab-count">{{ stats.by_type.timeout_diff or 0 }}</span>
         </a>
-        <a href="/exceptions?type=quality_issue" class="type-tab {% if exception_type == 'quality_issue' %}active{% endif %}">
+        <a href="/exceptions?type=quality_diff" class="type-tab {% if exception_type == 'quality_diff' %}active{% endif %}">
             <span class="tab-icon">📷</span>
             <span class="tab-text">质量问题</span>
-            <span class="tab-count">{{ stats.by_type.quality_issue or 0 }}</span>
+            <span class="tab-count">{{ stats.by_type.quality_diff or 0 }}</span>
         </a>
-        <a href="/exceptions?type=other" class="type-tab {% if exception_type == 'other' %}active{% endif %}">
+        <a href="/exceptions?type=other_diff" class="type-tab {% if exception_type == 'other_diff' %}active{% endif %}">
             <span class="tab-icon">❓</span>
             <span class="tab-text">其他</span>
-            <span class="tab-count">{{ stats.by_type.other or 0 }}</span>
+            <span class="tab-count">{{ stats.by_type.other_diff or 0 }}</span>
         </a>
     </div>
 </div>
@@ -85,9 +85,6 @@
             <label class="filter-label">处理人</label>
             <select name="handler_id" class="form-select" onchange="this.form.submit()">
                 <option value="">全部处理人</option>
-                {% for h in handlers %}
-                <option value="{{ h.id }}" {% if handler_id == h.id %}selected{% endif %}>{{ h.name }}</option>
-                {% endfor %}
             </select>
         </div>
         {% endif %}
@@ -121,13 +118,13 @@
                     <div class="exception-title-row">
                         <h4 class="exception-title">{{ exception.title }}</h4>
                         <span class="badge 
-                            {% if exception.exception_type == 'settlement_diff' %}badge-danger
-                            {% elif exception.exception_type == 'delivery_delay' %}badge-warning
-                            {% elif exception.exception_type == 'quality_issue' %}badge-info
+                            {% if exception.exception_type == 'price_diff' %}badge-danger
+                            {% elif exception.exception_type == 'timeout_diff' %}badge-warning
+                            {% elif exception.exception_type == 'quality_diff' %}badge-info
                             {% else %}badge-secondary{% endif %}">
-                            {% if exception.exception_type == 'settlement_diff' %}结算差异
-                            {% elif exception.exception_type == 'delivery_delay' %}交付延迟
-                            {% elif exception.exception_type == 'quality_issue' %}质量问题
+                            {% if exception.exception_type == 'price_diff' %}结算差异
+                            {% elif exception.exception_type == 'timeout_diff' %}交付延迟
+                            {% elif exception.exception_type == 'quality_diff' %}质量问题
                             {% else %}其他{% endif %}
                         </span>
                         <span class="badge 
@@ -142,9 +139,9 @@
                         </span>
                     </div>
                     <div class="exception-meta">
-                        <span>订单号：<code>{{ exception.order_no }}</code></span>
+                        <span>订单号：<code>{{ exception.order.order_no if exception.order else '-' }}</code></span>
                         <span>·</span>
-                        <span>客户：{{ exception.client_name }}</span>
+                        <span>客户：{{ exception.order.customer_name if exception.order else '-' }}</span>
                         <span>·</span>
                         <span>创建时间：{{ exception.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
                     </div>
@@ -159,32 +156,23 @@
                             <span class="diff-value {% if exception.amount_diff > 0 %}diff-positive{% elif exception.amount_diff < 0 %}diff-negative{% endif %}">
                                 {{ '+' if exception.amount_diff > 0 }}¥{{ "%.2f"|format(exception.amount_diff) }}
                             </span>
-                            <span class="diff-detail">
-                                （应收：¥{{ "%.2f"|format(exception.expected_amount or 0) }}，
-                                 实收：¥{{ "%.2f"|format(exception.actual_amount or 0) }}）
-                            </span>
                         </p>
                         {% endif %}
                     </div>
                     
-                    {% if exception.handler_name %}
+                    {% if exception.assignee %}
                     <div class="exception-handler">
-                        <span>处理人：{{ exception.handler_name }}</span>
-                        {% if exception.handled_at %}
+                        <span>处理人：{{ exception.assignee.name }}</span>
+                        {% if exception.resolved_at %}
                         <span>·</span>
-                        <span>处理时间：{{ exception.handled_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <span>处理时间：{{ exception.resolved_at.strftime('%Y-%m-%d %H:%M') }}</span>
                         {% endif %}
                     </div>
                     {% endif %}
                     
-                    {% if exception.result or exception.reason %}
+                    {% if exception.resolution %}
                     <div class="exception-result">
-                        {% if exception.result %}
-                        <p><strong>处理结果：</strong>{{ exception.result }}</p>
-                        {% endif %}
-                        {% if exception.reason %}
-                        <p><strong>原因分析：</strong>{{ exception.reason }}</p>
-                        {% endif %}
+                        <p><strong>处理结果：</strong>{{ exception.resolution }}</p>
                     </div>
                     {% endif %}
                 </div>

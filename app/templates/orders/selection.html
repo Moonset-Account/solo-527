@@ -3,7 +3,7 @@
 {% block title %}确认选片 - 摄影师订单作品交付台{% endblock %}
 
 {% block page_title %}确认选片{% endblock %}
-{% block page_subtitle %}<span class="page-subtitle">{{ order.title }} · #{{ order.order_no }}</span>{% endblock %}
+{% block page_subtitle %}<span class="page-subtitle">{{ order.shoot_type }} · #{{ order.order_no }}</span>{% endblock %}
 
 {% block top_bar_actions %}
 <div class="top-bar-actions">
@@ -19,20 +19,20 @@
         <div class="selection-stats">
             <div class="stat-item">
                 <span class="stat-label">总计</span>
-                <span class="stat-value">{{ photos|length }} 张</span>
+                <span class="stat-value">{{ photo_selections|length }} 张</span>
             </div>
             <div class="stat-item highlight">
                 <span class="stat-label">已选</span>
-                <span class="stat-value" id="selectedCount">{{ selected_count }} 张</span>
+                <span class="stat-value" id="selectedCount">{{ order.selected_count }} 张</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">套餐包含</span>
-                <span class="stat-value">{{ order.included_photos or 0 }} 张</span>
+                <span class="stat-value">{{ order.photo_count or 0 }} 张</span>
             </div>
-            {% if selected_count > (order.included_photos or 0) %}
+            {% if order.selected_count > (order.photo_count or 0) %}
             <div class="stat-item warning">
                 <span class="stat-label">超出</span>
-                <span class="stat-value">{{ selected_count - (order.included_photos or 0) }} 张</span>
+                <span class="stat-value">{{ order.selected_count - (order.photo_count or 0) }} 张</span>
             </div>
             {% endif %}
         </div>
@@ -47,15 +47,15 @@
 <div class="card">
     <div class="card-body">
         <div class="photo-grid photo-grid-selectable" id="photoGrid">
-            {% for photo in photos %}
-            <div class="photo-item {% if photo.selected %}selected{% endif %}" 
+            {% for photo in photo_selections %}
+            <div class="photo-item {% if photo.is_selected %}selected{% endif %}" 
                  data-photo-id="{{ photo.id }}"
                  onclick="togglePhoto(this, {{ photo.id }})"
                  hx-post="/api/orders/{{ order.id }}/photos/{{ photo.id }}/toggle"
                  hx-trigger="click from:body"
                  hx-target="#selectedCount"
                  hx-swap="innerHTML">
-                <img src="{{ photo.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ photo.file_name }}">
+                <img src="{{ photo.thumbnail_url or '/static/images/placeholder.svg' }}" alt="{{ photo.photo_key }}">
                 <div class="photo-checkbox">
                     <div class="photo-checkbox-inner">
                         <span class="check-icon">✓</span>
@@ -71,9 +71,9 @@
 <div class="selection-toolbar" id="selectionToolbar">
     <div class="toolbar-left">
         <span class="toolbar-text">
-            已选择 <strong id="toolbarSelectedCount">{{ selected_count }}</strong> 张照片
-            {% if order.included_photos and selected_count > order.included_photos %}
-            <span class="toolbar-warning">（超出套餐 {{ selected_count - order.included_photos }} 张）</span>
+            已选择 <strong id="toolbarSelectedCount">{{ order.selected_count }}</strong> 张照片
+            {% if order.photo_count and order.selected_count > order.photo_count %}
+            <span class="toolbar-warning">（超出套餐 {{ order.selected_count - order.photo_count }} 张）</span>
             {% endif %}
         </span>
     </div>
@@ -81,7 +81,7 @@
         <button class="btn btn-ghost" onclick="location.href='/orders/{{ order.id }}'">取消</button>
         <button class="btn btn-primary btn-lg" 
                 onclick="confirmSelection()"
-                {% if selected_count == 0 %}disabled{% endif %}>
+                {% if order.selected_count == 0 %}disabled{% endif %}>
             <span>✓</span> 确认选片
         </button>
     </div>
@@ -97,12 +97,12 @@
             <div class="confirm-content">
                 <div class="confirm-icon">🖼️</div>
                 <h4>确认提交选片结果？</h4>
-                <p>您已选择 <strong id="confirmCount">{{ selected_count }}</strong> 张照片</p>
-                {% if order.included_photos %}
+                <p>您已选择 <strong id="confirmCount">{{ order.selected_count }}</strong> 张照片</p>
+                {% if order.photo_count %}
                 <p class="text-muted">
-                    套餐包含 {{ order.included_photos }} 张
-                    {% if selected_count > order.included_photos %}
-                    <span class="text-warning">，超出 {{ selected_count - order.included_photos }} 张需额外收费</span>
+                    套餐包含 {{ order.photo_count }} 张
+                    {% if order.selected_count > order.photo_count %}
+                    <span class="text-warning">，超出 {{ order.selected_count - order.photo_count }} 张需额外收费</span>
                     {% endif %}
                 </p>
                 {% endif %}

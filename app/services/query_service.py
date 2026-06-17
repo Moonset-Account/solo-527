@@ -19,7 +19,7 @@ class QueryService:
         is_received: Optional[bool] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[Invoice]:
+    ) -> PaginationResult:
         query = self.db.query(Invoice).join(Order)
         
         if not current_user.is_test_account:
@@ -92,7 +92,7 @@ class QueryService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[dict]:
+    ) -> PaginationResult:
         query = self.db.query(DeliveryNode).join(Order)
         
         if not current_user.is_test_account:
@@ -126,7 +126,7 @@ class QueryService:
                 "expected_at": node.expected_at,
                 "actual_at": node.actual_at,
                 "is_completed": node.is_completed,
-                "operator_name": node.operator.real_name if node.operator else None
+                "operator_name": node.operator.name if node.operator else None
             })
         
         return PaginationResult(
@@ -192,7 +192,7 @@ class QueryService:
         only_valid: bool = False,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginationResult[MaterialAuthorization]:
+    ) -> PaginationResult:
         query = self.db.query(MaterialAuthorization).join(Order)
         
         if not current_user.is_test_account:
@@ -216,7 +216,7 @@ class QueryService:
         
         total = query.count()
         offset = (page - 1) * page_size
-        items = query.order_by(MaterialAuthorization.created_at.desc()).offset(offset).limit(page_size).all()
+        items = query.order_by(MaterialAuthorization.valid_from.desc()).offset(offset).limit(page_size).all()
         
         return PaginationResult(
             items=items,
