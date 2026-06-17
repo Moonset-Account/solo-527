@@ -173,33 +173,62 @@
                 <el-empty v-else description="无禁用词命中记录" :image-size="80" />
 
                 <el-divider content-position="left" dashed>
-                  <el-tag type="warning" size="small">生成时使用的提示词版本</el-tag>
+                  <el-tag type="warning" size="small">AI生成时使用的提示词版本（按邮件版本）</el-tag>
                 </el-divider>
-                <div v-if="detail.promptVersion" class="prompt-version-block">
-                  <el-descriptions :column="3" border size="small">
-                    <el-descriptions-item label="版本ID">
-                      <span style="font-family: monospace">{{ detail.promptVersion.id }}</span>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="版本号">v{{ detail.promptVersion.version }}</el-descriptions-item>
-                    <el-descriptions-item label="状态">
-                      <el-tag size="small" :type="detail.promptVersion.status === 'ACTIVE' ? 'success' : 'info'">
-                        {{ getPromptStatusLabel(detail.promptVersion.status) }}
-                      </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="模板编码">{{ detail.promptVersion.templateCode }}</el-descriptions-item>
-                    <el-descriptions-item label="操作人">{{ detail.promptVersion.operatorName }}</el-descriptions-item>
-                    <el-descriptions-item label="创建时间">{{ detail.promptVersion.createdAt }}</el-descriptions-item>
-                    <el-descriptions-item label="来源单据" :span="2">{{ detail.promptVersion.sourceOrderNo || '-' }}</el-descriptions-item>
-                    <el-descriptions-item label="操作备注" :span="3">
-                      {{ detail.promptVersion.operatorRemark || '-' }}
-                    </el-descriptions-item>
-                  </el-descriptions>
-                  <div style="margin-top: 12px">
-                    <div class="detail-label">提示词内容：</div>
-                    <pre class="prompt-content">{{ detail.promptVersion.promptContent }}</pre>
-                  </div>
+                <div v-if="detail.aiGeneratedVersions && detail.aiGeneratedVersions.length > 0">
+                  <el-collapse>
+                    <el-collapse-item
+                      v-for="(pair, pIdx) in detail.aiGeneratedVersions"
+                      :key="pIdx"
+                      :name="pIdx">
+                      <template #title>
+                        <el-tag size="small" type="primary" style="margin-right: 8px">邮件版本 v{{ pair.emailVersion.version }}</el-tag>
+                        <span v-if="pair.promptVersion">
+                          提示词版本 <strong>v{{ pair.promptVersion.version }}</strong>
+                          <el-tag size="small" style="margin-left: 8px" :type="pair.promptVersion.status === 'ACTIVE' ? 'success' : 'info'">
+                            {{ getPromptStatusLabel(pair.promptVersion.status) }}
+                          </el-tag>
+                        </span>
+                        <el-tag v-else size="small" type="info" style="margin-left: 8px">未关联提示词版本</el-tag>
+                        <span v-if="pair.emailVersion.changeSummary" style="margin-left: 12px; color: #909399; font-size: 12px">
+                          变更摘要：{{ pair.emailVersion.changeSummary }}
+                        </span>
+                      </template>
+
+                      <el-descriptions :column="3" border size="small" v-if="pair.promptVersion" style="margin-bottom: 12px">
+                        <el-descriptions-item label="邮件版本号">
+                          <el-tag size="small" type="primary">v{{ pair.emailVersion.version }}</el-tag>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="PromptVersionId">
+                          <span style="font-family: monospace">{{ pair.promptVersion.id }}</span>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="提示词版本号">v{{ pair.promptVersion.version }}</el-descriptions-item>
+                        <el-descriptions-item label="模板编码">{{ pair.promptVersion.templateCode }}</el-descriptions-item>
+                        <el-descriptions-item label="状态">
+                          <el-tag size="small" :type="pair.promptVersion.status === 'ACTIVE' ? 'success' : 'info'">
+                            {{ getPromptStatusLabel(pair.promptVersion.status) }}
+                          </el-tag>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="操作人">{{ pair.promptVersion.operatorName }}</el-descriptions-item>
+                        <el-descriptions-item label="提示词创建时间">{{ pair.promptVersion.createdAt }}</el-descriptions-item>
+                        <el-descriptions-item label="邮件生成时间">{{ pair.emailVersion.createdAt }}</el-descriptions-item>
+                        <el-descriptions-item label="生成操作人">{{ pair.emailVersion.operatorName }}</el-descriptions-item>
+                        <el-descriptions-item label="提示词操作备注" :span="3">
+                          {{ pair.promptVersion.operatorRemark || '-' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="邮件变更备注" :span="3">
+                          {{ pair.emailVersion.changeSummary || '-' }}
+                        </el-descriptions-item>
+                      </el-descriptions>
+
+                      <div v-if="pair.promptVersion">
+                        <div class="detail-label">提示词内容：</div>
+                        <pre class="prompt-content">{{ pair.promptVersion.promptContent }}</pre>
+                      </div>
+                    </el-collapse-item>
+                  </el-collapse>
                 </div>
-                <el-empty v-else description="该草稿未关联提示词版本" :image-size="80" />
+                <el-empty v-else description="该草稿无 AI 生成版本记录" :image-size="80" />
               </el-collapse-item>
             </el-collapse>
           </div>

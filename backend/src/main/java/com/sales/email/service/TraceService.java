@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.sales.email.dto.SourceOrderTraceDTO;
 import com.sales.email.entity.EmailDraft;
 import com.sales.email.entity.EmailReview;
+import com.sales.email.entity.EmailVersion;
 import com.sales.email.entity.ForbiddenWordHit;
 import com.sales.email.entity.PromptVersion;
 import com.sales.email.mapper.EmailDraftMapper;
+import com.sales.email.mapper.EmailVersionMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import java.util.List;
 public class TraceService {
 
     private final EmailDraftMapper draftMapper;
+    private final EmailVersionMapper versionMapper;
     private final EmailReviewService reviewService;
     private final ForbiddenWordService forbiddenWordService;
     private final PromptTemplateService promptTemplateService;
@@ -60,15 +63,59 @@ public class TraceService {
             List<ForbiddenWordHit> hits = forbiddenWordService.getHitsByDraftId(draft.getId());
             detail.setForbiddenHits(hits);
 
-            if (draft.getPromptVersionId() != null) {
-                PromptVersion pv = promptTemplateService.getVersionById(draft.getPromptVersionId());
-                detail.setPromptVersion(pv);
+            LambdaQueryWrapper<EmailVersion> verWrapper = new LambdaQueryWrapper<>();
+            verWrapper.eq(EmailVersion::getDraftId, draft.getId());
+            verWrapper.eq(EmailVersion::getContentSource, "AI_GENERATED");
+            verWrapper.isNotNull(EmailVersion::getPromptVersionId);
+            verWrapper.orderByDesc(EmailVersion::getVersion);
+            List<EmailVersion> aiVersions = versionMapper.selectList(verWrapper);
+
+            List<SourceOrderTraceDTO.VersionPromptPair> pairs = new ArrayList<>();
+            for (EmailVersion ev : aiVersions) {
+                SourceOrderTraceDTO.VersionPromptPair pair = new SourceOrderTraceDTO.VersionPromptPair();
+                pair.setEmailVersion(ev);
+                if (ev.getPromptVersionId() != null) {
+                    PromptVersion pv = promptTemplateService.getVersionById(ev.getPromptVersionId());
+                    pair.setPromptVersion(pv);
+                }
+                pairs.add(pair);
             }
+            detail.setAiGeneratedVersions(pairs);
 
             details.add(detail);
         }
         result.setDraftDetails(details);
 
+        return result;
+    }
+
+    public List<SourceOrderTraceDTO.VersionPromptPair> getPromptVersionsBySourceOrderNo(String sourceOrderNo) {
+        LambdaQueryWrapper<EmailDraft> draftWrapper = new LambdaQueryWrapper<>();
+        draftWrapper.eq(EmailDraft::getSourceOrderNo, sourceOrderNo);
+        List<EmailDraft> drafts = draftMapper.selectList(draftWrapper);
+
+        List<SourceOrderTraceDTO.VersionPromptPair> result = new ArrayList<>();
+        if (drafts.isEmpty()) return result;
+
+        List<Long> draftIds = new ArrayList<>();
+        for (EmailDraft d : drafts) draftIds.add(d.getId());
+
+        LambdaQueryWrapper<EmailVersion> verWrapper = new LambdaQueryWrapper<>();
+        verWrapper.in(EmailVersion::getDraftId, draftIds);
+        verWrapper.eq(EmailVersion::getContentSource, "AI_GENERATED");
+        verWrapper.isNotNull(EmailVersion::getPromptVersionId);
+        verWrapper.orderByDesc(EmailVersion::getVersion);
+        List<EmailVersion> aiVersions = versionMapper.selectList(verWrapper);
+
+        for (EmailVersion ev : aiVersions) {
+            SourceOrderTraceDTO.VersionPromptPair pair = new SourceOrderTraceDTO.VersionPromptPair();
+            pair.setEmailVersion(ev);
+            if (ev.getPromptVersionId() != null) {
+                PromptVersion pv = promptTemplateService.getVersionById(ev.getPromptVersionId());
+                pair.setPromptVersion(pv);
+            }
+            result.add(pair);
+        }
         return result;
     }
 }
