@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.database import async_session_maker, engine, Base
 from app.core.security import hash_password, is_test_account
+from sqlalchemy import select
 from app.models.models import (
     User, UserRole, Store, Staff, Service, Package, PackageItem,
     Cage, CageStatus, Vaccine, SystemConfig, ConfigType,
@@ -336,7 +337,136 @@ async def init_db():
             is_active=True,
         )
         db.add(pet2)
+        await db.flush()
         print("✅ 创建 2 只示例宠物")
+
+        from app.models.models import (
+            Appointment, AppointmentStatus, AppointmentService,
+            HealthRecord, HealthStatus
+        )
+        from datetime import time
+
+        today = date.today()
+        appointments_data = [
+            {
+                "date": today - timedelta(days=10),
+                "start_time": time(10, 0),
+                "end_time": time(11, 0),
+                "status": AppointmentStatus.COMPLETED,
+                "total_price": 88.0,
+                "services": [1],
+            },
+            {
+                "date": today - timedelta(days=5),
+                "start_time": time(14, 0),
+                "end_time": time(15, 0),
+                "status": AppointmentStatus.COMPLETED,
+                "total_price": 188.0,
+                "services": [2],
+            },
+            {
+                "date": today,
+                "start_time": time(9, 0),
+                "end_time": time(10, 30),
+                "status": AppointmentStatus.CONFIRMED,
+                "total_price": 168.0,
+                "services": [3],
+            },
+        ]
+
+        created_appointments = []
+        for idx, appt_data in enumerate(appointments_data):
+            appt = Appointment(
+                customer_id=customer.id,
+                pet_id=pet.id if idx % 2 == 0 else pet2.id,
+                store_id=store.id,
+                appointment_date=appt_data["date"],
+                start_time=appt_data["start_time"],
+                end_time=appt_data["end_time"],
+                status=appt_data["status"],
+                total_price=appt_data["total_price"],
+                is_test_data=False,
+            )
+            db.add(appt)
+            await db.flush()
+            created_appointments.append(appt)
+
+            for svc_id in appt_data["services"]:
+                svc_result = await db.execute(select(Service).where(Service.id == svc_id))
+                svc = svc_result.scalar_one_or_none()
+                if svc:
+                    db.add(AppointmentService(
+                        appointment_id=appt.id,
+                        service_id=svc.id,
+                        price_at_time=svc.price,
+                    ))
+        print(f"✅ 创建 {len(created_appointments)} 条示例预约")
+
+        health_records_data = [
+            {
+                "pet_id": pet.id,
+                "appointment_id": created_appointments[0].id,
+                "staff_id": staff_user.id,
+                "store_id": store.id,
+                "record_date": today - timedelta(days=10),
+                "health_status": HealthStatus.NORMAL,
+                "temperature": 38.5,
+                "weight": 25.0,
+            },
+            {
+                "pet_id": pet.id,
+                "appointment_id": created_appointments[1].id,
+                "staff_id": staff_user.id,
+                "store_id": store.id,
+                "record_date": today - timedelta(days=5),
+                "health_status": HealthStatus.ABNORMAL,
+                "abnormal_reason": "皮肤过敏",
+                "temperature": 38.7,
+                "weight": 24.8,
+                "symptoms": "背部毛发脱落、皮肤发红",
+                "treatment": "外用抗真菌药膏，建议药浴",
+            },
+            {
+                "pet_id": pet2.id,
+                "staff_id": staff_user.id,
+                "store_id": store.id,
+                "record_date": today - timedelta(days=3),
+                "health_status": HealthStatus.CRITICAL,
+                "abnormal_reason": "食欲不振伴呕吐",
+                "temperature": 39.8,
+                "weight": 4.2,
+                "symptoms": "连续2天呕吐，精神萎靡",
+                "treatment": "输液治疗，禁食24小时观察",
+            },
+            {
+                "pet_id": pet.id,
+                "staff_id": staff_user.id,
+                "store_id": store.id,
+                "record_date": today,
+                "health_status": HealthStatus.ABNORMAL,
+                "abnormal_reason": "皮肤过敏",
+                "temperature": 38.6,
+                "weight": 24.9,
+                "symptoms": "瘙痒，抓挠频繁",
+                "treatment": "口服抗过敏药，药浴护理",
+            },
+            {
+                "pet_id": pet2.id,
+                "staff_id": staff_user.id,
+                "store_id": store.id,
+                "record_date": today,
+                "health_status": HealthStatus.NORMAL,
+                "temperature": 38.2,
+                "weight": 4.4,
+            },
+        ]
+
+        for hr_data in health_records_data:
+            db.add(HealthRecord(
+                **hr_data,
+                is_test_data=False,
+            ))
+        print(f"✅ 创建 {len(health_records_data)} 条示例健康记录")
 
         await db.commit()
         print("\n🎉 数据初始化完成！")

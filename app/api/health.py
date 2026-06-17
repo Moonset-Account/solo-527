@@ -104,11 +104,14 @@ async def get_health_stats(
     if has_store:
         select_cols.append(HealthRecord.store_id)
         select_cols.append(Store.name.label("store_name"))
+        select_cols.append(User.full_name.label("manager_name"))
         group_cols.append(HealthRecord.store_id)
         group_cols.append(Store.name)
+        group_cols.append(User.full_name)
     else:
         select_cols.append(func.cast(None, Integer).label("store_id"))
         select_cols.append(func.cast(None, String).label("store_name"))
+        select_cols.append(func.cast(None, String).label("manager_name"))
 
     if has_date:
         select_cols.append(HealthRecord.record_date.label("date"))
@@ -131,6 +134,7 @@ async def get_health_stats(
     query = select(*select_cols)
     if has_store:
         query = query.outerjoin(Store, HealthRecord.store_id == Store.id)
+        query = query.outerjoin(User, Store.manager_id == User.id)
 
     if exclude_test and not is_test_user(current_user):
         query = query.where(HealthRecord.is_test_data == False)

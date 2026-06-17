@@ -105,7 +105,8 @@ function switchTab(tab) {
 function renderStatsTable(data, columns) {
     if (!data.length) return '<p class="text-gray">暂无数据</p>';
     const colHeaders = {
-        store_name: '门店(店长)',
+        store_name: '门店',
+        manager_name: '店长',
         date: '日期',
         abnormal_reason: '异常原因',
         total_count: '总数',
@@ -124,7 +125,8 @@ function renderStatsTable(data, columns) {
                         if (c === 'abnormal_count') return `<td><span class="badge badge-abnormal">${h.abnormal_count || 0}</span></td>`;
                         if (c === 'critical_count') return `<td><span class="badge badge-critical">${h.critical_count || 0}</span></td>`;
                         if (c === 'abnormal_reason') return `<td>${h.abnormal_reason || '<span class="text-gray">正常</span>'}</td>`;
-                        if (c === 'store_name') return `<td><strong>${h.store_name || h.store_id ? '#'+h.store_id : '-'}</strong></td>`;
+                        if (c === 'store_name') return `<td><strong>${h.store_name || (h.store_id ? '#'+h.store_id : '-')}</strong></td>`;
+                        if (c === 'manager_name') return `<td><strong>${h.manager_name || '-'}</strong></td>`;
                         return `<td>${h[c] ?? '-'}</td>`;
                     }).join('')}
                 </tr>`).join('')}
@@ -146,10 +148,10 @@ async function loadStats() {
     const colMap = {
         date: ['date','total_count','abnormal_count','critical_count'],
         reason: ['abnormal_reason','abnormal_count','critical_count'],
-        store: ['store_name','total_count','abnormal_count','critical_count'],
-        store_date: ['store_name','date','total_count','abnormal_count','critical_count'],
-        store_reason: ['store_name','abnormal_reason','abnormal_count','critical_count'],
-        all: ['store_name','date','abnormal_reason','abnormal_count','critical_count']
+        store: ['store_name','manager_name','total_count','abnormal_count','critical_count'],
+        store_date: ['store_name','manager_name','date','total_count','abnormal_count','critical_count'],
+        store_reason: ['store_name','manager_name','abnormal_reason','abnormal_count','critical_count'],
+        all: ['store_name','manager_name','date','abnormal_reason','abnormal_count','critical_count']
     };
     try {
         const resp = await fetch('/api/health-stats?group_by=' + groupMap[currentTab], { headers: apiHeaders() });

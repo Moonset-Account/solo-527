@@ -15,5 +15,7 @@ class Settings(BaseSettings):
     TEST_ACCOUNT_PREFIX: str = "test_"
     TEST_EMAIL_DOMAIN: str = "test.petgrooming.local"
 
+    USE_SQLITE: str = "0"
+
 
 settings = Settings()

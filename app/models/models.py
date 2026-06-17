@@ -184,6 +184,7 @@ class Appointment(Base):
     )
     repurchase_anomaly_as_previous = relationship(
         "RepurchaseAnomaly",
+        back_populates="previous_appointment",
         foreign_keys="RepurchaseAnomaly.previous_appointment_id",
     )
 
@@ -432,5 +433,6 @@ class RepurchaseAnomaly(Base):
     )
     previous_appointment = relationship(
         "Appointment",
+        back_populates="repurchase_anomaly_as_previous",
         foreign_keys=[previous_appointment_id],
     )

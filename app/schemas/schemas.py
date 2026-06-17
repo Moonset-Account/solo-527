@@ -324,6 +324,7 @@ class RepurchaseAnomalyResponse(BaseModel):
 class HealthStatsResponse(BaseModel):
     store_id: Optional[int]
     store_name: Optional[str]
+    manager_name: Optional[str]
     date: Optional[date]
     abnormal_reason: Optional[str]
     total_count: int
