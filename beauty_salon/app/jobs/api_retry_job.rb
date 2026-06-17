@@ -70,17 +70,16 @@ class ApiRetryJob < ApplicationJob
       ApiRetryJob.set(wait: 30.seconds).perform_later(log)
     else
       log.update!(status: :failed)
+      admin = AdminUser.first
       notification = Notification.create!(
-        recipient_type: "System",
-        recipient_id: 0,
+        recipient: admin,
         title: "API 重试失败",
         body: "接口 #{log.endpoint} 重试 #{log.max_retries} 次后仍然失败，请人工处理",
         category: "api_failure",
         urgent: true
       )
       TodoItem.create!(
-        assignee_type: "System",
-        assignee_id: 0,
+        assignee: admin,
         source: notification,
         title: "API 重试失败 - 需人工处理",
         body: "接口 #{log.endpoint} 重试 #{log.max_retries} 次后仍然失败，状态码: #{log.response_code || 'N/A'}",

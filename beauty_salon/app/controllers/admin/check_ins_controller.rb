@@ -19,6 +19,7 @@ class Admin::CheckInsController < ApplicationController
     @customers = Customer.order(:name)
     @technicians = Technician.active_only
     @treatments = Treatment.active_only
+    @treatment_card_items = TreatmentCardItem.joins(:treatment_card).where(treatment_cards: { status: :active }).where("remaining_sessions > 0").includes(:treatment, :treatment_card)
   end
 
   def create
@@ -41,6 +42,7 @@ class Admin::CheckInsController < ApplicationController
         @customers = Customer.order(:name)
         @technicians = Technician.active_only
         @treatments = Treatment.active_only
+        @treatment_card_items = TreatmentCardItem.joins(:treatment_card).where(treatment_cards: { status: :active }).where("remaining_sessions > 0").includes(:treatment, :treatment_card)
         render :new, status: :unprocessable_content
         raise ActiveRecord::Rollback
       end

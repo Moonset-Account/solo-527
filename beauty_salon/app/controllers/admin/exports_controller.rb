@@ -4,9 +4,7 @@ class Admin::ExportsController < ApplicationController
   def create
     ExportJob.perform_later(
       params[:model_name],
-      export_filters,
-      "System",
-      0
+      export_filters
     )
     redirect_back fallback_location: admin_dashboard_path, notice: "导出任务已提交，完成后将通知您"
   end

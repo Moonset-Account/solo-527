@@ -5,6 +5,11 @@ Rails.application.routes.draw do
   mount Sidekiq::Web => "/sidekiq"
 
   namespace :external do
+    resources :lookup, only: [:index] do
+      collection do
+        get :search
+      end
+    end
     resources :treatments, only: [:index, :show]
     resources :customers do
       resources :treatment_cards, only: [:index, :show]
@@ -14,7 +19,9 @@ Rails.application.routes.draw do
   namespace :admin do
     root "dashboard#index"
     resources :dashboard, only: [:index]
-    resources :customers
+    resources :customers do
+      get :card_items, on: :member
+    end
     resources :treatments
     resources :treatment_cards
     resources :technicians
@@ -49,5 +56,5 @@ Rails.application.routes.draw do
     resources :exports, only: [:create]
   end
 
-  root "external/treatments#index"
+  root "external/lookup#index"
 end

@@ -1,15 +1,15 @@
 <div class="max-w-2xl mx-auto">
   <h1 class="text-2xl font-bold mb-4">新建核销</h1>
   <div class="bg-white rounded-lg shadow p-6">
-    <%= form_with model: [:admin, @check_in], local: true do |f| %>
+    <%= form_with model: [:admin, @check_in], local: true, id: "check-in-form" do |f| %>
       <div class="space-y-4">
         <div>
           <%= f.label :appointment_id, "关联预约（可选）", class: "block text-sm font-medium text-gray-700" %>
-          <%= f.select :appointment_id, @appointments.map { |a| ["#{a.customer.name} - #{a.treatment.name} (#{a.scheduled_at.strftime('%H:%M')})", a.id] }, { prompt: "无关联预约" }, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          <%= f.select :appointment_id, @appointments.map { |a| ["#{a.customer.name} - #{a.treatment.name} (#{a.scheduled_at.strftime('%H:%M')})", a.id] }, { prompt: "无关联预约" }, class: "mt-1 block w-full border rounded px-3 py-2", data: { action: "change->check-in#onAppointmentChange" } %>
         </div>
         <div>
           <%= f.label :customer_id, "客户", class: "block text-sm font-medium text-gray-700" %>
-          <%= f.select :customer_id, @customers.map { |c| [c.name, c.id] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
+          <%= f.select :customer_id, @customers.map { |c| [c.name, c.id] }, { prompt: "请选择客户" }, class: "mt-1 block w-full border rounded px-3 py-2", data: { check_in_target: "customer", action: "change->check-in#onCustomerChange" } %>
         </div>
         <div>
           <%= f.label :technician_id, "技师", class: "block text-sm font-medium text-gray-700" %>
@@ -19,9 +19,9 @@
           <%= f.label :treatment_id, "疗程", class: "block text-sm font-medium text-gray-700" %>
           <%= f.select :treatment_id, @treatments.map { |t| [t.name, t.id] }, {}, class: "mt-1 block w-full border rounded px-3 py-2" %>
         </div>
-        <div>
-          <%= f.label :treatment_card_item_id, "使用疗程卡（可选）", class: "block text-sm font-medium text-gray-700" %>
-          <%= f.select :treatment_card_item_id, [], { prompt: "不使用疗程卡" }, class: "mt-1 block w-full border rounded px-3 py-2" %>
+        <div id="card-item-section">
+          <%= f.label :treatment_card_item_id, "使用疗程卡", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.select :treatment_card_item_id, options_for_select(@treatment_card_items.map { |item| ["#{item.treatment_card.card_number} - #{item.treatment.name} (余#{item.remaining_sessions}次)", item.id] }), { prompt: "不使用疗程卡" }, class: "mt-1 block w-full border rounded px-3 py-2" %>
         </div>
         <div class="flex gap-2">
           <%= f.submit "核销", class: "bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 cursor-pointer" %>

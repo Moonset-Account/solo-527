@@ -1,0 +1,19 @@
+<div class="max-w-lg mx-auto px-4 py-12">
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-800">查询我的疗程卡</h1>
+    <p class="text-gray-500 mt-2">输入手机号或疗程卡号查看剩余次数</p>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-lg p-6">
+    <%= form_with url: search_external_lookup_index_path, method: :get, local: true do |f| %>
+      <div class="flex gap-2">
+        <%= f.text_field :q, value: params[:q], placeholder: "手机号 / 疗程卡号", class: "flex-1 border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.submit "查询", class: "bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 text-lg font-medium cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="mt-8 text-center">
+    <%= link_to "浏览疗程项目", external_treatments_path, class: "text-blue-600 hover:underline" %>
+  </div>
+</div>

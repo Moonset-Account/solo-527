@@ -1,7 +1,7 @@
 class Admin::CustomersController < ApplicationController
   layout "admin"
 
-  before_action :set_customer, only: [:show, :edit, :update]
+  before_action :set_customer, only: [:show, :edit, :update, :card_items]
 
   def index
     @customers = Customer.order(:name)
@@ -35,6 +35,15 @@ class Admin::CustomersController < ApplicationController
     else
       render :edit, status: :unprocessable_content
     end
+  end
+
+  def card_items
+    items = @customer.treatment_cards.active_only.includes(:treatment_card_items => :treatment).map do |card|
+      card.treatment_card_items.select { |item| item.remaining_sessions > 0 }.map do |item|
+        { id: item.id, card_number: card.card_number, treatment_name: item.treatment.name, remaining_sessions: item.remaining_sessions, total_sessions: item.total_sessions }
+      end
+    end.flatten
+    render json: items
   end
 
   private

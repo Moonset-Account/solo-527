@@ -1,0 +1,59 @@
+<div class="max-w-2xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= form_with url: search_external_lookup_index_path, method: :get, local: true, class: "flex gap-2" do |f| %>
+      <%= f.text_field :q, value: @query, placeholder: "手机号 / 疗程卡号", class: "flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+      <%= f.submit "查询", class: "bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 cursor-pointer" %>
+    <% end %>
+  </div>
+
+  <% if @query.present? %>
+    <h2 class="text-xl font-semibold mb-4">搜索结果: "<%= @query %>"</h2>
+
+    <% if @results.any? %>
+      <div class="space-y-4">
+        <% @results.each do |result| %>
+          <% if result[:type] == "customer" %>
+            <% c = result[:record] %>
+            <div class="bg-white rounded-lg shadow p-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="font-semibold text-lg"><%= c.name %></h3>
+                  <p class="text-gray-500"><%= c.phone %></p>
+                  <p class="text-sm text-gray-400 mt-1"><%= c.treatment_cards.active_only.count %> 张活跃疗程卡</p>
+                </div>
+                <%= link_to "查看疗程卡", external_customer_treatment_cards_path(c), class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+              </div>
+            </div>
+          <% elsif result[:type] == "card" %>
+            <% card = result[:record] %>
+            <div class="bg-white rounded-lg shadow p-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="font-semibold text-lg">卡号: <%= card.card_number %></h3>
+                  <p class="text-gray-500"><%= card.customer.name %> · <%= card.customer.phone %></p>
+                  <div class="mt-1 space-y-1">
+                    <% card.treatment_card_items.each do |item| %>
+                      <p class="text-sm <%= item.low_remaining? ? 'text-orange-600' : 'text-gray-600' %>">
+                        <%= item.treatment.name %>: 剩余 <%= item.remaining_sessions %>/<%= item.total_sessions %>次
+                      </p>
+                    <% end %>
+                  </div>
+                </div>
+                <%= link_to "查看详情", external_customer_treatment_card_path(card.customer, card), class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="text-center py-12">
+        <p class="text-gray-500 text-lg">未找到匹配的手机号或疗程卡号</p>
+        <p class="text-gray-400 mt-2">请检查输入是否正确</p>
+      </div>
+    <% end %>
+  <% end %>
+
+  <div class="mt-6">
+    <%= link_to "← 返回查询首页", external_lookup_index_path, class: "text-blue-600 hover:underline" %>
+  </div>
+</div>

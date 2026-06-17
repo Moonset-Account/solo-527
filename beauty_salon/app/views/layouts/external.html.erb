@@ -10,8 +10,9 @@
 <body class="bg-gray-50 min-h-screen">
   <nav class="bg-white shadow-sm border-b">
     <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-      <%= link_to "美容院", external_treatments_path, class: "text-xl font-bold text-blue-600" %>
+      <%= link_to "美容院", external_lookup_index_path, class: "text-xl font-bold text-blue-600" %>
       <div class="flex gap-4">
+        <%= link_to "查询疗程卡", external_lookup_index_path, class: "text-gray-600 hover:text-blue-600" %>
         <%= link_to "疗程项目", external_treatments_path, class: "text-gray-600 hover:text-blue-600" %>
       </div>
     </div>
