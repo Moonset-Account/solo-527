@@ -6,10 +6,11 @@ const router = express.Router();
 
 router.get('/loss-details', async (req, res) => {
   try {
-    const { storeId, startDate, endDate, lossReasonId, ingredientId } = req.query;
+    const { storeId, startDate, endDate, lossReasonId, ingredientId, approvalStatus } = req.query;
     const where = {};
     if (storeId) where.storeId = parseInt(storeId);
     if (lossReasonId) where.lossReasonId = parseInt(lossReasonId);
+    if (approvalStatus) where.approvalStatus = approvalStatus;
     if (startDate || endDate) {
       where.reportTime = {};
       if (startDate) where.reportTime.gte = new Date(startDate);

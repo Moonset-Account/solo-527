@@ -14,7 +14,6 @@ import {
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard.jsx';
 import Batches from './pages/Batches.jsx';
-import LossReports from './pages/LossReports.jsx';
 import Settings from './pages/Settings.jsx';
 import LossDetails from './pages/LossDetails.jsx';
 import SupervisorTrack from './pages/SupervisorTrack.jsx';

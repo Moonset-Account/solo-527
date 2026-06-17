@@ -155,7 +155,7 @@ function LossDetails() {
     },
   ];
 
-  const totalAmount = data.reduce((sum, r) => sum + (r.totalValue || 0, 0);
+  const totalAmount = data.reduce((sum, r) => sum + (r.totalValue || 0), 0);
 
   return (
     <div>
@@ -195,7 +195,7 @@ function LossDetails() {
             options={[
               { label: '待审批', value: 'PENDING' },
               { label: '已通过', value: 'APPROVED' },
-              { label: '已拒绝', value: '已拒绝' },
+              { label: '已拒绝', value: 'REJECTED' },
             ]}
           />
           <DatePicker.RangePicker

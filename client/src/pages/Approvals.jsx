@@ -44,7 +44,7 @@ function Approvals() {
     loadData();
     stores.list().then(setStoreList);
     lossReasons.list().then(setReasonList);
-    users.list().then(setUserList);
+    users.list({ role: 'SUPERVISOR,ADMIN' }).then(setUserList);
   }, [filters]);
 
   const handleBatchApproval = () => {
@@ -61,7 +61,6 @@ function Approvals() {
       const values = await form.validateFields();
       const result = await approvals.create({
         ...values,
-        approverId: 1,
         lossReportIds: selectedRowKeys,
       });
       setApprovalResult(result);
@@ -300,6 +299,12 @@ function Approvals() {
 
             <Divider orientation="left">审批信息</Divider>
             <Form form={form} layout="vertical">
+              <Form.Item name="approverId" label="审批人" rules={[{ required: true, message: '请选择审批人' }]}>
+                <Select
+                  placeholder="请选择审批人"
+                  options={userList.map((u) => ({ label: `${u.name} (${u.role})`, value: u.id }))}
+                />
+              </Form.Item>
               <Form.Item name="status" label="审批结果" rules={[{ required: true, message: '请选择审批结果' }]}>
                 <Select
                   options={[

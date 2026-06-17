@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Tabs, Table, Button, Modal, Form, Input, Select, DatePicker, InputNumber, Space, Tag,
-  message, Row, Col, Statistic, Card, Divider, Descriptions, List, Alert, BarChartOutlined
+  message, Row, Col, Statistic, Card, Divider, Descriptions, List, Alert
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, WarningOutlined, CheckOutlined, DollarOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, WarningOutlined, CheckOutlined, DollarOutlined, BarChartOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { stores, users, cashFlow, shifts, inspections } from '../api/index.js';
 

@@ -7,7 +7,10 @@ router.get('/', async (req, res) => {
   try {
     const { role } = req.query;
     const where = {};
-    if (role) where.role = role;
+    if (role) {
+      const roles = role.split(',');
+      where.role = roles.length === 1 ? roles[0] : { in: roles };
+    }
     const users = await prisma.user.findMany({
       where,
       select: {
