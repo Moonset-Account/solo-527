@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getProjects, getProjectCategories } from '$lib/server/services/projectService';
-import type { ProjectFilters, PaginationParams, SortParams } from '$lib/types';
+import { memoryStore, paginate, filterProjects } from '$lib/server/services/memoryStore';
+import type { ProjectWithStats } from '$lib/types';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
@@ -10,27 +10,42 @@ export const GET: RequestHandler = async ({ url }) => {
 		const sortField = url.searchParams.get('sortField') || 'createdAt';
 		const sortOrder = (url.searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
 
-		const filters: ProjectFilters = {
-			status: url.searchParams.getAll('status') as ProjectFilters['status'],
-			category: url.searchParams.getAll('category') as ProjectFilters['category'],
-			startDate: url.searchParams.get('startDate') || undefined,
-			endDate: url.searchParams.get('endDate') || undefined,
+		const statusParam = url.searchParams.get('status');
+		const categoryParam = url.searchParams.get('category');
+
+		const filters: any = {
+			status: statusParam ? statusParam.split(',') : undefined,
+			category: categoryParam ? categoryParam.split(',') : undefined,
 			keyword: url.searchParams.get('keyword') || undefined
 		};
 
-		const pagination: PaginationParams = { page, pageSize };
-		const sort: SortParams = { field: sortField, order: sortOrder };
+		let projects = memoryStore.getProjects() as ProjectWithStats[];
+		projects = filterProjects(projects, filters);
 
-		const result = await getProjects(filters, pagination, sort);
-		const categories = await getProjectCategories();
+		if (sortField && sortOrder) {
+			projects = [...projects].sort((a: any, b: any) => {
+				const aVal = a[sortField];
+				const bVal = b[sortField];
+				if (typeof aVal === 'string') {
+					return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+				}
+				if (aVal instanceof Date) {
+					return sortOrder === 'asc' ? aVal.getTime() - bVal.getTime() : bVal.getTime() - aVal.getTime();
+				}
+				return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+			});
+		}
+
+		const categories = [...new Set(projects.map((p) => p.category))];
+		const { data, total } = paginate(projects, page, pageSize);
 
 		return json({
 			success: true,
-			data: result.data,
-			total: result.total,
+			data,
+			total,
 			page,
 			pageSize,
-			totalPages: Math.ceil(result.total / pageSize),
+			totalPages: Math.ceil(total / pageSize),
 			categories
 		});
 	} catch (err) {

@@ -44,8 +44,7 @@
 									: 'text-text-secondary hover:text-text-primary'
 							}"
 						>
-							{@const LinkIcon = link.icon}
-							<LinkIcon class="w-4 h-4" />
+							<svelte:component this={link.icon} class="w-4 h-4" />
 							{link.label}
 						</a>
 					{/if}
@@ -102,8 +101,7 @@
 									: 'text-text-secondary hover:bg-surface-alt hover:text-text-primary'
 							}"
 						>
-							{@const MobileLinkIcon = link.icon}
-							<MobileLinkIcon class="w-4 h-4" />
+							<svelte:component this={link.icon} class="w-4 h-4" />
 							{link.label}
 						</a>
 					{/if}
@@ -117,13 +115,13 @@
 								</div>
 								<span class="text-sm font-medium text-text-primary">{$auth.user?.name}</span>
 							</div>
-							<button on:click={handleLogout} class="btn btn-ghost text-sm">
+							<button onclick={handleLogout} class="btn btn-ghost text-sm">
 								<LogOut class="w-4 h-4" />
 								退出
 							</button>
 						</div>
 					{:else}
-						<a href="/login" on:click={() => (mobileMenuOpen = false)} class="btn btn-primary w-full">
+						<a href="/login" onclick={() => (mobileMenuOpen = false)} class="btn btn-primary w-full">
 							<LogIn class="w-4 h-4" />
 							登录
 						</a>

@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getLogs } from '$lib/server/services/adminService';
-import type { LogFilters, PaginationParams } from '$lib/types';
+import { memoryStore, paginate, filterLogs } from '$lib/server/services/memoryStore';
+import type { LogFilters } from '$lib/types';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
@@ -16,16 +16,19 @@ export const GET: RequestHandler = async ({ url }) => {
 			endDate: url.searchParams.get('endDate') || undefined
 		};
 
-		const pagination: PaginationParams = { page, pageSize };
-		const result = await getLogs(filters, pagination);
+		let logs = memoryStore.getLogs();
+		logs = filterLogs(logs, filters);
+		logs = [...logs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+		const { data, total } = paginate(logs, page, pageSize);
 
 		return json({
 			success: true,
-			data: result.data,
-			total: result.total,
+			data,
+			total,
 			page,
 			pageSize,
-			totalPages: Math.ceil(result.total / pageSize)
+			totalPages: Math.ceil(total / pageSize)
 		});
 	} catch (err) {
 		console.error('Failed to fetch logs:', err);

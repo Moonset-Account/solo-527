@@ -1,3 +1,131 @@
+export interface User {
+	id: string;
+	name: string;
+	email: string;
+	role: string;
+	avatar: string | null;
+	createdAt: Date;
+}
+
+export interface Shift {
+	id: string;
+	projectId: string;
+	name: string;
+	startTime: Date;
+	endTime: Date;
+	maxParticipants: number;
+	location: string | null;
+	description: string | null;
+	requiresCheckin: boolean;
+	checkinRadius: number;
+	createdAt: Date;
+}
+
+export interface Registration {
+	id: string;
+	userId: string;
+	shiftId: string;
+	status: string;
+	registeredAt: Date;
+	canceledAt: Date | null;
+	notes: string | null;
+}
+
+export interface SigninRecord {
+	id: string;
+	userId: string;
+	shiftId: string;
+	signinTime: Date;
+	signoutTime: Date | null;
+	durationHours: string | null;
+	status: string;
+	location: string | null;
+	verifiedBy: string | null;
+	createdAt: Date;
+}
+
+export interface Material {
+	id: string;
+	projectId: string;
+	name: string;
+	initialQuantity: number;
+	currentQuantity: number;
+	unit: string | null;
+	category: string | null;
+	unitPrice: string | null;
+	location: string | null;
+	createdAt: Date;
+}
+
+export interface MaterialFlow {
+	id: string;
+	materialId: string;
+	type: string;
+	quantity: number;
+	direction: string;
+	flowTime: Date;
+	handler: string | null;
+	recipient: string | null;
+	remark: string | null;
+	createdAt: Date;
+}
+
+export interface Photo {
+	id: string;
+	projectId: string;
+	uploadedBy: string | null;
+	url: string;
+	thumbnailUrl: string | null;
+	caption: string | null;
+	category: string | null;
+	uploadedAt: Date;
+}
+
+export interface Feedback {
+	id: string;
+	userId: string;
+	projectId: string;
+	type: string;
+	content: string;
+	urgency: string;
+	status: string;
+	createdAt: Date;
+}
+
+export interface FeedbackProcessing {
+	id: string;
+	feedbackId: string;
+	processorId: string;
+	affectedParties: string;
+	responsiblePerson: string;
+	nextSteps: string;
+	processingResult: string | null;
+	status: string;
+	processedAt: Date;
+}
+
+export interface Budget {
+	id: string;
+	projectId: string;
+	totalAmount: string;
+	usedAmount: string;
+	currency: string;
+	createdAt: Date;
+}
+
+export interface BudgetItem {
+	id: string;
+	budgetId: string;
+	itemName: string;
+	amount: string;
+	category: string | null;
+	expenseDate: Date | null;
+	recipient: string | null;
+	invoiceNo: string | null;
+	remark: string | null;
+	createdAt: Date;
+}
+
 export interface ProjectWithStats {
 	id: string;
 	title: string;

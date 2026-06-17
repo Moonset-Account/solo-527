@@ -3,20 +3,20 @@
 	import { Search, Filter, Heart, Users, Clock, Award, Calendar } from 'lucide-svelte';
 	import ProjectCard from '$lib/components/ProjectCard.svelte';
 	import StatCard from '$lib/components/StatCard.svelte';
-	import { mockGetProjects, getProjectCategories } from '$lib/mock/service';
+	import { apiFetch, buildQueryString } from '$lib/utils/api';
 	import { debounce } from '$lib/utils/format';
 	import type { ProjectWithStats, ProjectFilters } from '$lib/types';
 
-	let projects: ProjectWithStats[] = [];
-	let total = 0;
-	let loading = true;
-	let categories: string[] = [];
-	let filters: ProjectFilters = {
+	let projects = $state<ProjectWithStats[]>([]);
+	let total = $state(0);
+	let loading = $state(true);
+	let categories = $state<string[]>([]);
+	let filters = $state<ProjectFilters>({
 		status: ['published', 'ongoing'],
 		category: [],
 		keyword: ''
-	};
-	let page = 1;
+	});
+	let page = $state(1);
 	let pageSize = 12;
 
 	const statusOptions = [
@@ -29,16 +29,29 @@
 	async function loadProjects() {
 		loading = true;
 		try {
-			const result = await mockGetProjects(filters, { page, pageSize });
-			projects = result.data;
-			total = result.total;
+			const params: Record<string, any> = {
+				page,
+				pageSize
+			};
+			if (filters.status?.length) params.status = filters.status.join(',');
+			if (filters.category?.length) params.category = filters.category.join(',');
+			if (filters.keyword) params.keyword = filters.keyword;
+
+			const result = await apiFetch<any>('/api/projects?' + buildQueryString(params));
+			projects = result.data || [];
+			total = result.total || 0;
+			if (result.categories) {
+				categories = result.categories;
+			}
 		} finally {
 			loading = false;
 		}
 	}
 
 	async function loadCategories() {
-		categories = getProjectCategories();
+		if (categories.length === 0) {
+			await loadProjects();
+		}
 	}
 
 	function toggleStatus(status: string) {

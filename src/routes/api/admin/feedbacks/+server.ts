@@ -1,10 +1,21 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getPendingFeedbacks, processFeedback, logOperation } from '$lib/server/services/adminService';
+import { memoryStore, generateId } from '$lib/server/services/memoryStore';
+import type { FeedbackWithDetails, FeedbackProcessingWithDetails } from '$lib/types';
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url }) => {
 	try {
-		const feedbacks = await getPendingFeedbacks();
+		const status = url.searchParams.get('status');
+		let feedbacks = memoryStore.getFeedbacks() as FeedbackWithDetails[];
+
+		if (status && status !== 'all') {
+			feedbacks = feedbacks.filter((f) => f.status === status);
+		}
+
+		feedbacks = [...feedbacks].sort(
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+		);
+
 		return json({ success: true, data: feedbacks });
 	} catch (err) {
 		console.error('Failed to fetch feedbacks:', err);
@@ -21,17 +32,51 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(400, '缺少必填参数：影响对象、责任人和下一步安排均为必填');
 		}
 
-		const result = await processFeedback(feedbackId, processorId, {
+		const feedbacks = memoryStore.getFeedbacks() as FeedbackWithDetails[];
+		const feedbackIndex = feedbacks.findIndex((f) => f.id === feedbackId);
+
+		if (feedbackIndex === -1) {
+			throw error(404, '反馈不存在');
+		}
+
+		const users = memoryStore.getUsers();
+		const processor = users.find((u) => u.id === processorId);
+
+		const newProcessing: FeedbackProcessingWithDetails = {
+			id: generateId(),
+			feedbackId,
+			processorId,
+			processorName: processor?.name || '未知',
 			affectedParties,
 			responsiblePerson,
 			nextSteps,
-			processingResult,
-			status
+			processingResult: processingResult || '',
+			status: status || 'processing',
+			processedAt: new Date()
+		};
+
+		feedbacks[feedbackIndex] = {
+			...feedbacks[feedbackIndex],
+			status: status || feedbacks[feedbackIndex].status,
+			processings: [...feedbacks[feedbackIndex].processings, newProcessing]
+		};
+
+		memoryStore.setFeedbacks(feedbacks);
+
+		const logs = memoryStore.getLogs();
+		logs.unshift({
+			id: generateId(),
+			userId: processorId,
+			action: 'process_feedback',
+			targetType: 'feedback',
+			targetId: feedbackId,
+			details: { affectedParties, responsiblePerson },
+			createdAt: new Date(),
+			userName: processor?.name || '未知'
 		});
+		memoryStore.setLogs(logs);
 
-		await logOperation(processorId, 'process_feedback', 'feedback', feedbackId);
-
-		return json({ success: true, data: result });
+		return json({ success: true, data: newProcessing, feedback: feedbacks[feedbackIndex] });
 	} catch (err) {
 		console.error('Feedback processing error:', err);
 		if (err instanceof Error && 'status' in err) {

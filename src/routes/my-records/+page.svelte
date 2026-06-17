@@ -26,7 +26,8 @@
 		debounce,
 		formatFileSize
 	} from '$lib/utils/format';
-	import { mockGetUserSigninRecords, mockProjects, mockCreateExportTask } from '$lib/mock/service';
+	import { apiFetch, buildQueryString } from '$lib/utils/api';
+	import { mockProjects } from '$lib/mock/data';
 	import type { SigninRecordWithDetails, ServiceRecordFilters } from '$lib/types';
 
 	let records: SigninRecordWithDetails[] = [];
@@ -35,7 +36,7 @@
 	let exporting = false;
 	let filters: ServiceRecordFilters = {
 		projectId: '',
-		status: []
+		status: [] as any
 	};
 	let page = 1;
 	let pageSize = 20;
@@ -60,24 +61,30 @@
 	};
 
 	async function loadRecords() {
-		if (!$auth.isAuthenticated) return;
-
 		loading = true;
 		try {
-			const combinedFilters: ServiceRecordFilters = {
-				...filters,
-				startDate: dateFrom || undefined,
-				endDate: dateTo || undefined
+			const params: Record<string, any> = {
+				userId: 'user-1',
+				page,
+				pageSize
 			};
-			const result = await mockGetUserSigninRecords(
-				$auth.user!.id,
-				combinedFilters,
-				{ page, pageSize }
-			);
-			records = result.data;
-			total = result.total;
+			if (filters.projectId) params.projectId = filters.projectId;
+			if (dateFrom) params.startDate = dateFrom;
+			if (dateTo) params.endDate = dateTo;
 
-			totalHours = records.reduce((sum, r) => sum + parseFloat(r.durationHours || '0'), 0);
+			const result = await apiFetch<any>('/api/my-records?' + buildQueryString(params));
+			records = result.data || [];
+			total = result.total || 0;
+
+			totalHours = records.reduce((sum, r: any) => {
+				if (r.signoutTime) {
+					const start = new Date(r.signinTime).getTime();
+					const end = new Date(r.signoutTime).getTime();
+					return sum + (end - start) / (1000 * 60 * 60);
+				}
+				return sum;
+			}, 0);
+			totalHours = Math.round(totalHours * 10) / 10;
 			totalDays = new Set(records.map((r) => formatDate(r.signinTime))).size;
 		} finally {
 			loading = false;
@@ -110,22 +117,27 @@
 	}, 300);
 
 	async function handleExport() {
-		if (!$auth.isAuthenticated) {
-			toast.warning('请先登录');
-			return;
-		}
 		exporting = true;
 		try {
-			const result = await mockCreateExportTask($auth.user!.id, 'signin', {
-				...filters,
-				dateFrom,
-				dateTo
+			const result = await apiFetch('/api/admin/exports', {
+				method: 'POST',
+				body: {
+					userId: 'user-1',
+					exportType: 'signin',
+					filters: {
+						...filters,
+						dateFrom,
+						dateTo
+					}
+				}
 			});
-			if (result) {
+			if (result.success) {
 				toast.success('导出任务已创建，可在导出中心查看进度');
 			} else {
 				toast.error('导出任务创建失败');
 			}
+		} catch (err: any) {
+			toast.error(err?.message || '导出任务创建失败');
 		} finally {
 			exporting = false;
 		}

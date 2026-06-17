@@ -45,8 +45,7 @@
 			{/if}
 		</div>
 		<div class="w-12 h-12 {iconBgClasses[color]} rounded-xl flex items-center justify-center shadow-md">
-			{@const IconComponent = icon}
-			<IconComponent class="w-6 h-6" />
+			<svelte:component this={icon} class="w-6 h-6" />
 		</div>
 	</div>
 </div>

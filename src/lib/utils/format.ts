@@ -94,3 +94,27 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 		timeoutId = setTimeout(() => fn(...args), delay);
 	};
 }
+
+export function formatDateTime(date: Date | string | null | undefined): string {
+	if (!date) return '-';
+	const d = typeof date === 'string' ? new Date(date) : date;
+	if (isNaN(d.getTime())) return '-';
+	const pad = (n: number) => n.toString().padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function formatDate(date: Date | string | null | undefined): string {
+	if (!date) return '-';
+	const d = typeof date === 'string' ? new Date(date) : date;
+	if (isNaN(d.getTime())) return '-';
+	const pad = (n: number) => n.toString().padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function formatTime(date: Date | string | null | undefined): string {
+	if (!date) return '-';
+	const d = typeof date === 'string' ? new Date(date) : date;
+	if (isNaN(d.getTime())) return '-';
+	const pad = (n: number) => n.toString().padStart(2, '0');
+	return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

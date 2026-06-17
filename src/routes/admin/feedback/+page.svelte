@@ -26,7 +26,8 @@
 		urgencyToText,
 		roleToText
 	} from '$lib/utils/format';
-	import { mockGetAllFeedbacks, mockProcessFeedback, getAllUsers } from '$lib/mock/service';
+	import { apiFetch } from '$lib/utils/api';
+	import { mockUsers } from '$lib/mock/data';
 	import type { FeedbackWithDetails, FeedbackProcessing, FeedbackProcessingWithDetails } from '$lib/types';
 
 	let feedbacks: FeedbackWithDetails[] = [];
@@ -35,6 +36,7 @@
 	let loading = true;
 	let processing = false;
 	let statusFilter = 'all';
+	let allUsers = mockUsers;
 
 	let processingData = {
 		affectedParties: '',
@@ -43,8 +45,6 @@
 		processingResult: '',
 		status: 'processing'
 	};
-
-	let allUsers: { id: string; name: string; role: string }[] = [];
 
 	$: selectedFeedback = feedbacks.find((f) => f.id === selectedFeedbackId) || null;
 
@@ -62,8 +62,8 @@
 	async function loadFeedbacks() {
 		loading = true;
 		try {
-			feedbacks = await mockGetAllFeedbacks();
-			allUsers = getAllUsers();
+			const result = await apiFetch<FeedbackWithDetails[]>('/api/admin/feedbacks?status=' + statusFilter);
+			feedbacks = result.data || [];
 
 			const urlParams = new URLSearchParams($page.url.search);
 			const highlightId = urlParams.get('highlight');
@@ -135,18 +135,23 @@
 
 		processing = true;
 		try {
-			const success = await mockProcessFeedback(
-				selectedFeedbackId,
-				$auth.user!.id,
-				processingData
-			);
-			if (success) {
+			const result = await apiFetch('/api/admin/feedbacks', {
+				method: 'POST',
+				body: {
+					feedbackId: selectedFeedbackId,
+					processorId: $auth.user?.id || 'user-1',
+					...processingData
+				}
+			});
+			if (result.success) {
 				toast.success('处理记录已保存');
 				await loadFeedbacks();
 				resetProcessingForm();
 			} else {
 				toast.error('处理失败');
 			}
+		} catch (err: any) {
+			toast.error(err?.message || '处理失败');
 		} finally {
 			processing = false;
 		}

@@ -21,9 +21,11 @@ import type {
 	ProjectFilters,
 	PaginationParams,
 	ServiceRecordFilters,
-	LogFilters
+	LogFilters,
+	Material,
+	MaterialFlow,
+	Photo
 } from '$lib/types';
-import type { Material, MaterialFlow, Photo, OperationLog } from '$lib/server/db/schema';
 
 export async function mockGetProjects(
 	filters: ProjectFilters = {},
