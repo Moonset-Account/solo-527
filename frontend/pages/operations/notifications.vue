@@ -374,14 +374,14 @@ async function reload() {
       params.end_date = new Date(dateRange.value[1]).toISOString().slice(0, 10)
     }
     const res = await apiGet<any>('/notifications/', params)
-    list.value = res?.items || res?.data?.items || []
-    total.value = res?.total || res?.data?.total || 0
+    list.value = Array.isArray(res) ? res : (res?.items || res?.data?.items || [])
+    total.value = res?.total ?? res?.data?.total ?? list.value.length
     summary.value = {
       today_published: list.value.filter(r => r.publish_time?.slice(0, 10) === new Date().toISOString().slice(0, 10)).length,
-      pending_receipts: list.value.reduce((s, r) => s + (r.require_receipt ? (r.total_receipts - r.confirmed_receipts) : 0), 0),
+      pending_receipts: list.value.reduce((s, r) => s + (r.require_receipt ? ((r.total_receipts || 0) - (r.confirmed_receipts || 0)) : 0), 0),
       drafts: list.value.filter(r => r.is_draft).length,
       avg_receipt_rate: list.value.length ? Math.round(
-        list.value.filter(r => r.require_receipt).reduce((s, r) => s + (r.total_receipts ? r.confirmed_receipts / r.total_receipts * 100 : 0), 0) /
+        list.value.filter(r => r.require_receipt).reduce((s, r) => s + ((r.total_receipts || 0) ? (r.confirmed_receipts || 0) / (r.total_receipts || 1) * 100 : 0), 0) /
         Math.max(1, list.value.filter(r => r.require_receipt).length)
       ) : 0,
       urgent_count: list.value.filter(r => r.priority === 'urgent').length,

@@ -27,7 +27,7 @@ def _gen_code(prefix, db, model):
     return f"{p}{seq:04d}"
 
 
-@router.get("", response_model=dict)
+@router.get("", response_model=List[NotificationResponse])
 def list_notifications(
     class_id: Optional[int] = Query(None),
     campus_id: Optional[int] = Query(None),
@@ -61,18 +61,15 @@ def list_notifications(
         query = query.filter(Notification.created_at >= start_date)
     if end_date:
         query = query.filter(Notification.created_at <= end_date + " 23:59:59")
-    total = query.count()
     items = query.order_by(Notification.created_at.desc()).offset((page-1)*page_size).limit(page_size).all()
     results = []
     for n in items:
-        cls = n.class_group if hasattr(n, "class_group") else None
-        pub = n.publisher if hasattr(n, "publisher") else None
-        results.append({
+        results.append(NotificationResponse(
             **{c.name: getattr(n, c.name) for c in n.__table__.columns},
-            "class_name": cls.name if cls else None,
-            "publisher_name": pub.real_name if pub else None,
-        })
-    return {"total": total, "items": results}
+            class_name=n.class_group.name if n.class_group else None,
+            publisher_name=n.publisher.real_name if n.publisher else None,
+        ))
+    return results
 
 
 @router.post("", response_model=NotificationResponse)
