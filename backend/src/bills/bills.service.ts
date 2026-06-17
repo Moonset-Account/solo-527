@@ -3,6 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Bill, BillStatus } from './bill.schema';
 import { CreateBillDto, UpdateBillDto, PaymentRecordDto } from './dto/bill.dto';
+import { RedisService } from '../common/redis/redis.service';
+
+const BILL_STATS_CACHE_KEY = 'bills:statistics';
+const BILL_STATS_CACHE_TTL = 300;
 
 function generateBillNo(): string {
   const date = new Date();
@@ -12,7 +16,15 @@ function generateBillNo(): string {
 
 @Injectable()
 export class BillsService {
-  constructor(@InjectModel(Bill.name) private billModel: Model<Bill>) {}
+  constructor(
+    @InjectModel(Bill.name) private billModel: Model<Bill>,
+    private redisService: RedisService,
+  ) {}
+
+  private async invalidateStatsCache() {
+    await this.redisService.del(BILL_STATS_CACHE_KEY);
+    await this.redisService.incr('bills:cache:invalidations');
+  }
 
   async create(dto: CreateBillDto, createdBy: Types.ObjectId): Promise<Bill> {
     const bill = new this.billModel({
@@ -23,7 +35,9 @@ export class BillsService {
       createdBy,
       updatedBy: createdBy,
     });
-    return bill.save();
+    const saved = await bill.save();
+    await this.invalidateStatsCache();
+    return saved;
   }
 
   async createBatch(dtos: CreateBillDto[], createdBy: Types.ObjectId): Promise<Bill[]> {
@@ -35,7 +49,9 @@ export class BillsService {
       createdBy,
       updatedBy: createdBy,
     }));
-    return this.billModel.insertMany(bills);
+    const saved = await this.billModel.insertMany(bills);
+    await this.invalidateStatsCache();
+    return saved;
   }
 
   async findAll(query: {
@@ -74,6 +90,7 @@ export class BillsService {
   async update(id: string, dto: UpdateBillDto, updatedBy: Types.ObjectId): Promise<Bill> {
     const bill = await this.billModel.findByIdAndUpdate(id, { ...dto, updatedBy }, { new: true });
     if (!bill) throw new NotFoundException('账单不存在');
+    await this.invalidateStatsCache();
     return bill;
   }
 
@@ -100,10 +117,17 @@ export class BillsService {
     } else {
       bill.status = BillStatus.PARTIAL;
     }
-    return bill.save();
+    const saved = await bill.save();
+    await this.invalidateStatsCache();
+    return saved;
   }
 
   async getStatistics(): Promise<any> {
+    const cached = await this.redisService.getJson<any>(BILL_STATS_CACHE_KEY);
+    if (cached) {
+      return { ...cached, fromCache: true, cacheKey: BILL_STATS_CACHE_KEY };
+    }
+
     const result = await this.billModel.aggregate([
       {
         $group: {
@@ -145,7 +169,7 @@ export class BillsService {
       },
     ]);
 
-    return {
+    const data = {
       summary: result[0] || {
         totalBills: 0, totalAmount: 0, totalPaid: 0, totalUnpaid: 0,
         paidCount: 0, unpaidCount: 0, partialCount: 0, overdueCount: 0,
@@ -153,5 +177,8 @@ export class BillsService {
       byPeriod,
       byType,
     };
+
+    await this.redisService.setJson(BILL_STATS_CACHE_KEY, data, BILL_STATS_CACHE_TTL);
+    return { ...data, fromCache: false, cacheKey: BILL_STATS_CACHE_KEY, ttl: BILL_STATS_CACHE_TTL };
   }
 }

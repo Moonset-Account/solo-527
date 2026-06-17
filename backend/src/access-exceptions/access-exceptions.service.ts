@@ -4,6 +4,10 @@ import { Model, Types } from 'mongoose';
 import { AccessException, ExceptionStatus } from './access-exception.schema';
 import { CreateAccessExceptionDto, UpdateAccessExceptionDto } from './dto/access-exception.dto';
 import { ConfigStatus } from '../common/decorators/config-status.enum';
+import { RedisService } from '../common/redis/redis.service';
+
+const EXCEPTION_STATS_CACHE_KEY = 'exceptions:statistics';
+const EXCEPTION_STATS_CACHE_TTL = 180;
 
 function generateRecordNo(): string {
   const d = new Date();
@@ -13,7 +17,15 @@ function generateRecordNo(): string {
 
 @Injectable()
 export class AccessExceptionsService {
-  constructor(@InjectModel(AccessException.name) private model: Model<AccessException>) {}
+  constructor(
+    @InjectModel(AccessException.name) private model: Model<AccessException>,
+    private redisService: RedisService,
+  ) {}
+
+  private async invalidateStatsCache() {
+    await this.redisService.del(EXCEPTION_STATS_CACHE_KEY);
+    await this.redisService.incr('exceptions:cache:invalidations');
+  }
 
   async create(dto: CreateAccessExceptionDto, createdBy: Types.ObjectId): Promise<AccessException> {
     const doc = new this.model({
@@ -23,7 +35,9 @@ export class AccessExceptionsService {
       createdBy,
       updatedBy: createdBy,
     });
-    return doc.save();
+    const saved = await doc.save();
+    await this.invalidateStatsCache();
+    return saved;
   }
 
   async findAll(q: any): Promise<{ data: AccessException[]; total: number }> {
@@ -68,7 +82,9 @@ export class AccessExceptionsService {
     if (dto.status === ExceptionStatus.RESOLVED && !doc.resolvedAt) {
       doc.resolvedAt = new Date();
     }
-    return doc.save();
+    const saved = await doc.save();
+    await this.invalidateStatsCache();
+    return saved;
   }
 
   async updateConfigStatus(id: string, status: ConfigStatus, updatedBy: Types.ObjectId): Promise<AccessException> {
@@ -78,6 +94,11 @@ export class AccessExceptionsService {
   }
 
   async statistics(): Promise<any> {
+    const cached = await this.redisService.getJson<any>(EXCEPTION_STATS_CACHE_KEY);
+    if (cached) {
+      return { ...cached, fromCache: true, cacheKey: EXCEPTION_STATS_CACHE_KEY };
+    }
+
     const [byType, byStatus, bySeverity, byMonth] = await Promise.all([
       this.model.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
       this.model.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
@@ -95,6 +116,9 @@ export class AccessExceptionsService {
         { $limit: 6 },
       ]),
     ]);
-    return { byType, byStatus, bySeverity, byMonth };
+
+    const data = { byType, byStatus, bySeverity, byMonth };
+    await this.redisService.setJson(EXCEPTION_STATS_CACHE_KEY, data, EXCEPTION_STATS_CACHE_TTL);
+    return { ...data, fromCache: false, cacheKey: EXCEPTION_STATS_CACHE_KEY, ttl: EXCEPTION_STATS_CACHE_TTL };
   }
 }

@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', {
       return res;
     },
     async fetchProfile() {
-      this.userInfo = (await getProfile()) as User;
+      this.userInfo = (await getProfile()) as unknown as User;
       localStorage.setItem('userInfo', JSON.stringify(this.userInfo));
     },
     logout() {

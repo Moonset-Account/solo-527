@@ -86,7 +86,7 @@ router.beforeEach((to, _from, next) => {
   const auth = useAuthStore();
   if (to.meta.public) return next();
   if (!auth.isLoggedIn) return next({ path: '/login' });
-  if (to.meta.roles && !to.meta.roles.includes(auth.role!)) {
+  if (to.meta.roles && !(to.meta.roles as string[]).includes(auth.role!)) {
     return next({ path: '/dashboard' });
   }
   next();

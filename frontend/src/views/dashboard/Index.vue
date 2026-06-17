@@ -76,8 +76,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { getBillStatistics, getMaintenances, getAccessExceptions, getInspections, getRoomPricingStatistics } from '@/api/config';
+import { ref, reactive, onMounted, computed } from 'vue';
+import { getBillStatistics } from '@/api/bill';
+import { getMaintenances, getAccessExceptions, getInspections, getRoomPricingStatistics } from '@/api/config';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { BarChart, PieChart } from 'echarts/charts';
@@ -99,7 +100,7 @@ const typeLabels: Record<string, string> = {
   network: '网费', property: '物业费', other: '其他',
 };
 
-const periodOption = computedOption(() => ({
+const periodOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   legend: { data: ['应收', '实收', '待收'] },
   grid: { left: 40, right: 20, bottom: 40, top: 50 },
@@ -112,7 +113,7 @@ const periodOption = computedOption(() => ({
   ],
 }));
 
-const typeOption = computedOption(() => ({
+const typeOption = computed(() => ({
   tooltip: { trigger: 'item' },
   legend: { bottom: 0 },
   series: [{
@@ -121,10 +122,6 @@ const typeOption = computedOption(() => ({
     data: billStats.byType.map((t: any) => ({ name: typeLabels[t._id] || t._id, value: t.count })),
   }],
 }));
-
-function computedOption(fn: () => any) {
-  return { get: fn };
-}
 
 onMounted(async () => {
   try {
