@@ -30,6 +30,9 @@
           </div>
           <div class="flex items-center gap-2">
             <span class="text-sm text-gray-400"><%= time_ago_in_words(n.created_at) %>前</span>
+            <% if n.export_file.attached? %>
+              <%= link_to "下载CSV", download_export_admin_notification_path(n), class: "text-green-600 text-sm hover:underline" %>
+            <% end %>
             <%= link_to "查看", admin_notification_path(n), class: "text-blue-600 text-sm hover:underline" %>
           </div>
         </div>

@@ -8,7 +8,7 @@ class TreatmentCardItem < ApplicationRecord
   before_update :log_session_change
 
   def consume!
-    return false if remaining_sessions <= 0
+    raise ActiveRecord::RecordInvalid, "剩余次数不足" if remaining_sessions <= 0
     update!(remaining_sessions: remaining_sessions - 1)
   end
 

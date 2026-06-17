@@ -30,6 +30,9 @@ Rails.application.routes.draw do
       collection do
         post :mark_all_read
       end
+      member do
+        get :download_export
+      end
     end
     resources :todo_items, only: [:index, :show, :update] do
       member do

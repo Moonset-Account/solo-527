@@ -1,3 +1,5 @@
+require "csv"
+
 class ExportJob < ApplicationJob
   queue_as :exports
 
@@ -5,19 +7,26 @@ class ExportJob < ApplicationJob
     records = build_scope(model_name, filters)
     csv_data = generate_csv(records)
 
-    tmpfile = Tempfile.new(["export_#{model_name}", ".csv"])
-    tmpfile.write(csv_data)
-    tmpfile.rewind
+    filename = "#{model_name.underscore}_#{Time.current.strftime("%Y%m%d_%H%M%S")}.csv"
+    tempfile = Tempfile.new(["export_#{model_name.underscore}", ".csv"])
+    tempfile.write(csv_data)
+    tempfile.rewind
 
-    Notification.create!(
+    notification = Notification.create!(
       recipient_type: recipient_type,
       recipient_id: recipient_id,
       title: "导出完成",
       body: "#{model_name} 数据已导出完成，共 #{records.count} 条记录",
       category: "export"
     )
+
+    notification.export_file.attach(
+      io: tempfile,
+      filename: filename,
+      content_type: "text/csv"
+    )
   ensure
-    tmpfile&.close&.unlink
+    tempfile&.close&.unlink
   end
 
   private
@@ -38,7 +47,7 @@ class ExportJob < ApplicationJob
 
   def generate_csv(records)
     return "" if records.empty?
-    CSV.generate do |csv|
+    CSV.generate(headers: true) do |csv|
       csv << records.first.class.column_names
       records.each do |record|
         csv << record.attributes.values

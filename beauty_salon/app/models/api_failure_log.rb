@@ -13,7 +13,7 @@ class ApiFailureLog < ApplicationRecord
 
   def retry!
     return false unless can_retry?
-    update!(status: :retrying, retried: true, retry_count: retry_count + 1)
+    update!(status: :retrying, retried: true)
     ApiRetryJob.perform_later(self)
   end
 

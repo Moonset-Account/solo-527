@@ -23,17 +23,27 @@ class Admin::CheckInsController < ApplicationController
 
   def create
     @check_in = CheckIn.new(check_in_params)
+    if @check_in.appointment.present?
+      @check_in.customer ||= @check_in.appointment.customer
+      @check_in.technician ||= @check_in.appointment.technician
+      @check_in.treatment ||= @check_in.appointment.treatment
+      @check_in.treatment_card_item ||= @check_in.appointment.treatment_card_item
+    end
     @check_in.checked_in_at = Time.current
-    if @check_in.save
-      @check_in.appointment&.update!(status: :in_progress) if @check_in.appointment
-      AuditLog.create!(auditable: @check_in, action: "create", changes_data: @check_in.attributes, description: "到店核销")
-      redirect_to admin_check_ins_path, notice: "核销成功"
-    else
-      @appointments = Appointment.today.where(status: [:confirmed, :pending])
-      @customers = Customer.order(:name)
-      @technicians = Technician.active_only
-      @treatments = Treatment.active_only
-      render :new, status: :unprocessable_content
+
+    ActiveRecord::Base.transaction do
+      if @check_in.save
+        @check_in.appointment&.update!(status: :in_progress)
+        AuditLog.create!(auditable: @check_in, action: "create", changes_data: @check_in.attributes, description: "到店核销")
+        redirect_to admin_check_ins_path, notice: "核销成功"
+      else
+        @appointments = Appointment.today.where(status: [:confirmed, :pending])
+        @customers = Customer.order(:name)
+        @technicians = Technician.active_only
+        @treatments = Treatment.active_only
+        render :new, status: :unprocessable_content
+        raise ActiveRecord::Rollback
+      end
     end
   end
 

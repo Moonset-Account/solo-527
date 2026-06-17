@@ -2,6 +2,7 @@ class TreatmentCard < ApplicationRecord
   belongs_to :customer
   has_many :treatment_card_items, dependent: :destroy
   has_many :treatments, through: :treatment_card_items
+  accepts_nested_attributes_for :treatment_card_items, allow_destroy: true, reject_if: :all_blank
 
   validates :card_number, presence: true, uniqueness: true
   validates :total_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }

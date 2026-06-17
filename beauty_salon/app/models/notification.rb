@@ -1,5 +1,6 @@
 class Notification < ApplicationRecord
   belongs_to :recipient, polymorphic: true
+  has_one_attached :export_file
 
   validates :title, presence: true
 
