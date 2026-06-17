@@ -153,7 +153,9 @@ const ProductionPlan = () => {
         ...values,
         plannedStart: values.plannedStart.format('YYYY-MM-DD HH:mm:ss'),
         plannedEnd: values.plannedEnd.format('YYYY-MM-DD HH:mm:ss'),
-        processIds: selectedProcesses,
+      }
+      if (!editingItem) {
+        submitData.processIds = selectedProcesses
       }
 
       let res

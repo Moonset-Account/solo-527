@@ -75,12 +75,13 @@ router.post('/', requireDirector, validate(productionPlanSchema),
   logOperation('CREATE', 'ProductionPlan'),
   async (req, res, next) => {
     try {
-      const { processIds, ...planData } = req.body;
+      const { processIds, status, ...planData } = req.body;
       const userId = req.user.id;
 
       const plan = await prisma.productionPlan.create({
         data: {
           ...planData,
+          status: 'DRAFT',
           createdById: userId,
           updatedById: userId,
         },
@@ -111,19 +112,17 @@ router.put('/:id', requireDirector,
       const { id } = req.params;
       const oldPlan = await prisma.productionPlan.findUnique({ where: { id: parseInt(id) } });
 
+      const { processIds, status, ...planData } = req.body;
+
       const plan = await prisma.productionPlan.update({
         where: { id: parseInt(id) },
         data: {
-          ...req.body,
+          ...planData,
           updatedById: req.user.id,
         },
       });
 
-      if (oldPlan.status !== plan.status) {
-        await notifyPlanChange(plan, oldPlan, '状态变更');
-      } else {
-        await notifyPlanChange(plan, oldPlan, '更新');
-      }
+      await notifyPlanChange(plan, oldPlan, '更新');
 
       res.json({ code: 200, message: '更新计划成功', data: plan });
     } catch (error) {
