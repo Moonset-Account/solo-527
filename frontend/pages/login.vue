@@ -55,8 +55,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import type { FormInst, FormRules } from 'naive-ui'
+import { useMessage } from 'naive-ui'
 import { useUserStore } from '~/stores/user'
 import { SchoolOutline, PersonCircleOutline, LockClosedOutline, SparklesOutline } from '@vicons/ionicons5'
 import { apiPost } from '~/composables/useApi'
@@ -89,7 +90,6 @@ async function handleLogin() {
     const fd = new FormData()
     fd.append('username', form.username)
     fd.append('password', form.password)
-    const res: any = await apiPost('/auth/login', undefined)
     const config = useRuntimeConfig()
     const resp = await $fetch(`${config.public.apiBase}/auth/login`, {
       method: 'POST',
@@ -100,7 +100,12 @@ async function handleLogin() {
       userStore.setToken(resp.access_token)
       if (resp.user) userStore.setUser(resp.user)
       message.success('登录成功，欢迎回来！')
-      navigateTo('/dashboard')
+      const role = resp.user?.role || userStore.user?.role
+      if (role === 'principal' || role === 'admin') {
+        navigateTo('/workstation')
+      } else {
+        navigateTo('/dashboard')
+      }
     }
   } catch (e: any) {
     message.error(e?.data?.detail || e?.message || '登录失败，请检查账号密码')
@@ -123,5 +128,14 @@ async function initDemo() {
   }
 }
 
-import { useMessage } from 'naive-ui'
+onMounted(() => {
+  if (userStore.token && userStore.user) {
+    const role = userStore.user.role
+    if (role === 'principal' || role === 'admin') {
+      navigateTo('/workstation')
+    } else {
+      navigateTo('/dashboard')
+    }
+  }
+})
 </script>

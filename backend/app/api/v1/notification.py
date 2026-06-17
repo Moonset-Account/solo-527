@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.models.notification import (
     Notification, Receipt, NotificationType, NotificationPriority, ReceiptStatus,
 )
-from app.models.class_group import ClassGroup
+from app.models.class_group import ClassGroup, ClassEnrollment
 from app.models.user import User
 from app.models.student import Student, StudentParent
 from app.schemas.common import (
@@ -75,12 +75,6 @@ def create_notification(data: NotificationCreate, db: Session = Depends(get_db))
     if n.require_receipt:
         target_users = set()
         if n.class_id:
-            enrolls = db.query(StudentParent).join(
-                Student, StudentParent.student_id == Student.id
-            ).join(
-                ClassEnrollment, Student.id == ClassEnrollment.student_id
-            ).filter(ClassEnrollment.class_id == n.class_id).all()
-            from app.models.class_group import ClassEnrollment
             enrolls = db.query(StudentParent).join(
                 Student, StudentParent.student_id == Student.id
             ).join(

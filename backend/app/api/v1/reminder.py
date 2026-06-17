@@ -82,3 +82,15 @@ def batch_mark_read(ids: List[int], db: Session = Depends(get_db)):
     )
     db.commit()
     return {"updated": count}
+
+
+@router.post("/read-all")
+def mark_all_read(db: Session = Depends(get_db)):
+    now = datetime.utcnow()
+    count = (
+        db.query(Reminder)
+        .filter(Reminder.status.in_([ReminderStatus.PENDING, ReminderStatus.SENT]))
+        .update({Reminder.status: ReminderStatus.READ, Reminder.read_at: now}, synchronize_session=False)
+    )
+    db.commit()
+    return {"updated": count, "message": f"已将 {count} 条提醒标记为已读"}

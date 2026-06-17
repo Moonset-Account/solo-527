@@ -222,9 +222,10 @@ async function markAllRead() {
 async function scanHomework() {
   const msg = message.loading('正在扫描作业逾期情况...', { duration: 0 })
   try {
-    const res = await apiPost('/dashboard/scan-homework')
+    const res = await apiPost('/dashboard/reminders/scan-homework')
     msg.destroy()
-    message.success(`扫描完成，生成 ${res?.count || res?.data?.count || 0} 条提醒`)
+    const count = res?.created ?? res?.count ?? res?.data?.created ?? res?.data?.count ?? 0
+    message.success(`扫描完成，生成 ${count} 条提醒`)
     reload()
   } catch (e: any) {
     msg.destroy()
