@@ -23,7 +23,12 @@ import {
   HistoryOutlined,
 } from '@ant-design/icons'
 import { Popconfirm } from 'antd'
-import { getAllActiveRoutes } from '@/api/route'
+import {
+  getAdminRoutes,
+  createRoute,
+  updateRoute,
+  deleteRoute,
+} from '@/api/route'
 import type { TourRoute } from '@/types'
 
 const { Title } = Typography
@@ -52,20 +57,17 @@ const RouteAdmin = () => {
   const fetchData = async (values?: any) => {
     setLoading(true)
     try {
-      const res = await getAllActiveRoutes()
+      const params: any = {
+        page,
+        size,
+        routeName: values?.routeName,
+        city: values?.city,
+        status: values?.status,
+      }
+      const res = await getAdminRoutes(params)
       if (res.data.code === 200) {
-        let records = res.data.data
-        if (values?.routeName) {
-          records = records.filter((r: TourRoute) => r.routeName.includes(values.routeName))
-        }
-        if (values?.city) {
-          records = records.filter((r: TourRoute) => r.city === values.city)
-        }
-        if (values?.status) {
-          records = records.filter((r: TourRoute) => r.status === values.status)
-        }
-        setData(records.slice(page * size, (page + 1) * size))
-        setTotal(records.length)
+        setData(res.data.data.records)
+        setTotal(res.data.data.total)
       }
     } catch (error) {
       message.error('获取数据失败')
@@ -103,18 +105,43 @@ const RouteAdmin = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      message.success(editingItem ? '更新成功' : '创建成功')
-      setModalVisible(false)
-      fetchData()
+      let res
+      let oldVersion = editingItem?.version || 0
+      if (editingItem) {
+        res = await updateRoute({ ...editingItem, ...values })
+      } else {
+        res = await createRoute(values)
+      }
+      if (res.data.code === 200) {
+        const newVersion = res.data.data.version
+        message.success(
+          editingItem
+            ? `更新成功！版本 v${oldVersion} → v${newVersion}`
+            : `创建成功！版本 v${newVersion}`
+        )
+        setModalVisible(false)
+        fetchData()
+      } else {
+        message.error(res.data.message || '操作失败')
+      }
     } catch (error: any) {
       if (error.errorFields) return
       message.error('操作失败')
     }
   }
 
-  const handleDelete = (id: number) => {
-    message.success('删除成功')
-    fetchData()
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await deleteRoute(id)
+      if (res.data.code === 200) {
+        message.success('删除成功')
+        fetchData()
+      } else {
+        message.error(res.data.message || '删除失败')
+      }
+    } catch (error) {
+      message.error('删除失败')
+    }
   }
 
   const handleViewDetail = (record: TourRoute) => {

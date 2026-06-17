@@ -1,6 +1,9 @@
 package com.citytour.inventory.service;
 
 import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.annotation.ExcelProperty;
+import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.excel.write.metadata.style.WriteCellStyle;
 import com.alibaba.excel.write.metadata.style.WriteFont;
 import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
@@ -10,6 +13,7 @@ import com.citytour.inventory.entity.InventoryDetail;
 import com.citytour.inventory.repository.ExportLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.springframework.data.domain.Page;
@@ -22,6 +26,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,10 +110,22 @@ public class ExportService {
 
             HorizontalCellStyleStrategy strategy = new HorizontalCellStyleStrategy(headStyle, contentStyle);
 
-            EasyExcel.write(response.getOutputStream(), InventoryDetailExportVO.class)
+            List<ExportMetaVO> metaList = buildExportMeta(exportNo, operator, criteria, data.size());
+
+            try (ExcelWriter excelWriter = EasyExcel.write(response.getOutputStream())
                     .registerWriteHandler(strategy)
-                    .sheet("库存明细")
-                    .doWrite(data.stream().map(this::convertToVO).toList());
+                    .build()) {
+
+                WriteSheet dataSheet = EasyExcel.writerSheet(0, "库存明细")
+                        .head(InventoryDetailExportVO.class)
+                        .build();
+                excelWriter.write(data.stream().map(this::convertToVO).toList(), dataSheet);
+
+                WriteSheet metaSheet = EasyExcel.writerSheet(1, "导出说明")
+                        .head(ExportMetaVO.class)
+                        .build();
+                excelWriter.write(metaList, metaSheet);
+            }
 
             exportLog.setStatus("SUCCESS");
         } catch (Exception e) {
@@ -118,6 +135,47 @@ public class ExportService {
         } finally {
             exportLogRepository.save(exportLog);
         }
+    }
+
+    private List<ExportMetaVO> buildExportMeta(String exportNo, String operator,
+                                               Map<String, Object> criteria, int recordCount) {
+        List<ExportMetaVO> metaList = new ArrayList<>();
+
+        metaList.add(createMeta("导出单号", exportNo));
+        metaList.add(createMeta("导出名称", "库存明细导出"));
+        metaList.add(createMeta("导出人", operator));
+        metaList.add(createMeta("导出时间", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        metaList.add(createMeta("记录总数", String.valueOf(recordCount)));
+        metaList.add(createMeta("", ""));
+        metaList.add(createMeta("=== 查询筛选条件 ===", ""));
+
+        Map<String, String> labelMap = new HashMap<>();
+        labelMap.put("hotelCode", "酒店编码");
+        labelMap.put("roomType", "房型");
+        labelMap.put("roomNumber", "房号");
+        labelMap.put("startDate", "开始日期");
+        labelMap.put("endDate", "结束日期");
+        labelMap.put("roomStatus", "房态");
+        labelMap.put("cleanStatus", "清洁状态");
+
+        for (Map.Entry<String, String> entry : labelMap.entrySet()) {
+            Object value = criteria.get(entry.getKey());
+            if (value != null && !value.toString().isEmpty()) {
+                metaList.add(createMeta(entry.getValue(), value.toString()));
+            }
+        }
+
+        metaList.add(createMeta("", ""));
+        metaList.add(createMeta("备注", "本文件数据按上述筛选条件导出，如需核对请联系导出人"));
+
+        return metaList;
+    }
+
+    private ExportMetaVO createMeta(String item, String value) {
+        ExportMetaVO vo = new ExportMetaVO();
+        vo.setItem(item);
+        vo.setValue(value);
+        return vo;
     }
 
     private List<InventoryDetail> fetchAllInventoryDetails(String hotelCode, String roomType,
@@ -191,5 +249,14 @@ public class ExportService {
 
         @com.alibaba.excel.annotation.ExcelProperty("备注")
         private String remark;
+    }
+
+    @Data
+    public static class ExportMetaVO {
+        @ExcelProperty("项目")
+        private String item;
+
+        @ExcelProperty("内容")
+        private String value;
     }
 }
