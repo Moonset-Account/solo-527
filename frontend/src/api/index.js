@@ -1,5 +1,14 @@
 import request from '@/utils/request'
 
+export const traceApi = {
+  traceBySourceOrderNo(sourceOrderNo) {
+    return request.get(`/trace/source-order/${sourceOrderNo}`)
+  },
+  getPromptVersionsBySourceOrderNo(sourceOrderNo) {
+    return request.get('/trace/prompt-versions', { params: { sourceOrderNo } })
+  }
+}
+
 export const draftApi = {
   createDraft(data) {
     return request.post('/email-draft', data)

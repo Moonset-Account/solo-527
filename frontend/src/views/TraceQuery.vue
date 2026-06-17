@@ -7,6 +7,206 @@
       </div>
 
       <el-tabs v-model="activeTab">
+        <el-tab-pane label="来源单据穿透查询" name="trace">
+          <el-alert
+            type="info"
+            :closable="false"
+            style="margin-bottom: 16px"
+            title="输入来源单据号，可一站式查询该单据关联的所有邮件草稿、AI审核结果、禁用词命中、提示词版本和人工复核记录。" />
+          <el-form :inline="true" class="search-form">
+            <el-form-item label="来源单据号" required>
+              <el-input v-model="traceQuery.sourceOrderNo" placeholder="请输入来源单据号" clearable style="width: 240px" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="traceLoading" @click="doTrace">穿透查询</el-button>
+              <el-button @click="clearTrace">清空</el-button>
+            </el-form-item>
+          </el-form>
+
+          <div v-loading="traceLoading" v-if="traceResult">
+            <div class="trace-summary">
+              <el-row :gutter="16">
+                <el-col :span="6">
+                  <el-statistic title="关联邮件草稿数" :value="traceResult.drafts?.length || 0" />
+                </el-col>
+                <el-col :span="6">
+                  <el-statistic title="AI审核次数" :value="countAiReviews()" />
+                </el-col>
+                <el-col :span="6">
+                  <el-statistic title="禁用词命中数" :value="countForbiddenHits()" />
+                </el-col>
+                <el-col :span="6">
+                  <el-statistic title="人工复核次数" :value="countManualReviews()" />
+                </el-col>
+              </el-row>
+            </div>
+
+            <el-divider content-position="left">
+              <span style="font-weight: 600">关联草稿明细</span>
+            </el-divider>
+
+            <el-collapse v-model="activeTraceDrafts">
+              <el-collapse-item
+                v-for="(detail, idx) in traceResult.draftDetails"
+                :key="detail.draft.id"
+                :name="detail.draft.id">
+                <template #title>
+                  <span style="font-weight: 500">
+                    {{ detail.draft.subject }}
+                  </span>
+                  <el-tag size="small" style="margin-left: 8px" :type="getDraftStatusTagType(detail.draft.status)">
+                    {{ getDraftStatusLabel(detail.draft.status) }}
+                  </el-tag>
+                  <el-tag size="small" style="margin-left: 8px" type="info">
+                    v{{ detail.draft.currentVersion }}
+                  </el-tag>
+                  <span v-if="detail.forbiddenHits && detail.forbiddenHits.length > 0" style="margin-left: 8px; color: #F56C6C">
+                    ⚠ 命中 {{ detail.forbiddenHits.length }} 条禁用词
+                  </span>
+                  <span v-if="detail.reminderSent" style="margin-left: 8px; color: #E6A23C">
+                    🔔 已发送人工复核提醒
+                  </span>
+                </template>
+
+                <el-descriptions :column="3" border size="small" style="margin-bottom: 16px">
+                  <el-descriptions-item label="草稿编号">{{ detail.draft.draftNo }}</el-descriptions-item>
+                  <el-descriptions-item label="版本">v{{ detail.draft.currentVersion }}</el-descriptions-item>
+                  <el-descriptions-item label="状态">
+                    <el-tag size="small" :type="getDraftStatusTagType(detail.draft.status)">
+                      {{ getDraftStatusLabel(detail.draft.status) }}
+                    </el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="销售">{{ detail.draft.agentName || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="主管">{{ detail.draft.supervisorName || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="风险等级">
+                    <el-tag size="small" :type="getRiskTagType(detail.draft.riskLevel)">
+                      {{ getRiskLabel(detail.draft.riskLevel) }}
+                    </el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="创建时间">{{ detail.draft.createdAt }}</el-descriptions-item>
+                  <el-descriptions-item label="来源单据">{{ detail.draft.sourceOrderNo }}</el-descriptions-item>
+                  <el-descriptions-item label="操作">
+                    <el-button type="primary" size="small" link @click="viewDraft(detail.draft.id)">查看草稿</el-button>
+                  </el-descriptions-item>
+                </el-descriptions>
+
+                <el-divider content-position="left" dashed>
+                  <el-tag type="primary" size="small">AI审核记录</el-tag>
+                </el-divider>
+                <el-table v-if="detail.aiReviews && detail.aiReviews.length > 0" :data="detail.aiReviews" border stripe size="small" style="margin-bottom: 16px">
+                  <el-table-column prop="version" label="版本" width="70" align="center">
+                    <template #default="{ row }">v{{ row.version }}</template>
+                  </el-table-column>
+                  <el-table-column prop="reviewResult" label="审核结果" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="getResultTagType(row.reviewResult)">
+                        {{ getResultLabel(row.reviewResult) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="aiRiskScore" label="风险评分" width="100" align="center" />
+                  <el-table-column prop="reviewComment" label="审核意见" min-width="200" show-overflow-tooltip />
+                  <el-table-column label="禁用词命中" width="180">
+                    <template #default="{ row }">
+                      <div v-if="row.forbiddenWordsHit">
+                        <el-tag
+                          v-for="w in parseForbiddenWords(row.forbiddenWordsHit)"
+                          :key="w"
+                          size="small"
+                          type="danger"
+                          style="margin: 2px">
+                          {{ w }}
+                        </el-tag>
+                      </div>
+                      <span v-else style="color: #909399">无</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="operatorRemark" label="操作备注" width="160" show-overflow-tooltip />
+                  <el-table-column label="提醒状态" width="90" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.reminderSent" size="small" type="success">已发</el-tag>
+                      <el-tag v-else size="small" type="info">未发</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="createdAt" label="审核时间" width="170" />
+                </el-table>
+                <el-empty v-else description="暂无AI审核记录" :image-size="80" />
+
+                <el-divider content-position="left" dashed>
+                  <el-tag type="success" size="small">人工复核记录</el-tag>
+                </el-divider>
+                <el-table v-if="detail.manualReviews && detail.manualReviews.length > 0" :data="detail.manualReviews" border stripe size="small" style="margin-bottom: 16px">
+                  <el-table-column prop="version" label="版本" width="70" align="center">
+                    <template #default="{ row }">v{{ row.version }}</template>
+                  </el-table-column>
+                  <el-table-column prop="reviewerName" label="复核人" width="100" />
+                  <el-table-column prop="reviewResult" label="复核结果" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="getResultTagType(row.reviewResult)">
+                        {{ getResultLabel(row.reviewResult) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="reviewComment" label="复核意见" min-width="200" show-overflow-tooltip />
+                  <el-table-column prop="operatorRemark" label="操作备注" width="160" show-overflow-tooltip />
+                  <el-table-column prop="createdAt" label="复核时间" width="170" />
+                </el-table>
+                <el-empty v-else description="暂无人工复核记录" :image-size="80" />
+
+                <el-divider content-position="left" dashed>
+                  <el-tag type="danger" size="small">禁用词命中记录</el-tag>
+                </el-divider>
+                <el-table v-if="detail.forbiddenHits && detail.forbiddenHits.length > 0" :data="detail.forbiddenHits" border stripe size="small" style="margin-bottom: 16px">
+                  <el-table-column prop="version" label="版本" width="70" align="center">
+                    <template #default="{ row }">v{{ row.version }}</template>
+                  </el-table-column>
+                  <el-table-column prop="word" label="命中禁用词" width="120">
+                    <template #default="{ row }">
+                      <el-tag type="danger" size="small">{{ row.word }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="hitPosition" label="命中位置" width="120" />
+                  <el-table-column prop="hitCount" label="命中次数" width="90" align="center" />
+                  <el-table-column prop="operatorRemark" label="操作备注" min-width="180" show-overflow-tooltip />
+                  <el-table-column prop="createdAt" label="命中时间" width="170" />
+                </el-table>
+                <el-empty v-else description="无禁用词命中记录" :image-size="80" />
+
+                <el-divider content-position="left" dashed>
+                  <el-tag type="warning" size="small">生成时使用的提示词版本</el-tag>
+                </el-divider>
+                <div v-if="detail.promptVersion" class="prompt-version-block">
+                  <el-descriptions :column="3" border size="small">
+                    <el-descriptions-item label="版本ID">
+                      <span style="font-family: monospace">{{ detail.promptVersion.id }}</span>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="版本号">v{{ detail.promptVersion.version }}</el-descriptions-item>
+                    <el-descriptions-item label="状态">
+                      <el-tag size="small" :type="detail.promptVersion.status === 'ACTIVE' ? 'success' : 'info'">
+                        {{ getPromptStatusLabel(detail.promptVersion.status) }}
+                      </el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="模板编码">{{ detail.promptVersion.templateCode }}</el-descriptions-item>
+                    <el-descriptions-item label="操作人">{{ detail.promptVersion.operatorName }}</el-descriptions-item>
+                    <el-descriptions-item label="创建时间">{{ detail.promptVersion.createdAt }}</el-descriptions-item>
+                    <el-descriptions-item label="来源单据" :span="2">{{ detail.promptVersion.sourceOrderNo || '-' }}</el-descriptions-item>
+                    <el-descriptions-item label="操作备注" :span="3">
+                      {{ detail.promptVersion.operatorRemark || '-' }}
+                    </el-descriptions-item>
+                  </el-descriptions>
+                  <div style="margin-top: 12px">
+                    <div class="detail-label">提示词内容：</div>
+                    <pre class="prompt-content">{{ detail.promptVersion.promptContent }}</pre>
+                  </div>
+                </div>
+                <el-empty v-else description="该草稿未关联提示词版本" :image-size="80" />
+              </el-collapse-item>
+            </el-collapse>
+          </div>
+
+          <el-empty v-else description="请输入来源单据号进行穿透查询" :image-size="120" />
+        </el-tab-pane>
+
         <el-tab-pane label="人工复核记录" name="review">
           <el-form :inline="true" class="search-form">
             <el-form-item label="草稿编号">
@@ -74,9 +274,10 @@
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="审核时间" width="170" />
-            <el-table-column label="操作" width="100" fixed="right" align="center">
+            <el-table-column label="操作" width="180" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button type="primary" link @click="viewDraft(row.draftId)">查看草稿</el-button>
+                <el-button type="success" link @click="gotoTrace(row.sourceOrderNo)">穿透查询</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -133,9 +334,10 @@
             <el-table-column prop="sourceOrderNo" label="来源单据号" width="150" />
             <el-table-column prop="operatorRemark" label="操作备注" width="150" show-overflow-tooltip />
             <el-table-column prop="createdAt" label="命中时间" width="170" />
-            <el-table-column label="操作" width="100" fixed="right" align="center">
+            <el-table-column label="操作" width="180" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button type="primary" link @click="viewDraft(row.draftId)">查看草稿</el-button>
+                <el-button type="success" link @click="gotoTrace(row.sourceOrderNo)">穿透查询</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -286,15 +488,23 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { reviewApi, forbiddenWordApi, promptApi } from '@/api'
+import { reviewApi, forbiddenWordApi, promptApi, traceApi } from '@/api'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const activeTab = ref('review')
+
+const traceQuery = reactive({
+  sourceOrderNo: ''
+})
+const traceResult = ref(null)
+const traceLoading = ref(false)
+const activeTraceDrafts = ref([])
 
 const reviewQuery = reactive({
   pageNum: 1,
@@ -338,6 +548,11 @@ const newVersionForm = reactive({
 onMounted(() => {
   loadReviewList()
   loadTemplateList()
+  if (route.query.autoTrace === '1' && route.query.sourceOrderNo) {
+    traceQuery.sourceOrderNo = route.query.sourceOrderNo
+    activeTab.value = 'trace'
+    doTrace()
+  }
 })
 
 async function loadReviewList() {
@@ -493,6 +708,90 @@ async function submitNewVersion() {
   } catch (e) {}
 }
 
+async function doTrace() {
+  if (!traceQuery.sourceOrderNo) {
+    ElMessage.warning('请输入来源单据号')
+    return
+  }
+  traceLoading.value = true
+  try {
+    const res = await traceApi.traceBySourceOrderNo(traceQuery.sourceOrderNo)
+    if (res.success) {
+      traceResult.value = res.data
+      activeTraceDrafts.value = res.data.draftDetails?.map(d => d.draft.id) || []
+    }
+  } catch (e) {} finally {
+    traceLoading.value = false
+  }
+}
+
+function clearTrace() {
+  traceQuery.sourceOrderNo = ''
+  traceResult.value = null
+  activeTraceDrafts.value = []
+}
+
+function countAiReviews() {
+  if (!traceResult.value?.draftDetails) return 0
+  return traceResult.value.draftDetails.reduce((sum, d) => sum + (d.aiReviews?.length || 0), 0)
+}
+
+function countManualReviews() {
+  if (!traceResult.value?.draftDetails) return 0
+  return traceResult.value.draftDetails.reduce((sum, d) => sum + (d.manualReviews?.length || 0), 0)
+}
+
+function countForbiddenHits() {
+  if (!traceResult.value?.draftDetails) return 0
+  return traceResult.value.draftDetails.reduce((sum, d) => sum + (d.forbiddenHits?.length || 0), 0)
+}
+
+function parseForbiddenWords(str) {
+  if (!str) return []
+  try {
+    return JSON.parse(str)
+  } catch (e) {
+    return []
+  }
+}
+
+function gotoTrace(sourceOrderNo) {
+  traceQuery.sourceOrderNo = sourceOrderNo
+  activeTab.value = 'trace'
+  doTrace()
+}
+
+function getDraftStatusLabel(s) {
+  const map = {
+    DRAFT: '草稿',
+    AI_GENERATED: 'AI已生成',
+    PENDING_REVIEW: '待审核',
+    REVIEWED: '已审核',
+    APPROVED: '已通过',
+    REJECTED: '已驳回'
+  }
+  return map[s] || s
+}
+function getDraftStatusTagType(s) {
+  const map = {
+    DRAFT: 'info',
+    AI_GENERATED: 'primary',
+    PENDING_REVIEW: 'warning',
+    REVIEWED: 'success',
+    APPROVED: 'success',
+    REJECTED: 'danger'
+  }
+  return map[s] || 'info'
+}
+function getRiskLabel(r) {
+  const map = { LOW: '低', MEDIUM: '中', HIGH: '高' }
+  return map[r] || r || '-'
+}
+function getRiskTagType(r) {
+  const map = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger' }
+  return map[r] || 'info'
+}
+
 function getResultLabel(r) {
   const map = { PASS: '通过', MODIFY: '需修改', REJECT: '驳回' }
   return map[r] || r
@@ -560,5 +859,24 @@ function getPromptStatusLabel(s) {
   overflow-y: auto;
   font-family: 'Courier New', monospace;
   font-size: 13px;
+}
+.trace-summary {
+  margin-bottom: 16px;
+  padding: 20px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+.prompt-version-block {
+  pre.prompt-content {
+    line-height: 1.8;
+    white-space: pre-wrap;
+    padding: 12px;
+    background: #f5f7fa;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+  }
 }
 </style>

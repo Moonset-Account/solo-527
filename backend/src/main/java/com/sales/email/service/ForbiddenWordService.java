@@ -162,6 +162,13 @@ public class ForbiddenWordService {
         return PageResult.of(result.getRecords(), result.getTotal(), pageNum, pageSize);
     }
 
+    public List<ForbiddenWordHit> getHitsByDraftId(Long draftId) {
+        LambdaQueryWrapper<ForbiddenWordHit> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ForbiddenWordHit::getDraftId, draftId);
+        wrapper.orderByDesc(ForbiddenWordHit::getCreatedAt);
+        return forbiddenWordHitMapper.selectList(wrapper);
+    }
+
     private void clearCache() {
         try {
             redisTemplate.delete(CACHE_KEY);

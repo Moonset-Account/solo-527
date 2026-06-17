@@ -72,6 +72,15 @@ public class PromptTemplateService {
         return versionMapper.selectById(versionId);
     }
 
+    public List<PromptVersion> getVersionsBySourceOrderNo(String sourceOrderNo) {
+        LambdaQueryWrapper<PromptVersion> wrapper = new LambdaQueryWrapper<>();
+        if (sourceOrderNo != null && !sourceOrderNo.isEmpty()) {
+            wrapper.eq(PromptVersion::getSourceOrderNo, sourceOrderNo);
+        }
+        wrapper.orderByDesc(PromptVersion::getCreatedAt);
+        return versionMapper.selectList(wrapper);
+    }
+
     @Transactional
     public PromptTemplate addTemplate(PromptTemplate template, Long operatorId, String operatorName) {
         templateMapper.insert(template);

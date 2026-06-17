@@ -205,6 +205,13 @@ public class EmailReviewService {
         return PageResult.of(result.getRecords(), result.getTotal(), pageNum, pageSize);
     }
 
+    public List<EmailReview> getReviewsByDraftId(Long draftId) {
+        LambdaQueryWrapper<EmailReview> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(EmailReview::getDraftId, draftId);
+        wrapper.orderByDesc(EmailReview::getCreatedAt);
+        return reviewMapper.selectList(wrapper);
+    }
+
     public List<EmailReview> getPendingReviews(Long supervisorId) {
         LambdaQueryWrapper<EmailReview> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(EmailReview::getReviewType, "AI");

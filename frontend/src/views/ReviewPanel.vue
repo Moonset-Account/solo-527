@@ -61,27 +61,36 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="AI审核" width="200" align="center">
+            <el-table-column label="AI审核" width="240" align="center">
               <template #default="{ row }">
                 <div v-if="row._aiReview">
-                  <el-tag size="small" :type="getResultTagType(row._aiReview.reviewResult)" style="margin-right: 4px">
-                    {{ getResultLabel(row._aiReview.reviewResult) }}
-                  </el-tag>
-                  <span style="font-size: 12px; color: #909399">评分: {{ row._aiReview.aiRiskScore }}</span>
-                  <div v-if="row._forbiddenWords && row._forbiddenWords.length > 0" style="margin-top: 4px">
-                    <el-tag v-for="w in row._forbiddenWords" :key="w" type="danger" size="small" style="margin: 2px">
-                      {{ w }}
+                  <div style="margin-bottom: 4px">
+                    <el-tag size="small" :type="getResultTagType(row._aiReview.reviewResult)" style="margin-right: 4px">
+                      {{ getResultLabel(row._aiReview.reviewResult) }}
                     </el-tag>
+                    <span style="font-size: 12px; color: #909399">评分: {{ row._aiReview.aiRiskScore }}</span>
+                  </div>
+                  <div v-if="row._forbiddenWords && row._forbiddenWords.length > 0" style="margin-bottom: 4px">
+                    <el-tag type="danger" size="small">
+                      命中 {{ row._forbiddenWords.length }} 个禁用词
+                    </el-tag>
+                  </div>
+                  <div>
+                    <el-tag v-if="row._aiReview.reminderSent" size="small" type="warning">
+                      🔔 已发送复核提醒
+                    </el-tag>
+                    <el-tag v-else size="small" type="info">无需复核提醒</el-tag>
                   </div>
                 </div>
                 <el-tag v-else size="small" type="info">加载中</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="createdAt" label="创建时间" width="170" />
-            <el-table-column label="操作" width="120" fixed="right" align="center">
+            <el-table-column label="操作" width="200" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button type="primary" link @click="openReview(row)">审核</el-button>
                 <el-button type="success" link @click="viewDraft(row)">查看</el-button>
+                <el-button type="info" link @click="gotoTrace(row)">溯源</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -468,6 +477,17 @@ async function submitReview() {
 
 function viewDraft(draft) {
   router.push(`/draft/${draft.id}`)
+}
+
+function gotoTrace(draft) {
+  if (draft.sourceOrderNo) {
+    router.push({
+      path: '/trace',
+      query: { sourceOrderNo: draft.sourceOrderNo, autoTrace: '1' }
+    })
+  } else {
+    ElMessage.warning('该草稿无来源单据号，无法溯源')
+  }
 }
 
 function getSourceLabel(type) {
