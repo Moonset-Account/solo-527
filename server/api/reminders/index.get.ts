@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       where.userId = String(userId)
     }
   } else {
-    where.userId = String(userId || currentUserId)
+    where.userId = String(currentUserId)
   }
 
   if (status && status !== 'ALL') where.status = status
