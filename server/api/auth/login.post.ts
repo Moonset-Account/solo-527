@@ -1,4 +1,5 @@
 import { prisma, hashPassword, verifyPassword } from '../../utils/db'
+import { setUserSession } from '../../utils/session'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)

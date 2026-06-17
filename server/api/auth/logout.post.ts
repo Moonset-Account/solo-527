@@ -1,3 +1,5 @@
+import { getUserSession, clearUserSession } from '../../utils/session'
+
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session || !session.user) {

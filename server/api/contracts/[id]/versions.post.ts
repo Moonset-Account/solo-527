@@ -1,4 +1,5 @@
-import { prisma, canTransition } from '../../../../utils/db'
+import { prisma, canTransition } from '../../../utils/db'
+import { getUserSession } from '../../../utils/session'
 import { createHash } from 'crypto'
 
 export default defineEventHandler(async (event) => {

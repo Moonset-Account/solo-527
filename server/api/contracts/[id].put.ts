@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
-import { prisma } from '../../../utils/db'
+import { prisma } from '../../utils/db'
+import { getUserSession } from '../../utils/session'
 
 const Decimal = Prisma.Decimal
 

@@ -278,6 +278,7 @@ model Reminder {
 
   @@index([status])
   @@index([deadlineDate])
+  @@unique([contractId, userId, reminderType])
   @@map("reminders")
 }
 

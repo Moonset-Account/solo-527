@@ -1,4 +1,5 @@
-import { prisma } from '../utils/db'
+import { prisma } from '../../utils/db'
+import { getUserSession } from '../../utils/session'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -13,9 +14,9 @@ export default defineEventHandler(async (event) => {
   startDate.setDate(startDate.getDate() - days)
 
   const [
-    contractStats,
     statusStats,
     typeStats,
+    actionStats,
     userEfficiency,
     deadlineStats,
     gapStats,
@@ -131,17 +132,17 @@ export default defineEventHandler(async (event) => {
 
   return {
     overview: {
-      totalContracts: contractStats.reduce((s, c) => s + c._count.id, 0),
-      completedContracts: contractStats.find(c => c.status === 'COMPLETED')?._count.id || 0,
-      inProgressContracts: contractStats.filter(c => !['COMPLETED', 'ERROR', 'NEW'].includes(c.status)).reduce((s, c) => s + c._count.id, 0),
-      newContracts: contractStats.find(c => c.status === 'NEW')?._count.id || 0,
-      errorContracts: contractStats.find(c => c.status === 'ERROR')?._count.id || 0,
+      totalContracts: statusStats.reduce((s, c) => s + c._count.id, 0),
+      completedContracts: statusStats.find(c => c.status === 'COMPLETED')?._count.id || 0,
+      inProgressContracts: statusStats.filter(c => !['COMPLETED', 'ERROR', 'NEW'].includes(c.status)).reduce((s, c) => s + c._count.id, 0),
+      newContracts: statusStats.find(c => c.status === 'NEW')?._count.id || 0,
+      errorContracts: statusStats.find(c => c.status === 'ERROR')?._count.id || 0,
       totalAmount: totalAmountValue,
       avgAmount: avgAmountValue
     },
     statusStats,
     typeStats,
-    actionStats: statusStats,
+    actionStats,
     userEfficiency,
     deadlineStats,
     gapStats,
