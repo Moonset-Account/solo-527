@@ -89,22 +89,62 @@ export const api = {
     request<T>(url, { ...options, method: 'DELETE' }),
 };
 
-export const exportUrl = (url: string, params?: Record<string, any>) => {
+export const exportFile = async (url: string, params?: Record<string, any>, filename?: string) => {
   const token = localStorage.getItem('token');
   let fullUrl = API_BASE + url;
 
   if (params) {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value !== undefined && value !== null && value !== '') {
         searchParams.append(key, String(value));
       }
     });
     fullUrl += `?${searchParams.toString()}`;
   }
 
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(fullUrl, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/admin/login';
+    }
+    throw new Error('导出失败');
+  }
+
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+
+  const contentDisposition = response.headers.get('Content-Disposition');
+  let downloadName = filename || 'export.csv';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename\*=UTF-8''(.+)/i);
+    if (match && match[1]) {
+      downloadName = decodeURIComponent(match[1]);
+    } else {
+      const fallbackMatch = contentDisposition.match(/filename="?(.+?)"?$/i);
+      if (fallbackMatch && fallbackMatch[1]) {
+        downloadName = fallbackMatch[1];
+      }
+    }
+  }
+
   const link = document.createElement('a');
-  link.href = fullUrl;
-  link.target = '_blank';
+  link.href = blobUrl;
+  link.download = downloadName;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(blobUrl);
 };
+
+export const exportUrl = exportFile;

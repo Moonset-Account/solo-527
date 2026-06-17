@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { api, exportUrl } from '@/utils/api';
+import { api, exportFile } from '@/utils/api';
 import {
   BarChart3,
   Download,
@@ -72,14 +72,18 @@ function AdminStatisticsPage() {
     }
   };
 
-  const handleExport = () => {
-    exportUrl('/admin/statistics/export', {
-      type: 'point-cost',
-      startDate,
-      endDate,
-      dimension,
-      ...filters,
-    });
+  const handleExport = async () => {
+    try {
+      await exportFile('/admin/statistics/export', {
+        type: 'point-cost',
+        startDate,
+        endDate,
+        dimension,
+        ...filters,
+      }, '积分成本统计.csv');
+    } catch (e: any) {
+      alert(e.message || '导出失败');
+    }
   };
 
   const COLORS = ['#5EC4B3', '#F5A962', '#FF859E', '#A78BFA', '#34D399', '#FBBF24'];

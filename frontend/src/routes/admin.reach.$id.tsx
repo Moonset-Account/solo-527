@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { api, exportUrl } from '@/utils/api';
+import { api, exportFile } from '@/utils/api';
 import {
   ArrowLeft,
   Users,
@@ -130,12 +130,16 @@ function ReachTaskDetailPage() {
     }
   };
 
-  const handleExport = () => {
-    exportUrl('/admin/statistics/export', {
-      type: 'reach',
-      taskId: id,
-      status: logStatus,
-    });
+  const handleExport = async () => {
+    try {
+      await exportFile('/admin/statistics/export', {
+        type: 'reach',
+        taskId: id,
+        status: logStatus,
+      }, '触达日志.csv');
+    } catch (e: any) {
+      alert(e.message || '导出失败');
+    }
   };
 
   const totalLogPages = Math.ceil(logTotal / pageSize);

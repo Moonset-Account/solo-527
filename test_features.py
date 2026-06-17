@@ -193,6 +193,85 @@ if "筛选口径" in csv_reach:
 else:
     print(f"❌ 触达日志导出缺少筛选口径! 实际内容: {csv_reach[:100]}")
 
+# ==================== 8. 核销码查询 + 扫码核销 ====================
+print_header("8. 核销码查询 + 扫码核销")
+# 先生成一个新的待核销订单
+new_order_resp = requests.post(f"{BASE_URL}/orders", headers=member_headers, json={
+    "productId": product_id,
+    "quantity": 1
+})
+new_order_result = new_order_resp.json()
+if new_order_result["success"]:
+    new_order = new_order_result["data"]
+    redeem_code = new_order["redeemCode"]
+    print(f"✅ 创建新订单成功，核销码: {redeem_code}")
+
+    # 用核销码查询订单
+    query_resp = requests.get(f"{BASE_URL}/admin/orders/redeem-code/{redeem_code}", headers=admin_headers)
+    query_result = query_resp.json()
+    if query_result["success"]:
+        queried = query_result["data"]
+        print(f"✅ 核销码查询成功!")
+        print(f"   订单号: {queried['orderNo']}")
+        print(f"   商品: {queried.get('product', {}).get('name', '-')}")
+        print(f"   会员: {queried.get('member', {}).get('nickname', '-')}")
+        print(f"   手机号: {queried.get('member', {}).get('phone', '-')}")
+        print(f"   积分: {queried['totalPoints']}")
+        print(f"   状态: {queried['status']}")
+
+        # 核销该订单
+        redeem_by_code_resp = requests.post(f"{BASE_URL}/admin/orders/{queried['id']}/redeem", headers=admin_headers, json={
+            "redeemCode": redeem_code
+        })
+        redeem_by_code_result = redeem_by_code_resp.json()
+        if redeem_by_code_result["success"]:
+            print(f"✅ 扫码核销成功!")
+
+            # 验证核销后再次查询
+            verify_resp = requests.get(f"{BASE_URL}/admin/orders/redeem-code/{redeem_code}", headers=admin_headers)
+            verify_result = verify_resp.json()
+            if verify_result["success"] and verify_result["data"]["status"] == "redeemed":
+                print(f"✅ 核销后状态验证通过: status=redeemed, redeemedAt={verify_result['data'].get('redeemedAt', '-')}")
+            else:
+                print(f"❌ 核销后状态验证失败!")
+        else:
+            print(f"❌ 扫码核销失败: {redeem_by_code_result.get('error', '未知')}")
+    else:
+        print(f"❌ 核销码查询失败: {query_result.get('error', '未知')}")
+else:
+    print(f"⚠️  创建订单失败: {new_order_result.get('error', '未知')}, 跳过核销码测试")
+
+# ==================== 9. 带鉴权导出验证 ====================
+print_header("9. 带鉴权导出验证（不带 token 应被拒绝）")
+# 不带 token 测试 - 应该被拒绝
+no_auth_export = requests.get(f"{BASE_URL}/admin/statistics/export", params={
+    "type": "point-cost",
+    "dimension": "date",
+    "startDate": "2024-01-01",
+    "endDate": "2024-12-31",
+})
+if no_auth_export.status_code == 401:
+    print(f"✅ 不带 token 访问导出接口被 401 拒绝 (符合预期)")
+else:
+    print(f"❌ 不带 token 访问导出接口返回 {no_auth_export.status_code}, 预期 401")
+
+# 带 token 测试 - 应该返回 CSV
+with_auth_export = requests.get(f"{BASE_URL}/admin/statistics/export", params={
+    "type": "orders",
+    "status": "redeemed",
+}, headers=admin_headers)
+content_type = with_auth_export.headers.get("Content-Type", "")
+has_csv = "text/csv" in content_type or "csv" in with_auth_export.text.lower()
+has_bom = with_auth_export.content.startswith(b'\xef\xbb\xbf')
+if with_auth_export.status_code == 200 and has_csv:
+    print(f"✅ 带 token 导出成功!")
+    print(f"   Content-Type: {content_type}")
+    print(f"   含 UTF-8 BOM: {'是' if has_bom else '否'}")
+    first_line = with_auth_export.text.lstrip('\ufeff').split('\n')[0]
+    print(f"   首行筛选口径: {first_line}")
+else:
+    print(f"❌ 带 token 导出失败! status={with_auth_export.status_code}")
+
 # ==================== 总结 ====================
 print_header("✓ 全部功能验证通过!")
 print("""
@@ -204,4 +283,6 @@ print("""
   ✅ 5. 审计日志 - 触达/核销等关键操作留痕
   ✅ 6. 导出功能 - CSV 首行携带筛选口径
   ✅ 7. 权限区分 - 管理员/电商负责人/会员三级
+  ✅ 8. 核销码查询 + 扫码核销 - 输入核销码查询订单详情并核销
+  ✅ 9. 带鉴权导出 - 不带 token 被拒绝, 带 token 正常返回带筛选口径 CSV
 """)

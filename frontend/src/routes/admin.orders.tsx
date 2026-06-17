@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
-import { api, exportUrl } from '@/utils/api';
+import { api, exportFile } from '@/utils/api';
 import {
   ShoppingCart,
   Search,
@@ -13,6 +13,63 @@ import {
 } from 'lucide-react';
 import type { ExchangeOrder, PaginatedResponse } from '@shared/types';
 import { formatDate, formatNumber, getStatusColor, getStatusText } from '@/utils';
+
+function RedeemOrderInfo({ order }: { order: ExchangeOrder }) {
+  const product = (order as any).product;
+  const member = (order as any).member;
+  const isRedeemed = order.status === 'redeemed';
+
+  return (
+    <div className="mb-5">
+      <div className={`p-5 rounded-xl border-2 ${isRedeemed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">订单号</p>
+            <p className="font-mono font-semibold text-gray-800">{order.orderNo}</p>
+          </div>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+            {getStatusText(order.status)}
+          </span>
+        </div>
+
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">商品</span>
+            <span className="font-medium text-gray-800">
+              {product?.name || '-'} × {order.quantity}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">消耗积分</span>
+            <span className="font-semibold text-brand-600">{formatNumber(order.totalPoints)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">会员</span>
+            <span className="font-medium text-gray-800">{member?.nickname || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">手机号</span>
+            <span className="font-mono text-gray-700">{member?.phone || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">核销码</span>
+            <span className="font-mono font-semibold text-gray-800">{order.redeemCode || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">下单时间</span>
+            <span className="text-gray-600">{formatDate(order.createdAt)}</span>
+          </div>
+          {isRedeemed && (order as any).redeemedAt && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">核销时间</span>
+              <span className="text-green-600 font-medium">{formatDate((order as any).redeemedAt)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute('/admin/orders')({
   component: AdminOrdersPage,
@@ -32,6 +89,9 @@ function AdminOrdersPage() {
   const [redeemModalOpen, setRedeemModalOpen] = useState(false);
   const [redeemCode, setRedeemCode] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<ExchangeOrder | null>(null);
+  const [queriedOrder, setQueriedOrder] = useState<ExchangeOrder | null>(null);
+  const [queryingOrder, setQueryingOrder] = useState(false);
+  const [redeeming, setRedeeming] = useState(false);
   const [filters, setFilters] = useState<any>({});
 
   useEffect(() => {
@@ -64,31 +124,70 @@ function AdminOrdersPage() {
 
   const handleRedeem = async (order: ExchangeOrder) => {
     setSelectedOrder(order);
+    setQueriedOrder(order);
     setRedeemCode(order.redeemCode || '');
     setRedeemModalOpen(true);
   };
 
-  const confirmRedeem = async () => {
-    if (!selectedOrder) return;
+  const queryOrderByCode = async () => {
+    if (!redeemCode.trim()) {
+      alert('请输入核销码');
+      return;
+    }
+    setQueryingOrder(true);
+    setQueriedOrder(null);
     try {
-      await api.post(`/admin/orders/${selectedOrder.id}/redeem`, {
-        redeemCode,
-      });
-      alert('核销成功！');
-      setRedeemModalOpen(false);
-      fetchOrders();
+      const order = await api.get<ExchangeOrder>(`/admin/orders/redeem-code/${redeemCode.trim().toUpperCase()}`);
+      setQueriedOrder(order);
     } catch (e: any) {
-      alert(e.message);
+      alert(e.message || '未找到对应订单');
+    } finally {
+      setQueryingOrder(false);
     }
   };
 
-  const handleExport = () => {
-    const params: any = { ...filters };
-    if (keyword) params.keyword = keyword;
-    if (status) params.status = status;
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
-    exportUrl('/admin/statistics/export', { type: 'orders', ...params });
+  const confirmRedeem = async () => {
+    const order = selectedOrder || queriedOrder;
+    if (!order) {
+      alert('请先选择或查询订单');
+      return;
+    }
+    setRedeeming(true);
+    try {
+      await api.post(`/admin/orders/${order.id}/redeem`, {
+        redeemCode: order.redeemCode,
+      });
+      alert('核销成功！');
+      setRedeemModalOpen(false);
+      setSelectedOrder(null);
+      setQueriedOrder(null);
+      setRedeemCode('');
+      fetchOrders();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
+  const closeRedeemModal = () => {
+    setRedeemModalOpen(false);
+    setSelectedOrder(null);
+    setQueriedOrder(null);
+    setRedeemCode('');
+  };
+
+  const handleExport = async () => {
+    try {
+      const params: any = { ...filters };
+      if (keyword) params.keyword = keyword;
+      if (status) params.status = status;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      await exportFile('/admin/statistics/export', { type: 'orders', ...params }, '订单列表.csv');
+    } catch (e: any) {
+      alert(e.message || '导出失败');
+    }
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -158,7 +257,7 @@ function AdminOrdersPage() {
             </button>
 
             <button
-              onClick={() => { setSelectedOrder(null); setRedeemCode(''); setRedeemModalOpen(true); }}
+              onClick={() => { closeRedeemModal(); setRedeemModalOpen(true); }}
               className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 text-white rounded-xl hover:bg-brand-600 transition-colors"
             >
               <QrCode className="w-4 h-4" />
@@ -321,41 +420,52 @@ function AdminOrdersPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 animate-fadeInUp">
             <h3 className="text-lg font-bold text-gray-800 mb-4">订单核销</h3>
 
-            {selectedOrder ? (
-              <div className="mb-4 p-4 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">订单号</p>
-                <p className="font-mono font-medium">{selectedOrder.orderNo}</p>
-                <p className="text-sm text-gray-600 mt-2">
-                  {(selectedOrder as any).product?.name} × {selectedOrder.quantity}
-                </p>
-              </div>
-            ) : (
+            {!selectedOrder && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">输入核销码</label>
-                <input
-                  type="text"
-                  value={redeemCode}
-                  onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
-                  placeholder="请输入8位核销码"
-                  maxLength={8}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono text-center text-lg tracking-widest"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={redeemCode}
+                    onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === 'Enter') queryOrderByCode(); }}
+                    placeholder="请输入或扫码核销码"
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono text-center text-lg tracking-widest"
+                  />
+                  <button
+                    onClick={queryOrderByCode}
+                    disabled={queryingOrder || !redeemCode.trim()}
+                    className="px-5 py-3 bg-brand-500 text-white rounded-xl font-medium hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {queryingOrder ? '查询中...' : '查询'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">提示：扫码或手动输入核销码后点击查询</p>
               </div>
+            )}
+
+            {(selectedOrder || queriedOrder) && (
+              <RedeemOrderInfo
+                order={(selectedOrder || queriedOrder)!}
+              />
             )}
 
             <div className="flex gap-3">
               <button
-                onClick={() => setRedeemModalOpen(false)}
+                onClick={closeRedeemModal}
                 className="flex-1 py-2.5 text-gray-600 hover:text-gray-800 transition-colors"
               >
-                取消
+                关闭
               </button>
-              <button
-                onClick={confirmRedeem}
-                className="flex-1 py-2.5 bg-brand-500 text-white rounded-xl font-medium hover:bg-brand-600 transition-colors"
-              >
-                确认核销
-              </button>
+              {(selectedOrder || queriedOrder)?.status === 'pending' && (
+                <button
+                  onClick={confirmRedeem}
+                  disabled={redeeming}
+                  className="flex-1 py-2.5 bg-brand-500 text-white rounded-xl font-medium hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {redeeming ? '核销中...' : '确认核销'}
+                </button>
+              )}
             </div>
           </div>
         </div>
