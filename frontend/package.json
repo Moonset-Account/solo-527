@@ -1,0 +1,38 @@
+{
+  "name": "art-exam-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "艺考培训家校沟通站 - 前端",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev -p 3000",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxi typecheck"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxtjs/eslint-config-typescript": "^12.1.0",
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "nuxt": "^3.9.3",
+    "typescript": "^5.3.3",
+    "vue": "^3.4.14",
+    "vue-router": "^4.2.5"
+  },
+  "dependencies": {
+    "@css-render/vue3-ssr": "^0.15.12",
+    "@vicons/ionicons5": "^0.12.0",
+    "date-fns": "^3.2.0",
+    "dayjs": "^1.11.10",
+    "echarts": "^5.4.3",
+    "naive-ui": "^2.37.3",
+    "pinia": "^2.1.7",
+    "pinia-plugin-persistedstate": "^3.2.1",
+    "qs": "^6.11.0",
+    "vfonts": "^0.0.3",
+    "xlsx": "^0.18.5"
+  }
+}

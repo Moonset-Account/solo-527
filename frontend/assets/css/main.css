@@ -1,0 +1,97 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #__nuxt {
+  height: 100%;
+  font-family: 'Lato', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+body {
+  background-color: #f5f7fa;
+  color: #1f2937;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page-container {
+  padding: 16px;
+}
+
+.card-section {
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #1f2937;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.text-muted {
+  color: #909399;
+  font-size: 13px;
+}
+
+.text-primary {
+  color: #2080f0;
+}
+
+.text-success {
+  color: #18a058;
+}
+
+.text-warning {
+  color: #f0a020;
+}
+
+.text-danger {
+  color: #d03050;
+}
+
+.mb-8 {
+  margin-bottom: 8px;
+}
+
+.mb-12 {
+  margin-bottom: 12px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
