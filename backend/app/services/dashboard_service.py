@@ -432,7 +432,8 @@ def create_homework_reminders_for_unsubmitted(db: Session, operator_id: int = 1)
                 ReminderPriority.HIGH if hours_to_deadline <= 24 else ReminderPriority.NORMAL
             )
         else:
-            principal_id = db.query(User.id).filter(User.role == "principal").first()
+            principal_row = db.query(User.id).filter(User.role == "principal").first()
+            principal_id = principal_row[0] if principal_row else None
             reminder = Reminder(
                 type=ReminderType.HOMEWORK,
                 priority=ReminderPriority.URGENT if is_overdue else (

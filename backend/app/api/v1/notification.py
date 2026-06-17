@@ -1,6 +1,6 @@
 from datetime import datetime, date, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Body
 from sqlalchemy.orm import Session
 from fastapi.responses import StreamingResponse
 import io
@@ -142,17 +142,25 @@ def list_receipts(nf_id: int, status: Optional[ReceiptStatus] = Query(None), db:
 
 
 @router.post("/{nf_id}/receipts/{rc_id}/confirm")
-def confirm_receipt(nf_id: int, rc_id: int, remark: Optional[str] = None, db: Session = Depends(get_db)):
+def confirm_receipt(
+    nf_id: int, rc_id: int,
+    remark: Optional[str] = Body(None, embed=True),
+    db: Session = Depends(get_db),
+):
     rc = db.query(Receipt).filter(Receipt.id == rc_id, Receipt.notification_id == nf_id).first()
     if not rc:
         raise HTTPException(404, "回执不存在")
+    if rc.status == ReceiptStatus.CONFIRMED:
+        return {"message": "回执已确认", "confirmed_at": str(rc.confirmed_at)}
     rc.status = ReceiptStatus.CONFIRMED
     rc.confirmed_at = datetime.utcnow()
-    rc.remark = remark
+    if remark:
+        rc.remark = remark
     n = db.query(Notification).filter(Notification.id == nf_id).first()
     if n:
         n.confirmed_receipts = (n.confirmed_receipts or 0) + 1
     db.commit()
+    db.refresh(rc)
     return {"message": "回执已确认", "confirmed_at": str(rc.confirmed_at)}
 
 
@@ -186,3 +194,144 @@ def export_receipts(nf_id: int, db: Session = Depends(get_db)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="receipts_{nf_id}.xlsx"'},
     )
+
+
+@router.get("/receipts/all")
+def list_all_receipts(
+    status: Optional[ReceiptStatus] = Query(None),
+    class_id: Optional[int] = Query(None),
+    notification_type: Optional[NotificationType] = Query(None),
+    overdue_only: Optional[bool] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    import pandas as pd
+    query = db.query(Receipt).join(Notification, Receipt.notification_id == Notification.id)
+    if status:
+        query = query.filter(Receipt.status == status)
+    if class_id:
+        query = query.filter(Notification.class_id == class_id)
+    if notification_type:
+        query = query.filter(Notification.type == notification_type)
+    now = datetime.utcnow()
+    if overdue_only:
+        query = query.filter(
+            Receipt.status == ReceiptStatus.PENDING,
+            Notification.receipt_deadline.isnot(None),
+            Notification.receipt_deadline < now,
+        )
+    if start_date:
+        query = query.filter(Receipt.created_at >= start_date)
+    if end_date:
+        query = query.filter(Receipt.created_at <= end_date + " 23:59:59")
+    total = query.count()
+    items = query.order_by(Receipt.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    results = []
+    for r in items:
+        u = db.query(User).filter(User.id == r.user_id).first()
+        s = db.query(Student).filter(Student.id == r.student_id).first() if r.student_id else None
+        n = db.query(Notification).filter(Notification.id == r.notification_id).first()
+        n_dict = None
+        if n:
+            cls = db.query(ClassGroup).filter(ClassGroup.id == n.class_id).first() if n.class_id else None
+            pub = db.query(User).filter(User.id == n.publisher_id).first() if n.publisher_id else None
+            n_dict = {
+                "id": n.id, "title": n.title, "type": n.type.value,
+                "content": n.content, "publisher_name": pub.real_name if pub else None,
+                "publish_time": str(n.publish_time) if n.publish_time else None,
+                "receipt_deadline": str(n.receipt_deadline) if n.receipt_deadline else None,
+                "class_name": cls.name if cls else None,
+            }
+        results.append({
+            "id": r.id,
+            "notification_id": r.notification_id,
+            "user_id": r.user_id,
+            "user_name": u.real_name if u else None,
+            "student_id": r.student_id,
+            "student_name": s.name if s else None,
+            "status": r.status.value,
+            "confirmed_at": str(r.confirmed_at) if r.confirmed_at else None,
+            "remark": r.remark,
+            "created_at": str(r.created_at),
+            "notification": n_dict,
+        })
+    return {"total": total, "items": results}
+
+
+@router.put("/receipts/{receipt_id}/confirm")
+def confirm_receipt_by_id(
+    receipt_id: int,
+    remark: Optional[str] = Body(None, embed=True),
+    db: Session = Depends(get_db),
+):
+    rc = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+    if not rc:
+        raise HTTPException(404, "回执不存在")
+    if rc.status == ReceiptStatus.CONFIRMED:
+        return {"message": "回执已确认", "confirmed_at": str(rc.confirmed_at), "id": rc.id}
+    rc.status = ReceiptStatus.CONFIRMED
+    rc.confirmed_at = datetime.utcnow()
+    if remark:
+        rc.remark = remark
+    n = db.query(Notification).filter(Notification.id == rc.notification_id).first()
+    if n:
+        n.confirmed_receipts = (n.confirmed_receipts or 0) + 1
+    db.commit()
+    db.refresh(rc)
+    return {"message": "回执已确认", "confirmed_at": str(rc.confirmed_at), "id": rc.id}
+
+
+@router.get("/receipts/export/xlsx")
+def export_all_receipts(
+    status: Optional[ReceiptStatus] = Query(None),
+    class_id: Optional[int] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    import pandas as pd
+    query = db.query(Receipt).join(Notification, Receipt.notification_id == Notification.id)
+    if status:
+        query = query.filter(Receipt.status == status)
+    if class_id:
+        query = query.filter(Notification.class_id == class_id)
+    if start_date:
+        query = query.filter(Receipt.created_at >= start_date)
+    if end_date:
+        query = query.filter(Receipt.created_at <= end_date + " 23:59:59")
+    receipts = query.order_by(Receipt.created_at.desc()).all()
+    rows = []
+    for r in receipts:
+        u = db.query(User).filter(User.id == r.user_id).first()
+        s = db.query(Student).filter(Student.id == r.student_id).first() if r.student_id else None
+        n = db.query(Notification).filter(Notification.id == r.notification_id).first()
+        rows.append({
+            "回执ID": r.id,
+            "通知标题": n.title if n else "",
+            "通知类型": n.type.value if n else "",
+            "回执人": u.real_name if u else "",
+            "关联学生": s.name if s else "",
+            "状态": r.status.value,
+            "确认时间": str(r.confirmed_at) if r.confirmed_at else "",
+            "回执截止": str(n.receipt_deadline) if n and n.receipt_deadline else "",
+            "备注": r.remark or "",
+            "创建时间": str(r.created_at),
+        })
+    df = pd.DataFrame(rows)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="全部回执")
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="receipts_all_{datetime.now().strftime("%Y%m%d")}.xlsx"'},
+    )
+
+
+@router.get("/{nf_id}/receipts/export/xlsx")
+def export_receipts_by_notification_alt(nf_id: int, db: Session = Depends(get_db)):
+    return export_receipts(nf_id, db)
