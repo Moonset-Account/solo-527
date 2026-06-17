@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-slate-950: #0F172A;
+  --color-slate-900: #1E293B;
+  --color-slate-800: #1E293B;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748B;
+  --color-slate-400: #94A3B8;
+  --color-slate-300: #CBD5E1;
+  --color-slate-200: #E2E8F0;
+  --color-slate-100: #F1F5F9;
+  --color-slate-50: #F8FAFC;
+  --color-emerald-500: #10B981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-amber-500: #F59E0B;
+  --color-amber-400: #FBBF24;
+  --color-red-500: #EF4444;
+  --color-red-600: #DC2626;
+  --color-blue-500: #3B82F6;
+  --color-blue-600: #2563EB;
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0F172A;
+    --foreground: #F1F5F9;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.urgency-critical {
+  border-left: 4px solid var(--color-red-500);
+  background: linear-gradient(90deg, rgba(239,68,68,0.08) 0%, transparent 100%);
+}
+
+.urgency-high {
+  border-left: 4px solid var(--color-amber-500);
+  background: linear-gradient(90deg, rgba(245,158,11,0.08) 0%, transparent 100%);
+}
+
+.urgency-medium {
+  border-left: 4px solid var(--color-blue-500);
+  background: linear-gradient(90deg, rgba(59,130,246,0.08) 0%, transparent 100%);
+}
+
+.urgency-low {
+  border-left: 4px solid var(--color-emerald-500);
+  background: linear-gradient(90deg, rgba(16,185,129,0.08) 0%, transparent 100%);
+}
