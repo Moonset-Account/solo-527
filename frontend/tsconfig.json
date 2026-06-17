@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "types": ["node", "naive-ui/volar"]
+  }
+}
