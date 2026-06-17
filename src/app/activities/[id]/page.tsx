@@ -5,6 +5,7 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import {
   ArrowLeft,
@@ -20,10 +21,11 @@ import {
   Check,
   X,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import Link from "next/link";
-import { useActivityReview, sendRemindersClient } from "@/lib/hooks";
+import { useActivityReview, sendRemindersClient, submitRegistrationClient } from "@/lib/hooks";
 import { exportToExcel, formatRegistrationExport, formatReviewExport } from "@/lib/export";
 import { createClient } from "@/lib/supabase/client";
 
@@ -35,6 +37,10 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
   const [reminderContent, setReminderContent] = useState("");
   const [sendingReminder, setSendingReminder] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [registerStudentId, setRegisterStudentId] = useState("");
+  const [registerError, setRegisterError] = useState(false);
+  const [registerResult, setRegisterResult] = useState<{ registered?: boolean; error?: string | null } | null>(null);
+  const [registering, setRegistering] = useState(false);
 
   const { data: reviewData, loading, refetch } = useActivityReview(params.id);
 
@@ -104,6 +110,63 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
     refetch();
   };
 
+  const handleRegister = async () => {
+    if (!registerStudentId.trim()) {
+      setRegisterError(true);
+      setRegisterResult({ registered: false, error: "请输入学号或用户ID" });
+      return;
+    }
+
+    setRegistering(true);
+    setRegisterError(false);
+    setRegisterResult(null);
+
+    try {
+      const supabase = createClient();
+      let userId = registerStudentId.trim();
+
+      const { data: userByStudentId } = await supabase
+        .from("user_profiles")
+        .select("id")
+        .eq("student_id", userId)
+        .single();
+
+      if (userByStudentId) {
+        userId = userByStudentId.id;
+      } else {
+        const { data: userById } = await supabase
+          .from("user_profiles")
+          .select("id")
+          .eq("id", userId)
+          .single();
+
+        if (!userById) {
+          setRegisterError(true);
+          setRegisterResult({ registered: false, error: "未找到该用户，请检查学号或用户ID" });
+          setRegistering(false);
+          return;
+        }
+        userId = userById.id;
+      }
+
+      const result = await submitRegistrationClient(params.id, userId);
+
+      if (result.error) {
+        setRegisterError(true);
+        setRegisterResult({ registered: false, error: result.error });
+      } else {
+        setRegisterResult({ registered: true, error: null });
+        setRegisterStudentId("");
+        refetch();
+      }
+    } catch (e: any) {
+      setRegisterError(true);
+      setRegisterResult({ registered: false, error: e.message || "报名失败" });
+    }
+
+    setRegistering(false);
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -163,6 +226,47 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
             </Button>
           </div>
         </div>
+
+        <Card className="bg-gradient-to-r from-primary-50 to-blue-50 border-primary-200">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100">
+                  <UserPlus className="h-5 w-5 text-primary-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">报名参加</h3>
+                  <p className="text-sm text-gray-500">输入学号或用户ID为用户快速报名</p>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                <Input
+                  type="text"
+                  placeholder="请输入学号或用户ID"
+                  value={registerStudentId}
+                  onChange={(e) => {
+                    setRegisterStudentId(e.target.value);
+                    if (registerError) setRegisterError(false);
+                    if (registerResult) setRegisterResult(null);
+                  }}
+                  className={registerError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleRegister();
+                  }}
+                />
+                <Button onClick={handleRegister} disabled={registering}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {registering ? "报名中..." : "立即报名"}
+                </Button>
+              </div>
+            </div>
+            {registerResult && (
+              <div className={`mt-4 p-3 rounded-md text-sm ${registerResult.registered ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                {registerResult.registered ? "报名成功！" : registerResult.error}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -399,6 +503,40 @@ export default function ActivityDetailPage({ params }: { params: { id: string } 
           </div>
 
           <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>快捷报名</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">学号/用户ID</label>
+                  <Input
+                    type="text"
+                    placeholder="请输入学号或用户ID"
+                    value={registerStudentId}
+                    onChange={(e) => {
+                      setRegisterStudentId(e.target.value);
+                      if (registerError) setRegisterError(false);
+                      if (registerResult) setRegisterResult(null);
+                    }}
+                    className={registerError ? "border-red-500 focus-visible:ring-red-500" : ""}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRegister();
+                    }}
+                  />
+                </div>
+                <Button className="w-full" onClick={handleRegister} disabled={registering}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {registering ? "报名中..." : "立即报名"}
+                </Button>
+                {registerResult && (
+                  <div className={`text-sm ${registerResult.registered ? "text-green-600" : "text-red-600"}`}>
+                    {registerResult.registered ? "报名成功！" : registerResult.error}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>快捷操作</CardTitle>

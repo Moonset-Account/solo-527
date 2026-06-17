@@ -254,16 +254,7 @@ export function useActivityReview(activity_id: string) {
     setLoading(true);
     const supabaseClient = createClient();
 
-    const [
-      activityRes,
-      registrationsRes,
-      checkInsRes,
-      messagesRes,
-      repairsRes,
-      tradesRes,
-      violationsRes,
-      auditLogsRes,
-    ] = await Promise.all([
+    const [activityRes, registrationsRes] = await Promise.all([
       supabaseClient
         .from("activities")
         .select("*, clubs(name, department)")
@@ -273,6 +264,19 @@ export function useActivityReview(activity_id: string) {
         .from("registrations")
         .select("*, user_profiles(name, student_id, department, phone)")
         .eq("activity_id", activity_id),
+    ]);
+
+    const registrationUserIds = (registrationsRes.data || []).map((r: any) => r.user_id);
+
+    const [
+      checkInsRes,
+      messagesRes,
+      repairsRes,
+      tradesRes,
+      violationsRes,
+      auditLogsRes,
+      verificationsRes,
+    ] = await Promise.all([
       supabaseClient
         .from("check_in_records")
         .select("*, user_profiles(name, student_id)")
@@ -299,6 +303,12 @@ export function useActivityReview(activity_id: string) {
         .select("*")
         .eq("entity_type", "activity")
         .eq("entity_id", activity_id),
+      registrationUserIds.length > 0
+        ? supabaseClient
+            .from("identity_verifications")
+            .select("*, user_profiles(name, email, student_id)")
+            .in("user_id", registrationUserIds)
+        : { data: [] },
     ]);
 
     setData({
@@ -336,6 +346,12 @@ export function useActivityReview(activity_id: string) {
         student_id: v.user_profiles?.student_id,
       })),
       auditLogs: auditLogsRes.data || [],
+      verifications: (verificationsRes.data || []).map((v: any) => ({
+        ...v,
+        user_name: v.user_profiles?.name,
+        email: v.user_profiles?.email,
+        student_id: v.user_profiles?.student_id,
+      })),
     });
     setLoading(false);
   }, [activity_id]);
@@ -389,24 +405,55 @@ export async function submitRegistrationClient(activity_id: string, user_id: str
 
 export async function checkInUserClient(
   activity_id: string,
-  user_id: string,
+  user_id_or_student_id: string,
   method: "qrcode" | "manual" | "gps" = "manual",
   location?: string
 ) {
   const supabaseClient = createClient();
 
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  let actual_user_id: string | null = null;
+  let user_profile: any = null;
+
+  const { data: profileByStudentId } = await supabaseClient
+    .from("user_profiles")
+    .select("id, name, student_id")
+    .eq("student_id", user_id_or_student_id)
+    .maybeSingle();
+
+  if (profileByStudentId) {
+    actual_user_id = profileByStudentId.id;
+    user_profile = profileByStudentId;
+  } else if (uuidRegex.test(user_id_or_student_id)) {
+    const { data: profileById } = await supabaseClient
+      .from("user_profiles")
+      .select("id, name, student_id")
+      .eq("id", user_id_or_student_id)
+      .maybeSingle();
+
+    if (profileById) {
+      actual_user_id = profileById.id;
+      user_profile = profileById;
+    }
+  }
+
+  if (!actual_user_id) {
+    return { error: "用户不存在，请检查学号是否正确" };
+  }
+
   const { data: existing } = await supabaseClient
     .from("check_in_records")
     .select("id")
     .eq("activity_id", activity_id)
-    .eq("user_id", user_id)
+    .eq("user_id", actual_user_id)
     .single();
 
   if (existing) return { error: "该用户已签到" };
 
   const { data, error } = await supabaseClient
     .from("check_in_records")
-    .insert({ activity_id, user_id, check_in_method: method, location })
+    .insert({ activity_id, user_id: actual_user_id, check_in_method: method, location })
     .select()
     .single();
 
@@ -416,9 +463,13 @@ export async function checkInUserClient(
     .from("registrations")
     .update({ status: "checked_in", check_in_time: new Date().toISOString() })
     .eq("activity_id", activity_id)
-    .eq("user_id", user_id);
+    .eq("user_id", actual_user_id);
 
-  return { data };
+  return {
+    data,
+    user_name: user_profile?.name,
+    student_id: user_profile?.student_id,
+  };
 }
 
 export async function sendRemindersClient(

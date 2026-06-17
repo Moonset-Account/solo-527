@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,33 @@ export default function ActivitiesPage() {
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [showMenu, setShowMenu] = useState<string | null>(null);
 
+  const [newForm, setNewForm] = useState({
+    title: "",
+    club_id: "",
+    category: "",
+    location: "",
+    start_time: "",
+    end_time: "",
+    max_participants: "",
+    description: "",
+  });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [clubs, setClubs] = useState<any[]>([]);
+  const [clubsLoading, setClubsLoading] = useState(false);
+
   const { data: activities, loading, refetch } = useActivities();
+
+  useEffect(() => {
+    const fetchClubs = async () => {
+      setClubsLoading(true);
+      const supabase = createClient();
+      const { data } = await supabase.from("clubs").select("id, name").order("name");
+      setClubs(data || []);
+      setClubsLoading(false);
+    };
+    fetchClubs();
+  }, []);
 
   const filteredActivities = (activities || []).filter((activity) => {
     const matchesTab = activeTab === "all" || activity.status === activeTab;
@@ -75,6 +101,98 @@ export default function ActivitiesPage() {
     await supabase.from("audit_logs").insert({ entity_type: "activity", entity_id: id, action: "reject", user_id: "current", details: "活动审核拒绝" });
     refetch();
     setShowMenu(null);
+  };
+
+  const handleCreateActivity = async () => {
+    setCreateError(null);
+
+    if (!newForm.title.trim()) {
+      setCreateError("请输入活动标题");
+      return;
+    }
+    if (!newForm.club_id) {
+      setCreateError("请选择所属社团");
+      return;
+    }
+    if (!newForm.category) {
+      setCreateError("请选择活动分类");
+      return;
+    }
+    if (!newForm.location.trim()) {
+      setCreateError("请输入活动地点");
+      return;
+    }
+    if (!newForm.start_time) {
+      setCreateError("请选择开始时间");
+      return;
+    }
+    if (!newForm.end_time) {
+      setCreateError("请选择结束时间");
+      return;
+    }
+    if (!newForm.max_participants || parseInt(newForm.max_participants) <= 0) {
+      setCreateError("请输入有效的最大参与人数");
+      return;
+    }
+    if (!newForm.description.trim()) {
+      setCreateError("请输入活动描述");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const supabase = createClient();
+
+      const { data: inserted, error } = await supabase
+        .from("activities")
+        .insert({
+          title: newForm.title.trim(),
+          description: newForm.description.trim(),
+          club_id: newForm.club_id,
+          category: newForm.category,
+          location: newForm.location.trim(),
+          start_time: new Date(newForm.start_time).toISOString(),
+          end_time: new Date(newForm.end_time).toISOString(),
+          max_participants: parseInt(newForm.max_participants),
+          current_participants: 0,
+          status: "pending",
+          created_by: "current",
+        })
+        .select()
+        .single();
+
+      if (error) {
+        setCreateError(error.message);
+        return;
+      }
+
+      if (inserted) {
+        await supabase.from("audit_logs").insert({
+          entity_type: "activity",
+          entity_id: inserted.id,
+          action: "create",
+          user_id: "current",
+          details: "创建活动并提交审核",
+        });
+      }
+
+      setNewForm({
+        title: "",
+        club_id: "",
+        category: "",
+        location: "",
+        start_time: "",
+        end_time: "",
+        max_participants: "",
+        description: "",
+      });
+      refetch();
+      setShowCreateDialog(false);
+    } catch (err: any) {
+      setCreateError(err.message || "创建活动失败");
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (loading) {
@@ -254,59 +372,103 @@ export default function ActivitiesPage() {
         description="填写活动信息，提交后等待审核"
       >
         <div className="space-y-4">
+          {createError && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+              {createError}
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">活动标题</label>
-            <Input placeholder="请输入活动标题" />
+            <Input
+              placeholder="请输入活动标题"
+              value={newForm.title}
+              onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">所属社团</label>
-              <select className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-                <option>请选择社团</option>
-                <option>篮球社</option>
-                <option>计算机协会</option>
-                <option>音乐社</option>
+              <select
+                className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                value={newForm.club_id}
+                onChange={(e) => setNewForm({ ...newForm, club_id: e.target.value })}
+                disabled={clubsLoading}
+              >
+                <option value="">请选择社团</option>
+                {clubs.map((club) => (
+                  <option key={club.id} value={club.id}>
+                    {club.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">活动分类</label>
-              <select className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-                <option>请选择分类</option>
-                <option>体育</option>
-                <option>学术</option>
-                <option>文艺</option>
-                <option>实践</option>
+              <select
+                className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                value={newForm.category}
+                onChange={(e) => setNewForm({ ...newForm, category: e.target.value })}
+              >
+                <option value="">请选择分类</option>
+                <option value="体育">体育</option>
+                <option value="学术">学术</option>
+                <option value="文艺">文艺</option>
+                <option value="实践">实践</option>
               </select>
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">活动地点</label>
-            <Input placeholder="请输入活动地点" />
+            <Input
+              placeholder="请输入活动地点"
+              value={newForm.location}
+              onChange={(e) => setNewForm({ ...newForm, location: e.target.value })}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">开始时间</label>
-              <Input type="datetime-local" />
+              <Input
+                type="datetime-local"
+                value={newForm.start_time}
+                onChange={(e) => setNewForm({ ...newForm, start_time: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">结束时间</label>
-              <Input type="datetime-local" />
+              <Input
+                type="datetime-local"
+                value={newForm.end_time}
+                onChange={(e) => setNewForm({ ...newForm, end_time: e.target.value })}
+              />
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">最大参与人数</label>
-            <Input type="number" placeholder="请输入最大参与人数" />
+            <Input
+              type="number"
+              placeholder="请输入最大参与人数"
+              value={newForm.max_participants}
+              onChange={(e) => setNewForm({ ...newForm, max_participants: e.target.value })}
+            />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">活动描述</label>
-            <Textarea placeholder="请输入活动详细描述" rows={4} />
+            <Textarea
+              placeholder="请输入活动详细描述"
+              rows={4}
+              value={newForm.description}
+              onChange={(e) => setNewForm({ ...newForm, description: e.target.value })}
+            />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
             取消
           </Button>
-          <Button onClick={() => setShowCreateDialog(false)}>提交审核</Button>
+          <Button onClick={handleCreateActivity} disabled={creating}>
+            {creating ? "提交中..." : "提交审核"}
+          </Button>
         </DialogFooter>
       </Dialog>
 

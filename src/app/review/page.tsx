@@ -407,26 +407,33 @@ export default function ReviewPage() {
                           <div className="flex items-center space-x-3">
                             <Shield className="h-5 w-5 text-green-500" />
                             <span className="font-medium">身份审核记录</span>
-                            <Badge variant="secondary">{reviewData.auditLogs.filter((l: any) => l.action?.includes("verification")).length}</Badge>
+                            <Badge variant="secondary">{reviewData.verifications.length}</Badge>
                           </div>
                           <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedSection === "verifications" ? "rotate-180" : ""}`} />
                         </div>
                         {expandedSection === "verifications" && (
                           <div className="space-y-2 pl-8">
-                            {reviewData.auditLogs.filter((l: any) => l.action?.includes("verification")).length === 0 && (
+                            {reviewData.verifications.length === 0 && (
                               <p className="text-sm text-gray-400">暂无审核记录</p>
                             )}
-                            {reviewData.auditLogs
-                              .filter((l: any) => l.action?.includes("verification"))
-                              .map((log: any) => (
-                                <div key={log.id} className="rounded-md border border-gray-100 p-3">
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium">{log.action}</p>
-                                    <span className="text-xs text-gray-400">{log.created_at ? formatDateTime(log.created_at) : "-"}</span>
+                            {reviewData.verifications.map((v: any) => (
+                              <div key={v.id} className="rounded-md border border-gray-100 p-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <p className="text-sm font-medium">{v.user_name || "-"}</p>
+                                    <Badge status={v.status} />
                                   </div>
-                                  <p className="mt-1 text-xs text-gray-500">操作人：{log.user_name || "-"}</p>
+                                  <span className="text-xs text-gray-400">{v.submitted_at ? formatDateTime(v.submitted_at) : "-"}</span>
                                 </div>
-                              ))}
+                                <p className="mt-1 text-xs text-gray-500">
+                                  学号：{v.student_id || "-"} · 邮箱：{v.email || "-"} · 类型：
+                                  {v.type === "student" ? "学生认证" : v.type === "club_leader" ? "社团负责人" : v.type === "department" ? "部门负责人" : "管理员"}
+                                </p>
+                                {v.review_comment && (
+                                  <p className="mt-1 text-xs text-gray-600">审核意见：{v.review_comment}</p>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

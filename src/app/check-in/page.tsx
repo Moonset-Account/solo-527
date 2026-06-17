@@ -37,7 +37,7 @@ export default function CheckInPage() {
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [showManualCheckIn, setShowManualCheckIn] = useState(false);
   const [manualStudentId, setManualStudentId] = useState("");
-  const [checkInResult, setCheckInResult] = useState<{ success?: boolean; error?: string } | null>(null);
+  const [checkInResult, setCheckInResult] = useState<{ success?: boolean; error?: string; user_name?: string; student_id?: string } | null>(null);
 
   const { data: activities, loading: activitiesLoading, refetch: refetchActivities } = useActivities();
   const { data: checkIns, loading: checkInsLoading, refetch: refetchCheckIns } = useCheckIns();
@@ -57,10 +57,16 @@ export default function CheckInPage() {
   const handleCheckInSubmit = async () => {
     if (!selectedActivity || !manualStudentId) return;
     const result = await checkInUserClient(selectedActivity.id, manualStudentId, "manual");
-    setCheckInResult(result);
     if (result.data) {
+      setCheckInResult({
+        success: true,
+        user_name: result.user_name,
+        student_id: result.student_id,
+      });
       refetchCheckIns();
       refetchActivities();
+    } else {
+      setCheckInResult({ success: false, error: result.error });
     }
   };
 
@@ -349,16 +355,16 @@ export default function CheckInPage() {
       >
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">用户ID（学号或UUID）</label>
+            <label className="text-sm font-medium text-gray-700">学号</label>
             <Input
-              placeholder="请输入用户ID"
+              placeholder="请输入学号"
               value={manualStudentId}
               onChange={(e) => setManualStudentId(e.target.value)}
             />
           </div>
           {checkInResult?.success && (
             <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-              签到成功！
+              签到成功！{checkInResult.student_id} {checkInResult.user_name}
             </div>
           )}
           {checkInResult?.error && (

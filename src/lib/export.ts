@@ -135,5 +135,18 @@ export function formatReviewExport(data: any) {
     });
   });
 
+  (data.verifications || []).forEach((v: any) => {
+    result.push({
+      类型: "身份审核",
+      标题: v.user_name || "",
+      状态: v.status,
+      学号: v.student_id || "",
+      邮箱: v.email || "",
+      认证类型: v.type === "student" ? "学生认证" : v.type === "club_leader" ? "社团负责人" : v.type === "department" ? "部门负责人" : "管理员",
+      提交时间: v.submitted_at,
+      审核意见: v.review_comment || "",
+    });
+  });
+
   return result;
 }
