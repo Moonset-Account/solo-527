@@ -5,11 +5,12 @@ import type { NextRequest } from "next/server";
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/api/trpc(.*)",
   "/_next/static(.*)",
   "/_next/image(.*)",
   "/favicon.ico",
 ]);
+
+const isTrpcRoute = createRouteMatcher(["/api/trpc(.*)"]);
 
 type UserRole = "OPERATIONS_MANAGER" | "FOLLOW_UP_STAFF" | "DOCTOR";
 
@@ -42,6 +43,10 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
 
   const authObj = await auth();
 
+  if (isTrpcRoute(request)) {
+    return NextResponse.next();
+  }
+
   if (!authObj.userId) {
     return authObj.redirectToSignIn();
   }
@@ -57,7 +62,5 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
 });
 
 export const config = {
-  matcher: [
-    "/((?!sign-in|sign-up|api/trpc|_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

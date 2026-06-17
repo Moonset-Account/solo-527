@@ -5,7 +5,6 @@ import { httpBatchLink } from "@trpc/client";
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
 import superjson from "superjson";
-import { useAuth } from "@clerk/nextjs";
 
 function createQueryClient() {
   return new QueryClient({
@@ -31,7 +30,6 @@ function getQueryClient() {
 }
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
-  const { getToken, userId, orgRole } = useAuth();
   const queryClient = useState(() => getQueryClient())[0];
 
   const [trpcClient] = useState(() =>
@@ -40,20 +38,6 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: "/api/trpc",
           transformer: superjson,
-          async headers() {
-            const token = await getToken();
-            const headers: Record<string, string> = {};
-            if (token) {
-              headers.authorization = `Bearer ${token}`;
-            }
-            if (userId) {
-              headers["x-clerk-user-id"] = userId;
-            }
-            if (orgRole) {
-              headers["x-clerk-org-role"] = orgRole;
-            }
-            return headers;
-          },
         }),
       ],
     })
