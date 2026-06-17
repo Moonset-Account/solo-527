@@ -113,7 +113,7 @@ import { firstValueFrom } from 'rxjs';
             </td>
           </ng-container>
           <ng-container matColumnDef="revenue">
-            <th mat-header-cell *matHeaderCellDef *ngIf="dimension==='ticketType'">营收(元)</th>
+            <th mat-header-cell *matHeaderCellDef>营收(元)</th>
             <td mat-cell *matCellDef="let r" style="font-weight:600;color:#be123c">
               {{ dimension==='ticketType' ? '¥'+ r.revenue.toLocaleString('zh-CN') : '-' }}
             </td>

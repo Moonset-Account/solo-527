@@ -274,7 +274,7 @@ export class ExceptionsPage implements OnInit {
   data = new MatTableDataSource<any>([]);
   reasons: any[] = [];
   total = 0;
-  byCategory: any = {};
+  byCategory: Record<string, number> = {};
   filterReason = '';
   traceData: any = null;
   pieOption: any = {};
@@ -316,7 +316,7 @@ export class ExceptionsPage implements OnInit {
     });
     this.avgCloseHours = closeCnt ? Math.round(closeHours / closeCnt * 10) / 10 : 0;
 
-    const reasonCount: any = {};
+    const reasonCount: Record<string, number> = {};
     this.reasons.forEach(r => { reasonCount[r.name] = 0; });
     list.forEach(e => { const n = e.closeReason?.name || '其他'; reasonCount[n] = (reasonCount[n] || 0) + 1; });
 

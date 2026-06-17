@@ -36,7 +36,7 @@ import { firstValueFrom } from 'rxjs';
                 </div>
                 <div style="font-size:13px;color:#3b82f6;font-weight:600">{{ t.subject }}</div>
                 <div style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.6"
-                  [innerText]="t.contentBody.replace(/<[^>]+>/g,'').slice(0,80)+'...'"></div>
+                  [innerText]="truncate(stripHtml(t.contentBody), 80)"></div>
                 <div class="mt-8" style="display:flex;gap:6px;flex-wrap:wrap">
                   <span *ngFor="let v of (t.variables||[])" class="chip chip-pending"
                     style="font-family:monospace;font-size:10px">{{ '{{' + v + '}}' }}</span>
@@ -146,7 +146,7 @@ import { firstValueFrom } from 'rxjs';
                 <th mat-header-cell *matHeaderCellDef>内容摘要</th>
                 <td mat-cell *matCellDef="let h">
                   <div style="font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px">
-                    {{ h.content.replace(/<[^>]+>/g,'').slice(0, 50) }}...
+                    {{ truncate(stripHtml(h.content), 50) }}
                   </div>
                 </td>
               </ng-container>
@@ -177,6 +177,8 @@ export class NotificationsPage implements OnInit {
     this.sendForm = fb.group({ statuses: [['approved', 'paid']], qualityFrom: [0], templateCode: ['review_approved'] });
   }
   formatTime(t: any) { return t ? new Date(t).toLocaleString('zh-CN') : '-'; }
+  stripHtml(s: string) { return s ? s.replace(/<[^>]+>/g, '') : ''; }
+  truncate(s: string, len: number) { return s ? (s.length > len ? s.slice(0, len) + '...' : s) : ''; }
   async ngOnInit() {
     this.templates = await firstValue(this.api.listTemplates(false)) as any[];
     await this.loadHistory();

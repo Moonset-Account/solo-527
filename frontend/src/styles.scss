@@ -2,7 +2,7 @@
 
 $primary: mat.define-palette(mat.$indigo-palette, 900, 700, A400);
 $accent: mat.define-palette(mat.$teal-palette, 600, 500, 800);
-$warn: mat.define-palette(mat.$rose-palette, 600);
+$warn: mat.define-palette(mat.$red-palette, 600);
 $theme: mat.define-light-theme((color: (primary: $primary, accent: $accent, warn: $warn)));
 @include mat.all-component-themes($theme);
 

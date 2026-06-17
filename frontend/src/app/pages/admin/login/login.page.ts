@@ -31,7 +31,7 @@ import { firstValueFrom } from 'rxjs';
           </mat-form-field>
           <div class="demo-tip">
             <span class="material-icons">lightbulb</span>
-            <span>演示账号: <code>admin</code> / 密码: <code>Admin@2024</code></span>
+            <span>演示账号: <code>admin</code> / 密码: <code>Admin&#64;2024</code></span>
           </div>
           <button mat-raised-button color="primary" type="submit" class="btn-login" [disabled]="!form.valid || loading">
             {{ loading ? '登录中...' : '登 录' }}

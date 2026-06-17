@@ -31,11 +31,11 @@ export class AnalyticsService {
     });
 
     const daily = await this.prisma.$queryRaw`
-      SELECT date_trunc('day', created_at) AS day,
+      SELECT date_trunc('day', "createdAt") AS day,
              COUNT(*) AS total,
              COUNT(*) FILTER (WHERE status IN ('approved','paid','checked_in')) AS passed
-      FROM registrations
-      WHERE created_at >= NOW() - INTERVAL '30 days'
+      FROM "Registration"
+      WHERE "createdAt" >= NOW() - INTERVAL '30 days'
       GROUP BY day
       ORDER BY day ASC` as any[];
     const dailyFormatted = daily.map(d => ({

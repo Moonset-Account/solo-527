@@ -1,6 +1,26 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes, CanActivateFn, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from '@angular/router';
 import { inject } from '@angular/core';
+import { HomePage } from './pages/home/home.page';
+import { RegisterPage } from './pages/register/register.page';
+import { RegisterSuccessPage } from './pages/register-success/register-success.page';
+import { StatusPage } from './pages/status/status.page';
+import { CheckinPage } from './pages/checkin/checkin.page';
+import { RefundApplyPage } from './pages/refund-apply/refund-apply.page';
+import { AdminLoginPage } from './pages/admin/login/login.page';
+import { AdminLayout } from './layouts/admin.layout';
+import { DashboardPage } from './pages/admin/dashboard/dashboard.page';
+import { ReviewsPage } from './pages/admin/reviews/reviews.page';
+import { GuestsPage } from './pages/admin/guests/guests.page';
+import { TicketsPage } from './pages/admin/tickets/tickets.page';
+import { SessionsPage } from './pages/admin/sessions/sessions.page';
+import { CheckinAdminPage } from './pages/admin/checkin/checkin.page';
+import { RefundsPage } from './pages/admin/refunds/refunds.page';
+import { NotificationsPage } from './pages/admin/notifications/notifications.page';
+import { QualityPage } from './pages/admin/quality/quality.page';
+import { FunnelPage } from './pages/admin/funnel/funnel.page';
+import { GapPage } from './pages/admin/gap/gap.page';
+import { ExceptionsPage } from './pages/admin/exceptions/exceptions.page';
 
 const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
   const token = localStorage.getItem('accessToken');

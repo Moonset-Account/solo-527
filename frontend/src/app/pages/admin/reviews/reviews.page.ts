@@ -4,8 +4,8 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../../services/api.service';
-import { CloseDialog } from '../../components/close-dialog/close-dialog.component';
-import { ReviewDialog } from '../../components/review-dialog/review-dialog.component';
+import { CloseDialog } from '../../../components/close-dialog/close-dialog.component';
+import { ReviewDialog } from '../../../components/review-dialog/review-dialog.component';
 
 @Component({
   selector: 'reviews-page',
