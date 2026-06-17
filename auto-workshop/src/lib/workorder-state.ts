@@ -19,7 +19,12 @@ export async function transitionWorkOrderStatus(
 ) {
   const workOrder = await prisma.workOrder.findUnique({
     where: { id: workOrderId },
-    include: { items: true, parts: true },
+    include: {
+      items: true,
+      parts: { include: { part: true } },
+      testDrives: true,
+      cashierOrders: { orderBy: { createdAt: 'desc' } },
+    },
   });
 
   if (!workOrder) {
@@ -40,16 +45,47 @@ export async function transitionWorkOrderStatus(
   const snapshot = {
     status: workOrder.status,
     totalAmount: workOrder.totalAmount?.toString(),
-    items: workOrder.items.map((i: { name: string; price: { toString: () => string }; status: string }) => ({
+    serviceItems: workOrder.items.map((i: { id: string; name: string; category: string; price: { toString: () => string }; laborFee: { toString: () => string }; status: string; remark: string | null }) => ({
+      id: i.id,
       name: i.name,
+      category: i.category,
       price: i.price.toString(),
+      laborFee: i.laborFee.toString(),
       status: i.status,
+      remark: i.remark,
     })),
-    parts: workOrder.parts.map((p: { partId: string; quantity: number; status: string }) => ({
+    parts: workOrder.parts.map((p: { id: string; partId: string; part: { name: string; partNo: string } | null; quantity: number; unitPrice: { toString: () => string }; totalPrice: { toString: () => string }; status: string }) => ({
+      id: p.id,
       partId: p.partId,
+      partName: p.part?.name,
+      partNo: p.part?.partNo,
       quantity: p.quantity,
+      unitPrice: p.unitPrice.toString(),
+      totalPrice: p.totalPrice.toString(),
       status: p.status,
     })),
+    testDrives: workOrder.testDrives.map((t: { id: string; startTime: string | Date; endTime: string | Date | null; driverName: string; mileage: number | null; remark: string | null }) => ({
+      id: t.id,
+      startTime: typeof t.startTime === 'string' ? t.startTime : t.startTime.toISOString(),
+      endTime: t.endTime ? (typeof t.endTime === 'string' ? t.endTime : t.endTime.toISOString()) : null,
+      driverName: t.driverName,
+      mileage: t.mileage,
+      remark: t.remark,
+    })),
+    cashierOrders: workOrder.cashierOrders.map((c: { id: string; orderNo: string; totalAmount: { toString: () => string }; discount: { toString: () => string }; finalAmount: { toString: () => string }; previousAmount: { toString: () => string } | null; amountChanged: boolean; changeReason: string | null; paymentStatus: string; paymentMethod: string | null; createdAt: string | Date }) => ({
+      id: c.id,
+      orderNo: c.orderNo,
+      totalAmount: c.totalAmount.toString(),
+      discount: c.discount.toString(),
+      finalAmount: c.finalAmount.toString(),
+      previousAmount: c.previousAmount?.toString(),
+      amountChanged: c.amountChanged,
+      changeReason: c.changeReason,
+      paymentStatus: c.paymentStatus,
+      paymentMethod: c.paymentMethod,
+      createdAt: typeof c.createdAt === 'string' ? c.createdAt : c.createdAt.toISOString(),
+    })),
+    abnormalReason: toStatus === 'ABNORMAL_CLOSED' ? abnormalReason : undefined,
   };
 
   const result = await prisma.$transaction(async (tx: TransactionClient) => {
@@ -71,6 +107,57 @@ export async function transitionWorkOrderStatus(
         snapshot,
       },
     });
+
+    if (toStatus === 'COMPLETED' || toStatus === 'CASHIERED' || toStatus === 'ABNORMAL_CLOSED') {
+      if (updated.technicianId) {
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        const existingCapacity = await tx.technicianCapacity.findFirst({
+          where: {
+            technicianId: updated.technicianId,
+            periodStart,
+            periodEnd,
+          },
+        });
+
+        const laborFeeSum = workOrder.items.reduce(
+          (sum: number, i: { laborFee: { toNumber?: () => number; toString?: () => string } }) => {
+            const val = i.laborFee.toNumber ? i.laborFee.toNumber() : parseFloat(String(i.laborFee)) || 0;
+            return sum + val;
+          },
+          0
+        );
+
+        if (existingCapacity) {
+          const updateData: Record<string, unknown> = {};
+          if (toStatus === 'COMPLETED' || toStatus === 'CASHIERED') {
+            updateData.completedOrders = { increment: 1 };
+            updateData.totalLaborFee = (parseFloat(String(existingCapacity.totalLaborFee)) || 0) + laborFeeSum;
+          }
+          if (toStatus === 'ABNORMAL_CLOSED') {
+            updateData.abnormalCloses = { increment: 1 };
+          }
+          await tx.technicianCapacity.update({
+            where: { id: existingCapacity.id },
+            data: updateData,
+          });
+        } else {
+          await tx.technicianCapacity.create({
+            data: {
+              technicianId: updated.technicianId,
+              periodStart,
+              periodEnd,
+              completedOrders: (toStatus === 'COMPLETED' || toStatus === 'CASHIERED') ? 1 : 0,
+              totalLaborFee: (toStatus === 'COMPLETED' || toStatus === 'CASHIERED') ? laborFeeSum : 0,
+              abnormalCloses: toStatus === 'ABNORMAL_CLOSED' ? 1 : 0,
+              shortageHandles: 0,
+            },
+          });
+        }
+      }
+    }
 
     return updated;
   });

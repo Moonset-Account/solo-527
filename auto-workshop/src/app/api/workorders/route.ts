@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { vehicleId, customerId, templateId } = body;
+  const { vehicleId, customerId, templateId, technicianId, initialItems } = body;
 
   if (!vehicleId || !customerId) {
     return NextResponse.json({ error: 'vehicleId and customerId are required' }, { status: 400 });
@@ -61,13 +61,24 @@ export async function POST(request: Request) {
 
   const orderNo = generateOrderNo();
 
+  type CreateDataInput = {
+    orderNo: string;
+    vehicleId: string;
+    customerId: string;
+    status: string;
+    technicianId?: string;
+  };
+
+  const createData: CreateDataInput = {
+    orderNo,
+    vehicleId,
+    customerId,
+    status: 'CREATED',
+  };
+  if (technicianId) createData.technicianId = technicianId;
+
   const workOrder = await prisma.workOrder.create({
-    data: {
-      orderNo,
-      vehicleId,
-      customerId,
-      status: 'CREATED',
-    },
+    data: createData as Parameters<typeof prisma.workOrder.create>[0]['data'],
     include: {
       vehicle: true,
       customer: true,
@@ -83,9 +94,9 @@ export async function POST(request: Request) {
       include: { items: true },
     });
 
-    if (template) {
+    if (template && template.items.length > 0) {
       await prisma.workOrderItem.createMany({
-        data: template.items.map((item: { name: string; category: string }) => ({
+        data: template.items.map((item: { name: string; category: string; isRequired?: boolean; sortOrder?: number }) => ({
           workOrderId: workOrder.id,
           name: item.name,
           category: item.category,
@@ -97,6 +108,19 @@ export async function POST(request: Request) {
     }
   }
 
+  if (initialItems && Array.isArray(initialItems) && initialItems.length > 0) {
+    await prisma.workOrderItem.createMany({
+      data: initialItems.map((item: { name: string; category: string; price?: number; laborFee?: number }) => ({
+        workOrderId: workOrder.id,
+        name: item.name,
+        category: item.category,
+        price: item.price ?? 0,
+        laborFee: item.laborFee ?? 0,
+        status: 'pending',
+      })),
+    });
+  }
+
   const result = await prisma.workOrder.findUnique({
     where: { id: workOrder.id },
     include: {
@@ -105,6 +129,11 @@ export async function POST(request: Request) {
       technician: true,
       items: true,
       parts: { include: { part: true } },
+      statusLogs: { orderBy: { createdAt: 'desc' } },
+      testDrives: true,
+      cashierOrders: true,
+      followUps: true,
+      partShortages: { include: { workOrderPart: true } },
     },
   });
 

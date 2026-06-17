@@ -65,18 +65,24 @@ export default function VehiclesPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const body: Record<string, unknown> = {
+        plateNo: form.plateNo,
+        brand: form.brand,
+        model: form.model,
+        year: form.year ? Number(form.year) : undefined,
+        vin: form.vin || undefined,
+        mileage: form.mileage ? Number(form.mileage) : undefined,
+      };
+      if (form.customerName.trim() && form.customerPhone.trim()) {
+        body.customer = {
+          name: form.customerName.trim(),
+          phone: form.customerPhone.trim(),
+        };
+      }
       const res = await fetch('/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plateNo: form.plateNo,
-          brand: form.brand,
-          model: form.model,
-          year: form.year ? Number(form.year) : undefined,
-          vin: form.vin || undefined,
-          mileage: form.mileage ? Number(form.mileage) : undefined,
-          customerId: '',
-        }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setShowAddForm(false);

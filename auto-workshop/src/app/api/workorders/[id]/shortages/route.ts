@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handlePartShortage } from '@/lib/part-shortage';
+import { handlePartShortage, markPartShortage } from '@/lib/part-shortage';
 
 export async function GET(
   request: Request,
@@ -23,7 +23,24 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { shortageId, handledBy, handleResult } = body;
+
+  const { shortageId, handledBy, handleResult, workOrderPartId, markedBy, remark, action } = body;
+
+  if (action === 'mark') {
+    if (!workOrderPartId || !markedBy) {
+      return NextResponse.json(
+        { error: 'workOrderPartId and markedBy are required for marking shortage' },
+        { status: 400 }
+      );
+    }
+    try {
+      const result = await markPartShortage(workOrderPartId, id, markedBy, remark);
+      return NextResponse.json(result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to mark shortage';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
 
   if (!shortageId || !handledBy || !handleResult) {
     return NextResponse.json(

@@ -134,6 +134,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const [showTestDriveForm, setShowTestDriveForm] = useState(false);
   const [testDriveForm, setTestDriveForm] = useState({ startTime: '', driverName: '', mileage: '', remark: '' });
   const [shortageForm, setShortageForm] = useState({ shortageId: '', handledBy: '', handleResult: '' });
+  const [markShortageForm, setMarkShortageForm] = useState({ workOrderPartId: '', markedBy: '', remark: '' });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchData = () => {
@@ -259,6 +260,36 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
       if (res.ok) {
         setShortageForm({ shortageId: '', handledBy: '', handleResult: '' });
         fetchData();
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleMarkShortage = async (workOrderPartId: string) => {
+    const markedBy = markShortageForm.workOrderPartId === workOrderPartId ? markShortageForm.markedBy.trim() : '';
+    if (!markedBy) {
+      alert('请填写标记人');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/workorders/${id}/shortages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'mark',
+          workOrderPartId,
+          markedBy,
+          remark: markShortageForm.workOrderPartId === workOrderPartId ? markShortageForm.remark : undefined,
+        }),
+      });
+      if (res.ok) {
+        setMarkShortageForm({ workOrderPartId: '', markedBy: '', remark: '' });
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || '标记失败');
       }
     } finally {
       setSubmitting(false);
@@ -437,6 +468,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                   <th className="text-left py-2 px-2 font-medium text-gray-600">单价</th>
                   <th className="text-left py-2 px-2 font-medium text-gray-600">总价</th>
                   <th className="text-left py-2 px-2 font-medium text-gray-600">状态</th>
+                  <th className="text-left py-2 px-2 font-medium text-gray-600">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -447,7 +479,57 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                     <td className="py-2 px-2">{p.quantity}</td>
                     <td className="py-2 px-2">¥{Number(p.unitPrice).toFixed(2)}</td>
                     <td className="py-2 px-2">¥{Number(p.totalPrice).toFixed(2)}</td>
-                    <td className="py-2 px-2">{p.status}</td>
+                    <td className="py-2 px-2">
+                      <span className={p.status === 'shortage' ? 'text-orange-600 font-medium' : ''}>
+                        {p.status === 'pending' ? '待处理' : p.status === 'available' ? '已就绪' : p.status === 'shortage' ? '缺货' : p.status}
+                      </span>
+                    </td>
+                    <td className="py-2 px-2">
+                      {p.status !== 'shortage' && workOrder.status !== 'CASHIERED' && workOrder.status !== 'ABNORMAL_CLOSED' ? (
+                        markShortageForm.workOrderPartId === p.id ? (
+                          <div className="space-y-1 min-w-[200px]">
+                            <input
+                              type="text"
+                              className="input-field text-xs py-1"
+                              placeholder="标记人"
+                              value={markShortageForm.markedBy}
+                              onChange={(e) => setMarkShortageForm({ ...markShortageForm, workOrderPartId: p.id, markedBy: e.target.value })}
+                            />
+                            <input
+                              type="text"
+                              className="input-field text-xs py-1"
+                              placeholder="备注(可选)"
+                              value={markShortageForm.remark}
+                              onChange={(e) => setMarkShortageForm({ ...markShortageForm, workOrderPartId: p.id, remark: e.target.value })}
+                            />
+                            <div className="flex gap-1">
+                              <button
+                                className="btn-danger text-xs py-1 px-2"
+                                onClick={() => handleMarkShortage(p.id)}
+                                disabled={submitting}
+                              >
+                                确认标记
+                              </button>
+                              <button
+                                className="btn-secondary text-xs py-1 px-2"
+                                onClick={() => setMarkShortageForm({ workOrderPartId: '', markedBy: '', remark: '' })}
+                              >
+                                取消
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn-secondary text-xs py-1 px-2"
+                            onClick={() => setMarkShortageForm({ workOrderPartId: p.id, markedBy: '', remark: '' })}
+                          >
+                            标记缺货
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

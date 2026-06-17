@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, type TransactionClient } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,19 +21,69 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { plateNo, brand, model, year, vin, mileage, customerId } = body;
+  const { plateNo, brand, model, year, vin, mileage, customerId, customer } = body;
 
-  if (!plateNo || !brand || !model || !customerId) {
+  if (!plateNo || !brand || !model) {
     return NextResponse.json(
-      { error: 'plateNo, brand, model, and customerId are required' },
+      { error: 'plateNo, brand, and model are required' },
       { status: 400 }
     );
   }
 
-  const vehicle = await prisma.vehicle.create({
-    data: { plateNo, brand, model, year, vin, mileage, customerId },
-    include: { customer: true },
-  });
+  if (!customerId && !(customer && customer.name && customer.phone)) {
+    return NextResponse.json(
+      { error: 'customerId or customer (with name and phone) is required' },
+      { status: 400 }
+    );
+  }
 
-  return NextResponse.json(vehicle, { status: 201 });
+  try {
+    const result = await prisma.$transaction(async (tx: TransactionClient) => {
+      let resolvedCustomerId = customerId;
+
+      if (!resolvedCustomerId && customer && customer.name && customer.phone) {
+        let existingCustomer = await tx.customer.findFirst({
+          where: { phone: customer.phone },
+        });
+
+        if (existingCustomer) {
+          resolvedCustomerId = existingCustomer.id;
+          if (customer.name !== existingCustomer.name) {
+            existingCustomer = await tx.customer.update({
+              where: { id: existingCustomer.id },
+              data: { name: customer.name },
+            });
+          }
+        } else {
+          const newCustomer = await tx.customer.create({
+            data: {
+              name: customer.name,
+              phone: customer.phone,
+            },
+          });
+          resolvedCustomerId = newCustomer.id;
+        }
+      }
+
+      const vehicle = await tx.vehicle.create({
+        data: {
+          plateNo,
+          brand,
+          model,
+          year,
+          vin,
+          mileage,
+          customerId: resolvedCustomerId,
+        },
+        include: { customer: true },
+      });
+
+      return vehicle;
+    });
+
+    return NextResponse.json(result, { status: 201 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create vehicle';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }
