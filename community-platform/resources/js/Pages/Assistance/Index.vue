@@ -1,7 +1,10 @@
 <template>
   <MainLayout>
     <div class="space-y-6">
-      <h1 class="text-2xl font-bold text-gray-900">帮扶需求</h1>
+      <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">帮扶需求</h1>
+        <Link v-if="canCreate" href="/assistance/create" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">提交帮扶需求</Link>
+      </div>
 
       <div class="bg-white rounded-lg shadow p-4">
         <form @submit.prevent="search" class="flex flex-wrap gap-4 items-end">

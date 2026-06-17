@@ -3,7 +3,7 @@
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-900">居民议题</h1>
-        <Link href="/issues/create" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">发起议题</Link>
+        <Link v-if="canCreate" href="/issues/create" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">发起议题</Link>
       </div>
 
       <div class="bg-white rounded-lg shadow p-4">
@@ -65,7 +65,7 @@
               <td class="px-6 py-4 text-sm text-gray-500">{{ issue.deadline }}</td>
               <td class="px-6 py-4 text-sm flex items-center gap-2">
                 <Link :href="`/issues/${issue.id}`" class="text-indigo-600 hover:text-indigo-900">查看</Link>
-                <button v-if="issue.status === 'voting'" @click="vote(issue.id)" class="text-green-600 hover:text-green-900">投票</button>
+                <button v-if="canVote && issue.status === 'voting'" @click="vote(issue.id)" class="text-green-600 hover:text-green-900">投票</button>
               </td>
             </tr>
             <tr v-if="issues.data.length === 0">

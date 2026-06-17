@@ -15,13 +15,26 @@
               </Link>
             </div>
           </div>
-          <div class="flex items-center">
-            <span class="text-sm text-gray-500 mr-4">{{ $page.props.auth.user?.name }}</span>
+          <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-500">{{ $page.props.auth.user?.name }}（{{ roleLabel }}）</span>
+            <form method="POST" action="/logout">
+              <button type="submit" class="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 border border-gray-300 rounded-md">
+                退出
+              </button>
+            </form>
           </div>
         </div>
       </div>
     </nav>
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div v-if="$page.props.flash.success"
+        class="mb-6 p-4 border border-green-300 bg-green-50 text-green-800 rounded-md">
+        {{ $page.props.flash.success }}
+      </div>
+      <div v-if="$page.props.flash.error"
+        class="mb-6 p-4 border border-red-300 bg-red-50 text-red-800 rounded-md">
+        {{ $page.props.flash.error }}
+      </div>
       <slot />
     </main>
   </div>
@@ -32,6 +45,15 @@ import { Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
 const page = usePage()
+
+const roleMap = {
+  admin: '管理员',
+  department: '部门人员',
+  representative: '居民代表',
+  resident: '居民',
+}
+
+const roleLabel = computed(() => roleMap[page.props.auth.user?.role] || page.props.auth.user?.role)
 
 const navItems = computed(() => {
   const role = page.props.auth.user?.role
