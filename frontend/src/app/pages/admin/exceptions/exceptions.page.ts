@@ -203,7 +203,7 @@ import { firstValueFrom } from 'rxjs';
                 <div class="tl-dot" [ngClass]="step.color"></div>
                 <div class="tl-line" *ngIf="!last"></div>
                 <div class="tl-content">
-                  <div class="tl-title">{{ step.title }}</div>
+                  <div class="tl-title">{{ step.event }}</div>
                   <div class="tl-meta">{{ formatTime(step.time) }} · {{ step.operator }}</div>
                   <div *ngIf="step.detail" class="tl-detail">{{ step.detail }}</div>
                 </div>

@@ -81,23 +81,43 @@ export class ExceptionsService {
 
   async traceOriginal(closeExceptionId: string) {
     const e = await this.detail(closeExceptionId);
-    const related: any = {};
-    related.registration = e.registration;
-    related.qualityBreakdown = e.registration.qualityMetric;
-    if (e.registration.refunds?.length) related.refunds = e.registration.refunds;
-    if (e.registration.guestAllocation) related.guestAllocation = e.registration.guestAllocation;
+    const timeline: any[] = [
+      { time: e.registration.createdAt, event: '提交报名', color: 'c-blue', operator: e.registration.user.name,
+        detail: `订单号 ${e.registration.orderNo} · ${e.registration.ticketType?.name || '-'} · ${e.registration.session?.name || '-'}` },
+    ];
+    if (e.registration.reviewAt) {
+      timeline.push({ time: e.registration.reviewAt, event: '进入审核', color: 'c-amber', operator: '审核系统' });
+    }
+    timeline.push({ time: e.createdAt, event: '异常关闭', color: 'c-rose', operator: (e.registration as any).reviewedById || '管理员',
+      detail: `原因：${e.closeReason.name}${e.customReason ? '（' + e.customReason + '）' : ''}${e.note ? ' · 备注：' + e.note : ''}` });
+    if (e.registration.refunds?.length) {
+      e.registration.refunds.forEach((r: any) => {
+        timeline.push({ time: r.createdAt, event: '发起退款', color: 'c-slate', operator: '退款系统',
+          detail: `退款单 ${r.refundNo} · ¥${r.amount} · 状态：${r.status}` });
+      });
+    }
+    timeline.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
     return {
-      exception: { id: e.id, reason: e.closeReason.name, category: e.closeReason.category, customReason: e.customReason, note: e.note, createdAt: e.createdAt },
-      originalOrder: {
-        orderNo: e.registration.orderNo, status: e.registration.status,
-        amount: e.registration.amount, createdAt: e.registration.createdAt,
-        reviewNote: e.registration.reviewNote, qualityScore: e.registration.qualityScore,
+      exception: {
+        id: e.id, exceptionNo: `EX-${e.id.slice(0, 8).toUpperCase()}`,
+        closeReason: e.closeReason, customReason: e.customReason, note: e.note,
+        operator: (e.registration as any).reviewedById ? { name: (e.registration as any).reviewedById } : null,
+        createdAt: e.createdAt,
       },
-      related,
-      timeline: [
-        { time: e.registration.createdAt, event: '提交报名', by: e.registration.user.name },
-        { time: e.registration.reviewAt || e.createdAt, event: '审核/关闭', note: e.note, reason: e.closeReason.name },
-      ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
+      registration: {
+        orderNo: e.registration.orderNo, status: e.registration.status,
+        amount: Number(e.registration.amount), qualityScore: e.registration.qualityScore,
+        submittedAt: e.registration.createdAt, createdAt: e.registration.createdAt,
+        reviewAt: e.registration.reviewAt, reviewNote: e.registration.reviewNote,
+        user: e.registration.user,
+        ticketType: e.registration.ticketType,
+        session: e.registration.session,
+      },
+      timeline,
+      refund: e.registration.refunds?.[0] || null,
+      guestAllocation: e.registration.guestAllocation || null,
+      qualityBreakdown: e.registration.qualityMetric || null,
     };
   }
 }

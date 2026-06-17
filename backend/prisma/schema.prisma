@@ -142,6 +142,7 @@ model Registration {
   refunds           Refund[]
   closeException    CloseException?
   qualityMetric     QualityMetric?
+  gapTodo           GapTodo?
   @@index([status, createdAt])
   @@index([ticketTypeId, status])
 }
@@ -269,5 +270,6 @@ model GapTodo {
   handledById    String?
   handledAt      DateTime?
   createdAt      DateTime      @default(now())
+  registration   Registration  @relation(fields: [registrationId], references: [id])
   @@index([status, priority])
 }

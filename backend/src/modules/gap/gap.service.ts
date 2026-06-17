@@ -43,10 +43,47 @@ export class GapService {
         },
       },
     } as any);
+
+    const allHandled = await this.prisma.gapTodo.findMany({
+      where: { status: 'handled' },
+      include: { registration: { include: { qualityMetric: true } } },
+    } as any);
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayHandled = allHandled.filter(t => t.handledAt && new Date(t.handledAt) >= todayStart);
+    const replaced = allHandled.filter(t => t.handleAction === 'replaced');
+    const confirmed = allHandled.filter(t => t.handleAction === 'confirmed');
+    const closed = allHandled.filter(t => t.handleAction === 'closed_gap');
+    const contacted = allHandled.filter(t => t.handleAction === 'contacted');
+    const replacePct = allHandled.length ? Math.round(replaced.length / allHandled.length * 100) : 0;
+
+    const dayMap: Record<string, { confirmed: number; replaced: number; closed: number; qualityDelta: number }> = {};
+    allHandled.forEach(t => {
+      if (!t.handledAt) return;
+      const day = new Date(t.handledAt).toISOString().slice(0, 10);
+      if (!dayMap[day]) dayMap[day] = { confirmed: 0, replaced: 0, closed: 0, qualityDelta: 0 };
+      if (t.handleAction === 'confirmed') { dayMap[day].confirmed++; dayMap[day].qualityDelta += 1; }
+      if (t.handleAction === 'replaced') { dayMap[day].replaced++; dayMap[day].qualityDelta += 2; }
+      if (t.handleAction === 'closed_gap') { dayMap[day].closed++; dayMap[day].qualityDelta -= 1; }
+    });
+    const dailyChart = Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b)).map(([day, v]) => ({ day, ...v }));
+
     const stats = {
       pending: await this.prisma.gapTodo.count({ where: { status: 'pending' } }),
       handled: await this.prisma.gapTodo.count({ where: { status: 'handled' } }),
       highPriority: await this.prisma.gapTodo.count({ where: { status: 'pending', priority: 1 } }),
+      todayHandled: todayHandled.length,
+      replacePct,
+      replacedCount: replaced.length,
+      confirmedCount: confirmed.length,
+      closedCount: closed.length,
+      contactedCount: contacted.length,
+      dailyChart,
+      totalQualityDelta: allHandled.reduce((sum, t) => {
+        if (t.handleAction === 'replaced') return sum + 2;
+        if (t.handleAction === 'confirmed') return sum + 1;
+        if (t.handleAction === 'closed_gap') return sum - 1;
+        return sum;
+      }, 0),
     };
     return { todos, stats };
   }

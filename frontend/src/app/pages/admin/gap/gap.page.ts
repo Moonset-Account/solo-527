@@ -22,10 +22,26 @@ import { firstValueFrom } from 'rxjs';
       </div>
 
       <div class="grid grid-4 gap-16 mb-24">
-        <kpi-card label="缺口总数" [value]="stats?.pending || 0" theme="rose"></kpi-card>
-        <kpi-card label="高优先级" [value]="stats?.highPriority || 0" theme="amber" sub="评分≥85 核心人群"></kpi-card>
-        <kpi-card label="今日已处理" [value]="todayHandled" theme="emerald"></kpi-card>
-        <kpi-card label="补位成功率" [value]="replacePct + '%'" theme="indigo"></kpi-card>
+        <kpi-card label="缺口待办" [value]="stats?.pending || 0" theme="rose" sub="需跟进处理"></kpi-card>
+        <kpi-card label="高优先级(≥85)" [value]="stats?.highPriority || 0" theme="amber" sub="核心人群需优先补位"></kpi-card>
+        <kpi-card label="今日已处理" [value]="stats?.todayHandled || 0" theme="emerald" [sub]="'累计 ' + (stats?.handled || 0) + ' 条'"></kpi-card>
+        <kpi-card label="补位成功率" [value]="(stats?.replacePct || 0) + '%'" theme="indigo" [sub]="'补位 ' + (stats?.replacedCount || 0) + ' / 确认 ' + (stats?.confirmedCount || 0)"></kpi-card>
+      </div>
+
+      <div class="grid grid-2 gap-24 mb-24">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="material-icons icon">stacked_bar_chart</span> 处理结果与质量联动</div>
+            <div style="font-size:12px;color:#64748b">补位+2分 · 确认+1分 · 关闭-1分 · 累计 <strong [style.color]="(stats?.totalQualityDelta||0)>=0?'#059669':'#ef4444'">{{ (stats?.totalQualityDelta||0)>=0?'+':'' }}{{ stats?.totalQualityDelta || 0 }} 分</strong></div>
+          </div>
+          <div echarts [options]="linkOption" style="height:280px"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="material-icons icon">donut_large</span> 处理方式分布</div>
+          </div>
+          <div echarts [options]="pieOption" style="height:280px"></div>
+        </div>
       </div>
 
       <div class="grid grid-2 gap-24">
@@ -62,12 +78,8 @@ import { firstValueFrom } from 'rxjs';
                 {{ t.registration.ticketType.name }} · {{ t.registration.session.name }}
               </div>
               <div><span class="material-icons">phone_iphone</span> {{ t.registration.user.phone }}</div>
-              <div><span class="material-icons">schedule</span> 签到码 {{ t.registration.checkinCode?.code }}</div>
-              <div style="font-size:11px;color:#64748b" *ngIf="t.registration.checkinCode">
-                {{ t.registration.checkinCode.isUsed ? '✓ 已核销' : '○ 未核销' }}
-              </div>
             </div>
-            <div class="gap-actions">
+            <div *ngIf="t.status==='pending'" class="gap-actions">
               <button mat-stroked-button (click)="viewSug(t)" [disabled]="expandId===t.id">
                 <span class="material-icons">lightbulb</span> AI 补位建议
               </button>
@@ -90,12 +102,12 @@ import { firstValueFrom } from 'rxjs';
                 <div class="c-avatar">{{ s.name.charAt(0) }}</div>
                 <div style="flex:1">
                   <div style="font-weight:600">{{ s.name }}
-                    <span style="margin-left:6px" class="chip chip-approved" style="font-size:10px">质量 {{ s.qualityScore }} 分</span>
+                    <span class="chip chip-approved" style="margin-left:6px;font-size:10px">质量 {{ s.qualityScore }} 分</span>
                   </div>
                   <div style="font-size:12px;color:#64748b">{{ s.company }} · {{ s.title }} · {{ s.phone }}</div>
                 </div>
                 <button mat-raised-button color="primary" style="height:36px;font-size:12px"
-                  (click)="handle(t, 'replaced', '补位→'+s.name)">
+                  (click)="handle(t, 'replaced', '补位: '+s.name)">
                   替换为TA →
                 </button>
               </div>
@@ -104,9 +116,14 @@ import { firstValueFrom } from 'rxjs';
             <div *ngIf="t.status==='handled'" class="handle-res">
               <span class="material-icons">check_circle</span>
               <div>
-                <div><strong>处理结果：</strong>{{ handleResult(t.handleAction) }}</div>
+                <div><strong>处理结果：</strong>{{ handleResult(t.handleAction) }}
+                  <span class="chip" style="margin-left:8px"
+                    [ngClass]="qualityImpact(t.handleAction)>=0?'chip-approved':'chip-closed'">
+                    质量分 {{ qualityImpact(t.handleAction)>=0?'+':'' }}{{ qualityImpact(t.handleAction) }}
+                  </span>
+                </div>
                 <div style="font-size:11px;color:#64748b;margin-top:2px">
-                  {{ t.handleNote }} · {{ formatTime(t.handledAt) }}
+                  {{ t.handleNote || '—' }} · {{ formatTime(t.handledAt) }}
                 </div>
               </div>
             </div>
@@ -119,22 +136,14 @@ import { firstValueFrom } from 'rxjs';
 
         <div>
           <h3 style="font-size:18px;font-weight:700;margin:0 0 12px;display:flex;align-items:center;gap:8px">
-            <span class="material-icons" style="color:#10b981">insights</span> 联动分析
+            <span class="material-icons" style="color:#10b981">insights</span> 质量分 Top 10 未到场
           </h3>
-          <div class="card mb-16">
-            <div class="card-title" style="margin-bottom:12px">📈 处理结果与质量联动</div>
-            <div echarts [options]="linkOption" style="height:260px"></div>
-            <div style="font-size:12px;color:#64748b;margin-top:8px;padding-top:12px;border-top:1px dashed #e2e8f0">
-              💡 <strong>说明：</strong>到场缺口处理结果会自动联动质量评分 — 成功补位 +2 分，确认到场 +1 分，被迫关闭 -1 分
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-title" style="margin-bottom:12px">🔍 质量分 Top 10 未到场名单</div>
+          <div class="card" style="padding:0;overflow:hidden">
             <table mat-table [dataSource]="topMissing" style="width:100%">
               <ng-container matColumnDef="rank">
                 <th mat-header-cell *matHeaderCellDef style="width:50px">#</th>
                 <td mat-cell *matCellDef="let r;let i=index">
-                  <span style="font-weight:800;color:{{i<3?'#f59e0b':'#64748b'}}">{{ i+1 }}</span>
+                  <span style="font-weight:800" [style.color]="i<3?'#f59e0b':'#64748b'">{{ i+1 }}</span>
                 </td>
               </ng-container>
               <ng-container matColumnDef="name">
@@ -155,11 +164,14 @@ import { firstValueFrom } from 'rxjs';
               <ng-container matColumnDef="act">
                 <th mat-header-cell *matHeaderCellDef>操作</th>
                 <td mat-cell *matCellDef="let r">
-                  <button mat-stroked-button (click)="quickHandle(r)">快速跟进</button>
+                  <button *ngIf="r.status==='pending'" mat-stroked-button color="primary" (click)="handle(r, 'confirmed')">
+                    <span class="material-icons">check</span> 确认到场
+                  </button>
+                  <span *ngIf="r.status==='handled'" class="chip chip-approved">{{ handleResult(r.handleAction) }}</span>
                 </td>
               </ng-container>
-              <tr mat-header-row *matHeaderRowDef="['rank','name','score','act']"></tr>
-              <tr mat-row *matRowDef="let r; columns: ['rank','name','score','act']" class="row-hover"></tr>
+              <tr mat-header-row *matHeaderRowDef="topCols"></tr>
+              <tr mat-row *matRowDef="let r; columns: topCols" class="row-hover"></tr>
             </table>
           </div>
         </div>
@@ -194,35 +206,68 @@ import { firstValueFrom } from 'rxjs';
 export class GapPage implements OnInit {
   todos: any[] = []; stats: any = {}; filter = 'pending';
   expandId: any = null; suggestions: Record<string, any[]> = {};
-  todayHandled = 5; replacePct = 62;
   topMissing: any[] = [];
-  linkOption: any = {};
+  linkOption: any = {}; pieOption: any = {};
+  topCols = ['rank', 'name', 'score', 'act'];
   constructor(public api: ApiService) {}
   formatTime(t: any) { return t ? new Date(t).toLocaleString('zh-CN') : ''; }
   scoreColor(s: number) { return s >= 85 ? '#059669' : s >= 75 ? '#0369a1' : s >= 60 ? '#d97706' : '#64748b'; }
   handleResult(a: string) {
     return { confirmed: '已确认到场', replaced: '已成功补位', closed_gap: '已关闭名额', contacted: '已与参会者联系' }[a as any] || a;
   }
+  qualityImpact(a: string) {
+    return { replaced: 2, confirmed: 1, closed_gap: -1, contacted: 0 }[a as any] || 0;
+  }
   async ngOnInit() { await this.load(); }
   async load() {
     const res: any = await firstValue(this.api.listGapTodos(this.filter));
-    this.todos = res.todos || []; this.stats = res.stats || {};
+    this.todos = res.todos || [];
+    this.stats = res.stats || {};
     this.topMissing = [...this.todos]
-      .filter(t => ['pending', 'handled'].includes(t.status) && t.priority === 1)
+      .filter(t => t.priority <= 2)
       .sort((a, b) => (b.registration.qualityScore || 0) - (a.registration.qualityScore || 0))
       .slice(0, 10);
+    this.buildCharts();
+  }
+  buildCharts() {
+    const chart = this.stats?.dailyChart || [];
+    const days = chart.length ? chart.map((d: any) => d.day.slice(5)) : ['暂无数据'];
+    const confirmedData = chart.map((d: any) => d.confirmed);
+    const replacedData = chart.map((d: any) => d.replaced);
+    const closedData = chart.map((d: any) => d.closed);
+    const qualityData = chart.map((d: any) => d.qualityDelta);
     this.linkOption = {
       tooltip: { trigger: 'axis' },
-      legend: { data: ['确认到场', '成功补位', '关闭名额'] },
-      grid: { left: 40, right: 20, top: 30, bottom: 30 },
-      xAxis: { type: 'category', data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] },
-      yAxis: { type: 'value' },
-      series: [
-        { name: '确认到场', type: 'bar', stack: 'a', data: [3, 5, 2, 6, 4, 8, 3], itemStyle: { color: '#10b981' } },
-        { name: '成功补位', type: 'bar', stack: 'a', data: [1, 3, 2, 4, 3, 5, 2], itemStyle: { color: '#3b82f6' } },
-        { name: '关闭名额', type: 'bar', stack: 'a', data: [0, 1, 2, 1, 0, 2, 1], itemStyle: { color: '#ef4444' } },
-        { name: '质量分提升', type: 'line', yAxisIndex: 0, smooth: true, data: [+2, +5, +4, +8, +6, +11, +4], lineStyle: { color: '#f59e0b', width: 3 }, itemStyle: { color: '#f59e0b' } },
+      legend: { data: ['确认到场', '成功补位', '关闭名额', '质量分变化'] },
+      grid: { left: 50, right: 50, top: 40, bottom: 30 },
+      xAxis: { type: 'category', data: days },
+      yAxis: [
+        { type: 'value', name: '处理数' },
+        { type: 'value', name: '质量分Δ', axisLabel: { color: '#f59e0b' } },
       ],
+      series: [
+        { name: '确认到场', type: 'bar', stack: 'a', data: confirmedData, itemStyle: { color: '#10b981' } },
+        { name: '成功补位', type: 'bar', stack: 'a', data: replacedData, itemStyle: { color: '#3b82f6' } },
+        { name: '关闭名额', type: 'bar', stack: 'a', data: closedData, itemStyle: { color: '#ef4444' } },
+        { name: '质量分变化', type: 'line', yAxisIndex: 1, smooth: true, data: qualityData,
+          lineStyle: { color: '#f59e0b', width: 3 }, itemStyle: { color: '#f59e0b' },
+          markPoint: { data: [{ type: 'max', name: '最大提升' }] } },
+      ],
+    };
+    this.pieOption = {
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { bottom: 0, textStyle: { fontSize: 12 } },
+      series: [{
+        type: 'pie', radius: ['40%', '68%'], center: ['50%', '45%'],
+        itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+        label: { formatter: '{b}\n{d}%', fontSize: 11 },
+        data: [
+          { name: '确认到场', value: this.stats?.confirmedCount || 0, itemStyle: { color: '#10b981' } },
+          { name: '成功补位', value: this.stats?.replacedCount || 0, itemStyle: { color: '#3b82f6' } },
+          { name: '关闭名额', value: this.stats?.closedCount || 0, itemStyle: { color: '#ef4444' } },
+          { name: '已联系', value: this.stats?.contactedCount || 0, itemStyle: { color: '#f59e0b' } },
+        ].filter(d => d.value > 0),
+      }],
     };
   }
   async viewSug(t: any) {
@@ -236,14 +281,21 @@ export class GapPage implements OnInit {
     }
   }
   async handle(t: any, action: string, note = '') {
-    const confirmed = action === 'closed_gap' ? confirm('确认关闭此名额？此操作将降低该报名质量评分') : true;
-    if (!confirmed) return;
+    const impact = this.qualityImpact(action);
+    const msg = action === 'closed_gap'
+      ? '确认关闭此名额？质量分将 -1'
+      : action === 'confirmed'
+      ? '确认该参会者已到场？质量分将 +1'
+      : action === 'replaced'
+      ? '确认使用补位候选人？质量分将 +2'
+      : '标记为已联系？';
+    if (!confirm(msg)) return;
     try {
       await firstValue(this.api.handleGap(t.registrationId, { action, note }));
-      this.api.toast('处理结果已记录，质量分已联动');
+      const label = impact > 0 ? `处理完成，质量分 +${impact}` : impact < 0 ? `处理完成，质量分 ${impact}` : '处理完成';
+      this.api.toast(label);
       await this.load();
-    } catch (e: any) { this.api.toast(e.error?.message || '失败', 'error'); }
+    } catch (e: any) { this.api.toast(e.error?.message || '操作失败', 'error'); }
   }
-  quickHandle(r: any) { alert('📞 正在连接呼叫中心...\n(演示环境：已标记为"已联系确认到场")'); }
 }
 function firstValue(o: any) { return (o as any).pipe ? (o as any).toPromise() : Promise.resolve(o); }
