@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  name      String
+  gender    Gender
+  birthDate DateTime
+  phone     String
+  allergies String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  medicalRecords MedicalRecord[]
+  followUpTasks  FollowUpTask[]
+  appointments   Appointment[]
+}
+
+model MedicalRecord {
+  id             String    @id @default(cuid())
+  patientId      String
+  doctorId       String
+  chiefComplaint String
+  diagnosis      String    @default("")
+  prescription   String    @default("")
+  summary        String    @default("")
+  visitDate      DateTime
+  nextVisitDate  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  patient       Patient          @relation(fields: [patientId], references: [id])
+  followUpTasks FollowUpTask[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([visitDate])
+}
+
+model FollowUpTask {
+  id               String         @id @default(cuid())
+  patientId        String
+  medicalRecordId  String
+  assigneeId       String?
+  status           FollowUpStatus @default(PENDING)
+  dueDate          DateTime
+  completedAt      DateTime?
+  qualityScore     Int?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  medicalRecord   MedicalRecord    @relation(fields: [medicalRecordId], references: [id])
+  followUpRecords FollowUpRecord[]
+
+  @@index([patientId])
+  @@index([medicalRecordId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([assigneeId])
+}
+
+model FollowUpRecord {
+  id             String   @id @default(cuid())
+  followUpTaskId String
+  operatorId     String
+  content        String
+  patientFeedback String  @default("")
+  createdAt      DateTime @default(now())
+
+  followUpTask FollowUpTask @relation(fields: [followUpTaskId], references: [id])
+
+  @@index([followUpTaskId])
+  @@index([operatorId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  fieldName  String
+  oldValue   String?
+  newValue   String?
+  operatorId String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([operatorId])
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  patientId       String
+  doctorId        String
+  appointmentDate DateTime
+  timeSlot        String
+  status          AppointmentStatus @default(SCHEDULED)
+  conflictId      String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentDate])
+  @@index([status])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum FollowUpStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  LOST
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFLICT
+  RESCHEDULED
+  CANCELLED
+}
