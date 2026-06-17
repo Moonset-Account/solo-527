@@ -17,11 +17,9 @@
           </div>
           <div class="flex items-center space-x-4">
             <span class="text-sm text-gray-500">{{ $page.props.auth.user?.name }}（{{ roleLabel }}）</span>
-            <form method="POST" action="/logout">
-              <button type="submit" class="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 border border-gray-300 rounded-md">
-                退出
-              </button>
-            </form>
+            <button @click="logout" class="text-sm text-gray-600 hover:text-gray-900 px-3 py-1 border border-gray-300 rounded-md">
+              退出
+            </button>
           </div>
         </div>
       </div>
@@ -41,7 +39,7 @@
 </template>
 
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
 const page = usePage()
@@ -73,5 +71,9 @@ const navItems = computed(() => {
 const isCurrent = (href) => {
   if (href === '/') return page.url === '/'
   return page.url.startsWith(href)
+}
+
+const logout = () => {
+  router.post('/logout')
 }
 </script>

@@ -19,9 +19,7 @@ class LoginController extends Controller
 
     public function store(LoginRequest $request)
     {
-        $credentials = $request->validated();
-
-        if (!Auth::attempt($credentials, $request->filled('remember'))) {
+        if (!Auth::attempt($request->only('email', 'password'), $request->filled('remember'))) {
             return back()->withErrors([
                 'email' => '邮箱或密码错误',
             ])->onlyInput('email');

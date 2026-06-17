@@ -98,7 +98,7 @@ const canVote = computed(() => {
 
 const canCreate = computed(() => {
   const role = page.props.auth.user?.role
-  return ['resident', 'representative', 'admin'].includes(role)
+  return ['resident', 'representative'].includes(role)
 })
 
 const form = useForm({
