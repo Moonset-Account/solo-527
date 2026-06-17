@@ -1,0 +1,15 @@
+# See https://help.github.com/ignore-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/dist
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# misc
+.DS_Store
+*.log

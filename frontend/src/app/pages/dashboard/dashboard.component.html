@@ -1,0 +1,48 @@
+<div class="dashboard-container">
+  <h1 class="page-title">仪表盘</h1>
+
+  <div class="stats-grid">
+    <mat-card class="stat-card" *ngFor="let stat of stats">
+      <mat-card-content class="stat-content">
+        <div class="stat-icon" [class.primary]="stat.color === 'primary'" [class.accent]="stat.color === 'accent'">
+          <mat-icon>{{ stat.icon }}</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3 class="stat-value">{{ stat.value }}</h3>
+          <p class="stat-label">{{ stat.label }}</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="content-grid">
+    <mat-card class="content-card">
+      <mat-card-header>
+        <mat-card-title>最近活动</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>暂无数据</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="content-card">
+      <mat-card-header>
+        <mat-card-title>快捷操作</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="quick-actions">
+        <button mat-raised-button color="primary">
+          <mat-icon>add</mat-icon>
+          新建
+        </button>
+        <button mat-raised-button color="accent">
+          <mat-icon>upload</mat-icon>
+          导入
+        </button>
+        <button mat-raised-button>
+          <mat-icon>download</mat-icon>
+          导出
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

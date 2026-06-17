@@ -1,0 +1,109 @@
+<app-page-header title="租约查询" subtitle="管理所有租约信息">
+  <button mat-raised-button color="primary" (click)="onExport()">
+    <mat-icon>file_download</mat-icon>
+    导出
+  </button>
+</app-page-header>
+
+<div class="page-content">
+  <div class="filter-section">
+    <div class="filter-form">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>房源</mat-label>
+        <mat-select [(ngModel)]="filters.property">
+          <mat-option value="">全部</mat-option>
+          <mat-option value="1">A栋101室</mat-option>
+          <mat-option value="2">A栋102室</mat-option>
+          <mat-option value="3">A栋201室</mat-option>
+          <mat-option value="4">B栋101室</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>租客姓名</mat-label>
+        <input matInput [(ngModel)]="filters.tenantName" placeholder="请输入租客姓名">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>状态</mat-label>
+        <mat-select [(ngModel)]="filters.status">
+          <mat-option value="">全部</mat-option>
+          <mat-option value="active">进行中</mat-option>
+          <mat-option value="pending">待生效</mat-option>
+          <mat-option value="expired">已到期</mat-option>
+          <mat-option value="terminated">已终止</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field date-range">
+        <mat-label>日期范围</mat-label>
+        <mat-date-range-input [rangePicker]="picker">
+          <input matStartDate [(ngModel)]="filters.dateRange.start" placeholder="开始日期">
+          <input matEndDate [(ngModel)]="filters.dateRange.end" placeholder="结束日期">
+        </mat-date-range-input>
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-date-range-picker #picker></mat-date-range-picker>
+      </mat-form-field>
+
+      <div class="filter-actions">
+        <button mat-raised-button color="primary" (click)="onSearch()">
+          <mat-icon>search</mat-icon>
+          搜索
+        </button>
+        <button mat-stroked-button (click)="onReset()">
+          <mat-icon>refresh</mat-icon>
+          重置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌面端表格 -->
+  <div *ngIf="!(isHandset$ | async)" class="table-section">
+    <app-data-table
+      [data]="leases"
+      [columns]="columns"
+      [total]="total"
+      [pageIndex]="pageIndex"
+      [pageSize]="pageSize"
+      [sortable]="true"
+      (pageChange)="onPageChange($event)"
+      [actionTemplate]="actionTemplate"
+    >
+      <ng-template #actionTemplate let-row>
+        <button mat-button color="primary" (click)="onViewDetail(row)">查看</button>
+      </ng-template>
+    </app-data-table>
+  </div>
+
+  <!-- 移动端卡片列表 -->
+  <div *ngIf="(isHandset$ | async)" class="card-list">
+    <div *ngFor="let lease of leases" class="lease-card" (click)="onViewDetail(lease)">
+      <div class="card-header">
+        <span class="lease-no">{{ lease.leaseNo }}</span>
+        <app-status-badge [status]="getStatusBadge(lease.status)" [label]="getStatusLabel(lease.status)"></app-status-badge>
+      </div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="label">房源</span>
+          <span class="value">{{ lease.propertyName }}</span>
+        </div>
+        <div class="card-row">
+          <span class="label">租客</span>
+          <span class="value">{{ lease.tenantName }}</span>
+        </div>
+        <div class="card-row">
+          <span class="label">月租金</span>
+          <span class="value highlight">{{ formatCurrency(lease.monthlyRent) }}</span>
+        </div>
+        <div class="card-row">
+          <span class="label">租期</span>
+          <span class="value">{{ lease.startDate }} ~ {{ lease.endDate }}</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button mat-button color="primary">查看详情</button>
+      </div>
+    </div>
+  </div>
+</div>
