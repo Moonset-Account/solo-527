@@ -1,75 +1,106 @@
 "use client";
 
 import { TRPCProvider } from "@/trpc/provider";
+import {
+  ClerkProvider,
+  useAuth as useClerkAuth,
+  useUser as useClerkUser,
+} from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 
-const hasClerkKey =
-  typeof window !== "undefined" &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("placeholder");
+type UserRole = "OPERATIONS_MANAGER" | "FOLLOW_UP_STAFF" | "DOCTOR";
 
-type AuthContextValue = {
+interface AuthContextValue {
   userId: string | null;
-  role: "OPERATIONS_MANAGER" | "FOLLOW_UP_STAFF" | "DOCTOR" | null;
+  role: UserRole | null;
+  orgRole: string | null;
   isSignedIn: boolean;
-};
-
-let sharedAuth: AuthContextValue = {
-  userId: "dev-admin",
-  role: "OPERATIONS_MANAGER",
-  isSignedIn: true,
-};
-
-function getFallbackAuth(): AuthContextValue {
-  if (typeof window !== "undefined") {
-    const stored = (window as unknown as { __tcm_auth?: AuthContextValue }).__tcm_auth;
-    if (stored) return stored;
-  }
-  return sharedAuth;
+  isLoaded: boolean;
 }
 
-function setFallbackAuth(auth: AuthContextValue) {
-  sharedAuth = auth;
-  if (typeof window !== "undefined") {
-    (window as unknown as { __tcm_auth?: AuthContextValue }).__tcm_auth = auth;
-  }
+function mapClerkRole(orgRole: string | undefined): UserRole | null {
+  if (orgRole === "org:admin") return "OPERATIONS_MANAGER";
+  if (orgRole === "org:doctor") return "DOCTOR";
+  if (orgRole === "org:member") return "FOLLOW_UP_STAFF";
+  return null;
 }
+
+function useAuthInternal(): AuthContextValue {
+  const clerk = useClerkAuth();
+  const [state, setState] = useState<AuthContextValue>({
+    userId: null,
+    role: null,
+    orgRole: null,
+    isSignedIn: false,
+    isLoaded: false,
+  });
+
+  useEffect(() => {
+    if (!clerk.isLoaded) return;
+
+    const role = mapClerkRole(clerk.orgRole ?? undefined);
+
+    setState({
+      userId: clerk.userId,
+      role,
+      orgRole: clerk.orgRole ?? null,
+      isSignedIn: !!clerk.isSignedIn,
+      isLoaded: true,
+    });
+  }, [
+    clerk.isLoaded,
+    clerk.userId,
+    clerk.orgRole,
+    clerk.isSignedIn,
+  ]);
+
+  return state;
+}
+
+let cachedAuth: AuthContextValue | null = null;
 
 export function useAuth(): AuthContextValue {
-  return getFallbackAuth();
+  const auth = useAuthInternal();
+  if (auth.isLoaded) {
+    cachedAuth = auth;
+  }
+  return cachedAuth ?? auth;
 }
 
 export function useIsOperationsManager(): boolean {
-  const auth = getFallbackAuth();
+  const auth = useAuth();
   return auth.role === "OPERATIONS_MANAGER";
 }
 
 export function useIsDoctor(): boolean {
-  const auth = getFallbackAuth();
+  const auth = useAuth();
   return auth.role === "DOCTOR";
 }
 
-export const setAuth = setFallbackAuth;
+export function useUser() {
+  return useClerkUser();
+}
 
 function MockClerkProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  if (hasClerkKey) {
-    try {
-      const { ClerkProvider } = require("@clerk/nextjs");
-      return <ClerkProvider>{children}</ClerkProvider>;
-    } catch {
-      return <MockClerkProvider>{children}</MockClerkProvider>;
-    }
+function AuthProviderWrapper({ children }: { children: React.ReactNode }) {
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const hasClerk =
+    !!publishableKey && !publishableKey.includes("placeholder");
+
+  if (hasClerk) {
+    return <ClerkProvider>{children}</ClerkProvider>;
   }
+
   return <MockClerkProvider>{children}</MockClerkProvider>;
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
+    <AuthProviderWrapper>
       <TRPCProvider>{children}</TRPCProvider>
-    </AuthProvider>
+    </AuthProviderWrapper>
   );
 }

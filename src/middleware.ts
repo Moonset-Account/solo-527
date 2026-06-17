@@ -9,46 +9,68 @@ interface AuthContext {
   orgRole: string | null;
 }
 
-function parseAuthFromHeaders(request: NextRequest): AuthContext {
-  const clerkUserId = request.headers.get("x-clerk-user-id");
-  const clerkRole = request.headers.get("x-clerk-role");
-  const clerkOrgRole = request.headers.get("x-clerk-org-role");
-
-  let role: UserRole | null = null;
-  if (clerkRole === "admin" || clerkOrgRole === "org:admin") {
-    role = "OPERATIONS_MANAGER";
-  } else if (clerkOrgRole === "org:doctor") {
-    role = "DOCTOR";
-  } else if (clerkRole === "basic_member" || clerkOrgRole === "org:member") {
-    role = "FOLLOW_UP_STAFF";
-  }
-
-  return {
-    userId: clerkUserId,
-    role,
-    orgRole: clerkOrgRole,
-  };
+function mapClerkRole(orgRole: string | undefined | null): UserRole | null {
+  if (orgRole === "org:admin") return "OPERATIONS_MANAGER";
+  if (orgRole === "org:doctor") return "DOCTOR";
+  if (orgRole === "org:member") return "FOLLOW_UP_STAFF";
+  return null;
 }
 
-export function middleware(request: NextRequest) {
+async function getAuthContext(request: NextRequest): Promise<AuthContext> {
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const hasClerk =
+    !!publishableKey && !publishableKey.includes("placeholder");
+
+  if (!hasClerk) {
+    return {
+      userId: request.headers.get("x-clerk-user-id"),
+      role: mapClerkRole(request.headers.get("x-clerk-org-role")),
+      orgRole: request.headers.get("x-clerk-org-role"),
+    };
+  }
+
+  try {
+    const { auth } = await import("@clerk/nextjs/server");
+    const { userId, orgRole, has } = await auth();
+
+    const role = mapClerkRole(orgRole);
+
+    return {
+      userId,
+      role,
+      orgRole: orgRole ?? null,
+    };
+  } catch {
+    return {
+      userId: null,
+      role: null,
+      orgRole: null,
+    };
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const hasClerk =
     !!publishableKey && !publishableKey.includes("placeholder");
 
   const response = NextResponse.next();
 
-  if (!hasClerk) {
-    response.headers.set("x-clerk-user-id", "dev-admin");
-    response.headers.set("x-clerk-org-role", "org:admin");
-    return response;
+  const auth = await getAuthContext(request);
+
+  if (hasClerk && !auth.userId) {
+    const { redirectToSignIn } = await import("@clerk/nextjs/server");
+    return redirectToSignIn({ returnBackUrl: request.url });
   }
 
-  const auth = parseAuthFromHeaders(request);
-
-  if (!auth.userId) {
-    const signInUrl = new URL("/sign-in", request.url);
-    signInUrl.searchParams.set("redirect_url", request.url);
-    return NextResponse.redirect(signInUrl);
+  if (auth.userId) {
+    response.headers.set("x-clerk-user-id", auth.userId);
+  }
+  if (auth.orgRole) {
+    response.headers.set("x-clerk-org-role", auth.orgRole);
+  }
+  if (auth.role) {
+    response.headers.set("x-clerk-role", auth.role);
   }
 
   const pathname = request.nextUrl.pathname;

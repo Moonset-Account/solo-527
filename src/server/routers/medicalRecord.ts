@@ -99,7 +99,7 @@ export const medicalRecordRouter = createTRPCRouter({
                 fieldName,
                 oldValue: toLogValue(old[fieldName as keyof typeof old]),
                 newValue: toLogValue(newValue),
-                operatorId: ctx.auth.userId ?? "system",
+                operatorId: ctx.auth.userId!,
               },
             })
           )
@@ -140,7 +140,7 @@ export const medicalRecordRouter = createTRPCRouter({
             fieldName: "summary",
             oldValue: toLogValue(old.summary),
             newValue: toLogValue(input.summary),
-            operatorId: ctx.auth.userId ?? "system",
+            operatorId: ctx.auth.userId!,
           },
         });
       }

@@ -14,49 +14,31 @@ export const createTRPCContext = async (opts: {
   req: Request;
   res?: Response;
 }) => {
-  let auth: AuthUser = { userId: null, role: null, orgRole: null };
+  const auth: AuthUser = { userId: null, role: null, orgRole: null };
 
-  try {
-    const authHeader = opts.req.headers.get("authorization") ?? "";
-    const clerkRole = opts.req.headers.get("x-clerk-role") ?? null;
-    const clerkOrgRole = opts.req.headers.get("x-clerk-org-role") ?? null;
-    const clerkUserId = opts.req.headers.get("x-clerk-user-id") ?? null;
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const hasClerk = !!publishableKey && !publishableKey.includes("placeholder");
 
+  const clerkUserId = opts.req.headers.get("x-clerk-user-id") ?? null;
+  const clerkRole = opts.req.headers.get("x-clerk-role") ?? null;
+  const clerkOrgRole = opts.req.headers.get("x-clerk-org-role") ?? null;
+
+  if (hasClerk) {
     if (clerkUserId) {
       auth.userId = clerkUserId;
     }
     if (clerkOrgRole) {
       auth.orgRole = clerkOrgRole;
     }
-
     if (clerkRole === "admin" || clerkOrgRole === "org:admin") {
       auth.role = "OPERATIONS_MANAGER";
-    } else if (clerkRole === "basic_member" || clerkOrgRole === "org:member") {
-      auth.role = "FOLLOW_UP_STAFF";
     } else if (clerkOrgRole === "org:doctor") {
       auth.role = "DOCTOR";
-    } else if (authHeader || clerkUserId) {
+    } else if (clerkRole === "basic_member" || clerkOrgRole === "org:member") {
+      auth.role = "FOLLOW_UP_STAFF";
+    } else if (auth.userId) {
       auth.role = auth.role ?? "FOLLOW_UP_STAFF";
     }
-
-    const fallbackKey = process.env.CLERK_FALLBACK_ROLE;
-    if (!auth.role && fallbackKey) {
-      const parsed = fallbackKey as UserRole;
-      if (["OPERATIONS_MANAGER", "FOLLOW_UP_STAFF", "DOCTOR"].includes(parsed)) {
-        auth.role = parsed;
-      }
-    }
-
-    if (!auth.role && !auth.userId) {
-      auth.role = "OPERATIONS_MANAGER";
-      auth.userId = "dev-admin";
-    }
-  } catch {
-    auth = {
-      userId: "dev-admin",
-      role: "OPERATIONS_MANAGER",
-      orgRole: null,
-    };
   }
 
   return { prisma, auth, req: opts.req };
@@ -66,6 +48,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
 });
 
+export const { createCallerFactory } = t;
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 

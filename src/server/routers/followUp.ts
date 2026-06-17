@@ -91,7 +91,7 @@ export const followUpRouter = createTRPCRouter({
             fieldName: "assigneeId",
             oldValue: toLogValue(old.assigneeId),
             newValue: toLogValue(input.assigneeId),
-            operatorId: ctx.auth.userId ?? "system",
+            operatorId: ctx.auth.userId!,
           },
         });
       }
@@ -148,7 +148,7 @@ export const followUpRouter = createTRPCRouter({
                   old[fieldName as keyof typeof old]
                 ),
                 newValue: toLogValue(newValue),
-                operatorId: ctx.auth.userId ?? "system",
+                operatorId: ctx.auth.userId!,
               },
             })
           )
@@ -170,7 +170,7 @@ export const followUpRouter = createTRPCRouter({
       return prisma.followUpRecord.create({
         data: {
           followUpTaskId: input.followUpTaskId,
-          operatorId: ctx.auth.userId ?? "system",
+          operatorId: ctx.auth.userId!,
           content: input.content,
           patientFeedback: input.patientFeedback ?? "",
         },
@@ -234,7 +234,7 @@ export const followUpRouter = createTRPCRouter({
                   old[fieldName as keyof typeof old]
                 ),
                 newValue: toLogValue(newValue),
-                operatorId: ctx.auth.userId ?? "system",
+                operatorId: ctx.auth.userId!,
               },
             })
           )
