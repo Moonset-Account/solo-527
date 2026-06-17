@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+  operationsManagerProcedure,
+} from "../trpc";
 import { prisma } from "@/lib/prisma";
 
 function toLogValue(val: unknown): string {
@@ -52,7 +57,7 @@ export const followUpRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         patientId: z.string(),
@@ -65,9 +70,9 @@ export const followUpRouter = createTRPCRouter({
       return prisma.followUpTask.create({ data: input });
     }),
 
-  assign: publicProcedure
+  assign: operationsManagerProcedure
     .input(z.object({ id: z.string(), assigneeId: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const old = await prisma.followUpTask.findUnique({
         where: { id: input.id },
       });
@@ -86,7 +91,7 @@ export const followUpRouter = createTRPCRouter({
             fieldName: "assigneeId",
             oldValue: toLogValue(old.assigneeId),
             newValue: toLogValue(input.assigneeId),
-            operatorId: "system",
+            operatorId: ctx.auth.userId ?? "system",
           },
         });
       }
@@ -94,7 +99,7 @@ export const followUpRouter = createTRPCRouter({
       return updated;
     }),
 
-  updateStatus: publicProcedure
+  updateStatus: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -102,7 +107,7 @@ export const followUpRouter = createTRPCRouter({
         qualityScore: z.number().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const old = await prisma.followUpTask.findUnique({
         where: { id: input.id },
       });
@@ -143,7 +148,7 @@ export const followUpRouter = createTRPCRouter({
                   old[fieldName as keyof typeof old]
                 ),
                 newValue: toLogValue(newValue),
-                operatorId: "system",
+                operatorId: ctx.auth.userId ?? "system",
               },
             })
           )
@@ -153,7 +158,7 @@ export const followUpRouter = createTRPCRouter({
       return updated;
     }),
 
-  addRecord: publicProcedure
+  addRecord: protectedProcedure
     .input(
       z.object({
         followUpTaskId: z.string(),
@@ -161,11 +166,11 @@ export const followUpRouter = createTRPCRouter({
         patientFeedback: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       return prisma.followUpRecord.create({
         data: {
           followUpTaskId: input.followUpTaskId,
-          operatorId: "system",
+          operatorId: ctx.auth.userId ?? "system",
           content: input.content,
           patientFeedback: input.patientFeedback ?? "",
         },
@@ -180,7 +185,7 @@ export const followUpRouter = createTRPCRouter({
     });
   }),
 
-  resolveConflict: publicProcedure
+  resolveConflict: operationsManagerProcedure
     .input(
       z.object({
         appointmentId: z.string(),
@@ -188,7 +193,7 @@ export const followUpRouter = createTRPCRouter({
         newTimeSlot: z.string(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const old = await prisma.appointment.findUnique({
         where: { id: input.appointmentId },
       });
@@ -229,7 +234,7 @@ export const followUpRouter = createTRPCRouter({
                   old[fieldName as keyof typeof old]
                 ),
                 newValue: toLogValue(newValue),
-                operatorId: "system",
+                operatorId: ctx.auth.userId ?? "system",
               },
             })
           )

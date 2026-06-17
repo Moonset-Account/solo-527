@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure, operationsManagerProcedure } from "../trpc";
 import { prisma } from "@/lib/prisma";
 
 function toLogValue(val: unknown): string {
@@ -39,7 +39,7 @@ export const patientRouter = createTRPCRouter({
       return prisma.patient.findUnique({ where: { id: input.id } });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string(),
@@ -53,7 +53,7 @@ export const patientRouter = createTRPCRouter({
       return prisma.patient.create({ data: input });
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -64,7 +64,7 @@ export const patientRouter = createTRPCRouter({
         allergies: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const old = await prisma.patient.findUnique({ where: { id } });
       if (!old) throw new Error("Patient not found");
@@ -87,7 +87,7 @@ export const patientRouter = createTRPCRouter({
                 fieldName,
                 oldValue: toLogValue(old[fieldName as keyof typeof old]),
                 newValue: toLogValue(newValue),
-                operatorId: "system",
+                operatorId: ctx.auth.userId ?? "system",
               },
             })
           )

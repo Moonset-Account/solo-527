@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  operationsManagerProcedure,
+  doctorOrManagerProcedure,
+} from "../trpc";
 import { prisma } from "@/lib/prisma";
 
 function toLogValue(val: unknown): string {
@@ -37,7 +42,7 @@ export const medicalRecordRouter = createTRPCRouter({
       return prisma.medicalRecord.findUnique({ where: { id: input.id } });
     }),
 
-  create: publicProcedure
+  create: doctorOrManagerProcedure
     .input(
       z.object({
         patientId: z.string(),
@@ -50,11 +55,11 @@ export const medicalRecordRouter = createTRPCRouter({
         nextVisitDate: z.date().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       return prisma.medicalRecord.create({ data: input });
     }),
 
-  update: publicProcedure
+  update: doctorOrManagerProcedure
     .input(
       z.object({
         id: z.string(),
@@ -68,7 +73,7 @@ export const medicalRecordRouter = createTRPCRouter({
         nextVisitDate: z.date().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const old = await prisma.medicalRecord.findUnique({ where: { id } });
       if (!old) throw new Error("MedicalRecord not found");
@@ -94,7 +99,7 @@ export const medicalRecordRouter = createTRPCRouter({
                 fieldName,
                 oldValue: toLogValue(old[fieldName as keyof typeof old]),
                 newValue: toLogValue(newValue),
-                operatorId: "system",
+                operatorId: ctx.auth.userId ?? "system",
               },
             })
           )
@@ -114,9 +119,9 @@ export const medicalRecordRouter = createTRPCRouter({
       return record?.summary ?? null;
     }),
 
-  updateSummary: publicProcedure
+  updateSummary: operationsManagerProcedure
     .input(z.object({ id: z.string(), summary: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const old = await prisma.medicalRecord.findUnique({
         where: { id: input.id },
       });
@@ -135,7 +140,7 @@ export const medicalRecordRouter = createTRPCRouter({
             fieldName: "summary",
             oldValue: toLogValue(old.summary),
             newValue: toLogValue(input.summary),
-            operatorId: "system",
+            operatorId: ctx.auth.userId ?? "system",
           },
         });
       }
