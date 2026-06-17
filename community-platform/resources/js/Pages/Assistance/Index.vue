@@ -1,0 +1,109 @@
+<template>
+  <MainLayout>
+    <div class="space-y-6">
+      <h1 class="text-2xl font-bold text-gray-900">帮扶需求</h1>
+
+      <div class="bg-white rounded-lg shadow p-4">
+        <form @submit.prevent="search" class="flex flex-wrap gap-4 items-end">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+            <input v-model="form.start_date" type="date" class="border rounded-md px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+            <input v-model="form.end_date" type="date" class="border rounded-md px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+            <select v-model="form.status" class="border rounded-md px-3 py-2 text-sm">
+              <option value="">全部</option>
+              <option value="pending">待处理</option>
+              <option value="in_progress">进行中</option>
+              <option value="completed">已完成</option>
+              <option value="overdue">已逾期</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">处理人</label>
+            <select v-model="form.handler_id" class="border rounded-md px-3 py-2 text-sm">
+              <option value="">全部</option>
+              <option v-for="handler in handlers" :key="handler.id" :value="handler.id">{{ handler.name }}</option>
+            </select>
+          </div>
+          <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm">查询</button>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">标题</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">居民</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">处理人</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">责任部门</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">截止日期</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="item in assistanceRequests.data" :key="item.id">
+              <td class="px-6 py-4 text-sm text-gray-900">{{ item.title }}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">{{ item.resident?.name }}</td>
+              <td class="px-6 py-4 text-sm">
+                <span :class="statusBadgeClass(item.status)" class="px-2 py-1 rounded-full text-xs font-medium">{{ statusLabel(item.status) }}</span>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-500">{{ item.handler?.name || '-' }}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">{{ item.department?.name || '-' }}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">{{ item.deadline }}</td>
+              <td class="px-6 py-4 text-sm">
+                <Link :href="`/assistance/${item.id}`" class="text-indigo-600 hover:text-indigo-900">查看</Link>
+              </td>
+            </tr>
+            <tr v-if="assistanceRequests.data.length === 0">
+              <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">暂无数据</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </MainLayout>
+</template>
+
+<script setup>
+import MainLayout from '@/Layouts/MainLayout.vue'
+import { Link, useForm } from '@inertiajs/vue3'
+
+const props = defineProps({
+  assistanceRequests: Object,
+  handlers: Array,
+  filters: Object,
+})
+
+const form = useForm({
+  start_date: props.filters?.start_date || '',
+  end_date: props.filters?.end_date || '',
+  status: props.filters?.status || '',
+  handler_id: props.filters?.handler_id || '',
+})
+
+const search = () => {
+  form.get('/assistance', { preserveState: true, preserveScroll: true })
+}
+
+const statusLabel = (status) => {
+  const map = { pending: '待处理', in_progress: '进行中', completed: '已完成', overdue: '已逾期' }
+  return map[status] || status
+}
+
+const statusBadgeClass = (status) => {
+  const map = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    in_progress: 'bg-blue-100 text-blue-800',
+    completed: 'bg-green-100 text-green-800',
+    overdue: 'bg-red-100 text-red-800',
+  }
+  return map[status] || 'bg-gray-100 text-gray-800'
+}
+</script>
