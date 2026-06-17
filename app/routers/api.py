@@ -25,6 +25,70 @@ router = APIRouter(prefix="/api")
 templates = Jinja2Templates(directory=settings.TEMPLATES_DIR)
 
 
+def _get_media_type(filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    return {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".avi": "video/x-msvideo",
+        ".zip": "application/zip",
+        ".rar": "application/x-rar-compressed",
+        ".pdf": "application/pdf",
+    }.get(ext, "application/octet-stream")
+
+
+def _get_simple_png_bytes() -> bytes:
+    import struct, zlib
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    raw = b"\x00\x64\x95\xed"
+    idat = zlib.compress(raw, 9)
+    return sig + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+
+async def _generate_sample_file(file):
+    from fastapi.responses import StreamingResponse
+    import io
+    from urllib.parse import quote
+    
+    ext = os.path.splitext(file.file_name)[1].lower()
+    is_image = ext in (".jpg", ".jpeg", ".png", ".gif", ".webp")
+    
+    if is_image:
+        content = _get_simple_png_bytes()
+        media_type = _get_media_type(file.file_name)
+    else:
+        info = f"""=== 示例交付文件 ===
+文件名: {file.file_name}
+文件ID: {file.id}
+订单ID: {file.order_id}
+文件类型: {file.file_type}
+大小: {(file.file_size or 0) / 1024 / 1024:.2f} MB
+
+这是系统自动生成的示例文件，用于演示下载功能。
+实际项目中请上传真实交付文件。
+"""
+        content = info.encode("utf-8")
+        media_type = "text/plain; charset=utf-8"
+    
+    encoded_name = quote(file.file_name)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
+            "Content-Length": str(len(content))
+        }
+    )
+
+
 @router.post("/orders/{order_id}/photos/{photo_id}/toggle")
 async def toggle_photo_selection(
     request: Request,
@@ -278,15 +342,17 @@ async def mark_file_downloaded(
     order_service = OrderService(db)
     file = order_service.mark_file_downloaded(file_id, current_user)
     
-    file_path = os.path.join(settings.UPLOAD_DIR, file.file_path)
-    if os.path.exists(file_path):
+    file_path = file.file_path.lstrip('/')
+    full_path = os.path.join(settings.UPLOAD_DIR, file_path)
+    
+    if os.path.exists(full_path):
         return FileResponse(
-            path=file_path,
+            path=full_path,
             filename=file.file_name,
-            media_type="application/octet-stream"
+            media_type=_get_media_type(file.file_name)
         )
     
-    return ApiResponse(code=404, message="文件不存在")
+    return await _generate_sample_file(file)
 
 
 @router.get("/files/{file_id}/download")
@@ -298,15 +364,17 @@ async def download_file_get(
     order_service = OrderService(db)
     file = order_service.mark_file_downloaded(file_id, current_user)
     
-    file_path = os.path.join(settings.UPLOAD_DIR, file.file_path)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
+    file_path = file.file_path.lstrip('/')
+    full_path = os.path.join(settings.UPLOAD_DIR, file_path)
     
-    return FileResponse(
-        path=file_path,
-        filename=file.file_name,
-        media_type="application/octet-stream"
-    )
+    if os.path.exists(full_path):
+        return FileResponse(
+            path=full_path,
+            filename=file.file_name,
+            media_type=_get_media_type(file.file_name)
+        )
+    
+    return await _generate_sample_file(file)
 
 
 @router.get("/orders/{order_id}/files/{file_id}/download")

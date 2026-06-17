@@ -121,7 +121,7 @@
                         <td class="table-actions">
                             <a href="/orders/{{ order.id }}" class="btn btn-link">详情</a>
                             {% if order.status == 'selecting' %}
-                            <a href="/orders/{{ order.id }}/selection" class="btn btn-accent btn-sm">选片</a>
+                            <a href="/orders/{{ order.id }}/select" class="btn btn-accent btn-sm">选片</a>
                             {% endif %}
                             {% if order.status == 'delivered' %}
                             <a href="/orders/{{ order.id }}/download" class="btn btn-success btn-sm">下载</a>

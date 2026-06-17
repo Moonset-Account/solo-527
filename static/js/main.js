@@ -511,12 +511,12 @@ document.addEventListener('keydown', function(e) {
         document.body.style.overflow = '';
     }
     
-    if (e.ctrlKey && e.key === 'a' && window.location.pathname.includes('/selection')) {
+    if (e.ctrlKey && e.key === 'a' && window.location.pathname.includes('/select')) {
         e.preventDefault();
         selectAllPhotos();
     }
     
-    if (e.key === 'Enter' && window.location.pathname.includes('/selection')) {
+    if (e.key === 'Enter' && window.location.pathname.includes('/select')) {
         const confirmBtn = document.querySelector('.selection-toolbar .btn-primary');
         if (confirmBtn && !confirmBtn.disabled) {
             e.preventDefault();

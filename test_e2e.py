@@ -161,10 +161,9 @@ fid = find_file_id(admin_opener, dl_oid)
 if fid:
     print(f'  找到文件 id: {fid}')
     status, size, _ = fetch(admin_opener, f'/api/files/{fid}/download')
-    ok = status in (200, 404)  # 404 是文件在物理磁盘不存在，路由存在就行
-    ok2 = status != 405
-    report.append((f'下载端点 /api/files/{fid}/download', ok2, status))
-    print(f'  {PASS if ok2 else FAIL} {status:3d}  /api/files/{fid}/download')
+    ok = status == 200
+    report.append((f'下载端点 /api/files/{fid}/download', ok, status))
+    print(f'  {PASS if ok else FAIL} {status:3d}  /api/files/{fid}/download  ({size}b)')
 else:
     print('  ⚠️  跳过下载测试（没有 delivery files）')
 
