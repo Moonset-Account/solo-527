@@ -42,13 +42,14 @@ import { Property } from '../../types';
       </div>
       <div class="form-row">
         <mat-form-field appearance="outline" class="form-field">
-          <mat-label>类型</mat-label>
-          <mat-select [(ngModel)]="form.type">
-            <mat-option value="office">办公室</mat-option>
-            <mat-option value="studio">工作室</mat-option>
-            <mat-option value="shop">商铺</mat-option>
-          </mat-select>
-        </mat-form-field>
+            <mat-label>类型</mat-label>
+            <mat-select [(ngModel)]="form.type">
+              <mat-option value="private_office">独立办公室</mat-option>
+              <mat-option value="hot_desk">开放工位</mat-option>
+              <mat-option value="meeting_room">会议室</mat-option>
+              <mat-option value="long_term">长期租赁</mat-option>
+            </mat-select>
+          </mat-form-field>
         <mat-form-field appearance="outline" class="form-field">
           <mat-label>楼栋</mat-label>
           <mat-select [(ngModel)]="form.building">
@@ -108,7 +109,7 @@ export class PropertyFormComponent {
   form: any = {
     code: '',
     name: '',
-    type: 'office',
+    type: 'private_office',
     building: 'A栋',
     floor: 1,
     area: 0,

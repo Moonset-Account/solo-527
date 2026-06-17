@@ -16,14 +16,14 @@ export class Deposit {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'deposit_no', unique: true })
   depositNo: string;
 
-  @Column()
+  @Column({ name: 'lease_id' })
   leaseId: string;
 
   @ManyToOne(() => Lease)
-  @JoinColumn({ name: 'leaseId' })
+  @JoinColumn({ name: 'lease_id' })
   lease: Lease;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
@@ -42,21 +42,21 @@ export class Deposit {
   })
   status: DepositStatus;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ name: 'receive_date', type: 'date', nullable: true })
   receiveDate: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ name: 'refund_date', type: 'date', nullable: true })
   refundDate: Date;
 
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
   @Column({ type: 'text', nullable: true })
   remarks: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

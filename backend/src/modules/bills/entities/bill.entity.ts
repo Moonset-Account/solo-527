@@ -17,14 +17,14 @@ export class Bill {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'bill_no', unique: true })
   billNo: string;
 
-  @Column()
+  @Column({ name: 'lease_id' })
   leaseId: string;
 
   @ManyToOne(() => Lease)
-  @JoinColumn({ name: 'leaseId' })
+  @JoinColumn({ name: 'lease_id' })
   lease: Lease;
 
   @Column({
@@ -36,10 +36,10 @@ export class Bill {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
 
-  @Column({ type: 'date' })
+  @Column({ name: 'bill_date', type: 'date' })
   billDate: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ name: 'due_date', type: 'date', nullable: true })
   dueDate: Date;
 
   @Column({
@@ -49,34 +49,34 @@ export class Bill {
   })
   status: BillStatus;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ name: 'paid_amount', type: 'decimal', precision: 12, scale: 2, default: 0 })
   paidAmount: number;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ name: 'paid_date', type: 'date', nullable: true })
   paidDate: Date;
 
   @Column({ default: false })
   reconciled: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ name: 'reconciled_at', type: 'timestamp', nullable: true })
   reconciledAt: Date;
 
-  @Column({ nullable: true })
+  @Column({ name: 'reconciled_by', nullable: true })
   reconciledBy: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'reconciledBy' })
+  @JoinColumn({ name: 'reconciled_by' })
   reconciler: User;
 
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
   @Column({ type: 'text', nullable: true })
   remarks: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

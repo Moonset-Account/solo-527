@@ -15,7 +15,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
-import { MockDataService } from '../../services/mock-data.service';
+import { PropertiesService } from '../../services/properties.service';
+import { RoomStatusLogsService } from '../../services/room-status-logs.service';
+import { ExportService } from '../../services/export.service';
 import { Property, RoomStatusLog, PropertyStatus } from '../../types';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { Inject } from '@angular/core';
@@ -112,6 +114,10 @@ export class RoomStatusChangeComponent {
   ],
   template: `
     <app-page-header title="房态管理" subtitle="查看和管理房源状态">
+      <button mat-stroked-button (click)="onExport()">
+        <mat-icon>file_download</mat-icon>
+        导出
+      </button>
       <div class="view-toggle">
         <button mat-stroked-button [class.active]="viewMode === 'grid'" (click)="viewMode = 'grid'">
           <mat-icon>grid_view</mat-icon>
@@ -267,7 +273,9 @@ export class RoomStatusChangeComponent {
   `]
 })
 export class RoomStatusComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private propertiesService = inject(PropertiesService);
+  private roomStatusLogsService = inject(RoomStatusLogsService);
+  private exportService = inject(ExportService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
 
@@ -281,19 +289,35 @@ export class RoomStatusComponent implements OnInit {
   }
 
   loadProperties(): void {
-    this.mockDataService.getProperties({ pageSize: 100 }).subscribe(result => {
-      this.properties = result.items;
-      if (this.properties.length > 0) {
-        this.selectedProperty = this.properties[0];
-        this.loadStatusLogs();
+    this.propertiesService.getProperties({ pageSize: 100 }).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.properties = response.data.items;
+          if (this.properties.length > 0) {
+            this.selectedProperty = this.properties[0];
+            this.loadStatusLogs();
+          }
+        } else {
+          this.snackBar.open(response.message || '加载失败', '关闭', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        this.snackBar.open('加载失败：' + (err.message || err), '关闭', { duration: 3000 });
       }
     });
   }
 
   loadStatusLogs(): void {
     if (this.selectedProperty) {
-      this.mockDataService.getRoomStatusLogs(this.selectedProperty.id).subscribe(logs => {
-        this.statusLogs = logs;
+      this.roomStatusLogsService.getRoomStatusLogs(this.selectedProperty.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.statusLogs = response.data;
+          }
+        },
+        error: (err) => {
+          console.error('加载状态日志失败', err);
+        }
       });
     }
   }
@@ -310,9 +334,36 @@ export class RoomStatusComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        property.status = result.status;
-        this.snackBar.open('房态更新成功', '关闭', { duration: 2000 });
-        this.loadStatusLogs();
+        this.propertiesService.updatePropertyStatus(property.id, { status: result.status, reason: result.reason }).subscribe({
+          next: (response) => {
+            if (response.success) {
+              this.snackBar.open('房态更新成功', '关闭', { duration: 2000 });
+              this.loadProperties();
+            } else {
+              this.snackBar.open(response.message || '房态更新失败', '关闭', { duration: 3000 });
+            }
+          },
+          error: (err) => {
+            this.snackBar.open('房态更新失败：' + (err.message || err), '关闭', { duration: 3000 });
+          }
+        });
+      }
+    });
+  }
+
+  onExport(): void {
+    this.exportService.exportData('properties', {}).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `房态数据_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.snackBar.open('导出成功', '关闭', { duration: 2000 });
+      },
+      error: (err) => {
+        this.snackBar.open('导出失败：' + (err.message || err), '关闭', { duration: 3000 });
       }
     });
   }

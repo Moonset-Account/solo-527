@@ -16,7 +16,9 @@ import { Inject } from '@angular/core';
 
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
-import { MockDataService } from '../../services/mock-data.service';
+import { PricingService } from '../../services/pricing.service';
+import { PropertiesService } from '../../services/properties.service';
+import { ExportService } from '../../services/export.service';
 import { Property, PricePlan } from '../../types';
 
 @Component({
@@ -48,7 +50,17 @@ import { Property, PricePlan } from '../../types';
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="form-field">
-        <mat-label>价格(元/月)</mat-label>
+        <mat-label>价格类型</mat-label>
+        <mat-select [(ngModel)]="form.priceType">
+          <mat-option value="daily">日租</mat-option>
+          <mat-option value="weekly">周租</mat-option>
+          <mat-option value="monthly">月租</mat-option>
+          <mat-option value="yearly">年租</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>价格(元)</mat-label>
         <input matInput type="number" [(ngModel)]="form.price" placeholder="请输入价格">
       </mat-form-field>
 
@@ -73,6 +85,7 @@ export class PricePlanFormComponent {
   form: any = {
     propertyId: null,
     name: '',
+    priceType: 'monthly',
     price: 0,
     effectiveDate: new Date()
   };
@@ -80,7 +93,7 @@ export class PricePlanFormComponent {
   constructor(
     public dialogRef: MatDialogRef<PricePlanFormComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { properties: Property[] },
-    private mockDataService: MockDataService
+    private propertiesService: PropertiesService
   ) {
     this.properties = data.properties;
     if (this.properties.length > 0) {
@@ -114,7 +127,11 @@ export class PricePlanFormComponent {
   ],
   template: `
     <app-page-header title="价格管理" subtitle="管理房源价格方案">
-      <button mat-raised-button color="primary" (click)="onAdd()">
+      <button mat-stroked-button (click)="onExport()">
+        <mat-icon>file_download</mat-icon>
+        导出
+      </button>
+      <button mat-raised-button color="primary" (click)="onAddPricing()">
         <mat-icon>add</mat-icon>
         新增价格方案
       </button>
@@ -123,7 +140,7 @@ export class PricePlanFormComponent {
     <div class="page-content">
       <mat-form-field appearance="outline" class="property-filter">
         <mat-label>按房源筛选</mat-label>
-        <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="loadPricePlans()">
+        <mat-select [(ngModel)]="selectedPropertyId" (selectionChange)="loadPricings()">
           <mat-option [value]="null">全部房源</mat-option>
           <mat-option *ngFor="let prop of properties" [value]="prop.id">{{ prop.name }}</mat-option>
         </mat-select>
@@ -132,7 +149,7 @@ export class PricePlanFormComponent {
       <div *ngFor="let group of groupedPlans" class="property-group">
         <div class="group-header">
           <h3>{{ group.propertyName }}</h3>
-          <span class="current-price">当前价：<strong>¥{{ group.currentPrice }}/月</strong></span>
+          <span class="current-price">当前价：<strong>¥{{ group.currentPrice }}/{{ getPriceTypeLabel(group.currentPriceType) }}</strong></span>
         </div>
 
         <div class="plans-list">
@@ -143,10 +160,10 @@ export class PricePlanFormComponent {
           >
             <mat-card-header>
               <mat-card-title>{{ plan.name }}</mat-card-title>
-              <mat-card-subtitle>{{ plan.effectiveDate }} 生效</mat-card-subtitle>
+              <mat-card-subtitle>{{ plan.effectiveDate }} 生效 · {{ getPriceTypeLabel(plan.priceType) }}</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
-              <div class="price">¥{{ plan.price }}<span class="unit">/月</span></div>
+              <div class="price">¥{{ plan.price }}<span class="unit">/{{ getPriceTypeLabel(plan.priceType) }}</span></div>
               <div class="source">来源：{{ plan.source }}</div>
               <div *ngIf="plan.isCurrent" class="current-tag">
                 <mat-icon>check_circle</mat-icon>
@@ -155,6 +172,7 @@ export class PricePlanFormComponent {
             </mat-card-content>
             <mat-card-actions *ngIf="!plan.isCurrent">
               <button mat-button color="primary" (click)="onSetCurrent(plan)">设为当前</button>
+              <button mat-button color="warn" (click)="onDelete(plan)">删除</button>
             </mat-card-actions>
           </mat-card>
         </div>
@@ -223,35 +241,53 @@ export class PricePlanFormComponent {
   `]
 })
 export class PricingComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private pricingService = inject(PricingService);
+  private propertiesService = inject(PropertiesService);
+  private exportService = inject(ExportService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
 
   properties: Property[] = [];
-  selectedPropertyId: number | null = null;
+  selectedPropertyId: string | null = null;
   allPlans: PricePlan[] = [];
   groupedPlans: any[] = [];
 
   ngOnInit(): void {
     this.loadProperties();
-    this.loadPricePlans();
+    this.loadPricings();
   }
 
   loadProperties(): void {
-    this.mockDataService.getProperties({ pageSize: 100 }).subscribe(result => {
-      this.properties = result.items;
+    this.propertiesService.getProperties({ pageSize: 100 }).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.properties = response.data.items;
+        }
+      },
+      error: (err) => {
+        this.snackBar.open('加载房源失败：' + (err.message || err), '关闭', { duration: 3000 });
+      }
     });
   }
 
-  loadPricePlans(): void {
+  loadPricings(): void {
     const params: any = {};
     if (this.selectedPropertyId) {
       params.propertyId = this.selectedPropertyId;
     }
 
-    this.mockDataService.getPricePlans(params).subscribe(plans => {
-      this.allPlans = plans;
-      this.groupPlansByProperty();
+    this.pricingService.getPricings(params).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.allPlans = response.data.items;
+          this.groupPlansByProperty();
+        } else {
+          this.snackBar.open(response.message || '加载失败', '关闭', { duration: 3000 });
+        }
+      },
+      error: (err) => {
+        this.snackBar.open('加载失败：' + (err.message || err), '关闭', { duration: 3000 });
+      }
     });
   }
 
@@ -264,19 +300,21 @@ export class PricingComponent implements OnInit {
           propertyName: plan.propertyName,
           propertyId: plan.propertyId,
           currentPrice: 0,
+          currentPriceType: 'monthly',
           plans: []
         };
       }
       groups[plan.propertyName].plans.push(plan);
       if (plan.isCurrent) {
         groups[plan.propertyName].currentPrice = plan.price;
+        groups[plan.propertyName].currentPriceType = plan.priceType;
       }
     });
 
     this.groupedPlans = Object.values(groups);
   }
 
-  onAdd(): void {
+  onAddPricing(): void {
     const dialogRef = this.dialog.open(PricePlanFormComponent, {
       width: '400px',
       maxWidth: '90vw',
@@ -285,16 +323,86 @@ export class PricingComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.snackBar.open('新增价格方案成功', '关闭', { duration: 2000 });
-        this.loadPricePlans();
+        this.pricingService.createPricing(result).subscribe({
+          next: (response) => {
+            if (response.success) {
+              this.snackBar.open('新增价格方案成功', '关闭', { duration: 2000 });
+              this.loadPricings();
+            } else {
+              this.snackBar.open(response.message || '新增失败', '关闭', { duration: 3000 });
+            }
+          },
+          error: (err) => {
+            this.snackBar.open('新增失败：' + (err.message || err), '关闭', { duration: 3000 });
+          }
+        });
       }
     });
   }
 
   onSetCurrent(plan: PricePlan): void {
     if (confirm(`确认将 "${plan.name}" 设为当前生效价格？`)) {
-      this.snackBar.open('已设置为当前价格', '关闭', { duration: 2000 });
-      this.loadPricePlans();
+      this.pricingService.setCurrentPricing(plan.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.snackBar.open('已设置为当前价格', '关闭', { duration: 2000 });
+            this.loadPricings();
+          } else {
+            this.snackBar.open(response.message || '设置失败', '关闭', { duration: 3000 });
+          }
+        },
+        error: (err) => {
+          this.snackBar.open('设置失败：' + (err.message || err), '关闭', { duration: 3000 });
+        }
+      });
     }
+  }
+
+  onDelete(plan: PricePlan): void {
+    if (confirm(`确认删除价格方案"${plan.name}"吗？`)) {
+      this.pricingService.deletePricing(plan.id).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.snackBar.open('删除成功', '关闭', { duration: 2000 });
+            this.loadPricings();
+          } else {
+            this.snackBar.open(response.message || '删除失败', '关闭', { duration: 3000 });
+          }
+        },
+        error: (err) => {
+          this.snackBar.open('删除失败：' + (err.message || err), '关闭', { duration: 3000 });
+        }
+      });
+    }
+  }
+
+  onExport(): void {
+    const filters: Record<string, any> = {};
+    if (this.selectedPropertyId) filters['propertyId'] = this.selectedPropertyId;
+
+    this.exportService.exportData('pricing', filters).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `价格方案_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.snackBar.open('导出成功', '关闭', { duration: 2000 });
+      },
+      error: (err) => {
+        this.snackBar.open('导出失败：' + (err.message || err), '关闭', { duration: 3000 });
+      }
+    });
+  }
+
+  getPriceTypeLabel(priceType: string): string {
+    const map: Record<string, string> = {
+      daily: '日',
+      weekly: '周',
+      monthly: '月',
+      yearly: '年'
+    };
+    return map[priceType] || priceType;
   }
 }

@@ -14,11 +14,11 @@ export class TicketLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'ticket_id' })
   ticketId: string;
 
   @ManyToOne(() => Ticket, (ticket) => ticket.logs)
-  @JoinColumn({ name: 'ticketId' })
+  @JoinColumn({ name: 'ticket_id' })
   ticket: Ticket;
 
   @Column()
@@ -34,6 +34,6 @@ export class TicketLog {
   @JoinColumn({ name: 'operatorId' })
   operator: User;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

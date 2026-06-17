@@ -45,24 +45,24 @@ export class Property {
   })
   status: PropertyStatus;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  @Column({ name: 'base_price', type: 'decimal', precision: 12, scale: 2, nullable: true })
   basePrice: number;
 
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'close_reason', type: 'text', nullable: true })
   closeReason: string;
 
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

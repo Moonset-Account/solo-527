@@ -16,32 +16,32 @@ export class Lease {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'lease_no', unique: true })
   leaseNo: string;
 
-  @Column()
+  @Column({ name: 'property_id' })
   propertyId: string;
 
   @ManyToOne(() => Property)
-  @JoinColumn({ name: 'propertyId' })
+  @JoinColumn({ name: 'property_id' })
   property: Property;
 
-  @Column()
+  @Column({ name: 'tenant_name' })
   tenantName: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'tenant_contact', nullable: true })
   tenantContact: string;
 
-  @Column({ type: 'date' })
+  @Column({ name: 'start_date', type: 'date' })
   startDate: Date;
 
-  @Column({ type: 'date' })
+  @Column({ name: 'end_date', type: 'date' })
   endDate: Date;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  @Column({ name: 'monthly_rent', type: 'decimal', precision: 12, scale: 2 })
   monthlyRent: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ name: 'deposit_amount', type: 'decimal', precision: 12, scale: 2, default: 0 })
   depositAmount: number;
 
   @Column({
@@ -57,16 +57,16 @@ export class Lease {
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'created_by', nullable: true })
   createdBy: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'createdBy' })
+  @JoinColumn({ name: 'created_by' })
   creator: User;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

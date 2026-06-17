@@ -1,11 +1,10 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ContentChildren, QueryList, TemplateRef, Directive, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { SelectionModel } from '@angular/cdk/collections';
-import { BehaviorSubject } from 'rxjs';
 
 export interface ColumnDef {
   key: string;
@@ -15,10 +14,20 @@ export interface ColumnDef {
   width?: string;
 }
 
+@Directive({
+  selector: '[cellTemplate]',
+  standalone: true
+})
+export class CellTemplateDirective {
+  constructor(public templateRef: TemplateRef<any>, private el: ElementRef) {}
+
+  @Input('cellTemplate') key!: string;
+}
+
 @Component({
   selector: 'app-data-table',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatCheckboxModule],
+  imports: [CommonModule, MatTableModule, MatPaginatorModule, MatSortModule, MatCheckboxModule, CellTemplateDirective],
   template: `
     <div class="table-container">
       <table mat-table [dataSource]="data" matSort (matSortChange)="onSortChange($event)" class="data-table">
@@ -42,10 +51,12 @@ export interface ColumnDef {
           <td mat-cell *matCellDef="let row">
             <ng-container [ngSwitch]="col.type">
               <ng-container *ngSwitchCase="'template'">
-                <ng-container *ngTemplateOutlet="cellTemplate?.[col.key] || defaultTemplate; context: { $implicit: row, column: col }"></ng-container>
+                <ng-container 
+                  *ngTemplateOutlet="getCellTemplate(col.key); context: { $implicit: row, column: col }"
+                ></ng-container>
               </ng-container>
               <ng-container *ngSwitchDefault>
-                {{ row[col.key] }}
+                {{ formatValue(row[col.key]) }}
               </ng-container>
             </ng-container>
           </td>
@@ -104,8 +115,9 @@ export class DataTableComponent {
   @Input() showPagination: boolean = true;
   @Input() sortable: boolean = false;
   @Input() selectable: boolean = false;
-  @Input() cellTemplate?: Record<string, any>;
-  @Input() actionTemplate?: any;
+  @Input() actionTemplate?: TemplateRef<any>;
+
+  @ContentChildren(CellTemplateDirective) cellTemplates!: QueryList<CellTemplateDirective>;
 
   @Output() pageChange = new EventEmitter<PageEvent>();
   @Output() sortChange = new EventEmitter<Sort>();
@@ -124,8 +136,25 @@ export class DataTableComponent {
     return cols;
   }
 
-  get defaultTemplate(): any {
-    return null;
+  getCellTemplate(key: string): TemplateRef<any> | null {
+    const directive = this.cellTemplates?.find(t => t.key === key);
+    return directive?.templateRef || null;
+  }
+
+  formatValue(value: any): string {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    if (typeof value === 'boolean') {
+      return value ? '是' : '否';
+    }
+    if (value instanceof Date) {
+      return value.toLocaleDateString('zh-CN');
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return String(value);
   }
 
   isAllSelected(): boolean {

@@ -12,14 +12,15 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PageEvent } from '@angular/material/paginator';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { Observable } from 'rxjs';
+import { Observable, lastValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { DataTableComponent, ColumnDef } from '../../shared/data-table.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
-import { MockDataService } from '../../services/mock-data.service';
-import { Bill, PageResult, SourceRecord } from '../../types';
+import { BillsService } from '../../services/bills.service';
+import { ExportService } from '../../services/export.service';
+import { Bill, BillStatus, BillType } from '../../types';
 import { BillDetailComponent } from './bill-detail.component';
 
 @Component({
@@ -61,8 +62,7 @@ import { BillDetailComponent } from './bill-detail.component';
             <mat-select [(ngModel)]="filters.type">
               <mat-option value="">全部</mat-option>
               <mat-option value="rent">租金</mat-option>
-              <mat-option value="water">水费</mat-option>
-              <mat-option value="electricity">电费</mat-option>
+              <mat-option value="deposit">押金</mat-option>
               <mat-option value="service">服务费</mat-option>
               <mat-option value="other">其他</mat-option>
             </mat-select>
@@ -74,8 +74,8 @@ import { BillDetailComponent } from './bill-detail.component';
               <mat-option value="">全部</mat-option>
               <mat-option value="unpaid">未支付</mat-option>
               <mat-option value="paid">已支付</mat-option>
-              <mat-option value="overdue">已逾期</mat-option>
-              <mat-option value="cancelled">已取消</mat-option>
+              <mat-option value="partial">部分支付</mat-option>
+              <mat-option value="void">作废</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -123,16 +123,15 @@ import { BillDetailComponent } from './bill-detail.component';
           (pageChange)="onPageChange($event)"
           (selectionChange)="onSelectionChange($event)"
           [actionTemplate]="actionTemplate"
-          [cellTemplate]="cellTemplates"
         >
-          <ng-template #statusTemplate let-row>
+          <ng-template cellTemplate="status" let-row>
             <app-status-badge [status]="getStatusBadge(row.status)" [label]="getStatusLabel(row.status)"></app-status-badge>
           </ng-template>
-          <ng-template #reconciledTemplate let-row>
+          <ng-template cellTemplate="reconciled" let-row>
             <app-status-badge [status]="row.reconciled ? 'success' : 'warning'" [label]="row.reconciled ? '已对账' : '未对账'"></app-status-badge>
           </ng-template>
-          <ng-template #amountTemplate let-row>
-            <span class="amount">¥{{ row.amount }}</span>
+          <ng-template cellTemplate="amount" let-row>
+            <span class="amount">¥{{ row.amount?.toFixed(2) }}</span>
           </ng-template>
           <ng-template #actionTemplate let-row>
             <button mat-button color="primary" (click)="onViewDetail(row)">查看</button>
@@ -198,7 +197,8 @@ import { BillDetailComponent } from './bill-detail.component';
   `]
 })
 export class BillsComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private billsService = inject(BillsService);
+  private exportService = inject(ExportService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
   private breakpointObserver = inject(BreakpointObserver);
@@ -230,14 +230,6 @@ export class BillsComponent implements OnInit {
     { key: 'reconciled', label: '对账状态', type: 'template' }
   ];
 
-  get cellTemplates() {
-    return {
-      status: null,
-      reconciled: null,
-      amount: null
-    };
-  }
-
   ngOnInit(): void {
     this.loadBills();
   }
@@ -251,9 +243,13 @@ export class BillsComponent implements OnInit {
       reconciled: this.filters.reconciled !== '' ? this.filters.reconciled : undefined
     };
 
-    this.mockDataService.getBills(params).subscribe((result: PageResult<Bill>) => {
-      this.bills = result.items;
-      this.total = result.total;
+    this.billsService.getBills(params).subscribe(response => {
+      if (response.success) {
+        this.bills = response.data.items;
+        this.total = response.data.total;
+        this.pageIndex = response.data.page - 1;
+        this.pageSize = response.data.pageSize;
+      }
     });
   }
 
@@ -283,58 +279,114 @@ export class BillsComponent implements OnInit {
     this.selectedBills = selected;
   }
 
-  onViewDetail(bill: Bill): void {
-    this.mockDataService.getSourceRecords('bill', bill.id).subscribe(sources => {
-      this.dialog.open(BillDetailComponent, {
-        width: '600px',
-        maxWidth: '90vw',
-        data: { bill, sources }
-      });
-    });
+  async onViewDetail(bill: Bill): Promise<void> {
+    try {
+      const response = await lastValueFrom(this.billsService.getBill(bill.id));
+      if (response.success) {
+        this.dialog.open(BillDetailComponent, {
+          width: '600px',
+          maxWidth: '90vw',
+          data: { bill: response.data }
+        });
+      }
+    } catch (error) {
+      this.snackBar.open('获取账单详情失败', '关闭', { duration: 2000 });
+    }
   }
 
   onReconcile(bill: Bill): void {
-    const note = prompt('请输入对账说明：');
-    if (note !== null) {
-      bill.reconciled = true;
-      bill.reconcileNote = note || '已对账';
-      this.snackBar.open('对账成功', '关闭', { duration: 2000 });
-    }
-  }
-
-  onBatchReconcile(): void {
-    if (this.selectedBills.length === 0) return;
-    const note = prompt(`确认对 ${this.selectedBills.length} 条账单进行对账？请输入说明：`);
-    if (note !== null) {
-      this.selectedBills.forEach(bill => {
-        bill.reconciled = true;
-        bill.reconcileNote = note || '批量对账';
+    const sourceRemark = prompt('请输入对账说明：');
+    if (sourceRemark !== null) {
+      const data = {
+        reconciled: true,
+        paidAmount: bill.amount,
+        paidDate: new Date().toISOString().split('T')[0],
+        sourceRemark: sourceRemark || '已对账'
+      };
+      this.billsService.reconcileBill(bill.id, data).subscribe(response => {
+        if (response.success) {
+          this.snackBar.open('对账成功', '关闭', { duration: 2000 });
+          this.loadBills();
+        } else {
+          this.snackBar.open(response.message || '对账失败', '关闭', { duration: 2000 });
+        }
       });
-      this.snackBar.open(`已对账 ${this.selectedBills.length} 条账单`, '关闭', { duration: 2000 });
     }
   }
 
-  onExport(): void {
-    alert('导出功能待实现');
+  async onBatchReconcile(): Promise<void> {
+    if (this.selectedBills.length === 0) return;
+    const sourceRemark = prompt(`确认对 ${this.selectedBills.length} 条账单进行对账？请输入说明：`);
+    if (sourceRemark !== null) {
+      let successCount = 0;
+      for (const bill of this.selectedBills) {
+        try {
+          const data = {
+            reconciled: true,
+            paidAmount: bill.amount,
+            paidDate: new Date().toISOString().split('T')[0],
+            sourceRemark: sourceRemark || '批量对账'
+          };
+          const response = await lastValueFrom(this.billsService.reconcileBill(bill.id, data));
+          if (response.success) {
+            successCount++;
+          }
+        } catch (error) {
+          console.error('对账失败:', error);
+        }
+      }
+      this.snackBar.open(`已成功对账 ${successCount}/${this.selectedBills.length} 条账单`, '关闭', { duration: 3000 });
+      this.loadBills();
+    }
   }
 
-  getStatusBadge(status: string): 'success' | 'warning' | 'error' | 'info' | 'default' {
-    const map: Record<string, any> = {
+  async onExport(): Promise<void> {
+    try {
+      const filters = {
+        type: this.filters.type || undefined,
+        status: this.filters.status || undefined,
+        reconciled: this.filters.reconciled !== '' ? this.filters.reconciled : undefined
+      };
+      const blob = await lastValueFrom(this.exportService.exportData('bills', filters));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bills_${Date.now()}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      this.snackBar.open('导出成功', '关闭', { duration: 2000 });
+    } catch (error) {
+      this.snackBar.open('导出失败', '关闭', { duration: 2000 });
+    }
+  }
+
+  getStatusBadge(status: BillStatus): 'success' | 'warning' | 'error' | 'info' | 'default' {
+    const map: Record<BillStatus, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
       paid: 'success',
       unpaid: 'warning',
-      overdue: 'error',
-      cancelled: 'default'
+      partial: 'info',
+      void: 'default'
     };
     return map[status] || 'default';
   }
 
-  getStatusLabel(status: string): string {
-    const map: Record<string, string> = {
-      paid: '已支付',
+  getStatusLabel(status: BillStatus): string {
+    const map: Record<BillStatus, string> = {
       unpaid: '未支付',
-      overdue: '已逾期',
-      cancelled: '已取消'
+      paid: '已支付',
+      partial: '部分支付',
+      void: '作废'
     };
     return map[status] || status;
+  }
+
+  getTypeLabel(type: BillType): string {
+    const map: Record<BillType, string> = {
+      rent: '租金',
+      deposit: '押金',
+      service: '服务费',
+      other: '其他'
+    };
+    return map[type] || type;
   }
 }

@@ -154,6 +154,21 @@ export class BillsService {
     if (reconcileDto.reconciled) {
       bill.reconciledAt = new Date();
       bill.reconciledBy = operatorId;
+      
+      if (reconcileDto.paidAmount !== undefined) {
+        bill.paidAmount = reconcileDto.paidAmount;
+        if (reconcileDto.paidAmount >= bill.amount) {
+          bill.status = 'paid';
+        } else if (reconcileDto.paidAmount > 0) {
+          bill.status = 'partial';
+        }
+      }
+      if (reconcileDto.paidDate) {
+        bill.paidDate = reconcileDto.paidDate;
+      }
+      if (reconcileDto.sourceRemark) {
+        bill.sourceRemark = reconcileDto.sourceRemark;
+      }
     } else {
       bill.reconciledAt = null;
       bill.reconciledBy = null;

@@ -9,12 +9,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PageEvent } from '@angular/material/paginator';
+import { lastValueFrom } from 'rxjs';
 
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { DataTableComponent, ColumnDef } from '../../shared/data-table.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
-import { MockDataService } from '../../services/mock-data.service';
-import { Deposit, PageResult, SourceRecord } from '../../types';
+import { DepositsService } from '../../services/deposits.service';
+import { ExportService } from '../../services/export.service';
+import { Deposit, DepositType, DepositStatus } from '../../types';
 import { DepositDetailComponent } from './deposit-detail.component';
 
 @Component({
@@ -49,8 +51,8 @@ import { DepositDetailComponent } from './deposit-detail.component';
             <mat-label>状态</mat-label>
             <mat-select [(ngModel)]="filters.status">
               <mat-option value="">全部</mat-option>
-              <mat-option value="collected">已收取</mat-option>
-              <mat-option value="returned">已退还</mat-option>
+              <mat-option value="active">有效</mat-option>
+              <mat-option value="refunded">已退还</mat-option>
               <mat-option value="deducted">已扣除</mat-option>
             </mat-select>
           </mat-form-field>
@@ -59,8 +61,9 @@ import { DepositDetailComponent } from './deposit-detail.component';
             <mat-label>类型</mat-label>
             <mat-select [(ngModel)]="filters.type">
               <mat-option value="">全部</mat-option>
-              <mat-option value="rent_deposit">房租押金</mat-option>
-              <mat-option value="utility_deposit">水电押金</mat-option>
+              <mat-option value="received">已收</mat-option>
+              <mat-option value="refunded">已退</mat-option>
+              <mat-option value="deducted">扣除</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -98,6 +101,15 @@ import { DepositDetailComponent } from './deposit-detail.component';
           (pageChange)="onPageChange($event)"
           [actionTemplate]="actionTemplate"
         >
+          <ng-template cellTemplate="amount" let-row>
+            <span class="amount">¥{{ row.amount?.toFixed(2) }}</span>
+          </ng-template>
+          <ng-template cellTemplate="type" let-row>
+            <app-status-badge [status]="getTypeBadge(row.type)" [label]="getTypeLabel(row.type)"></app-status-badge>
+          </ng-template>
+          <ng-template cellTemplate="status" let-row>
+            <app-status-badge [status]="getStatusBadge(row.status)" [label]="getStatusLabel(row.status)"></app-status-badge>
+          </ng-template>
           <ng-template #actionTemplate let-row>
             <button mat-button color="primary" (click)="onViewDetail(row)">查看</button>
           </ng-template>
@@ -128,7 +140,8 @@ import { DepositDetailComponent } from './deposit-detail.component';
   `]
 })
 export class DepositsComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private depositsService = inject(DepositsService);
+  private exportService = inject(ExportService);
   private dialog = inject(MatDialog);
 
   deposits: Deposit[] = [];
@@ -145,9 +158,9 @@ export class DepositsComponent implements OnInit {
   columns: ColumnDef[] = [
     { key: 'depositNo', label: '押金编号', sortable: true },
     { key: 'leaseNo', label: '租约编号' },
-    { key: 'amount', label: '金额' },
-    { key: 'type', label: '类型' },
-    { key: 'status', label: '状态' },
+    { key: 'amount', label: '金额', type: 'template' },
+    { key: 'type', label: '类型', type: 'template' },
+    { key: 'status', label: '状态', type: 'template' },
     { key: 'date', label: '日期' },
     { key: 'source', label: '来源' }
   ];
@@ -164,9 +177,13 @@ export class DepositsComponent implements OnInit {
       type: this.filters.type || undefined
     };
 
-    this.mockDataService.getDeposits(params).subscribe((result: PageResult<Deposit>) => {
-      this.deposits = result.items;
-      this.total = result.total;
+    this.depositsService.getDeposits(params).subscribe(response => {
+      if (response.success) {
+        this.deposits = response.data.items;
+        this.total = response.data.total;
+        this.pageIndex = response.data.page - 1;
+        this.pageSize = response.data.pageSize;
+      }
     });
   }
 
@@ -191,17 +208,72 @@ export class DepositsComponent implements OnInit {
     this.loadDeposits();
   }
 
-  onViewDetail(deposit: Deposit): void {
-    this.mockDataService.getSourceRecords('deposit', deposit.id).subscribe(sources => {
-      this.dialog.open(DepositDetailComponent, {
-        width: '500px',
-        maxWidth: '90vw',
-        data: { deposit, sources }
-      });
-    });
+  async onViewDetail(deposit: Deposit): Promise<void> {
+    try {
+      const response = await lastValueFrom(this.depositsService.getDeposit(deposit.id));
+      if (response.success) {
+        this.dialog.open(DepositDetailComponent, {
+          width: '500px',
+          maxWidth: '90vw',
+          data: { deposit: response.data }
+        });
+      }
+    } catch (error) {
+      console.error('获取押金详情失败:', error);
+    }
   }
 
-  onExport(): void {
-    alert('导出功能待实现');
+  async onExport(): Promise<void> {
+    try {
+      const filters = {
+        status: this.filters.status || undefined,
+        type: this.filters.type || undefined
+      };
+      const blob = await lastValueFrom(this.exportService.exportData('deposits', filters));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `deposits_${Date.now()}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出失败:', error);
+    }
+  }
+
+  getStatusBadge(status: DepositStatus): 'success' | 'warning' | 'error' | 'info' | 'default' {
+    const map: Record<DepositStatus, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
+      active: 'success',
+      refunded: 'info',
+      deducted: 'warning'
+    };
+    return map[status] || 'default';
+  }
+
+  getStatusLabel(status: DepositStatus): string {
+    const map: Record<DepositStatus, string> = {
+      active: '有效',
+      refunded: '已退还',
+      deducted: '已扣除'
+    };
+    return map[status] || status;
+  }
+
+  getTypeBadge(type: DepositType): 'success' | 'warning' | 'error' | 'info' | 'default' {
+    const map: Record<DepositType, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
+      received: 'success',
+      refunded: 'info',
+      deducted: 'warning'
+    };
+    return map[type] || 'default';
+  }
+
+  getTypeLabel(type: DepositType): string {
+    const map: Record<DepositType, string> = {
+      received: '已收',
+      refunded: '已退',
+      deducted: '扣除'
+    };
+    return map[type] || type;
   }
 }

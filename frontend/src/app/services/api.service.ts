@@ -44,9 +44,10 @@ export class ApiService {
     });
   }
 
-  post<T>(endpoint: string, data?: any): Observable<T> {
+  post<T>(endpoint: string, data?: any, responseType?: 'json' | 'blob'): Observable<T> {
     return this.http.post<T>(`${this.baseUrl}${endpoint}`, data, {
-      headers: this.getHeaders()
+      headers: this.getHeaders(),
+      responseType: responseType as any
     });
   }
 
@@ -56,9 +57,22 @@ export class ApiService {
     });
   }
 
+  patch<T>(endpoint: string, data?: any): Observable<T> {
+    return this.http.patch<T>(`${this.baseUrl}${endpoint}`, data, {
+      headers: this.getHeaders()
+    });
+  }
+
   delete<T>(endpoint: string): Observable<T> {
     return this.http.delete<T>(`${this.baseUrl}${endpoint}`, {
       headers: this.getHeaders()
+    });
+  }
+
+  downloadFile(endpoint: string, data?: any): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}${endpoint}`, data, {
+      headers: this.getHeaders(),
+      responseType: 'blob'
     });
   }
 }

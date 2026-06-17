@@ -10,10 +10,11 @@ import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { lastValueFrom } from 'rxjs';
 
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { StatusBadgeComponent } from '../../shared/status-badge.component';
-import { MockDataService } from '../../services/mock-data.service';
+import { ExportService } from '../../services/export.service';
 import { ExportRecord } from '../../types';
 
 @Component({
@@ -149,7 +150,7 @@ import { ExportRecord } from '../../types';
   `]
 })
 export class ExportComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private exportService = inject(ExportService);
   private snackBar = inject(MatSnackBar);
 
   exportType = 'lease';
@@ -162,19 +163,43 @@ export class ExportComponent implements OnInit {
   }
 
   loadExportRecords(): void {
-    this.mockDataService.getExportRecords().subscribe(records => {
-      this.exportRecords = records;
-    });
+    this.exportRecords = [];
   }
 
-  onExport(): void {
+  async onExport(): Promise<void> {
     this.exporting = true;
 
-    setTimeout(() => {
+    try {
+      const typeMap: Record<string, string> = {
+        property: 'properties',
+        lease: 'leases',
+        bill: 'bills',
+        deposit: 'deposits'
+      };
+      const type = typeMap[this.exportType] || this.exportType;
+      
+      const filters: Record<string, any> = {};
+      if (this.dateRange.start) {
+        filters['startDate'] = this.dateRange.start.toISOString().split('T')[0];
+      }
+      if (this.dateRange.end) {
+        filters['endDate'] = this.dateRange.end.toISOString().split('T')[0];
+      }
+
+      const blob = await lastValueFrom(this.exportService.exportData(type, filters));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${type}_${Date.now()}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      this.snackBar.open('导出成功', '关闭', { duration: 3000 });
+    } catch (error) {
+      this.snackBar.open('导出失败，请稍后重试', '关闭', { duration: 3000 });
+    } finally {
       this.exporting = false;
-      this.snackBar.open('导出任务已创建，请在导出历史中查看', '关闭', { duration: 3000 });
-      this.loadExportRecords();
-    }, 1500);
+    }
   }
 
   onDownload(record: ExportRecord): void {

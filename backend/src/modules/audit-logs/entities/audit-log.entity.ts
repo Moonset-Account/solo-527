@@ -25,34 +25,34 @@ export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'module' })
   module: string;
 
   @Column()
   action: string;
 
-  @Column()
+  @Column({ name: 'entity_type' })
   entityType: string;
 
-  @Column()
+  @Column({ name: 'entity_id' })
   entityId: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ name: 'old_value', type: 'jsonb', nullable: true })
   oldValue: Record<string, any>;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ name: 'new_value', type: 'jsonb', nullable: true })
   newValue: Record<string, any>;
 
-  @Column({ nullable: true })
+  @Column({ name: 'operator_id', nullable: true })
   operatorId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'operatorId' })
+  @JoinColumn({ name: 'operator_id' })
   operator: User;
 
-  @Column({ nullable: true })
+  @Column({ name: 'ip', nullable: true })
   ip: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

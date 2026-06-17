@@ -13,7 +13,7 @@ export class AuthService {
   private userKey = 'current_user';
 
   private mockUser: User = {
-    id: 1,
+    id: '1',
     username: 'admin',
     name: '管理员',
     email: 'admin@example.com',

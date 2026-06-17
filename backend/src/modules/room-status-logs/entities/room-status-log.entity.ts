@@ -15,20 +15,22 @@ export class RoomStatusLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'property_id' })
   propertyId: string;
 
   @ManyToOne(() => Property)
-  @JoinColumn({ name: 'propertyId' })
+  @JoinColumn({ name: 'property_id' })
   property: Property;
 
   @Column({
+    name: 'from_status',
     type: 'enum',
     enum: ['vacant', 'rented', 'maintenance', 'closed'],
   })
   fromStatus: PropertyStatus;
 
   @Column({
+    name: 'to_status',
     type: 'enum',
     enum: ['vacant', 'rented', 'maintenance', 'closed'],
   })
@@ -40,16 +42,16 @@ export class RoomStatusLog {
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'operator_id', nullable: true })
   operatorId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'operatorId' })
+  @JoinColumn({ name: 'operator_id' })
   operator: User;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

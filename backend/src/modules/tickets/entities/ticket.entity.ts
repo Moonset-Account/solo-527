@@ -21,7 +21,7 @@ export class Ticket {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'ticket_no', unique: true })
   ticketNo: string;
 
   @Column({
@@ -30,11 +30,11 @@ export class Ticket {
   })
   type: TicketType;
 
-  @Column()
+  @Column({ name: 'property_id' })
   propertyId: string;
 
   @ManyToOne(() => Property)
-  @JoinColumn({ name: 'propertyId' })
+  @JoinColumn({ name: 'property_id' })
   property: Property;
 
   @Column()
@@ -57,17 +57,17 @@ export class Ticket {
   })
   priority: TicketPriority;
 
-  @Column({ nullable: true })
+  @Column({ name: 'reporter_name', nullable: true })
   reporterName: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'reporter_contact', nullable: true })
   reporterContact: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'assignee_id', nullable: true })
   assigneeId: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'assigneeId' })
+  @JoinColumn({ name: 'assignee_id' })
   assignee: User;
 
   @Column({ type: 'text', nullable: true })
@@ -76,15 +76,15 @@ export class Ticket {
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
   @OneToMany(() => TicketLog, (log) => log.ticket)
   logs: TicketLog[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

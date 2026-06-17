@@ -28,9 +28,9 @@
         <mat-label>状态</mat-label>
         <mat-select [(ngModel)]="filters.status">
           <mat-option value="">全部</mat-option>
-          <mat-option value="active">进行中</mat-option>
+          <mat-option value="active">有效</mat-option>
           <mat-option value="pending">待生效</mat-option>
-          <mat-option value="expired">已到期</mat-option>
+          <mat-option value="expired">已过期</mat-option>
           <mat-option value="terminated">已终止</mat-option>
         </mat-select>
       </mat-form-field>
@@ -70,6 +70,15 @@
       (pageChange)="onPageChange($event)"
       [actionTemplate]="actionTemplate"
     >
+      <ng-template cellTemplate="status" let-row>
+        <app-status-badge [status]="getStatusBadge(row.status)" [label]="getStatusLabel(row.status)"></app-status-badge>
+      </ng-template>
+      <ng-template cellTemplate="monthlyRent" let-row>
+        <span class="amount">¥{{ row.monthlyRent?.toFixed(2) }}</span>
+      </ng-template>
+      <ng-template cellTemplate="deposit" let-row>
+        <span class="amount">¥{{ row.deposit?.toFixed(2) }}</span>
+      </ng-template>
       <ng-template #actionTemplate let-row>
         <button mat-button color="primary" (click)="onViewDetail(row)">查看</button>
       </ng-template>

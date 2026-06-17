@@ -16,17 +16,18 @@ export class Pricing {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ name: 'property_id' })
   propertyId: string;
 
   @ManyToOne(() => Property)
-  @JoinColumn({ name: 'propertyId' })
+  @JoinColumn({ name: 'property_id' })
   property: Property;
 
   @Column()
   name: string;
 
   @Column({
+    name: 'price_type',
     type: 'enum',
     enum: ['daily', 'weekly', 'monthly', 'yearly'],
   })
@@ -35,28 +36,28 @@ export class Pricing {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   price: number;
 
-  @Column({ type: 'date' })
+  @Column({ name: 'valid_from', type: 'date' })
   validFrom: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ name: 'valid_to', type: 'date', nullable: true })
   validTo: Date;
 
-  @Column({ default: false })
+  @Column({ name: 'is_current', default: false })
   isCurrent: boolean;
 
   @Column({ nullable: true })
   source: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'source_remark', type: 'text', nullable: true })
   sourceRemark: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'created_by', nullable: true })
   createdBy: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: 'createdBy' })
+  @JoinColumn({ name: 'created_by' })
   creator: User;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

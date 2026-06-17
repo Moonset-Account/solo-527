@@ -15,7 +15,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       password: this.configService.get<string>('DB_PASSWORD', 'postgres'),
       database: this.configService.get<string>('DB_DATABASE', 'nestjs_db'),
       entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-      synchronize: this.configService.get<boolean>('DB_SYNC', false),
+      synchronize: false,
       logging: this.configService.get<boolean>('DB_LOGGING', false),
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
       migrationsRun: false,
