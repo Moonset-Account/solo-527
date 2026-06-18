@@ -10,29 +10,14 @@ const page = usePage()
 
 const shipment = computed(() => page.props.shipment)
 
-const logisticsOptions = [
-    { value: 'sf', label: '顺丰速运' },
-    { value: 'yt', label: '圆通速递' },
-    { value: 'zt', label: '中通快递' },
-    { value: 'yd', label: '韵达速递' },
-    { value: 'ems', label: 'EMS' },
-    { value: 'jd', label: '京东物流' },
-    { value: 'other', label: '其他' },
-]
-
-const getLogisticsText = (value) => {
-    const option = logisticsOptions.find((o) => o.value === value)
-    return option?.label || value
-}
-
 const getStatusColor = (status) => {
     const colors = {
         pending: 'gray',
         picked: 'yellow',
-        in_transit: 'blue',
+        transit: 'blue',
         delivered: 'green',
-        failed: 'red',
         returned: 'purple',
+        cancelled: 'red',
     }
     return colors[status] || 'gray'
 }
@@ -41,10 +26,10 @@ const getStatusText = (status) => {
     const texts = {
         pending: '待发货',
         picked: '已揽收',
-        in_transit: '运输中',
+        transit: '运输中',
         delivered: '已签收',
-        failed: '派送失败',
         returned: '已退回',
+        cancelled: '已取消',
     }
     return texts[status] || status
 }
@@ -52,13 +37,13 @@ const getStatusText = (status) => {
 const trackingSteps = [
     { key: 'pending', label: '待发货' },
     { key: 'picked', label: '已揽收' },
-    { key: 'in_transit', label: '运输中' },
+    { key: 'transit', label: '运输中' },
     { key: 'delivered', label: '已签收' },
 ]
 
 const getStepIndex = () => {
-    const statusOrder = ['pending', 'picked', 'in_transit', 'delivered', 'failed', 'returned']
-    return statusOrder.indexOf(shipment.value.status)
+    const statusOrder = ['pending', 'picked', 'transit', 'delivered', 'returned', 'cancelled']
+    return statusOrder.indexOf(shipment.value?.status)
 }
 </script>
 
@@ -66,11 +51,11 @@ const getStepIndex = () => {
     <AppLayout :title="`发货详情 - ${shipment.shipment_no}`">
         <div class="space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <Button variant="ghost" @click="router.visit('/shipping')" class="-ml-2">
+                <Button variant="ghost" @click="router.visit(route('shipments.index'))" class="-ml-2">
                     <ArrowLeftIcon class="w-5 h-5 mr-2" />
                     返回列表
                 </Button>
-                <Button @click="router.visit(`/shipping/${shipment.id}/edit`)">
+                <Button @click="router.visit(route('shipments.edit', shipment.id))">
                     <PencilIcon class="w-5 h-5 mr-2" />
                     编辑
                 </Button>
@@ -80,7 +65,7 @@ const getStepIndex = () => {
                 <div class="flex items-start justify-between mb-6">
                     <div>
                         <div class="flex items-center gap-3 mb-2">
-                            <TruckIcon class="w-6 h-6 text-primary" />
+                            <TruckIcon class="w-6 h-6 text-blue-600" />
                             <h2 class="text-xl font-semibold text-gray-900">{{ shipment.shipment_no }}</h2>
                             <StatusBadge :color="getStatusColor(shipment.status)" dot size="lg">
                                 {{ getStatusText(shipment.status) }}
@@ -88,9 +73,11 @@ const getStepIndex = () => {
                         </div>
                         <p class="text-sm text-gray-500">
                             关联订单：
-                            <a class="text-primary hover:underline" @click="router.visit(`/orders/${shipment.order_id}`)">
-                                {{ shipment.order_no }}
+                            <a v-if="shipment.order_id" class="text-blue-600 hover:underline cursor-pointer" @click="router.visit(route('orders.show', shipment.order_id))">
+                                {{ shipment.order_no || shipment.order?.order_no || '#' + shipment.order_id }}
                             </a>
+                            <span v-else>-</span>
+                            · 来源大棚：{{ shipment.greenhouse?.name || '-' }}
                         </p>
                     </div>
                 </div>
@@ -100,8 +87,8 @@ const getStepIndex = () => {
                     <div class="relative">
                         <div class="absolute top-3 left-0 right-0 h-0.5 bg-gray-200"></div>
                         <div
-                            class="absolute top-3 left-0 h-0.5 bg-primary transition-all"
-                            :style="{ width: `${Math.min(100, (getStepIndex() / (trackingSteps.length - 1)) * 100)}%` }"
+                            class="absolute top-3 left-0 h-0.5 bg-blue-600 transition-all"
+                            :style="{ width: `${Math.max(0, Math.min(100, (getStepIndex() / (trackingSteps.length - 1)) * 100))}%` }"
                         ></div>
                         <div class="flex justify-between relative">
                             <div
@@ -113,7 +100,7 @@ const getStepIndex = () => {
                                     :class="[
                                         'w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium z-10',
                                         index <= getStepIndex()
-                                            ? 'bg-primary text-white'
+                                            ? 'bg-blue-600 text-white'
                                             : 'bg-gray-200 text-gray-500'
                                     ]"
                                 >
@@ -122,7 +109,7 @@ const getStepIndex = () => {
                                 <span
                                     :class="[
                                         'mt-2 text-xs font-medium',
-                                        index <= getStepIndex() ? 'text-primary' : 'text-gray-500'
+                                        index <= getStepIndex() ? 'text-blue-600' : 'text-gray-500'
                                     ]"
                                 >
                                     {{ step.label }}
@@ -137,16 +124,25 @@ const getStepIndex = () => {
                         <h3 class="text-sm font-medium text-gray-500 mb-2">物流信息</h3>
                         <div class="space-y-1.5 text-sm">
                             <p class="text-gray-900">
-                                <span class="text-gray-500">物流公司：</span>{{ getLogisticsText(shipment.logistics_provider) }}
+                                <span class="text-gray-500">物流公司：</span>{{ shipment.logistics_provider || shipment.logistics_company || '-' }}
                             </p>
                             <p class="text-gray-900">
-                                <span class="text-gray-500">跟踪号：</span>{{ shipment.tracking_no }}
+                                <span class="text-gray-500">跟踪号：</span>{{ shipment.tracking_no || '-' }}
                             </p>
                             <p class="text-gray-900">
-                                <span class="text-gray-500">发货时间：</span>{{ shipment.shipped_at || '-' }}
+                                <span class="text-gray-500">发货时间：</span>{{ shipment.shipped_at || shipment.shipment_date || '-' }}
                             </p>
                             <p class="text-gray-900">
-                                <span class="text-gray-500">预计送达：</span>{{ shipment.estimated_delivery || '-' }}
+                                <span class="text-gray-500">预计送达：</span>{{ shipment.estimated_delivery || shipment.estimated_arrival || '-' }}
+                            </p>
+                            <p class="text-gray-900">
+                                <span class="text-gray-500">实际到达：</span>{{ shipment.actual_arrival || '-' }}
+                            </p>
+                            <p class="text-gray-900">
+                                <span class="text-gray-500">重量：</span>{{ shipment.weight ? shipment.weight + ' kg' : '-' }}
+                            </p>
+                            <p class="text-gray-900">
+                                <span class="text-gray-500">包裹数：</span>{{ shipment.packages || '-' }}
                             </p>
                         </div>
                     </div>
@@ -154,21 +150,21 @@ const getStepIndex = () => {
                         <h3 class="text-sm font-medium text-gray-500 mb-2">收件人信息</h3>
                         <div class="space-y-1.5 text-sm">
                             <p class="text-gray-900">
-                                <span class="text-gray-500">姓名：</span>{{ shipment.recipient_name }}
+                                <span class="text-gray-500">姓名：</span>{{ shipment.recipient_name || shipment.receiver_name || '-' }}
                             </p>
                             <p class="text-gray-900">
-                                <span class="text-gray-500">电话：</span>{{ shipment.recipient_phone }}
+                                <span class="text-gray-500">电话：</span>{{ shipment.recipient_phone || shipment.receiver_phone || '-' }}
                             </p>
                             <p class="text-gray-900">
-                                <span class="text-gray-500">地址：</span>{{ shipment.recipient_address }}
+                                <span class="text-gray-500">地址：</span>{{ shipment.recipient_address || shipment.receiver_address || '-' }}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="shipment.notes" class="mt-6 pt-4 border-t border-gray-100">
+                <div v-if="shipment.notes || shipment.remark" class="mt-6 pt-4 border-t border-gray-100">
                     <h3 class="text-sm font-medium text-gray-500 mb-2">备注</h3>
-                    <p class="text-sm text-gray-700">{{ shipment.notes }}</p>
+                    <p class="text-sm text-gray-700">{{ shipment.notes || shipment.remark }}</p>
                 </div>
             </div>
         </div>

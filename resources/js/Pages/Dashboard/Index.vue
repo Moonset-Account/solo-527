@@ -207,7 +207,7 @@ const getAlertLevelText = (level) => {
                         <EyeIcon class="w-5 h-5 mr-2" />
                         查看分拣
                     </Button>
-                    <Button variant="success" @click="router.visit('/shipping')" class="justify-start">
+                    <Button variant="success" @click="router.visit(route('shipments.index'))" class="justify-start">
                         <TruckIcon class="w-5 h-5 mr-2" />
                         安排发货
                     </Button>

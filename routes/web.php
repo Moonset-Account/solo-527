@@ -97,6 +97,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{subsidyVoucher}', [SubsidyVoucherController::class, 'show'])->name('show');
         Route::get('/{subsidyVoucher}/edit', [SubsidyVoucherController::class, 'edit'])->name('edit');
         Route::put('/{subsidyVoucher}', [SubsidyVoucherController::class, 'update'])->name('update');
+        Route::post('/{subsidyVoucher}/upload', [SubsidyVoucherController::class, 'uploadDocuments'])->name('upload');
         Route::post('/{subsidyVoucher}/approve', [SubsidyVoucherController::class, 'approve'])->name('approve');
         Route::post('/{subsidyVoucher}/reject', [SubsidyVoucherController::class, 'reject'])->name('reject');
         Route::post('/{subsidyVoucher}/pay', [SubsidyVoucherController::class, 'pay'])->name('pay');

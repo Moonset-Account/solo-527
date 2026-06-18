@@ -57,6 +57,19 @@ class ShipmentController extends Controller
 
         $shipments = $query->paginate($request->input('per_page', 15))->withQueryString();
 
+        $shipments->getCollection()->transform(function ($item) {
+            return array_merge($item->toArray(), [
+                'order_no' => $item->order?->order_no,
+                'logistics_provider' => $item->logistics_company,
+                'shipped_at' => $item->shipment_date,
+                'recipient_name' => $item->receiver_name,
+                'recipient_phone' => $item->receiver_phone,
+                'recipient_address' => $item->receiver_address,
+                'estimated_delivery' => $item->estimated_arrival,
+                'notes' => $item->remark,
+            ]);
+        });
+
         $greenhouses = Greenhouse::orderBy('name')->get(['id', 'name']);
         $orders = Order::orderBy('created_at', 'desc')->limit(100)->get(['id', 'order_no', 'customer_name']);
         $sortingTasks = SortingTask::where('status', 'completed')->orderBy('created_at', 'desc')->limit(100)->get(['id', 'task_no']);
@@ -91,7 +104,6 @@ class ShipmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'shipment_no' => 'required|string|unique:shipments,shipment_no|max:50',
             'order_id' => 'required|exists:orders,id',
             'sorting_task_id' => 'nullable|exists:sorting_tasks,id',
             'greenhouse_id' => 'required|exists:greenhouses,id',
@@ -109,11 +121,38 @@ class ShipmentController extends Controller
             'remark' => 'nullable|string|max:1000',
         ]);
 
+        $validated['shipment_no'] = generate_no('SHP');
         $validated['shipped_by'] = Auth::id();
 
         $shipment = Shipment::create($validated);
 
         return redirect()->route('shipments.show', $shipment)->with('success', '发货单创建成功');
+    }
+
+    public function edit(Shipment $shipment)
+    {
+        $greenhouses = Greenhouse::orderBy('name')->get(['id', 'name']);
+        $orders = Order::orderBy('created_at', 'desc')->limit(100)->get(['id', 'order_no', 'customer_name', 'customer_phone', 'customer_address']);
+        $sortingTasks = SortingTask::orderBy('created_at', 'desc')->limit(100)->get(['id', 'task_no', 'order_id', 'actual_quantity']);
+        $shippers = User::orderBy('name')->get(['id', 'name']);
+
+        $data = array_merge($shipment->toArray(), [
+            'logistics_provider' => $shipment->logistics_company,
+            'shipped_at' => $shipment->shipment_date,
+            'estimated_delivery' => $shipment->estimated_arrival,
+            'recipient_name' => $shipment->receiver_name,
+            'recipient_phone' => $shipment->receiver_phone,
+            'recipient_address' => $shipment->receiver_address,
+            'notes' => $shipment->remark,
+        ]);
+
+        return Inertia::render('Shipments/Edit', [
+            'shipment' => $data,
+            'greenhouses' => $greenhouses,
+            'orders' => $orders,
+            'sortingTasks' => $sortingTasks,
+            'shippers' => $shippers,
+        ]);
     }
 
     public function show(Shipment $shipment)
@@ -132,15 +171,36 @@ class ShipmentController extends Controller
             },
         ]);
 
+        $data = array_merge($shipment->toArray(), [
+            'order_no' => $shipment->order?->order_no,
+            'logistics_provider' => $shipment->logistics_company,
+            'shipped_at' => $shipment->shipment_date,
+            'recipient_name' => $shipment->receiver_name,
+            'recipient_phone' => $shipment->receiver_phone,
+            'recipient_address' => $shipment->receiver_address,
+            'estimated_delivery' => $shipment->estimated_arrival,
+            'notes' => $shipment->remark,
+        ]);
+
+        $comments = $shipment->comments->map(fn($c) => array_merge($c->toArray(), [
+            'user_name' => $c->user?->name,
+        ]));
+
+        $auditLogs = $shipment->auditLogs->map(fn($l) => array_merge($l->toArray(), [
+            'user_name' => $l->user?->name,
+        ]));
+
         return Inertia::render('Shipments/Show', [
-            'shipment' => $shipment,
+            'shipment' => $data,
+            'comments' => $comments,
+            'attachments' => $shipment->attachments,
+            'auditLogs' => $auditLogs,
         ]);
     }
 
     public function update(Request $request, Shipment $shipment)
     {
         $validated = $request->validate([
-            'shipment_no' => 'required|string|unique:shipments,shipment_no,' . $shipment->id . '|max:50',
             'order_id' => 'required|exists:orders,id',
             'sorting_task_id' => 'nullable|exists:sorting_tasks,id',
             'greenhouse_id' => 'required|exists:greenhouses,id',

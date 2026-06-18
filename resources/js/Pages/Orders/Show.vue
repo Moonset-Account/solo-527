@@ -353,7 +353,7 @@ const handleFileUpload = (e) => {
                             variant="outline"
                             size="sm"
                             class="w-full mt-4"
-                            @click="router.visit(`/subsidies/${subsidyVoucher.id}`)"
+                            @click="router.visit(route('subsidy-vouchers.show', subsidyVoucher.id))"
                         >
                             查看详情
                         </Button>

@@ -3,6 +3,8 @@ import { usePage, router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import {
     EyeIcon,
+    PencilIcon,
+    PlusIcon,
     CheckCircleIcon,
     XCircleIcon,
     BanknotesIcon,
@@ -14,15 +16,15 @@ import Button from '../../Components/Button.vue'
 
 const page = usePage()
 
-const vouchers = computed(() => page.props.vouchers || [])
+const vouchers = computed(() => page.props.vouchers || {})
 
 const columns = [
     { key: 'voucher_no', label: '凭证号' },
-    { key: 'order_no', label: '关联订单' },
-    { key: 'type', label: '类型' },
+    { key: 'subsidy_type', label: '类型' },
     { key: 'amount', label: '金额(元)' },
+    { key: 'applicant_name', label: '申请人' },
     { key: 'status', label: '状态' },
-    { key: 'created_at', label: '申请时间' },
+    { key: 'apply_date', label: '申请日期' },
 ]
 
 const getStatusColor = (status) => {
@@ -47,6 +49,10 @@ const getStatusText = (status) => {
 
 const getTypeText = (type) => {
     const texts = {
+        fertilizer: '肥料补贴',
+        seed: '种子补贴',
+        equipment: '农机补贴',
+        irrigation: '灌溉补贴',
         planting: '种植补贴',
         logistics: '物流补贴',
         machinery: '农机补贴',
@@ -57,30 +63,44 @@ const getTypeText = (type) => {
 }
 
 const approve = (id) => {
-    router.post(route('subsidies.approve', id), {}, { onSuccess: () => {} })
+    router.post(route('subsidy-vouchers.approve', id), {}, { onSuccess: () => {} })
 }
 
 const reject = (id) => {
-    router.post(route('subsidies.reject', id), {}, { onSuccess: () => {} })
+    const remark = prompt('请输入驳回原因：')
+    if (remark && remark.trim()) {
+        router.post(route('subsidy-vouchers.reject', id), { remark: remark.trim() }, { onSuccess: () => {} })
+    }
 }
 
 const pay = (id) => {
-    router.post(route('subsidies.pay', id), {}, { onSuccess: () => {} })
+    router.post(route('subsidy-vouchers.pay', id), {}, { onSuccess: () => {} })
 }
 </script>
 
 <template>
     <AppLayout title="补贴凭证">
         <div class="space-y-6">
+            <div class="flex justify-end">
+                <Button @click="router.visit(route('subsidy-vouchers.create'))">
+                    <PlusIcon class="w-5 h-5 mr-2" />
+                    新建补贴申请
+                </Button>
+            </div>
+
             <div class="bg-white rounded-xl border border-gray-200 p-6">
                 <DataTable
                     :columns="columns"
-                    :data="vouchers"
+                    :data="vouchers.data || []"
+                    :pagination="vouchers"
                     searchable
-                    search-placeholder="搜索凭证号、订单号..."
+                    search-placeholder="搜索凭证号、申请人..."
                 >
+                    <template #cell-subsidy_type="{ value }">
+                        {{ getTypeText(value) }}
+                    </template>
                     <template #cell-amount="{ value }">
-                        <span class="font-medium text-success">¥{{ value?.toLocaleString() || 0 }}</span>
+                        <span class="font-medium text-emerald-600">¥{{ value?.toLocaleString() || 0 }}</span>
                     </template>
                     <template #cell-status="{ value }">
                         <StatusBadge :color="getStatusColor(value)" dot>
@@ -92,9 +112,16 @@ const pay = (id) => {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                @click="router.visit(`/subsidies/${row.id}`)"
+                                @click="router.visit(route('subsidy-vouchers.show', row.id))"
                             >
                                 <EyeIcon class="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                @click="router.visit(route('subsidy-vouchers.edit', row.id))"
+                            >
+                                <PencilIcon class="w-4 h-4" />
                             </Button>
                             <Button
                                 v-if="row.status === 'pending'"
@@ -103,7 +130,7 @@ const pay = (id) => {
                                 @click="approve(row.id)"
                             >
                                 <CheckCircleIcon class="w-4 h-4 mr-1" />
-                                审核
+                                通过
                             </Button>
                             <Button
                                 v-if="row.status === 'pending'"

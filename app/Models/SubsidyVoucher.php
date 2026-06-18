@@ -9,6 +9,20 @@ class SubsidyVoucher extends Model
 {
     use HasFactory;
 
+    protected static function booted()
+    {
+        static::creating(function ($voucher) {
+            if (empty($voucher->voucher_no)) {
+                $prefix = 'SV' . now()->format('Ymd');
+                $latest = static::where('voucher_no', 'like', "{$prefix}%")
+                    ->orderByRaw('CAST(SUBSTRING(voucher_no, 11) AS UNSIGNED) desc')
+                    ->first();
+                $next = $latest ? (int) substr($latest->voucher_no, 10) + 1 : 1;
+                $voucher->voucher_no = $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+            }
+        });
+    }
+
     protected $fillable = [
         'voucher_no',
         'greenhouse_id',
