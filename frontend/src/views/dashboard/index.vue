@@ -195,7 +195,7 @@
                   <div class="expire-name">{{ item.name }}</div>
                   <div class="expire-meta">
                     <el-tag :type="getExpireType(item.permissionExpireAt)" size="small">
-                      {{ getExpireDays(item.permissionExpireAt) }}天到期
+                      {{ getExpireLabel(item.permissionExpireAt) }}
                     </el-tag>
                     <span class="expire-date">
                       {{ formatDateShort(item.permissionExpireAt) }}
@@ -441,6 +441,13 @@ function getNotifIconColor(type: string) {
 function getExpireDays(date: any) {
   if (!date) return 0
   return Math.ceil((new Date(date).getTime() - Date.now()) / 86400000)
+}
+
+function getExpireLabel(date: any) {
+  const days = getExpireDays(date)
+  if (days < 0) return `已过期${Math.abs(days)}天`
+  if (days === 0) return '今日到期'
+  return `${days}天到期`
 }
 
 function getExpireType(date: any) {

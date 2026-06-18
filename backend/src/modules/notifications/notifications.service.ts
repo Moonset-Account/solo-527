@@ -210,6 +210,13 @@ export class NotificationsService {
   async dailyCheckPermissionExpiry() {
     console.log('🔔 开始检查即将过期的权限...');
     try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      await this.notificationModel.deleteMany({
+        type: { $in: ['permission_expiring', 'permission_expired'] },
+        createdAt: { $gte: today },
+      });
+
       const expiringUsers = await this.usersService.findExpiringUsers(30);
       if (expiringUsers.length > 0) {
         const notifyList = expiringUsers.map(u => ({
@@ -218,7 +225,11 @@ export class NotificationsService {
           expireAt: u.permissionExpireAt,
         }));
         await this.notifyPermissionExpiring(notifyList);
-        console.log(`✅ 已生成 ${notifyList.length} 条权限过期提醒通知`);
+        console.log(
+          `✅ 已生成 ${notifyList.length} 条权限过期提醒通知` +
+            `（即将过期: ${notifyList.filter(n => new Date(n.expireAt).getTime() >= Date.now()).length}` +
+            `, 已过期: ${notifyList.filter(n => new Date(n.expireAt).getTime() < Date.now()).length}）`,
+        );
       } else {
         console.log('✅ 没有即将过期的权限');
       }

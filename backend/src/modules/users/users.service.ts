@@ -88,13 +88,15 @@ export class UsersService {
 
   async findExpiringUsers(days: number = 7) {
     const now = new Date();
-    const expireDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const futureExpireDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const pastExpireDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     return this.userModel
       .find({
         status: 'active',
-        permissionExpireAt: { $gte: now, $lte: expireDate },
+        permissionExpireAt: { $gte: pastExpireDate, $lte: futureExpireDate },
       })
-      .select('name email phone department permissionExpireAt role');
+      .sort({ permissionExpireAt: 1 })
+      .select('name email phone department permissionExpireAt role username');
   }
 
   async findOperatorOwners() {
@@ -104,51 +106,97 @@ export class UsersService {
   }
 
   async initDefaultUsers() {
-    const count = await this.userModel.countDocuments();
-    if (count > 0) return;
-
     const now = new Date();
+    const freshDates = {
+      manager: new Date(now.getTime() + 30 * 86400000),
+      operator: new Date(now.getTime() + 7 * 86400000),
+      viewer: new Date(now.getTime() - 2 * 86400000),
+    };
 
-    const defaultUsers = [
+    const defaultUserSpecs = [
       {
         username: 'admin',
-        password: await bcrypt.hash('admin123', 10),
         name: '超级管理员',
         email: 'admin@example.com',
-        role: 'admin',
+        role: 'admin' as const,
         department: '技术部',
       },
       {
         username: 'manager',
-        password: await bcrypt.hash('manager123', 10),
         name: '运营经理',
         email: 'manager@example.com',
-        role: 'manager',
+        role: 'manager' as const,
         department: '运营部',
         isOperatorOwner: true,
-        permissionExpireAt: new Date(now.getTime() + 30 * 86400000),
+        permissionExpireAt: freshDates.manager,
       },
       {
         username: 'operator',
-        password: await bcrypt.hash('operator123', 10),
         name: '运营专员',
         email: 'operator@example.com',
-        role: 'operator',
+        role: 'operator' as const,
         department: '运营部',
-        permissionExpireAt: new Date(now.getTime() + 7 * 86400000),
+        permissionExpireAt: freshDates.operator,
       },
       {
         username: 'viewer',
-        password: await bcrypt.hash('viewer123', 10),
         name: '数据查看员',
         email: 'viewer@example.com',
-        role: 'viewer',
+        role: 'viewer' as const,
         department: '产品部',
-        permissionExpireAt: new Date(now.getTime() - 2 * 86400000),
+        permissionExpireAt: freshDates.viewer,
       },
     ];
 
-    await this.userModel.insertMany(defaultUsers);
-    console.log('✅ 默认用户初始化完成');
+    let updatedCount = 0;
+    let createdCount = 0;
+
+    for (const spec of defaultUserSpecs) {
+      const existing = await this.userModel.findOne({ username: spec.username });
+      if (existing) {
+        const needsRefresh =
+          (spec.permissionExpireAt &&
+            existing.permissionExpireAt &&
+            Math.abs(
+              new Date(spec.permissionExpireAt).getTime() -
+                new Date(existing.permissionExpireAt).getTime(),
+            ) > 86400000) ||
+          (!existing.permissionExpireAt && spec.permissionExpireAt) ||
+          (existing.isOperatorOwner !== spec.isOperatorOwner) ||
+          existing.status !== 'active';
+
+        if (needsRefresh) {
+          await this.userModel.updateOne(
+            { username: spec.username },
+            {
+              $set: {
+                permissionExpireAt: spec.permissionExpireAt,
+                isOperatorOwner: spec.isOperatorOwner,
+                status: 'active',
+              },
+            },
+          );
+          updatedCount++;
+        }
+      } else {
+        const hashedPwd = await bcrypt.hash(`${spec.username}123`, 10);
+        await this.userModel.create({
+          ...spec,
+          password: hashedPwd,
+          status: 'active',
+        });
+        createdCount++;
+      }
+    }
+
+    if (createdCount > 0) {
+      console.log(`✅ 新增 ${createdCount} 个默认用户`);
+    }
+    if (updatedCount > 0) {
+      console.log(`🔄 刷新 ${updatedCount} 个默认用户的权限日期`);
+    }
+    if (createdCount === 0 && updatedCount === 0) {
+      console.log('✅ 默认用户权限日期已处于最新状态');
+    }
   }
 }
