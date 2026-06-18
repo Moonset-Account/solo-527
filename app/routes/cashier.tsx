@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLoaderData, useFetcher, Link } from "@remix-run/react";
+import { useLoaderData, useFetcher, useRevalidator, Link } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import dayjs from "dayjs";
 
@@ -64,7 +64,6 @@ export async function action({ request }) {
     const endTime = `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
 
     const body = {
-      customerId: formData.get("customerId"),
       customerName: formData.get("customerName"),
       customerPhone: formData.get("customerPhone"),
       treatmentId,
@@ -117,6 +116,7 @@ export async function action({ request }) {
 export default function Cashier() {
   const { technicians, treatments, consultants, todayAppointments, todayTotal, todayRevenue, todayCompleted } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const revalidator = useRevalidator();
   const [selectedTreatment, setSelectedTreatment] = useState<any>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<any>(null);
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
@@ -164,10 +164,12 @@ export default function Cashier() {
       setSelectedTreatment(null);
       setSelectedTechnician(null);
       setSelectedConsultant(null);
+      revalidator.revalidate();
     }
     if (data && data.success && lastAction === "payment") {
       setShowPaymentModal(false);
       setLastAction(null);
+      revalidator.revalidate();
     }
   }, [fetcher.data]);
 
@@ -231,7 +233,6 @@ export default function Cashier() {
                   />
                 </div>
               </div>
-              <input type="hidden" name="customerId" value={customerInfo.phone} />
 
               <div>
                 <label className="label">选择项目 *</label>
