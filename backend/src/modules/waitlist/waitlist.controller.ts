@@ -4,14 +4,10 @@ import { Waitlist } from './waitlist.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { WaitlistStatus } from '../../common/enums/waitlist-status.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Controller('waitlist')
 export class WaitlistController {
-  constructor(
-    private readonly waitlistService: WaitlistService,
-    private readonly operationLogService: OperationLogService,
-  ) {}
+  constructor(private readonly waitlistService: WaitlistService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -47,67 +43,33 @@ export class WaitlistController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  async update(
+  update(
     @Param('id') id: string,
     @Body() waitlist: Partial<Waitlist>,
     @CurrentUser() user: any,
     @Request() req: any,
   ): Promise<Waitlist | null> {
-    const result = await this.waitlistService.update(id, waitlist, user.sub, user.name);
-
-    this.operationLogService.log(
-      user.sub,
-      user.name,
-      'update',
-      'waitlist',
-      id,
-      { changes: Object.keys(waitlist).join(', ') },
-      req.ip,
-    );
-
-    return result;
+    return this.waitlistService.update(id, waitlist, user.sub, user.name, req.ip);
   }
 
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
-  async updateStatus(
+  updateStatus(
     @Param('id') id: string,
     @Body('status') status: WaitlistStatus,
     @CurrentUser() user: any,
     @Request() req: any,
   ): Promise<Waitlist | null> {
-    const result = await this.waitlistService.updateStatus(id, status, user.sub, user.name);
-
-    this.operationLogService.log(
-      user.sub,
-      user.name,
-      'status_change',
-      'waitlist',
-      id,
-      { newStatus: status },
-      req.ip,
-    );
-
-    return result;
+    return this.waitlistService.updateStatus(id, status, user.sub, user.name, req.ip);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  async remove(
+  remove(
     @Param('id') id: string,
     @CurrentUser() user: any,
     @Request() req: any,
   ): Promise<void> {
-    await this.waitlistService.remove(id);
-
-    this.operationLogService.log(
-      user.sub,
-      user.name,
-      'delete',
-      'waitlist',
-      id,
-      {},
-      req.ip,
-    );
+    return this.waitlistService.remove(id, user.sub, user.name, req.ip);
   }
 }

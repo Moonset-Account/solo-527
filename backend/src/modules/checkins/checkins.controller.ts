@@ -3,15 +3,11 @@ import { CheckinsService } from './checkins.service';
 import { CheckIn } from './checkin.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Controller('checkins')
 @UseGuards(JwtAuthGuard)
 export class CheckinsController {
-  constructor(
-    private readonly checkinsService: CheckinsService,
-    private readonly operationLogService: OperationLogService,
-  ) {}
+  constructor(private readonly checkinsService: CheckinsService) {}
 
   @Get()
   findAll(
@@ -39,28 +35,17 @@ export class CheckinsController {
   }
 
   @Post()
-  async checkIn(
+  checkIn(
     @Body() body: { appointmentId: string; notes?: string },
     @CurrentUser() user: any,
     @Request() req: any,
   ): Promise<CheckIn> {
-    const result = await this.checkinsService.checkIn(
+    return this.checkinsService.checkIn(
       body.appointmentId,
       user.sub,
       user.name,
       body.notes,
-    );
-
-    this.operationLogService.log(
-      user.sub,
-      user.name,
-      'checkin',
-      'appointment',
-      body.appointmentId,
-      { notes: body.notes || '' },
       req.ip,
     );
-
-    return result;
   }
 }

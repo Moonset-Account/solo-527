@@ -4,6 +4,8 @@ import { Repository, Between } from 'typeorm';
 import { CheckIn } from './checkin.entity';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { AppointmentStatus } from '../../common/enums/appointment-status.enum';
+import { DateUtils } from '../../common/utils/date.utils';
+import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Injectable()
 export class CheckinsService {
@@ -11,6 +13,7 @@ export class CheckinsService {
     @InjectRepository(CheckIn)
     private checkinRepository: Repository<CheckIn>,
     private appointmentsService: AppointmentsService,
+    private operationLogService: OperationLogService,
   ) {}
 
   findAll(
@@ -45,6 +48,7 @@ export class CheckinsService {
     operatorId: string,
     operatorName: string,
     notes?: string,
+    ipAddress?: string,
   ): Promise<CheckIn> {
     const appointment = await this.appointmentsService.findOne(appointmentId);
     if (!appointment) {
@@ -64,6 +68,7 @@ export class CheckinsService {
       AppointmentStatus.CHECKED_IN,
       operatorId,
       operatorName,
+      ipAddress,
     );
 
     const checkin = this.checkinRepository.create({
@@ -74,7 +79,19 @@ export class CheckinsService {
       notes,
     });
 
-    return this.checkinRepository.save(checkin);
+    const result = await this.checkinRepository.save(checkin);
+
+    this.operationLogService.log(
+      operatorId,
+      operatorName,
+      'checkin',
+      'appointment',
+      appointmentId,
+      { notes: notes || '' },
+      ipAddress,
+    );
+
+    return result;
   }
 
   async getTodayCheckins(): Promise<CheckIn[]> {

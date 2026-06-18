@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { OperationLog } from './operation-log.entity';
+import { DateUtils } from '../../common/utils/date.utils';
 
 @Injectable()
 export class OperationLogsService {
@@ -22,7 +23,10 @@ export class OperationLogsService {
     const where: any = {};
 
     if (startDate && endDate) {
-      where.createdAt = Between(new Date(startDate), new Date(endDate));
+      where.createdAt = Between(
+        DateUtils.parseStartOfDay(startDate),
+        DateUtils.parseEndOfDay(endDate),
+      );
     }
     if (operatorId) {
       where.operatorId = operatorId;

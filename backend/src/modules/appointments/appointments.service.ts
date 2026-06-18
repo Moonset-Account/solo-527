@@ -2,13 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In, FindOptionsWhere } from 'typeorm';
 import { Appointment } from './appointment.entity';
-import { AppointmentStatus } from '../../common/enums/appointment-status.enum';
+import { AppointmentStatus, AppointmentStatusLabels } from '../../common/enums/appointment-status.enum';
+import { DateUtils } from '../../common/utils/date.utils';
+import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Injectable()
 export class AppointmentsService {
   constructor(
     @InjectRepository(Appointment)
     private appointmentsRepository: Repository<Appointment>,
+    private operationLogService: OperationLogService,
   ) {}
 
   async findAll(
@@ -28,7 +31,10 @@ export class AppointmentsService {
       where.counselorId = counselorId;
     }
     if (startDate && endDate) {
-      where.appointmentTime = Between(new Date(startDate), new Date(endDate));
+      where.appointmentTime = Between(
+        DateUtils.parseStartOfDay(startDate),
+        DateUtils.parseEndOfDay(endDate),
+      );
     }
 
     const [data, total] = await this.appointmentsRepository.findAndCount({
@@ -62,6 +68,7 @@ export class AppointmentsService {
     appointment: Partial<Appointment>,
     operatorId?: string,
     operatorName?: string,
+    ipAddress?: string,
   ): Promise<Appointment | null> {
     const existing = await this.findOne(id);
     if (!existing) {
@@ -75,7 +82,21 @@ export class AppointmentsService {
     }
 
     await this.appointmentsRepository.update(id, updateData);
-    return this.findOne(id);
+    const result = await this.findOne(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'update',
+        'appointment',
+        id,
+        { changes: Object.keys(appointment).join(', ') },
+        ipAddress,
+      );
+    }
+
+    return result;
   }
 
   async updateStatus(
@@ -83,12 +104,61 @@ export class AppointmentsService {
     status: AppointmentStatus,
     operatorId?: string,
     operatorName?: string,
+    ipAddress?: string,
   ): Promise<Appointment | null> {
-    return this.update(id, { status }, operatorId, operatorName);
+    const existing = await this.findOne(id);
+    if (!existing) {
+      throw new NotFoundException('预约不存在');
+    }
+
+    const oldStatus = existing.status;
+
+    const updateData: Partial<Appointment> = { status };
+    if (operatorId && operatorName) {
+      updateData.lastOperatorId = operatorId;
+      updateData.lastOperatorName = operatorName;
+    }
+
+    await this.appointmentsRepository.update(id, updateData);
+    const result = await this.findOne(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'status_change',
+        'appointment',
+        id,
+        {
+          oldStatus: AppointmentStatusLabels[oldStatus],
+          newStatus: AppointmentStatusLabels[status],
+        },
+        ipAddress,
+      );
+    }
+
+    return result;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    operatorId?: string,
+    operatorName?: string,
+    ipAddress?: string,
+  ): Promise<void> {
     await this.appointmentsRepository.delete(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'delete',
+        'appointment',
+        id,
+        {},
+        ipAddress,
+      );
+    }
   }
 
   async getTodayAppointments(counselorId?: string): Promise<Appointment[]> {
@@ -112,8 +182,8 @@ export class AppointmentsService {
   }
 
   async getStatistics(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = DateUtils.parseStartOfDay(startDate);
+    const end = DateUtils.parseEndOfDay(endDate);
 
     const total = await this.appointmentsRepository.count({
       where: { appointmentTime: Between(start, end) },
@@ -158,8 +228,8 @@ export class AppointmentsService {
   }
 
   async getCounselorWorkload(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = DateUtils.parseStartOfDay(startDate);
+    const end = DateUtils.parseEndOfDay(endDate);
 
     const appointments = await this.appointmentsRepository.find({
       where: {

@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Package } from './package.entity';
+import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Injectable()
 export class PackagesService {
   constructor(
     @InjectRepository(Package)
     private packagesRepository: Repository<Package>,
+    private operationLogService: OperationLogService,
   ) {}
 
   findAll(activeOnly = false): Promise<Package[]> {
@@ -22,17 +24,75 @@ export class PackagesService {
     return this.packagesRepository.findOneBy({ id });
   }
 
-  create(pkg: Partial<Package>): Promise<Package> {
+  create(
+    pkg: Partial<Package>,
+    operatorId?: string,
+    operatorName?: string,
+    ipAddress?: string,
+  ): Promise<Package> {
     const newPackage = this.packagesRepository.create(pkg);
-    return this.packagesRepository.save(newPackage);
+    const result = this.packagesRepository.save(newPackage);
+
+    if (operatorId && operatorName) {
+      result.then((saved) => {
+        this.operationLogService.log(
+          operatorId,
+          operatorName,
+          'create',
+          'package',
+          saved.id,
+          { name: pkg.name, price: pkg.price },
+          ipAddress,
+        );
+      });
+    }
+
+    return result;
   }
 
-  async update(id: string, pkg: Partial<Package>): Promise<Package | null> {
+  async update(
+    id: string,
+    pkg: Partial<Package>,
+    operatorId?: string,
+    operatorName?: string,
+    ipAddress?: string,
+  ): Promise<Package | null> {
     await this.packagesRepository.update(id, pkg);
-    return this.findOne(id);
+    const result = await this.findOne(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'update',
+        'package',
+        id,
+        { changes: Object.keys(pkg).join(', ') },
+        ipAddress,
+      );
+    }
+
+    return result;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    operatorId?: string,
+    operatorName?: string,
+    ipAddress?: string,
+  ): Promise<void> {
     await this.packagesRepository.delete(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'delete',
+        'package',
+        id,
+        {},
+        ipAddress,
+      );
+    }
   }
 }

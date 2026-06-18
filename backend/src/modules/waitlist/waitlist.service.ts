@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Waitlist } from './waitlist.entity';
 import { WaitlistStatus } from '../../common/enums/waitlist-status.enum';
+import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Injectable()
 export class WaitlistService {
   constructor(
     @InjectRepository(Waitlist)
     private waitlistRepository: Repository<Waitlist>,
+    private operationLogService: OperationLogService,
   ) {}
 
   findAll(
@@ -50,6 +52,7 @@ export class WaitlistService {
     waitlist: Partial<Waitlist>,
     operatorId?: string,
     operatorName?: string,
+    ipAddress?: string,
   ): Promise<Waitlist | null> {
     const updateData: Partial<Waitlist> = { ...waitlist };
     if (operatorId && operatorName) {
@@ -57,7 +60,21 @@ export class WaitlistService {
       updateData.lastOperatorName = operatorName;
     }
     await this.waitlistRepository.update(id, updateData);
-    return this.findOne(id);
+    const result = await this.findOne(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'update',
+        'waitlist',
+        id,
+        { changes: Object.keys(waitlist).join(', ') },
+        ipAddress,
+      );
+    }
+
+    return result;
   }
 
   async updateStatus(
@@ -65,12 +82,50 @@ export class WaitlistService {
     status: WaitlistStatus,
     operatorId?: string,
     operatorName?: string,
+    ipAddress?: string,
   ): Promise<Waitlist | null> {
-    return this.update(id, { status }, operatorId, operatorName);
+    const updateData: Partial<Waitlist> = { status };
+    if (operatorId && operatorName) {
+      updateData.lastOperatorId = operatorId;
+      updateData.lastOperatorName = operatorName;
+    }
+    await this.waitlistRepository.update(id, updateData);
+    const result = await this.findOne(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'status_change',
+        'waitlist',
+        id,
+        { newStatus: status },
+        ipAddress,
+      );
+    }
+
+    return result;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    operatorId?: string,
+    operatorName?: string,
+    ipAddress?: string,
+  ): Promise<void> {
     await this.waitlistRepository.delete(id);
+
+    if (operatorId && operatorName) {
+      this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'delete',
+        'waitlist',
+        id,
+        {},
+        ipAddress,
+      );
+    }
   }
 
   async getWaitingCount(counselorId?: string): Promise<number> {
