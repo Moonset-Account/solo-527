@@ -13,6 +13,7 @@ const order = computed(() => page.props.order)
 const greenhouses = computed(() => page.props.greenhouses || [])
 
 const form = useForm({
+    order_no: order.value?.order_no || '',
     customer_name: order.value?.customer_name || '',
     customer_phone: order.value?.customer_phone || '',
     customer_address: order.value?.customer_address || '',
@@ -74,6 +75,19 @@ const submit = () => {
                 <h2 class="text-lg font-semibold text-gray-900 mb-6">编辑订单</h2>
                 <form @submit.prevent="submit" class="space-y-6">
                     <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">基本信息</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Input
+                                v-model="form.order_no"
+                                label="订单号"
+                                readonly
+                                disabled
+                                class="bg-gray-50"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-200">
                         <h3 class="text-sm font-medium text-gray-700 mb-3">客户信息</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Input
