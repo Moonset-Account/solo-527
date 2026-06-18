@@ -52,10 +52,10 @@ export class Report {
   @Column({ type: 'text' })
   statisticalCaliber: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   startTime: Date;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   endTime: Date;
 
   @Column({ type: 'json', nullable: true })

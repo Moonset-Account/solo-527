@@ -13,7 +13,6 @@ import {
   AppointmentOverviewData,
   ServiceRepurchaseData,
   FosterSafetyData,
-  ApiResponse,
 } from '../../types';
 
 const { Title } = Typography;
@@ -40,14 +39,14 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [overviewRes, repurchaseRes, fosterRes] = await Promise.all([
-        request.get<any, ApiResponse<AppointmentOverviewData>>('/statistics/appointment-overview'),
-        request.get<any, ApiResponse<ServiceRepurchaseData[]>>('/statistics/service-repurchase'),
-        request.get<any, ApiResponse<FosterSafetyData>>('/statistics/foster-safety'),
+      const [overviewData, repurchaseData, fosterData] = await Promise.all([
+        request.get<AppointmentOverviewData>('/statistics/appointment-overview'),
+        request.get<ServiceRepurchaseData[]>('/statistics/service-repurchase'),
+        request.get<FosterSafetyData>('/statistics/foster-safety'),
       ]);
-      setOverview(overviewRes.data || overview);
-      setRepurchaseData(repurchaseRes.data || []);
-      setFosterSafetyData(fosterRes.data || { volunteerStats: [], negativeReviews: [] });
+      setOverview(overviewData || overview);
+      setRepurchaseData(repurchaseData || []);
+      setFosterSafetyData(fosterData || { volunteerStats: [], negativeReviews: [] });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {

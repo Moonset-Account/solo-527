@@ -30,10 +30,9 @@ import request from '../../utils/request';
 import {
   AdoptionRecord,
   AdoptionStatus,
-  ApiResponse,
   Pet,
   User,
-  PaginatedResponse,
+  PageResult,
 } from '../../types';
 
 const { RangePicker } = DatePicker;
@@ -97,9 +96,9 @@ const AdoptionRecordsPage = () => {
       if (filters.status) params.status = filters.status;
       if (filters.approverId) params.approverId = filters.approverId;
 
-      const res = await request.get<any, ApiResponse<PaginatedResponse<AdoptionRecord>>>('/adoption-records', { params });
-      setData(res.data?.list || []);
-      setPagination((prev) => ({ ...prev, total: res.data?.total || 0 }));
+      const result: PageResult<AdoptionRecord> = await request.get('/adoption-records', { params });
+      setData(result.data || []);
+      setPagination((prev) => ({ ...prev, total: result.total || 0 }));
     } catch (error) {
       console.error('Failed to fetch adoption records:', error);
     } finally {
@@ -109,12 +108,12 @@ const AdoptionRecordsPage = () => {
 
   const fetchPetsAndUsers = async () => {
     try {
-      const [petsRes, usersRes] = await Promise.all([
-        request.get<any, ApiResponse<Pet[]>>('/pets'),
-        request.get<any, ApiResponse<User[]>>('/users'),
+      const [petsResult, usersResult] = await Promise.all([
+        request.get<PageResult<Pet>>('/pets'),
+        request.get<PageResult<User>>('/users'),
       ]);
-      setPets(petsRes.data || []);
-      setUsers(usersRes.data || []);
+      setPets(petsResult.data || []);
+      setUsers(usersResult.data || []);
     } catch (error) {
       console.error('Failed to fetch pets and users:', error);
     }

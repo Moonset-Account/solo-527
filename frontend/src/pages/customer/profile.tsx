@@ -3,7 +3,7 @@ import { Card, Form, Input, Button, Avatar, Typography, Space, Divider, message,
 import { UserOutlined, SaveOutlined } from '@ant-design/icons';
 import request from '../../utils/request';
 import { useAuthStore } from '../../store/useAuthStore';
-import { User, ApiResponse } from '../../types';
+import { User } from '../../types';
 
 const { Title, Text } = Typography;
 
@@ -31,8 +31,8 @@ const ProfilePage = () => {
     }
     setLoading(true);
     try {
-      const res: ApiResponse<User> = await request.put(`/users/${user.id}`, values);
-      setUser(res.data);
+      const updatedUser: User = await request.put(`/users/${user.id}`, values);
+      setUser(updatedUser);
       message.success('个人信息更新成功');
     } catch (error) {
       console.error('更新个人信息失败:', error);

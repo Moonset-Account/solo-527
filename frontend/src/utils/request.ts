@@ -1,16 +1,27 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { message } from 'antd';
 import { useAuthStore } from '../store/useAuthStore';
 
 const BASE_URL = '/api';
 
-const request: AxiosInstance = axios.create({
+const axiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+interface HttpRequest {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  defaults: any;
+  interceptors: any;
+}
+
+const request = axiosInstance as unknown as HttpRequest;
 
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -20,7 +31,7 @@ request.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );
@@ -29,7 +40,7 @@ request.interceptors.response.use(
   (response: AxiosResponse) => {
     return response.data;
   },
-  (error) => {
+  (error: any) => {
     if (error.response) {
       const { status } = error.response;
       if (status === 401) {

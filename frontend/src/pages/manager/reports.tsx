@@ -32,9 +32,8 @@ import {
   Report,
   ReportType,
   ReportFormat,
-  ApiResponse,
   User,
-  PaginatedResponse,
+  PageResult,
 } from '../../types';
 
 const { RangePicker } = DatePicker;
@@ -101,9 +100,9 @@ const ReportsPage = () => {
         params.endTime = filters.dateRange[1].toISOString();
       }
 
-      const res = await request.get<any, ApiResponse<PaginatedResponse<Report>>>('/reports', { params });
-      setData(res.data?.list || []);
-      setPagination((prev) => ({ ...prev, total: res.data?.total || 0 }));
+      const result: PageResult<Report> = await request.get('/reports', { params });
+      setData(result.data || []);
+      setPagination((prev) => ({ ...prev, total: result.total || 0 }));
     } catch (error) {
       console.error('Failed to fetch reports:', error);
     } finally {
@@ -113,8 +112,8 @@ const ReportsPage = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await request.get<any, ApiResponse<User[]>>('/users');
-      setUsers(res.data || []);
+      const result: PageResult<User> = await request.get('/users');
+      setUsers(result.data || []);
     } catch (error) {
       console.error('Failed to fetch users:', error);
     }
@@ -143,8 +142,8 @@ const ReportsPage = () => {
 
   const handleViewDetail = async (record: Report) => {
     try {
-      const res = await request.get<any, ApiResponse<Report>>(`/reports/${record.id}`);
-      setSelectedReport(res.data || record);
+      const reportDetail: Report = await request.get(`/reports/${record.id}`);
+      setSelectedReport(reportDetail || record);
       setIsDrawerOpen(true);
     } catch (error) {
       console.error('Failed to fetch report detail:', error);

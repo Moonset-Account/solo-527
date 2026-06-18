@@ -34,10 +34,9 @@ import request from '../../utils/request';
 import {
   FosterRecord,
   FosterStatus,
-  ApiResponse,
   Pet,
   User,
-  PaginatedResponse,
+  PageResult,
 } from '../../types';
 
 const { RangePicker } = DatePicker;
@@ -109,9 +108,9 @@ const FosterRecordsPage = () => {
       if (filters.status) params.status = filters.status;
       if (filters.volunteerId) params.volunteerId = filters.volunteerId;
 
-      const res = await request.get<any, ApiResponse<PaginatedResponse<FosterRecord>>>('/foster-records', { params });
-      setData(res.data?.list || []);
-      setPagination((prev) => ({ ...prev, total: res.data?.total || 0 }));
+      const result: PageResult<FosterRecord> = await request.get('/foster-records', { params });
+      setData(result.data || []);
+      setPagination((prev) => ({ ...prev, total: result.total || 0 }));
     } catch (error) {
       console.error('Failed to fetch foster records:', error);
     } finally {
@@ -121,12 +120,12 @@ const FosterRecordsPage = () => {
 
   const fetchPetsAndVolunteers = async () => {
     try {
-      const [petsRes, usersRes] = await Promise.all([
-        request.get<any, ApiResponse<Pet[]>>('/pets'),
-        request.get<any, ApiResponse<User[]>>('/users'),
+      const [petsResult, usersResult] = await Promise.all([
+        request.get<PageResult<Pet>>('/pets'),
+        request.get<PageResult<User>>('/users'),
       ]);
-      setPets(petsRes.data || []);
-      setVolunteers(usersRes.data || []);
+      setPets(petsResult.data || []);
+      setVolunteers(usersResult.data || []);
     } catch (error) {
       console.error('Failed to fetch pets and volunteers:', error);
     }

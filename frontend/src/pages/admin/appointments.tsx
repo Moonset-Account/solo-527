@@ -63,10 +63,9 @@ const AppointmentsPage = () => {
         ...queryParams,
         ...params,
       };
-      const res = await request.get<any, PageResult<Appointment>>('/appointments', {
+      const result: PageResult<Appointment> = await request.get('/appointments', {
         params: mergedParams,
       });
-      const result = res as unknown as PageResult<Appointment>;
       setData(result.data || []);
       setPagination({
         current: result.page || 1,
@@ -82,14 +81,14 @@ const AppointmentsPage = () => {
 
   const fetchOptions = async () => {
     try {
-      const [servicesRes, petsRes, usersRes] = await Promise.all([
-        request.get<any, Service[]>('/services/active/list'),
-        request.get<any, Pet[]>('/pets'),
-        request.get<any, User[]>('/users'),
+      const [servicesData, petsResult, usersResult] = await Promise.all([
+        request.get<Service[]>('/services/active/list'),
+        request.get<PageResult<Pet>>('/pets'),
+        request.get<PageResult<User>>('/users'),
       ]);
-      setServices((servicesRes as unknown as { data?: Service[] }).data || (servicesRes as unknown as Service[]) || []);
-      setPets((petsRes as unknown as { data?: Pet[] }).data || (petsRes as unknown as Pet[]) || []);
-      const usersData = (usersRes as unknown as { data?: User[] }).data || (usersRes as unknown as User[]) || [];
+      setServices(servicesData || []);
+      setPets(petsResult.data || []);
+      const usersData = usersResult.data || [];
       setCustomers(usersData.filter((u) => u.role === UserRole.CUSTOMER));
       setStaffs(usersData.filter((u) => u.role === UserRole.STAFF || u.role === UserRole.ADMIN || u.role === UserRole.MANAGER));
     } catch (error) {

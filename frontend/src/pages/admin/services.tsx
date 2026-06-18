@@ -51,10 +51,9 @@ const ServicesPage = () => {
         ...queryParams,
         ...params,
       };
-      const res = await request.get<any, PageResult<Service>>('/services', {
+      const result: PageResult<Service> = await request.get('/services', {
         params: mergedParams,
       });
-      const result = res as unknown as PageResult<Service>;
       setData(result.data || []);
       setPagination({
         current: result.page || 1,

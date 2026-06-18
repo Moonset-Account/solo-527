@@ -34,10 +34,10 @@ export class Appointment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   startTime: Date;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   endTime: Date;
 
   @ManyToOne(() => Pet)
@@ -90,7 +90,7 @@ export class Appointment {
   @Column({ type: 'enum', enum: BadReviewReason, nullable: true })
   badReviewReason: BadReviewReason;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 
   @CreateDateColumn()

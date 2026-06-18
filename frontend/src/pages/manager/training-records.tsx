@@ -19,7 +19,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutli
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
 import request from '../../utils/request';
-import { TrainingRecord, ApiResponse, Pet, User, PaginatedResponse } from '../../types';
+import { TrainingRecord, Pet, User, PageResult } from '../../types';
 
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
@@ -70,9 +70,9 @@ const TrainingRecordsPage = () => {
       if (filters.petId) params.petId = filters.petId;
       if (filters.trainerId) params.trainerId = filters.trainerId;
 
-      const res = await request.get<any, ApiResponse<PaginatedResponse<TrainingRecord>>>('/training-records', { params });
-      setData(res.data?.list || []);
-      setPagination((prev) => ({ ...prev, total: res.data?.total || 0 }));
+      const result: PageResult<TrainingRecord> = await request.get('/training-records', { params });
+      setData(result.data || []);
+      setPagination((prev) => ({ ...prev, total: result.total || 0 }));
     } catch (error) {
       console.error('Failed to fetch training records:', error);
     } finally {
@@ -82,12 +82,12 @@ const TrainingRecordsPage = () => {
 
   const fetchPetsAndTrainers = async () => {
     try {
-      const [petsRes, usersRes] = await Promise.all([
-        request.get<any, ApiResponse<Pet[]>>('/pets'),
-        request.get<any, ApiResponse<User[]>>('/users'),
+      const [petsResult, usersResult] = await Promise.all([
+        request.get<PageResult<Pet>>('/pets'),
+        request.get<PageResult<User>>('/users'),
       ]);
-      setPets(petsRes.data || []);
-      setTrainers(usersRes.data?.filter((u) => u.role === 'manager' || u.role === 'admin') || []);
+      setPets(petsResult.data || []);
+      setTrainers(usersResult.data?.filter((u) => u.role === 'manager' || u.role === 'admin') || []);
     } catch (error) {
       console.error('Failed to fetch pets and trainers:', error);
     }

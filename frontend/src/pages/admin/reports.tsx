@@ -124,8 +124,7 @@ const ReportsPage = () => {
         pageSize: pagination.pageSize,
         type: type || activeTab,
       };
-      const res = await request.get<any, PageResult<Report>>('/reports', { params });
-      const result = res as unknown as PageResult<Report>;
+      const result: PageResult<Report> = await request.get('/reports', { params });
       setData(result.data || []);
       setPagination({
         current: result.page || 1,

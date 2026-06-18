@@ -115,7 +115,6 @@ class QueryServicesRequestDto implements QueryServicesDto {
 }
 
 @Controller('services')
-@UseGuards(AuthGuard('jwt'))
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
@@ -135,21 +134,21 @@ export class ServicesController {
   }
 
   @Post()
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   async create(@Body() dto: CreateServiceRequestDto, @Request() req) {
     return this.servicesService.create(dto, req.user);
   }
 
   @Put(':id')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   async update(@Param('id') id: string, @Body() dto: UpdateServiceRequestDto, @Request() req) {
     return this.servicesService.update(id, dto, req.user);
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   async remove(@Param('id') id: string, @Request() req) {
     return this.servicesService.remove(id, req.user);

@@ -146,7 +146,11 @@ export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Get()
-  async findAll(@Query() query: QueryAppointmentsRequestDto) {
+  async findAll(@Query() query: QueryAppointmentsRequestDto, @Request() req) {
+    const user = req.user;
+    if (user.role === UserRole.CUSTOMER) {
+      (query as any).customerId = user.id;
+    }
     return this.appointmentsService.findAll(query);
   }
 
@@ -156,9 +160,11 @@ export class AppointmentsController {
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async create(@Body() dto: CreateAppointmentRequestDto, @Request() req) {
+    const user = req.user;
+    if (user.role === UserRole.CUSTOMER) {
+      (dto as any).customerId = user.id;
+    }
     return this.appointmentsService.create(dto, req.user);
   }
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Tag, Button, Spin, Typography, Empty, Space } from 'antd';
 import { ClockCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import request from '../../utils/request';
-import { Service, ServiceTypeLabels, ApiResponse } from '../../types';
+import { Service, ServiceTypeLabels } from '../../types';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -15,8 +15,8 @@ const ServicesPage = () => {
   const fetchServices = async () => {
     setLoading(true);
     try {
-      const res: ApiResponse<Service[]> = await request.get('/services/active/list');
-      setServices(res.data || []);
+      const data: Service[] = await request.get('/services/active/list');
+      setServices(data || []);
     } catch (error) {
       console.error('获取服务列表失败:', error);
     } finally {

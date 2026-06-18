@@ -42,7 +42,6 @@ import {
   BadReviewReason,
   BadReviewReasonLabels,
   PageResult,
-  ApiResponse,
 } from '../../types';
 
 const { Title, Text } = Typography;
@@ -105,8 +104,8 @@ const AppointmentsPage = () => {
         params.startDate = dateRange[0].format('YYYY-MM-DD');
         params.endDate = dateRange[1].format('YYYY-MM-DD');
       }
-      const res: ApiResponse<PageResult<Appointment>> = await request.get('/appointments', { params });
-      setAppointments(res.data?.data || []);
+      const result: PageResult<Appointment> = await request.get('/appointments', { params });
+      setAppointments(result.data || []);
     } catch (error) {
       console.error('获取预约列表失败:', error);
     } finally {
@@ -116,8 +115,8 @@ const AppointmentsPage = () => {
 
   const fetchServices = async () => {
     try {
-      const res: ApiResponse<Service[]> = await request.get('/services/active/list');
-      setServices(res.data || []);
+      const data: Service[] = await request.get('/services/active/list');
+      setServices(data || []);
     } catch (error) {
       console.error('获取服务列表失败:', error);
     }
@@ -125,10 +124,10 @@ const AppointmentsPage = () => {
 
   const fetchPets = async () => {
     try {
-      const res: ApiResponse<PageResult<Pet>> = await request.get('/pets', {
+      const result: PageResult<Pet> = await request.get('/pets', {
         params: { page: 1, pageSize: 100 },
       });
-      setPets(res.data?.data || []);
+      setPets(result.data || []);
     } catch (error) {
       console.error('获取宠物列表失败:', error);
     }
@@ -191,7 +190,7 @@ const AppointmentsPage = () => {
         return;
       }
       try {
-        const newPetRes: ApiResponse<Pet> = await request.post('/pets', {
+        const newPet: Pet = await request.post('/pets', {
           name: values.petName,
           species: values.petSpecies,
           breed: values.petBreed || '',
@@ -199,8 +198,8 @@ const AppointmentsPage = () => {
           gender: values.petGender || 'unknown',
           ownerId: user.id,
         });
-        petId = newPetRes.data.id;
-        setPets((prev) => [...prev, newPetRes.data]);
+        petId = newPet.id;
+        setPets((prev) => [...prev, newPet]);
       } catch (error) {
         message.error('创建宠物信息失败');
         return;

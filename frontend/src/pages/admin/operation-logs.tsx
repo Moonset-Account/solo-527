@@ -55,10 +55,9 @@ const OperationLogsPage = () => {
         ...queryParams,
         ...params,
       };
-      const res = await request.get<any, PageResult<OperationLog>>('/operation-logs', {
+      const result: PageResult<OperationLog> = await request.get('/operation-logs', {
         params: mergedParams,
       });
-      const result = res as unknown as PageResult<OperationLog>;
       setData(result.data || []);
       setPagination({
         current: result.page || 1,
@@ -74,9 +73,8 @@ const OperationLogsPage = () => {
 
   const fetchOperators = async () => {
     try {
-      const res = await request.get<any, User[]>('/users');
-      const usersData = (res as unknown as { data?: User[] }).data || (res as unknown as User[]) || [];
-      setOperators(usersData);
+      const result: PageResult<User> = await request.get('/users');
+      setOperators(result.data || []);
     } catch (error) {
       console.error('获取用户列表失败:', error);
     }

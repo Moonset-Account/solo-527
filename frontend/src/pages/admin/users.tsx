@@ -50,10 +50,9 @@ const UsersPage = () => {
         ...queryParams,
         ...params,
       };
-      const res = await request.get<any, PageResult<User>>('/users', {
+      const result: PageResult<User> = await request.get('/users', {
         params: mergedParams,
       });
-      const result = res as unknown as PageResult<User>;
       setData(result.data || []);
       setPagination({
         current: result.page || 1,

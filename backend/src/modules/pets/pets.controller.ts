@@ -31,7 +31,11 @@ export class PetsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('volunteerId') volunteerId?: string,
+    @Query('ownerId') ownerId?: string,
+    @Request() req?,
   ) {
+    const user = req.user;
+    const isCustomer = user?.role === UserRole.CUSTOMER;
     return this.petsService.findAll({
       page,
       pageSize,
@@ -40,6 +44,7 @@ export class PetsController {
       startDate,
       endDate,
       volunteerId,
+      ownerId: isCustomer ? user.id : ownerId,
     });
   }
 
@@ -49,10 +54,13 @@ export class PetsController {
     return this.petsService.findOne(id);
   }
 
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   async create(@Body() dto: any, @Request() req) {
+    const user = req.user;
+    if (user.role === UserRole.CUSTOMER) {
+      dto.ownerId = user.id;
+    }
     return this.petsService.create(dto, req.user);
   }
 

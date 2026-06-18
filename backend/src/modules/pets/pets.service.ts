@@ -13,6 +13,7 @@ interface FindAllQuery {
   startDate?: string;
   endDate?: string;
   volunteerId?: string;
+  ownerId?: string;
 }
 
 @Injectable()
@@ -27,7 +28,7 @@ export class PetsService {
   ) {}
 
   async findAll(query: FindAllQuery) {
-    const { page, pageSize, status, source, startDate, endDate, volunteerId } = query;
+    const { page, pageSize, status, source, startDate, endDate, volunteerId, ownerId } = query;
     const skip = (page - 1) * pageSize;
 
     const where: any = {};
@@ -40,6 +41,9 @@ export class PetsService {
     }
     if (volunteerId) {
       where.volunteerId = volunteerId;
+    }
+    if (ownerId) {
+      where.ownerId = ownerId;
     }
     if (startDate && endDate) {
       where.createdAt = Between(new Date(startDate), new Date(endDate));
