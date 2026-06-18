@@ -1,16 +1,16 @@
 <div class="statistics-container">
   <div class="page-header">
     <h2>统计与导出</h2>
-    <div class="date-range">
+    <div class="date-range" [formGroup]="dateForm">
       <mat-form-field appearance="outline" class="date-field">
         <mat-label>开始日期</mat-label>
-        <input matInput [matDatepicker]="startPicker" formControlName="startDate" [formGroup]="dateForm" />
+        <input matInput [matDatepicker]="startPicker" formControlName="startDate" />
         <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
         <mat-datepicker #startPicker></mat-datepicker>
       </mat-form-field>
       <mat-form-field appearance="outline" class="date-field">
         <mat-label>结束日期</mat-label>
-        <input matInput [matDatepicker]="endPicker" formControlName="endDate" [formGroup]="dateForm" />
+        <input matInput [matDatepicker]="endPicker" formControlName="endDate" />
         <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
         <mat-datepicker #endPicker></mat-datepicker>
       </mat-form-field>

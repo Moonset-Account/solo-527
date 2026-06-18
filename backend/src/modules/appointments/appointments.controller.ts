@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Query, Request } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { Appointment } from './appointment.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -6,10 +6,15 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { AppointmentStatus } from '../../common/enums/appointment-status.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { OperationLogService } from '../../common/services/operation-log.service';
+import { AppointmentStatusLabels } from '../../common/enums/appointment-status.enum';
 
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+    private readonly operationLogService: OperationLogService,
+  ) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -68,28 +73,71 @@ export class AppointmentsController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  update(
+  async update(
     @Param('id') id: string,
     @Body() appointment: Partial<Appointment>,
     @CurrentUser() user: any,
+    @Request() req: any,
   ): Promise<Appointment | null> {
-    return this.appointmentsService.update(id, appointment, user.sub, user.name);
+    const result = await this.appointmentsService.update(id, appointment, user.sub, user.name);
+
+    this.operationLogService.log(
+      user.sub,
+      user.name,
+      'update',
+      'appointment',
+      id,
+      { changes: Object.keys(appointment).join(', ') },
+      req.ip,
+    );
+
+    return result;
   }
 
   @Put(':id/status')
   @UseGuards(JwtAuthGuard)
-  updateStatus(
+  async updateStatus(
     @Param('id') id: string,
     @Body('status') status: AppointmentStatus,
     @CurrentUser() user: any,
+    @Request() req: any,
   ): Promise<Appointment | null> {
-    return this.appointmentsService.updateStatus(id, status, user.sub, user.name);
+    const result = await this.appointmentsService.updateStatus(id, status, user.sub, user.name);
+
+    this.operationLogService.log(
+      user.sub,
+      user.name,
+      'status_change',
+      'appointment',
+      id,
+      {
+        oldStatus: result ? AppointmentStatusLabels[result.status] : '',
+        newStatus: AppointmentStatusLabels[status],
+      },
+      req.ip,
+    );
+
+    return result;
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string): Promise<void> {
-    return this.appointmentsService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Request() req: any,
+  ): Promise<void> {
+    await this.appointmentsService.remove(id);
+
+    this.operationLogService.log(
+      user.sub,
+      user.name,
+      'delete',
+      'appointment',
+      id,
+      {},
+      req.ip,
+    );
   }
 }

@@ -1,13 +1,17 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Query, Request } from '@nestjs/common';
 import { CheckinsService } from './checkins.service';
 import { CheckIn } from './checkin.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { OperationLogService } from '../../common/services/operation-log.service';
 
 @Controller('checkins')
 @UseGuards(JwtAuthGuard)
 export class CheckinsController {
-  constructor(private readonly checkinsService: CheckinsService) {}
+  constructor(
+    private readonly checkinsService: CheckinsService,
+    private readonly operationLogService: OperationLogService,
+  ) {}
 
   @Get()
   findAll(
@@ -35,15 +39,28 @@ export class CheckinsController {
   }
 
   @Post()
-  checkIn(
+  async checkIn(
     @Body() body: { appointmentId: string; notes?: string },
     @CurrentUser() user: any,
+    @Request() req: any,
   ): Promise<CheckIn> {
-    return this.checkinsService.checkIn(
+    const result = await this.checkinsService.checkIn(
       body.appointmentId,
       user.sub,
       user.name,
       body.notes,
     );
+
+    this.operationLogService.log(
+      user.sub,
+      user.name,
+      'checkin',
+      'appointment',
+      body.appointmentId,
+      { notes: body.notes || '' },
+      req.ip,
+    );
+
+    return result;
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { databaseConfig } from './config/database.config';
+import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { CounselorsModule } from './modules/counselors/counselors.module';
@@ -15,6 +16,7 @@ import { SeedModule } from './seed/seed.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot(databaseConfig),
+    CommonModule,
     AuthModule,
     UsersModule,
     CounselorsModule,
