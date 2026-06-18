@@ -315,7 +315,7 @@ async function seed() {
     全天: { startTime: "09:00", endTime: "22:00", breakStartTime: "12:00", breakEndTime: "14:00" },
   };
 
-  const scheduleData = [];
+  const scheduleData: any[] = [];
   const shiftTypes = ["早班", "中班", "晚班", "全天", "休息"];
   const techNames = technicians.map((t) => ({ id: t._id, name: t.name }));
 

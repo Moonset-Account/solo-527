@@ -6,6 +6,7 @@ import Schedule from "../models/Schedule.js";
 import Commission from "../models/Commission.js";
 import MaterialUsage from "../models/MaterialUsage.js";
 import CustomerTreatment from "../models/CustomerTreatment.js";
+import Treatment from "../models/Treatment.js";
 import ChangeLog from "../models/ChangeLog.js";
 import { successResponse, errorResponse } from "../utils/index.js";
 
@@ -207,13 +208,21 @@ router.get("/schedules", async (req, res) => {
 
 router.get("/commissions", async (req, res) => {
   try {
-    const { type, status, staffId, startDate, endDate, ...restFilters } =
+    const { type, status, staffId, staffType, startDate, endDate, keyword, ...restFilters } =
       req.query;
 
     const filter: any = {};
+    if (keyword) {
+      filter.$or = [
+        { commissionNo: { $regex: keyword, $options: "i" } },
+        { staffName: { $regex: keyword, $options: "i" } },
+        { treatmentName: { $regex: keyword, $options: "i" } },
+      ];
+    }
     if (type) filter.type = type;
     if (status) filter.status = status;
     if (staffId) filter.staffId = staffId;
+    if (staffType) filter.staffModel = staffType;
     if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate as string),
@@ -295,13 +304,21 @@ router.get("/commissions", async (req, res) => {
 
 router.get("/material-usages", async (req, res) => {
   try {
-    const { type, status, technicianId, startDate, endDate, ...restFilters } =
+    const { type, status, technicianId, appointmentId, startDate, endDate, keyword, ...restFilters } =
       req.query;
 
     const filter: any = {};
+    if (keyword) {
+      filter.$or = [
+        { usageNo: { $regex: keyword, $options: "i" } },
+        { technicianName: { $regex: keyword, $options: "i" } },
+        { customerName: { $regex: keyword, $options: "i" } },
+      ];
+    }
     if (type) filter.type = type;
     if (status) filter.status = status;
     if (technicianId) filter.technicianId = technicianId;
+    if (appointmentId) filter.appointmentId = appointmentId;
     if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate as string),
@@ -538,6 +555,75 @@ router.get("/customer-treatments", async (req, res) => {
     worksheet.getRow(worksheet.rowCount).font = { italic: true, size: 10 };
 
     const filename = `客户疗程_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`;
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    res.json(errorResponse(error.message));
+  }
+});
+
+router.get("/treatments", async (req, res) => {
+  try {
+    const { keyword, category, status } = req.query;
+
+    const filter: any = {};
+    if (keyword) {
+      filter.name = { $regex: keyword, $options: "i" };
+    }
+    if (category) filter.category = category;
+    if (status) filter.status = status;
+
+    const treatments = await Treatment.find(filter).sort({ sortOrder: 1, createdAt: -1 });
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("项目管理");
+
+    worksheet.columns = [
+      { header: "项目名称", key: "name", width: 25 },
+      { header: "分类", key: "category", width: 12 },
+      { header: "时长(分钟)", key: "duration", width: 12 },
+      { header: "售价(元)", key: "price", width: 12 },
+      { header: "成本(元)", key: "cost", width: 12 },
+      { header: "状态", key: "status", width: 10 },
+      { header: "描述", key: "description", width: 30 },
+      { header: "创建时间", key: "createdAt", width: 20 },
+    ];
+
+    worksheet.getRow(1).font = { bold: true };
+
+    treatments.forEach((t) => {
+      worksheet.addRow({
+        name: t.name,
+        category: t.category,
+        duration: t.duration,
+        price: t.price,
+        cost: t.cost,
+        status: t.status,
+        description: t.description || "",
+        createdAt: dayjs(t.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+      });
+    });
+
+    const filterInfo = worksheet.addRow({
+      name: `筛选条件: ${JSON.stringify({ keyword, category, status })}`,
+    });
+    worksheet.mergeCells(`A${worksheet.rowCount}:H${worksheet.rowCount}`);
+    worksheet.getRow(worksheet.rowCount).font = { italic: true, size: 10 };
+    worksheet.getRow(worksheet.rowCount).alignment = { wrapText: true };
+
+    const timeInfo = worksheet.addRow({
+      name: `导出时间: ${dayjs().format("YYYY-MM-DD HH:mm:ss")}`,
+    });
+    worksheet.mergeCells(`A${worksheet.rowCount}:H${worksheet.rowCount}`);
+    worksheet.getRow(worksheet.rowCount).font = { italic: true, size: 10 };
+
+    const filename = `项目管理_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`;
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

@@ -153,7 +153,7 @@ export default function Treatments() {
     if (filterKeyword) params.set("keyword", filterKeyword);
     if (filterStatus) params.set("status", filterStatus);
     if (filterCategory) params.set("category", filterCategory);
-    window.location.href = `/api/export/customer-treatments?${params.toString()}`;
+    window.location.href = `/api/export/treatments?${params.toString()}`;
   };
 
   return (

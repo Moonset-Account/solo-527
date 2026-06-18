@@ -167,7 +167,7 @@ router.get("/revenue/trend", async (req, res) => {
       dataMap[item._id] = { date: item._id, revenue: item.revenue, count: item.count };
     });
 
-    const trendData = [];
+    const trendData: any[] = [];
     for (let i = 0; i < daysNum; i++) {
       const date = dayjs().subtract(daysNum - 1 - i, "day").format("YYYY-MM-DD");
       trendData.push(dataMap[date] || { date, revenue: 0, count: 0 });

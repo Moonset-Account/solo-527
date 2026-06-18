@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLoaderData, useFetcher, Link } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import dayjs from "dayjs";
@@ -126,6 +126,7 @@ export default function Cashier() {
   const [paymentMethod, setPaymentMethod] = useState("现金");
   const [discount, setDiscount] = useState("0");
   const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "" });
+  const [lastAction, setLastAction] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,8 +146,30 @@ export default function Cashier() {
       formData.set("consultantId", selectedConsultant._id);
       formData.set("consultantName", selectedConsultant.name);
     }
+    setLastAction("create");
     fetcher.submit(formData, { method: "post" });
   };
+
+  useEffect(() => {
+    const data = fetcher.data as any;
+    if (data && data.success && lastAction === "create") {
+      const appointment = data.data;
+      if (appointment && appointment._id) {
+        if (!appointment.paidAmount || appointment.paidAmount < (appointment.actualPrice || appointment.price)) {
+          openPayment(appointment);
+        }
+      }
+      setLastAction(null);
+      setCustomerInfo({ name: "", phone: "" });
+      setSelectedTreatment(null);
+      setSelectedTechnician(null);
+      setSelectedConsultant(null);
+    }
+    if (data && data.success && lastAction === "payment") {
+      setShowPaymentModal(false);
+      setLastAction(null);
+    }
+  }, [fetcher.data]);
 
   const handlePayment = () => {
     if (!paymentAppointment) return;
@@ -156,8 +179,8 @@ export default function Cashier() {
     formData.set("paidAmount", paidAmount);
     formData.set("paymentMethod", paymentMethod);
     formData.set("discount", discount);
+    setLastAction("payment");
     fetcher.submit(formData, { method: "post" });
-    setShowPaymentModal(false);
   };
 
   const openPayment = (appointment: any) => {
@@ -169,7 +192,7 @@ export default function Cashier() {
     setShowPaymentModal(true);
   };
 
-  const timeSlots = [];
+  const timeSlots: string[] = [];
   for (let h = 9; h < 22; h++) {
     timeSlots.push(`${String(h).padStart(2, "0")}:00`);
     timeSlots.push(`${String(h).padStart(2, "0")}:30`);

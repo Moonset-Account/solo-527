@@ -126,7 +126,13 @@ export default function Schedules() {
   const endDate = lastDay.endOf("week");
   const totalDays = endDate.diff(startDate, "day") + 1;
 
-  const days = [];
+  const days: Array<{
+    date: string;
+    day: number;
+    isCurrentMonth: boolean;
+    isToday: boolean;
+    isWeekend: boolean;
+  }> = [];
   for (let i = 0; i < totalDays; i++) {
     const day = startDate.add(i, "day");
     days.push({
