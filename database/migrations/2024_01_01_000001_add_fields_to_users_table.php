@@ -13,12 +13,15 @@ return new class extends Migration
             $table->string('phone')->nullable()->comment('手机号');
             $table->string('department')->nullable()->comment('部门');
             $table->string('position')->nullable()->comment('职位');
+            $table->string('avatar')->nullable()->comment('头像');
             $table->unsignedBigInteger('manager_id')->nullable()->comment('上级ID');
+            $table->unsignedBigInteger('supplier_id')->nullable()->comment('关联供应商ID');
             $table->boolean('is_active')->default(true)->comment('是否启用');
             $table->softDeletes();
 
             $table->index('department');
             $table->index('manager_id');
+            $table->index('supplier_id');
         });
     }
 
@@ -28,12 +31,15 @@ return new class extends Migration
             $table->dropSoftDeletes();
             $table->dropIndex(['department']);
             $table->dropIndex(['manager_id']);
+            $table->dropIndex(['supplier_id']);
             $table->dropColumn([
                 'employee_no',
                 'phone',
                 'department',
                 'position',
+                'avatar',
                 'manager_id',
+                'supplier_id',
                 'is_active',
             ]);
         });

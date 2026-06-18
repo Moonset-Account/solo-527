@@ -6,14 +6,14 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
 const navigation = [
-    { name: '首页', href: route('dashboard.index'), icon: 'home' },
-    { name: '耗材管理', href: route('supplies.index'), icon: 'box' },
-    { name: '供应商管理', href: route('suppliers.index'), icon: 'users' },
-    { name: '采购申请', href: route('purchase-requests.index'), icon: 'document' },
-    { name: '报价单', href: route('quotations.index'), icon: 'currency' },
-    { name: '到货确认', href: route('delivery.index'), icon: 'truck' },
-    { name: '财务复核', href: route('financial-reviews.index'), icon: 'check' },
-    { name: '系统配置', href: route('config.index'), icon: 'cog' },
+    { name: '首页', href: route('dashboard'), icon: 'home', routeName: 'dashboard' },
+    { name: '耗材管理', href: route('supplies.index'), icon: 'box', routeName: 'supplies.*' },
+    { name: '供应商管理', href: route('suppliers.index'), icon: 'users', routeName: 'suppliers.*' },
+    { name: '采购申请', href: route('purchase-requests.index'), icon: 'document', routeName: 'purchase-requests.*' },
+    { name: '报价单', href: route('quotations.index'), icon: 'currency', routeName: 'quotations.*' },
+    { name: '到货确认', href: route('delivery.index'), icon: 'truck', routeName: 'delivery.*' },
+    { name: '财务复核', href: route('financial-reviews.index'), icon: 'check', routeName: 'financial-reviews.*' },
+    { name: '系统配置', href: route('config.index'), icon: 'cog', routeName: 'config.*' },
 ];
 </script>
 
@@ -24,7 +24,7 @@ const navigation = [
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="shrink-0 flex items-center">
-                            <Link :href="route('dashboard.index')" class="text-xl font-bold text-gray-800 dark:text-white">
+                            <Link :href="route('dashboard')" class="text-xl font-bold text-gray-800 dark:text-white">
                                 耗材采购管理系统
                             </Link>
                         </div>
@@ -33,7 +33,7 @@ const navigation = [
                                 <Link
                                     :href="item.href"
                                     :class="['inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
-                                        route().current(item.href) || (item.href.includes('index') && route().current(item.href.replace('.index', '.*')))
+                                        route().current(item.routeName)
                                             ? 'border-indigo-500 text-gray-900 dark:text-gray-100'
                                             : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-700'
                                     ]"

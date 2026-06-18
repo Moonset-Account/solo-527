@@ -3,18 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ConfigKey;
+use App\Enums\QuotationStatus;
 use App\Http\Requests\Quotation\StoreQuotationRequest;
+use App\Http\Requests\Quotation\UpdateQuotationRequest;
 use App\Models\PurchaseRequest;
 use App\Models\Quotation;
 use App\Models\Supplier;
 use App\Models\Supply;
 use App\Services\ConfigService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class QuotationController
 {
-    public function __construct(protected ConfigService $configService) {}
+    public function __construct(
+        protected ConfigService $configService,
+        protected NotificationService $notificationService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -134,5 +140,124 @@ class QuotationController
             'expired' => $expired,
             'reminder_days' => $days,
         ]);
+    }
+
+    public function edit(Quotation $quotation)
+    {
+        $quotation->load(['items.supply', 'supplier', 'purchaseRequest']);
+        $suppliers = Supplier::where('is_active', true)->get();
+        $supplies = Supply::where('is_active', true)->get();
+        $purchaseRequests = PurchaseRequest::whereIn('status', ['approved', 'in_quotation'])->get();
+
+        return Inertia::render('Quotations/Edit', [
+            'quotation' => $quotation,
+            'suppliers' => $suppliers,
+            'supplies' => $supplies,
+            'purchase_requests' => $purchaseRequests,
+        ]);
+    }
+
+    public function update(UpdateQuotationRequest $request, Quotation $quotation)
+    {
+        $quotation->update($request->safe()->except('items'));
+
+        if ($request->has('items')) {
+            $quotation->items()->delete();
+
+            foreach ($request->items as $item) {
+                $quotation->items()->create([
+                    'purchase_request_item_id' => $item['purchase_request_item_id'] ?? null,
+                    'supply_id' => $item['supply_id'],
+                    'supply_name' => $item['supply_name'],
+                    'specification' => $item['specification'] ?? null,
+                    'unit' => $item['unit'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'tax_rate' => $item['tax_rate'] ?? null,
+                    'discount_rate' => $item['discount_value'] ?? null,
+                    'brand' => $item['manufacturer'] ?? null,
+                    'origin' => $item['origin_country'] ?? null,
+                    'delivery_days' => $item['delivery_days'] ?? null,
+                    'remark' => $item['remarks'] ?? null,
+                ]);
+            }
+        }
+
+        activity()
+            ->performedOn($quotation)
+            ->causedBy(auth()->user())
+            ->withProperties(['changes' => $quotation->getChanges()])
+            ->log('updated');
+
+        return redirect()->route('quotations.show', $quotation)->with('success', '报价单已更新');
+    }
+
+    public function approve(Request $request, Quotation $quotation)
+    {
+        $quotation->update([
+            'status' => QuotationStatus::APPROVED,
+            'approved_at' => now(),
+        ]);
+
+        activity()
+            ->performedOn($quotation)
+            ->causedBy(auth()->user())
+            ->log('approved');
+
+        if ($quotation->creator) {
+            $this->notificationService->sendViaChannel(
+                'quotation_approved',
+                [$quotation->creator->id],
+                '报价单已批准',
+                "您的报价单 #{$quotation->id} 已被批准。",
+                ['quotation_id' => $quotation->id]
+            );
+        }
+
+        return redirect()->route('quotations.show', $quotation)->with('success', '报价单已批准');
+    }
+
+    public function reject(Request $request, Quotation $quotation)
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $quotation->update([
+            'status' => QuotationStatus::REJECTED,
+            'rejection_reason' => $validated['reason'],
+        ]);
+
+        activity()
+            ->performedOn($quotation)
+            ->causedBy(auth()->user())
+            ->withProperties(['reason' => $validated['reason']])
+            ->log('rejected');
+
+        if ($quotation->creator) {
+            $this->notificationService->sendViaChannel(
+                'quotation_rejected',
+                [$quotation->creator->id],
+                '报价单已拒绝',
+                "您的报价单 #{$quotation->id} 已被拒绝。原因: {$validated['reason']}",
+                ['quotation_id' => $quotation->id, 'reason' => $validated['reason']]
+            );
+        }
+
+        return redirect()->route('quotations.show', $quotation)->with('success', '报价单已拒绝');
+    }
+
+    public function disable(Request $request, Quotation $quotation)
+    {
+        $quotation->update([
+            'status' => QuotationStatus::EXPIRED,
+        ]);
+
+        activity()
+            ->performedOn($quotation)
+            ->causedBy(auth()->user())
+            ->log('disabled');
+
+        return redirect()->route('quotations.show', $quotation)->with('success', '报价单已停用');
     }
 }

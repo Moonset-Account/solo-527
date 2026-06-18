@@ -24,7 +24,9 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/{supply}/monthly-usage', [\App\Http\Controllers\SupplyController::class, 'storeMonthlyUsage'])->name('monthly-usage.store');
         Route::post('/{supply}/spec-attachments', [\App\Http\Controllers\SupplyController::class, 'storeSpecAttachment'])->name('spec-attachments.store');
+        Route::post('/{supply}/attachments', [\App\Http\Controllers\SupplyController::class, 'storeSpecAttachment'])->name('attachments.store');
         Route::delete('/spec-attachments/{attachment}', [\App\Http\Controllers\SupplyController::class, 'destroySpecAttachment'])->name('spec-attachments.destroy');
+        Route::delete('/{supply}/attachments/{attachment}', [\App\Http\Controllers\SupplyController::class, 'destroySpecAttachment'])->name('attachments.destroy');
         Route::get('/{supply}/price-history', [\App\Http\Controllers\SupplyController::class, 'priceHistory'])->name('price-history');
     });
 
@@ -47,6 +49,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/{approvalFlow}/edit', [\App\Http\Controllers\ApprovalFlowController::class, 'edit'])->name('edit');
         Route::put('/{approvalFlow}', [\App\Http\Controllers\ApprovalFlowController::class, 'update'])->name('update');
         Route::delete('/{approvalFlow}', [\App\Http\Controllers\ApprovalFlowController::class, 'destroy'])->name('destroy');
+        Route::put('/{approvalFlow}/toggle', [\App\Http\Controllers\ApprovalFlowController::class, 'toggle'])->name('toggle');
+        Route::delete('/{approvalFlow}/steps/{step}', [\App\Http\Controllers\ApprovalFlowController::class, 'destroyStep'])->name('steps.destroy');
     });
 
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
@@ -64,18 +68,27 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [\App\Http\Controllers\QuotationController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\QuotationController::class, 'store'])->name('store');
         Route::get('/{quotation}', [\App\Http\Controllers\QuotationController::class, 'show'])->name('show');
+        Route::get('/{quotation}/edit', [\App\Http\Controllers\QuotationController::class, 'edit'])->name('edit');
+        Route::put('/{quotation}', [\App\Http\Controllers\QuotationController::class, 'update'])->name('update');
+        Route::post('/{quotation}/approve', [\App\Http\Controllers\QuotationController::class, 'approve'])->name('approve');
+        Route::post('/{quotation}/reject', [\App\Http\Controllers\QuotationController::class, 'reject'])->name('reject');
+        Route::post('/{quotation}/disable', [\App\Http\Controllers\QuotationController::class, 'disable'])->name('disable');
         Route::get('/expiring', [\App\Http\Controllers\QuotationController::class, 'expiring'])->name('expiring');
     });
 
     Route::prefix('financial-reviews')->name('financial-reviews.')->middleware('role:financial_manager|financial_staff')->group(function () {
         Route::get('/', [\App\Http\Controllers\FinancialReviewController::class, 'index'])->name('index');
         Route::post('/{quotation}/review', [\App\Http\Controllers\FinancialReviewController::class, 'review'])->name('review');
+        Route::post('/{quotation}/approve', [\App\Http\Controllers\FinancialReviewController::class, 'approve'])->name('approve');
+        Route::post('/{quotation}/reject', [\App\Http\Controllers\FinancialReviewController::class, 'reject'])->name('reject');
         Route::get('/delivery-discrepancies', [\App\Http\Controllers\FinancialReviewController::class, 'deliveryDiscrepancies'])->name('delivery-discrepancies');
+        Route::post('/delivery-discrepancies/{discrepancy}/waive', [\App\Http\Controllers\FinancialReviewController::class, 'waiveDiscrepancy'])->name('delivery-discrepancies.waive');
     });
 
     Route::prefix('config')->name('config.')->middleware('role:admin|super_admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\SystemConfigController::class, 'index'])->name('index');
         Route::put('/', [\App\Http\Controllers\SystemConfigController::class, 'update'])->name('update');
+        Route::post('/', [\App\Http\Controllers\SystemConfigController::class, 'update'])->name('update.post');
         Route::get('/activity-log', [\App\Http\Controllers\SystemConfigController::class, 'activityLog'])->name('activity-log');
     });
 
@@ -85,10 +98,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/{purchaseRequest}/confirm', [\App\Http\Controllers\DeliveryController::class, 'confirm'])->name('confirm');
     });
 
+    Route::prefix('delivery')->name('delivery.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DeliveryController::class, 'index'])->name('index');
+        Route::get('/{deliveryConfirmation}', [\App\Http\Controllers\DeliveryController::class, 'show'])->name('show');
+        Route::post('/{purchaseRequest}/confirm', [\App\Http\Controllers\DeliveryController::class, 'confirm'])->name('confirm');
+    });
+
     Route::prefix('batches')->name('batches.')->middleware('role:admin|super_admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\BatchLogController::class, 'index'])->name('index');
         Route::get('/failed', [\App\Http\Controllers\BatchLogController::class, 'failed'])->name('failed');
         Route::post('/{failedBatch}/retry', [\App\Http\Controllers\BatchLogController::class, 'retry'])->name('retry');
+        Route::post('/logs/{log}/retry', [\App\Http\Controllers\BatchLogController::class, 'retrySingle'])->name('retry-single');
         Route::get('/{failedBatch}/logs', [\App\Http\Controllers\BatchLogController::class, 'logs'])->name('logs');
     });
 });

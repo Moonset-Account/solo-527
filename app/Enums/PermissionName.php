@@ -17,6 +17,7 @@ enum PermissionName: string
     case EDIT_SUPPLIERS = 'edit_suppliers';
     case DELETE_SUPPLIERS = 'delete_suppliers';
     case MANAGE_SUPPLIER_RISK = 'manage_supplier_risk';
+    case ASSESS_SUPPLIER_RISK = 'assess_supplier_risk';
     case VIEW_SUPPLIER_RISK_LOGS = 'view_supplier_risk_logs';
 
     case VIEW_PURCHASE_REQUESTS = 'view_purchase_requests';
@@ -33,6 +34,7 @@ enum PermissionName: string
     case CREATE_APPROVAL_FLOWS = 'create_approval_flows';
     case EDIT_APPROVAL_FLOWS = 'edit_approval_flows';
     case DELETE_APPROVAL_FLOWS = 'delete_approval_flows';
+    case MANAGE_APPROVAL_FLOWS = 'manage_approval_flows';
     case MANAGE_APPROVAL_STEPS = 'manage_approval_steps';
 
     case VIEW_QUOTATIONS = 'view_quotations';
@@ -55,19 +57,26 @@ enum PermissionName: string
     case VIEW_DELIVERIES = 'view_deliveries';
     case CREATE_DELIVERIES = 'create_deliveries';
     case CONFIRM_DELIVERIES = 'confirm_deliveries';
+    case MANAGE_DELIVERIES = 'manage_deliveries';
+    case VIEW_DELIVERY_DISCREPANCIES = 'view_delivery_discrepancies';
     case MANAGE_DELIVERY_DISCREPANCIES = 'manage_delivery_discrepancies';
 
     case VIEW_BATCH_LOGS = 'view_batch_logs';
     case RETRY_BATCH_JOBS = 'retry_batch_jobs';
     case MANAGE_BATCH_PROCESSING = 'manage_batch_processing';
+    case VIEW_FAILED_BATCHES = 'view_failed_batches';
+    case RETRY_FAILED_BATCHES = 'retry_failed_batches';
 
     case VIEW_SYSTEM_CONFIGS = 'view_system_configs';
     case EDIT_SYSTEM_CONFIGS = 'edit_system_configs';
+    case MANAGE_SYSTEM_CONFIG = 'manage_system_config';
+    case VIEW_ACTIVITY_LOG = 'view_activity_log';
 
     case VIEW_USERS = 'view_users';
     case CREATE_USERS = 'create_users';
     case EDIT_USERS = 'edit_users';
     case DELETE_USERS = 'delete_users';
+    case MANAGE_USERS = 'manage_users';
     case MANAGE_ROLES = 'manage_roles';
     case MANAGE_PERMISSIONS = 'manage_permissions';
 
@@ -91,6 +100,7 @@ enum PermissionName: string
             self::EDIT_SUPPLIERS => '编辑供应商',
             self::DELETE_SUPPLIERS => '删除供应商',
             self::MANAGE_SUPPLIER_RISK => '管理供应商风险',
+            self::ASSESS_SUPPLIER_RISK => '评估供应商风险',
             self::VIEW_SUPPLIER_RISK_LOGS => '查看供应商风险日志',
             self::VIEW_PURCHASE_REQUESTS => '查看采购申请',
             self::CREATE_PURCHASE_REQUESTS => '创建采购申请',
@@ -105,6 +115,7 @@ enum PermissionName: string
             self::CREATE_APPROVAL_FLOWS => '创建审批流程',
             self::EDIT_APPROVAL_FLOWS => '编辑审批流程',
             self::DELETE_APPROVAL_FLOWS => '删除审批流程',
+            self::MANAGE_APPROVAL_FLOWS => '管理审批流程',
             self::MANAGE_APPROVAL_STEPS => '管理审批步骤',
             self::VIEW_QUOTATIONS => '查看报价',
             self::CREATE_QUOTATIONS => '创建报价',
@@ -124,16 +135,23 @@ enum PermissionName: string
             self::VIEW_DELIVERIES => '查看发货',
             self::CREATE_DELIVERIES => '创建发货',
             self::CONFIRM_DELIVERIES => '确认收货',
+            self::MANAGE_DELIVERIES => '管理发货',
+            self::VIEW_DELIVERY_DISCREPANCIES => '查看发货差异',
             self::MANAGE_DELIVERY_DISCREPANCIES => '管理发货差异',
             self::VIEW_BATCH_LOGS => '查看批量日志',
             self::RETRY_BATCH_JOBS => '重试批量任务',
             self::MANAGE_BATCH_PROCESSING => '管理批量处理',
+            self::VIEW_FAILED_BATCHES => '查看失败批次',
+            self::RETRY_FAILED_BATCHES => '重试失败批次',
             self::VIEW_SYSTEM_CONFIGS => '查看系统配置',
             self::EDIT_SYSTEM_CONFIGS => '编辑系统配置',
+            self::MANAGE_SYSTEM_CONFIG => '管理系统配置',
+            self::VIEW_ACTIVITY_LOG => '查看操作日志',
             self::VIEW_USERS => '查看用户',
             self::CREATE_USERS => '创建用户',
             self::EDIT_USERS => '编辑用户',
             self::DELETE_USERS => '删除用户',
+            self::MANAGE_USERS => '管理用户',
             self::MANAGE_ROLES => '管理角色',
             self::MANAGE_PERMISSIONS => '管理权限',
             self::VIEW_REPORTS => '查看报表',

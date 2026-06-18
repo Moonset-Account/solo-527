@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ApprovalFlow\StoreApprovalFlowRequest;
 use App\Models\ApprovalFlow;
+use App\Models\ApprovalFlowStep;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -128,5 +129,36 @@ class ApprovalFlowController extends Controller
         $approvalFlow->delete();
 
         return redirect()->route('approval-flows.index')->with('success', '审批流已删除');
+    }
+
+    public function toggle(ApprovalFlow $approvalFlow)
+    {
+        $approvalFlow->update([
+            'is_active' => !$approvalFlow->is_active,
+        ]);
+
+        activity()
+            ->performedOn($approvalFlow)
+            ->causedBy(auth()->user())
+            ->withProperties(['is_active' => $approvalFlow->is_active])
+            ->log('toggled');
+
+        return redirect()->route('approval-flows.show', $approvalFlow)->with('success', $approvalFlow->is_active ? '审批流已启用' : '审批流已停用');
+    }
+
+    public function destroyStep($approvalFlow, $step)
+    {
+        $flow = ApprovalFlow::findOrFail($approvalFlow);
+        $step = ApprovalFlowStep::where('approval_flow_id', $flow->id)->findOrFail($step);
+
+        $step->delete();
+
+        activity()
+            ->performedOn($flow)
+            ->causedBy(auth()->user())
+            ->withProperties(['step_id' => $step->id, 'step_name' => $step->name])
+            ->log('step deleted');
+
+        return back()->with('success', '审批步骤已删除');
     }
 }

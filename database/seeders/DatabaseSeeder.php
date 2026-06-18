@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
         $superAdmin = User::factory()->create([
             'name' => '超级管理员',
             'email' => 'superadmin@example.com',
-            'employee_id' => 'SA001',
+            'employee_no' => 'SA001',
             'department' => 'IT部',
             'position' => '系统管理员',
         ]);
@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
         $admin = User::factory()->create([
             'name' => '系统管理员',
             'email' => 'admin@example.com',
-            'employee_id' => 'AD001',
+            'employee_no' => 'AD001',
             'department' => 'IT部',
             'position' => '管理员',
         ]);
@@ -42,7 +42,7 @@ class DatabaseSeeder extends Seeder
         $procurementManager = User::factory()->create([
             'name' => '采购经理',
             'email' => 'procurement@example.com',
-            'employee_id' => 'PM001',
+            'employee_no' => 'PM001',
             'department' => '采购部',
             'position' => '采购经理',
         ]);
@@ -51,7 +51,7 @@ class DatabaseSeeder extends Seeder
         $procurementStaff = User::factory()->create([
             'name' => '采购员',
             'email' => 'procurement.staff@example.com',
-            'employee_id' => 'PS001',
+            'employee_no' => 'PS001',
             'department' => '采购部',
             'position' => '采购员',
         ]);
@@ -60,7 +60,7 @@ class DatabaseSeeder extends Seeder
         $financeManager = User::factory()->create([
             'name' => '财务经理',
             'email' => 'finance@example.com',
-            'employee_id' => 'FM001',
+            'employee_no' => 'FM001',
             'department' => '财务部',
             'position' => '财务经理',
         ]);
@@ -69,7 +69,7 @@ class DatabaseSeeder extends Seeder
         $financeStaff = User::factory()->create([
             'name' => '财务复核',
             'email' => 'finance.staff@example.com',
-            'employee_id' => 'FS001',
+            'employee_no' => 'FS001',
             'department' => '财务部',
             'position' => '财务复核员',
         ]);
@@ -78,7 +78,7 @@ class DatabaseSeeder extends Seeder
         $warehouseManager = User::factory()->create([
             'name' => '仓库经理',
             'email' => 'warehouse@example.com',
-            'employee_id' => 'WM001',
+            'employee_no' => 'WM001',
             'department' => '仓储部',
             'position' => '仓库经理',
         ]);
@@ -87,7 +87,7 @@ class DatabaseSeeder extends Seeder
         $warehouseStaff = User::factory()->create([
             'name' => '仓管员',
             'email' => 'warehouse.staff@example.com',
-            'employee_id' => 'WS001',
+            'employee_no' => 'WS001',
             'department' => '仓储部',
             'position' => '仓管员',
         ]);

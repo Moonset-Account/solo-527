@@ -110,4 +110,107 @@ class FinancialReviewController extends Controller
             'filters' => $request->only(['status', 'type']),
         ]);
     }
+
+    public function approve(Request $request, $quotation)
+    {
+        $quotation = Quotation::findOrFail($quotation);
+
+        $validated = $request->validate([
+            'reviewed_amount' => ['nullable', 'numeric', 'min:0'],
+            'comments' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $review = FinancialReview::updateOrCreate(
+            [
+                'quotation_id' => $quotation->id,
+                'reviewer_id' => auth()->id(),
+            ],
+            [
+                'status' => 'approved',
+                'reviewed_amount' => $validated['reviewed_amount'] ?? $quotation->total_amount,
+                'comments' => $validated['comments'] ?? null,
+                'reviewed_at' => now(),
+            ]
+        );
+
+        $quotation->update(['status' => 'reviewed']);
+
+        if ($this->configService->getBoolean(ConfigKey::DELIVERY_DISCREPANCY_SYNC_ENABLED->value, true)) {
+            SyncDeliveryDiscrepancyJob::dispatch($review);
+        }
+
+        activity()
+            ->performedOn($quotation)
+            ->causedBy(auth()->user())
+            ->withProperties([
+                'status' => 'approved',
+                'reviewed_amount' => $validated['reviewed_amount'] ?? null,
+            ])
+            ->log('financial approved');
+
+        return back()->with('success', '财务审批已通过');
+    }
+
+    public function reject(Request $request, $quotation)
+    {
+        $quotation = Quotation::findOrFail($quotation);
+
+        $validated = $request->validate([
+            'comments' => ['required', 'string', 'max:2000'],
+            'discrepancy_type' => ['nullable', 'in:price,quantity,specification,other'],
+            'discrepancy_details' => ['nullable', 'array'],
+        ]);
+
+        $review = FinancialReview::updateOrCreate(
+            [
+                'quotation_id' => $quotation->id,
+                'reviewer_id' => auth()->id(),
+            ],
+            [
+                'status' => 'rejected',
+                'reviewed_amount' => $quotation->total_amount,
+                'comments' => $validated['comments'],
+                'discrepancy_type' => $validated['discrepancy_type'] ?? null,
+                'reviewed_at' => now(),
+            ]
+        );
+
+        $quotation->update(['status' => 'rejected']);
+
+        if ($this->configService->getBoolean(ConfigKey::DELIVERY_DISCREPANCY_SYNC_ENABLED->value, true)) {
+            SyncDeliveryDiscrepancyJob::dispatch($review);
+        }
+
+        activity()
+            ->performedOn($quotation)
+            ->causedBy(auth()->user())
+            ->withProperties([
+                'status' => 'rejected',
+                'comments' => $validated['comments'],
+            ])
+            ->log('financial rejected');
+
+        return back()->with('success', '财务已拒绝');
+    }
+
+    public function waiveDiscrepancy(Request $request, $discrepancy)
+    {
+        $discrepancy = DeliveryDiscrepancy::findOrFail($discrepancy);
+
+        $validated = $request->validate([
+            'resolution' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $discrepancy->resolve(auth()->user(), $validated['resolution']);
+
+        activity()
+            ->performedOn($discrepancy)
+            ->causedBy(auth()->user())
+            ->withProperties([
+                'resolution' => $validated['resolution'],
+            ])
+            ->log('discrepancy waived');
+
+        return back()->with('success', '交付差异已豁免');
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FailedBatch;
+use App\Models\RetryLog;
 use App\Services\BatchProcessingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -62,5 +63,25 @@ class BatchLogController extends Controller
             'batch' => $failedBatch,
             'retry_logs' => $logs,
         ]);
+    }
+
+    public function retrySingle($logId)
+    {
+        try {
+            $retryLog = RetryLog::findOrFail($logId);
+            $failedBatch = $retryLog->failedBatch;
+
+            $this->batchService->retryBatch($failedBatch, auth()->user());
+
+            activity()
+                ->performedOn($failedBatch)
+                ->causedBy(auth()->user())
+                ->withProperties(['retry_log_id' => $logId])
+                ->log('single retry');
+
+            return back()->with('success', '单条记录已重新执行');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 }
