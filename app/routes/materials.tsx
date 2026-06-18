@@ -97,8 +97,28 @@ export default function Materials() {
   const fetcher = useFetcher();
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [filterKeyword, setFilterKeyword] = useState(keyword);
+  const [filterCategory, setFilterCategory] = useState(category);
+  const [filterStatus, setFilterStatus] = useState(status);
 
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterCategory) params.set("category", filterCategory);
+    if (filterStatus) params.set("status", filterStatus);
+    params.set("page", "1");
+    window.location.search = params.toString() ? `?${params.toString()}` : "";
+  };
+
+  const handleResetFilter = () => {
+    setFilterKeyword("");
+    setFilterCategory("");
+    setFilterStatus("");
+    window.location.search = "";
+  };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
@@ -135,19 +155,24 @@ export default function Materials() {
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">关键词</label>
             <input
               type="text"
               className="input-field w-48"
               placeholder="搜索名称/SKU"
-              defaultValue={keyword}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
             />
           </div>
           <div>
             <label className="label">分类</label>
-            <select className="select-field w-32" defaultValue={category}>
+            <select
+              className="select-field w-32"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
               <option value="">全部分类</option>
               <option value="护肤品">护肤品</option>
               <option value="精油">精油</option>
@@ -158,21 +183,25 @@ export default function Materials() {
           </div>
           <div>
             <label className="label">状态</label>
-            <select className="select-field w-32" defaultValue={status}>
+            <select
+              className="select-field w-32"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
               <option value="">全部状态</option>
               <option value="启用">启用</option>
               <option value="停用">停用</option>
             </select>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-primary" onClick={handleAdd}>
+          <button type="button" className="btn btn-primary" onClick={handleAdd}>
             ➕ 新增耗材
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

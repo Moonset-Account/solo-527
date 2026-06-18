@@ -6,28 +6,42 @@ import dayjs from "dayjs";
 export async function loader({ request }) {
   const url = new URL(request.url);
   const baseUrl = process.env.API_BASE_URL || "http://localhost:3000";
+  const today = dayjs().format("YYYY-MM-DD");
 
   try {
-    const [techRes, treatRes, consulRes] = await Promise.all([
+    const [techRes, treatRes, consulRes, apptRes] = await Promise.all([
       fetch(`${baseUrl}/api/technicians/list/active`),
       fetch(`${baseUrl}/api/treatments/list/active`),
       fetch(`${baseUrl}/api/consultants/list/active`),
+      fetch(`${baseUrl}/api/appointments?startDate=${today}&endDate=${today}&pageSize=50`),
     ]);
 
     const techData = await techRes.json();
     const treatData = await treatRes.json();
     const consulData = await consulRes.json();
+    const apptData = await apptRes.json();
+
+    const todayAppointments = apptData.data?.list || [];
+    const todayRevenue = todayAppointments.reduce((sum: number, item: any) => sum + (item.paidAmount || 0), 0);
 
     return json({
       technicians: techData.data || [],
       treatments: treatData.data || [],
       consultants: consulData.data || [],
+      todayAppointments,
+      todayTotal: apptData.data?.total || 0,
+      todayRevenue,
+      todayCompleted: todayAppointments.filter((item: any) => item.status === "已完成").length,
     });
   } catch (error) {
     return json({
       technicians: [],
       treatments: [],
       consultants: [],
+      todayAppointments: [],
+      todayTotal: 0,
+      todayRevenue: 0,
+      todayCompleted: 0,
     });
   }
 }
@@ -101,13 +115,16 @@ export async function action({ request }) {
 }
 
 export default function Cashier() {
-  const { technicians, treatments, consultants } = useLoaderData<typeof loader>();
+  const { technicians, treatments, consultants, todayAppointments, todayTotal, todayRevenue, todayCompleted } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [selectedTreatment, setSelectedTreatment] = useState<any>(null);
   const [selectedTechnician, setSelectedTechnician] = useState<any>(null);
   const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAppointment, setPaymentAppointment] = useState<any>(null);
+  const [paidAmount, setPaidAmount] = useState("0");
+  const [paymentMethod, setPaymentMethod] = useState("现金");
+  const [discount, setDiscount] = useState("0");
   const [customerInfo, setCustomerInfo] = useState({ name: "", phone: "" });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -136,10 +153,20 @@ export default function Cashier() {
     const formData = new FormData();
     formData.set("_action", "payment");
     formData.set("id", paymentAppointment._id);
-    formData.set("paidAmount", String(selectedTreatment?.price || 0));
-    formData.set("paymentMethod", "现金");
+    formData.set("paidAmount", paidAmount);
+    formData.set("paymentMethod", paymentMethod);
+    formData.set("discount", discount);
     fetcher.submit(formData, { method: "post" });
     setShowPaymentModal(false);
+  };
+
+  const openPayment = (appointment: any) => {
+    setPaymentAppointment(appointment);
+    const remain = (appointment.actualPrice || appointment.price) - (appointment.paidAmount || 0);
+    setPaidAmount(remain > 0 ? remain.toFixed(2) : "0.00");
+    setPaymentMethod("现金");
+    setDiscount("0");
+    setShowPaymentModal(true);
   };
 
   const timeSlots = [];
@@ -328,26 +355,77 @@ export default function Cashier() {
         <div className="space-y-6">
           <div className="card p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <span>💰</span> 快速收银
+              <span>💰</span> 今日收银
             </h3>
             <div className="space-y-3">
               <div className="p-4 bg-green-50 rounded-lg">
                 <p className="text-sm text-gray-600">今日营收</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">¥0.00</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">¥{todayRevenue?.toFixed(2) || "0.00"}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-blue-50 rounded-lg text-center">
                   <p className="text-xs text-gray-600">今日预约</p>
-                  <p className="text-xl font-bold text-blue-600">0</p>
+                  <p className="text-xl font-bold text-blue-600">{todayTotal || 0}</p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg text-center">
                   <p className="text-xs text-gray-600">已完成</p>
-                  <p className="text-xl font-bold text-purple-600">0</p>
+                  <p className="text-xl font-bold text-purple-600">{todayCompleted || 0}</p>
                 </div>
               </div>
               <Link to="/appointments" className="btn btn-secondary w-full justify-center">
                 📋 查看全部预约
               </Link>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <span>📅</span> 今日预约
+            </h3>
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {todayAppointments.length > 0 ? (
+                todayAppointments.map((appt: any) => (
+                  <div key={appt._id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-sm">{appt.customerName}</p>
+                        <p className="text-xs text-gray-500">{appt.treatmentName}</p>
+                        <p className="text-xs text-gray-400">
+                          {appt.startTime} · {appt.technicianName}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-primary-600 text-sm">
+                          ¥{(appt.actualPrice || appt.price)?.toFixed(2)}
+                        </p>
+                        <span
+                          className={`text-xs ${
+                            appt.paymentStatus === "已支付"
+                              ? "text-green-600"
+                              : appt.paymentStatus === "未支付"
+                              ? "text-yellow-600"
+                              : "text-blue-600"
+                          }`}
+                        >
+                          {appt.paymentStatus}
+                        </span>
+                      </div>
+                    </div>
+                    {appt.paymentStatus !== "已支付" && appt.status !== "已取消" && (
+                      <button
+                        onClick={() => openPayment(appt)}
+                        className="mt-2 w-full py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition-colors"
+                      >
+                        💰 去收款
+                      </button>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  暂无今日预约
+                </div>
+              )}
             </div>
           </div>
 
@@ -412,9 +490,13 @@ export default function Cashier() {
       {showPaymentModal && paymentAppointment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">收银结算</h3>
+            <h3 className="text-lg font-semibold mb-4">💰 收银结算</h3>
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">预约单号</span>
+                  <span className="font-mono text-sm">{paymentAppointment.appointmentNo}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">客户</span>
                   <span className="font-medium">{paymentAppointment.customerName}</span>
@@ -433,11 +515,27 @@ export default function Cashier() {
                     ¥{(paymentAppointment.actualPrice || paymentAppointment.price)?.toFixed(2)}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">已付金额</span>
+                  <span className="font-medium">
+                    ¥{(paymentAppointment.paidAmount || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">待收金额</span>
+                  <span className="font-bold text-green-600">
+                    ¥{((paymentAppointment.actualPrice || paymentAppointment.price) - (paymentAppointment.paidAmount || 0)).toFixed(2)}
+                  </span>
+                </div>
               </div>
 
               <div>
                 <label className="label">支付方式</label>
-                <select className="select-field">
+                <select
+                  className="select-field"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
                   <option value="现金">现金</option>
                   <option value="微信">微信支付</option>
                   <option value="支付宝">支付宝</option>
@@ -449,11 +547,25 @@ export default function Cashier() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">优惠金额</label>
-                  <input type="number" className="input-field" placeholder="0.00" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-field"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    placeholder="0.00"
+                  />
                 </div>
                 <div>
-                  <label className="label">实付金额</label>
-                  <input type="number" className="input-field" placeholder="0.00" />
+                  <label className="label">实收金额</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-field"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
                 </div>
               </div>
 
@@ -466,7 +578,7 @@ export default function Cashier() {
                   取消
                 </button>
                 <button className="btn btn-success" onClick={handlePayment}>
-                  确认收款
+                  ✅ 确认收款
                 </button>
               </div>
             </div>

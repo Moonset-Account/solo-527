@@ -116,11 +116,12 @@ export default function Schedules() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState("");
-  const [currentMonth, setCurrentMonth] = useState(month);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [filterTechnicianId, setFilterTechnicianId] = useState(technicianId);
+  const [filterMonth, setFilterMonth] = useState(month);
 
-  const firstDay = dayjs(currentMonth).startOf("month");
-  const lastDay = dayjs(currentMonth).endOf("month");
+  const firstDay = dayjs(filterMonth).startOf("month");
+  const lastDay = dayjs(filterMonth).endOf("month");
   const startDate = firstDay.startOf("week");
   const endDate = lastDay.endOf("week");
   const totalDays = endDate.diff(startDate, "day") + 1;
@@ -137,15 +138,39 @@ export default function Schedules() {
     });
   }
 
-  const handleAdd = (date: string) => {
-    setSelectedDate(date);
-    setEditingItem(null);
-    setShowModal(true);
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterTechnicianId) params.set("technicianId", filterTechnicianId);
+    params.set("month", filterMonth);
+    window.location.search = params.toString() ? `?${params.toString()}` : "";
+  };
+
+  const prevMonth = () => {
+    const newMonth = dayjs(filterMonth).subtract(1, "month").format("YYYY-MM");
+    const params = new URLSearchParams(window.location.search);
+    params.set("month", newMonth);
+    if (technicianId) params.set("technicianId", technicianId);
+    window.location.search = params.toString();
+  };
+
+  const nextMonth = () => {
+    const newMonth = dayjs(filterMonth).add(1, "month").format("YYYY-MM");
+    const params = new URLSearchParams(window.location.search);
+    params.set("month", newMonth);
+    if (technicianId) params.set("technicianId", technicianId);
+    window.location.search = params.toString();
   };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setSelectedDate(dayjs(item.date).format("YYYY-MM-DD"));
+    setShowModal(true);
+  };
+
+  const handleAdd = (date: string) => {
+    setEditingItem(null);
+    setSelectedDate(date);
     setShowModal(true);
   };
 
@@ -155,6 +180,11 @@ export default function Schedules() {
     formData.set("_action", editingItem ? "update" : "create");
     if (editingItem) {
       formData.set("id", editingItem._id);
+    }
+    const techId = formData.get("technicianId") as string;
+    const tech = technicians.find((t: any) => t._id === techId);
+    if (tech) {
+      formData.set("technicianName", tech.name);
     }
     fetcher.submit(formData, { method: "post" });
     setShowModal(false);
@@ -188,21 +218,13 @@ export default function Schedules() {
   };
 
   const handleExport = () => {
-    const startDate = dayjs(currentMonth).startOf("month").format("YYYY-MM-DD");
-    const endDate = dayjs(currentMonth).endOf("month").format("YYYY-MM-DD");
+    const startDate = dayjs(filterMonth).startOf("month").format("YYYY-MM-DD");
+    const endDate = dayjs(filterMonth).endOf("month").format("YYYY-MM-DD");
     const params = new URLSearchParams();
     params.set("startDate", startDate);
     params.set("endDate", endDate);
-    if (technicianId) params.set("technicianId", technicianId);
+    if (filterTechnicianId) params.set("technicianId", filterTechnicianId);
     window.location.href = `/api/export/schedules?${params.toString()}`;
-  };
-
-  const prevMonth = () => {
-    setCurrentMonth(dayjs(currentMonth).subtract(1, "month").format("YYYY-MM"));
-  };
-
-  const nextMonth = () => {
-    setCurrentMonth(dayjs(currentMonth).add(1, "month").format("YYYY-MM"));
   };
 
   const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
@@ -210,10 +232,14 @@ export default function Schedules() {
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-center">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">技师筛选</label>
-            <select className="select-field w-40" defaultValue={technicianId}>
+            <select
+              className="select-field w-40"
+              value={filterTechnicianId}
+              onChange={(e) => setFilterTechnicianId(e.target.value)}
+            >
               <option value="">全部技师</option>
               {technicians.map((tech: any) => (
                 <option key={tech._id} value={tech._id}>
@@ -222,28 +248,54 @@ export default function Schedules() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="label">月份</label>
+            <input
+              type="month"
+              className="input-field w-40"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+            />
+          </div>
           <div className="flex gap-2">
+            <button type="submit" className="btn btn-primary">
+              🔍 查询
+            </button>
             <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setFilterTechnicianId("");
+                setFilterMonth(dayjs().format("YYYY-MM"));
+                window.location.search = "";
+              }}
+            >
+              重置
+            </button>
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button
+              type="button"
               className={`btn ${viewMode === "calendar" ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setViewMode("calendar")}
             >
               📅 日历视图
             </button>
             <button
+              type="button"
               className={`btn ${viewMode === "list" ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setViewMode("list")}
             >
               📋 列表视图
             </button>
           </div>
-          <div className="flex-1"></div>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button type="button" className="btn btn-secondary" onClick={handleExport}>
             📥 导出排班
           </button>
-          <button className="btn btn-primary" onClick={() => handleAdd(dayjs().format("YYYY-MM-DD"))}>
+          <button type="button" className="btn btn-primary" onClick={() => handleAdd(dayjs().format("YYYY-MM-DD"))}>
             ➕ 补排班次
           </button>
-        </div>
+        </form>
       </div>
 
       {pendingLeaves.length > 0 && (
@@ -291,7 +343,7 @@ export default function Schedules() {
               ← 上月
             </button>
             <h3 className="text-xl font-bold text-gray-900">
-              {dayjs(currentMonth).format("YYYY年MM月")}
+              {dayjs(filterMonth).format("YYYY年MM月")}
             </h3>
             <button className="btn btn-secondary" onClick={nextMonth}>
               下月 →

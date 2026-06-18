@@ -96,7 +96,32 @@ export default function Technicians() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
 
+  const [filterKeyword, setFilterKeyword] = useState(keyword);
+  const [filterLevel, setFilterLevel] = useState(level);
+  const [filterStatus, setFilterStatus] = useState(status);
+
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterLevel) params.set("level", filterLevel);
+    if (filterStatus) params.set("status", filterStatus);
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
+
+  const handleResetFilter = () => {
+    setFilterKeyword("");
+    setFilterLevel("");
+    setFilterStatus("");
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
@@ -131,19 +156,24 @@ export default function Technicians() {
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">关键词</label>
             <input
               type="text"
               className="input-field w-48"
               placeholder="搜索姓名/手机号"
-              defaultValue={keyword}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
             />
           </div>
           <div>
             <label className="label">级别</label>
-            <select className="select-field w-32" defaultValue={level}>
+            <select
+              className="select-field w-32"
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+            >
               <option value="">全部级别</option>
               <option value="初级">初级</option>
               <option value="中级">中级</option>
@@ -153,7 +183,11 @@ export default function Technicians() {
           </div>
           <div>
             <label className="label">状态</label>
-            <select className="select-field w-32" defaultValue={status}>
+            <select
+              className="select-field w-32"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
               <option value="">全部状态</option>
               <option value="在职">在职</option>
               <option value="休假">休假</option>
@@ -161,14 +195,14 @@ export default function Technicians() {
             </select>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-primary" onClick={handleAdd}>
+          <button type="button" className="btn btn-primary" onClick={handleAdd}>
             ➕ 新增技师
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

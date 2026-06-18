@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLoaderData, useFetcher, Link } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import dayjs from "dayjs";
@@ -58,6 +59,12 @@ export default function Commissions() {
     useLoaderData<typeof loader>();
   const fetcher = useFetcher();
 
+  const [filterKeyword, setFilterKeyword] = useState(keyword);
+  const [filterType, setFilterType] = useState(type);
+  const [filterStatus, setFilterStatus] = useState(status);
+  const [filterStartDate, setFilterStartDate] = useState(startDate);
+  const [filterEndDate, setFilterEndDate] = useState(endDate);
+
   const totalPages = Math.ceil(total / pageSize);
 
   const totalAmount = list.reduce(
@@ -65,13 +72,38 @@ export default function Commissions() {
     0
   );
 
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterType) params.set("type", filterType);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterStartDate) params.set("startDate", filterStartDate);
+    if (filterEndDate) params.set("endDate", filterEndDate);
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
+
+  const handleResetFilter = () => {
+    setFilterKeyword("");
+    setFilterType("");
+    setFilterStatus("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
+
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (keyword) params.set("keyword", keyword);
-    if (type) params.set("type", type);
-    if (status) params.set("status", status);
-    if (startDate) params.set("startDate", startDate);
-    if (endDate) params.set("endDate", endDate);
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterType) params.set("type", filterType);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterStartDate) params.set("startDate", filterStartDate);
+    if (filterEndDate) params.set("endDate", filterEndDate);
     window.location.href = `/api/export/commissions?${params.toString()}`;
   };
 
@@ -87,19 +119,24 @@ export default function Commissions() {
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">关键词</label>
             <input
               type="text"
               className="input-field w-48"
               placeholder="搜索单号/人员/项目"
-              defaultValue={keyword}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
             />
           </div>
           <div>
             <label className="label">类型</label>
-            <select className="select-field w-32" defaultValue={type}>
+            <select
+              className="select-field w-32"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
               <option value="">全部类型</option>
               <option value="技师提成">技师提成</option>
               <option value="顾问提成">顾问提成</option>
@@ -107,7 +144,11 @@ export default function Commissions() {
           </div>
           <div>
             <label className="label">状态</label>
-            <select className="select-field w-32" defaultValue={status}>
+            <select
+              className="select-field w-32"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
               <option value="">全部状态</option>
               <option value="待结算">待结算</option>
               <option value="已结算">已结算</option>
@@ -117,22 +158,32 @@ export default function Commissions() {
           <div className="flex gap-2 items-end">
             <div>
               <label className="label">开始日期</label>
-              <input type="date" className="input-field w-36" defaultValue={startDate} />
+              <input
+                type="date"
+                className="input-field w-36"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+              />
             </div>
             <div>
               <label className="label">结束日期</label>
-              <input type="date" className="input-field w-36" defaultValue={endDate} />
+              <input
+                type="date"
+                className="input-field w-36"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+              />
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button type="button" className="btn btn-secondary" onClick={handleExport}>
             📥 导出
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLoaderData, Link } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import dayjs from "dayjs";
@@ -99,25 +100,64 @@ export default function ChangeLogs() {
     endDate,
   } = useLoaderData<typeof loader>();
 
+  const [filterModule, setFilterModule] = useState(module);
+  const [filterAction, setFilterAction] = useState(action);
+  const [filterOperator, setFilterOperator] = useState(operator);
+  const [filterStartDate, setFilterStartDate] = useState(startDate);
+  const [filterEndDate, setFilterEndDate] = useState(endDate);
+
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterModule) params.set("module", filterModule);
+    if (filterAction) params.set("action", filterAction);
+    if (filterOperator) params.set("operator", filterOperator);
+    if (filterStartDate) params.set("startDate", filterStartDate);
+    if (filterEndDate) params.set("endDate", filterEndDate);
+    if (relatedDocType) params.set("relatedDocType", relatedDocType);
+    if (relatedDocId) params.set("relatedDocId", relatedDocId);
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
+
+  const handleResetFilter = () => {
+    setFilterModule("");
+    setFilterAction("");
+    setFilterOperator("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    const params = new URLSearchParams();
+    if (relatedDocType) params.set("relatedDocType", relatedDocType);
+    if (relatedDocId) params.set("relatedDocId", relatedDocId);
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
 
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (module) params.set("module", module);
-    if (action) params.set("action", action);
-    if (operator) params.set("operator", operator);
-    if (startDate) params.set("startDate", startDate);
-    if (endDate) params.set("endDate", endDate);
+    if (filterModule) params.set("module", filterModule);
+    if (filterAction) params.set("action", filterAction);
+    if (filterOperator) params.set("operator", filterOperator);
+    if (filterStartDate) params.set("startDate", filterStartDate);
+    if (filterEndDate) params.set("endDate", filterEndDate);
     window.location.href = `/api/export/change-logs?${params.toString()}`;
   };
 
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">模块</label>
-            <select className="select-field w-36" defaultValue={module}>
+            <select
+              className="select-field w-36"
+              value={filterModule}
+              onChange={(e) => setFilterModule(e.target.value)}
+            >
               <option value="">全部模块</option>
               {moduleOptions.map((m) => (
                 <option key={m} value={m}>
@@ -128,7 +168,11 @@ export default function ChangeLogs() {
           </div>
           <div>
             <label className="label">操作类型</label>
-            <select className="select-field w-32" defaultValue={action}>
+            <select
+              className="select-field w-32"
+              value={filterAction}
+              onChange={(e) => setFilterAction(e.target.value)}
+            >
               <option value="">全部操作</option>
               {actionOptions.map((a) => (
                 <option key={a} value={a}>
@@ -143,28 +187,39 @@ export default function ChangeLogs() {
               type="text"
               className="input-field w-32"
               placeholder="操作人"
-              defaultValue={operator}
+              value={filterOperator}
+              onChange={(e) => setFilterOperator(e.target.value)}
             />
           </div>
           <div className="flex gap-2 items-end">
             <div>
               <label className="label">开始日期</label>
-              <input type="date" className="input-field w-36" defaultValue={startDate} />
+              <input
+                type="date"
+                className="input-field w-36"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+              />
             </div>
             <div>
               <label className="label">结束日期</label>
-              <input type="date" className="input-field w-36" defaultValue={endDate} />
+              <input
+                type="date"
+                className="input-field w-36"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+              />
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button type="button" className="btn btn-secondary" onClick={handleExport}>
             📥 导出
           </button>
-        </div>
+        </form>
       </div>
 
       {relatedDocId && (

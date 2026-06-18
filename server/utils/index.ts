@@ -15,11 +15,11 @@ interface CreateChangeLogOptions {
   action: string;
   targetId: any;
   targetType: string;
-  targetNo?: string;
+  targetNo?: string | null;
   targetName?: string;
   relatedDocId?: any;
   relatedDocType?: string;
-  relatedDocNo?: string;
+  relatedDocNo?: string | null;
   beforeData?: any;
   afterData?: any;
   changes?: Array<{

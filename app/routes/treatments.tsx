@@ -95,9 +95,28 @@ export default function Treatments() {
   const fetcher = useFetcher();
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [searchKeyword, setSearchKeyword] = useState(keyword);
+  const [filterKeyword, setFilterKeyword] = useState(keyword);
+  const [filterStatus, setFilterStatus] = useState(status);
+  const [filterCategory, setFilterCategory] = useState(category);
 
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterCategory) params.set("category", filterCategory);
+    params.set("page", "1");
+    window.location.search = params.toString() ? `?${params.toString()}` : "";
+  };
+
+  const handleResetFilter = () => {
+    setFilterKeyword("");
+    setFilterStatus("");
+    setFilterCategory("");
+    window.location.search = "";
+  };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
@@ -131,29 +150,33 @@ export default function Treatments() {
 
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (keyword) params.set("keyword", keyword);
-    if (status) params.set("status", status);
-    if (category) params.set("category", category);
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterCategory) params.set("category", filterCategory);
     window.location.href = `/api/export/customer-treatments?${params.toString()}`;
   };
 
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">关键词搜索</label>
             <input
               type="text"
               className="input-field w-48"
               placeholder="搜索疗程名称"
-              defaultValue={keyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
             />
           </div>
           <div>
             <label className="label">分类</label>
-            <select className="select-field w-36" defaultValue={category}>
+            <select
+              className="select-field w-36"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
               <option value="">全部分类</option>
               <option value="面部护理">面部护理</option>
               <option value="身体护理">身体护理</option>
@@ -164,24 +187,28 @@ export default function Treatments() {
           </div>
           <div>
             <label className="label">状态</label>
-            <select className="select-field w-32" defaultValue={status}>
+            <select
+              className="select-field w-32"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
               <option value="">全部状态</option>
               <option value="上架">上架</option>
               <option value="下架">下架</option>
             </select>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button type="button" className="btn btn-secondary" onClick={handleExport}>
             📥 导出
           </button>
-          <button className="btn btn-primary" onClick={handleAdd}>
+          <button type="button" className="btn btn-primary" onClick={handleAdd}>
             ➕ 新增疗程
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="card overflow-hidden">

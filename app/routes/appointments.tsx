@@ -1,5 +1,6 @@
 import { useLoaderData, useFetcher, Link } from "@remix-run/react";
 import { json } from "@remix-run/node";
+import { useState } from "react";
 import dayjs from "dayjs";
 
 export async function loader({ request }) {
@@ -83,6 +84,22 @@ export async function action({ request }) {
     return json(data);
   }
 
+  if (_action === "payment") {
+    const id = formData.get("id");
+    const paidAmount = parseFloat(formData.get("paidAmount") || "0");
+    const paymentMethod = formData.get("paymentMethod");
+    const discount = parseFloat(formData.get("discount") || "0");
+    const remark = formData.get("remark");
+
+    const res = await fetch(`${baseUrl}/api/appointments/${id}/payment`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paidAmount, paymentMethod, discount, remark }),
+    });
+    const data = await res.json();
+    return json(data);
+  }
+
   if (_action === "delete") {
     const id = formData.get("id");
     const res = await fetch(`${baseUrl}/api/appointments/${id}`, {
@@ -106,11 +123,67 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Appointments() {
-  const { list, total, page, pageSize, keyword, status, paymentStatus, technicians } =
+  const { list, total, page, pageSize, keyword, status, paymentStatus, technicianId, startDate, endDate, technicians } =
     useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentItem, setPaymentItem] = useState<any>(null);
+  const [paidAmount, setPaidAmount] = useState("0");
+  const [paymentMethod, setPaymentMethod] = useState("现金");
+  const [discount, setDiscount] = useState("0");
+
+  const [filterKeyword, setFilterKeyword] = useState(keyword);
+  const [filterStatus, setFilterStatus] = useState(status);
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState(paymentStatus);
+  const [filterTechnicianId, setFilterTechnicianId] = useState(technicianId);
+  const [filterStartDate, setFilterStartDate] = useState(startDate);
+  const [filterEndDate, setFilterEndDate] = useState(endDate);
 
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterPaymentStatus) params.set("paymentStatus", filterPaymentStatus);
+    if (filterTechnicianId) params.set("technicianId", filterTechnicianId);
+    if (filterStartDate) params.set("startDate", filterStartDate);
+    if (filterEndDate) params.set("endDate", filterEndDate);
+    params.set("page", "1");
+    window.location.search = params.toString() ? `?${params.toString()}` : "";
+  };
+
+  const handleResetFilter = () => {
+    setFilterKeyword("");
+    setFilterStatus("");
+    setFilterPaymentStatus("");
+    setFilterTechnicianId("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    window.location.search = "";
+  };
+
+  const handlePayment = () => {
+    if (!paymentItem) return;
+    const formData = new FormData();
+    formData.set("_action", "payment");
+    formData.set("id", paymentItem._id);
+    formData.set("paidAmount", paidAmount);
+    formData.set("paymentMethod", paymentMethod);
+    formData.set("discount", discount);
+    fetcher.submit(formData, { method: "post" });
+    setShowPaymentModal(false);
+  };
+
+  const openPayment = (item: any) => {
+    setPaymentItem(item);
+    const remain = (item.price || 0) - (item.paidAmount || 0);
+    setPaidAmount(remain > 0 ? remain.toFixed(2) : "0.00");
+    setPaymentMethod("现金");
+    setDiscount("0");
+    setShowPaymentModal(true);
+  };
 
   const handleStatus = (id: string, newStatus: string) => {
     if (confirm(`确定要将状态改为"${newStatus}"吗？`)) {
@@ -133,28 +206,36 @@ export default function Appointments() {
 
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (keyword) params.set("keyword", keyword);
-    if (status) params.set("status", status);
-    if (paymentStatus) params.set("paymentStatus", paymentStatus);
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterPaymentStatus) params.set("paymentStatus", filterPaymentStatus);
+    if (filterTechnicianId) params.set("technicianId", filterTechnicianId);
+    if (filterStartDate) params.set("startDate", filterStartDate);
+    if (filterEndDate) params.set("endDate", filterEndDate);
     window.location.href = `/api/export/appointments?${params.toString()}`;
   };
 
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">关键词</label>
             <input
               type="text"
               className="input-field w-48"
               placeholder="客户/手机号/单号"
-              defaultValue={keyword}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
             />
           </div>
           <div>
             <label className="label">预约状态</label>
-            <select className="select-field w-32" defaultValue={status}>
+            <select
+              className="select-field w-32"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
               <option value="">全部状态</option>
               <option value="待确认">待确认</option>
               <option value="已确认">已确认</option>
@@ -167,7 +248,11 @@ export default function Appointments() {
           </div>
           <div>
             <label className="label">支付状态</label>
-            <select className="select-field w-32" defaultValue={paymentStatus}>
+            <select
+              className="select-field w-32"
+              value={filterPaymentStatus}
+              onChange={(e) => setFilterPaymentStatus(e.target.value)}
+            >
               <option value="">全部</option>
               <option value="未支付">未支付</option>
               <option value="部分支付">部分支付</option>
@@ -177,7 +262,11 @@ export default function Appointments() {
           </div>
           <div>
             <label className="label">技师</label>
-            <select className="select-field w-36">
+            <select
+              className="select-field w-36"
+              value={filterTechnicianId}
+              onChange={(e) => setFilterTechnicianId(e.target.value)}
+            >
               <option value="">全部技师</option>
               {technicians.map((tech: any) => (
                 <option key={tech._id} value={tech._id}>
@@ -186,18 +275,36 @@ export default function Appointments() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="label">开始日期</label>
+            <input
+              type="date"
+              className="input-field w-36"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">结束日期</label>
+            <input
+              type="date"
+              className="input-field w-36"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+            />
+          </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button type="button" className="btn btn-secondary" onClick={handleExport}>
             📥 导出
           </button>
           <Link to="/cashier" className="btn btn-primary">
             ➕ 新增预约
           </Link>
-        </div>
+        </form>
       </div>
 
       <div className="card overflow-hidden">
@@ -277,6 +384,14 @@ export default function Appointments() {
                   </td>
                   <td className="table-cell">
                     <div className="flex flex-wrap gap-1">
+                      {item.paymentStatus !== "已支付" && item.status !== "已取消" && (
+                        <button
+                          onClick={() => openPayment(item)}
+                          className="text-green-600 hover:text-green-700 text-xs font-medium"
+                        >
+                          💰 收款
+                        </button>
+                      )}
                       {item.status === "待确认" && (
                         <button
                           onClick={() => handleStatus(item._id, "已确认")}
@@ -363,6 +478,99 @@ export default function Appointments() {
           </div>
         </div>
       </div>
+
+      {showPaymentModal && paymentItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">💰 收款结算</h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">预约单号</span>
+                  <span className="font-mono text-sm">{paymentItem.appointmentNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">客户</span>
+                  <span className="font-medium">{paymentItem.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">项目</span>
+                  <span className="font-medium">{paymentItem.treatmentName}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-gray-600">应收金额</span>
+                  <span className="font-bold text-primary-600">
+                    ¥{(paymentItem.actualPrice || paymentItem.price)?.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">已付金额</span>
+                  <span className="font-medium">
+                    ¥{(paymentItem.paidAmount || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">待收金额</span>
+                  <span className="font-bold text-green-600">
+                    ¥{((paymentItem.actualPrice || paymentItem.price) - (paymentItem.paidAmount || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">支付方式</label>
+                <select
+                  className="select-field"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  <option value="现金">现金</option>
+                  <option value="微信">微信支付</option>
+                  <option value="支付宝">支付宝</option>
+                  <option value="银行卡">银行卡</option>
+                  <option value="会员卡">会员卡</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">优惠金额</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-field"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">实收金额</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-field"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowPaymentModal(false)}
+                >
+                  取消
+                </button>
+                <button className="btn btn-success" onClick={handlePayment}>
+                  ✅ 确认收款
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

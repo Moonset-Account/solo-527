@@ -123,8 +123,25 @@ export default function CustomerTreatments() {
   const [showUseModal, setShowUseModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [filterKeyword, setFilterKeyword] = useState(keyword);
+  const [filterStatus, setFilterStatus] = useState(status);
 
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterStatus) params.set("status", filterStatus);
+    params.set("page", "1");
+    window.location.search = params.toString() ? `?${params.toString()}` : "";
+  };
+
+  const handleResetFilter = () => {
+    setFilterKeyword("");
+    setFilterStatus("");
+    window.location.search = "";
+  };
 
   const handleUse = (item: any) => {
     setSelectedItem(item);
@@ -156,8 +173,8 @@ export default function CustomerTreatments() {
 
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (keyword) params.set("keyword", keyword);
-    if (status) params.set("status", status);
+    if (filterKeyword) params.set("keyword", filterKeyword);
+    if (filterStatus) params.set("status", filterStatus);
     window.location.href = `/api/export/customer-treatments?${params.toString()}`;
   };
 
@@ -171,19 +188,24 @@ export default function CustomerTreatments() {
   return (
     <div className="space-y-6">
       <div className="card p-4">
-        <div className="flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="label">关键词</label>
             <input
               type="text"
               className="input-field w-48"
               placeholder="客户/项目名称"
-              defaultValue={keyword}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
             />
           </div>
           <div>
             <label className="label">状态</label>
-            <select className="select-field w-32" defaultValue={status}>
+            <select
+              className="select-field w-32"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
               <option value="">全部状态</option>
               <option value="有效">有效</option>
               <option value="已用完">已用完</option>
@@ -192,20 +214,21 @@ export default function CustomerTreatments() {
             </select>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary">🔍 查询</button>
-            <button className="btn btn-secondary">重置</button>
+            <button type="submit" className="btn btn-primary">🔍 查询</button>
+            <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
           </div>
           <div className="flex-1"></div>
-          <button className="btn btn-secondary" onClick={handleExport}>
+          <button type="button" className="btn btn-secondary" onClick={handleExport}>
             📥 导出
           </button>
           <button
+            type="button"
             className="btn btn-primary"
             onClick={() => setShowAddModal(true)}
           >
             ➕ 新增疗程卡
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

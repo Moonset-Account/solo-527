@@ -76,7 +76,32 @@ export default function Reminders() {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"list" | "rules">("list");
 
+  const [filterType, setFilterType] = useState(type);
+  const [filterLevel, setFilterLevel] = useState(level);
+  const [filterStatus, setFilterStatus] = useState(status);
+
   const totalPages = Math.ceil(total / pageSize);
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (filterType) params.set("type", filterType);
+    if (filterLevel) params.set("level", filterLevel);
+    if (filterStatus) params.set("status", filterStatus);
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
+
+  const handleResetFilter = () => {
+    setFilterType("");
+    setFilterLevel("");
+    setFilterStatus("");
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("pageSize", String(pageSize));
+    window.location.search = params.toString();
+  };
 
   const handleRead = (id: string) => {
     const formData = new FormData();
@@ -168,10 +193,14 @@ export default function Reminders() {
 
         {activeTab === "list" && (
           <div className="p-4">
-            <div className="flex flex-wrap gap-4 items-end mb-4">
+            <form onSubmit={handleFilterSubmit} className="flex flex-wrap gap-4 items-end mb-4">
               <div>
                 <label className="label">类型</label>
-                <select className="select-field w-36" defaultValue={type}>
+                <select
+                  className="select-field w-36"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                >
                   <option value="">全部类型</option>
                   <option value="技师请假">技师请假</option>
                   <option value="预约提醒">预约提醒</option>
@@ -183,7 +212,11 @@ export default function Reminders() {
               </div>
               <div>
                 <label className="label">级别</label>
-                <select className="select-field w-32" defaultValue={level}>
+                <select
+                  className="select-field w-32"
+                  value={filterLevel}
+                  onChange={(e) => setFilterLevel(e.target.value)}
+                >
                   <option value="">全部级别</option>
                   <option value="普通">普通</option>
                   <option value="紧急">紧急</option>
@@ -192,7 +225,11 @@ export default function Reminders() {
               </div>
               <div>
                 <label className="label">状态</label>
-                <select className="select-field w-32" defaultValue={status}>
+                <select
+                  className="select-field w-32"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
                   <option value="">全部状态</option>
                   <option value="待发送">待发送</option>
                   <option value="已发送">已发送</option>
@@ -202,10 +239,10 @@ export default function Reminders() {
                 </select>
               </div>
               <div className="flex gap-2">
-                <button className="btn btn-primary">🔍 查询</button>
-                <button className="btn btn-secondary">重置</button>
+                <button type="submit" className="btn btn-primary">🔍 查询</button>
+                <button type="button" className="btn btn-secondary" onClick={handleResetFilter}>重置</button>
               </div>
-            </div>
+            </form>
 
             <div className="space-y-3">
               {list.length > 0 ? (
