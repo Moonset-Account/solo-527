@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+}
+
+@layer components {
+    .btn {
+        @apply inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150;
+    }
+
+    .btn-primary {
+        @apply bg-indigo-600 hover:bg-indigo-500 focus:bg-indigo-500 active:bg-indigo-700;
+    }
+
+    .btn-secondary {
+        @apply bg-gray-200 text-gray-800 hover:bg-gray-300 focus:bg-gray-300 active:bg-gray-400;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 hover:bg-red-500 focus:bg-red-500 active:bg-red-700;
+    }
+
+    .btn-success {
+        @apply bg-green-600 hover:bg-green-500 focus:bg-green-500 active:bg-green-700;
+    }
+
+    .input-field {
+        @apply border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm;
+    }
+
+    .card {
+        @apply bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6;
+    }
+
+    .table-container {
+        @apply overflow-x-auto relative shadow-md sm:rounded-lg;
+    }
+
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+}
