@@ -10,14 +10,11 @@ import { WaitlistModule } from './modules/waitlist/waitlist.module';
 import { CheckinsModule } from './modules/checkins/checkins.module';
 import { OperationLogsModule } from './modules/operation-logs/operation-logs.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
-import { SeedService } from './seed/seed.service';
-import { Counselor } from './modules/counselors/counselor.entity';
-import { Package } from './modules/packages/package.entity';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot(databaseConfig),
-    TypeOrmModule.forFeature([Counselor, Package]),
     AuthModule,
     UsersModule,
     CounselorsModule,
@@ -27,8 +24,9 @@ import { Package } from './modules/packages/package.entity';
     CheckinsModule,
     OperationLogsModule,
     StatisticsModule,
+    SeedModule,
   ],
   controllers: [],
-  providers: [SeedService],
+  providers: [],
 })
 export class AppModule {}

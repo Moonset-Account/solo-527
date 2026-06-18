@@ -53,6 +53,7 @@ import {
   styleUrls: ['./duty-dashboard.component.css'],
 })
 export class DutyDashboardComponent implements OnInit {
+  AppointmentStatus = AppointmentStatus;
   appointments: Appointment[] = [];
   waitlist: WaitlistEntry[] = [];
   packages: Package[] = [];

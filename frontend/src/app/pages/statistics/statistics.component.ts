@@ -13,7 +13,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ApiService } from '../../core/services/api.service';
+import { DateUtils } from '../../core/utils/date.utils';
 
 @Component({
   selector: 'app-statistics',
@@ -31,12 +33,14 @@ import { ApiService } from '../../core/services/api.service';
     MatGridListModule,
     MatDividerModule,
     MatTabsModule,
+    MatProgressSpinnerModule,
+    DatePipe,
   ],
   templateUrl: './statistics.component.html',
   styleUrls: ['./statistics.component.css'],
-  providers: [DatePipe],
 })
 export class StatisticsComponent implements OnInit {
+  Math = Math;
   dateForm: FormGroup;
   stats: any = null;
   workload: any[] = [];
@@ -51,8 +55,7 @@ export class StatisticsComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private apiService: ApiService,
-    private datePipe: DatePipe
+    private apiService: ApiService
   ) {
     const today = new Date();
     const thirtyDaysAgo = new Date();
@@ -64,19 +67,21 @@ export class StatisticsComponent implements OnInit {
     });
   }
 
+  private getStartDate(): string | null {
+    return DateUtils.formatDate(this.dateForm.value.startDate, 'yyyy-MM-dd');
+  }
+
+  private getEndDate(): string | null {
+    return DateUtils.formatDate(this.dateForm.value.endDate, 'yyyy-MM-dd');
+  }
+
   ngOnInit(): void {
     this.loadStatistics();
   }
 
   loadStatistics(): void {
-    const startDate = this.datePipe.transform(
-      this.dateForm.value.startDate,
-      'yyyy-MM-dd'
-    );
-    const endDate = this.datePipe.transform(
-      this.dateForm.value.endDate,
-      'yyyy-MM-dd'
-    );
+    const startDate = this.getStartDate();
+    const endDate = this.getEndDate();
 
     if (!startDate || !endDate) return;
 
@@ -95,56 +100,32 @@ export class StatisticsComponent implements OnInit {
   }
 
   exportAppointments(): void {
-    const startDate = this.datePipe.transform(
-      this.dateForm.value.startDate,
-      'yyyy-MM-dd'
-    );
-    const endDate = this.datePipe.transform(
-      this.dateForm.value.endDate,
-      'yyyy-MM-dd'
-    );
+    const startDate = this.getStartDate();
+    const endDate = this.getEndDate();
     if (startDate && endDate) {
       this.apiService.exportAppointments(startDate, endDate);
     }
   }
 
   exportWorkload(): void {
-    const startDate = this.datePipe.transform(
-      this.dateForm.value.startDate,
-      'yyyy-MM-dd'
-    );
-    const endDate = this.datePipe.transform(
-      this.dateForm.value.endDate,
-      'yyyy-MM-dd'
-    );
+    const startDate = this.getStartDate();
+    const endDate = this.getEndDate();
     if (startDate && endDate) {
       this.apiService.exportWorkload(startDate, endDate);
     }
   }
 
   exportNoShow(): void {
-    const startDate = this.datePipe.transform(
-      this.dateForm.value.startDate,
-      'yyyy-MM-dd'
-    );
-    const endDate = this.datePipe.transform(
-      this.dateForm.value.endDate,
-      'yyyy-MM-dd'
-    );
+    const startDate = this.getStartDate();
+    const endDate = this.getEndDate();
     if (startDate && endDate) {
       this.apiService.exportNoShow(startDate, endDate);
     }
   }
 
   exportOperationLogs(): void {
-    const startDate = this.datePipe.transform(
-      this.dateForm.value.startDate,
-      'yyyy-MM-dd'
-    );
-    const endDate = this.datePipe.transform(
-      this.dateForm.value.endDate,
-      'yyyy-MM-dd'
-    );
+    const startDate = this.getStartDate();
+    const endDate = this.getEndDate();
     if (startDate && endDate) {
       this.apiService.exportOperationLogs(startDate, endDate);
     }

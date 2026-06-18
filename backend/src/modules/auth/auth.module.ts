@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
   imports: [
     UsersModule,
     JwtModule.register({
+      global: true,
       secret: process.env.JWT_SECRET || 'counseling-secret-key',
       signOptions: { expiresIn: '24h' },
     }),

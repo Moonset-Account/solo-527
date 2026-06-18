@@ -57,6 +57,10 @@ export class PackageManagementComponent implements OnInit {
   refundRuleTypeLabels = RefundRuleTypeLabels;
   refundRuleTypes = Object.values(RefundRuleType);
   isLoading = false;
+
+  getRefundRuleLabel(type: RefundRuleType | string): string {
+    return this.refundRuleTypeLabels[type as RefundRuleType] || String(type);
+  }
   packageForm: FormGroup;
   isEditMode = false;
   currentPackageId: string | null = null;

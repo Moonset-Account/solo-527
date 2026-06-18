@@ -9,7 +9,10 @@ export class ApiService {
   constructor(private http: HttpClient) {}
 
   getCounselors(activeOnly = false): Observable<Counselor[]> {
-    const params = activeOnly ? { active: 'true' } : {};
+    const params: { active?: string } = {};
+    if (activeOnly) {
+      params.active = 'true';
+    }
     return this.http.get<Counselor[]>(`${environment.apiUrl}/counselors`, { params });
   }
 
@@ -30,7 +33,10 @@ export class ApiService {
   }
 
   getPackages(activeOnly = false): Observable<Package[]> {
-    const params = activeOnly ? { active: 'true' } : {};
+    const params: { active?: string } = {};
+    if (activeOnly) {
+      params.active = 'true';
+    }
     return this.http.get<Package[]>(`${environment.apiUrl}/packages`, { params });
   }
 
@@ -73,7 +79,10 @@ export class ApiService {
   }
 
   getTodayAppointments(counselorId?: string): Observable<Appointment[]> {
-    const params = counselorId ? { counselorId } : {};
+    const params: { counselorId?: string } = {};
+    if (counselorId) {
+      params.counselorId = counselorId;
+    }
     return this.http.get<Appointment[]>(`${environment.apiUrl}/appointments/today`, { params });
   }
 
@@ -129,7 +138,10 @@ export class ApiService {
   }
 
   getWaitlistCount(counselorId?: string): Observable<number> {
-    const params = counselorId ? { counselorId } : {};
+    const params: { counselorId?: string } = {};
+    if (counselorId) {
+      params.counselorId = counselorId;
+    }
     return this.http.get<number>(`${environment.apiUrl}/waitlist/count`, { params });
   }
 

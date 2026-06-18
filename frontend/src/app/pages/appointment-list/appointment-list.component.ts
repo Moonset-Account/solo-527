@@ -9,13 +9,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatChipsModule } from '@angular/material/chips';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog/confirm-dialog.component';
 import { ApiService } from '../../core/services/api.service';
+import { DateUtils } from '../../core/utils/date.utils';
 import {
   Appointment,
   AppointmentStatus,
@@ -38,7 +38,6 @@ import {
     MatInputModule,
     MatSelectModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
     MatMenuModule,
@@ -68,6 +67,10 @@ export class AppointmentListComponent implements OnInit {
   appointmentStatusLabels = AppointmentStatusLabels;
   appointmentStatuses = Object.values(AppointmentStatus);
   isLoading = false;
+
+  getStatusLabel(status: AppointmentStatus | string): string {
+    return this.appointmentStatusLabels[status as AppointmentStatus] || String(status);
+  }
   filterForm: FormGroup;
   selectedAppointment: Appointment | null = null;
   total = 0;
@@ -118,16 +121,10 @@ export class AppointmentListComponent implements OnInit {
       params.counselorId = formValue.counselorId;
     }
     if (formValue.startDate) {
-      params.startDate = this.datePipe.transform(
-        formValue.startDate,
-        'yyyy-MM-dd'
-      );
+      params.startDate = DateUtils.formatDate(formValue.startDate, 'yyyy-MM-dd');
     }
     if (formValue.endDate) {
-      params.endDate = this.datePipe.transform(
-        formValue.endDate,
-        'yyyy-MM-dd'
-      );
+      params.endDate = DateUtils.formatDate(formValue.endDate, 'yyyy-MM-dd');
     }
 
     this.apiService.getAppointments(params).subscribe({

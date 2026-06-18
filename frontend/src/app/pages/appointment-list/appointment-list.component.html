@@ -14,7 +14,7 @@
               *ngFor="let status of appointmentStatuses"
               [value]="status"
             >
-              {{ appointmentStatusLabels[status] }}
+              {{ getStatusLabel(status) }}
             </mat-option>
           </mat-select>
         </mat-form-field>
@@ -109,7 +109,7 @@
             class="status-badge"
             [ngClass]="getStatusClass(element.status)"
           >
-            {{ appointmentStatusLabels[element.status] }}
+            {{ getStatusLabel(element.status) }}
           </span>
         </td>
       </ng-container>
@@ -209,7 +209,7 @@
           class="status-badge"
           [ngClass]="getStatusClass(selectedAppointment.status)"
         >
-          {{ appointmentStatusLabels[selectedAppointment.status] }}
+          {{ getStatusLabel(selectedAppointment.status) }}
         </span>
       </div>
       <div class="detail-item" *ngIf="selectedAppointment.source">

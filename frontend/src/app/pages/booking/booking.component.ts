@@ -9,7 +9,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -29,7 +28,6 @@ import { Counselor, Package } from '../../core/models/appointment.model';
     MatInputModule,
     MatRadioModule,
     MatDatepickerModule,
-    MatNativeDateModule,
     MatChipsModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -200,13 +198,31 @@ export class BookingComponent implements OnInit {
 
     const date = this.appointmentForm.value.appointmentDate;
     const time = this.appointmentForm.value.appointmentTime;
-    const appointmentDateTime = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      parseInt(time.split(':')[0], 10),
-      parseInt(time.split(':')[1], 10)
-    );
+    const timeParts = time ? String(time).split(':') : ['09', '00'];
+    const hours = parseInt(timeParts[0], 10) || 9;
+    const minutes = parseInt(timeParts[1], 10) || 0;
+
+    let year: number, month: number, day: number;
+    if (date instanceof Date) {
+      year = date.getFullYear();
+      month = date.getMonth();
+      day = date.getDate();
+    } else if (date && typeof date.year === 'function') {
+      year = date.year();
+      month = date.month();
+      day = date.date();
+    } else if (date) {
+      const d = new Date(date);
+      year = d.getFullYear();
+      month = d.getMonth();
+      day = d.getDate();
+    } else {
+      const d = new Date();
+      year = d.getFullYear();
+      month = d.getMonth();
+      day = d.getDate();
+    }
+    const appointmentDateTime = new Date(year, month, day, hours, minutes);
 
     const appointmentData = {
       counselorId: this.counselorForm.value.counselorId,
@@ -214,7 +230,7 @@ export class BookingComponent implements OnInit {
       clientName: this.appointmentForm.value.clientName,
       clientPhone: this.appointmentForm.value.clientPhone,
       clientEmail: this.appointmentForm.value.clientEmail || undefined,
-      appointmentTime: appointmentDateTime.toISOString(),
+      appointmentTime: appointmentDateTime,
       reason: this.appointmentForm.value.reason,
     };
 

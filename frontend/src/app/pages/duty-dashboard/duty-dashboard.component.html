@@ -213,32 +213,32 @@
                       <mat-menu #statusMenu="matMenu">
                         <button
                           mat-menu-item
-                          (click)="handleUpdateStatus(element, 'confirmed')"
-                          [disabled]="element.status === 'confirmed'"
+                          (click)="handleUpdateStatus(element, AppointmentStatus.CONFIRMED)"
+                          [disabled]="element.status === AppointmentStatus.CONFIRMED"
                         >
                           <mat-icon>check</mat-icon>
                           标记已确认
                         </button>
                         <button
                           mat-menu-item
-                          (click)="handleUpdateStatus(element, 'completed')"
-                          [disabled]="element.status === 'completed'"
+                          (click)="handleUpdateStatus(element, AppointmentStatus.COMPLETED)"
+                          [disabled]="element.status === AppointmentStatus.COMPLETED"
                         >
                           <mat-icon>done_all</mat-icon>
                           标记已完成
                         </button>
                         <button
                           mat-menu-item
-                          (click)="handleUpdateStatus(element, 'cancelled')"
-                          [disabled]="element.status === 'cancelled'"
+                          (click)="handleUpdateStatus(element, AppointmentStatus.CANCELLED)"
+                          [disabled]="element.status === AppointmentStatus.CANCELLED"
                         >
                           <mat-icon>cancel</mat-icon>
                           标记已取消
                         </button>
                         <button
                           mat-menu-item
-                          (click)="handleUpdateStatus(element, 'no_show')"
-                          [disabled]="element.status === 'no_show'"
+                          (click)="handleUpdateStatus(element, AppointmentStatus.NO_SHOW)"
+                          [disabled]="element.status === AppointmentStatus.NO_SHOW"
                         >
                           <mat-icon>error</mat-icon>
                           标记爽约
@@ -265,14 +265,15 @@
         <mat-card class="section-card waitlist-card">
           <mat-card-header>
             <mat-card-title>
-              <mat-icon>people_alt</mat-icon>
-              候补队列
-              <mat-badge
-                [content]="stats.waitlistCount"
-                color="warn"
-                class="waitlist-badge"
+              <span
+                [matBadge]="stats.waitlistCount"
+                matBadgeColor="warn"
+                matBadgePosition="after"
+                class="waitlist-badge-wrapper"
               >
-              </mat-badge>
+                <mat-icon>people_alt</mat-icon>
+                候补队列
+              </span>
             </mat-card-title>
           </mat-card-header>
           <mat-card-content>
