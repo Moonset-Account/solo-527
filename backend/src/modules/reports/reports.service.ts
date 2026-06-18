@@ -59,7 +59,7 @@ export class ReportsService {
     });
 
     return {
-      list: reports.map((r) => ({
+      data: reports.map((r) => ({
         id: r.id,
         title: r.title,
         type: r.type,
