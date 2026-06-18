@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Appointment from "../models/Appointment.js";
+import Customer from "../models/Customer.js";
 import {
   successResponse,
   errorResponse,
@@ -98,17 +99,40 @@ router.post("/", async (req, res) => {
       remark,
     } = req.body;
 
-    if (!customerId || !treatmentId || !technicianId || !appointmentDate || !startTime) {
-      return res.json(errorResponse("客户、项目、技师、日期和时间不能为空"));
+    if (!customerPhone || !treatmentId || !technicianId || !appointmentDate || !startTime) {
+      return res.json(errorResponse("客户手机号、项目、技师、日期和时间不能为空"));
     }
+
+    let customer: any = null;
+    if (customerId) {
+      customer = await Customer.findById(customerId);
+    }
+    if (!customer && customerPhone) {
+      customer = await Customer.findOne({ phone: customerPhone });
+    }
+    if (!customer && customerPhone && customerName) {
+      customer = new Customer({
+        name: customerName,
+        phone: customerPhone,
+        source: source || "门店",
+      });
+      await customer.save();
+    }
+    if (!customer) {
+      return res.json(errorResponse("客户信息无效"));
+    }
+
+    const finalCustomerId = customer._id;
+    const finalCustomerName = customerName || customer.name;
+    const finalCustomerPhone = customerPhone || customer.phone;
 
     const appointmentNo = generateOrderNo("YY");
 
     const appointment = new Appointment({
       appointmentNo,
-      customerId,
-      customerName,
-      customerPhone,
+      customerId: finalCustomerId,
+      customerName: finalCustomerName,
+      customerPhone: finalCustomerPhone,
       treatmentId,
       treatmentName,
       technicianId,
@@ -136,6 +160,9 @@ router.post("/", async (req, res) => {
       targetNo: appointment.appointmentNo,
       targetName: appointment.customerName,
       afterData: appointment.toObject(),
+      relatedDocId: customer._id,
+      relatedDocType: "Customer",
+      relatedDocNo: customer.phone,
       operator: "admin",
       operatorRole: "管理员",
       remark: "创建预约",

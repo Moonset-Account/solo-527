@@ -271,9 +271,11 @@ router.get("/commissions", async (req, res) => {
 
     const filterInfo = worksheet.addRow({
       commissionNo: `筛选条件: ${JSON.stringify({
+        keyword,
         type,
         status,
         staffId,
+        staffType,
         startDate,
         endDate,
       })}`,
@@ -365,9 +367,11 @@ router.get("/material-usages", async (req, res) => {
 
     const filterInfo = worksheet.addRow({
       usageNo: `筛选条件: ${JSON.stringify({
+        keyword,
         type,
         status,
         technicianId,
+        appointmentId,
         startDate,
         endDate,
       })}`,
