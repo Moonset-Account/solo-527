@@ -125,7 +125,7 @@ const getProductText = (product) => {
 }
 
 const submitComment = () => {
-    commentForm.post(route('orders.comments.store', order.value.id), {
+    commentForm.post(route('comments.store', { commentableType: 'orders', commentableId: order.value.id }), {
         onSuccess: () => commentForm.reset(),
     })
 }
@@ -135,7 +135,7 @@ const handleFileUpload = (e) => {
     if (files && files.length > 0) {
         const formData = new FormData()
         Array.from(files).forEach((file) => formData.append('files[]', file))
-        router.post(route('orders.attachments.store', order.value.id), formData, {
+        router.post(route('attachments.store', { attachableType: 'orders', attachableId: order.value.id }), formData, {
             onSuccess: () => {
                 if (fileInputRef.value) fileInputRef.value.value = ''
             },
@@ -148,11 +148,11 @@ const handleFileUpload = (e) => {
     <AppLayout :title="`订单详情 - ${order.order_no}`">
         <div class="space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <Button variant="ghost" @click="router.visit('/orders')" class="-ml-2">
+                <Button variant="ghost" @click="router.visit(route('orders.index'))" class="-ml-2">
                     <ArrowLeftIcon class="w-5 h-5 mr-2" />
                     返回列表
                 </Button>
-                <Button @click="router.visit(`/orders/${order.id}/edit`)">
+                <Button @click="router.visit(route('orders.edit', order.id))">
                     <PencilIcon class="w-5 h-5 mr-2" />
                     编辑订单
                 </Button>
@@ -184,7 +184,7 @@ const handleFileUpload = (e) => {
                                 <h3 class="text-sm font-medium text-gray-500 mb-2">产品信息</h3>
                                 <div class="space-y-1.5 text-sm">
                                     <p class="text-gray-900">
-                                        <span class="font-medium">产品：</span>{{ getProductText(order.product) }}
+                                        <span class="font-medium">产品：</span>{{ getProductText(order.product_name) }}
                                     </p>
                                     <p class="text-gray-900">
                                         <span class="font-medium">数量：</span>{{ order.quantity }} kg
@@ -201,16 +201,16 @@ const handleFileUpload = (e) => {
                                 <h3 class="text-sm font-medium text-gray-500 mb-2">发货信息</h3>
                                 <div class="space-y-1.5 text-sm">
                                     <p class="text-gray-900">
-                                        <span class="font-medium">预计发货：</span>{{ order.expected_ship_date || '-' }}
+                                        <span class="font-medium">预计发货：</span>{{ order.expected_delivery_date || '-' }}
                                     </p>
                                     <p class="text-gray-900">
-                                        <span class="font-medium">来源大棚：</span>{{ order.greenhouse_name || '-' }}
+                                        <span class="font-medium">来源大棚：</span>{{ order.greenhouse?.name || '-' }}
                                     </p>
                                 </div>
                             </div>
-                            <div v-if="order.notes">
+                            <div v-if="order.remark">
                                 <h3 class="text-sm font-medium text-gray-500 mb-2">订单备注</h3>
-                                <p class="text-sm text-gray-600">{{ order.notes }}</p>
+                                <p class="text-sm text-gray-600">{{ order.remark }}</p>
                             </div>
                         </div>
                     </div>

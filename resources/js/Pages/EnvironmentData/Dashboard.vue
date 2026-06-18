@@ -3,8 +3,8 @@ import { usePage, router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import {
     ArrowLeftIcon,
-    ThermometerIcon,
-    DropIcon,
+    BoltIcon,
+    EyeDropperIcon,
     BeakerIcon,
     SunIcon,
     ExclamationTriangleIcon,
@@ -153,7 +153,7 @@ const sensorCards = [
         key: 'temperature',
         label: '温度',
         unit: '°C',
-        icon: ThermometerIcon,
+        icon: BoltIcon,
         color: 'text-danger',
         iconBg: 'bg-danger/10',
         min: 15,
@@ -163,7 +163,7 @@ const sensorCards = [
         key: 'humidity',
         label: '湿度',
         unit: '%',
-        icon: DropIcon,
+        icon: EyeDropperIcon,
         color: 'text-info',
         iconBg: 'bg-info/10',
         min: 40,
@@ -195,7 +195,7 @@ const sensorCards = [
 <template>
     <AppLayout title="环境监控看板">
         <div class="space-y-6">
-            <Button variant="ghost" @click="router.visit('/environment')" class="-ml-2">
+            <Button variant="ghost" @click="router.visit(route('environment-data.index'))" class="-ml-2">
                 <ArrowLeftIcon class="w-5 h-5 mr-2" />
                 返回数据列表
             </Button>

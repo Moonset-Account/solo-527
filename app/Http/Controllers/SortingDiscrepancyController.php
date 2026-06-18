@@ -43,6 +43,26 @@ class SortingDiscrepancyController extends Controller
 
         $discrepancies = $query->paginate($request->input('per_page', 15))->withQueryString();
 
+        $discrepancies->getCollection()->transform(function ($item) {
+            return array_merge($item->toArray(), [
+                'task_no' => $item->sortingTask?->task_no,
+                'planned_quantity' => $item->planned_qty,
+                'actual_quantity' => $item->actual_qty,
+                'diff_quantity' => $item->difference,
+                'order_no' => $item->order?->order_no,
+            ]);
+        });
+
+        $socialImpactSummary = \App\Models\SortingDiscrepancy::selectRaw('
+            COUNT(*) as total_count,
+            SUM(CASE WHEN social_impact IS NOT NULL AND JSON_EXTRACT(social_impact, "$.customer_complaint") = true THEN 1 ELSE 0 END) as total_complaints,
+            SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(social_impact, "$.economic_loss")) AS DECIMAL(10,2))) as total_economic_loss
+        ')->first();
+
+        $economicLoss = $socialImpactSummary?->total_economic_loss ?? 0;
+        $complaints = $socialImpactSummary?->total_complaints ?? 0;
+        $reputationLoss = $complaints > 10 ? '严重' : ($complaints > 5 ? '中' : ($complaints > 0 ? '低' : '无'));
+
         $sortingTasks = SortingTask::orderBy('created_at', 'desc')->limit(100)->get(['id', 'task_no']);
         $orders = Order::orderBy('created_at', 'desc')->limit(100)->get(['id', 'order_no', 'customer_name']);
 
@@ -50,6 +70,11 @@ class SortingDiscrepancyController extends Controller
             'discrepancies' => $discrepancies,
             'sortingTasks' => $sortingTasks,
             'orders' => $orders,
+            'socialImpactSummary' => [
+                'totalComplaints' => $complaints,
+                'reputationLoss' => $reputationLoss,
+                'economicLoss' => $economicLoss,
+            ],
             'filters' => $request->only([
                 'sorting_task_id', 'order_id', 'discrepancy_type', 'status',
                 'start_date', 'end_date',
@@ -91,6 +116,28 @@ class SortingDiscrepancyController extends Controller
         $sortingDiscrepancy->update($validated);
 
         return redirect()->back()->with('success', '差异记录更新成功');
+    }
+
+    public function show(SortingDiscrepancy $sortingDiscrepancy)
+    {
+        $sortingDiscrepancy->load([
+            'sortingTask', 'order', 'handledBy',
+            'attachments',
+            'comments' => fn($q) => $q->with('user')->orderByDesc('created_at'),
+            'auditLogs' => fn($q) => $q->with('user')->orderByDesc('created_at'),
+        ]);
+
+        $data = array_merge($sortingDiscrepancy->toArray(), [
+            'task_no' => $sortingDiscrepancy->sortingTask?->task_no,
+            'planned_quantity' => $sortingDiscrepancy->planned_qty,
+            'actual_quantity' => $sortingDiscrepancy->actual_qty,
+            'diff_quantity' => $sortingDiscrepancy->difference,
+            'order_no' => $sortingDiscrepancy->order?->order_no,
+        ]);
+
+        return Inertia::render('SortingDiscrepancies/Show', [
+            'discrepancy' => $data,
+        ]);
     }
 
     public function handle(Request $request, SortingDiscrepancy $sortingDiscrepancy)

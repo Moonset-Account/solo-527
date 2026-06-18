@@ -15,20 +15,22 @@ const form = useForm({
     customer_name: '',
     customer_phone: '',
     customer_address: '',
-    product: '',
+    product_name: '',
+    product_spec: '',
     quantity: '',
+    unit: 'kg',
     unit_price: '',
     greenhouse_id: '',
-    expected_ship_date: '',
-    notes: '',
+    expected_delivery_date: '',
+    remark: '',
 })
 
 const productOptions = [
-    { value: 'tomato', label: '番茄' },
-    { value: 'cucumber', label: '黄瓜' },
-    { value: 'pepper', label: '辣椒' },
-    { value: 'lettuce', label: '生菜' },
-    { value: 'strawberry', label: '草莓' },
+    { value: '番茄', label: '番茄' },
+    { value: '黄瓜', label: '黄瓜' },
+    { value: '辣椒', label: '辣椒' },
+    { value: '生菜', label: '生菜' },
+    { value: '草莓', label: '草莓' },
 ]
 
 const greenhouseOptions = computed(() =>
@@ -37,7 +39,9 @@ const greenhouseOptions = computed(() =>
 
 const submit = () => {
     form.post(route('orders.store'), {
-        onSuccess: () => router.visit('/orders'),
+        onSuccess: () => {
+            router.visit(route('orders.index'))
+        },
     })
 }
 </script>
@@ -45,7 +49,7 @@ const submit = () => {
 <template>
     <AppLayout title="新建订单">
         <div class="space-y-6">
-            <Button variant="ghost" @click="router.visit('/orders')" class="-ml-2">
+            <Button variant="ghost" @click="router.visit(route('orders.index'))" class="-ml-2">
                 <ArrowLeftIcon class="w-5 h-5 mr-2" />
                 返回列表
             </Button>
@@ -76,7 +80,6 @@ const submit = () => {
                                     label="收货地址"
                                     placeholder="请输入收货地址"
                                     :error="form.errors.customer_address"
-                                    required
                                 />
                             </div>
                         </div>
@@ -86,11 +89,17 @@ const submit = () => {
                         <h3 class="text-sm font-medium text-gray-700 mb-3">产品信息</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Select
-                                v-model="form.product"
-                                label="产品类型"
+                                v-model="form.product_name"
+                                label="产品名称"
                                 :options="productOptions"
-                                :error="form.errors.product"
+                                :error="form.errors.product_name"
                                 required
+                            />
+                            <Input
+                                v-model="form.product_spec"
+                                label="产品规格"
+                                placeholder="如：一级、精品"
+                                :error="form.errors.product_spec"
                             />
                             <Select
                                 v-model="form.greenhouse_id"
@@ -102,25 +111,31 @@ const submit = () => {
                             <Input
                                 v-model="form.quantity"
                                 type="number"
-                                label="数量(kg)"
+                                label="数量"
                                 placeholder="请输入数量"
                                 :error="form.errors.quantity"
                                 required
                             />
                             <Input
+                                v-model="form.unit"
+                                label="单位"
+                                placeholder="如：kg、箱"
+                                :error="form.errors.unit"
+                            />
+                            <Input
                                 v-model="form.unit_price"
                                 type="number"
                                 step="0.01"
-                                label="单价(元/kg)"
+                                label="单价(元)"
                                 placeholder="请输入单价"
                                 :error="form.errors.unit_price"
                                 required
                             />
                             <Input
-                                v-model="form.expected_ship_date"
+                                v-model="form.expected_delivery_date"
                                 type="date"
                                 label="预计发货日期"
-                                :error="form.errors.expected_ship_date"
+                                :error="form.errors.expected_delivery_date"
                                 required
                             />
                         </div>
@@ -128,14 +143,14 @@ const submit = () => {
 
                     <div class="pt-4 border-t border-gray-200">
                         <Input
-                            v-model="form.notes"
+                            v-model="form.remark"
                             label="备注"
                             placeholder="请输入备注信息"
                         />
                     </div>
 
                     <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                        <Button variant="secondary" type="button" @click="router.visit('/orders')">
+                        <Button variant="secondary" type="button" @click="router.visit(route('orders.index'))">
                             取消
                         </Button>
                         <Button type="submit" :loading="form.processing">

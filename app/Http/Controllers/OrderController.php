@@ -77,7 +77,43 @@ class OrderController extends Controller
 
         $query->orderBy($request->input('sort_by', 'created_at'), $request->input('sort_direction', 'desc'));
 
+        $user = Auth::user();
+        $userRoleIds = $user->roles()->pluck('id')->toArray();
+
+        $savedFilters = \App\Models\SavedFilter::where(function ($q) use ($user, $userRoleIds) {
+            $q->where('user_id', $user->id)
+                ->orWhere(function ($subQ) use ($userRoleIds) {
+                    $subQ->where('is_public', true)
+                        ->whereIn('role_id', $userRoleIds);
+                });
+        })
+            ->where('module', 'orders')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
         $orders = $query->paginate($request->input('per_page', 15))->withQueryString();
+
+        $orders->getCollection()->transform(function ($order) {
+            $latestEnv = $order->greenhouse->environmentData()
+                ->latest('recorded_at')
+                ->first();
+
+            $subsidyVoucher = $order->greenhouse->subsidyVouchers()
+                ->latest()
+                ->first();
+
+            $machineryAppointment = $order->greenhouse->machineryAppointments()
+                ->latest()
+                ->first();
+
+            return array_merge($order->toArray(), [
+                'latest_temperature' => $latestEnv?->temperature ? number_format($latestEnv->temperature, 1) : null,
+                'latest_humidity' => $latestEnv?->humidity ? number_format($latestEnv->humidity, 0) : null,
+                'subsidy_status' => $subsidyVoucher?->status ?? 'not_applied',
+                'machinery_status' => $machineryAppointment?->status ?? 'not_applied',
+            ]);
+        });
 
         $greenhouses = Greenhouse::orderBy('name')->get(['id', 'name']);
 
@@ -87,6 +123,7 @@ class OrderController extends Controller
             'today_anomalies' => $todayAnomalies,
             'pending_subsidy_vouchers' => $pendingSubsidyVouchers,
             'pending_machinery_appointments' => $pendingMachineryAppointments,
+            'savedFilters' => $savedFilters,
             'filters' => $request->only([
                 'search', 'greenhouse_id', 'status', 'payment_status',
                 'start_date', 'end_date', 'delivery_start', 'delivery_end',
@@ -106,7 +143,6 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'order_no' => 'required|string|unique:orders,order_no|max:50',
             'greenhouse_id' => 'required|exists:greenhouses,id',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
@@ -114,15 +150,19 @@ class OrderController extends Controller
             'product_name' => 'required|string|max:255',
             'product_spec' => 'nullable|string|max:100',
             'quantity' => 'required|numeric|min:0',
-            'unit' => 'required|string|max:20',
+            'unit' => 'nullable|string|max:20',
             'unit_price' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
             'expected_delivery_date' => 'required|date',
-            'status' => 'required|string|in:pending,processing,shipped,completed,cancelled',
-            'payment_status' => 'required|string|in:unpaid,partial,paid',
+            'status' => 'nullable|string|in:pending,confirmed,sorting,shipped,completed,cancelled',
+            'payment_status' => 'nullable|string|in:unpaid,partial,paid',
             'remark' => 'nullable|string|max:1000',
         ]);
 
+        $validated['order_no'] = generate_no('ORD');
+        $validated['unit'] = $validated['unit'] ?? 'kg';
+        $validated['total_amount'] = round($validated['quantity'] * $validated['unit_price'], 2);
+        $validated['status'] = $validated['status'] ?? 'pending';
+        $validated['payment_status'] = $validated['payment_status'] ?? 'unpaid';
         $validated['created_by'] = Auth::id();
 
         $order = Order::create($validated);
@@ -172,14 +212,15 @@ class OrderController extends Controller
             'product_name' => 'required|string|max:255',
             'product_spec' => 'nullable|string|max:100',
             'quantity' => 'required|numeric|min:0',
-            'unit' => 'required|string|max:20',
+            'unit' => 'nullable|string|max:20',
             'unit_price' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0',
             'expected_delivery_date' => 'required|date',
-            'status' => 'required|string|in:pending,processing,shipped,completed,cancelled',
+            'status' => 'required|string|in:pending,confirmed,sorting,shipped,completed,cancelled',
             'payment_status' => 'required|string|in:unpaid,partial,paid',
             'remark' => 'nullable|string|max:1000',
         ]);
+
+        $validated['total_amount'] = round($validated['quantity'] * $validated['unit_price'], 2);
 
         $order->update($validated);
 

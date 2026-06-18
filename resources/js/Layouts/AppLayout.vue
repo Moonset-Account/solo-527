@@ -5,7 +5,7 @@ import {
     HomeIcon,
     ChartBarIcon,
     ShoppingCartIcon,
-    ClipboardListIcon,
+    ClipboardDocumentListIcon,
     TruckIcon,
     ReceiptRefundIcon,
     WrenchIcon,
@@ -24,14 +24,14 @@ const userMenuOpen = ref(false)
 const user = computed(() => page.props.auth?.user)
 
 const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: '环境监控', href: '/environment', icon: ChartBarIcon },
-    { name: '订单管理', href: '/orders', icon: ShoppingCartIcon },
-    { name: '分拣管理', href: '/sorting', icon: ClipboardListIcon },
-    { name: '发货管理', href: '/shipping', icon: TruckIcon },
-    { name: '补贴凭证', href: '/subsidies', icon: ReceiptRefundIcon },
-    { name: '农机预约', href: '/machinery', icon: WrenchIcon },
-    { name: '系统设置', href: '/settings', icon: Cog6ToothIcon },
+    { name: 'Dashboard', href: route('dashboard.index'), icon: HomeIcon },
+    { name: '环境监控', href: route('environment-data.index'), icon: ChartBarIcon },
+    { name: '订单管理', href: route('orders.index'), icon: ShoppingCartIcon },
+    { name: '分拣管理', href: route('sorting-tasks.index'), icon: ClipboardDocumentListIcon },
+    { name: '发货管理', href: route('shipments.index'), icon: TruckIcon },
+    { name: '补贴凭证', href: route('subsidy-vouchers.index'), icon: ReceiptRefundIcon },
+    { name: '农机预约', href: route('machinery-appointments.index'), icon: WrenchIcon },
+    { name: '系统设置', href: route('users.index'), icon: Cog6ToothIcon },
 ]
 
 const isActive = (href) => {

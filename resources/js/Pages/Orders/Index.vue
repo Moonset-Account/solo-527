@@ -19,15 +19,17 @@ import SaveFilterModal from '../SavedFilters/Modals/SaveFilter.vue'
 
 const page = usePage()
 
-const orders = computed(() => page.props.orders || [])
+const orders = computed(() => page.props.orders || {})
 const greenhouses = computed(() => page.props.greenhouses || [])
 const savedFilters = computed(() => page.props.savedFilters || [])
 
-const statusFilter = ref('')
-const greenhouseFilter = ref('')
-const dateFrom = ref('')
-const dateTo = ref('')
-const productFilter = ref('')
+const filters = ref({
+    status: page.props.filters?.status || '',
+    greenhouse_id: page.props.filters?.greenhouse_id || '',
+    product_name: page.props.filters?.product_name || '',
+    start_date: page.props.filters?.start_date || '',
+    end_date: page.props.filters?.end_date || '',
+})
 
 const showSaveFilterModal = ref(false)
 
@@ -48,31 +50,31 @@ const statusOptions = [
 
 const productOptions = [
     { value: '', label: '全部产品' },
-    { value: 'tomato', label: '番茄' },
-    { value: 'cucumber', label: '黄瓜' },
-    { value: 'pepper', label: '辣椒' },
-    { value: 'lettuce', label: '生菜' },
-    { value: 'strawberry', label: '草莓' },
+    { value: '番茄', label: '番茄' },
+    { value: '黄瓜', label: '黄瓜' },
+    { value: '辣椒', label: '辣椒' },
+    { value: '生菜', label: '生菜' },
+    { value: '草莓', label: '草莓' },
 ]
 
-const filteredData = computed(() => {
-    return orders.value.filter((item) => {
-        if (statusFilter.value && item.status !== statusFilter.value) return false
-        if (greenhouseFilter.value && String(item.greenhouse_id) !== String(greenhouseFilter.value)) return false
-        if (productFilter.value && item.product !== productFilter.value) return false
-        if (dateFrom.value && item.created_at < dateFrom.value) return false
-        if (dateTo.value && item.created_at > dateTo.value) return false
-        return true
+const applyFilters = () => {
+    router.get(route('orders.index'), filters.value, {
+        preserveState: true,
+        replace: true,
     })
-})
+}
+
+const applySavedFilter = (filter) => {
+    router.get(route('saved-filters.apply', filter.id))
+}
 
 const columns = [
     { key: 'order_no', label: '订单号' },
     { key: 'customer_name', label: '客户' },
-    { key: 'product', label: '产品' },
+    { key: 'product_name', label: '产品' },
     { key: 'quantity', label: '数量' },
     { key: 'status', label: '状态' },
-    { key: 'env_data', label: '关联环境数据' },
+    { key: 'latest_temperature', label: '环境数据' },
     { key: 'subsidy_status', label: '补贴凭证' },
     { key: 'machinery_status', label: '农机预约' },
 ]
@@ -101,17 +103,6 @@ const getStatusText = (status) => {
     return texts[status] || status
 }
 
-const getProductText = (product) => {
-    const texts = {
-        tomato: '番茄',
-        cucumber: '黄瓜',
-        pepper: '辣椒',
-        lettuce: '生菜',
-        strawberry: '草莓',
-    }
-    return texts[product] || product
-}
-
 const getSubsidyStatusColor = (status) => {
     const colors = {
         pending: 'yellow',
@@ -135,6 +126,7 @@ const getSubsidyStatusText = (status) => {
 const getMachineryStatusColor = (status) => {
     const colors = {
         pending: 'yellow',
+        approved: 'green',
         confirmed: 'green',
         cancelled: 'red',
         not_applied: 'gray',
@@ -145,6 +137,7 @@ const getMachineryStatusColor = (status) => {
 const getMachineryStatusText = (status) => {
     const texts = {
         pending: '待确认',
+        approved: '已预约',
         confirmed: '已预约',
         cancelled: '已取消',
         not_applied: '未预约',
@@ -158,18 +151,18 @@ const getMachineryStatusText = (status) => {
         <div class="space-y-6">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div class="flex flex-wrap gap-3">
-                    <Select v-model="statusFilter" :options="statusOptions" class="sm:w-40" />
-                    <Select v-model="greenhouseFilter" :options="greenhouseOptions" class="sm:w-44" />
-                    <Select v-model="productFilter" :options="productOptions" class="sm:w-40" />
-                    <Input v-model="dateFrom" type="date" class="sm:w-40" placeholder="开始日期" />
-                    <Input v-model="dateTo" type="date" class="sm:w-40" placeholder="结束日期" />
+                    <Select v-model="filters.status" :options="statusOptions" class="sm:w-40" @change="applyFilters" />
+                    <Select v-model="filters.greenhouse_id" :options="greenhouseOptions" class="sm:w-44" @change="applyFilters" />
+                    <Select v-model="filters.product_name" :options="productOptions" class="sm:w-40" @change="applyFilters" />
+                    <Input v-model="filters.start_date" type="date" class="sm:w-40" placeholder="开始日期" @change="applyFilters" />
+                    <Input v-model="filters.end_date" type="date" class="sm:w-40" placeholder="结束日期" @change="applyFilters" />
                 </div>
                 <div class="flex items-center gap-2">
                     <Button variant="outline" @click="showSaveFilterModal = true">
                         <BookmarkIcon class="w-5 h-5 mr-2" />
                         保存筛选
                     </Button>
-                    <Button @click="router.visit('/orders/create')">
+                    <Button @click="router.visit(route('orders.create'))">
                         <PlusIcon class="w-5 h-5 mr-2" />
                         新建订单
                     </Button>
@@ -182,7 +175,8 @@ const getMachineryStatusText = (status) => {
                     :key="filter.id"
                     variant="ghost"
                     size="sm"
-                    class="bg-gray-50"
+                    class="bg-gray-50 hover:bg-primary-50"
+                    @click="applySavedFilter(filter)"
                 >
                     <BookmarkIcon class="w-4 h-4 mr-1.5 text-primary" />
                     {{ filter.name }}
@@ -192,19 +186,20 @@ const getMachineryStatusText = (status) => {
             <div class="bg-white rounded-xl border border-gray-200 p-6">
                 <DataTable
                     :columns="columns"
-                    :data="filteredData"
+                    :data="orders.data || []"
+                    :pagination="orders"
                     searchable
-                    search-placeholder="搜索订单号、客户..."
+                    search-placeholder="搜索订单号、客户、产品..."
                 >
-                    <template #cell-product="{ value }">
-                        {{ getProductText(value) }}
+                    <template #cell-product_name="{ row }">
+                        {{ row.product_name }}
                     </template>
                     <template #cell-status="{ value }">
                         <StatusBadge :color="getStatusColor(value)" dot>
                             {{ getStatusText(value) }}
                         </StatusBadge>
                     </template>
-                    <template #cell-env_data="{ row }">
+                    <template #cell-latest_temperature="{ row }">
                         <div class="flex items-center gap-1.5">
                             <Badge variant="danger" size="sm">
                                 {{ row.latest_temperature || '-' }}°C
@@ -214,7 +209,7 @@ const getMachineryStatusText = (status) => {
                             </Badge>
                         </div>
                     </template>
-                    <template #cell-subsidy_status="{ value }">
+                    <template #cell-Subsidy_status="{ value }">
                         <StatusBadge :color="getSubsidyStatusColor(value)">
                             {{ getSubsidyStatusText(value) }}
                         </StatusBadge>
@@ -229,21 +224,21 @@ const getMachineryStatusText = (status) => {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                @click="router.visit(`/orders/${row.id}`)"
+                                @click="router.visit(route('orders.show', row.id))"
                             >
                                 <EyeIcon class="w-4 h-4" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                @click="router.visit(`/orders/${row.id}/edit`)"
+                                @click="router.visit(route('orders.edit', row.id))"
                             >
                                 <PencilIcon class="w-4 h-4" />
                             </Button>
                             <Button
                                 variant="warning"
                                 size="sm"
-                                @click="router.visit(`/sorting/create?order_id=${row.id}`)"
+                                @click="router.visit(route('sorting-tasks.create') + `?order_id=${row.id}`)"
                             >
                                 <ClipboardDocumentCheckIcon class="w-4 h-4 mr-1" />
                                 分拣
@@ -256,7 +251,10 @@ const getMachineryStatusText = (status) => {
 
         <SaveFilterModal
             :show="showSaveFilterModal"
+            :filter-data="filters"
+            module="orders"
             @close="showSaveFilterModal = false"
+            @saved="applyFilters"
         />
     </AppLayout>
 </template>

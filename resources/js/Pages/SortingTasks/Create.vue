@@ -42,8 +42,8 @@ const statusOptions = [
 ]
 
 const submit = () => {
-    form.post(route('sorting.store'), {
-        onSuccess: () => router.visit('/sorting'),
+    form.post(route('sorting-tasks.store'), {
+        onSuccess: () => router.visit(route('sorting-tasks.index')),
     })
 }
 </script>
@@ -51,7 +51,7 @@ const submit = () => {
 <template>
     <AppLayout title="新建分拣任务">
         <div class="space-y-6">
-            <Button variant="ghost" @click="router.visit('/sorting')" class="-ml-2">
+            <Button variant="ghost" @click="router.visit(route('sorting-tasks.index'))" class="-ml-2">
                 <ArrowLeftIcon class="w-5 h-5 mr-2" />
                 返回列表
             </Button>

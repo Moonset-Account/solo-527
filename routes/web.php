@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnvironmentAlertController;
 use App\Http\Controllers\EnvironmentDataController;
@@ -62,8 +64,20 @@ Route::middleware('auth')->group(function () {
     Route::prefix('sorting-discrepancies')->name('sorting-discrepancies.')->group(function () {
         Route::get('/', [SortingDiscrepancyController::class, 'index'])->name('index');
         Route::post('/', [SortingDiscrepancyController::class, 'store'])->name('store');
+        Route::get('/{sortingDiscrepancy}', [SortingDiscrepancyController::class, 'show'])->name('show');
         Route::put('/{sortingDiscrepancy}', [SortingDiscrepancyController::class, 'update'])->name('update');
         Route::post('/{sortingDiscrepancy}/handle', [SortingDiscrepancyController::class, 'handle'])->name('handle');
+    });
+
+    Route::prefix('comments')->name('comments.')->group(function () {
+        Route::post('/{commentableType}/{commentableId}', [CommentController::class, 'store'])->name('store');
+        Route::delete('/{comment}', [CommentController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('attachments')->name('attachments.')->group(function () {
+        Route::post('/{attachableType}/{attachableId}', [AttachmentController::class, 'store'])->name('store');
+        Route::delete('/{attachment}', [AttachmentController::class, 'destroy'])->name('destroy');
+        Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
     });
 
     Route::prefix('shipments')->name('shipments.')->group(function () {

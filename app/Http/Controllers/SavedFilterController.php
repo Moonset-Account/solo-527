@@ -45,6 +45,7 @@ class SavedFilterController extends Controller
             'name' => 'required|string|max:255',
             'module' => 'required|string|max:100',
             'filters' => 'required|array',
+            'filter_data' => 'nullable|array',
             'is_public' => 'boolean',
             'role_id' => 'nullable|exists:roles,id',
             'sort_order' => 'nullable|integer',
@@ -52,6 +53,13 @@ class SavedFilterController extends Controller
 
         $validated['user_id'] = Auth::id();
         $validated['is_public'] = $request->boolean('is_public', false);
+        $validated['filters'] = $request->input('filter_data') ?? $request->input('filters');
+
+        if ($validated['is_public']) {
+            $user = Auth::user();
+            $primaryRole = $user->roles()->first();
+            $validated['role_id'] = $validated['role_id'] ?? $primaryRole?->id;
+        }
 
         $savedFilter = SavedFilter::create($validated);
 

@@ -1,10 +1,9 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
-import AppLayout from '../../Layouts/AppLayout.vue'
-import Modal from '../../Components/Modal.vue'
-import Input from '../../Components/Input.vue'
-import Button from '../../Components/Button.vue'
+import { computed } from 'vue'
+import Modal from '../../../Components/Modal.vue'
+import Input from '../../../Components/Input.vue'
+import Button from '../../../Components/Button.vue'
 
 const props = defineProps({
     show: {
@@ -15,6 +14,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    module: {
+        type: String,
+        default: '',
+    },
 })
 
 const emit = defineEmits(['close', 'saved'])
@@ -22,12 +25,16 @@ const emit = defineEmits(['close', 'saved'])
 const form = useForm({
     name: '',
     is_public: false,
+    module: props.module,
+    filter_data: {},
 })
 
 const submit = () => {
     form.post(route('saved-filters.store'), {
         data: {
-            ...form.data(),
+            name: form.name,
+            is_public: form.is_public,
+            module: form.module,
             filter_data: props.filterData,
         },
         onSuccess: () => {
@@ -72,14 +79,14 @@ const handleClose = () => {
                 </label>
             </div>
 
-            <template #footer>
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                 <Button variant="secondary" type="button" @click="handleClose">
                     取消
                 </Button>
                 <Button type="submit" :loading="form.processing">
                     保存
                 </Button>
-            </template>
+            </div>
         </form>
     </Modal>
 </template>

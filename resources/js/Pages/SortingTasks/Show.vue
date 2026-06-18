@@ -22,13 +22,17 @@ const showAddDiscrepancy = ref(false)
 
 const discrepancyForm = useForm({
     discrepancy_type: '',
-    planned_quantity: '',
-    actual_quantity: '',
-    reason: '',
+    planned_qty: '',
+    actual_qty: '',
+    difference: '',
+    unit: 'kg',
+    remark: '',
+    sorting_task_id: '',
+    order_id: '',
 })
 
 const discrepancyTypeOptions = [
-    { value: 'shortage', label: '数量短缺' },
+    { value: 'quantity', label: '数量短缺' },
     { value: 'overage', label: '数量超收' },
     { value: 'quality', label: '质量问题' },
     { value: 'damage', label: '损坏' },
@@ -57,7 +61,7 @@ const getStatusText = (status) => {
 
 const getDiscrepancyTypeText = (type) => {
     const texts = {
-        shortage: '数量短缺',
+        quantity: '数量短缺',
         overage: '数量超收',
         quality: '质量问题',
         damage: '损坏',
@@ -68,7 +72,7 @@ const getDiscrepancyTypeText = (type) => {
 
 const getDiscrepancyTypeColor = (type) => {
     const colors = {
-        shortage: 'danger',
+        quantity: 'danger',
         overage: 'warning',
         quality: 'warning',
         damage: 'danger',
@@ -77,8 +81,20 @@ const getDiscrepancyTypeColor = (type) => {
     return colors[type] || 'default'
 }
 
+const calculateDifference = () => {
+    const planned = parseFloat(discrepancyForm.planned_qty) || 0
+    const actual = parseFloat(discrepancyForm.actual_qty) || 0
+    discrepancyForm.difference = (actual - planned).toFixed(2)
+}
+
 const submitDiscrepancy = () => {
-    discrepancyForm.post(route('sorting.discrepancies.store', task.value.id), {
+    discrepancyForm.post(route('sorting-discrepancies.store'), {
+        data: {
+            ...discrepancyForm.data(),
+            sorting_task_id: task.value.id,
+            order_id: task.value.order_id,
+            difference: parseFloat(discrepancyForm.difference) || 0,
+        },
         onSuccess: () => {
             discrepancyForm.reset()
             showAddDiscrepancy.value = false
@@ -95,7 +111,7 @@ const getProgress = () => {
 <template>
     <AppLayout :title="`分拣任务 - ${task.task_no}`">
         <div class="space-y-6">
-            <Button variant="ghost" @click="router.visit('/sorting')" class="-ml-2">
+            <Button variant="ghost" @click="router.visit(route('sorting-tasks.index'))" class="-ml-2">
                 <ArrowLeftIcon class="w-5 h-5 mr-2" />
                 返回列表
             </Button>
@@ -139,7 +155,7 @@ const getProgress = () => {
                     </div>
                     <div>
                         <p class="text-sm font-medium text-gray-500">计划日期</p>
-                        <p class="text-sm text-gray-900 mt-1">{{ task.scheduled_date }}</p>
+                        <p class="text-sm text-gray-900 mt-1">{{ task.planned_sort_date }}</p>
                     </div>
                     <div>
                         <p class="text-sm font-medium text-gray-500">计划数量</p>
@@ -151,9 +167,9 @@ const getProgress = () => {
                     </div>
                 </div>
 
-                <div v-if="task.notes" class="mt-4 pt-4 border-t border-gray-100">
+                <div v-if="task.remark" class="mt-4 pt-4 border-t border-gray-100">
                     <p class="text-sm font-medium text-gray-500">备注</p>
-                    <p class="text-sm text-gray-700 mt-1">{{ task.notes }}</p>
+                    <p class="text-sm text-gray-700 mt-1">{{ task.remark }}</p>
                 </div>
             </div>
 
@@ -168,7 +184,7 @@ const getProgress = () => {
 
                 <div v-if="showAddDiscrepancy" class="mb-6 p-4 bg-gray-50 rounded-lg">
                     <form @submit.prevent="submitDiscrepancy" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <Select
                                 v-model="discrepancyForm.discrepancy_type"
                                 label="差异类型"
@@ -177,25 +193,34 @@ const getProgress = () => {
                                 required
                             />
                             <Input
-                                v-model="discrepancyForm.planned_quantity"
+                                v-model="discrepancyForm.planned_qty"
                                 type="number"
                                 label="计划数量(kg)"
-                                :error="discrepancyForm.errors.planned_quantity"
+                                :error="discrepancyForm.errors.planned_qty"
+                                @change="calculateDifference"
                                 required
                             />
                             <Input
-                                v-model="discrepancyForm.actual_quantity"
+                                v-model="discrepancyForm.actual_qty"
                                 type="number"
                                 label="实际数量(kg)"
-                                :error="discrepancyForm.errors.actual_quantity"
+                                :error="discrepancyForm.errors.actual_qty"
+                                @change="calculateDifference"
+                                required
+                            />
+                            <Input
+                                v-model="discrepancyForm.difference"
+                                type="number"
+                                label="差异数量(kg)"
+                                :error="discrepancyForm.errors.difference"
                                 required
                             />
                         </div>
                         <Input
-                            v-model="discrepancyForm.reason"
+                            v-model="discrepancyForm.remark"
                             label="差异原因备注"
                             placeholder="请详细说明差异原因"
-                            :error="discrepancyForm.errors.reason"
+                            :error="discrepancyForm.errors.remark"
                         />
                         <div class="flex justify-end gap-3">
                             <Button variant="secondary" type="button" @click="showAddDiscrepancy = false">
@@ -216,7 +241,7 @@ const getProgress = () => {
                         v-for="d in discrepancies"
                         :key="d.id"
                         class="flex items-start justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                        @click="router.visit(`/sorting-discrepancies/${d.id}`)"
+                        @click="router.visit(route('sorting-discrepancies.show', d.id))"
                     >
                         <div class="flex items-start gap-3">
                             <ExclamationTriangleIcon class="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
@@ -228,12 +253,12 @@ const getProgress = () => {
                                     <span class="text-sm text-gray-500">{{ d.created_at }}</span>
                                 </div>
                                 <p class="text-sm text-gray-700">
-                                    计划：{{ d.planned_quantity }}kg · 实际：{{ d.actual_quantity }}kg · 差异：
-                                    <span :class="d.diff_quantity < 0 ? 'text-danger' : 'text-warning'">
-                                        {{ d.diff_quantity > 0 ? '+' : '' }}{{ d.diff_quantity }}kg
+                                    计划：{{ d.planned_qty }}kg · 实际：{{ d.actual_qty }}kg · 差异：
+                                    <span :class="d.difference < 0 ? 'text-danger' : 'text-warning'">
+                                        {{ d.difference > 0 ? '+' : '' }}{{ d.difference }}kg
                                     </span>
                                 </p>
-                                <p v-if="d.reason" class="text-sm text-gray-500 mt-1">{{ d.reason }}</p>
+                                <p v-if="d.remark" class="text-sm text-gray-500 mt-1">{{ d.remark }}</p>
                             </div>
                         </div>
                     </div>
