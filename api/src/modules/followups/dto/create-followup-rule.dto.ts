@@ -4,67 +4,44 @@ import {
   IsArray,
   IsNumber,
   IsOptional,
-  ValidateNested,
   IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-
-class TriggerConditionDto {
-  @IsString()
-  @IsNotEmpty()
-  event: string;
-
-  @IsOptional()
-  params?: Record<string, any>;
-}
-
-class ActionDto {
-  @IsNumber()
-  @IsNotEmpty()
-  remindHours: number;
-
-  @IsArray()
-  @IsNotEmpty()
-  remindMethod: string[];
-
-  @IsArray()
-  @IsOptional()
-  remindTarget?: string[];
-}
-
-class ScopeDto {
-  @IsArray()
-  @IsOptional()
-  departments?: string[];
-
-  @IsArray()
-  @IsOptional()
-  roles?: string[];
-
-  @IsArray()
-  @IsOptional()
-  leadSources?: string[];
-}
 
 export class CreateFollowupRuleDto {
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ValidateNested()
-  @Type(() => TriggerConditionDto)
+  @IsString()
   @IsNotEmpty()
-  triggerCondition: TriggerConditionDto;
+  triggerEvent: string;
 
-  @ValidateNested()
-  @Type(() => ActionDto)
-  @IsNotEmpty()
-  action: ActionDto;
-
-  @ValidateNested()
-  @Type(() => ScopeDto)
   @IsOptional()
-  scope?: ScopeDto;
+  triggerParams?: Record<string, any>;
+
+  @IsNumber()
+  @IsOptional()
+  actionRemindHours?: number;
+
+  @IsArray()
+  @IsOptional()
+  actionMethods?: string[];
+
+  @IsString()
+  @IsOptional()
+  actionTarget?: string;
+
+  @IsArray()
+  @IsOptional()
+  scopeDepartments?: string[];
+
+  @IsArray()
+  @IsOptional()
+  scopeRoles?: string[];
+
+  @IsArray()
+  @IsOptional()
+  scopeSources?: string[];
 
   @IsNumber()
   @IsOptional()

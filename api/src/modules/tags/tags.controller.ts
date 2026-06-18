@@ -20,8 +20,8 @@ export class TagsController {
   constructor(private tagsService: TagsService) {}
 
   @Get()
-  async findAll() {
-    return this.tagsService.findAll();
+  async findAll(@Query('group') group?: string) {
+    return this.tagsService.findAll(group);
   }
 
   @Get('profile')

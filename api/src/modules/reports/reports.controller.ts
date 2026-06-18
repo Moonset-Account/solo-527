@@ -25,8 +25,13 @@ export class ReportsController {
     return this.reportsService.getProcessingTime();
   }
 
+  @Get('performance')
+  async getPerformance() {
+    return this.reportsService.getPerformance();
+  }
+
   @Get('responsible-person')
   async getResponsiblePerson() {
-    return this.reportsService.getResponsiblePerson();
+    return this.reportsService.getPerformance();
   }
 }

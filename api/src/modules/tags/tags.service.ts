@@ -14,13 +14,17 @@ export class TagsService {
     @InjectModel(Lead.name) private leadModel: Model<LeadDocument>,
   ) {}
 
-  async findAll() {
-    return this.tagModel.find().sort({ group: 1, name: 1 }).lean();
+  async findAll(group?: string) {
+    const filter: any = {};
+    if (group) filter.group = group;
+    const data = await this.tagModel.find(filter).sort({ group: 1, name: 1 }).lean();
+    return data.map((d: any) => ({ ...d, id: d._id }));
   }
 
   async create(createTagDto: CreateTagDto) {
     const created = new this.tagModel(createTagDto);
-    return created.save();
+    const saved = await created.save();
+    return { ...saved.toObject(), id: saved._id };
   }
 
   async update(id: string, updateTagDto: UpdateTagDto) {
@@ -28,11 +32,29 @@ export class TagsService {
       .findByIdAndUpdate(id, updateTagDto, { new: true })
       .lean();
     if (!updated) throw new NotFoundException('标签不存在');
-    return updated;
+    const u: any = updated;
+    return { ...u, id: u._id };
   }
 
   async batchQuery(batchQueryDto: BatchQueryTagDto) {
-    return this.tagModel.find({ name: { $in: batchQueryDto.names } }).lean();
+    const { tagIds, logic } = batchQueryDto;
+    const tags = await this.tagModel.find({ _id: { $in: tagIds } }).lean();
+    const tagNames = tags.map((t: any) => t.name);
+
+    let filter: any;
+    if (logic === 'AND') {
+      filter = { tags: { $all: tagNames } };
+    } else {
+      filter = { tags: { $in: tagNames } };
+    }
+
+    const leads = await this.leadModel.find(filter).select('_id').lean();
+    const leadIds = leads.map((l: any) => l._id.toString());
+
+    return {
+      count: leadIds.length,
+      leadIds,
+    };
   }
 
   async getProfile(name: string) {

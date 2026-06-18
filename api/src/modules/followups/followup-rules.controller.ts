@@ -38,7 +38,7 @@ export class FollowupRulesController {
 
   @Patch(':id/toggle')
   @Roles('admin', 'manager')
-  async toggle(@Param('id') id: string) {
-    return this.followupRulesService.toggle(id);
+  async toggle(@Param('id') id: string, @Body() body?: { enabled?: boolean }) {
+    return this.followupRulesService.toggle(id, body?.enabled);
   }
 }

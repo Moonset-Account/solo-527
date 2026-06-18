@@ -1,7 +1,11 @@
-import { IsArray, IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsIn } from 'class-validator';
 
 export class BatchQueryTagDto {
   @IsArray()
   @IsNotEmpty()
-  names: string[];
+  tagIds: string[];
+
+  @IsIn(['AND', 'OR'])
+  @IsNotEmpty()
+  logic: 'AND' | 'OR';
 }
