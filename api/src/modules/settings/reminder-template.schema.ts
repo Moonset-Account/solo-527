@@ -22,7 +22,7 @@ export class ReminderTemplate {
     },
     default: {},
   })
-  scope: {
+  scope?: {
     departments: string[];
     roles: string[];
   };

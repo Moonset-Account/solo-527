@@ -65,16 +65,16 @@ export class LeadsService {
     };
   }
 
-  async findById(id: string): Promise<LeadDocument> {
+  async findById(id: string): Promise<Lead & { _id: Types.ObjectId; assignedTo?: any }> {
     const lead = await this.leadModel
       .findById(id)
       .populate('assignedTo', 'name role')
       .lean();
     if (!lead) throw new NotFoundException('线索不存在');
-    return lead;
+    return lead as any;
   }
 
-  async update(id: string, updateLeadDto: UpdateLeadDto): Promise<LeadDocument> {
+  async update(id: string, updateLeadDto: UpdateLeadDto): Promise<Lead & { _id: Types.ObjectId; assignedTo?: any }> {
     const data: any = { ...updateLeadDto };
     if (updateLeadDto.assignedTo) {
       data.assignedTo = new Types.ObjectId(updateLeadDto.assignedTo);
@@ -84,7 +84,7 @@ export class LeadsService {
       .populate('assignedTo', 'name role')
       .lean();
     if (!updated) throw new NotFoundException('线索不存在');
-    return updated;
+    return updated as any;
   }
 
   async batchTag(batchTagDto: BatchTagDto) {

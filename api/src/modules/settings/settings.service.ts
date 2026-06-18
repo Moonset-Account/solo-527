@@ -39,12 +39,12 @@ export class SettingsService {
     return this.reminderModel.find().sort({ type: 1 }).lean();
   }
 
-  async createReminder(data: Partial<ReminderTemplate>) {
+  async createReminder(data: any) {
     const created = new this.reminderModel(data);
     return created.save();
   }
 
-  async updateReminder(id: string, data: Partial<ReminderTemplate>) {
+  async updateReminder(id: string, data: any) {
     const updated = await this.reminderModel.findByIdAndUpdate(id, data, { new: true }).lean();
     if (!updated) throw new NotFoundException('提醒模板不存在');
     return updated;

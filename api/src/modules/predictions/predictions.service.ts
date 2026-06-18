@@ -78,11 +78,22 @@ export class PredictionsService {
   }
 
   async findAll() {
-    return this.predictionModel
+    const data = await this.predictionModel
       .find()
       .populate('leadId', 'customerName phone status source')
       .sort({ score: -1 })
       .lean();
+    return data.map((d) => {
+      const dany: any = d;
+      const lead: any = dany.leadId || {};
+      return {
+        ...dany,
+        id: dany._id,
+        leadName: lead.customerName || '',
+        leadPhone: lead.phone || '',
+        lastUpdated: dany.updatedAt,
+      };
+    });
   }
 
   async getFunnel() {
@@ -106,6 +117,19 @@ export class PredictionsService {
   }
 
   async getRisks() {
+    function flatten(items: any[]) {
+      return items.map((d: any) => {
+        const lead: any = d.leadId || {};
+        return {
+          ...d,
+          id: d._id,
+          leadName: lead.customerName || '',
+          leadPhone: lead.phone || '',
+          lastUpdated: d.updatedAt,
+        };
+      });
+    }
+
     const highRisks = await this.predictionModel
       .find({ riskLevel: 'high' })
       .populate('leadId', 'customerName phone status source')
@@ -119,8 +143,8 @@ export class PredictionsService {
       .lean();
 
     return {
-      high: highRisks,
-      medium: mediumRisks,
+      high: flatten(highRisks),
+      medium: flatten(mediumRisks),
       summary: {
         highCount: highRisks.length,
         mediumCount: mediumRisks.length,

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './user.schema.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -19,21 +19,21 @@ export class UsersService {
     return created.save();
   }
 
-  async findAll(): Promise<UserDocument[]> {
-    return this.userModel.find().select('-password').lean();
+  async findAll(): Promise<(User & { _id: Types.ObjectId })[]> {
+    return this.userModel.find().select('-password').lean() as any;
   }
 
-  async findById(id: string): Promise<UserDocument> {
+  async findById(id: string): Promise<User & { _id: Types.ObjectId }> {
     const user = await this.userModel.findById(id).select('-password').lean();
     if (!user) throw new NotFoundException('用户不存在');
-    return user;
+    return user as any;
   }
 
-  async findByUsername(username: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ username }).lean();
+  async findByUsername(username: string): Promise<(User & { _id: Types.ObjectId }) | null> {
+    return this.userModel.findOne({ username }).lean() as any;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User & { _id: Types.ObjectId }> {
     const updateData: any = { ...updateUserDto };
     if (updateUserDto.password) {
       updateData.password = await bcrypt.hash(updateUserDto.password, 10);
@@ -43,7 +43,7 @@ export class UsersService {
       .select('-password')
       .lean();
     if (!updated) throw new NotFoundException('用户不存在');
-    return updated;
+    return updated as any;
   }
 
   async delete(id: string): Promise<void> {

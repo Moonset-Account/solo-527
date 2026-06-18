@@ -39,19 +39,33 @@ export class TagsService {
     const tag = await this.tagModel.findOne({ name }).lean();
     if (!tag) throw new NotFoundException('标签不存在');
 
-    const leadCount = await this.leadModel.countDocuments({ tags: name });
+    const leads = await this.leadModel.find({ tags: name }).lean();
+    const leadCount = leads.length;
 
-    const leads = await this.leadModel
-      .find({ tags: name })
-      .select('customerName phone status source')
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
-
-    return {
-      tag,
-      leadCount,
-      recentLeads: leads,
+    const statusLabels: Record<string, string> = {
+      new: '新线索', contacted: '已联系', measured: '已量房',
+      quoted: '已报价', contracted: '已签约', lost: '已流失',
     };
+    const statusCounts: Record<string, number> = {};
+    for (const lead of leads) {
+      const label = statusLabels[lead.status] || '其他';
+      statusCounts[label] = (statusCounts[label] || 0) + 1;
+    }
+
+    const radarAxes = Object.keys(statusLabels).map((s) => statusLabels[s]);
+    const radar = radarAxes.map((axis) => ({
+      axis,
+      value: leadCount > 0
+        ? Math.round(((statusCounts[axis] || 0) / leadCount) * 100)
+        : 0,
+    }));
+
+    const sourceCounts: Record<string, number> = {};
+    for (const lead of leads) {
+      sourceCounts[lead.source] = (sourceCounts[lead.source] || 0) + 1;
+    }
+    const distribution = Object.entries(sourceCounts).map(([source, count]) => ({ source, count }));
+
+    return { radar, distribution };
   }
 }
