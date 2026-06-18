@@ -81,7 +81,7 @@ class PurchaseRequest extends Model
 
     public function deliveryConfirmations()
     {
-        return $this->hasMany(DeliveryConfirmation::class);
+        return $this->hasMany(DeliveryConfirmation::class, 'request_id');
     }
 
     public function creator()

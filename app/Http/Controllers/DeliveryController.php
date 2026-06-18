@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\ConfigKey;
 use App\Models\DeliveryConfirmation;
+use App\Models\DeliveryDiscrepancy;
+use App\Models\DeliveryItem;
 use App\Models\PurchaseRequest;
 use App\Models\Supply;
 use App\Services\ConfigService;
@@ -16,7 +18,7 @@ class DeliveryController extends Controller
 
     public function index(Request $request)
     {
-        $deliveries = DeliveryConfirmation::with(['purchaseRequest', 'items.supply', 'confirmedBy'])
+        $deliveries = DeliveryConfirmation::with(['purchaseRequest', 'supplier', 'receiver', 'items.supply'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->latest()
             ->paginate(15);
@@ -37,8 +39,9 @@ class DeliveryController extends Controller
     {
         $deliveryConfirmation->load([
             'purchaseRequest.requester',
+            'supplier',
+            'receiver',
             'items.supply',
-            'confirmedBy',
             'discrepancies',
         ]);
 
@@ -50,48 +53,105 @@ class DeliveryController extends Controller
     public function confirm(Request $request, PurchaseRequest $purchaseRequest)
     {
         $validated = $request->validate([
-            'delivery_date' => ['required', 'date'],
+            'delivery_time' => ['required', 'date'],
+            'supplier_id' => ['required', 'exists:suppliers,id'],
+            'supplier_name' => ['required', 'string', 'max:255'],
+            'delivery_no' => ['nullable', 'string', 'max:100'],
+            'logistics_company' => ['nullable', 'string', 'max:100'],
+            'tracking_no' => ['nullable', 'string', 'max:100'],
+            'delivery_address' => ['nullable', 'string', 'max:500'],
+            'inspector_name' => ['nullable', 'string', 'max:100'],
+            'remark' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array'],
             'items.*.supply_id' => ['required', 'exists:supplies,id'],
+            'items.*.supply_name' => ['required', 'string', 'max:255'],
+            'items.*.specification' => ['nullable', 'string', 'max:255'],
+            'items.*.unit' => ['nullable', 'string', 'max:50'],
             'items.*.expected_quantity' => ['required', 'numeric', 'min:0'],
-            'items.*.actual_quantity' => ['required', 'numeric', 'min:0'],
-            'items.*.note' => ['nullable', 'string', 'max:500'],
-            'note' => ['nullable', 'string', 'max:2000'],
-            'attachments' => ['nullable', 'array'],
+            'items.*.received_quantity' => ['required', 'numeric', 'min:0'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.batch_no' => ['nullable', 'string', 'max:100'],
+            'items.*.remark' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $confirmation = DeliveryConfirmation::create([
-            'purchase_request_id' => $purchaseRequest->id,
-            'delivery_date' => $validated['delivery_date'],
-            'confirmed_by' => auth()->id(),
-            'note' => $validated['note'] ?? null,
-            'status' => 'confirmed',
-        ]);
+        $code = (new DeliveryConfirmation)->generateCode();
+
+        $totalQty = collect($validated['items'])->sum('expected_quantity');
+        $receivedQty = collect($validated['items'])->sum('received_quantity');
+        $totalAmount = collect($validated['items'])->reduce(function ($carry, $item) {
+            return $carry + ($item['received_quantity'] ?? 0) * ($item['unit_price'] ?? 0);
+        }, 0);
 
         $hasDiscrepancy = false;
         foreach ($validated['items'] as $item) {
-            $diff = $item['actual_quantity'] - $item['expected_quantity'];
-            $itemHasDiff = $diff != 0;
-            if ($itemHasDiff) {
+            if ($item['received_quantity'] != $item['expected_quantity']) {
                 $hasDiscrepancy = true;
-            }
-
-            $confirmation->items()->create([
-                'supply_id' => $item['supply_id'],
-                'expected_quantity' => $item['expected_quantity'],
-                'actual_quantity' => $item['actual_quantity'],
-                'difference' => $diff,
-                'has_discrepancy' => $itemHasDiff,
-                'note' => $item['note'] ?? null,
-            ]);
-
-            $supply = Supply::find($item['supply_id']);
-            if ($supply) {
-                $supply->increment('stock_quantity', $item['actual_quantity']);
+                break;
             }
         }
 
-        $confirmation->update(['has_discrepancy' => $hasDiscrepancy]);
+        $confirmation = DeliveryConfirmation::create([
+            'code' => $code,
+            'quotation_id' => $purchaseRequest->quotation_id ?? null,
+            'request_id' => $purchaseRequest->id,
+            'supplier_id' => $validated['supplier_id'],
+            'supplier_name' => $validated['supplier_name'],
+            'delivery_no' => $validated['delivery_no'] ?? null,
+            'logistics_company' => $validated['logistics_company'] ?? null,
+            'tracking_no' => $validated['tracking_no'] ?? null,
+            'delivery_time' => $validated['delivery_time'],
+            'receiver_id' => auth()->id(),
+            'receiver_name' => auth()->user()->name,
+            'delivery_address' => $validated['delivery_address'] ?? null,
+            'inspector_name' => $validated['inspector_name'] ?? null,
+            'status' => 'confirmed',
+            'total_quantity' => $totalQty,
+            'received_quantity' => $receivedQty,
+            'total_amount' => $totalAmount,
+            'remark' => $validated['remark'] ?? null,
+            'has_discrepancy' => $hasDiscrepancy,
+            'created_by' => auth()->id(),
+        ]);
+
+        foreach ($validated['items'] as $item) {
+            $diff = $item['received_quantity'] - $item['expected_quantity'];
+
+            DeliveryItem::create([
+                'delivery_confirmation_id' => $confirmation->id,
+                'supply_id' => $item['supply_id'],
+                'supply_name' => $item['supply_name'],
+                'specification' => $item['specification'] ?? null,
+                'unit' => $item['unit'] ?? null,
+                'expected_quantity' => $item['expected_quantity'],
+                'received_quantity' => $item['received_quantity'],
+                'unit_price' => $item['unit_price'] ?? null,
+                'total_price' => ($item['received_quantity'] ?? 0) * ($item['unit_price'] ?? 0),
+                'batch_no' => $item['batch_no'] ?? null,
+                'remark' => $item['remark'] ?? null,
+            ]);
+
+            if ($diff != 0) {
+                DeliveryDiscrepancy::create([
+                    'delivery_id' => $confirmation->id,
+                    'supply_id' => $item['supply_id'],
+                    'supply_name' => $item['supply_name'],
+                    'specification' => $item['specification'] ?? null,
+                    'unit' => $item['unit'] ?? null,
+                    'discrepancy_type' => 'quantity',
+                    'expected_quantity' => $item['expected_quantity'],
+                    'actual_quantity' => $item['received_quantity'],
+                    'difference' => $diff,
+                    'severity' => abs($diff) / max($item['expected_quantity'], 1) > 0.2 ? 'major' : 'minor',
+                    'status' => 'reported',
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            $supply = Supply::find($item['supply_id']);
+            if ($supply) {
+                $supply->increment('current_stock', $item['received_quantity']);
+            }
+        }
 
         if ($hasDiscrepancy) {
             $purchaseRequest->update(['status' => 'delivered_with_discrepancy']);

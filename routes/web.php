@@ -41,7 +41,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{supplier}/risk-analysis', [\App\Http\Controllers\SupplierController::class, 'riskAnalysis'])->name('risk-analysis');
     });
 
-    Route::prefix('approval-flows')->name('approval-flows.')->middleware('permission:manage approval flows')->group(function () {
+    Route::prefix('approval-flows')->name('approval-flows.')->middleware('permission:manage_approval_flows')->group(function () {
         Route::get('/', [\App\Http\Controllers\ApprovalFlowController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\ApprovalFlowController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\ApprovalFlowController::class, 'store'])->name('store');

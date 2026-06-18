@@ -11,38 +11,40 @@ class FinancialReview extends Model
     use HasFactory;
 
     protected $fillable = [
-        'quotation_id',
-        'reviewer_id',
+        'entity_type',
+        'entity_id',
+        'entity_code',
+        'total_amount',
+        'budget_amount',
+        'available_budget',
+        'budget_type',
+        'budget_code',
+        'review_points',
+        'review_comments',
         'status',
-        'review_notes',
-        'budget_check',
-        'price_comparison',
-        'vendor_check',
-        'risk_assessment',
-        'recommended_amount',
-        'final_decision',
+        'reviewer_id',
+        'reviewer_name',
         'reviewed_at',
-        'approved_at',
-        'rejected_at',
+        'reject_reason',
+        'is_within_budget',
+        'requires_additional_approval',
+        'attachments',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'status' => ApprovalStatus::class,
-            'budget_check' => 'boolean',
-            'price_comparison' => 'boolean',
-            'vendor_check' => 'boolean',
-            'recommended_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'budget_amount' => 'decimal:2',
+            'available_budget' => 'decimal:2',
+            'status' => 'string',
+            'is_within_budget' => 'boolean',
+            'requires_additional_approval' => 'boolean',
+            'attachments' => 'array',
             'reviewed_at' => 'datetime',
-            'approved_at' => 'datetime',
-            'rejected_at' => 'datetime',
         ];
-    }
-
-    public function quotation()
-    {
-        return $this->belongsTo(Quotation::class);
     }
 
     public function reviewer()
@@ -50,62 +52,72 @@ class FinancialReview extends Model
         return $this->belongsTo(User::class, 'reviewer_id');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function deliveryDiscrepancies()
+    {
+        return DeliveryDiscrepancy::where('entity_type', $this->entity_type)
+            ->where('entity_id', $this->entity_id)
+            ->get();
+    }
+
     public function scopeByReviewer($query, int $reviewerId)
     {
         return $query->where('reviewer_id', $reviewerId);
     }
 
-    public function scopeByStatus($query, ApprovalStatus $status)
+    public function scopeByStatus($query, string $status)
     {
         return $query->where('status', $status);
     }
 
     public function scopePending($query)
     {
-        return $query->where('status', ApprovalStatus::PENDING);
+        return $query->where('status', 'pending');
     }
 
     public function isPending(): bool
     {
-        return $this->status === ApprovalStatus::PENDING;
+        return $this->status === 'pending';
     }
 
     public function isApproved(): bool
     {
-        return $this->status === ApprovalStatus::APPROVED;
+        return $this->status === 'approved';
     }
 
     public function isRejected(): bool
     {
-        return $this->status === ApprovalStatus::REJECTED;
+        return $this->status === 'rejected';
     }
 
-    public function allChecksPassed(): bool
-    {
-        return $this->budget_check && $this->price_comparison && $this->vendor_check;
-    }
-
-    public function approve(User $reviewer, string $notes = ''): bool
+    public function approve(User $reviewer, string $comments = ''): bool
     {
         $this->reviewer_id = $reviewer->id;
-        $this->status = ApprovalStatus::APPROVED;
-        $this->final_decision = 'approved';
-        if ($notes) {
-            $this->review_notes = $notes;
+        $this->reviewer_name = $reviewer->name;
+        $this->status = 'approved';
+        if ($comments) {
+            $this->review_comments = $comments;
         }
         $this->reviewed_at = now();
-        $this->approved_at = now();
         return $this->save();
     }
 
     public function reject(User $reviewer, string $reason): bool
     {
         $this->reviewer_id = $reviewer->id;
-        $this->status = ApprovalStatus::REJECTED;
-        $this->final_decision = 'rejected';
-        $this->review_notes = $reason;
+        $this->reviewer_name = $reviewer->name;
+        $this->status = 'rejected';
+        $this->reject_reason = $reason;
         $this->reviewed_at = now();
-        $this->rejected_at = now();
         return $this->save();
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\SupplierRiskLevel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -18,16 +17,13 @@ class Supply extends Model
         'specification',
         'unit',
         'brand',
-        'model',
-        'description',
+        'min_stock',
+        'max_stock',
         'current_stock',
-        'safety_stock',
-        'unit_price',
-        'currency',
-        'is_active',
+        'reference_price',
         'storage_location',
-        'barcode',
-        'image',
+        'remark',
+        'is_active',
         'created_by',
         'updated_by',
     ];
@@ -36,9 +32,10 @@ class Supply extends Model
     {
         return [
             'is_active' => 'boolean',
+            'min_stock' => 'decimal:2',
+            'max_stock' => 'decimal:2',
             'current_stock' => 'decimal:2',
-            'safety_stock' => 'decimal:2',
-            'unit_price' => 'decimal:2',
+            'reference_price' => 'decimal:2',
         ];
     }
 
@@ -82,13 +79,6 @@ class Supply extends Model
         return $this->hasMany(SupplySpecAttachment::class);
     }
 
-    public function preferredSuppliers()
-    {
-        return $this->belongsToMany(Supplier::class, 'supply_supplier')
-            ->withPivot(['is_preferred', 'last_price', 'last_quotation_date'])
-            ->withTimestamps();
-    }
-
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -96,12 +86,12 @@ class Supply extends Model
 
     public function scopeLowStock($query)
     {
-        return $query->whereColumn('current_stock', '<=', 'safety_stock');
+        return $query->whereColumn('current_stock', '<=', 'min_stock');
     }
 
     public function isLowStock(): bool
     {
-        return $this->current_stock <= $this->safety_stock;
+        return $this->current_stock <= $this->min_stock;
     }
 
     public function updateStock(float $quantity, string $operation = 'add'): void

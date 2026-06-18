@@ -4,28 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SupplySpecAttachment extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'supply_id',
         'file_name',
+        'original_name',
         'file_path',
-        'file_size',
+        'file_url',
         'file_type',
         'mime_type',
+        'file_size',
+        'attachment_type',
         'description',
-        'uploaded_by',
-        'is_active',
+        'sort',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
         return [
             'file_size' => 'integer',
-            'is_active' => 'boolean',
+            'sort' => 'integer',
         ];
     }
 
@@ -34,19 +39,9 @@ class SupplySpecAttachment extends Model
         return $this->belongsTo(Supply::class);
     }
 
-    public function uploader()
+    public function creator()
     {
-        return $this->belongsTo(User::class, 'uploaded_by');
-    }
-
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    public function scopeByType($query, string $type)
-    {
-        return $query->where('file_type', $type);
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function isImage(): bool

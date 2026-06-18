@@ -6,16 +6,16 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
 const navigation = [
-    { name: '仪表盘', href: route('dashboard.index'), icon: 'chart' },
-    { name: '耗材管理', href: route('supplies.index'), icon: 'box' },
-    { name: '供应商管理', href: route('suppliers.index'), icon: 'users' },
-    { name: '审批流程', href: route('approval-flows.index'), icon: 'flow' },
-    { name: '采购申请', href: route('purchase-requests.index'), icon: 'document' },
-    { name: '报价单管理', href: route('quotations.index'), icon: 'currency' },
-    { name: '到货管理', href: route('delivery.index'), icon: 'truck' },
-    { name: '批次管理', href: route('batches.index'), icon: 'refresh' },
-    { name: '财务复核', href: route('financial-reviews.index'), icon: 'check' },
-    { name: '系统配置', href: route('config.index'), icon: 'cog' },
+    { name: '仪表盘', href: route('dashboard'), icon: 'chart', routeName: 'dashboard' },
+    { name: '耗材管理', href: route('supplies.index'), icon: 'box', routeName: 'supplies.*' },
+    { name: '供应商管理', href: route('suppliers.index'), icon: 'users', routeName: 'suppliers.*' },
+    { name: '审批流程', href: route('approval-flows.index'), icon: 'flow', routeName: 'approval-flows.*' },
+    { name: '采购申请', href: route('purchase-requests.index'), icon: 'document', routeName: 'purchase-requests.*' },
+    { name: '报价单管理', href: route('quotations.index'), icon: 'currency', routeName: 'quotations.*' },
+    { name: '到货管理', href: route('delivery.index'), icon: 'truck', routeName: 'delivery.*' },
+    { name: '批次管理', href: route('batches.index'), icon: 'refresh', routeName: 'batches.*' },
+    { name: '财务复核', href: route('financial-reviews.index'), icon: 'check', routeName: 'financial-reviews.*' },
+    { name: '系统配置', href: route('config.index'), icon: 'cog', routeName: 'config.*' },
 ];
 </script>
 
@@ -32,7 +32,7 @@ const navigation = [
                     <Link
                         :href="item.href"
                         :class="['block px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                            route().current(item.href) || (item.href.includes('index') && route().current(item.href.replace('.index', '.*')))
+                            route().current(item.routeName)
                                 ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
                                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"

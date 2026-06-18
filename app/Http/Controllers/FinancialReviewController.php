@@ -46,23 +46,24 @@ class FinancialReviewController extends Controller
     public function review(Request $request, Quotation $quotation)
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:approved,rejected,needs_revision'],
-            'reviewed_amount' => ['nullable', 'numeric', 'min:0'],
-            'comments' => ['nullable', 'string', 'max:2000'],
-            'discrepancy_type' => ['nullable', 'in:price,quantity,specification,other'],
-            'discrepancy_details' => ['nullable', 'array'],
+            'status' => ['required', 'in:approved,rejected,need_more_info'],
+            'review_comments' => ['nullable', 'string', 'max:2000'],
+            'is_within_budget' => ['nullable', 'boolean'],
         ]);
 
         $review = FinancialReview::updateOrCreate(
             [
-                'quotation_id' => $quotation->id,
+                'entity_type' => 'quotation',
+                'entity_id' => $quotation->id,
                 'reviewer_id' => auth()->id(),
             ],
             [
+                'entity_code' => $quotation->quotation_number ?? $quotation->id,
+                'total_amount' => $quotation->total_amount ?? 0,
                 'status' => $validated['status'],
-                'reviewed_amount' => $validated['reviewed_amount'] ?? $quotation->total_amount,
-                'comments' => $validated['comments'] ?? null,
-                'discrepancy_type' => $validated['discrepancy_type'] ?? null,
+                'review_comments' => $validated['review_comments'] ?? null,
+                'is_within_budget' => $validated['is_within_budget'] ?? null,
+                'reviewer_name' => auth()->user()->name,
                 'reviewed_at' => now(),
             ]
         );
@@ -82,7 +83,6 @@ class FinancialReviewController extends Controller
             ->causedBy(auth()->user())
             ->withProperties([
                 'status' => $validated['status'],
-                'reviewed_amount' => $validated['reviewed_amount'] ?? null,
             ])
             ->log('financial reviewed');
 
@@ -91,7 +91,7 @@ class FinancialReviewController extends Controller
 
     public function deliveryDiscrepancies(Request $request)
     {
-        $discrepancies = DeliveryDiscrepancy::with(['quotation', 'reviewer'])
+        $discrepancies = DeliveryDiscrepancy::with(['deliveryConfirmation', 'supply', 'handler'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->type, fn ($q) => $q->where('discrepancy_type', $request->type))
             ->latest()
@@ -99,7 +99,7 @@ class FinancialReviewController extends Controller
 
         $stats = [
             'total' => DeliveryDiscrepancy::count(),
-            'pending' => DeliveryDiscrepancy::where('status', 'pending')->count(),
+            'pending' => DeliveryDiscrepancy::where('status', 'reported')->count(),
             'resolved' => DeliveryDiscrepancy::where('status', 'resolved')->count(),
             'total_amount_diff' => DeliveryDiscrepancy::sum('difference'),
         ];
@@ -116,19 +116,23 @@ class FinancialReviewController extends Controller
         $quotation = Quotation::findOrFail($quotation);
 
         $validated = $request->validate([
-            'reviewed_amount' => ['nullable', 'numeric', 'min:0'],
-            'comments' => ['nullable', 'string', 'max:2000'],
+            'review_comments' => ['nullable', 'string', 'max:2000'],
+            'is_within_budget' => ['nullable', 'boolean'],
         ]);
 
         $review = FinancialReview::updateOrCreate(
             [
-                'quotation_id' => $quotation->id,
+                'entity_type' => 'quotation',
+                'entity_id' => $quotation->id,
                 'reviewer_id' => auth()->id(),
             ],
             [
+                'entity_code' => $quotation->quotation_number ?? $quotation->id,
+                'total_amount' => $quotation->total_amount ?? 0,
                 'status' => 'approved',
-                'reviewed_amount' => $validated['reviewed_amount'] ?? $quotation->total_amount,
-                'comments' => $validated['comments'] ?? null,
+                'review_comments' => $validated['review_comments'] ?? null,
+                'is_within_budget' => $validated['is_within_budget'] ?? null,
+                'reviewer_name' => auth()->user()->name,
                 'reviewed_at' => now(),
             ]
         );
@@ -142,10 +146,7 @@ class FinancialReviewController extends Controller
         activity()
             ->performedOn($quotation)
             ->causedBy(auth()->user())
-            ->withProperties([
-                'status' => 'approved',
-                'reviewed_amount' => $validated['reviewed_amount'] ?? null,
-            ])
+            ->withProperties(['status' => 'approved'])
             ->log('financial approved');
 
         return back()->with('success', '财务审批已通过');
@@ -156,21 +157,23 @@ class FinancialReviewController extends Controller
         $quotation = Quotation::findOrFail($quotation);
 
         $validated = $request->validate([
-            'comments' => ['required', 'string', 'max:2000'],
-            'discrepancy_type' => ['nullable', 'in:price,quantity,specification,other'],
-            'discrepancy_details' => ['nullable', 'array'],
+            'reject_reason' => ['required', 'string', 'max:2000'],
+            'review_comments' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $review = FinancialReview::updateOrCreate(
             [
-                'quotation_id' => $quotation->id,
+                'entity_type' => 'quotation',
+                'entity_id' => $quotation->id,
                 'reviewer_id' => auth()->id(),
             ],
             [
+                'entity_code' => $quotation->quotation_number ?? $quotation->id,
+                'total_amount' => $quotation->total_amount ?? 0,
                 'status' => 'rejected',
-                'reviewed_amount' => $quotation->total_amount,
-                'comments' => $validated['comments'],
-                'discrepancy_type' => $validated['discrepancy_type'] ?? null,
+                'reject_reason' => $validated['reject_reason'],
+                'review_comments' => $validated['review_comments'] ?? null,
+                'reviewer_name' => auth()->user()->name,
                 'reviewed_at' => now(),
             ]
         );
@@ -186,7 +189,7 @@ class FinancialReviewController extends Controller
             ->causedBy(auth()->user())
             ->withProperties([
                 'status' => 'rejected',
-                'comments' => $validated['comments'],
+                'reject_reason' => $validated['reject_reason'],
             ])
             ->log('financial rejected');
 

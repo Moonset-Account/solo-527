@@ -10,33 +10,40 @@ class DeliveryDiscrepancy extends Model
     use HasFactory;
 
     protected $fillable = [
-        'delivery_confirmation_id',
+        'delivery_id',
         'quotation_item_id',
         'supply_id',
-        'expected_quantity',
-        'received_quantity',
-        'difference_quantity',
+        'supply_name',
+        'specification',
+        'unit',
         'discrepancy_type',
+        'expected_quantity',
+        'actual_quantity',
+        'difference',
         'description',
-        'resolution',
-        'resolved_at',
-        'resolved_by',
+        'severity',
         'status',
+        'handling_measures',
+        'resolution_result',
+        'resolved_at',
+        'handled_by',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
         return [
             'expected_quantity' => 'decimal:2',
-            'received_quantity' => 'decimal:2',
-            'difference_quantity' => 'decimal:2',
+            'actual_quantity' => 'decimal:2',
+            'difference' => 'decimal:2',
             'resolved_at' => 'datetime',
         ];
     }
 
     public function deliveryConfirmation()
     {
-        return $this->belongsTo(DeliveryConfirmation::class);
+        return $this->belongsTo(DeliveryConfirmation::class, 'delivery_id');
     }
 
     public function quotationItem()
@@ -49,9 +56,19 @@ class DeliveryDiscrepancy extends Model
         return $this->belongsTo(Supply::class);
     }
 
-    public function resolver()
+    public function handler()
     {
-        return $this->belongsTo(User::class, 'resolved_by');
+        return $this->belongsTo(User::class, 'handled_by');
+    }
+
+    public function scopeByStatus($query, string $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    public function scopeByType($query, string $type)
+    {
+        return $query->where('discrepancy_type', $type);
     }
 
     public function scopeUnresolved($query)
@@ -64,21 +81,6 @@ class DeliveryDiscrepancy extends Model
         return $query->whereNotNull('resolved_at');
     }
 
-    public function isQuantityIssue(): bool
-    {
-        return in_array($this->discrepancy_type, ['shortage', 'overage', 'wrong_quantity']);
-    }
-
-    public function isQualityIssue(): bool
-    {
-        return in_array($this->discrepancy_type, ['damaged', 'defective', 'wrong_item', 'wrong_spec']);
-    }
-
-    public function calculateDifference(): float
-    {
-        return $this->received_quantity - $this->expected_quantity;
-    }
-
     public function isResolved(): bool
     {
         return $this->resolved_at !== null;
@@ -86,8 +88,9 @@ class DeliveryDiscrepancy extends Model
 
     public function resolve(User $resolver, string $resolution): bool
     {
-        $this->resolution = $resolution;
-        $this->resolved_by = $resolver->id;
+        $this->handling_measures = $resolution;
+        $this->resolution_result = $resolution;
+        $this->handled_by = $resolver->id;
         $this->resolved_at = now();
         $this->status = 'resolved';
         return $this->save();

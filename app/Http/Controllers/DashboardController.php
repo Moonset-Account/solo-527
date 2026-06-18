@@ -41,7 +41,7 @@ class DashboardController extends Controller
             $stats['supplies'] = [
                 'total' => Supply::count(),
                 'active' => Supply::where('is_active', true)->count(),
-                'low_stock' => Supply::whereRaw('stock_quantity <= safety_stock')->count(),
+                'low_stock' => Supply::whereRaw('current_stock <= min_stock')->count(),
             ];
         }
 

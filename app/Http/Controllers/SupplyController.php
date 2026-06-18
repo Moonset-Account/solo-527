@@ -168,11 +168,13 @@ class SupplyController extends Controller
         $attachment = SupplySpecAttachment::create([
             'supply_id' => $supply->id,
             'file_name' => $validated['name'] ?? $file->getClientOriginalName(),
+            'original_name' => $file->getClientOriginalName(),
             'file_path' => $path,
-            'file_size' => $file->getSize(),
+            'file_type' => $file->extension(),
             'mime_type' => $file->getMimeType(),
+            'file_size' => $file->getSize(),
             'description' => $validated['description'] ?? null,
-            'uploaded_by' => auth()->id(),
+            'created_by' => auth()->id(),
         ]);
 
         activity()
