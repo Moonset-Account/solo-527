@@ -24,7 +24,10 @@ export class CheckinsService {
   ): Promise<{ data: CheckIn[]; total: number }> {
     const where: any = {};
     if (startDate && endDate) {
-      where.checkinTime = Between(new Date(startDate), new Date(endDate));
+      where.checkinTime = Between(
+        DateUtils.parseStartOfDay(startDate),
+        DateUtils.parseEndOfDay(endDate),
+      );
     }
 
     return this.checkinRepository.findAndCount({
@@ -81,7 +84,7 @@ export class CheckinsService {
 
     const result = await this.checkinRepository.save(checkin);
 
-    this.operationLogService.log(
+    await this.operationLogService.log(
       operatorId,
       operatorName,
       'checkin',

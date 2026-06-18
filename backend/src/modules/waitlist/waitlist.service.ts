@@ -63,7 +63,7 @@ export class WaitlistService {
     const result = await this.findOne(id);
 
     if (operatorId && operatorName) {
-      this.operationLogService.log(
+      await this.operationLogService.log(
         operatorId,
         operatorName,
         'update',
@@ -93,7 +93,7 @@ export class WaitlistService {
     const result = await this.findOne(id);
 
     if (operatorId && operatorName) {
-      this.operationLogService.log(
+      await this.operationLogService.log(
         operatorId,
         operatorName,
         'status_change',
@@ -116,7 +116,7 @@ export class WaitlistService {
     await this.waitlistRepository.delete(id);
 
     if (operatorId && operatorName) {
-      this.operationLogService.log(
+      await this.operationLogService.log(
         operatorId,
         operatorName,
         'delete',

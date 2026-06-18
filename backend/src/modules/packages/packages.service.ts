@@ -24,30 +24,28 @@ export class PackagesService {
     return this.packagesRepository.findOneBy({ id });
   }
 
-  create(
+  async create(
     pkg: Partial<Package>,
     operatorId?: string,
     operatorName?: string,
     ipAddress?: string,
   ): Promise<Package> {
     const newPackage = this.packagesRepository.create(pkg);
-    const result = this.packagesRepository.save(newPackage);
+    const saved = await this.packagesRepository.save(newPackage);
 
     if (operatorId && operatorName) {
-      result.then((saved) => {
-        this.operationLogService.log(
-          operatorId,
-          operatorName,
-          'create',
-          'package',
-          saved.id,
-          { name: pkg.name, price: pkg.price },
-          ipAddress,
-        );
-      });
+      await this.operationLogService.log(
+        operatorId,
+        operatorName,
+        'create',
+        'package',
+        saved.id,
+        { name: pkg.name, price: pkg.price },
+        ipAddress,
+      );
     }
 
-    return result;
+    return saved;
   }
 
   async update(
@@ -61,7 +59,7 @@ export class PackagesService {
     const result = await this.findOne(id);
 
     if (operatorId && operatorName) {
-      this.operationLogService.log(
+      await this.operationLogService.log(
         operatorId,
         operatorName,
         'update',
@@ -84,7 +82,7 @@ export class PackagesService {
     await this.packagesRepository.delete(id);
 
     if (operatorId && operatorName) {
-      this.operationLogService.log(
+      await this.operationLogService.log(
         operatorId,
         operatorName,
         'delete',
