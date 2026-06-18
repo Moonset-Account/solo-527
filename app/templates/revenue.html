@@ -218,7 +218,6 @@ function loadRevenueData() {
     document.getElementById('energy-start-time').value = startTime;
     document.getElementById('energy-end-time').value = endTime;
 
-    htmx.ajax('GET', '/revenue/api/summary?' + params).then(function(){}).catch(function(){});
     fetch('/revenue/api/summary?' + params)
         .then(function(r){ return r.json(); })
         .then(function(d) {

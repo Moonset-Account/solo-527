@@ -27,7 +27,10 @@
                         {% else %}
                         <span class="w-2 h-2 rounded-full bg-blue-500"></span>
                         {% endif %}
-                        <span class="text-xs font-mono text-blue-600">{{ peak.alarm_id[:8] }}…</span>
+                        <span class="text-xs font-mono text-blue-600 underline underline-offset-2 cursor-pointer hover:text-blue-800 transition"
+                              hx-get="/statistics/strategy-failure/{{ peak.alarm_id }}"
+                              hx-target="#trace-chain-detail"
+                              hx-swap="innerHTML">{{ peak.alarm_id[:8] }}…</span>
                         <span class="text-xs text-gray-500">({{ peak.alarm_type }})</span>
                     </span>
                     {% else %}
