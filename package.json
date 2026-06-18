@@ -1,0 +1,13 @@
+{
+  "name": "user-growth-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "用户增长异常监控台 - 日常运维工具",
+  "scripts": {
+    "dev:api": "cd backend && npm run start:dev",
+    "dev:web": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "services:up": "docker-compose up -d",
+    "services:down": "docker-compose down"
+  }
+}
