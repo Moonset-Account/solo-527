@@ -105,11 +105,23 @@ export const statsApi = {
 
 export const exportApi = {
   exportEmailRecords: (params: BaseQuery) => {
-    const queryStr = new URLSearchParams(params as any).toString()
+    const filtered: Record<string, string> = {}
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        filtered[k] = String(v)
+      }
+    })
+    const queryStr = new URLSearchParams(filtered).toString()
     window.open(`/api/export/email-records?${queryStr}`, '_blank')
   },
   exportRiskSamples: (params: BaseQuery) => {
-    const queryStr = new URLSearchParams(params as any).toString()
+    const filtered: Record<string, string> = {}
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        filtered[k] = String(v)
+      }
+    })
+    const queryStr = new URLSearchParams(filtered).toString()
     window.open(`/api/export/risk-samples?${queryStr}`, '_blank')
   },
 }

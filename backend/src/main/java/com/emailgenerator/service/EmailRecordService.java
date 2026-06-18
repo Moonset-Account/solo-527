@@ -101,17 +101,25 @@ public class EmailRecordService {
         EmailRecord record = emailRecordRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("邮件记录不存在"));
 
-        saveVersion(record, record.getChangeLog() != null ? record.getChangeLog() : "初始版本", operator);
+        Integer currentVersion = record.getVersion() == null ? 1 : record.getVersion();
+
+        if (versionRepository.findByRecordIdAndVersion(id, currentVersion) == null) {
+            saveVersion(record, record.getChangeLog() != null ? record.getChangeLog() : "初始版本", operator);
+        }
 
         if (subject != null) record.setSubject(subject);
         if (content != null) record.setContent(content);
         if (recipientEmail != null) record.setRecipientEmail(recipientEmail);
         if (recipientName != null) record.setRecipientName(recipientName);
-        record.setVersion((record.getVersion() == null ? 1 : record.getVersion()) + 1);
+        record.setVersion(currentVersion + 1);
         record.setChangeLog(changeLog != null ? changeLog : "更新草稿");
         record.setStatus("DRAFT");
 
-        return emailRecordRepository.save(record);
+        record = emailRecordRepository.save(record);
+
+        saveVersion(record, record.getChangeLog(), operator);
+
+        return record;
     }
 
     private void saveVersion(EmailRecord record, String changeLog, String operator) {
@@ -145,17 +153,25 @@ public class EmailRecordService {
         EmailRecord record = emailRecordRepository.findById(recordId)
             .orElseThrow(() -> new RuntimeException("邮件记录不存在"));
 
-        saveVersion(record, "保存当前版本，准备回滚", operator);
+        Integer currentVersion = record.getVersion() == null ? 1 : record.getVersion();
+
+        if (versionRepository.findByRecordIdAndVersion(recordId, currentVersion) == null) {
+            saveVersion(record, "回滚前自动保存", operator);
+        }
 
         record.setSubject(recordVersion.getSubject());
         record.setContent(recordVersion.getContent());
         record.setRecipientEmail(recordVersion.getRecipientEmail());
         record.setRecipientName(recordVersion.getRecipientName());
-        record.setVersion((record.getVersion() == null ? 1 : record.getVersion()) + 1);
+        record.setVersion(currentVersion + 1);
         record.setChangeLog("回滚到版本 v" + version);
         record.setStatus("DRAFT");
 
-        return emailRecordRepository.save(record);
+        record = emailRecordRepository.save(record);
+
+        saveVersion(record, record.getChangeLog(), operator);
+
+        return record;
     }
 
     public Map<String, Object> getStatsByLegalOwner() {

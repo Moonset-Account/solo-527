@@ -4,8 +4,7 @@ import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;
-import com.alibaba.excel.annotation.write.style.ContentStyle;
-import com.alibaba.excel.enums.poi.HorizontalAlignmentEnum;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.excel.write.metadata.style.WriteCellStyle;
 import com.alibaba.excel.write.metadata.style.WriteFont;
@@ -160,14 +159,14 @@ public class ExportService {
         WriteCellStyle headWriteCellStyle = new WriteCellStyle();
         headWriteCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
         headWriteCellStyle.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
-        headWriteCellStyle.setHorizontalAlignment(HorizontalAlignmentEnum.LEFT);
+        headWriteCellStyle.setHorizontalAlignment(HorizontalAlignment.LEFT);
         WriteFont headFont = new WriteFont();
         headFont.setFontHeightInPoints((short) 12);
         headFont.setBold(true);
         headWriteCellStyle.setWriteFont(headFont);
 
         WriteCellStyle contentWriteCellStyle = new WriteCellStyle();
-        contentWriteCellStyle.setHorizontalAlignment(HorizontalAlignmentEnum.LEFT);
+        contentWriteCellStyle.setHorizontalAlignment(HorizontalAlignment.LEFT);
 
         return new HorizontalCellStyleStrategy(headWriteCellStyle, contentWriteCellStyle);
     }
