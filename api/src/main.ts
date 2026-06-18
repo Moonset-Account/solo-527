@@ -24,7 +24,7 @@ async function bootstrap() {
   );
 
   const seedService = app.get(SeedService);
-  await seedService.seed();
+  try { await seedService.seed(); } catch(e) { console.error('Seed failed:', e.message); }
 
   await app.listen(3001);
   console.log('Application is running on: http://localhost:3001/api');

@@ -27,8 +27,12 @@ export const useFollowupsStore = defineStore('followups', () => {
     calendarEvents.value = data
   }
 
-  async function completeFollowup(id: number, result: string, nextDate?: string) {
-    await followupsApi.complete(id, { result, nextFollowupDate: nextDate })
+  async function completeFollowup(id: string, result: string, nextDate?: string) {
+    await followupsApi.update(id, {
+      result,
+      completedAt: new Date().toISOString(),
+      nextFollowupAt: nextDate,
+    } as any)
   }
 
   async function createFollowup(data: Partial<Followup>) {

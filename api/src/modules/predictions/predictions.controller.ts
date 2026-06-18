@@ -9,7 +9,8 @@ export class PredictionsController {
 
   @Get()
   async findAll() {
-    return this.predictionsService.findAll();
+    const result = await this.predictionsService.findAll();
+    return { list: result, total: result.length, page: 1, pageSize: result.length };
   }
 
   @Get('funnel')
@@ -19,6 +20,7 @@ export class PredictionsController {
 
   @Get('risks')
   async getRisks() {
-    return this.predictionsService.getRisks();
+    const result = await this.predictionsService.getRisks();
+    return [...result.high, ...result.medium];
   }
 }

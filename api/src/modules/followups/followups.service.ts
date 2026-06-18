@@ -56,7 +56,7 @@ export class FollowupsService {
       this.followupModel.countDocuments(filter),
     ]);
 
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return { list: items, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
   }
 
   async update(id: string, updateFollowupDto: UpdateFollowupDto) {

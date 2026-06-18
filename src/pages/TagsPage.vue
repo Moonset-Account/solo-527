@@ -5,22 +5,19 @@ import { use } from 'echarts/core'
 import { RadarChart, BarChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { Plus, Edit2, Trash2, Search } from 'lucide-vue-next'
+import { Plus, Edit2, Search } from 'lucide-vue-next'
 import { useTagsStore } from '@/stores/tags'
 import type { Tag, TagQueryLogic } from '@/types'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 use([RadarChart, BarChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
 const tagsStore = useTagsStore()
-const selectedTagId = ref<number | null>(null)
+const selectedTagId = ref<string | null>(null)
 const showCreateModal = ref(false)
 const showBatchModal = ref(false)
-const showDeleteConfirm = ref(false)
-const deletingTagId = ref<number | null>(null)
 const editingTag = ref<Partial<Tag> | null>(null)
 
-const batchTagIds = ref<number[]>([])
+const batchTagIds = ref<string[]>([])
 const batchLogic = ref<TagQueryLogic>('AND')
 const batchResult = ref<{ count: number } | null>(null)
 
@@ -66,9 +63,9 @@ const distOption = computed(() => {
   }
 })
 
-function selectTag(id: number) {
+function selectTag(id: string, name: string) {
   selectedTagId.value = id
-  tagsStore.fetchProfile(id)
+  tagsStore.fetchProfile(name)
 }
 
 function openCreate() {
@@ -85,20 +82,6 @@ async function saveTag() {
   }
   showCreateModal.value = false
   await tagsStore.fetchList()
-}
-
-function confirmDelete(id: number) {
-  deletingTagId.value = id
-  showDeleteConfirm.value = true
-}
-
-async function handleDelete() {
-  if (deletingTagId.value) {
-    await tagsStore.deleteTag(deletingTagId.value)
-    showDeleteConfirm.value = false
-    if (selectedTagId.value === deletingTagId.value) selectedTagId.value = null
-    await tagsStore.fetchList()
-  }
 }
 
 async function runBatchQuery() {
@@ -143,7 +126,7 @@ onMounted(() => tagsStore.fetchList())
               :key="tag.id"
               class="flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors"
               :class="selectedTagId === tag.id ? 'bg-amber-50 border border-amber-200' : 'hover:bg-slate-50'"
-              @click="selectTag(tag.id)"
+              @click="selectTag(tag.id, tag.name)"
             >
               <div class="flex items-center gap-2">
                 <span class="w-3 h-3 rounded-full" :style="{ backgroundColor: tag.color }"></span>
@@ -153,9 +136,6 @@ onMounted(() => tagsStore.fetchList())
               <div class="flex items-center gap-1">
                 <button class="p-0.5 rounded hover:bg-slate-100" @click.stop="editingTag = { ...tag }; showCreateModal = true">
                   <Edit2 class="w-3 h-3 text-slate-400" />
-                </button>
-                <button class="p-0.5 rounded hover:bg-red-50" @click.stop="confirmDelete(tag.id)">
-                  <Trash2 class="w-3 h-3 text-red-400" />
                 </button>
               </div>
             </div>
@@ -256,13 +236,5 @@ onMounted(() => tagsStore.fetchList())
         </div>
       </div>
     </Teleport>
-
-    <ConfirmDialog
-      :visible="showDeleteConfirm"
-      title="删除标签"
-      message="确定要删除此标签吗？"
-      @confirm="handleDelete"
-      @cancel="showDeleteConfirm = false"
-    />
   </div>
 </template>

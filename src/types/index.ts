@@ -1,60 +1,63 @@
 export type LeadStatus = 'new' | 'contacted' | 'measured' | 'quoted' | 'contracted' | 'lost'
 
 export interface User {
-  id: number
+  id: string
   username: string
-  realName: string
-  phone: string
-  email: string
+  name: string
   role: string
   department: string
-  avatar?: string
   permissions: string[]
 }
 
 export interface Lead {
-  id: number
+  _id: string
   customerName: string
   phone: string
   source: string
   status: LeadStatus
-  assignedTo: number
-  assignedToName: string
-  budgetMin: number
-  budgetMax: number
-  style: string
-  tags: Tag[]
-  houseType: string
-  area: number
-  expectedStartDate: string
-  measuredDate?: string
-  measurer?: string
-  actualArea?: number
-  measureNotes?: string
-  lastFollowupDate?: string
-  nextFollowupDate?: string
-  predictionScore?: number
+  decorationDemand: {
+    houseType?: string
+    area?: number
+    budgetRange?: string
+    style?: string
+    expectedStartDate?: string
+  }
+  measurementInfo: {
+    measuredAt?: string
+    measurer?: string
+    actualArea?: number
+    structureNote?: string
+    photos?: string[]
+  } | null
+  assignedTo: any
+  tags: string[]
   createdAt: string
   updatedAt: string
 }
 
+export interface LeadDisplay extends Lead {
+  assignedToName: string
+  lastFollowupDate?: string
+  predictionScore?: number
+}
+
 export interface Followup {
-  id: number
-  leadId: number
+  id: string
+  leadId: string
   leadName: string
   type: string
   result: string
   scheduledDate: string
   completedDate?: string
   method: string
-  assignee: number
+  assignee: string
   assigneeName: string
   nextFollowupDate?: string
   createdAt: string
 }
 
 export interface FollowupRule {
-  id: number
+  id: string
   name: string
   triggerEvent: string
   triggerParams: Record<string, unknown>
@@ -71,8 +74,8 @@ export interface FollowupRule {
 }
 
 export interface Prediction {
-  id: number
-  leadId: number
+  id: string
+  leadId: string
   leadName: string
   score: number
   riskLevel: 'low' | 'medium' | 'high'
@@ -81,8 +84,8 @@ export interface Prediction {
 }
 
 export interface ChurnRecord {
-  id: number
-  leadId: number
+  id: string
+  leadId: string
   leadName: string
   reason: string
   churnedAt: string
@@ -93,7 +96,7 @@ export interface ChurnRecord {
 }
 
 export interface Tag {
-  id: number
+  id: string
   name: string
   color: string
   group: string
@@ -102,7 +105,7 @@ export interface Tag {
 }
 
 export interface DictItem {
-  id: number
+  id: string
   category: string
   key: string
   label: string
@@ -111,7 +114,7 @@ export interface DictItem {
 }
 
 export interface ReminderTemplate {
-  id: number
+  id: string
   name: string
   type: string
   channels: string[]
@@ -121,15 +124,15 @@ export interface ReminderTemplate {
 }
 
 export interface ScopeConfig {
-  id: number
+  id: string
   type: 'department' | 'role' | 'source'
   name: string
   values: string[]
 }
 
 export interface Contract {
-  id: number
-  leadId: number
+  id: string
+  leadId: string
   leadName: string
   amount: number
   status: string
@@ -170,7 +173,7 @@ export interface LoginParams {
 }
 
 export interface LoginResult {
-  token: string
+  access_token: string
   user: User
 }
 
@@ -188,7 +191,7 @@ export interface ChurnTrend {
 }
 
 export interface FollowupCalendarEvent {
-  id: number
+  id: string
   date: string
   leadName: string
   type: string

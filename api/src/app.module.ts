@@ -11,6 +11,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { RedisModule } from './common/redis.service.js';
+import { SeedModule } from './seed.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { RedisModule } from './common/redis.service.js';
       }),
     }),
     RedisModule,
+    SeedModule,
     AuthModule,
     UsersModule,
     LeadsModule,

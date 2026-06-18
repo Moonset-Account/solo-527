@@ -20,7 +20,25 @@ export class FollowupsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.followupsService.getCalendar(startDate, endDate);
+    const calendar = await this.followupsService.getCalendar(startDate, endDate);
+    const events: any[] = [];
+    for (const [date, followups] of Object.entries(calendar)) {
+      for (const f of followups as any[]) {
+        const now = new Date();
+        const scheduled = new Date(f.scheduledAt);
+        let urgency = 'upcoming';
+        if (scheduled < now) urgency = 'overdue';
+        else if (scheduled.toDateString() === now.toDateString()) urgency = 'today';
+        events.push({
+          id: f._id,
+          date,
+          leadName: (f.leadId as any)?.customerName || '',
+          type: f.type,
+          urgency,
+        });
+      }
+    }
+    return events;
   }
 
   @Post()

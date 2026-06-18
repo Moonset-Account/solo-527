@@ -25,9 +25,14 @@ export class LeadsController {
     return this.leadsService.findAll(query);
   }
 
-  @Get(':id')
-  async findById(@Param('id') id: string) {
-    return this.leadsService.findById(id);
+  @Get('stats')
+  async getStats() {
+    return this.leadsService.getStats();
+  }
+
+  @Post('batch-tag')
+  async batchTag(@Body() batchTagDto: BatchTagDto) {
+    return this.leadsService.batchTag(batchTagDto);
   }
 
   @Post()
@@ -35,13 +40,13 @@ export class LeadsController {
     return this.leadsService.create(createLeadDto);
   }
 
+  @Get(':id')
+  async findById(@Param('id') id: string) {
+    return this.leadsService.findById(id);
+  }
+
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto) {
     return this.leadsService.update(id, updateLeadDto);
-  }
-
-  @Post('batch-tag')
-  async batchTag(@Body() batchTagDto: BatchTagDto) {
-    return this.leadsService.batchTag(batchTagDto);
   }
 }

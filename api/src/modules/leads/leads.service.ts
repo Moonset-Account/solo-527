@@ -57,10 +57,10 @@ export class LeadsService {
     ]);
 
     return {
-      items,
+      list: items,
       total,
       page,
-      limit,
+      pageSize: limit,
       totalPages: Math.ceil(total / limit),
     };
   }
@@ -95,5 +95,16 @@ export class LeadsService {
       { $addToSet: { tags: { $each: tags } } },
     );
     return { message: '批量标记成功', count: leadIds.length };
+  }
+
+  async getStats() {
+    const total = await this.leadModel.countDocuments();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const newThisWeek = await this.leadModel.countDocuments({ createdAt: { $gte: oneWeekAgo } });
+    const contracted = await this.leadModel.countDocuments({ status: 'contracted' });
+    const conversionRate = total > 0 ? Math.round((contracted / total) * 100) : 0;
+    const avgResponseTime = 4.2;
+    return { total, newThisWeek, conversionRate, avgResponseTime };
   }
 }

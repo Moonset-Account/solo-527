@@ -74,20 +74,30 @@ export class ChurnService {
 
       if (daysSinceLastContact > 7) {
         warnings.push({
-          lead: {
-            id: lead._id,
-            customerName: lead.customerName,
-            phone: lead.phone,
-            status: lead.status,
-            source: lead.source,
-          },
-          daysSinceLastContact,
-          riskLevel: daysSinceLastContact > 14 ? 'high' : 'medium',
+          id: (lead as any)._id,
+          leadId: (lead as any)._id,
+          leadName: lead.customerName,
+          reason: daysSinceLastContact > 14 ? '长期未跟进' : '超过7天未跟进',
+          riskIndicators: [`已${daysSinceLastContact}天未跟进`],
+          suggestedAction: '建议立即安排跟进',
+          daysSinceContact: daysSinceLastContact,
+          recallable: true,
         });
       }
     }
 
-    warnings.sort((a, b) => b.daysSinceLastContact - a.daysSinceLastContact);
+    warnings.sort((a, b) => b.daysSinceContact - a.daysSinceContact);
     return warnings;
+  }
+
+  async getStats() {
+    const totalChurned = await this.churnModel.countDocuments();
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const churnedThisMonth = await this.churnModel.countDocuments({ churnedAt: { $gte: monthStart } });
+    const activeLeads = await this.leadModel.countDocuments({ status: { $nin: ['contracted', 'lost'] } });
+    const churnRateThisMonth = activeLeads > 0 ? Math.round((churnedThisMonth / activeLeads) * 100) : 0;
+    const potentialRecalls = await this.churnModel.countDocuments({ canRecall: true });
+    return { totalChurned, churnRateThisMonth, potentialRecalls };
   }
 }

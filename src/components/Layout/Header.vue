@@ -20,7 +20,7 @@ function logout() {
   router.push('/login')
 }
 
-const userName = computed(() => authStore.user?.realName || authStore.user?.username || '用户')
+const userName = computed(() => authStore.user?.name || authStore.user?.username || '用户')
 </script>
 
 <template>

@@ -15,7 +15,7 @@ const categories = [
 
 const activeCategory = ref('lead_source')
 const items = ref<DictItem[]>([])
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const editForm = ref<Partial<DictItem>>({})
 
 async function fetchItems() {
@@ -24,7 +24,7 @@ async function fetchItems() {
 }
 
 function startCreate() {
-  editingId.value = 0
+  editingId.value = ''
   editForm.value = { category: activeCategory.value, key: '', label: '', sort: items.value.length + 1, enabled: true }
 }
 
@@ -34,7 +34,7 @@ function startEdit(item: DictItem) {
 }
 
 async function saveItem() {
-  if (editingId.value && editingId.value > 0) {
+  if (editingId.value) {
     await settingsApi.dicts.update(editingId.value, editForm.value)
   } else {
     await settingsApi.dicts.create(editForm.value)
@@ -43,7 +43,7 @@ async function saveItem() {
   await fetchItems()
 }
 
-async function deleteItem(id: number) {
+async function deleteItem(id: string) {
   await settingsApi.dicts.delete(id)
   await fetchItems()
 }
@@ -94,7 +94,7 @@ onMounted(fetchItems)
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-if="editingId === 0" class="bg-amber-50/50">
+          <tr v-if="editingId === ''" class="bg-amber-50/50">
             <td class="px-4 py-2">
               <input v-model="editForm.key" class="w-full h-8 px-2 rounded border border-slate-300 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500" />
             </td>

@@ -14,7 +14,7 @@ export const useLeadsStore = defineStore('leads', () => {
   const filters = ref<{
     status?: LeadStatus
     source?: string
-    assignee?: number
+    assignee?: string
     dateRange?: [string, string]
   }>({})
 
@@ -51,24 +51,24 @@ export const useLeadsStore = defineStore('leads', () => {
     stats.value = data
   }
 
-  async function fetchDetail(id: number) {
+  async function fetchDetail(id: string) {
     const { data } = await leadsApi.detail(id)
     selectedLead.value = data
   }
 
-  async function changeStatus(id: number, status: LeadStatus) {
-    await leadsApi.changeStatus(id, status)
-    if (selectedLead.value?.id === id) {
+  async function changeStatus(id: string, status: LeadStatus) {
+    await leadsApi.update(id, { status } as any)
+    if (selectedLead.value?._id === id) {
       selectedLead.value.status = status
     }
   }
 
-  async function assignLead(id: number, userId: number) {
+  async function assignLead(id: string, userId: string) {
     await leadsApi.assign(id, userId)
   }
 
-  async function addTag(id: number, tagId: number) {
-    await leadsApi.addTag(id, tagId)
+  async function addTag(id: string, tagName: string) {
+    await leadsApi.addTag(id, tagName)
   }
 
   function setFilters(newFilters: typeof filters.value) {

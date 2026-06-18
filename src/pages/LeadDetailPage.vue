@@ -7,14 +7,13 @@ import {
 } from 'lucide-vue-next'
 import { useLeadsStore } from '@/stores/leads'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import ScoreBar from '@/components/common/ScoreBar.vue'
 import type { LeadStatus } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const leadsStore = useLeadsStore()
 
-const leadId = computed(() => Number(route.params.id))
+const leadId = computed(() => String(route.params.id))
 const lead = computed(() => leadsStore.selectedLead)
 
 const statusTimeline = computed(() => {
@@ -80,14 +79,13 @@ onMounted(() => {
               <span class="text-slate-500">标签：</span>
               <span
                 v-for="tag in lead.tags"
-                :key="tag.id"
-                class="inline-block px-1.5 py-0.5 rounded text-xs mr-1"
-                :style="{ backgroundColor: tag.color + '20', color: tag.color }"
+                :key="tag"
+                class="inline-block px-1.5 py-0.5 rounded text-xs mr-1 bg-amber-100 text-amber-700"
               >
-                {{ tag.name }}
+                {{ tag }}
               </span>
             </div>
-            <div><span class="text-slate-500">负责人：</span>{{ lead.assignedToName }}</div>
+            <div><span class="text-slate-500">负责人：</span>{{ lead.assignedTo?.name || '未分配' }}</div>
             <div><span class="text-slate-500">创建时间：</span>{{ lead.createdAt }}</div>
           </div>
         </div>
@@ -97,11 +95,11 @@ onMounted(() => {
             <Home class="w-4 h-4 text-slate-400" /> 装修需求
           </h3>
           <div class="grid grid-cols-2 gap-4 text-sm">
-            <div><span class="text-slate-500">户型：</span>{{ lead.houseType || '未填写' }}</div>
-            <div><span class="text-slate-500">面积：</span>{{ lead.area ? `${lead.area}㎡` : '未填写' }}</div>
-            <div><span class="text-slate-500">预算：</span>{{ lead.budgetMin }}-{{ lead.budgetMax }}万</div>
-            <div><span class="text-slate-500">风格：</span>{{ lead.style || '未定' }}</div>
-            <div><span class="text-slate-500">期望开工：</span>{{ lead.expectedStartDate || '未定' }}</div>
+            <div><span class="text-slate-500">户型：</span>{{ lead.decorationDemand?.houseType || '未填写' }}</div>
+            <div><span class="text-slate-500">面积：</span>{{ lead.decorationDemand?.area ? `${lead.decorationDemand.area}㎡` : '未填写' }}</div>
+            <div><span class="text-slate-500">预算：</span>{{ lead.decorationDemand?.budgetRange || '未定' }}</div>
+            <div><span class="text-slate-500">风格：</span>{{ lead.decorationDemand?.style || '未定' }}</div>
+            <div><span class="text-slate-500">期望开工：</span>{{ lead.decorationDemand?.expectedStartDate || '未定' }}</div>
           </div>
         </div>
 
@@ -109,12 +107,12 @@ onMounted(() => {
           <h3 class="font-medium text-slate-800 mb-3 flex items-center gap-2">
             <Ruler class="w-4 h-4 text-slate-400" /> 量房信息
           </h3>
-          <template v-if="lead.measuredDate">
+          <template v-if="lead.measurementInfo?.measuredAt">
             <div class="grid grid-cols-2 gap-4 text-sm">
-              <div><span class="text-slate-500">量房日期：</span>{{ lead.measuredDate }}</div>
-              <div><span class="text-slate-500">量房人：</span>{{ lead.measurer }}</div>
-              <div><span class="text-slate-500">实际面积：</span>{{ lead.actualArea }}㎡</div>
-              <div><span class="text-slate-500">备注：</span>{{ lead.measureNotes || '无' }}</div>
+              <div><span class="text-slate-500">量房日期：</span>{{ lead.measurementInfo.measuredAt }}</div>
+              <div><span class="text-slate-500">量房人：</span>{{ lead.measurementInfo.measurer }}</div>
+              <div><span class="text-slate-500">实际面积：</span>{{ lead.measurementInfo.actualArea }}㎡</div>
+              <div><span class="text-slate-500">备注：</span>{{ lead.measurementInfo.structureNote || '无' }}</div>
             </div>
           </template>
           <template v-else>
@@ -207,16 +205,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="bg-white rounded-lg border border-slate-200 p-5">
-          <h3 class="font-medium text-slate-800 mb-3">预测评分</h3>
-          <div v-if="lead.predictionScore !== undefined">
-            <ScoreBar :score="lead.predictionScore" />
-            <p class="text-xs text-slate-400 mt-2">
-              {{ lead.predictionScore >= 70 ? '高转化概率' : lead.predictionScore >= 40 ? '中等概率' : '需重点关注' }}
-            </p>
-          </div>
-          <p v-else class="text-sm text-slate-400">暂无预测数据</p>
-        </div>
       </div>
     </div>
 

@@ -9,7 +9,7 @@ const templates = ref<ReminderTemplate[]>([])
 const showModal = ref(false)
 const editingTemplate = ref<Partial<ReminderTemplate> | null>(null)
 const showDeleteConfirm = ref(false)
-const deletingId = ref<number | null>(null)
+const deletingId = ref<string | null>(null)
 
 const templateTypes = [
   { label: '回访提醒', value: 'followup_reminder' },
@@ -53,7 +53,7 @@ async function saveTemplate() {
   await fetchTemplates()
 }
 
-function confirmDelete(id: number) {
+function confirmDelete(id: string) {
   deletingId.value = id
   showDeleteConfirm.value = true
 }

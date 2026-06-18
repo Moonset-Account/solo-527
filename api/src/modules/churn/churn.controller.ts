@@ -12,6 +12,11 @@ export class ChurnController {
     return this.churnService.getReasons();
   }
 
+  @Get('stats')
+  async getStats() {
+    return this.churnService.getStats();
+  }
+
   @Get('trend')
   async getTrend(@Query('months') months?: string) {
     return this.churnService.getTrend(months ? parseInt(months, 10) : 6);

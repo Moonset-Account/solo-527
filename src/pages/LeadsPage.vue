@@ -52,7 +52,7 @@ const statusBorderMap: Record<string, string> = {
   lost: 'border-l-red-500',
 }
 
-function openDetail(id: number) {
+function openDetail(id: string) {
   router.push(`/leads/${id}`)
 }
 
@@ -113,10 +113,10 @@ onMounted(() => {
     <div class="grid grid-cols-4 gap-4">
       <div
         v-for="lead in leadsStore.list"
-        :key="lead.id"
+        :key="lead._id"
         class="bg-white rounded-lg border border-slate-200 border-l-4 p-4 cursor-pointer hover:shadow-md transition-shadow"
         :class="statusBorderMap[lead.status] || 'border-l-slate-400'"
-        @click="openDetail(lead.id)"
+        @click="openDetail(lead._id)"
       >
         <div class="flex items-center justify-between mb-2">
           <span class="font-medium text-slate-800">{{ lead.customerName }}</span>
@@ -128,25 +128,24 @@ onMounted(() => {
         </div>
         <div class="flex items-center gap-1 text-sm text-slate-500 mb-2">
           <MapPin class="w-3 h-3" />
-          {{ lead.source }} · {{ lead.style || '未定' }}
+          {{ lead.source }} · {{ lead.decorationDemand?.style || '未定' }}
         </div>
         <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>预算: {{ lead.budgetMin }}-{{ lead.budgetMax }}万</span>
-          <span>{{ lead.assignedToName }}</span>
+          <span>预算: {{ lead.decorationDemand?.budgetRange || '未定' }}</span>
+          <span>{{ lead.assignedTo?.name || '未分配' }}</span>
         </div>
         <div class="flex items-center gap-1 mt-2">
           <span
             v-for="tag in lead.tags?.slice(0, 2)"
-            :key="tag.id"
-            class="inline-block px-1.5 py-0.5 rounded text-xs"
-            :style="{ backgroundColor: tag.color + '20', color: tag.color }"
+            :key="tag"
+            class="inline-block px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700"
           >
-            {{ tag.name }}
+            {{ tag }}
           </span>
           <span v-if="lead.tags?.length > 2" class="text-xs text-slate-400">+{{ lead.tags.length - 2 }}</span>
         </div>
         <div class="text-xs text-slate-400 mt-2">
-          {{ lead.lastFollowupDate ? `上次回访: ${lead.lastFollowupDate}` : '未回访' }}
+          更新: {{ lead.updatedAt?.slice(0, 10) }}
         </div>
       </div>
     </div>

@@ -53,47 +53,40 @@ export const authApi = {
 export const leadsApi = {
   list: (params?: Record<string, unknown>) =>
     http.get<PaginatedResponse<Lead>>('/leads', { params }),
-  detail: (id: number) => http.get<Lead>(`/leads/${id}`),
+  detail: (id: string) => http.get<Lead>(`/leads/${id}`),
   create: (data: Partial<Lead>) => http.post<Lead>('/leads', data),
-  update: (id: number, data: Partial<Lead>) => http.put<Lead>(`/leads/${id}`, data),
-  delete: (id: number) => http.delete(`/leads/${id}`),
+  update: (id: string, data: Partial<Lead>) => http.patch<Lead>(`/leads/${id}`, data),
+  delete: (id: string) => http.delete(`/leads/${id}`),
   stats: () => http.get<{
     total: number
     newThisWeek: number
     conversionRate: number
     avgResponseTime: number
   }>('/leads/stats'),
-  changeStatus: (id: number, status: string) => http.put(`/leads/${id}/status`, { status }),
-  assign: (id: number, userId: number) => http.put(`/leads/${id}/assign`, { userId }),
-  addTag: (id: number, tagId: number) => http.post(`/leads/${id}/tags`, { tagId }),
-  scheduleMeasurement: (id: number, data: { measurer: string; date: string }) =>
-    http.post(`/leads/${id}/measurement`, data),
+  changeStatus: (id: string, status: string) => http.patch(`/leads/${id}`, { status }),
+  assign: (id: string, userId: string) => http.patch(`/leads/${id}`, { assignedTo: userId }),
+  addTag: (id: string, tag: string) => http.patch(`/leads/${id}`, { $push: { tags: tag } }),
+  scheduleMeasurement: (id: string, data: { measurer: string; date: string }) =>
+    http.patch(`/leads/${id}`, { measurementInfo: data }),
 }
 
 export const followupsApi = {
   list: (params?: Record<string, unknown>) =>
     http.get<PaginatedResponse<Followup>>('/followups', { params }),
   create: (data: Partial<Followup>) => http.post<Followup>('/followups', data),
-  update: (id: number, data: Partial<Followup>) => http.put(`/followups/${id}`, data),
-  complete: (id: number, data: { result: string; nextFollowupDate?: string }) =>
-    http.put(`/followups/${id}/complete`, data),
+  update: (id: string, data: Partial<Followup>) => http.patch(`/followups/${id}`, data),
+  complete: (id: string, data: { result: string; completedAt: string; nextFollowupAt?: string }) =>
+    http.patch(`/followups/${id}`, data),
   calendar: (month: string) => http.get<FollowupCalendarEvent[]>('/followups/calendar', { params: { month } }),
-  batchAssign: (ids: number[], userId: number) =>
-    http.put('/followups/batch-assign', { ids, userId }),
-  batchPostpone: (ids: number[], days: number) =>
-    http.put('/followups/batch-postpone', { ids, days }),
-  batchStatus: (ids: number[], status: string) =>
-    http.put('/followups/batch-status', { ids, status }),
 }
 
 export const followupRulesApi = {
   list: () => http.get<FollowupRule[]>('/followup-rules'),
   create: (data: Partial<FollowupRule>) => http.post<FollowupRule>('/followup-rules', data),
-  update: (id: number, data: Partial<FollowupRule>) =>
-    http.put<FollowupRule>(`/followup-rules/${id}`, data),
-  delete: (id: number) => http.delete(`/followup-rules/${id}`),
-  toggle: (id: number, enabled: boolean) =>
-    http.put(`/followup-rules/${id}/toggle`, { enabled }),
+  update: (id: string, data: Partial<FollowupRule>) =>
+    http.patch<FollowupRule>(`/followup-rules/${id}`, data),
+  toggle: (id: string, enabled: boolean) =>
+    http.patch(`/followup-rules/${id}/toggle`, { enabled }),
 }
 
 export const predictionsApi = {
@@ -101,7 +94,7 @@ export const predictionsApi = {
     http.get<PaginatedResponse<Prediction>>('/predictions', { params }),
   funnel: () => http.get<FunnelData[]>('/predictions/funnel'),
   risks: () => http.get<Prediction[]>('/predictions/risks'),
-  detail: (leadId: number) => http.get<Prediction>(`/predictions/${leadId}`),
+  detail: (leadId: string) => http.get<Prediction>(`/predictions/${leadId}`),
 }
 
 export const churnApi = {
@@ -118,14 +111,13 @@ export const churnApi = {
 export const tagsApi = {
   list: (group?: string) => http.get<Tag[]>('/tags', { params: { group } }),
   create: (data: Partial<Tag>) => http.post<Tag>('/tags', data),
-  update: (id: number, data: Partial<Tag>) => http.put<Tag>(`/tags/${id}`, data),
-  delete: (id: number) => http.delete(`/tags/${id}`),
-  batchQuery: (tagIds: number[], logic: TagQueryLogic) =>
-    http.post<{ count: number; leadIds: number[] }>('/tags/batch-query', { tagIds, logic }),
-  profile: (id: number) => http.get<{
+  update: (id: string, data: Partial<Tag>) => http.patch<Tag>(`/tags/${id}`, data),
+  batchQuery: (tagIds: string[], logic: TagQueryLogic) =>
+    http.post<{ count: number; leadIds: string[] }>('/tags/batch-query', { tagIds, logic }),
+  profile: (name: string) => http.get<{
     radar: { axis: string; value: number }[]
     distribution: { source: string; count: number }[]
-  }>(`/tags/${id}/profile`),
+  }>('/tags/profile', { params: { name } }),
 }
 
 export const reportsApi = {
@@ -140,26 +132,26 @@ export const settingsApi = {
   dicts: {
     list: (category?: string) => http.get<DictItem[]>('/settings/dicts', { params: { category } }),
     create: (data: Partial<DictItem>) => http.post<DictItem>('/settings/dicts', data),
-    update: (id: number, data: Partial<DictItem>) =>
-      http.put<DictItem>(`/settings/dicts/${id}`, data),
-    delete: (id: number) => http.delete(`/settings/dicts/${id}`),
+    update: (id: string, data: Partial<DictItem>) =>
+      http.patch<DictItem>(`/settings/dicts/${id}`, data),
+    delete: (id: string) => http.delete(`/settings/dicts/${id}`),
   },
   reminders: {
     list: () => http.get<ReminderTemplate[]>('/settings/reminders'),
     create: (data: Partial<ReminderTemplate>) =>
       http.post<ReminderTemplate>('/settings/reminders', data),
-    update: (id: number, data: Partial<ReminderTemplate>) =>
-      http.put<ReminderTemplate>(`/settings/reminders/${id}`, data),
-    delete: (id: number) => http.delete(`/settings/reminders/${id}`),
+    update: (id: string, data: Partial<ReminderTemplate>) =>
+      http.patch<ReminderTemplate>(`/settings/reminders/${id}`, data),
+    delete: (id: string) => http.delete(`/settings/reminders/${id}`),
   },
   scopes: {
     list: (type?: string) => http.get<ScopeConfig[]>('/settings/scopes', { params: { type } }),
-    update: (id: number, data: Partial<ScopeConfig>) =>
-      http.put<ScopeConfig>(`/settings/scopes/${id}`, data),
+    update: (id: string, data: Partial<ScopeConfig>) =>
+      http.patch<ScopeConfig>(`/settings/scopes/${id}`, data),
   },
   roles: {
-    list: () => http.get<{ id: number; name: string; permissions: string[] }[]>('/settings/roles'),
-    update: (id: number, data: { name: string; permissions: string[] }) =>
-      http.put(`/settings/roles/${id}`, data),
+    list: () => http.get<{ id: string; name: string; permissions: string[] }[]>('/settings/roles'),
+    update: (id: string, data: { name: string; permissions: string[] }) =>
+      http.patch(`/settings/roles/${id}`, data),
   },
 }

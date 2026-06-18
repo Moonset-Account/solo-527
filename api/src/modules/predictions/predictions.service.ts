@@ -87,28 +87,22 @@ export class PredictionsService {
 
   async getFunnel() {
     const leads = await this.leadModel.find().lean();
-    const funnel = {
-      new: 0,
-      contacted: 0,
-      measured: 0,
-      quoted: 0,
-      contracted: 0,
-      lost: 0,
+    const stageLabels: Record<string, string> = {
+      new: '新线索', contacted: '已联系', measured: '已量房',
+      quoted: '已报价', contracted: '已签约', lost: '已流失',
     };
+    const stages = ['new', 'contacted', 'measured', 'quoted', 'contracted', 'lost'];
+    const counts: Record<string, number> = {};
+    for (const s of stages) counts[s] = 0;
     for (const lead of leads) {
-      if (funnel[lead.status] !== undefined) {
-        funnel[lead.status]++;
-      }
+      if (counts[lead.status] !== undefined) counts[lead.status]++;
     }
     const total = leads.length || 1;
-    const conversionRates: Record<string, number> = {};
-    const stages = Object.keys(funnel);
-    for (let i = 1; i < stages.length; i++) {
-      const prev = funnel[stages[i - 1]] || 0;
-      const curr = funnel[stages[i]] || 0;
-      conversionRates[stages[i]] = prev > 0 ? Math.round((curr / prev) * 100) : 0;
-    }
-    return { funnel, total, conversionRates };
+    return stages.map(s => ({
+      stage: stageLabels[s],
+      count: counts[s],
+      rate: Math.round((counts[s] / total) * 100),
+    }));
   }
 
   async getRisks() {

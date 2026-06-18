@@ -12,7 +12,7 @@ const scopeTypes = [
 
 const activeType = ref<'department' | 'role' | 'source'>('department')
 const scopes = ref<ScopeConfig[]>([])
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const editValues = ref<string[]>([])
 
 async function fetchScopes() {
@@ -30,7 +30,7 @@ function cancelEdit() {
   editValues.value = []
 }
 
-async function saveScope(id: number) {
+async function saveScope(id: string) {
   await settingsApi.scopes.update(id, { values: editValues.value })
   editingId.value = null
   await fetchScopes()

@@ -4,7 +4,7 @@ import { Save } from 'lucide-vue-next'
 import { settingsApi } from '@/api'
 
 interface Role {
-  id: number
+  id: string
   name: string
   permissions: string[]
 }

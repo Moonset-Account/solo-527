@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-vue-next'
+import { Plus, Edit2, ToggleLeft, ToggleRight } from 'lucide-vue-next'
 import { followupRulesApi } from '@/api'
 import type { FollowupRule } from '@/types'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const rules = ref<FollowupRule[]>([])
 const loading = ref(false)
 const showModal = ref(false)
 const editingRule = ref<Partial<FollowupRule> | null>(null)
-const showDeleteConfirm = ref(false)
-const deletingId = ref<number | null>(null)
 
 const triggerEvents = [
   { label: '新线索创建', value: 'lead_created' },
@@ -68,19 +65,6 @@ async function saveRule() {
   }
   showModal.value = false
   await fetchRules()
-}
-
-function confirmDelete(id: number) {
-  deletingId.value = id
-  showDeleteConfirm.value = true
-}
-
-async function handleDelete() {
-  if (deletingId.value) {
-    await followupRulesApi.delete(deletingId.value)
-    showDeleteConfirm.value = false
-    await fetchRules()
-  }
 }
 
 async function toggleRule(rule: FollowupRule) {
@@ -143,9 +127,6 @@ onMounted(fetchRules)
               <div class="flex items-center gap-2">
                 <button class="p-1 rounded hover:bg-slate-100" @click="openEditModal(rule)">
                   <Edit2 class="w-4 h-4 text-slate-500" />
-                </button>
-                <button class="p-1 rounded hover:bg-red-50" @click="confirmDelete(rule.id)">
-                  <Trash2 class="w-4 h-4 text-red-500" />
                 </button>
               </div>
             </td>
@@ -241,13 +222,5 @@ onMounted(fetchRules)
         </div>
       </div>
     </Teleport>
-
-    <ConfirmDialog
-      :visible="showDeleteConfirm"
-      title="删除规则"
-      message="确定要删除此规则吗？删除后不可恢复。"
-      @confirm="handleDelete"
-      @cancel="showDeleteConfirm = false"
-    />
   </div>
 </template>

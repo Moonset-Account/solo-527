@@ -22,8 +22,8 @@ export const useTagsStore = defineStore('tags', () => {
     }
   }
 
-  async function fetchProfile(id: number) {
-    const { data } = await tagsApi.profile(id)
+  async function fetchProfile(name: string) {
+    const { data } = await tagsApi.profile(name)
     tagProfile.value = data
   }
 
@@ -31,21 +31,17 @@ export const useTagsStore = defineStore('tags', () => {
     await tagsApi.create(data)
   }
 
-  async function updateTag(id: number, data: Partial<Tag>) {
+  async function updateTag(id: string, data: Partial<Tag>) {
     await tagsApi.update(id, data)
   }
 
-  async function deleteTag(id: number) {
-    await tagsApi.delete(id)
-  }
-
-  async function batchQuery(tagIds: number[], logic: TagQueryLogic) {
+  async function batchQuery(tagIds: string[], logic: TagQueryLogic) {
     const { data } = await tagsApi.batchQuery(tagIds, logic)
     return data
   }
 
   return {
     list, loading, selectedTag, tagProfile,
-    fetchList, fetchProfile, createTag, updateTag, deleteTag, batchQuery,
+    fetchList, fetchProfile, createTag, updateTag, batchQuery,
   }
 })
