@@ -12,27 +12,31 @@ class Quotation extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'quotation_number',
-        'purchase_request_id',
+        'code',
+        'request_id',
         'supplier_id',
-        'title',
-        'status',
-        'total_amount',
-        'tax_amount',
-        'discount_amount',
-        'final_amount',
-        'currency',
+        'supplier_name',
+        'supplier_contact',
+        'supplier_phone',
+        'contact_id',
+        'contact_name',
+        'quotation_date',
         'valid_until',
         'payment_terms',
-        'delivery_days',
         'delivery_terms',
-        'warranty_terms',
+        'delivery_days',
+        'delivery_address',
+        'tax_rate',
+        'subtotal_amount',
+        'tax_amount',
+        'total_amount',
         'remark',
-        'rejection_reason',
-        'submitted_at',
-        'reviewed_at',
+        'status',
+        'is_selected',
+        'flow_id',
+        'is_expiry_reminded',
+        'approved_by',
         'approved_at',
-        'expires_at',
         'created_by',
         'updated_by',
     ];
@@ -40,28 +44,37 @@ class Quotation extends Model
     protected function casts(): array
     {
         return [
-            'status' => QuotationStatus::class,
+            'is_selected' => 'boolean',
+            'is_expiry_reminded' => 'boolean',
             'total_amount' => 'decimal:2',
+            'subtotal_amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
-            'discount_amount' => 'decimal:2',
-            'final_amount' => 'decimal:2',
+            'tax_rate' => 'decimal:2',
+            'quotation_date' => 'date',
             'valid_until' => 'date',
-            'delivery_days' => 'integer',
-            'submitted_at' => 'datetime',
-            'reviewed_at' => 'datetime',
             'approved_at' => 'datetime',
-            'expires_at' => 'datetime',
+            'delivery_days' => 'integer',
         ];
     }
 
     public function purchaseRequest()
     {
-        return $this->belongsTo(PurchaseRequest::class);
+        return $this->belongsTo(PurchaseRequest::class, 'request_id');
     }
 
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function contact()
+    {
+        return $this->belongsTo(User::class, 'contact_id');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function items()
@@ -72,11 +85,6 @@ class Quotation extends Model
     public function approvalRecords()
     {
         return $this->hasMany(ApprovalRecord::class);
-    }
-
-    public function financialReview()
-    {
-        return $this->hasOne(FinancialReview::class);
     }
 
     public function deliveryConfirmations()
@@ -106,98 +114,94 @@ class Quotation extends Model
 
     public function scopeByPurchaseRequest($query, int $prId)
     {
-        return $query->where('purchase_request_id', $prId);
+        return $query->where('request_id', $prId);
     }
 
-    public function scopeByStatus($query, QuotationStatus $status)
+    public function scopeByStatus($query, $status)
     {
-        return $query->where('status', $status);
+        return $query->where('status', is_string($status) ? $status : $status->value);
     }
 
     public function scopeExpiring($query, int $days = 7)
     {
-        return $query->where('status', QuotationStatus::SUBMITTED)
-            ->whereBetween('expires_at', [now(), now()->addDays($days)]);
+        return $query->whereIn('status', ['draft', 'submitted', 'approved'])
+            ->whereBetween('valid_until', [now(), now()->addDays($days)]);
     }
 
     public function scopeExpired($query)
     {
-        return $query->where('status', QuotationStatus::SUBMITTED)
-            ->where('expires_at', '<', now());
+        return $query->whereIn('status', ['draft', 'submitted', 'approved'])
+            ->where('valid_until', '<', now());
     }
 
     public function isDraft(): bool
     {
-        return $this->status === QuotationStatus::DRAFT;
+        return $this->status === 'draft';
     }
 
     public function isSubmitted(): bool
     {
-        return $this->status === QuotationStatus::SUBMITTED;
+        return $this->status === 'submitted';
     }
 
     public function isApproved(): bool
     {
-        return $this->status === QuotationStatus::APPROVED;
+        return $this->status === 'approved';
     }
 
     public function isSelected(): bool
     {
-        return $this->status === QuotationStatus::SELECTED;
+        return $this->is_selected;
     }
 
     public function isExpired(): bool
     {
-        return $this->expires_at && $this->expires_at->isPast();
+        return $this->valid_until && strtotime($this->valid_until) < time();
     }
 
     public function canEdit(): bool
     {
-        return in_array($this->status, [
-            QuotationStatus::DRAFT,
-            QuotationStatus::REJECTED,
-        ]);
+        return in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canSubmit(): bool
     {
-        return $this->status === QuotationStatus::DRAFT &&
+        return $this->status === 'draft' &&
             $this->items()->count() > 0 &&
             $this->supplier_id !== null;
     }
 
-    public function calculateTotal(): array
+    public function calculateTotals(): array
     {
-        $subtotal = $this->items->sum('total_price');
-        $tax = $this->tax_amount ?? 0;
-        $discount = $this->discount_amount ?? 0;
+        $subtotal = $this->items->sum('amount');
+        $tax = $this->tax_rate ? $subtotal * ($this->tax_rate / 100) : 0;
 
         return [
-            'subtotal' => $subtotal,
-            'tax' => $tax,
-            'discount' => $discount,
-            'final' => $subtotal + $tax - $discount,
+            'subtotal_amount' => $subtotal,
+            'tax_amount' => $tax,
+            'total_amount' => $subtotal + $tax,
         ];
     }
 
     public function updateAmounts(): void
     {
-        $totals = $this->calculateTotal();
-        $this->total_amount = $totals['subtotal'];
-        $this->final_amount = $totals['final'];
+        $totals = $this->calculateTotals();
+        $this->subtotal_amount = $totals['subtotal_amount'];
+        $this->tax_amount = $totals['tax_amount'];
+        $this->total_amount = $totals['total_amount'];
         $this->save();
     }
 
-    public function generateQuotationNumber(): string
+    public function generateCode(): string
     {
         $date = now()->format('Ymd');
         $prefix = 'Q';
-        $last = self::where('quotation_number', 'like', "{$prefix}{$date}%")
+        $last = self::where('code', 'like', "{$prefix}{$date}%")
             ->withTrashed()
             ->latest('id')
             ->first();
 
-        $sequence = $last ? (int) substr($last->quotation_number, -4) + 1 : 1;
+        $sequence = $last ? (int) substr($last->code, -4) + 1 : 1;
 
         return "{$prefix}{$date}" . str_pad($sequence, 4, '0', STR_PAD_LEFT);
     }

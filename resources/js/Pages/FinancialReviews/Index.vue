@@ -31,7 +31,7 @@ const reviewForm = ref({
 
 const columns = [
     { key: 'id', label: 'ID' },
-    { key: 'quotation_number', label: '报价单号', slot: 'quotation_number' },
+    { key: 'code', label: '报价单号', slot: 'code' },
     { key: 'supplier_name', label: '供应商', slot: 'supplier_name' },
     { key: 'total_amount', label: '金额', slot: 'total_amount' },
     { key: 'valid_until', label: '有效期' },
@@ -174,12 +174,12 @@ const reject = () => {
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="overflow-x-auto">
                         <Table :columns="columns" :data="quotations">
-                            <template #quotation_number="{ row }">
+                            <template #code="{ row }">
                                 <Link
                                     :href="route('quotations.show', row.id)"
                                     class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
                                 >
-                                    {{ row.quotation_number }}
+                                    {{ row.code }}
                                 </Link>
                             </template>
                             <template #supplier_name="{ row }">
@@ -232,7 +232,7 @@ const reject = () => {
                         <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <div>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">报价单号</p>
-                                <p class="font-medium text-gray-900 dark:text-white">{{ currentReview.quotation_number }}</p>
+                                <p class="font-medium text-gray-900 dark:text-white">{{ currentReview.code }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">供应商</p>

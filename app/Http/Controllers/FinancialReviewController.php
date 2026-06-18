@@ -58,7 +58,7 @@ class FinancialReviewController extends Controller
                 'reviewer_id' => auth()->id(),
             ],
             [
-                'entity_code' => $quotation->quotation_number ?? $quotation->id,
+                'entity_code' => $quotation->code ?? $quotation->id,
                 'total_amount' => $quotation->total_amount ?? 0,
                 'status' => $validated['status'],
                 'review_comments' => $validated['review_comments'] ?? null,
@@ -127,7 +127,7 @@ class FinancialReviewController extends Controller
                 'reviewer_id' => auth()->id(),
             ],
             [
-                'entity_code' => $quotation->quotation_number ?? $quotation->id,
+                'entity_code' => $quotation->code ?? $quotation->id,
                 'total_amount' => $quotation->total_amount ?? 0,
                 'status' => 'approved',
                 'review_comments' => $validated['review_comments'] ?? null,
@@ -168,7 +168,7 @@ class FinancialReviewController extends Controller
                 'reviewer_id' => auth()->id(),
             ],
             [
-                'entity_code' => $quotation->quotation_number ?? $quotation->id,
+                'entity_code' => $quotation->code ?? $quotation->id,
                 'total_amount' => $quotation->total_amount ?? 0,
                 'status' => 'rejected',
                 'reject_reason' => $validated['reject_reason'],

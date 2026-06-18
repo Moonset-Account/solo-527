@@ -14,7 +14,7 @@ class StoreQuotationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'purchase_request_id' => ['required', 'exists:purchase_requests,id'],
+            'request_id' => ['required', 'exists:purchase_requests,id'],
             'supplier_id' => ['required', 'exists:suppliers,id'],
             'valid_until' => ['required', 'date', 'after:today'],
             'delivery_date' => ['nullable', 'date'],
@@ -49,7 +49,7 @@ class StoreQuotationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'purchase_request_id.required' => '请选择采购申请',
+            'request_id.required' => '请选择采购申请',
             'supplier_id.required' => '请选择供应商',
             'valid_until.required' => '请输入报价有效期',
             'valid_until.after' => '报价有效期必须在今天之后',

@@ -21,12 +21,12 @@ const filters = ref({
 
 const columns = [
     { key: 'code', label: '申请单号', slot: 'code' },
-    { key: 'applicant', label: '申请人' },
+    { key: 'requester_name', label: '申请人' },
     { key: 'department', label: '部门' },
     { key: 'total_amount', label: '预估金额', slot: 'total_amount' },
     { key: 'status', label: '状态', slot: 'status' },
     { key: 'current_approval', label: '当前审批', slot: 'current_approval' },
-    { key: 'created_at', label: '申请时间' },
+    { key: 'request_date', label: '申请时间' },
     { key: 'actions', label: '操作', slot: 'actions' },
 ];
 

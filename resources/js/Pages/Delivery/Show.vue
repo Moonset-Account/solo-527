@@ -214,7 +214,7 @@ const confirmExistingDelivery = () => {
                             </Badge>
                         </div>
                         <div v-if="isCreateMode && purchaseRequest" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            采购申请: {{ purchaseRequest.pr_number }} - {{ purchaseRequest.title }}
+                            采购申请: {{ purchaseRequest.code }} - {{ purchaseRequest.title }}
                         </div>
                     </div>
                     <div class="flex space-x-3">

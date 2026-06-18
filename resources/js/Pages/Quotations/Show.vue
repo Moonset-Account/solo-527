@@ -179,11 +179,11 @@ const submitDisable = () => {
                                         <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">关联采购申请</dt>
                                         <dd class="mt-1 text-sm">
                                             <Link
-                                                v-if="quotation.purchase_request_id"
-                                                :href="route('purchase-requests.show', quotation.purchase_request_id)"
+                                                v-if="quotation.request_id"
+                                                :href="route('purchase-requests.show', quotation.request_id)"
                                                 class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                                             >
-                                                {{ quotation.purchase_request_code || '查看详情' }}
+                                                {{ quotation.request_code || '查看详情' }}
                                             </Link>
                                             <span v-else class="text-gray-900 dark:text-white">-</span>
                                         </dd>

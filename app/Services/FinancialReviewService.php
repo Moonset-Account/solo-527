@@ -26,6 +26,7 @@ class FinancialReviewService
         $count = 0;
 
         FinancialReview::where('entity_type', 'quotation')
+            ->whereIn('status', ['approved', 'rejected'])
             ->chunk(50, function ($reviews) use (&$count) {
                 foreach ($reviews as $review) {
                     $quotation = \App\Models\Quotation::find($review->entity_id);
@@ -33,18 +34,33 @@ class FinancialReviewService
                         continue;
                     }
 
-                    $firstItem = $quotation->items()->first();
+                    $purchaseRequest = $quotation->purchaseRequest;
+                    if (!$purchaseRequest) {
+                        continue;
+                    }
+
                     $difference = $review->total_amount - $quotation->total_amount;
-                    $severity = $this->calculateSeverity($difference, $quotation->total_amount);
+                    if (abs($difference) < 0.01) {
+                        continue;
+                    }
+
+                    $deliveryConfirmation = \App\Models\DeliveryConfirmation::where('quotation_id', $quotation->id)->first();
+                    if (!$deliveryConfirmation) {
+                        continue;
+                    }
+
+                    $firstItem = $quotation->items()->first();
+                    $severity = $this->calculateSeverity($difference, (float)$quotation->total_amount);
                     $status = $review->status === 'approved' ? 'resolved' : 'reported';
 
-                    DeliveryDiscrepancy::updateOrCreate(
+                    \App\Models\DeliveryDiscrepancy::updateOrCreate(
                         [
+                            'delivery_id' => $deliveryConfirmation->id,
                             'supply_id' => $firstItem?->supply_id,
                             'discrepancy_type' => 'price',
                         ],
                         [
-                            'delivery_id' => null,
+                            'delivery_id' => $deliveryConfirmation->id,
                             'supply_id' => $firstItem?->supply_id,
                             'supply_name' => $firstItem?->supply_name ?? 'N/A',
                             'specification' => $firstItem?->specification,
@@ -53,12 +69,14 @@ class FinancialReviewService
                             'expected_quantity' => 0,
                             'actual_quantity' => 0,
                             'difference' => $difference,
-                            'description' => $review->review_comments,
+                            'description' => '财务复核差异: ' . ($review->review_comments ?? ''),
                             'severity' => $severity,
                             'status' => $status,
-                            'handling_measures' => $review->review_comments,
+                            'handling_measures' => $review->reject_reason ?? $review->review_comments,
                             'resolved_at' => $review->status === 'approved' ? $review->reviewed_at : null,
                             'handled_by' => $review->reviewer_id,
+                            'created_by' => $review->created_by,
+                            'updated_by' => $review->reviewer_id,
                         ]
                     );
 

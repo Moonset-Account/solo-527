@@ -2,48 +2,65 @@
 
 namespace App\Models;
 
-use App\Enums\ApprovalStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApprovalRecord extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'purchase_request_id',
-        'quotation_id',
-        'step_id',
+        'entity_type',
+        'entity_id',
+        'flow_id',
+        'flow_step_id',
+        'step_order',
+        'step_name',
+        'approver_type',
         'approver_id',
-        'delegated_from_id',
+        'approver_name',
         'status',
         'comment',
-        'approved_at',
-        'rejected_at',
+        'action_at',
+        'ip_address',
+        'user_agent',
+        'transferred_to_id',
+        'transferred_reason',
+        'extra_data',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'status' => ApprovalStatus::class,
-            'approved_at' => 'datetime',
-            'rejected_at' => 'datetime',
+            'step_order' => 'integer',
+            'action_at' => 'datetime',
+            'extra_data' => 'json',
         ];
+    }
+
+    public function entity()
+    {
+        return $this->morphTo(__FUNCTION__, 'entity_type', 'entity_id');
     }
 
     public function purchaseRequest()
     {
-        return $this->belongsTo(PurchaseRequest::class);
+        return $this->belongsTo(PurchaseRequest::class, 'entity_id')
+            ->where('entity_type', 'purchase_request');
     }
 
     public function quotation()
     {
-        return $this->belongsTo(Quotation::class);
+        return $this->belongsTo(Quotation::class, 'entity_id')
+            ->where('entity_type', 'quotation');
     }
 
-    public function step()
+    public function flowStep()
     {
-        return $this->belongsTo(ApprovalFlowStep::class, 'step_id');
+        return $this->belongsTo(ApprovalFlowStep::class, 'flow_step_id');
     }
 
     public function approver()
@@ -51,9 +68,14 @@ class ApprovalRecord extends Model
         return $this->belongsTo(User::class, 'approver_id');
     }
 
-    public function delegatedFrom()
+    public function transferredTo()
     {
-        return $this->belongsTo(User::class, 'delegated_from_id');
+        return $this->belongsTo(User::class, 'transferred_to_id');
+    }
+
+    public function scopeForEntity($query, string $entityType, int $entityId)
+    {
+        return $query->where('entity_type', $entityType)->where('entity_id', $entityId);
     }
 
     public function scopeByApprover($query, int $userId)
@@ -61,44 +83,53 @@ class ApprovalRecord extends Model
         return $query->where('approver_id', $userId);
     }
 
-    public function scopeByStatus($query, ApprovalStatus $status)
+    public function scopeByStatus($query, string $status)
     {
         return $query->where('status', $status);
     }
 
     public function scopePending($query)
     {
-        return $query->where('status', ApprovalStatus::PENDING);
+        return $query->where('status', 'pending');
     }
 
     public function isPending(): bool
     {
-        return $this->status === ApprovalStatus::PENDING;
+        return $this->status === 'pending';
     }
 
     public function isApproved(): bool
     {
-        return $this->status === ApprovalStatus::APPROVED;
+        return $this->status === 'approved';
     }
 
     public function isRejected(): bool
     {
-        return $this->status === ApprovalStatus::REJECTED;
+        return $this->status === 'rejected';
     }
 
     public function approve(string $comment = ''): bool
     {
-        $this->status = ApprovalStatus::APPROVED;
+        $this->status = 'approved';
         $this->comment = $comment;
-        $this->approved_at = now();
+        $this->action_at = now();
         return $this->save();
     }
 
     public function reject(string $comment = ''): bool
     {
-        $this->status = ApprovalStatus::REJECTED;
+        $this->status = 'rejected';
         $this->comment = $comment;
-        $this->rejected_at = now();
+        $this->action_at = now();
+        return $this->save();
+    }
+
+    public function transfer(int $toUserId, string $reason = ''): bool
+    {
+        $this->status = 'transferred';
+        $this->transferred_to_id = $toUserId;
+        $this->transferred_reason = $reason;
+        $this->action_at = now();
         return $this->save();
     }
 }

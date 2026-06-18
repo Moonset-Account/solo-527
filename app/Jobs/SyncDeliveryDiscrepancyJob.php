@@ -33,20 +33,34 @@ class SyncDeliveryDiscrepancyJob implements ShouldQueue
                 return;
             }
 
-            $firstItem = $quotation->items()->first();
             $difference = $this->review->total_amount - $quotation->total_amount;
-            $severity = $this->calculateSeverity($difference, $quotation->total_amount);
+            if (abs($difference) < 0.01) {
+                return;
+            }
+
+            $deliveryConfirmation = \App\Models\DeliveryConfirmation::where('quotation_id', $quotation->id)->first();
+            if (!$deliveryConfirmation) {
+                Log::info("Delivery confirmation not found yet, skip sync", [
+                    'review_id' => $this->review->id,
+                    'quotation_id' => $quotation->id,
+                ]);
+                return;
+            }
+
+            $firstItem = $quotation->items()->first();
+            $severity = $this->calculateSeverity($difference, (float)$quotation->total_amount);
             $status = $this->review->status === 'approved' ? 'resolved' : 'reported';
 
             $description = trim(($this->review->review_comments ?? '') . "\n" . ($this->review->reject_reason ?? ''));
 
             $discrepancy = DeliveryDiscrepancy::updateOrCreate(
                 [
+                    'delivery_id' => $deliveryConfirmation->id,
                     'supply_id' => $firstItem?->supply_id,
                     'discrepancy_type' => 'price',
                 ],
                 [
-                    'delivery_id' => null,
+                    'delivery_id' => $deliveryConfirmation->id,
                     'supply_id' => $firstItem?->supply_id,
                     'supply_name' => $firstItem?->supply_name ?? 'N/A',
                     'specification' => $firstItem?->specification,
@@ -55,12 +69,14 @@ class SyncDeliveryDiscrepancyJob implements ShouldQueue
                     'expected_quantity' => 0,
                     'actual_quantity' => 0,
                     'difference' => $difference,
-                    'description' => $description,
+                    'description' => '财务复核差异: ' . $description,
                     'severity' => $severity,
                     'status' => $status,
-                    'handling_measures' => $this->review->review_comments,
+                    'handling_measures' => $this->review->reject_reason ?? $this->review->review_comments,
                     'resolved_at' => $this->review->status === 'approved' ? $this->review->reviewed_at : null,
                     'handled_by' => $this->review->reviewer_id,
+                    'created_by' => $this->review->created_by,
+                    'updated_by' => $this->review->reviewer_id,
                 ]
             );
 

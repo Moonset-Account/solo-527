@@ -322,7 +322,7 @@ const confirmDelivery = () => {
                     >
                         <div class="flex justify-between items-start">
                             <div>
-                                <div class="font-medium text-gray-900 dark:text-white">{{ pr.pr_number }}</div>
+                                <div class="font-medium text-gray-900 dark:text-white">{{ pr.code }}</div>
                                 <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ pr.title }}</div>
                                 <div class="text-xs text-gray-400 dark:text-gray-500 mt-2">
                                     明细: {{ pr.items?.length || 0 }} 项 | 创建时间: {{ pr.created_at }}

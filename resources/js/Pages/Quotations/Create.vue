@@ -37,7 +37,7 @@ const supplyOptions = computed(() => {
 });
 
 const form = useForm({
-    purchase_request_id: '',
+    request_id: '',
     supplier_id: '',
     quotation_date: '',
     valid_from: '',
@@ -120,12 +120,12 @@ const submit = () => {
                         <form @submit.prevent="submit" class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 <Select
-                                    v-model="form.data.purchase_request_id"
+                                    v-model="form.data.request_id"
                                     label="关联采购申请"
                                     :options="purchaseRequestOptions"
                                     placeholder="请选择采购申请"
-                                    :error="form.errors.purchase_request_id"
-                                    @change="onPurchaseRequestChange(form.data.purchase_request_id)"
+                                    :error="form.errors.request_id"
+                                    @change="onPurchaseRequestChange(form.data.request_id)"
                                 />
                                 <Select
                                     v-model="form.data.supplier_id"

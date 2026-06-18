@@ -4,42 +4,50 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class QuotationItem extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'quotation_id',
-        'purchase_request_item_id',
+        'request_item_id',
         'supply_id',
+        'supply_code',
         'supply_name',
         'specification',
+        'brand',
         'unit',
         'quantity',
         'unit_price',
-        'total_price',
         'tax_rate',
         'tax_amount',
-        'discount_rate',
-        'discount_amount',
-        'brand',
+        'subtotal',
+        'amount',
+        'manufacturer',
         'origin',
-        'delivery_days',
+        'production_date',
+        'expiry_date',
+        'batch_no',
         'remark',
+        'sort',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'decimal:2',
-            'unit_price' => 'decimal:2',
-            'total_price' => 'decimal:2',
+            'unit_price' => 'decimal:4',
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',
-            'discount_rate' => 'decimal:2',
-            'discount_amount' => 'decimal:2',
-            'delivery_days' => 'integer',
+            'subtotal' => 'decimal:2',
+            'amount' => 'decimal:2',
+            'production_date' => 'date',
+            'expiry_date' => 'date',
+            'sort' => 'integer',
         ];
     }
 
@@ -50,7 +58,7 @@ class QuotationItem extends Model
 
     public function purchaseRequestItem()
     {
-        return $this->belongsTo(PurchaseRequestItem::class);
+        return $this->belongsTo(PurchaseRequestItem::class, 'request_item_id');
     }
 
     public function supply()
@@ -58,19 +66,28 @@ class QuotationItem extends Model
         return $this->belongsTo(Supply::class);
     }
 
-    public function calculateTotalPrice(): float
+    public function calculateAmounts(): array
     {
-        $base = $this->quantity * $this->unit_price;
-        $discount = $this->discount_amount ?? ($base * ($this->discount_rate ?? 0) / 100);
-        $tax = $this->tax_amount ?? (($base - $discount) * ($this->tax_rate ?? 0) / 100);
+        $qty = $this->quantity ?? 0;
+        $price = $this->unit_price ?? 0;
+        $subtotal = $qty * $price;
+        $taxRate = $this->tax_rate ?? 0;
+        $tax = $taxRate > 0 ? $subtotal * ($taxRate / 100) : 0;
 
-        return $base - $discount + $tax;
+        return [
+            'subtotal' => $subtotal,
+            'tax_amount' => $tax,
+            'amount' => $subtotal + $tax,
+        ];
     }
 
     protected static function booted()
     {
         static::saving(function ($item) {
-            $item->total_price = $item->calculateTotalPrice();
+            $amounts = $item->calculateAmounts();
+            $item->subtotal = $amounts['subtotal'];
+            $item->tax_amount = $amounts['tax_amount'];
+            $item->amount = $amounts['amount'];
         });
 
         static::saved(function ($item) {

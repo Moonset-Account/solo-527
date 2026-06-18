@@ -52,8 +52,8 @@ class QuotationController
         $purchaseRequests = PurchaseRequest::whereIn('status', ['approved', 'in_quotation'])->get();
 
         $selectedPR = null;
-        if ($request->purchase_request_id) {
-            $selectedPR = PurchaseRequest::with('items.supply')->find($request->purchase_request_id);
+        if ($request->request_id) {
+            $selectedPR = PurchaseRequest::with('items.supply')->find($request->request_id);
         }
 
         return Inertia::render('Quotations/Create', [
@@ -92,8 +92,8 @@ class QuotationController
 
         $quotation->update(['total_amount' => $totalAmount]);
 
-        if ($quotation->purchase_request_id) {
-            $pr = PurchaseRequest::find($quotation->purchase_request_id);
+        if ($quotation->request_id) {
+            $pr = PurchaseRequest::find($quotation->request_id);
             if ($pr && $pr->status === 'approved') {
                 $pr->update(['status' => 'in_quotation']);
             }

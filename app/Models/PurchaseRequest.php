@@ -12,25 +12,28 @@ class PurchaseRequest extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'pr_number',
+        'code',
         'title',
-        'description',
-        'requester_id',
         'department',
-        'approval_flow_id',
-        'current_step_id',
-        'status',
-        'priority',
-        'total_amount',
-        'currency',
+        'requester_id',
+        'requester_name',
+        'request_date',
         'expected_date',
+        'priority',
         'reason',
-        'is_urgent',
-        'rejection_reason',
-        'cancellation_reason',
-        'submitted_at',
+        'remark',
+        'flow_id',
+        'status',
+        'current_step',
+        'total_steps',
+        'total_amount',
+        'financial_review_id',
+        'is_financial_reviewed',
+        'approved_by',
         'approved_at',
-        'completed_at',
+        'rejected_by',
+        'rejected_at',
+        'reject_reason',
         'created_by',
         'updated_by',
     ];
@@ -38,14 +41,14 @@ class PurchaseRequest extends Model
     protected function casts(): array
     {
         return [
-            'status' => PurchaseRequestStatus::class,
-            'is_urgent' => 'boolean',
+            'is_financial_reviewed' => 'boolean',
             'total_amount' => 'decimal:2',
-            'priority' => 'integer',
+            'request_date' => 'date',
             'expected_date' => 'date',
-            'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
-            'completed_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'current_step' => 'integer',
+            'total_steps' => 'integer',
         ];
     }
 
@@ -54,14 +57,19 @@ class PurchaseRequest extends Model
         return $this->belongsTo(User::class, 'requester_id');
     }
 
-    public function approvalFlow()
+    public function approver()
     {
-        return $this->belongsTo(ApprovalFlow::class);
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function currentStep()
+    public function rejector()
     {
-        return $this->belongsTo(ApprovalFlowStep::class, 'current_step_id');
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function approvalFlow()
+    {
+        return $this->belongsTo(ApprovalFlow::class, 'flow_id');
     }
 
     public function items()
@@ -76,12 +84,17 @@ class PurchaseRequest extends Model
 
     public function quotations()
     {
-        return $this->hasMany(Quotation::class);
+        return $this->hasMany(Quotation::class, 'request_id');
     }
 
     public function deliveryConfirmations()
     {
         return $this->hasMany(DeliveryConfirmation::class, 'request_id');
+    }
+
+    public function financialReview()
+    {
+        return $this->belongsTo(FinancialReview::class);
     }
 
     public function creator()
@@ -99,9 +112,9 @@ class PurchaseRequest extends Model
         return $query->where('requester_id', $userId);
     }
 
-    public function scopeByStatus($query, PurchaseRequestStatus $status)
+    public function scopeByStatus($query, $status)
     {
-        return $query->where('status', $status);
+        return $query->where('status', is_string($status) ? $status : $status->value);
     }
 
     public function scopeByDepartment($query, string $department)
@@ -111,64 +124,57 @@ class PurchaseRequest extends Model
 
     public function scopeUrgent($query)
     {
-        return $query->where('is_urgent', true);
+        return $query->where('priority', 'urgent');
     }
 
     public function scopePendingApproval($query)
     {
-        return $query->where('status', PurchaseRequestStatus::PENDING_APPROVAL);
+        return $query->where('status', 'pending_approval');
     }
 
     public function isDraft(): bool
     {
-        return $this->status === PurchaseRequestStatus::DRAFT;
+        return $this->status === 'draft';
     }
 
     public function isSubmitted(): bool
     {
-        return $this->status === PurchaseRequestStatus::SUBMITTED;
+        return $this->status === 'submitted';
     }
 
     public function isPendingApproval(): bool
     {
-        return $this->status === PurchaseRequestStatus::PENDING_APPROVAL;
+        return $this->status === 'pending_approval';
     }
 
     public function isApproved(): bool
     {
-        return $this->status === PurchaseRequestStatus::APPROVED;
+        return $this->status === 'approved';
     }
 
     public function isRejected(): bool
     {
-        return $this->status === PurchaseRequestStatus::REJECTED;
+        return $this->status === 'rejected';
     }
 
     public function isCompleted(): bool
     {
-        return $this->status === PurchaseRequestStatus::COMPLETED;
+        return $this->status === 'completed';
     }
 
     public function canEdit(): bool
     {
-        return in_array($this->status, [
-            PurchaseRequestStatus::DRAFT,
-            PurchaseRequestStatus::REJECTED,
-        ]);
+        return in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canSubmit(): bool
     {
-        return $this->status === PurchaseRequestStatus::DRAFT && $this->items()->count() > 0;
+        return $this->status === 'draft' && $this->items()->count() > 0;
     }
 
     public function canCancel(): bool
     {
-        return in_array($this->status, [
-            PurchaseRequestStatus::DRAFT,
-            PurchaseRequestStatus::SUBMITTED,
-            PurchaseRequestStatus::PENDING_APPROVAL,
-        ]);
+        return in_array($this->status, ['draft', 'submitted', 'pending_approval']);
     }
 
     public function calculateTotalAmount(): float
@@ -184,16 +190,16 @@ class PurchaseRequest extends Model
         $this->save();
     }
 
-    public function generatePrNumber(): string
+    public function generateCode(): string
     {
         $date = now()->format('Ymd');
         $prefix = 'PR';
-        $last = self::where('pr_number', 'like', "{$prefix}{$date}%")
+        $last = self::where('code', 'like', "{$prefix}{$date}%")
             ->withTrashed()
             ->latest('id')
             ->first();
 
-        $sequence = $last ? (int) substr($last->pr_number, -4) + 1 : 1;
+        $sequence = $last ? (int) substr($last->code, -4) + 1 : 1;
 
         return "{$prefix}{$date}" . str_pad($sequence, 4, '0', STR_PAD_LEFT);
     }

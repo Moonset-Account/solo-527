@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ConfigKey;
+use App\Enums\PurchaseRequestStatus;
 use App\Models\DeliveryConfirmation;
 use App\Models\DeliveryDiscrepancy;
 use App\Models\DeliveryItem;
@@ -78,6 +79,8 @@ class DeliveryController extends Controller
             'tracking_no' => ['nullable', 'string', 'max:100'],
             'delivery_address' => ['nullable', 'string', 'max:500'],
             'inspector_name' => ['nullable', 'string', 'max:100'],
+            'inspection_time' => ['nullable', 'date'],
+            'inspection_result' => ['nullable', 'string', 'max:2000'],
             'remark' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array'],
             'items.*.supply_id' => ['required', 'exists:supplies,id'],
@@ -121,6 +124,8 @@ class DeliveryController extends Controller
             'receiver_name' => auth()->user()->name,
             'delivery_address' => $validated['delivery_address'] ?? null,
             'inspector_name' => $validated['inspector_name'] ?? null,
+            'inspection_time' => $validated['inspection_time'] ?? null,
+            'inspection_result' => $validated['inspection_result'] ?? null,
             'status' => 'confirmed',
             'total_quantity' => $totalQty,
             'received_quantity' => $receivedQty,
@@ -171,9 +176,9 @@ class DeliveryController extends Controller
         }
 
         if ($hasDiscrepancy) {
-            $purchaseRequest->update(['status' => 'delivered_with_discrepancy']);
+            $purchaseRequest->update(['status' => PurchaseRequestStatus::DELIVERED->value]);
         } else {
-            $purchaseRequest->update(['status' => 'completed']);
+            $purchaseRequest->update(['status' => PurchaseRequestStatus::COMPLETED->value]);
         }
 
         activity()

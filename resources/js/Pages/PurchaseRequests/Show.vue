@@ -124,11 +124,11 @@ const submitReject = () => {
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">申请人</dt>
-                                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.applicant_name }}</dd>
+                                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.requester_name }}</dd>
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">申请时间</dt>
-                                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.created_at }}</dd>
+                                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ request.request_date }}</dd>
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">优先级</dt>
