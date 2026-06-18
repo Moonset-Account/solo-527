@@ -87,7 +87,7 @@ class SortingDiscrepancyController extends Controller
         $validated = $request->validate([
             'sorting_task_id' => 'required|exists:sorting_tasks,id',
             'order_id' => 'required|exists:orders,id',
-            'discrepancy_type' => 'required|string|in:quantity,quality,damage,other',
+            'discrepancy_type' => 'required|string|in:quantity,overage,quality,damage,other',
             'planned_qty' => 'required|numeric|min:0',
             'actual_qty' => 'required|numeric|min:0',
             'difference' => 'required|numeric',
@@ -105,7 +105,7 @@ class SortingDiscrepancyController extends Controller
     public function update(Request $request, SortingDiscrepancy $sortingDiscrepancy)
     {
         $validated = $request->validate([
-            'discrepancy_type' => 'required|string|in:quantity,quality,damage,other',
+            'discrepancy_type' => 'required|string|in:quantity,overage,quality,damage,other',
             'planned_qty' => 'required|numeric|min:0',
             'actual_qty' => 'required|numeric|min:0',
             'difference' => 'required|numeric',
@@ -135,8 +135,19 @@ class SortingDiscrepancyController extends Controller
             'order_no' => $sortingDiscrepancy->order?->order_no,
         ]);
 
+        $comments = $sortingDiscrepancy->comments->map(fn($c) => array_merge($c->toArray(), [
+            'user_name' => $c->user?->name,
+        ]));
+
+        $auditLogs = $sortingDiscrepancy->auditLogs->map(fn($l) => array_merge($l->toArray(), [
+            'user_name' => $l->user?->name,
+        ]));
+
         return Inertia::render('SortingDiscrepancies/Show', [
             'discrepancy' => $data,
+            'comments' => $comments,
+            'attachments' => $sortingDiscrepancy->attachments,
+            'auditLogs' => $auditLogs,
         ]);
     }
 
@@ -144,13 +155,26 @@ class SortingDiscrepancyController extends Controller
     {
         $validated = $request->validate([
             'remark' => 'required|string|max:1000',
-            'handling_result' => 'required|string|in:refund,rework,accept,reject',
+            'handling_result' => 'required|string|in:refund,rework,accept,reject,other',
             'social_impact' => 'nullable|array',
-            'social_impact.*' => 'string',
+            'social_impact.customer_complaint' => 'nullable|boolean',
+            'social_impact.reputation_loss_level' => 'nullable|string|in:low,medium,high',
+            'social_impact.economic_loss' => 'nullable|numeric|min:0',
+            'social_impact.remedial_measures' => 'nullable|string|max:1000',
         ]);
 
+        if (isset($validated['social_impact'])) {
+            $socialImpact = $validated['social_impact'];
+            $socialImpact['customer_complaint'] = isset($socialImpact['customer_complaint'])
+                ? (bool)$socialImpact['customer_complaint']
+                : false;
+            $validated['social_impact'] = $socialImpact;
+        }
+
         $sortingDiscrepancy->update([
-            ...$validated,
+            'remark' => $validated['remark'],
+            'handling_result' => $validated['handling_result'],
+            'social_impact' => $validated['social_impact'] ?? null,
             'status' => 'handled',
             'handled_by' => Auth::id(),
             'handled_at' => now(),

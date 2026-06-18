@@ -49,6 +49,11 @@ class SortingDiscrepancy extends Model
         return $this->belongsTo(User::class, 'handled_by');
     }
 
+    public function attachments()
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
+    }
+
     public function comments()
     {
         return $this->morphMany(Comment::class, 'commentable');

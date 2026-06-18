@@ -209,7 +209,7 @@ const getMachineryStatusText = (status) => {
                             </Badge>
                         </div>
                     </template>
-                    <template #cell-Subsidy_status="{ value }">
+                    <template #cell-subsidy_status="{ value }">
                         <StatusBadge :color="getSubsidyStatusColor(value)">
                             {{ getSubsidyStatusText(value) }}
                         </StatusBadge>

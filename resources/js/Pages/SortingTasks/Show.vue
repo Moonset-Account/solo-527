@@ -88,13 +88,10 @@ const calculateDifference = () => {
 }
 
 const submitDiscrepancy = () => {
+    discrepancyForm.sorting_task_id = task.value.id
+    discrepancyForm.order_id = task.value.order_id
+    discrepancyForm.difference = parseFloat(discrepancyForm.difference) || 0
     discrepancyForm.post(route('sorting-discrepancies.store'), {
-        data: {
-            ...discrepancyForm.data(),
-            sorting_task_id: task.value.id,
-            order_id: task.value.order_id,
-            difference: parseFloat(discrepancyForm.difference) || 0,
-        },
         onSuccess: () => {
             discrepancyForm.reset()
             showAddDiscrepancy.value = false

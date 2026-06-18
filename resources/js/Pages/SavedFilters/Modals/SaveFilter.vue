@@ -26,17 +26,12 @@ const form = useForm({
     name: '',
     is_public: false,
     module: props.module,
-    filter_data: {},
+    filters: {},
 })
 
 const submit = () => {
+    form.filters = JSON.parse(JSON.stringify(props.filterData))
     form.post(route('saved-filters.store'), {
-        data: {
-            name: form.name,
-            is_public: form.is_public,
-            module: form.module,
-            filter_data: props.filterData,
-        },
         onSuccess: () => {
             form.reset()
             emit('saved')

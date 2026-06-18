@@ -152,9 +152,20 @@ class SortingTaskController extends Controller
             'assignee_name' => $sortingTask->assignedTo?->name,
         ]);
 
+        $comments = $sortingTask->comments->map(fn($c) => array_merge($c->toArray(), [
+            'user_name' => $c->user?->name,
+        ]));
+
+        $auditLogs = $sortingTask->auditLogs->map(fn($l) => array_merge($l->toArray(), [
+            'user_name' => $l->user?->name,
+        ]));
+
         return Inertia::render('SortingTasks/Show', [
             'task' => $task,
             'discrepancies' => $sortingTask->discrepancies,
+            'comments' => $comments,
+            'attachments' => $sortingTask->attachments,
+            'auditLogs' => $auditLogs,
         ]);
     }
 

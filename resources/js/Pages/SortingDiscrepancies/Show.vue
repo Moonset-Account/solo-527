@@ -1,12 +1,16 @@
 <script setup>
 import { usePage, useForm, router } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
     ArrowLeftIcon,
     UserGroupIcon,
     CurrencyDollarIcon,
     ShieldExclamationIcon,
     SparklesIcon,
+    PaperClipIcon,
+    PaperAirplaneIcon,
+    ClockIcon,
+    UserIcon,
 } from '@heroicons/vue/24/outline'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import StatusBadge from '../../Components/StatusBadge.vue'
@@ -18,6 +22,34 @@ import Select from '../../Components/Select.vue'
 const page = usePage()
 
 const discrepancy = computed(() => page.props.discrepancy)
+const comments = computed(() => page.props.comments || [])
+const attachments = computed(() => page.props.attachments || [])
+const auditLogs = computed(() => page.props.auditLogs || [])
+
+const commentForm = useForm({
+    content: '',
+})
+
+const fileInputRef = ref(null)
+
+const submitComment = () => {
+    commentForm.post(route('comments.store', { commentableType: 'sorting-discrepancies', commentableId: discrepancy.value.id }), {
+        onSuccess: () => commentForm.reset(),
+    })
+}
+
+const handleFileUpload = (e) => {
+    const files = e.target.files
+    if (files && files.length > 0) {
+        const formData = new FormData()
+        Array.from(files).forEach((file) => formData.append('files[]', file))
+        router.post(route('attachments.store', { attachableType: 'sorting-discrepancies', attachableId: discrepancy.value.id }), formData, {
+            onSuccess: () => {
+                if (fileInputRef.value) fileInputRef.value.value = ''
+            },
+        })
+    }
+}
 
 const form = useForm({
     remark: discrepancy.value?.remark || '',
@@ -258,6 +290,101 @@ const submit = () => {
                     </Button>
                 </div>
             </form>
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">附件</h3>
+                    <Button variant="outline" size="sm" @click="fileInputRef?.click()">
+                        <PaperClipIcon class="w-4 h-4 mr-2" />
+                        上传附件
+                    </Button>
+                    <input ref="fileInputRef" type="file" multiple class="hidden" @change="handleFileUpload" />
+                </div>
+                <div v-if="attachments.length === 0" class="text-center py-8 text-gray-500 text-sm">
+                    暂无附件
+                </div>
+                <div v-else class="space-y-2">
+                    <div
+                        v-for="attachment in attachments"
+                        :key="attachment.id"
+                        class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                        <div class="flex items-center gap-3">
+                            <PaperClipIcon class="w-5 h-5 text-gray-400" />
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ attachment.file_name }}</p>
+                                <p class="text-xs text-gray-500">{{ attachment.created_at }}</p>
+                            </div>
+                        </div>
+                        <a :href="route('attachments.download', attachment.id)" class="text-sm text-primary hover:text-primary-dark">下载</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">备注</h3>
+                <div class="space-y-4">
+                    <div v-if="comments.length === 0" class="text-center py-6 text-gray-500 text-sm">
+                        暂无备注
+                    </div>
+                    <div
+                        v-for="comment in comments"
+                        :key="comment.id"
+                        class="flex gap-3"
+                    >
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                            <UserIcon class="w-4 h-4 text-gray-500" />
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-900">{{ comment.user_name }}</span>
+                                <span class="text-xs text-gray-500">{{ comment.created_at }}</span>
+                            </div>
+                            <p class="text-sm text-gray-700 mt-1">{{ comment.content }}</p>
+                        </div>
+                    </div>
+                </div>
+                <form @submit.prevent="submitComment" class="mt-4 flex gap-3">
+                    <Input
+                        v-model="commentForm.content"
+                        placeholder="添加备注..."
+                        class="flex-1"
+                        :error="commentForm.errors.content"
+                    />
+                    <Button type="submit" :loading="commentForm.processing">
+                        <PaperAirplaneIcon class="w-5 h-5" />
+                    </Button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">修改历史</h3>
+                <div class="relative">
+                    <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                    <div class="space-y-4">
+                        <div v-if="auditLogs.length === 0" class="text-center py-6 text-gray-500 text-sm relative pl-10">
+                            暂无修改记录
+                        </div>
+                        <div
+                            v-for="log in auditLogs"
+                            :key="log.id"
+                            class="relative pl-10"
+                        >
+                            <div class="absolute left-2 top-1 w-5 h-5 rounded-full bg-white border-2 border-primary flex items-center justify-center">
+                                <ClockIcon class="w-2.5 h-2.5 text-primary" />
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-sm font-medium text-gray-900">{{ log.user_name }}</span>
+                                    <span class="text-xs text-gray-500">{{ log.created_at }}</span>
+                                    <Badge variant="primary" size="sm">{{ log.action }}</Badge>
+                                </div>
+                                <p class="text-sm text-gray-600">{{ log.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>
