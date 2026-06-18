@@ -1,0 +1,29 @@
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-200">
+                <th class="text-left py-2.5 px-3 font-medium text-gray-500 text-xs">电站名称</th>
+                <th class="text-left py-2.5 px-3 font-medium text-gray-500 text-xs">装机容量(kW)</th>
+                <th class="text-left py-2.5 px-3 font-medium text-gray-500 text-xs">位置</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for station in stations %}
+            <tr class="border-b border-gray-50 hover:bg-solar-50/50 transition">
+                <td class="py-2.5 px-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-solar-400 rounded-full"></div>
+                        <span class="text-gray-800 font-medium text-xs">{{ station.name }}</span>
+                    </div>
+                </td>
+                <td class="py-2.5 px-3 text-gray-600 font-mono text-xs">{{ station.capacity_kw }}</td>
+                <td class="py-2.5 px-3 text-gray-500 text-xs">{{ station.location if station.location else '--' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="py-6 text-center text-gray-400 text-xs">暂无电站数据</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

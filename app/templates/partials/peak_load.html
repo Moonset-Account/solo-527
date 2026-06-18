@@ -1,0 +1,32 @@
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-gray-800 border-b border-gray-700">
+                <th class="text-left py-3 px-4 font-medium text-gray-400">日期</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">峰值功率(kW)</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">策略状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in peak_data %}
+            <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition">
+                <td class="py-3 px-4 text-gray-300">{{ item.record_date }}</td>
+                <td class="py-3 px-4 font-mono text-orange-400 font-medium">{{ item.peak_kw|round(2) if item.peak_kw is defined else item.peak_power_kw|round(2) }}</td>
+                <td class="py-3 px-4">
+                    {% if item.strategy_status == 'normal' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">正常</span>
+                    {% elif item.strategy_status == 'warning' %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400">预警</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">{{ item.strategy_status }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="py-8 text-center text-gray-500">暂无尖峰负荷数据</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

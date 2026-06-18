@@ -1,0 +1,94 @@
+<div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-semibold text-gray-800">版本历史</h3>
+        <button onclick="document.getElementById('version-history-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    {% if versions is defined %}
+    <div class="space-y-4">
+        {% for v in versions %}
+        <div class="border border-gray-200 rounded-lg p-4 hover:border-solar-300 transition">
+            <div class="flex items-center justify-between mb-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-solar-100 text-solar-800">v{{ v.version }}</span>
+                <span class="text-xs text-gray-400">{{ v.created_at.strftime('%Y-%m-%d %H:%M:%S') if v.created_at else '--' }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                {% if v.dict_value is defined %}
+                <div>
+                    <span class="text-gray-500">值：</span>
+                    <span class="text-gray-800">{{ v.dict_value }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">标签：</span>
+                    <span class="text-gray-800">{{ v.label if v.label else '--' }}</span>
+                </div>
+                {% elif v.title is defined %}
+                <div class="col-span-2">
+                    <span class="text-gray-500">标题：</span>
+                    <span class="text-gray-800">{{ v.title }}</span>
+                </div>
+                <div class="col-span-2">
+                    <span class="text-gray-500">内容：</span>
+                    <span class="text-gray-800">{{ v.content }}</span>
+                </div>
+                {% elif v.content is defined %}
+                <div class="col-span-2">
+                    <span class="text-gray-500">内容：</span>
+                    <span class="text-gray-800">{{ v.content }}</span>
+                </div>
+                {% endif %}
+                <div>
+                    <span class="text-gray-500">修改人：</span>
+                    <span class="text-gray-800">{{ v.changed_by }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500">原因：</span>
+                    <span class="text-gray-800">{{ v.change_reason if v.change_reason else '--' }}</span>
+                </div>
+            </div>
+            <div class="mt-3 flex justify-end">
+                <button class="text-xs text-red-500 hover:text-red-700 font-medium transition" hx-post="" hx-target="closest .border" hx-swap="outerHTML" hx-vals='{"target_version": "{{ v.version }}"}' hx-confirm="确定要回滚到此版本吗？">回滚到此版本</button>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-400">
+            <p>暂无版本历史</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif history is defined %}
+    <div class="space-y-4">
+        {% for h in history %}
+        <div class="border border-gray-200 rounded-lg p-4 hover:border-solar-300 transition">
+            <div class="flex items-center justify-between mb-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-solar-100 text-solar-800">v{{ h.version if h.version is defined else loop.index }}</span>
+                <span class="text-xs text-gray-400">{{ h.created_at.strftime('%Y-%m-%d %H:%M:%S') if h.created_at else '--' }}</span>
+            </div>
+            <div class="text-sm space-y-1">
+                {% if h.price_per_kwh is defined %}
+                <div><span class="text-gray-500">单价：</span><span class="text-gray-800">{{ h.price_per_kwh }} 元/kWh</span></div>
+                <div><span class="text-gray-500">时段：</span><span class="text-gray-800">{{ h.period_type }}</span></div>
+                {% elif h.rate_per_kwh is defined %}
+                <div><span class="text-gray-500">费率：</span><span class="text-gray-800">{{ h.rate_per_kwh }} 元/kWh</span></div>
+                <div><span class="text-gray-500">规则名：</span><span class="text-gray-800">{{ h.rule_name }}</span></div>
+                {% endif %}
+                {% if h.changed_by is defined %}
+                <div><span class="text-gray-500">修改人：</span><span class="text-gray-800">{{ h.changed_by }}</span></div>
+                {% endif %}
+                {% if h.change_reason is defined %}
+                <div><span class="text-gray-500">原因：</span><span class="text-gray-800">{{ h.change_reason if h.change_reason else '--' }}</span></div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-400">
+            <p>暂无版本历史</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,53 @@
+<tr class="border-b border-gray-700 hover:bg-gray-700/50 transition" id="reminder-row-{{ reminder.id }}">
+    <td class="py-3 px-4">
+        <div class="flex items-center space-x-2">
+            {% if not reminder.is_read %}
+            <span class="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0"></span>
+            {% endif %}
+            <span class="text-gray-200 {{ 'font-semibold' if not reminder.is_read else 'font-medium' }}">{{ reminder.title }}</span>
+        </div>
+    </td>
+    <td class="py-3 px-4">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">{{ reminder.reminder_type }}</span>
+    </td>
+    <td class="py-3 px-4">
+        {% if reminder.severity == 'critical' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">紧急</span>
+        {% elif reminder.severity == 'major' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400">严重</span>
+        {% elif reminder.severity == 'minor' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">一般</span>
+        {% else %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">提示</span>
+        {% endif %}
+    </td>
+    <td class="py-3 px-4">
+        {% if reminder.target_role == 'admin' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-400">管理员</span>
+        {% elif reminder.target_role == 'operator' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-400">运维人员</span>
+        {% elif reminder.target_role == 'field_worker' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">现场人员</span>
+        {% else %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">{{ reminder.target_role }}</span>
+        {% endif %}
+    </td>
+    <td class="py-3 px-4">
+        {% if reminder.is_read %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-600/30 text-gray-400">已读</span>
+        {% else %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">未读</span>
+        {% endif %}
+    </td>
+    <td class="py-3 px-4">
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-400">v{{ reminder.version }}</span>
+    </td>
+    <td class="py-3 px-4">
+        <div class="flex items-center space-x-2">
+            {% if not reminder.is_read %}
+            <button hx-post="/reminders/{{ reminder.id }}/read" hx-target="#reminder-row-{{ reminder.id }}" hx-swap="outerHTML" class="text-emerald-400 hover:text-emerald-300 text-xs font-medium transition">标记已读</button>
+            {% endif %}
+            <button hx-get="/reminders/{{ reminder.id }}/versions" hx-target="#version-history-modal" hx-swap="innerHTML" onclick="document.getElementById('version-history-modal').classList.remove('hidden')" class="text-blue-400 hover:text-blue-300 text-xs font-medium transition">版本历史</button>
+        </div>
+    </td>
+</tr>

@@ -1,0 +1,28 @@
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-gray-800 border-b border-gray-700">
+                <th class="text-left py-3 px-4 font-medium text-gray-400">时间</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">有功功率(kW)</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">无功功率(kVar)</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">辐照度(W/m²)</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">温度(℃)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in curve_data %}
+            <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition">
+                <td class="py-3 px-4 text-gray-300">{{ item.record_time.strftime('%H:%M') if item.record_time else '--' }}</td>
+                <td class="py-3 px-4 font-mono text-gray-200">{{ item.active_power_kw|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-gray-300">{{ item.reactive_power_kvar|round(2) if item.reactive_power_kvar else '--' }}</td>
+                <td class="py-3 px-4 font-mono text-amber-400">{{ item.irradiance_w_m2|round(1) if item.irradiance_w_m2 else '--' }}</td>
+                <td class="py-3 px-4 font-mono text-gray-300">{{ item.temperature_c|round(1) if item.temperature_c else '--' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="py-8 text-center text-gray-500">暂无能耗数据</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block nav_revenue %}active bg-solar-500/15 text-solar-400{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-gray-800">收益核算</h2>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <form class="flex flex-wrap gap-4 items-end" id="revenue-filter">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">电站</label>
+                <input type="text" name="station_id" value="{{ selected_station_id if selected_station_id else '' }}" placeholder="输入电站ID" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none w-56">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                <input type="date" name="start_date" value="{{ start_date if start_date else '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                <input type="date" name="end_date" value="{{ end_date if end_date else '' }}" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <button type="button" onclick="loadRevenueData()" class="bg-solar-500 hover:bg-solar-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">查询</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <p class="text-xs font-medium text-gray-500 mb-1">总发电量</p>
+            <p class="text-2xl font-bold text-gray-800">-- <span class="text-sm font-normal text-gray-400">kWh</span></p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <p class="text-xs font-medium text-gray-500 mb-1">总收入</p>
+            <p class="text-2xl font-bold text-solar-500">¥--</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <p class="text-xs font-medium text-gray-500 mb-1">补贴收入</p>
+            <p class="text-2xl font-bold text-blue-500">¥--</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <p class="text-xs font-medium text-gray-500 mb-1">平均日收益</p>
+            <p class="text-2xl font-bold text-amber-500">¥--</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <p class="text-xs font-medium text-gray-500 mb-1">最大尖峰负荷</p>
+            <p class="text-2xl font-bold text-red-500">-- <span class="text-sm font-normal text-gray-400">kW</span></p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="border-b border-gray-200">
+            <nav class="flex -mb-px">
+                <button onclick="switchRevenueTab('records')" id="tab-records" class="rev-tab px-6 py-3 text-sm font-medium border-b-2 border-solar-500 text-solar-600">收益记录</button>
+                <button onclick="switchRevenueTab('peak')" id="tab-peak" class="rev-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">尖峰负荷</button>
+                <button onclick="switchRevenueTab('energy')" id="tab-energy" class="rev-tab px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">能耗曲线</button>
+            </nav>
+        </div>
+
+        <div id="panel-records" class="p-6">
+            <div id="revenue-records" hx-get="/revenue/records" hx-trigger="load" hx-vals='{"station_id": "{{ selected_station_id if selected_station_id else "" }}", "start_date": "{{ start_date if start_date else "" }}", "end_date": "{{ end_date if end_date else "" }}"}'>
+                <div class="flex items-center justify-center py-12">
+                    <svg class="animate-spin h-6 w-6 text-solar-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-peak" class="p-6 hidden">
+            <div id="peak-load-data">
+                <p class="text-center text-gray-400 py-8">请选择电站和日期范围后查询尖峰负荷数据</p>
+            </div>
+        </div>
+
+        <div id="panel-energy" class="p-6 hidden">
+            <div id="energy-curve-area">
+                <div class="mb-6">
+                    <div class="bg-gray-50 rounded-xl p-8 text-center border-2 border-dashed border-gray-200">
+                        <svg class="mx-auto w-16 h-16 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                        </svg>
+                        <p class="text-gray-400 text-sm">能耗曲线图表区域</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">时间</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">有功功率(kW)</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">无功功率(kVar)</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">辐照度(W/m²)</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">温度(℃)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-gray-400">请查询能耗曲线数据</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">收益计算</h3>
+        <form hx-post="/revenue/calculate" hx-target="#calc-result" hx-swap="innerHTML" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">电站ID</label>
+                <input type="text" name="station_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">记录日期</label>
+                <input type="date" name="record_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">发电量(kWh)</label>
+                <input type="number" name="generation_kwh" step="0.01" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">用电量(kWh)</label>
+                <input type="number" name="consumption_kwh" step="0.01" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">上网电量(kWh)</label>
+                <input type="number" name="grid_feed_kwh" step="0.01" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">尖峰负荷(kW)</label>
+                <input type="number" name="peak_load_kw" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div class="md:col-span-3 flex justify-end">
+                <button type="submit" class="bg-solar-500 hover:bg-solar-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition">计算收益</button>
+            </div>
+        </form>
+        <div id="calc-result" class="mt-4"></div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">批量查询</h3>
+        <form hx-post="/revenue/batch-query" hx-target="#batch-result" hx-swap="innerHTML" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">电站ID列表(逗号分隔)</label>
+                <input type="text" name="station_ids" required placeholder="uuid1,uuid2,uuid3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                <input type="date" name="start_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                <input type="date" name="end_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div class="md:col-span-3 flex justify-end">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition">批量查询</button>
+            </div>
+        </form>
+        <div id="batch-result" class="mt-4"></div>
+    </div>
+</div>
+
+<script>
+function switchRevenueTab(tab) {
+    ['records', 'peak', 'energy'].forEach(function(t) {
+        document.getElementById('panel-' + t).classList.add('hidden');
+        document.getElementById('tab-' + t).classList.remove('border-solar-500', 'text-solar-600');
+        document.getElementById('tab-' + t).classList.add('border-transparent', 'text-gray-500');
+    });
+    document.getElementById('panel-' + tab).classList.remove('hidden');
+    document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-gray-500');
+    document.getElementById('tab-' + tab).classList.add('border-solar-500', 'text-solar-600');
+}
+
+function loadRevenueData() {
+    var form = document.getElementById('revenue-filter');
+    var stationId = form.querySelector('[name="station_id"]').value;
+    var startDate = form.querySelector('[name="start_date"]').value;
+    var endDate = form.querySelector('[name="end_date"]').value;
+    var params = 'station_id=' + encodeURIComponent(stationId) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
+    htmx.ajax('GET', '/revenue/records?' + params, '#revenue-records');
+}
+</script>
+{% endblock %}

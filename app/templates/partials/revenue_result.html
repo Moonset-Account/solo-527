@@ -1,0 +1,33 @@
+<div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+    <h4 class="text-lg font-semibold text-gray-200 mb-4">收益计算结果</h4>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-gray-900/50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">发电量</p>
+            <p class="text-lg font-bold text-gray-200">{{ record.generation_kwh|round(2) }} <span class="text-xs font-normal text-gray-500">kWh</span></p>
+        </div>
+        <div class="bg-gray-900/50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">自用电量</p>
+            <p class="text-lg font-bold text-gray-200">{{ record.consumption_kwh|round(2) }} <span class="text-xs font-normal text-gray-500">kWh</span></p>
+        </div>
+        <div class="bg-gray-900/50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">上网电量</p>
+            <p class="text-lg font-bold text-gray-200">{{ record.grid_feed_kwh|round(2) }} <span class="text-xs font-normal text-gray-500">kWh</span></p>
+        </div>
+        <div class="bg-gray-900/50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">电费收入</p>
+            <p class="text-lg font-bold text-gray-200">¥{{ record.electricity_revenue|round(2) }}</p>
+        </div>
+        <div class="bg-gray-900/50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">补贴收入</p>
+            <p class="text-lg font-bold text-blue-400">¥{{ record.subsidy_revenue|round(2) }}</p>
+        </div>
+        <div class="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/30">
+            <p class="text-xs text-emerald-400 mb-1">总收入</p>
+            <p class="text-lg font-bold text-emerald-400">¥{{ record.total_revenue|round(2) }}</p>
+        </div>
+        <div class="bg-gray-900/50 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1">尖峰负荷</p>
+            <p class="text-lg font-bold text-orange-400">{{ record.peak_load_kw|round(2) if record.peak_load_kw else '--' }} <span class="text-xs font-normal text-gray-500">kW</span></p>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,56 @@
+<tr class="border-b border-gray-50 hover:bg-gray-50 transition" id="alarm-row-{{ alarm.id }}">
+    <td class="py-3 px-4 text-gray-700">{{ alarm.equipment.name if alarm.equipment else '--' }}</td>
+    <td class="py-3 px-4 text-gray-700">{{ alarm.alarm_type }}</td>
+    <td class="py-3 px-4">
+        {% if alarm.severity == 'critical' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">紧急</span>
+        {% elif alarm.severity == 'major' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">严重</span>
+        {% elif alarm.severity == 'minor' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">一般</span>
+        {% else %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">提示</span>
+        {% endif %}
+    </td>
+    <td class="py-3 px-4">
+        {% if alarm.status == 'pending' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">待处理</span>
+        {% elif alarm.status == 'acknowledged' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">已接收</span>
+        {% elif alarm.status == 'processing' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">处理中</span>
+        {% elif alarm.status == 'resolved' %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-solar-100 text-solar-800">已解决</span>
+        {% else %}
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">已关闭</span>
+        {% endif %}
+    </td>
+    <td class="py-3 px-4 text-gray-500 text-xs">{{ alarm.created_at.strftime('%Y-%m-%d %H:%M') if alarm.created_at else '--' }}</td>
+    <td class="py-3 px-4">
+        <div class="flex items-center space-x-2">
+            <a href="/alarms/{{ alarm.id }}" class="text-solar-500 hover:text-solar-700 text-xs font-medium transition">详情</a>
+            {% if alarm.status == 'pending' %}
+            <form hx-post="/alarms/{{ alarm.id }}/acknowledge" hx-target="#alarm-row-{{ alarm.id }}" hx-swap="outerHTML" class="inline">
+                <input type="hidden" name="responder_id" value="admin">
+                <button type="submit" class="text-blue-500 hover:text-blue-700 text-xs font-medium transition">接收</button>
+            </form>
+            {% elif alarm.status == 'acknowledged' %}
+            <form hx-post="/alarms/{{ alarm.id }}/respond" hx-target="#alarm-row-{{ alarm.id }}" hx-swap="outerHTML" class="inline">
+                <input type="hidden" name="responder_id" value="admin">
+                <input type="hidden" name="action" value="respond">
+                <button type="submit" class="text-yellow-500 hover:text-yellow-700 text-xs font-medium transition">响应</button>
+            </form>
+            {% elif alarm.status == 'processing' %}
+            <form hx-post="/alarms/{{ alarm.id }}/resolve" hx-target="#alarm-row-{{ alarm.id }}" hx-swap="outerHTML" class="inline">
+                <input type="hidden" name="resolver_id" value="admin">
+                <input type="hidden" name="root_cause" value="已处理">
+                <button type="submit" class="text-solar-500 hover:text-solar-700 text-xs font-medium transition">解决</button>
+            </form>
+            {% elif alarm.status == 'resolved' %}
+            <form hx-post="/alarms/{{ alarm.id }}/close" hx-target="#alarm-row-{{ alarm.id }}" hx-swap="outerHTML" class="inline">
+                <button type="submit" class="text-gray-500 hover:text-gray-700 text-xs font-medium transition">关闭</button>
+            </form>
+            {% endif %}
+        </div>
+    </td>
+</tr>

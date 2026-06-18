@@ -1,0 +1,45 @@
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-gray-800 border-b border-gray-700">
+                <th class="text-left py-3 px-4 font-medium text-gray-400">日期</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">发电量</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">自用电</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">上网电量</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">电费收入</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">补贴收入</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">总收入</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">尖峰负荷</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition">
+                <td class="py-3 px-4 text-gray-300">{{ record.record_date }}</td>
+                <td class="py-3 px-4 font-mono text-gray-200">{{ record.generation_kwh|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-gray-200">{{ record.consumption_kwh|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-gray-200">{{ record.grid_feed_kwh|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-gray-200">¥{{ record.electricity_revenue|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-blue-400">¥{{ record.subsidy_revenue|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-emerald-400 font-medium">¥{{ record.total_revenue|round(2) }}</td>
+                <td class="py-3 px-4 font-mono text-orange-400">{{ record.peak_load_kw|round(2) if record.peak_load_kw else '--' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="py-8 text-center text-gray-500">暂无收益记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if records|length >= limit %}
+    <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+        <span class="text-xs text-gray-500">显示第 {{ skip + 1 }} - {{ skip + records|length }} 条</span>
+        <div class="flex items-center space-x-2">
+            {% if skip > 0 %}
+            <button hx-get="/revenue/records?skip={{ skip - limit }}&limit={{ limit }}" hx-target="closest .overflow-x-auto" hx-swap="outerHTML" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs font-medium transition">上一页</button>
+            {% endif %}
+            <button hx-get="/revenue/records?skip={{ skip + limit }}&limit={{ limit }}" hx-target="closest .overflow-x-auto" hx-swap="outerHTML" class="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded text-xs font-medium transition">下一页</button>
+        </div>
+    </div>
+    {% endif %}
+</div>

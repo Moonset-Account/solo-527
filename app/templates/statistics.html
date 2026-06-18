@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block nav_statistics %}active bg-solar-500/15 text-solar-400{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-gray-800">统计分析</h2>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <form class="flex flex-wrap gap-4 items-end" id="stats-filter">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">电站</label>
+                <input type="text" name="station_id" placeholder="输入电站ID" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none w-56">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                <input type="date" name="start_date" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                <input type="date" name="end_date" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+            </div>
+            <button type="button" onclick="loadStatisticsData()" class="bg-solar-500 hover:bg-solar-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">查询</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-medium text-gray-500">平均响应时长</p>
+                <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-800 mt-2" id="avg-response-time">-- <span class="text-sm font-normal text-gray-400">分钟</span></p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-medium text-gray-500">最大响应时长</p>
+                <div class="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-800 mt-2" id="max-response-time">-- <span class="text-sm font-normal text-gray-400">分钟</span></p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-medium text-gray-500">按级别统计</p>
+                <div class="w-8 h-8 bg-solar-50 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-solar-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+            </div>
+            <p class="text-2xl font-bold text-gray-800 mt-2" id="severity-stats">--</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">能耗峰值列表</h3>
+            <div id="energy-peaks-list">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">日期</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">峰值功率(kW)</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">发生时段</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="peaks-table-body">
+                            <tr>
+                                <td colspan="4" class="py-8 text-center text-gray-400">请选择电站和日期范围后查询</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">追踪链详情</h3>
+            <div id="trace-chain-detail">
+                <div class="text-center py-8 text-gray-400">
+                    <svg class="mx-auto w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                    <p>点击左侧峰值记录查看追踪链</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">责任人统计</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200">
+                        <th class="text-left py-3 px-4 font-medium text-gray-600">人员</th>
+                        <th class="text-left py-3 px-4 font-medium text-gray-600">响应次数</th>
+                        <th class="text-left py-3 px-4 font-medium text-gray-600">平均时长(分钟)</th>
+                        <th class="text-left py-3 px-4 font-medium text-gray-600">解决告警数</th>
+                    </tr>
+                </thead>
+                <tbody id="responsible-persons-body">
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-gray-400">请选择电站和日期范围后查询</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadStatisticsData() {
+    var form = document.getElementById('stats-filter');
+    var stationId = form.querySelector('[name="station_id"]').value;
+    var startDate = form.querySelector('[name="start_date"]').value;
+    var endDate = form.querySelector('[name="end_date"]').value;
+    if (!stationId || !startDate || !endDate) return;
+    var params = 'station_id=' + encodeURIComponent(stationId) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
+    htmx.ajax('GET', '/statistics/energy-peaks?' + params, '#energy-peaks-list');
+    htmx.ajax('GET', '/statistics/response-times?' + params, '#avg-response-time');
+    htmx.ajax('GET', '/statistics/responsible-persons?' + params, '#responsible-persons-body');
+    htmx.ajax('GET', '/statistics/trace-chain?' + params, '#trace-chain-detail');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-gray-800 border-b border-gray-700">
+                <th class="text-left py-3 px-4 font-medium text-gray-400">人员</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">响应次数</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">平均时长(分钟)</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-400">解决告警数</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in persons %}
+            <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition">
+                <td class="py-3 px-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                            <span class="text-xs font-medium text-emerald-400">{{ person.responder_id[0] if person.responder_id is defined else '?' }}</span>
+                        </div>
+                        <span class="text-gray-200 font-medium">{{ person.responder_id if person.responder_id is defined else '--' }}</span>
+                    </div>
+                </td>
+                <td class="py-3 px-4 font-mono text-gray-200">{{ person.total_responses if person.total_responses is defined else 0 }}</td>
+                <td class="py-3 px-4 font-mono text-gray-300">{{ person.avg_duration|round(1) if person.avg_duration is defined else '--' }}</td>
+                <td class="py-3 px-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">{{ person.alarms_resolved if person.alarms_resolved is defined else 0 }}</span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="py-8 text-center text-gray-500">暂无责任人统计数据</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
