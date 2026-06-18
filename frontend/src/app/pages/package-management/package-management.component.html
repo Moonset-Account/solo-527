@@ -1,0 +1,251 @@
+<div class="package-management">
+  <div class="page-header">
+    <h1>套餐管理</h1>
+    <button mat-raised-button color="primary" (click)="openCreateDialog()">
+      <mat-icon>add</mat-icon>
+      新增套餐
+    </button>
+  </div>
+
+  <div class="table-container">
+    <table mat-table [dataSource]="packages" class="mat-elevation-z2">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>名称</th>
+        <td mat-cell *matCellDef="let element">{{ element.name }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="price">
+        <th mat-header-cell *matHeaderCellDef>价格</th>
+        <td mat-cell *matCellDef="let element">¥{{ element.price }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="durationMinutes">
+        <th mat-header-cell *matHeaderCellDef>时长</th>
+        <td mat-cell *matCellDef="let element">{{ element.durationMinutes }} 分钟</td>
+      </ng-container>
+
+      <ng-container matColumnDef="sessionCount">
+        <th mat-header-cell *matHeaderCellDef>次数</th>
+        <td mat-cell *matCellDef="let element">{{ element.sessionCount }} 次</td>
+      </ng-container>
+
+      <ng-container matColumnDef="refundRuleType">
+        <th mat-header-cell *matHeaderCellDef>退款规则类型</th>
+        <td mat-cell *matCellDef="let element">
+          {{ refundRuleTypeLabels[element.refundRuleType] }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="refundDeadlineHours">
+        <th mat-header-cell *matHeaderCellDef>退款时限</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.refundDeadlineHours ? element.refundDeadlineHours + ' 小时' : '-' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="isActive">
+        <th mat-header-cell *matHeaderCellDef>状态</th>
+        <td mat-cell *matCellDef="let element">
+          <mat-slide-toggle
+            [checked]="element.isActive"
+            (change)="toggleStatus(element)"
+          ></mat-slide-toggle>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>操作</th>
+        <td mat-cell *matCellDef="let element">
+          <button
+            mat-icon-button
+            color="primary"
+            (click)="openEditDialog(element)"
+            matTooltip="编辑"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            (click)="deletePackage(element)"
+            matTooltip="删除"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div *ngIf="!isLoading && packages.length === 0" class="empty-state">
+      <mat-icon>inbox</mat-icon>
+      <p>暂无套餐数据</p>
+    </div>
+  </div>
+</div>
+
+<ng-template #packageDialog>
+  <h2 mat-dialog-title>{{ isEditMode ? '编辑套餐' : '新增套餐' }}</h2>
+  <mat-dialog-content>
+    <form [formGroup]="packageForm" class="package-form">
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>名称</mat-label>
+          <input matInput formControlName="name" placeholder="请输入套餐名称" />
+          <mat-error *ngIf="packageForm.get('name')?.hasError('required')">
+            请输入套餐名称
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>价格</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="price"
+            placeholder="请输入价格"
+          />
+          <span matTextPrefix>¥&nbsp;</span>
+          <mat-error *ngIf="packageForm.get('price')?.hasError('required')">
+            请输入价格
+          </mat-error>
+          <mat-error *ngIf="packageForm.get('price')?.hasError('min')">
+            价格不能小于0
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>时长（分钟）</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="durationMinutes"
+            placeholder="请输入时长"
+          />
+          <mat-error *ngIf="packageForm.get('durationMinutes')?.hasError('required')">
+            请输入时长
+          </mat-error>
+          <mat-error *ngIf="packageForm.get('durationMinutes')?.hasError('min')">
+            时长至少1分钟
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>次数</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="sessionCount"
+            placeholder="请输入次数"
+          />
+          <mat-error *ngIf="packageForm.get('sessionCount')?.hasError('required')">
+            请输入次数
+          </mat-error>
+          <mat-error *ngIf="packageForm.get('sessionCount')?.hasError('min')">
+            次数至少1次
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="form-field full-width">
+        <mat-label>描述</mat-label>
+        <textarea
+          matInput
+          formControlName="description"
+          rows="2"
+          placeholder="请输入套餐描述"
+        ></textarea>
+      </mat-form-field>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>退款规则类型</mat-label>
+          <mat-select formControlName="refundRuleType">
+            <mat-option
+              *ngFor="let type of refundRuleTypes"
+              [value]="type"
+            >
+              {{ refundRuleTypeLabels[type] }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="packageForm.get('refundRuleType')?.hasError('required')">
+            请选择退款规则类型
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>退款时限（小时）</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="refundDeadlineHours"
+            placeholder="请输入退款时限"
+          />
+          <mat-error *ngIf="packageForm.get('refundDeadlineHours')?.hasError('min')">
+            退款时限不能小于0
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>退款比例（%）</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="refundPercentage"
+            placeholder="请输入退款比例"
+          />
+          <mat-error *ngIf="packageForm.get('refundPercentage')?.hasError('min')">
+            退款比例不能小于0
+          </mat-error>
+          <mat-error *ngIf="packageForm.get('refundPercentage')?.hasError('max')">
+            退款比例不能大于100
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>排序</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="sortOrder"
+            placeholder="请输入排序值"
+          />
+          <mat-error *ngIf="packageForm.get('sortOrder')?.hasError('required')">
+            请输入排序值
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="form-field full-width">
+        <mat-label>退款说明</mat-label>
+        <textarea
+          matInput
+          formControlName="refundNotes"
+          rows="2"
+          placeholder="请输入退款说明"
+        ></textarea>
+      </mat-form-field>
+    </form>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>取消</button>
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="packageForm.invalid"
+      (click)="onSubmit()"
+    >
+      {{ isEditMode ? '保存' : '创建' }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>

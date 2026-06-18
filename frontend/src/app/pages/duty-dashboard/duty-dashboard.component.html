@@ -1,0 +1,389 @@
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <div class="header-left">
+      <h1 class="page-title">值班控制台</h1>
+      <span class="today-date">{{ formatDate(todayDate) }} 今日概览</span>
+    </div>
+    <div class="header-right">
+      <div class="search-box">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>搜索预约ID / 手机号 / 姓名</mat-label>
+          <input
+            matInput
+            [formControl]="searchControl"
+            (keyup.enter)="onSearch()"
+            placeholder="快速搜索核销"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            (click)="onSearch()"
+            matTooltip="搜索"
+          >
+            <mat-icon>search</mat-icon>
+          </button>
+          <button
+            *ngIf="searchControl.value"
+            mat-icon-button
+            matSuffix
+            (click)="clearSearch()"
+            matTooltip="清除"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <div *ngIf="showSearchResults" class="search-results">
+          <div *ngIf="searchResults.length === 0" class="no-results">
+            未找到相关预约
+          </div>
+          <div
+            *ngFor="let result of searchResults"
+            class="search-result-item"
+          >
+            <div class="result-info">
+              <span class="result-time">{{ formatTime(result.appointmentTime) }}</span>
+              <span class="result-name">{{ result.clientName }}</span>
+              <span class="result-phone">{{ result.clientPhone }}</span>
+              <span class="result-package">{{ result.package?.name }}</span>
+            </div>
+            <div class="result-actions">
+              <span class="status-chip" [ngClass]="getStatusClass(result.status)">
+                {{ getStatusLabel(result.status) }}
+              </span>
+              <button
+                mat-raised-button
+                color="primary"
+                size="small"
+                (click)="handleCheckIn(result)"
+                [disabled]="result.status === 'checked_in'"
+              >
+                <mat-icon>check_circle</mat-icon>
+                核销
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button
+        mat-raised-button
+        (click)="loadAllData()"
+        [disabled]="isRefreshing"
+        class="refresh-btn"
+      >
+        <mat-icon [class.spin]="isRefreshing">refresh</mat-icon>
+        {{ isRefreshing ? '刷新中...' : '刷新' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>加载中...</p>
+  </div>
+
+  <div *ngIf="!isLoading" class="dashboard-content">
+    <div class="stats-cards">
+      <mat-card class="stat-card stat-total">
+        <div class="stat-icon">
+          <mat-icon>calendar_today</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number">{{ stats.totalAppointments }}</div>
+          <div class="stat-label">今日预约</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat-card stat-checked">
+        <div class="stat-icon">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number">{{ stats.checkedIn }}</div>
+          <div class="stat-label">已到店</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat-card stat-pending">
+        <div class="stat-icon">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number">{{ stats.pending }}</div>
+          <div class="stat-label">待确认/已确认</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat-card stat-waitlist">
+        <div class="stat-icon">
+          <mat-icon>people_alt</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-number">{{ stats.waitlistCount }}</div>
+          <div class="stat-label">候补人数</div>
+        </div>
+      </mat-card>
+    </div>
+
+    <div class="main-content">
+      <div class="left-section">
+        <mat-card class="section-card">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>list_alt</mat-icon>
+              今日预约列表
+            </mat-card-title>
+            <mat-card-subtitle>
+              共 {{ appointments.length }} 条预约
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="table-container">
+              <table mat-table [dataSource]="appointments" class="appointment-table">
+                <ng-container matColumnDef="time">
+                  <th mat-header-cell *matHeaderCellDef>时间</th>
+                  <td mat-cell *matCellDef="let element">
+                    <span class="time-badge">{{ formatTime(element.appointmentTime) }}</span>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="clientName">
+                  <th mat-header-cell *matHeaderCellDef>客户姓名</th>
+                  <td mat-cell *matCellDef="let element">
+                    <div class="client-info">
+                      <span class="client-name">{{ element.clientName }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="clientPhone">
+                  <th mat-header-cell *matHeaderCellDef>手机号</th>
+                  <td mat-cell *matCellDef="let element">
+                    {{ element.clientPhone }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="counselor">
+                  <th mat-header-cell *matHeaderCellDef>咨询师</th>
+                  <td mat-cell *matCellDef="let element">
+                    {{ element.counselor?.name || '-' }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="package">
+                  <th mat-header-cell *matHeaderCellDef>套餐</th>
+                  <td mat-cell *matCellDef="let element">
+                    {{ element.package?.name || '-' }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef>状态</th>
+                  <td mat-cell *matCellDef="let element">
+                    <span class="status-chip" [ngClass]="getStatusClass(element.status)">
+                      {{ getStatusLabel(element.status) }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef>操作</th>
+                  <td mat-cell *matCellDef="let element">
+                    <div class="action-buttons">
+                      <button
+                        mat-raised-button
+                        color="primary"
+                        size="small"
+                        (click)="handleCheckIn(element)"
+                        [disabled]="element.status === 'checked_in' || element.status === 'completed' || element.status === 'cancelled'"
+                        matTooltip="快速核销"
+                      >
+                        <mat-icon>check_circle</mat-icon>
+                        核销
+                      </button>
+                      <button
+                        mat-button
+                        size="small"
+                        [matMenuTriggerFor]="statusMenu"
+                        matTooltip="更改状态"
+                      >
+                        <mat-icon>more_vert</mat-icon>
+                      </button>
+                      <mat-menu #statusMenu="matMenu">
+                        <button
+                          mat-menu-item
+                          (click)="handleUpdateStatus(element, 'confirmed')"
+                          [disabled]="element.status === 'confirmed'"
+                        >
+                          <mat-icon>check</mat-icon>
+                          标记已确认
+                        </button>
+                        <button
+                          mat-menu-item
+                          (click)="handleUpdateStatus(element, 'completed')"
+                          [disabled]="element.status === 'completed'"
+                        >
+                          <mat-icon>done_all</mat-icon>
+                          标记已完成
+                        </button>
+                        <button
+                          mat-menu-item
+                          (click)="handleUpdateStatus(element, 'cancelled')"
+                          [disabled]="element.status === 'cancelled'"
+                        >
+                          <mat-icon>cancel</mat-icon>
+                          标记已取消
+                        </button>
+                        <button
+                          mat-menu-item
+                          (click)="handleUpdateStatus(element, 'no_show')"
+                          [disabled]="element.status === 'no_show'"
+                        >
+                          <mat-icon>error</mat-icon>
+                          标记爽约
+                        </button>
+                      </mat-menu>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="appointmentDisplayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: appointmentDisplayedColumns;"></tr>
+              </table>
+            </div>
+
+            <div *ngIf="appointments.length === 0" class="empty-state">
+              <mat-icon>event_available</mat-icon>
+              <p>今日暂无预约</p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <div class="right-section">
+        <mat-card class="section-card waitlist-card">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>people_alt</mat-icon>
+              候补队列
+              <mat-badge
+                [content]="stats.waitlistCount"
+                color="warn"
+                class="waitlist-badge"
+              >
+              </mat-badge>
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="waitlist-list">
+              <div
+                *ngFor="let entry of waitlist"
+                class="waitlist-item"
+              >
+                <div class="waitlist-info">
+                  <div class="waitlist-header">
+                    <span class="waitlist-name">{{ entry.clientName }}</span>
+                    <span class="waitlist-time">
+                      已等待 {{ getWaitTime(entry.createdAt) }}
+                    </span>
+                  </div>
+                  <div class="waitlist-details">
+                    <span class="waitlist-phone">{{ entry.clientPhone }}</span>
+                    <span class="waitlist-counselor">
+                      <mat-icon>person</mat-icon>
+                      {{ entry.counselor?.name || '-' }}
+                    </span>
+                  </div>
+                  <div *ngIf="entry.reason" class="waitlist-reason">
+                    {{ entry.reason }}
+                  </div>
+                </div>
+                <div class="waitlist-actions">
+                  <button
+                    mat-raised-button
+                    color="primary"
+                    size="small"
+                    (click)="handleConvertWaitlist(entry)"
+                    matTooltip="转预约"
+                  >
+                    <mat-icon>swap_horiz</mat-icon>
+                    转预约
+                  </button>
+                  <button
+                    mat-button
+                    color="warn"
+                    size="small"
+                    (click)="handleCancelWaitlist(entry)"
+                    matTooltip="取消候补"
+                  >
+                    <mat-icon>close</mat-icon>
+                    取消
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="waitlist.length === 0" class="empty-state">
+                <mat-icon>mood</mat-icon>
+                <p>暂无可候补</p>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="section-card packages-card">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>monetization_on</mat-icon>
+              套餐价格规则
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-accordion>
+              <mat-expansion-panel
+                *ngFor="let pkg of packages"
+                class="package-panel"
+              >
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <span class="package-name">{{ pkg.name }}</span>
+                    <span class="package-price">¥{{ pkg.price }}</span>
+                  </mat-panel-title>
+                  <mat-panel-description>
+                    {{ pkg.sessionCount }}次 · {{ pkg.durationMinutes }}分钟
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+
+                <div class="package-details">
+                  <p *ngIf="pkg.description" class="package-desc">
+                    {{ pkg.description }}
+                  </p>
+                  <div class="package-info-row">
+                    <span class="info-label">退款规则</span>
+                    <span class="info-value">
+                      {{ getRefundRuleText(pkg) }}
+                    </span>
+                  </div>
+                  <div *ngIf="pkg.refundDeadlineHours" class="package-info-row">
+                    <span class="info-label">退款时限</span>
+                    <span class="info-value">
+                      提前 {{ pkg.refundDeadlineHours }} 小时
+                    </span>
+                  </div>
+                  <div *ngIf="pkg.refundPercentage" class="package-info-row">
+                    <span class="info-label">退款比例</span>
+                    <span class="info-value">{{ pkg.refundPercentage }}%</span>
+                  </div>
+                  <div *ngIf="pkg.refundNotes" class="package-info-row">
+                    <span class="info-label">备注</span>
+                    <span class="info-value">{{ pkg.refundNotes }}</span>
+                  </div>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</div>

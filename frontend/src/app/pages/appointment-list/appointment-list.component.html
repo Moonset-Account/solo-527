@@ -1,0 +1,240 @@
+<div class="appointment-list">
+  <div class="page-header">
+    <h1>预约管理</h1>
+  </div>
+
+  <div class="filter-section mat-elevation-z2">
+    <form [formGroup]="filterForm" class="filter-form">
+      <div class="filter-row">
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>状态</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="">全部状态</mat-option>
+            <mat-option
+              *ngFor="let status of appointmentStatuses"
+              [value]="status"
+            >
+              {{ appointmentStatusLabels[status] }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>咨询师</mat-label>
+          <mat-select formControlName="counselorId">
+            <mat-option value="">全部咨询师</mat-option>
+            <mat-option
+              *ngFor="let counselor of counselors"
+              [value]="counselor.id"
+            >
+              {{ counselor.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>开始日期</mat-label>
+          <input
+            matInput
+            [matDatepicker]="startPicker"
+            formControlName="startDate"
+            readonly
+          />
+          <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>结束日期</mat-label>
+          <input
+            matInput
+            [matDatepicker]="endPicker"
+            formControlName="endDate"
+            readonly
+          />
+          <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+
+        <div class="filter-actions">
+          <button mat-raised-button color="primary" (click)="onFilter()">
+            <mat-icon>search</mat-icon>
+            筛选
+          </button>
+          <button mat-button (click)="onReset()">
+            重置
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-container">
+    <table mat-table [dataSource]="appointments" class="mat-elevation-z2">
+      <ng-container matColumnDef="clientName">
+        <th mat-header-cell *matHeaderCellDef>客户姓名</th>
+        <td mat-cell *matCellDef="let element">{{ element.clientName }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="clientPhone">
+        <th mat-header-cell *matHeaderCellDef>手机号</th>
+        <td mat-cell *matCellDef="let element">{{ element.clientPhone }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="counselor">
+        <th mat-header-cell *matHeaderCellDef>咨询师</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.counselor?.name || '-' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="package">
+        <th mat-header-cell *matHeaderCellDef>套餐</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.package?.name || '-' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="appointmentTime">
+        <th mat-header-cell *matHeaderCellDef>预约时间</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.appointmentTime | date: 'yyyy-MM-dd HH:mm' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>状态</th>
+        <td mat-cell *matCellDef="let element">
+          <span
+            class="status-badge"
+            [ngClass]="getStatusClass(element.status)"
+          >
+            {{ appointmentStatusLabels[element.status] }}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="lastOperatorName">
+        <th mat-header-cell *matHeaderCellDef>最近操作人</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.lastOperatorName || '-' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>操作</th>
+        <td mat-cell *matCellDef="let element">
+          <button
+            *ngIf="canConfirm(element)"
+            mat-button
+            color="primary"
+            (click)="confirmAppointment(element)"
+          >
+            确认
+          </button>
+          <button
+            *ngIf="canCancel(element)"
+            mat-button
+            color="warn"
+            (click)="cancelAppointment(element)"
+          >
+            取消
+          </button>
+          <button
+            *ngIf="canMarkNoShow(element)"
+            mat-button
+            (click)="markNoShow(element)"
+          >
+            爽约
+          </button>
+          <button
+            mat-icon-button
+            color="primary"
+            (click)="viewDetail(element)"
+            matTooltip="查看详情"
+          >
+            <mat-icon>visibility</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div *ngIf="!isLoading && appointments.length === 0" class="empty-state">
+      <mat-icon>event</mat-icon>
+      <p>暂无预约数据</p>
+    </div>
+  </div>
+</div>
+
+<ng-template #detailDialog>
+  <h2 mat-dialog-title>预约详情</h2>
+  <mat-dialog-content *ngIf="selectedAppointment">
+    <div class="detail-content">
+      <div class="detail-item">
+        <span class="label">客户姓名：</span>
+        <span class="value">{{ selectedAppointment.clientName }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">手机号：</span>
+        <span class="value">{{ selectedAppointment.clientPhone }}</span>
+      </div>
+      <div class="detail-item" *ngIf="selectedAppointment.clientEmail">
+        <span class="label">邮箱：</span>
+        <span class="value">{{ selectedAppointment.clientEmail }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">咨询师：</span>
+        <span class="value">{{ selectedAppointment.counselor?.name || '-' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">套餐：</span>
+        <span class="value">{{ selectedAppointment.package?.name || '-' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">预约时间：</span>
+        <span class="value">
+          {{ selectedAppointment.appointmentTime | date: 'yyyy-MM-dd HH:mm' }}
+        </span>
+      </div>
+      <div class="detail-item">
+        <span class="label">状态：</span>
+        <span
+          class="status-badge"
+          [ngClass]="getStatusClass(selectedAppointment.status)"
+        >
+          {{ appointmentStatusLabels[selectedAppointment.status] }}
+        </span>
+      </div>
+      <div class="detail-item" *ngIf="selectedAppointment.source">
+        <span class="label">来源：</span>
+        <span class="value">{{ selectedAppointment.source }}</span>
+      </div>
+      <div class="detail-item" *ngIf="selectedAppointment.reason">
+        <span class="label">来访原因：</span>
+      </div>
+      <div class="detail-text" *ngIf="selectedAppointment.reason">
+        {{ selectedAppointment.reason }}
+      </div>
+      <div class="detail-item" *ngIf="selectedAppointment.notes">
+        <span class="label">备注：</span>
+      </div>
+      <div class="detail-text" *ngIf="selectedAppointment.notes">
+        {{ selectedAppointment.notes }}
+      </div>
+      <div class="detail-item" *ngIf="selectedAppointment.lastOperatorName">
+        <span class="label">最近操作人：</span>
+        <span class="value">{{ selectedAppointment.lastOperatorName }}</span>
+      </div>
+    </div>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>关闭</button>
+  </mat-dialog-actions>
+</ng-template>

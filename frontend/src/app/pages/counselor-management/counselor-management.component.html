@@ -1,0 +1,185 @@
+<div class="counselor-management">
+  <div class="page-header">
+    <h1>咨询师管理</h1>
+    <button mat-raised-button color="primary" (click)="openCreateDialog()">
+      <mat-icon>add</mat-icon>
+      新增咨询师
+    </button>
+  </div>
+
+  <div class="table-container">
+    <table mat-table [dataSource]="counselors" class="mat-elevation-z2">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>姓名</th>
+        <td mat-cell *matCellDef="let element">{{ element.name }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="title">
+        <th mat-header-cell *matHeaderCellDef>职称</th>
+        <td mat-cell *matCellDef="let element">{{ element.title }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="yearsOfExperience">
+        <th mat-header-cell *matHeaderCellDef>从业年限</th>
+        <td mat-cell *matCellDef="let element">{{ element.yearsOfExperience }} 年</td>
+      </ng-container>
+
+      <ng-container matColumnDef="specialties">
+        <th mat-header-cell *matHeaderCellDef>专长</th>
+        <td mat-cell *matCellDef="let element">
+          <div class="specialty-chips">
+            <mat-chip *ngFor="let specialty of element.specialties?.slice(0, 3)" class="specialty-chip">
+              {{ specialty }}
+            </mat-chip>
+            <span *ngIf="element.specialties?.length > 3" class="more-chips">
+              +{{ element.specialties.length - 3 }}
+            </span>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="isActive">
+        <th mat-header-cell *matHeaderCellDef>状态</th>
+        <td mat-cell *matCellDef="let element">
+          <mat-slide-toggle
+            [checked]="element.isActive"
+            (change)="toggleStatus(element)"
+          ></mat-slide-toggle>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>操作</th>
+        <td mat-cell *matCellDef="let element">
+          <button
+            mat-icon-button
+            color="primary"
+            (click)="openEditDialog(element)"
+            matTooltip="编辑"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            (click)="deleteCounselor(element)"
+            matTooltip="删除"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <div *ngIf="!isLoading && counselors.length === 0" class="empty-state">
+      <mat-icon>people</mat-icon>
+      <p>暂无咨询师数据</p>
+    </div>
+  </div>
+</div>
+
+<ng-template #counselorDialog>
+  <h2 mat-dialog-title>{{ isEditMode ? '编辑咨询师' : '新增咨询师' }}</h2>
+  <mat-dialog-content>
+    <form [formGroup]="counselorForm" class="counselor-form">
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>姓名</mat-label>
+          <input matInput formControlName="name" placeholder="请输入姓名" />
+          <mat-error *ngIf="counselorForm.get('name')?.hasError('required')">
+            请输入姓名
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>职称</mat-label>
+          <input matInput formControlName="title" placeholder="请输入职称" />
+          <mat-error *ngIf="counselorForm.get('title')?.hasError('required')">
+            请输入职称
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>从业年限</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="yearsOfExperience"
+            placeholder="请输入从业年限"
+          />
+          <mat-error *ngIf="counselorForm.get('yearsOfExperience')?.hasError('required')">
+            请输入从业年限
+          </mat-error>
+          <mat-error *ngIf="counselorForm.get('yearsOfExperience')?.hasError('min')">
+            从业年限不能小于0
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>头像URL</mat-label>
+          <input matInput formControlName="avatar" placeholder="请输入头像URL" />
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="form-field full-width">
+        <mat-label>简介</mat-label>
+        <textarea
+          matInput
+          formControlName="description"
+          rows="3"
+          placeholder="请输入简介"
+        ></textarea>
+      </mat-form-field>
+
+      <div class="form-field full-width">
+        <label class="field-label">专长</label>
+        <div class="specialties-input">
+          <mat-chip-grid #chipGrid class="specialty-chip-grid">
+            <mat-chip-row
+              *ngFor="let specialty of specialties"
+              (removed)="removeSpecialty(specialty)"
+            >
+              {{ specialty }}
+              <button matChipRemove>
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip-row>
+          </mat-chip-grid>
+          <input
+            placeholder="输入专长后按回车添加"
+            [matChipInputFor]="chipGrid"
+            [formControl]="specialtyInput"
+            (keydown.enter)="addSpecialty()"
+            class="specialty-input-field"
+          />
+        </div>
+      </div>
+
+      <div class="form-field full-width">
+        <mat-slide-toggle formControlName="isActive">
+          是否启用
+        </mat-slide-toggle>
+      </div>
+    </form>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>取消</button>
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="counselorForm.invalid"
+      (click)="onSubmit()"
+    >
+      {{ isEditMode ? '保存' : '创建' }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>

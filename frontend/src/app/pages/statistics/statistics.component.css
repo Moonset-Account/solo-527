@@ -1,0 +1,261 @@
+.statistics-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-header h2 {
+  margin: 0;
+  color: #1976d2;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.date-field {
+  width: 160px;
+}
+
+.stats-cards {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 16px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 12px !important;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  font-size: 28px;
+}
+
+.stat-icon .mat-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.total .stat-icon {
+  background: linear-gradient(135deg, #1976d2, #42a5f5);
+  color: white;
+}
+
+.completed .stat-icon {
+  background: linear-gradient(135deg, #388e3c, #66bb6a);
+  color: white;
+}
+
+.checked-in .stat-icon {
+  background: linear-gradient(135deg, #00897b, #4db6ac);
+  color: white;
+}
+
+.no-show .stat-icon {
+  background: linear-gradient(135deg, #c62828, #ef5350);
+  color: white;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #263238;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #78909c;
+  margin-top: 4px;
+}
+
+.detail-card {
+  margin-top: 16px;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+.detail-card mat-card-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.detail-row {
+  display: flex;
+  gap: 48px;
+  padding: 8px 0;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-item .label {
+  color: #546e7a;
+  font-size: 14px;
+}
+
+.detail-item .value {
+  font-weight: 600;
+  font-size: 15px;
+  color: #37474f;
+}
+
+.detail-item .value.highlight {
+  color: #f57c00;
+}
+
+.detail-item .value.success {
+  color: #388e3c;
+}
+
+.workload-section,
+.export-section {
+  padding: 16px 0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #37474f;
+}
+
+.workload-table {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.badge.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: #e3f2fd;
+  color: #1565c0;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 0;
+  color: #90a4ae;
+}
+
+.empty-state mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+}
+
+.export-section h3 {
+  font-size: 18px;
+  color: #37474f;
+  margin: 0 0 8px 0;
+}
+
+.export-desc {
+  color: #78909c;
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+.export-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.export-card {
+  text-align: center;
+  padding: 24px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.export-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+.export-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  color: #1976d2;
+}
+
+.export-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #263238;
+}
+
+.export-card p {
+  margin: 0 0 16px 0;
+  color: #78909c;
+  font-size: 13px;
+  min-height: 36px;
+}
+
+.export-card button {
+  width: 100%;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+
+::ng-deep .mat-mdc-tab-group {
+  background: white;
+  border-radius: 12px;
+  padding: 0 24px;
+}

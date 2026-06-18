@@ -1,0 +1,206 @@
+<div class="booking-container">
+  <div class="page-header">
+    <h1>预约心理咨询</h1>
+    <p>选择您信任的咨询师，开启心灵成长之旅</p>
+  </div>
+
+  <mat-spinner *ngIf="isLoading" class="loading-spinner" diameter="40"></mat-spinner>
+
+  <mat-vertical-stepper *ngIf="!isLoading" #stepper>
+    <mat-step [stepControl]="counselorForm" label="选择咨询师">
+      <div class="counselor-list">
+        <mat-card
+          *ngFor="let counselor of counselors"
+          class="counselor-card"
+          [class.selected]="selectedCounselor?.id === counselor.id"
+          (click)="selectCounselor(counselor)"
+        >
+          <mat-card-content>
+            <div class="counselor-header">
+              <div class="counselor-avatar">
+                <mat-icon>person</mat-icon>
+              </div>
+              <div class="counselor-info">
+                <h3 class="counselor-name">{{ counselor.name }}</h3>
+                <p class="counselor-title">{{ counselor.title }}</p>
+                <p class="counselor-exp">从业 {{ counselor.yearsOfExperience }} 年</p>
+              </div>
+            </div>
+            <div class="counselor-specialties">
+              <mat-chip *ngFor="let specialty of counselor.specialties" class="specialty-chip">
+                {{ specialty }}
+              </mat-chip>
+            </div>
+            <p class="counselor-description">{{ counselor.description }}</p>
+          </mat-card-content>
+          <div class="selected-indicator" *ngIf="selectedCounselor?.id === counselor.id">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+        </mat-card>
+      </div>
+      <div class="step-actions">
+        <button
+          mat-raised-button
+          color="primary"
+          [disabled]="counselorForm.invalid"
+          matStepperNext
+        >
+          下一步
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step [stepControl]="packageForm" label="选择套餐">
+      <div class="package-list">
+        <mat-card
+          *ngFor="let pkg of packages"
+          class="package-card"
+          [class.selected]="selectedPackage?.id === pkg.id"
+          (click)="selectPackage(pkg)"
+        >
+          <mat-card-content>
+            <div class="package-header">
+              <h3 class="package-name">{{ pkg.name }}</h3>
+              <div class="package-price">
+                <span class="currency">¥</span>
+                <span class="amount">{{ pkg.price }}</span>
+              </div>
+            </div>
+            <p class="package-description">{{ pkg.description }}</p>
+            <div class="package-details">
+              <div class="detail-item">
+                <mat-icon>schedule</mat-icon>
+                <span>{{ pkg.durationMinutes }} 分钟/次</span>
+              </div>
+              <div class="detail-item">
+                <mat-icon>view_list</mat-icon>
+                <span>共 {{ pkg.sessionCount }} 次</span>
+              </div>
+            </div>
+          </mat-card-content>
+          <div class="selected-indicator" *ngIf="selectedPackage?.id === pkg.id">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+        </mat-card>
+      </div>
+      <div class="step-actions">
+        <button mat-button matStepperPrevious>上一步</button>
+        <button
+          mat-raised-button
+          color="primary"
+          [disabled]="packageForm.invalid"
+          matStepperNext
+        >
+          下一步
+        </button>
+      </div>
+    </mat-step>
+
+    <mat-step [stepControl]="appointmentForm" label="填写预约信息">
+      <form [formGroup]="appointmentForm" class="appointment-form">
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-label>姓名</mat-label>
+            <input matInput formControlName="clientName" placeholder="请输入您的姓名" />
+            <mat-error *ngIf="appointmentForm.get('clientName')?.hasError('required')">
+              请输入姓名
+            </mat-error>
+            <mat-error *ngIf="appointmentForm.get('clientName')?.hasError('minlength')">
+              姓名至少2个字符
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-label>手机号</mat-label>
+            <input matInput formControlName="clientPhone" placeholder="请输入手机号" />
+            <mat-error *ngIf="appointmentForm.get('clientPhone')?.hasError('required')">
+              请输入手机号
+            </mat-error>
+            <mat-error *ngIf="appointmentForm.get('clientPhone')?.hasError('pattern')">
+              请输入有效的手机号
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-label>邮箱（选填）</mat-label>
+            <input matInput formControlName="clientEmail" placeholder="请输入邮箱" />
+            <mat-error *ngIf="appointmentForm.get('clientEmail')?.hasError('email')">
+              请输入有效的邮箱地址
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-label>预约日期</mat-label>
+            <input
+              matInput
+              [matDatepicker]="picker"
+              formControlName="appointmentDate"
+              placeholder="选择日期"
+              readonly
+            />
+            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+            <mat-error *ngIf="appointmentForm.get('appointmentDate')?.hasError('required')">
+              请选择预约日期
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="form-field">
+            <mat-label>预约时间</mat-label>
+            <input matInput formControlName="appointmentTime" type="time" />
+            <mat-error *ngIf="appointmentForm.get('appointmentTime')?.hasError('required')">
+              请选择预约时间
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="form-field full-width">
+            <mat-label>来访原因</mat-label>
+            <textarea
+              matInput
+              formControlName="reason"
+              rows="4"
+              placeholder="请简要描述您的咨询需求（至少10个字）"
+            ></textarea>
+            <mat-error *ngIf="appointmentForm.get('reason')?.hasError('required')">
+              请填写来访原因
+            </mat-error>
+            <mat-error *ngIf="appointmentForm.get('reason')?.hasError('minlength')">
+              来访原因至少10个字
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="booking-summary" *ngIf="selectedCounselor && selectedPackage">
+          <h4>预约信息确认</h4>
+          <div class="summary-item">
+            <span class="label">咨询师：</span>
+            <span class="value">{{ selectedCounselor.name }} - {{ selectedCounselor.title }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">套餐：</span>
+            <span class="value">{{ selectedPackage.name }} (¥{{ selectedPackage.price }})</span>
+          </div>
+        </div>
+      </form>
+
+      <div class="step-actions">
+        <button mat-button matStepperPrevious>上一步</button>
+        <button
+          mat-raised-button
+          color="primary"
+          [disabled]="appointmentForm.invalid || isSubmitting"
+          (click)="onSubmit()"
+        >
+          <mat-spinner *ngIf="isSubmitting" diameter="20" class="btn-spinner"></mat-spinner>
+          <span *ngIf="!isSubmitting">提交预约</span>
+        </button>
+      </div>
+    </mat-step>
+  </mat-vertical-stepper>
+</div>

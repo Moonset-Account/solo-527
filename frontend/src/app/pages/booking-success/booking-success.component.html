@@ -1,0 +1,20 @@
+<div class="success-container">
+  <mat-card class="success-card" [class.animate]="showContent">
+    <div class="success-icon-wrapper">
+      <div class="success-circle">
+        <mat-icon class="success-icon">check</mat-icon>
+      </div>
+    </div>
+    <mat-card-title class="success-title">预约成功</mat-card-title>
+    <mat-card-content class="success-content">
+      <p>您的心理咨询预约已提交成功！</p>
+      <p>我们会尽快与您联系确认预约详情。</p>
+    </mat-card-content>
+    <mat-card-actions class="success-actions">
+      <button mat-raised-button color="primary" (click)="goHome()">
+        <mat-icon>home</mat-icon>
+        返回首页
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>
