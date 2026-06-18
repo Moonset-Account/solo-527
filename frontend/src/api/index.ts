@@ -4,6 +4,7 @@ import type {
   EmailTemplateVersion,
   BatchTask,
   EmailRecord,
+  EmailRecordVersion,
   CallLog,
   RiskSample,
   PageResult,
@@ -51,6 +52,20 @@ export const recordApi = {
     request.get<any, EmailRecord>(`/records/${id}`),
   getStatsByLegalOwner: () =>
     request.get<any, any>('/records/stats/by-legal-owner'),
+  updateDraft: (id: number, data: {
+    subject: string
+    content: string
+    recipientEmail: string
+    recipientName: string
+    changeLog: string
+  }) =>
+    request.put<any, EmailRecord>(`/records/${id}/draft`, data),
+  listVersions: (id: number) =>
+    request.get<any, EmailRecordVersion[]>(`/records/${id}/versions`),
+  getVersion: (id: number, version: number) =>
+    request.get<any, EmailRecordVersion>(`/records/${id}/versions/${version}`),
+  revertToVersion: (id: number, version: number) =>
+    request.post<any, EmailRecord>(`/records/${id}/versions/${version}/revert`),
 }
 
 export const callLogApi = {

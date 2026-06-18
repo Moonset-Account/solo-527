@@ -59,6 +59,11 @@ public class EmailRecord {
 
     private String variables;
 
+    private Integer version = 1;
+
+    @Column(length = 500)
+    private String changeLog;
+
     @Column(length = 100)
     private String createBy;
 
@@ -202,6 +207,22 @@ public class EmailRecord {
 
     public void setVariables(String variables) {
         this.variables = variables;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
+    }
+
+    public String getChangeLog() {
+        return changeLog;
+    }
+
+    public void setChangeLog(String changeLog) {
+        this.changeLog = changeLog;
     }
 
     public String getCreateBy() {

@@ -3,7 +3,9 @@ package com.emailgenerator.service;
 import com.emailgenerator.common.BaseQuery;
 import com.emailgenerator.common.PageResult;
 import com.emailgenerator.entity.EmailRecord;
+import com.emailgenerator.entity.EmailRecordVersion;
 import com.emailgenerator.repository.EmailRecordRepository;
+import com.emailgenerator.repository.EmailRecordVersionRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,9 +24,12 @@ import java.util.Map;
 public class EmailRecordService {
 
     private final EmailRecordRepository emailRecordRepository;
+    private final EmailRecordVersionRepository versionRepository;
 
-    public EmailRecordService(EmailRecordRepository emailRecordRepository) {
+    public EmailRecordService(EmailRecordRepository emailRecordRepository,
+                              EmailRecordVersionRepository versionRepository) {
         this.emailRecordRepository = emailRecordRepository;
+        this.versionRepository = versionRepository;
     }
 
     public PageResult<EmailRecord> list(BaseQuery query, Long taskId) {
@@ -86,6 +92,70 @@ public class EmailRecordService {
 
     public List<EmailRecord> listByTaskId(Long taskId) {
         return emailRecordRepository.findByTaskId(taskId, org.springframework.data.domain.Pageable.unpaged()).getContent();
+    }
+
+    @Transactional
+    public EmailRecord updateDraft(Long id, String subject, String content,
+                                   String recipientEmail, String recipientName,
+                                   String changeLog, String operator) {
+        EmailRecord record = emailRecordRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("邮件记录不存在"));
+
+        saveVersion(record, record.getChangeLog() != null ? record.getChangeLog() : "初始版本", operator);
+
+        if (subject != null) record.setSubject(subject);
+        if (content != null) record.setContent(content);
+        if (recipientEmail != null) record.setRecipientEmail(recipientEmail);
+        if (recipientName != null) record.setRecipientName(recipientName);
+        record.setVersion((record.getVersion() == null ? 1 : record.getVersion()) + 1);
+        record.setChangeLog(changeLog != null ? changeLog : "更新草稿");
+        record.setStatus("DRAFT");
+
+        return emailRecordRepository.save(record);
+    }
+
+    private void saveVersion(EmailRecord record, String changeLog, String operator) {
+        EmailRecordVersion version = new EmailRecordVersion();
+        version.setRecordId(record.getId());
+        version.setVersion(record.getVersion() == null ? 1 : record.getVersion());
+        version.setSubject(record.getSubject());
+        version.setContent(record.getContent());
+        version.setRecipientEmail(record.getRecipientEmail());
+        version.setRecipientName(record.getRecipientName());
+        version.setChangeLog(changeLog);
+        version.setCreateBy(operator);
+        versionRepository.save(version);
+    }
+
+    public List<EmailRecordVersion> listVersions(Long recordId) {
+        return versionRepository.findByRecordIdOrderByVersionDesc(recordId);
+    }
+
+    public EmailRecordVersion getVersion(Long recordId, Integer version) {
+        return versionRepository.findByRecordIdAndVersion(recordId, version);
+    }
+
+    @Transactional
+    public EmailRecord revertToVersion(Long recordId, Integer version, String operator) {
+        EmailRecordVersion recordVersion = versionRepository.findByRecordIdAndVersion(recordId, version);
+        if (recordVersion == null) {
+            throw new RuntimeException("版本不存在");
+        }
+
+        EmailRecord record = emailRecordRepository.findById(recordId)
+            .orElseThrow(() -> new RuntimeException("邮件记录不存在"));
+
+        saveVersion(record, "保存当前版本，准备回滚", operator);
+
+        record.setSubject(recordVersion.getSubject());
+        record.setContent(recordVersion.getContent());
+        record.setRecipientEmail(recordVersion.getRecipientEmail());
+        record.setRecipientName(recordVersion.getRecipientName());
+        record.setVersion((record.getVersion() == null ? 1 : record.getVersion()) + 1);
+        record.setChangeLog("回滚到版本 v" + version);
+        record.setStatus("DRAFT");
+
+        return emailRecordRepository.save(record);
     }
 
     public Map<String, Object> getStatsByLegalOwner() {

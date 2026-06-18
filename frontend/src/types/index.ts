@@ -92,9 +92,24 @@ export interface EmailRecord {
   legalOwner: string
   errorMessage: string
   variables: string
+  version: number
+  changeLog: string
   createBy: string
   createTime: string
   generateTime: string
+}
+
+export interface EmailRecordVersion {
+  id: number
+  recordId: number
+  version: number
+  subject: string
+  content: string
+  recipientEmail: string
+  recipientName: string
+  changeLog: string
+  createBy: string
+  createTime: string
 }
 
 export interface CallLog {

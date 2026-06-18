@@ -1,14 +1,23 @@
 package com.emailgenerator.service;
 
 import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.annotation.write.style.ColumnWidth;
+import com.alibaba.excel.annotation.write.style.ContentStyle;
+import com.alibaba.excel.enums.poi.HorizontalAlignmentEnum;
+import com.alibaba.excel.write.metadata.WriteSheet;
+import com.alibaba.excel.write.metadata.style.WriteCellStyle;
+import com.alibaba.excel.write.metadata.style.WriteFont;
+import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
 import com.emailgenerator.common.BaseQuery;
 import com.emailgenerator.entity.EmailRecord;
 import com.emailgenerator.entity.RiskSample;
 import com.emailgenerator.repository.EmailRecordRepository;
 import com.emailgenerator.repository.RiskSampleRepository;
 import jakarta.persistence.criteria.Predicate;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -47,7 +56,7 @@ public class ExportService {
             vo.setRecipientName(record.getRecipientName());
             vo.setSubject(record.getSubject());
             vo.setStatus(record.getStatus());
-            vo.setIsRisk(record.getIsRisk() ? "是" : "否");
+            vo.setIsRisk(record.getIsRisk() != null && record.getIsRisk() ? "是" : "否");
             vo.setRiskReason(record.getRiskReason());
             vo.setSource(record.getSource());
             vo.setOwner(record.getOwner());
@@ -59,6 +68,7 @@ public class ExportService {
             dataList.add(vo);
         }
 
+        String exportTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         String timeRange = buildTimeRange(query);
         String filters = buildFilters(query);
 
@@ -67,15 +77,25 @@ public class ExportService {
         String fileName = URLEncoder.encode("邮件生成记录导出", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
         response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
 
-        List<String> headerNotes = new ArrayList<>();
-        headerNotes.add("导出时间: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        headerNotes.add("时间范围: " + timeRange);
-        headerNotes.add("过滤条件: " + filters);
-        headerNotes.add("生成者: " + operator);
+        List<MetaRow> metaRows = new ArrayList<>();
+        metaRows.add(new MetaRow("导出时间", exportTime));
+        metaRows.add(new MetaRow("时间范围", timeRange));
+        metaRows.add(new MetaRow("过滤条件", filters));
+        metaRows.add(new MetaRow("生成者", operator));
+        metaRows.add(new MetaRow("数据总数", String.valueOf(dataList.size())));
 
-        EasyExcel.write(response.getOutputStream(), EmailRecordExcelVO.class)
-            .sheet("邮件记录")
-            .doWrite(dataList);
+        try (ExcelWriter excelWriter = EasyExcel.write(response.getOutputStream()).build()) {
+            WriteSheet metaSheet = EasyExcel.writerSheet(0, "导出说明")
+                .head(MetaRow.class)
+                .registerWriteHandler(buildMetaStyleStrategy())
+                .build();
+            excelWriter.write(metaRows, metaSheet);
+
+            WriteSheet dataSheet = EasyExcel.writerSheet(1, "邮件记录明细")
+                .head(EmailRecordExcelVO.class)
+                .build();
+            excelWriter.write(dataList, dataSheet);
+        }
     }
 
     public void exportRiskSamples(BaseQuery query, HttpServletResponse response, String operator) throws IOException {
@@ -106,6 +126,7 @@ public class ExportService {
             dataList.add(vo);
         }
 
+        String exportTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         String timeRange = buildTimeRange(query);
         String filters = buildFilters(query);
 
@@ -114,9 +135,41 @@ public class ExportService {
         String fileName = URLEncoder.encode("风险样本导出", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
         response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
 
-        EasyExcel.write(response.getOutputStream(), RiskSampleExcelVO.class)
-            .sheet("风险样本")
-            .doWrite(dataList);
+        List<MetaRow> metaRows = new ArrayList<>();
+        metaRows.add(new MetaRow("导出时间", exportTime));
+        metaRows.add(new MetaRow("时间范围", timeRange));
+        metaRows.add(new MetaRow("过滤条件", filters));
+        metaRows.add(new MetaRow("生成者", operator));
+        metaRows.add(new MetaRow("数据总数", String.valueOf(dataList.size())));
+
+        try (ExcelWriter excelWriter = EasyExcel.write(response.getOutputStream()).build()) {
+            WriteSheet metaSheet = EasyExcel.writerSheet(0, "导出说明")
+                .head(MetaRow.class)
+                .registerWriteHandler(buildMetaStyleStrategy())
+                .build();
+            excelWriter.write(metaRows, metaSheet);
+
+            WriteSheet dataSheet = EasyExcel.writerSheet(1, "风险样本明细")
+                .head(RiskSampleExcelVO.class)
+                .build();
+            excelWriter.write(dataList, dataSheet);
+        }
+    }
+
+    private HorizontalCellStyleStrategy buildMetaStyleStrategy() {
+        WriteCellStyle headWriteCellStyle = new WriteCellStyle();
+        headWriteCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        headWriteCellStyle.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
+        headWriteCellStyle.setHorizontalAlignment(HorizontalAlignmentEnum.LEFT);
+        WriteFont headFont = new WriteFont();
+        headFont.setFontHeightInPoints((short) 12);
+        headFont.setBold(true);
+        headWriteCellStyle.setWriteFont(headFont);
+
+        WriteCellStyle contentWriteCellStyle = new WriteCellStyle();
+        contentWriteCellStyle.setHorizontalAlignment(HorizontalAlignmentEnum.LEFT);
+
+        return new HorizontalCellStyleStrategy(headWriteCellStyle, contentWriteCellStyle);
     }
 
     private Specification<EmailRecord> buildRecordSpecification(BaseQuery query) {
@@ -194,10 +247,47 @@ public class ExportService {
         if (query.getLegalOwner() != null && !query.getLegalOwner().isEmpty()) {
             sb.append("法务负责人:").append(query.getLegalOwner()).append("; ");
         }
+        if (query.getErrorReason() != null && !query.getErrorReason().isEmpty()) {
+            sb.append("异常原因:").append(query.getErrorReason()).append("; ");
+        }
         if (sb.length() == 0) {
             sb.append("无");
         }
         return sb.toString();
+    }
+
+    public static class MetaRow {
+        @ExcelProperty("项目")
+        @ColumnWidth(20)
+        private String label;
+
+        @ExcelProperty("值")
+        @ColumnWidth(60)
+        private String value;
+
+        public MetaRow() {
+        }
+
+        public MetaRow(String label, String value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public void setLabel(String label) {
+            this.label = label;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public void setValue(String value) {
+            this.value = value;
+        }
     }
 
     public static class EmailRecordExcelVO {

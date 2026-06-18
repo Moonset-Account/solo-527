@@ -1,5 +1,7 @@
 package com.emailgenerator.common;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -11,7 +13,9 @@ public class BaseQuery implements Serializable {
     private String status;
     private String owner;
     private String source;
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
     private String legalOwner;
     private String errorReason;
