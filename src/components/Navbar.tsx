@@ -6,12 +6,11 @@ import { SignInButton, UserButton, useAuth, useUser } from '@clerk/nextjs'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+const baseNavItems = [
   { href: '/', label: '首页', icon: '🏠' },
   { href: '/topics', label: '议题投票', icon: '🗳️' },
   { href: '/facilities', label: '设施管理', icon: '🏢' },
   { href: '/volunteer', label: '志愿服务', icon: '🤝' },
-  { href: '/admin', label: '后台管理', icon: '⚙️', admin: true },
 ]
 
 export function Navbar() {
@@ -32,7 +31,7 @@ export function Navbar() {
           </div>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {navItems.map(item => (
+            {baseNavItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -47,6 +46,30 @@ export function Navbar() {
                 <span>{item.label}</span>
               </Link>
             ))}
+            <Link
+              href="/admin/audit"
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                pathname?.startsWith('/admin/audit')
+                  ? 'bg-rose-50 text-rose-700'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              )}
+            >
+              <span>📜</span>
+              <span>审计日志</span>
+            </Link>
+            <Link
+              href="/admin"
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/audit')
+                  ? 'bg-rose-50 text-rose-700'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              )}
+            >
+              <span>⚙️</span>
+              <span>后台管理</span>
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -71,7 +94,7 @@ export function Navbar() {
 
         {mobileOpen && (
           <nav className="flex flex-col gap-1 pb-4 md:hidden">
-            {navItems.map(item => (
+            {baseNavItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -87,6 +110,32 @@ export function Navbar() {
                 <span>{item.label}</span>
               </Link>
             ))}
+            <Link
+              href="/admin/audit"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                pathname?.startsWith('/admin/audit')
+                  ? 'bg-rose-50 text-rose-700'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              )}
+            >
+              <span>📜</span>
+              <span>审计日志</span>
+            </Link>
+            <Link
+              href="/admin"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                pathname?.startsWith('/admin') && !pathname?.startsWith('/admin/audit')
+                  ? 'bg-rose-50 text-rose-700'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              )}
+            >
+              <span>⚙️</span>
+              <span>后台管理</span>
+            </Link>
           </nav>
         )}
       </div>

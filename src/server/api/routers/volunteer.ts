@@ -2,6 +2,19 @@ import { z } from 'zod'
 import { createTRPCRouter, protectedProcedure, representativeProcedure, adminProcedure } from '../trpc'
 
 export const volunteerRouter = createTRPCRouter({
+  listBindableDamageReports: representativeProcedure
+    .query(async ({ ctx }) => {
+      return ctx.prisma.damageReport.findMany({
+        where: {
+          status: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS'] },
+        },
+        include: {
+          facility: { select: { name: true, location: true } },
+        },
+        orderBy: { priority: 'desc' },
+      })
+    }),
+
   listTasks: protectedProcedure
     .input(z.object({
       status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).optional(),
@@ -15,7 +28,14 @@ export const volunteerRouter = createTRPCRouter({
         where,
         include: {
           assignee: { select: { name: true, email: true } },
-          damageReport: { select: { title: true, facility: { select: { name: true, location: true } } } },
+          damageReport: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              facility: { select: { name: true, location: true } },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       })
@@ -37,11 +57,13 @@ export const volunteerRouter = createTRPCRouter({
         _sum: { hoursSpent: true },
         where: { assigneeId: ctx.user.id, status: 'COMPLETED' },
       })
-
       const byType = await ctx.prisma.volunteerTask.groupBy({
         by: ['type'],
         _count: { id: true },
         _sum: { hoursSpent: true },
+      })
+      const damageRelatedTasks = await ctx.prisma.volunteerTask.count({
+        where: { damageReportId: { not: null }, status: 'COMPLETED' },
       })
 
       return {
@@ -52,6 +74,7 @@ export const volunteerRouter = createTRPCRouter({
         totalHours: totalHours._sum.hoursSpent ?? 0,
         myHours: myHours._sum.hoursSpent ?? 0,
         byType,
+        damageRelatedTasks,
       }
     }),
 
@@ -87,6 +110,7 @@ export const volunteerRouter = createTRPCRouter({
             entityType: 'VolunteerTask',
             entityId: task.id,
             userId: ctx.user.id,
+            detail: { damageReportId: input.damageReportId } as never,
           },
         })
         return task
@@ -96,25 +120,28 @@ export const volunteerRouter = createTRPCRouter({
   signUp: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const task = await ctx.prisma.volunteerTask.update({
-        where: { id: input.id },
-        data: { assigneeId: ctx.user.id, status: 'CONFIRMED' },
-      })
-      if (task.damageReportId) {
-        await ctx.prisma.damageReport.update({
-          where: { id: task.damageReportId },
-          data: { status: 'IN_PROGRESS', assignedTo: ctx.user.id },
+      return ctx.prisma.$transaction(async (tx) => {
+        const task = await tx.volunteerTask.update({
+          where: { id: input.id },
+          data: { assigneeId: ctx.user.id, status: 'CONFIRMED' },
         })
-      }
-      await ctx.prisma.auditLog.create({
-        data: {
-          action: 'VOLUNTEER_SIGNUP',
-          entityType: 'VolunteerTask',
-          entityId: input.id,
-          userId: ctx.user.id,
-        },
+        if (task.damageReportId) {
+          await tx.damageReport.update({
+            where: { id: task.damageReportId },
+            data: { status: 'IN_PROGRESS', assignedTo: ctx.user.id },
+          })
+        }
+        await tx.auditLog.create({
+          data: {
+            action: 'VOLUNTEER_SIGNUP',
+            entityType: 'VolunteerTask',
+            entityId: input.id,
+            userId: ctx.user.id,
+            detail: { damageReportId: task.damageReportId } as never,
+          },
+        })
+        return task
       })
-      return task
     }),
 
   completeTask: protectedProcedure
@@ -122,61 +149,78 @@ export const volunteerRouter = createTRPCRouter({
       id: z.string(),
       hoursSpent: z.number().min(0.5).optional(),
       note: z.string().optional(),
+      resultNote: z.string().optional(),
+      resultPhotoUrl: z.string().url().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const task = await ctx.prisma.volunteerTask.findUnique({ where: { id: input.id } })
-      if (!task) throw new Error('任务不存在')
-      if (task.assigneeId !== ctx.user.id && ctx.user.role !== 'ADMIN' && ctx.user.role !== 'REPRESENTATIVE') {
-        throw new Error('只能完成自己报名的任务')
-      }
-      const updated = await ctx.prisma.volunteerTask.update({
-        where: { id: input.id },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-          hoursSpent: input.hoursSpent,
-          note: input.note,
-        },
-      })
-      if (task.damageReportId) {
-        await ctx.prisma.damageReport.update({
-          where: { id: task.damageReportId },
-          data: { status: 'COMPLETED' },
+      return ctx.prisma.$transaction(async (tx) => {
+        const task = await tx.volunteerTask.findUnique({ where: { id: input.id } })
+        if (!task) throw new Error('任务不存在')
+        if (task.assigneeId !== ctx.user.id && ctx.user.role !== 'ADMIN' && ctx.user.role !== 'REPRESENTATIVE') {
+          throw new Error('只能完成自己报名的任务')
+        }
+        const updated = await tx.volunteerTask.update({
+          where: { id: input.id },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            hoursSpent: input.hoursSpent,
+            note: input.note,
+          },
         })
-      }
-      await ctx.prisma.auditLog.create({
-        data: {
-          action: 'VOLUNTEER_TASK_COMPLETE',
-          entityType: 'VolunteerTask',
-          entityId: input.id,
-          userId: ctx.user.id,
-        },
+        if (task.damageReportId) {
+          const damageUpdateData: any = { status: 'COMPLETED', resolvedAt: new Date() }
+          if (input.resultNote) damageUpdateData.resultNote = input.resultNote
+          if (input.resultPhotoUrl) damageUpdateData.resultPhotoUrl = input.resultPhotoUrl
+          await tx.damageReport.update({
+            where: { id: task.damageReportId },
+            data: damageUpdateData,
+          })
+        }
+        await tx.auditLog.create({
+          data: {
+            action: 'VOLUNTEER_TASK_COMPLETE',
+            entityType: 'VolunteerTask',
+            entityId: input.id,
+            userId: ctx.user.id,
+            detail: {
+              hoursSpent: input.hoursSpent,
+              damageReportId: task.damageReportId,
+              resultNote: input.resultNote,
+            } as never,
+          },
+        })
+        return updated
       })
-      return updated
     }),
 
   cancelSignUp: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const task = await ctx.prisma.volunteerTask.update({
-        where: { id: input.id, assigneeId: ctx.user.id },
-        data: { assigneeId: null, status: 'PENDING' },
-      })
-      if (task.damageReportId) {
-        await ctx.prisma.damageReport.update({
-          where: { id: task.damageReportId },
-          data: { status: 'ASSIGNED', assignedTo: null },
+      return ctx.prisma.$transaction(async (tx) => {
+        const task = await tx.volunteerTask.update({
+          where: { id: input.id, assigneeId: ctx.user.id },
+          data: { assigneeId: null, status: 'PENDING' },
         })
-      }
-      await ctx.prisma.auditLog.create({
-        data: {
-          action: 'VOLUNTEER_CANCEL',
-          entityType: 'VolunteerTask',
-          entityId: input.id,
-          userId: ctx.user.id,
-        },
+        if (task.damageReportId) {
+          const existingOther = await tx.volunteerTask.count({
+            where: { damageReportId: task.damageReportId, status: { in: ['CONFIRMED'] } },
+          })
+          await tx.damageReport.update({
+            where: { id: task.damageReportId },
+            data: { status: existingOther > 0 ? 'IN_PROGRESS' : 'PENDING', assignedTo: null },
+          })
+        }
+        await tx.auditLog.create({
+          data: {
+            action: 'VOLUNTEER_CANCEL',
+            entityType: 'VolunteerTask',
+            entityId: input.id,
+            userId: ctx.user.id,
+          },
+        })
+        return task
       })
-      return task
     }),
 
   deleteTask: adminProcedure

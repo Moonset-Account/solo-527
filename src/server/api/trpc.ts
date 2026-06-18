@@ -74,4 +74,13 @@ const isAdmin = t.middleware(({ ctx, next }) => {
 
 export const adminProcedure = t.procedure.use(isAdmin)
 
+const isAuditorOrAdmin = t.middleware(({ ctx, next }) => {
+  if (!ctx.user || (ctx.user.role !== 'ADMIN' && ctx.user.role !== 'AUDITOR')) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: '需要管理员或审计员权限' })
+  }
+  return next({ ctx: { user: ctx.user } })
+})
+
+export const auditorProcedure = t.procedure.use(isAuditorOrAdmin)
+
 export const createCallerFactory = t.createCallerFactory

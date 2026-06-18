@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createTRPCRouter, adminProcedure, protectedProcedure } from '../trpc'
+import { createTRPCRouter, adminProcedure, protectedProcedure, representativeProcedure, auditorProcedure } from '../trpc'
 
 export const adminRouter = createTRPCRouter({
   listUsers: adminProcedure
@@ -80,6 +80,20 @@ export const adminRouter = createTRPCRouter({
     })
   }),
 
+  getDefaultVotingRule: representativeProcedure
+    .query(async ({ ctx }) => {
+      const rule = await ctx.prisma.votingRule.findFirst({
+        orderBy: { createdAt: 'desc' },
+      })
+      return rule
+    }),
+
+  getVotingRule: representativeProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.votingRule.findUnique({ where: { id: input.id } })
+    }),
+
   createVotingRule: adminProcedure
     .input(z.object({
       name: z.string().min(2),
@@ -146,7 +160,7 @@ export const adminRouter = createTRPCRouter({
       return { success: true }
     }),
 
-  listAuditLogs: adminProcedure
+  listAuditLogs: auditorProcedure
     .input(z.object({
       action: z.string().optional(),
       entityType: z.string().optional(),
@@ -178,7 +192,7 @@ export const adminRouter = createTRPCRouter({
       return { items, nextCursor, total }
     }),
 
-  exportAuditLogs: adminProcedure
+  exportAuditLogs: auditorProcedure
     .input(z.object({
       startDate: z.coerce.date().optional(),
       endDate: z.coerce.date().optional(),

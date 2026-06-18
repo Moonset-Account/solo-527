@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { trpc } from '@/trpc/react'
 import { Card, CardBody, CardHeader, CardTitle, Button, EmptyState, StatCard, Input, Textarea, Modal, Select } from '@/components/ui'
-import { VolunteerStatusBadge } from '@/components/Badges'
-import { formatDate, formatDateShort } from '@/lib/utils'
+import { VolunteerStatusBadge, DamageStatusBadge } from '@/components/Badges'
+import { formatDate, formatDateShort, cn } from '@/lib/utils'
 
 const statusFilters = [
   { value: undefined, label: '全部' },
@@ -19,40 +19,75 @@ export default function VolunteerPage() {
   const [mineOnly, setMineOnly] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCompleteModal, setShowCompleteModal] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const [selectedTask, setSelectedTask] = useState<any>(null)
 
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
   const [type, setType] = useState('设施维修')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [selectedDamageId, setSelectedDamageId] = useState('')
+
   const [completeHours, setCompleteHours] = useState<number>(2)
   const [completeNote, setCompleteNote] = useState('')
+  const [completeResultNote, setCompleteResultNote] = useState('')
+  const [completeResultPhoto, setCompleteResultPhoto] = useState('')
 
   const { data: tasks, isLoading } = trpc.volunteer.listTasks.useQuery({ status, mineOnly })
   const { data: stats } = trpc.volunteer.stats.useQuery()
+  const { data: bindableDamages } = trpc.volunteer.listBindableDamageReports.useQuery(undefined, {
+    enabled: showCreateModal,
+  })
   const utils = trpc.useUtils()
 
   const signUpMutation = trpc.volunteer.signUp.useMutation({
-    onSuccess: () => utils.volunteer.listTasks.invalidate(),
+    onSuccess: () => {
+      utils.volunteer.listTasks.invalidate()
+      utils.volunteer.stats.invalidate()
+      utils.facility.listDamageReports.invalidate()
+    },
   })
   const cancelMutation = trpc.volunteer.cancelSignUp.useMutation({
-    onSuccess: () => utils.volunteer.listTasks.invalidate(),
+    onSuccess: () => {
+      utils.volunteer.listTasks.invalidate()
+      utils.volunteer.stats.invalidate()
+    },
   })
   const createMutation = trpc.volunteer.createTask.useMutation({
     onSuccess: () => {
       setShowCreateModal(false)
-      setTitle(''); setDesc(''); setType('设施维修'); setScheduledAt('')
+      setTitle(''); setDesc(''); setType('设施维修'); setScheduledAt(''); setSelectedDamageId('')
       utils.volunteer.listTasks.invalidate()
+      utils.volunteer.stats.invalidate()
+      utils.facility.listDamageReports.invalidate()
     },
   })
   const completeMutation = trpc.volunteer.completeTask.useMutation({
     onSuccess: () => {
-      setShowCompleteModal(false); setSelectedTask(null); setCompleteNote('')
+      setShowCompleteModal(false); setSelectedTask(null)
+      setCompleteNote(''); setCompleteResultNote(''); setCompleteResultPhoto('')
       utils.volunteer.listTasks.invalidate()
+      utils.volunteer.stats.invalidate()
+      utils.facility.listDamageReports.invalidate()
     },
   })
 
   const volunteerTypes = ['设施维修', '环境维护', '秩序维护', '敬老助残', '文化活动', '宣传通知', '其他']
+
+  const openCompleteModal = (task: any) => {
+    setSelectedTask(task)
+    setShowCompleteModal(true)
+  }
+
+  const handleComplete = () => {
+    if (!selectedTask) return
+    completeMutation.mutate({
+      id: selectedTask.id,
+      hoursSpent: completeHours,
+      note: completeNote || undefined,
+      resultNote: selectedTask.damageReport ? completeResultNote || undefined : undefined,
+      resultPhotoUrl: selectedTask.damageReport && completeResultPhoto ? completeResultPhoto : undefined,
+    })
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -69,11 +104,12 @@ export default function VolunteerPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-5">
         <StatCard icon="📋" label="全部任务" value={stats?.totalTasks ?? 0} tone="blue" />
         <StatCard icon="✅" label="已完成" value={stats?.completedTasks ?? 0} tone="emerald" />
         <StatCard icon="⏱️" label="累计服务时长" value={`${stats?.totalHours ?? 0}h`} tone="purple" />
         <StatCard icon="⭐" label="我的服务时长" value={`${stats?.myHours ?? 0}h`} subtext={`完成 ${stats?.myCompletedTasks ?? 0} 项`} tone="amber" />
+        <StatCard icon="🛠️" label="维修关联完成" value={stats?.damageRelatedTasks ?? 0} subtext="关联报修任务" tone="rose" />
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -104,7 +140,10 @@ export default function VolunteerPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {tasks.map(task => (
             <Card key={task.id} className="overflow-hidden">
-              <div className="h-1.5 bg-gradient-to-r from-purple-500 to-pink-500" />
+              <div className={cn(
+                'h-1.5',
+                task.damageReport ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400' : 'bg-gradient-to-r from-purple-500 to-pink-500'
+              )} />
               <CardBody className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-slate-900 flex-1 min-w-0">{task.title}</h3>
@@ -118,8 +157,15 @@ export default function VolunteerPage() {
                   {task.hoursSpent && <span>⏱️ {task.hoursSpent}h</span>}
                 </div>
                 {task.damageReport && (
-                  <div className="rounded-lg bg-blue-50 border border-blue-100 p-2 text-xs text-blue-700">
-                    🛠️ 关联维修: {task.damageReport.title}
+                  <div className="rounded-lg bg-orange-50 border border-orange-200 p-2.5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-orange-800">🛠️ 关联报修</span>
+                      <DamageStatusBadge status={task.damageReport.status} />
+                    </div>
+                    <p className="text-xs text-orange-700 font-medium">{task.damageReport.title}</p>
+                    <p className="text-xs text-orange-600">
+                      � {task.damageReport.facility?.name} · {task.damageReport.facility?.location}
+                    </p>
                   </div>
                 )}
                 <div className="flex gap-2 pt-1">
@@ -133,7 +179,7 @@ export default function VolunteerPage() {
                       <Button size="sm" variant="secondary" onClick={() => cancelMutation.mutate({ id: task.id })} disabled={cancelMutation.isPending}>
                         取消报名
                       </Button>
-                      <Button size="sm" onClick={() => { setSelectedTask(task.id); setShowCompleteModal(true) }}>
+                      <Button size="sm" onClick={() => openCompleteModal(task)}>
                         完成任务
                       </Button>
                     </>
@@ -179,6 +225,7 @@ export default function VolunteerPage() {
             <Button onClick={() => createMutation.mutate({
               title, description: desc, type,
               scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+              damageReportId: selectedDamageId || undefined,
             })} disabled={!title.trim() || !desc.trim() || createMutation.isPending}>
               {createMutation.isPending ? '发布中...' : '发布任务'}
             </Button>
@@ -190,19 +237,46 @@ export default function VolunteerPage() {
           <Textarea label="任务描述" placeholder="描述任务内容、时间地点、技能要求等..." value={desc} onChange={e => setDesc(e.target.value)} />
           <Select label="任务类型" value={type} onChange={e => setType(e.target.value)} options={volunteerTypes.map(t => ({ value: t, label: t }))} />
           <Input label="计划时间（可选）" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              🛠️ 关联损坏报修（可选）
+            </label>
+            <p className="text-xs text-slate-500 mb-2">
+              绑定后，报名和完成时将自动更新对应维修的待办状态和处理结果
+            </p>
+            {bindableDamages && bindableDamages.length > 0 ? (
+              <select
+                value={selectedDamageId}
+                onChange={e => setSelectedDamageId(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              >
+                <option value="">不关联报修</option>
+                {bindableDamages.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.title} — {d.facility?.name}（{d.facility?.location}）优先级:{d.priority >= 4 ? '高' : d.priority >= 3 ? '中' : '低'}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-slate-400 italic">当前没有待处理的报修记录</p>
+            )}
+            {selectedDamageId && bindableDamages && (
+              <div className="mt-2 rounded-lg bg-orange-50 border border-orange-200 p-2 text-xs text-orange-700">
+                绑定后效果：报名 → 报修状态变为「处理中」；完成任务 → 报修自动标记「已完成」并回填处理结果
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 
       <Modal
         open={showCompleteModal && !!selectedTask}
-        onClose={() => { setShowCompleteModal(false); setSelectedTask(null); setCompleteNote('') }}
+        onClose={() => { setShowCompleteModal(false); setSelectedTask(null); setCompleteNote(''); setCompleteResultNote(''); setCompleteResultPhoto('') }}
         title="✅ 完成志愿任务"
         footer={
           <>
             <Button variant="secondary" onClick={() => { setShowCompleteModal(false); setSelectedTask(null) }}>取消</Button>
-            <Button onClick={() => completeMutation.mutate({
-              id: selectedTask!, hoursSpent: completeHours, note: completeNote || undefined,
-            })} disabled={completeMutation.isPending}>
+            <Button onClick={handleComplete} disabled={completeMutation.isPending}>
               {completeMutation.isPending ? '提交中...' : '确认完成'}
             </Button>
           </>
@@ -211,6 +285,32 @@ export default function VolunteerPage() {
         <div className="space-y-4">
           <Input label="服务时长（小时）" type="number" min={0.5} step={0.5} value={completeHours} onChange={e => setCompleteHours(parseFloat(e.target.value) || 0.5)} />
           <Textarea label="服务记录（可选）" placeholder="简要记录完成情况..." value={completeNote} onChange={e => setCompleteNote(e.target.value)} />
+
+          {selectedTask?.damageReport && (
+            <div className="space-y-3 rounded-xl border-2 border-orange-200 bg-orange-50/50 p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-orange-800">🛠️ 关联报修处理结果</span>
+                <span className="text-xs bg-orange-200 text-orange-800 rounded-full px-2 py-0.5">
+                  {selectedTask.damageReport.title}
+                </span>
+              </div>
+              <p className="text-xs text-orange-600">
+                完成任务将自动把报修标记为「已完成」，以下内容将回填到报修处理结果中
+              </p>
+              <Textarea
+                label="维修处理结果"
+                placeholder="详细说明维修过程、使用的材料/方案、是否彻底解决..."
+                value={completeResultNote}
+                onChange={e => setCompleteResultNote(e.target.value)}
+              />
+              <Input
+                label="处理后照片 URL（可选）"
+                placeholder="https://..."
+                value={completeResultPhoto}
+                onChange={e => setCompleteResultPhoto(e.target.value)}
+              />
+            </div>
+          )}
         </div>
       </Modal>
     </div>
