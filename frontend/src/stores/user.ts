@@ -29,7 +29,7 @@ export const useUserStore = defineStore('user', () => {
     const res = await login({ username, password })
     token.value = res.accessToken
     refreshTokenVal.value = res.refreshToken
-    userInfo.value = res.user
+    userInfo.value = res.user as any
     saveToStorage()
     checkPermissionExpiry()
     return res
@@ -103,10 +103,19 @@ export const useUserStore = defineStore('user', () => {
     const daysLeft = Math.ceil((expire - now) / (1000 * 60 * 60 * 24))
 
     if (daysLeft <= 0) {
-      ElMessage.error('账号权限已过期，请联系运营负责人')
-      clearAll()
+      ElMessage({
+        type: 'error',
+        message: '您的账号权限已过期，部分功能可能受限，请联系运营负责人续期',
+        duration: 5000,
+        showClose: true,
+      })
     } else if (daysLeft <= 7) {
-      ElMessage.warning(`您的账号权限将在 ${daysLeft} 天后过期，请联系运营负责人续费`)
+      ElMessage({
+        type: 'warning',
+        message: `您的账号权限将在 ${daysLeft} 天后过期，请及时联系运营负责人续期`,
+        duration: 4000,
+        showClose: true,
+      })
     }
   }
 

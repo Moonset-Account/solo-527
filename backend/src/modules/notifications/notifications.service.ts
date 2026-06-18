@@ -10,6 +10,7 @@ import {
 import { Inject } from '@nestjs/common';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import Redis from 'ioredis';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class NotificationsService {
@@ -17,6 +18,7 @@ export class NotificationsService {
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>,
     @Inject(REDIS_CLIENT) private redis: Redis,
+    private usersService: UsersService,
   ) {}
 
   async create(
@@ -152,6 +154,9 @@ export class NotificationsService {
   async notifyPermissionExpiring(
     users: { userId: string; userName: string; expireAt: Date; datasetName?: string }[],
   ) {
+    const operatorOwners = await this.usersService.findOperatorOwners();
+    const expiredUsers: typeof users = [];
+
     for (const user of users) {
       const daysLeft = Math.ceil(
         (new Date(user.expireAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
@@ -173,12 +178,53 @@ export class NotificationsService {
           daysLeft,
         },
       });
+
+      if (daysLeft <= 0) {
+        expiredUsers.push(user);
+      }
+    }
+
+    if (expiredUsers.length > 0 && operatorOwners.length > 0) {
+      for (const owner of operatorOwners) {
+        const expiredNames = expiredUsers.map(u => u.userName).join('、');
+        await this.create({
+          userId: owner._id.toString(),
+          type: 'permission_expired' as NotificationType,
+          title: '🚨 团队成员权限已过期',
+          content: `以下团队成员的系统权限已过期，请及时处理：${expiredNames}`,
+          priority: 'high' as NotificationPriority,
+          data: {
+            expiredCount: expiredUsers.length,
+            expiredUsers: expiredUsers.map(u => ({
+              userId: u.userId,
+              userName: u.userName,
+              expireAt: u.expireAt,
+            })),
+          },
+        });
+      }
     }
   }
 
   @Cron('0 0 9 * * *')
   async dailyCheckPermissionExpiry() {
     console.log('🔔 开始检查即将过期的权限...');
+    try {
+      const expiringUsers = await this.usersService.findExpiringUsers(30);
+      if (expiringUsers.length > 0) {
+        const notifyList = expiringUsers.map(u => ({
+          userId: u._id.toString(),
+          userName: u.name,
+          expireAt: u.permissionExpireAt,
+        }));
+        await this.notifyPermissionExpiring(notifyList);
+        console.log(`✅ 已生成 ${notifyList.length} 条权限过期提醒通知`);
+      } else {
+        console.log('✅ 没有即将过期的权限');
+      }
+    } catch (error) {
+      console.error('❌ 检查权限过期失败:', error);
+    }
   }
 
   async initMockData(userId: string) {

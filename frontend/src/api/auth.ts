@@ -22,11 +22,11 @@ export interface LoginResult {
 }
 
 export function login(params: LoginParams) {
-  return request.post<any, LoginResult>('/auth/login', params)
+  return request.post<LoginResult>('/auth/login', params)
 }
 
 export function refreshToken(token: string) {
-  return request.post<any, { accessToken: string }>('/auth/refresh', { refreshToken: token })
+  return request.post<{ accessToken: string }>('/auth/refresh', { refreshToken: token })
 }
 
 export function logout() {
@@ -38,5 +38,5 @@ export function changePassword(params: { oldPassword: string; newPassword: strin
 }
 
 export function getProfile() {
-  return request.get<any, any>('/users/profile')
+  return request.get<any>('/users/profile')
 }

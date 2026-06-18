@@ -10,13 +10,15 @@ import {
 } from './schemas/notification.schema';
 import { Model } from 'mongoose';
 import { User } from '../users/schemas/user.schema';
+import { UserSchema } from '../users/schemas/user.schema';
 import { getModelToken } from '@nestjs/mongoose';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
-      { name: User.name, schema: NotificationSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -26,6 +28,7 @@ import { getModelToken } from '@nestjs/mongoose';
       }),
       inject: [ConfigService],
     }),
+    UsersModule,
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],
@@ -43,5 +46,10 @@ export class NotificationsModule implements OnModuleInit {
       await this.service.initMockData(u._id.toString());
     }
     console.log('✅ 通知模拟数据初始化完成');
+
+    setTimeout(async () => {
+      console.log('🔔 启动时执行权限过期检查...');
+      await this.service.dailyCheckPermissionExpiry();
+    }, 3000);
   }
 }

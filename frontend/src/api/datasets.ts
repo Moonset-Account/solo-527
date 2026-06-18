@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
 
-export function getDatasets(params?: any) {
-  return request.get<any, PageResult>('/datasets', { params })
+export function getDatasets(params: any) {
+  return request.get<PageResult>('/datasets', { params })
 }
 
 export function getDataset(id: string) {

@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
 
-export function getUsers(params?: any) {
-  return request.get<any, PageResult>('/users', { params })
+export function getUsers(params: any) {
+  return request.get<PageResult>('/users', { params })
 }
 
 export function getUser(id: string) {

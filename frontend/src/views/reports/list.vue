@@ -170,7 +170,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  getReports, createReport, deleteReport, publishReport as _publishReport
+  getReports, createReport, deleteReport as deleteReportApi, publishReport as _publishReport
 } from '@/api/reports'
 import { useUserStore } from '@/stores/user'
 import { formatDate, formatDateShort, reportTypeMap } from '@/utils'
@@ -251,7 +251,7 @@ async function deleteReport(row: any) {
     await ElMessageBox.confirm(`确认删除【${row.title}】？`, '提示', {
       type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消'
     })
-    await deleteReport(row._id)
+    await deleteReportApi(row._id)
     ElMessage.success('已删除')
     loadData()
   } catch (e) {}

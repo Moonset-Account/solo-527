@@ -107,6 +107,8 @@ export class UsersService {
     const count = await this.userModel.countDocuments();
     if (count > 0) return;
 
+    const now = new Date();
+
     const defaultUsers = [
       {
         username: 'admin',
@@ -124,7 +126,7 @@ export class UsersService {
         role: 'manager',
         department: '运营部',
         isOperatorOwner: true,
-        permissionExpireAt: new Date('2025-12-31'),
+        permissionExpireAt: new Date(now.getTime() + 30 * 86400000),
       },
       {
         username: 'operator',
@@ -133,7 +135,7 @@ export class UsersService {
         email: 'operator@example.com',
         role: 'operator',
         department: '运营部',
-        permissionExpireAt: new Date('2025-06-30'),
+        permissionExpireAt: new Date(now.getTime() + 7 * 86400000),
       },
       {
         username: 'viewer',
@@ -142,7 +144,7 @@ export class UsersService {
         email: 'viewer@example.com',
         role: 'viewer',
         department: '产品部',
-        permissionExpireAt: new Date('2025-03-31'),
+        permissionExpireAt: new Date(now.getTime() - 2 * 86400000),
       },
     ];
 

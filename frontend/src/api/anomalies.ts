@@ -15,7 +15,7 @@ export interface QueryAnomaliesParams {
 }
 
 export function getAnomalies(params: QueryAnomaliesParams) {
-  return request.get<any, PageResult>('/anomalies', { params })
+  return request.get<PageResult>('/anomalies', { params })
 }
 
 export function getAnomalyDetail(id: string) {

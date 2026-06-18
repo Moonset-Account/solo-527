@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
 
-export function getAlertRules(params?: any) {
-  return request.get<any, PageResult>('/alert-rules', { params })
+export function getAlertRules(params: any) {
+  return request.get<PageResult>('/alert-rules', { params })
 }
 
 export function getAlertRule(id: string) {

@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 import type { PageResult } from '@/utils/request'
 
-export function getReports(params?: any) {
-  return request.get<any, PageResult>('/reports', { params })
+export function getReports(params: any) {
+  return request.get<PageResult>('/reports', { params })
 }
 
 export function getReport(id: string) {

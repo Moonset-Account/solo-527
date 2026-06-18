@@ -161,7 +161,7 @@ const mainRoutes = router.options.routes.find(r => r.path === '/')?.children || 
 const menuRoutes = computed(() => {
   return (mainRoutes as RouteRecordRaw[]).filter(r => {
     if (r.meta?.hidden) return false
-    if (r.meta?.roles && !r.meta.roles.includes(userStore.userInfo?.role || '')) return false
+    if (r.meta?.roles && !(r.meta.roles as string[]).includes(userStore.userInfo?.role || '')) return false
     return true
   })
 })

@@ -527,19 +527,19 @@ async function loadAll() {
       getBusinessDetail(id)
     ])
     detail.value = d
-    events.value = ev
+    events.value = ev as any[]
     businessDetail.value = bd
-    statusValue.value = d.status
-    severityValue.value = d.severity
-    summaryText.value = d.summary || ''
+    statusValue.value = (d as any).status
+    severityValue.value = (d as any).severity
+    summaryText.value = (d as any).summary || ''
     Object.assign(businessForm, {
-      businessContext: bd.businessContext || '',
-      impactScope: bd.impactScope || '',
-      relatedBusiness: bd.relatedBusiness || '',
-      rootCauseAnalysis: bd.rootCauseAnalysis || '',
-      solution: bd.solution || '',
-      preventionMeasure: bd.preventionMeasure || '',
-      reviewStatus: bd.reviewStatus || 'not_started'
+      businessContext: (bd as any).businessContext || '',
+      impactScope: (bd as any).impactScope || '',
+      relatedBusiness: (bd as any).relatedBusiness || '',
+      rootCauseAnalysis: (bd as any).rootCauseAnalysis || '',
+      solution: (bd as any).solution || '',
+      preventionMeasure: (bd as any).preventionMeasure || '',
+      reviewStatus: (bd as any).reviewStatus || 'not_started'
     })
     await nextTick()
     initTrendChart()

@@ -268,7 +268,14 @@ const pageSize = ref(20)
 const selectedIds = ref<string[]>([])
 const dateRange = ref<any>(null)
 
-const filters = reactive({
+const filters = reactive<{
+  keyword: string
+  category: string
+  severity: string
+  status: string
+  startDate?: string
+  endDate?: string
+}>({
   keyword: '',
   category: '',
   severity: '',

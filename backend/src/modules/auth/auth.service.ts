@@ -64,7 +64,7 @@ export class AuthService {
 
     await this.usersService.updateLoginInfo(user._id, ip);
 
-    this.checkPermissionExpiry(user);
+    const permissionWarning = this.checkPermissionExpiry(user);
 
     return {
       accessToken,
@@ -79,6 +79,7 @@ export class AuthService {
         department: user.department,
         status: user.status,
         permissionExpireAt: user.permissionExpireAt,
+        permissionWarning,
       },
     };
   }
@@ -136,8 +137,8 @@ export class AuthService {
     return { message: '密码修改成功，请重新登录' };
   }
 
-  private async checkPermissionExpiry(user: any) {
-    if (!user.permissionExpireAt) return;
+  private checkPermissionExpiry(user: any) {
+    if (!user.permissionExpireAt) return null;
 
     const now = new Date();
     const expireAt = new Date(user.permissionExpireAt);
@@ -146,8 +147,18 @@ export class AuthService {
     );
 
     if (diffDays <= 0) {
-      await this.usersService.update(user._id, { status: 'expired' });
-      throw new UnauthorizedException('账号权限已过期，请联系运营负责人');
+      return {
+        expired: true,
+        daysLeft: diffDays,
+        message: '您的账号权限已过期，部分功能可能受限，请联系运营负责人续期',
+      };
+    } else if (diffDays <= 7) {
+      return {
+        expired: false,
+        daysLeft: diffDays,
+        message: `您的账号权限将在 ${diffDays} 天后过期，请及时续期`,
+      };
     }
+    return null;
   }
 }

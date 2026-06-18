@@ -148,7 +148,7 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  if (to.meta.roles && !to.meta.roles.includes(userStore.userInfo?.role)) {
+  if (to.meta.roles && !(to.meta.roles as string[]).includes(userStore.userInfo?.role as string)) {
     next('/403')
     return
   }

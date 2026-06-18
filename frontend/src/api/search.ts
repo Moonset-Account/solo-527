@@ -15,6 +15,8 @@ export function globalSearch(params: {
   return request.get('/search', { params })
 }
 
-export function suggestKeywords(q: string) {
-  return request.get<any, string[]>('/search/suggest', { params: { q } })
+export function getSuggestions(q: string) {
+  return request.get<string[]>('/search/suggest', { params: { q } })
 }
+
+export const suggestKeywords = getSuggestions
