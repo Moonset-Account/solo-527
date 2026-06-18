@@ -26,39 +26,41 @@
         </form>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
-            <div class="flex items-center justify-between">
-                <p class="text-xs font-medium text-gray-500">平均响应时长</p>
-                <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+    <div id="response-times-area">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-medium text-gray-500">平均响应时长</p>
+                    <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
                 </div>
+                <p class="text-2xl font-bold text-gray-800 mt-2">-- <span class="text-sm font-normal text-gray-400">分钟</span></p>
             </div>
-            <p class="text-2xl font-bold text-gray-800 mt-2" id="avg-response-time">-- <span class="text-sm font-normal text-gray-400">分钟</span></p>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
-            <div class="flex items-center justify-between">
-                <p class="text-xs font-medium text-gray-500">最大响应时长</p>
-                <div class="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-medium text-gray-500">最大响应时长</p>
+                    <div class="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
                 </div>
+                <p class="text-2xl font-bold text-gray-800 mt-2">-- <span class="text-sm font-normal text-gray-400">分钟</span></p>
             </div>
-            <p class="text-2xl font-bold text-gray-800 mt-2" id="max-response-time">-- <span class="text-sm font-normal text-gray-400">分钟</span></p>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
-            <div class="flex items-center justify-between">
-                <p class="text-xs font-medium text-gray-500">按级别统计</p>
-                <div class="w-8 h-8 bg-solar-50 rounded-lg flex items-center justify-center">
-                    <svg class="w-4 h-4 text-solar-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-medium text-gray-500">按级别统计</p>
+                    <div class="w-8 h-8 bg-solar-50 rounded-lg flex items-center justify-center">
+                        <svg class="w-4 h-4 text-solar-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
                 </div>
+                <p class="text-2xl font-bold text-gray-800 mt-2">--</p>
             </div>
-            <p class="text-2xl font-bold text-gray-800 mt-2" id="severity-stats">--</p>
         </div>
     </div>
 
@@ -73,12 +75,13 @@
                                 <th class="text-left py-3 px-4 font-medium text-gray-600">日期</th>
                                 <th class="text-left py-3 px-4 font-medium text-gray-600">峰值功率(kW)</th>
                                 <th class="text-left py-3 px-4 font-medium text-gray-600">发生时段</th>
+                                <th class="text-left py-3 px-4 font-medium text-gray-600">关联告警</th>
                                 <th class="text-left py-3 px-4 font-medium text-gray-600">操作</th>
                             </tr>
                         </thead>
                         <tbody id="peaks-table-body">
                             <tr>
-                                <td colspan="4" class="py-8 text-center text-gray-400">请选择电站和日期范围后查询</td>
+                                <td colspan="5" class="py-8 text-center text-gray-400">请选择电站和日期范围后查询</td>
                             </tr>
                         </tbody>
                     </table>
@@ -93,7 +96,7 @@
                     <svg class="mx-auto w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
                     </svg>
-                    <p>点击左侧峰值记录查看追踪链</p>
+                    <p>点击告警编号或追踪链按钮查看详情</p>
                 </div>
             </div>
         </div>
@@ -130,9 +133,8 @@ function loadStatisticsData() {
     if (!stationId || !startDate || !endDate) return;
     var params = 'station_id=' + encodeURIComponent(stationId) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
     htmx.ajax('GET', '/statistics/energy-peaks?' + params, '#energy-peaks-list');
-    htmx.ajax('GET', '/statistics/response-times?' + params, '#avg-response-time');
+    htmx.ajax('GET', '/statistics/response-times?' + params, '#response-times-area');
     htmx.ajax('GET', '/statistics/responsible-persons?' + params, '#responsible-persons-body');
-    htmx.ajax('GET', '/statistics/trace-chain?' + params, '#trace-chain-detail');
 }
 </script>
 {% endblock %}

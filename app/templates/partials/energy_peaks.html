@@ -1,26 +1,55 @@
 <div class="overflow-x-auto">
     <table class="w-full text-sm">
         <thead>
-            <tr class="bg-gray-800 border-b border-gray-700">
-                <th class="text-left py-3 px-4 font-medium text-gray-400">日期</th>
-                <th class="text-left py-3 px-4 font-medium text-gray-400">峰值功率(kW)</th>
-                <th class="text-left py-3 px-4 font-medium text-gray-400">发生时段</th>
-                <th class="text-left py-3 px-4 font-medium text-gray-400">操作</th>
+            <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="text-left py-3 px-4 font-medium text-gray-600">日期</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-600">峰值功率(kW)</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-600">发生时段</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-600">关联告警</th>
+                <th class="text-left py-3 px-4 font-medium text-gray-600">操作</th>
             </tr>
         </thead>
         <tbody>
             {% for peak in peaks %}
-            <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer" hx-get="/statistics/strategy-failure/{{ peak.alarm_id }}" hx-target="#trace-chain-detail" hx-swap="innerHTML">
-                <td class="py-3 px-4 text-gray-300">{{ peak.record_date }}</td>
-                <td class="py-3 px-4 font-mono text-orange-400 font-medium">{{ peak.peak_kw|round(2) }}</td>
-                <td class="py-3 px-4 text-gray-300">{{ peak.hour }}时</td>
+            <tr class="border-b border-gray-100 hover:bg-solar-50/50 transition">
+                <td class="py-3 px-4 text-gray-700">{{ peak.record_date }}</td>
+                <td class="py-3 px-4 font-mono text-orange-600 font-semibold">{{ peak.peak_kw|round(2) }}</td>
+                <td class="py-3 px-4 text-gray-600">{{ peak.hour }}时</td>
                 <td class="py-3 px-4">
-                    <span class="text-emerald-400 hover:text-emerald-300 text-xs font-medium transition">查看追踪链</span>
+                    {% if peak.alarm_id %}
+                    <span class="inline-flex items-center space-x-1.5">
+                        {% if peak.alarm_severity == 'critical' %}
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                        {% elif peak.alarm_severity == 'major' %}
+                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                        {% elif peak.alarm_severity == 'minor' %}
+                        <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                        {% else %}
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        {% endif %}
+                        <span class="text-xs font-mono text-blue-600">{{ peak.alarm_id[:8] }}…</span>
+                        <span class="text-xs text-gray-500">({{ peak.alarm_type }})</span>
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-gray-400">无关联告警</span>
+                    {% endif %}
+                </td>
+                <td class="py-3 px-4">
+                    {% if peak.alarm_id %}
+                    <button class="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-solar-500 text-white hover:bg-solar-600 transition"
+                            hx-get="/statistics/strategy-failure/{{ peak.alarm_id }}"
+                            hx-target="#trace-chain-detail"
+                            hx-swap="innerHTML">
+                        追踪链
+                    </button>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="py-8 text-center text-gray-500">暂无能耗峰值数据</td>
+                <td colspan="5" class="py-8 text-center text-gray-400">暂无能耗峰值数据</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -103,8 +103,8 @@ async def get_peak_load_analysis(
     records = result.scalars().all()
     return [
         {
-            "date": rec.record_date.isoformat(),
-            "peak_load_kw": rec.peak_load_kw,
+            "record_date": rec.record_date.isoformat(),
+            "peak_kw": float(rec.peak_load_kw) if rec.peak_load_kw else 0.0,
             "strategy_status": "normal" if rec.peak_load_kw and rec.peak_load_kw < 100 else "warning",
         }
         for rec in records

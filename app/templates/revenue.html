@@ -29,23 +29,23 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
             <p class="text-xs font-medium text-gray-500 mb-1">总发电量</p>
-            <p class="text-2xl font-bold text-gray-800">-- <span class="text-sm font-normal text-gray-400">kWh</span></p>
+            <p class="text-2xl font-bold text-gray-800"><span data-field="total_generation">--</span> <span class="text-sm font-normal text-gray-400">kWh</span></p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
             <p class="text-xs font-medium text-gray-500 mb-1">总收入</p>
-            <p class="text-2xl font-bold text-solar-500">¥--</p>
+            <p class="text-2xl font-bold text-solar-500" data-field="total_revenue">¥--</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
             <p class="text-xs font-medium text-gray-500 mb-1">补贴收入</p>
-            <p class="text-2xl font-bold text-blue-500">¥--</p>
+            <p class="text-2xl font-bold text-blue-500" data-field="subsidy_revenue">¥--</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
             <p class="text-xs font-medium text-gray-500 mb-1">平均日收益</p>
-            <p class="text-2xl font-bold text-amber-500">¥--</p>
+            <p class="text-2xl font-bold text-amber-500" data-field="avg_daily_revenue">¥--</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover">
             <p class="text-xs font-medium text-gray-500 mb-1">最大尖峰负荷</p>
-            <p class="text-2xl font-bold text-red-500">-- <span class="text-sm font-normal text-gray-400">kW</span></p>
+            <p class="text-2xl font-bold text-red-500"><span data-field="max_peak_load">--</span> <span class="text-sm font-normal text-gray-400">kW</span></p>
         </div>
     </div>
 
@@ -59,13 +59,8 @@
         </div>
 
         <div id="panel-records" class="p-6">
-            <div id="revenue-records" hx-get="/revenue/records" hx-trigger="load" hx-vals='{"station_id": "{{ selected_station_id if selected_station_id else "" }}", "start_date": "{{ start_date if start_date else "" }}", "end_date": "{{ end_date if end_date else "" }}"}'>
-                <div class="flex items-center justify-center py-12">
-                    <svg class="animate-spin h-6 w-6 text-solar-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
+            <div id="revenue-records">
+                <p class="text-center text-gray-400 py-8">请选择电站和日期范围后查询收益记录</p>
             </div>
         </div>
 
@@ -76,33 +71,49 @@
         </div>
 
         <div id="panel-energy" class="p-6 hidden">
+            <div class="mb-4 flex flex-wrap gap-3 items-end" id="energy-curve-filter">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">开始时间</label>
+                    <input type="datetime-local" id="energy-start-time" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">结束时间</label>
+                    <input type="datetime-local" id="energy-end-time" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">间隔(分钟)</label>
+                    <select id="energy-interval" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="60">60</option>
+                    </select>
+                </div>
+                <button type="button" onclick="loadEnergyCurve()" class="bg-solar-500 hover:bg-solar-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">查询曲线</button>
+            </div>
             <div id="energy-curve-area">
-                <div class="mb-6">
-                    <div class="bg-gray-50 rounded-xl p-8 text-center border-2 border-dashed border-gray-200">
-                        <svg class="mx-auto w-16 h-16 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                        </svg>
-                        <p class="text-gray-400 text-sm">能耗曲线图表区域</p>
+                <p class="text-center text-gray-400 py-8">请选择时间范围后查询能耗曲线</p>
+            </div>
+
+            <div class="mt-8 border-t border-gray-200 pt-6">
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">批量能耗查询（多电站）</h4>
+                <form hx-post="/revenue/batch-energy" hx-target="#batch-energy-result" hx-swap="innerHTML" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">电站ID列表(逗号分隔)</label>
+                        <input type="text" name="station_ids" required placeholder="uuid1,uuid2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
                     </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="text-left py-3 px-4 font-medium text-gray-600">时间</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-600">有功功率(kW)</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-600">无功功率(kVar)</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-600">辐照度(W/m²)</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-600">温度(℃)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="5" class="py-8 text-center text-gray-400">请查询能耗曲线数据</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">开始时间</label>
+                        <input type="datetime-local" name="start_time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">结束时间</label>
+                        <input type="datetime-local" name="end_time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-solar-500 focus:border-solar-500 outline-none">
+                    </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition">批量查询能耗</button>
+                    </div>
+                </form>
+                <div id="batch-energy-result" class="mt-3"></div>
             </div>
         </div>
     </div>
@@ -165,6 +176,15 @@
 </div>
 
 <script>
+function getFilterParams() {
+    var form = document.getElementById('revenue-filter');
+    return {
+        station_id: form.querySelector('[name="station_id"]').value,
+        start_date: form.querySelector('[name="start_date"]').value,
+        end_date: form.querySelector('[name="end_date"]').value
+    };
+}
+
 function switchRevenueTab(tab) {
     ['records', 'peak', 'energy'].forEach(function(t) {
         document.getElementById('panel-' + t).classList.add('hidden');
@@ -174,15 +194,50 @@ function switchRevenueTab(tab) {
     document.getElementById('panel-' + tab).classList.remove('hidden');
     document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-gray-500');
     document.getElementById('tab-' + tab).classList.add('border-solar-500', 'text-solar-600');
+
+    var f = getFilterParams();
+    if (f.station_id && f.start_date && f.end_date) {
+        var params = 'station_id=' + encodeURIComponent(f.station_id) + '&start_date=' + encodeURIComponent(f.start_date) + '&end_date=' + encodeURIComponent(f.end_date);
+        if (tab === 'records') {
+            htmx.ajax('GET', '/revenue/records?' + params, '#revenue-records');
+        } else if (tab === 'peak') {
+            htmx.ajax('GET', '/revenue/peak-load?' + params, '#peak-load-data');
+        }
+    }
 }
 
 function loadRevenueData() {
-    var form = document.getElementById('revenue-filter');
-    var stationId = form.querySelector('[name="station_id"]').value;
-    var startDate = form.querySelector('[name="start_date"]').value;
-    var endDate = form.querySelector('[name="end_date"]').value;
-    var params = 'station_id=' + encodeURIComponent(stationId) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
+    var f = getFilterParams();
+    if (!f.station_id || !f.start_date || !f.end_date) return;
+    var params = 'station_id=' + encodeURIComponent(f.station_id) + '&start_date=' + encodeURIComponent(f.start_date) + '&end_date=' + encodeURIComponent(f.end_date);
     htmx.ajax('GET', '/revenue/records?' + params, '#revenue-records');
+    htmx.ajax('GET', '/revenue/peak-load?' + params, '#peak-load-data');
+
+    var startTime = f.start_date + 'T00:00';
+    var endTime = f.end_date + 'T23:59';
+    document.getElementById('energy-start-time').value = startTime;
+    document.getElementById('energy-end-time').value = endTime;
+
+    htmx.ajax('GET', '/revenue/api/summary?' + params).then(function(){}).catch(function(){});
+    fetch('/revenue/api/summary?' + params)
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+            document.querySelector('[data-field="total_generation"]').textContent = parseFloat(d.total_generation).toLocaleString();
+            document.querySelector('[data-field="total_revenue"]').textContent = '¥' + parseFloat(d.total_revenue).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.querySelector('[data-field="subsidy_revenue"]').textContent = '¥' + (parseFloat(d.total_revenue) * 0.15).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.querySelector('[data-field="avg_daily_revenue"]').textContent = '¥' + parseFloat(d.avg_daily_revenue).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.querySelector('[data-field="max_peak_load"]').textContent = parseFloat(d.max_peak_load).toLocaleString();
+        }).catch(function(){});
+}
+
+function loadEnergyCurve() {
+    var f = getFilterParams();
+    var startTime = document.getElementById('energy-start-time').value;
+    var endTime = document.getElementById('energy-end-time').value;
+    var interval = document.getElementById('energy-interval').value;
+    if (!f.station_id || !startTime || !endTime) return;
+    var params = 'station_id=' + encodeURIComponent(f.station_id) + '&start_time=' + encodeURIComponent(startTime.replace('T', ' ')) + '&end_time=' + encodeURIComponent(endTime.replace('T', ' ')) + '&interval_minutes=' + interval;
+    htmx.ajax('GET', '/revenue/energy-curve?' + params, '#energy-curve-area');
 }
 </script>
 {% endblock %}

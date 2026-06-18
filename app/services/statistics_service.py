@@ -26,14 +26,40 @@ async def get_energy_peak_summary(
     )
     result = await db.execute(stmt)
     records = result.scalars().all()
-    return [
-        {
-            "date": rec.record_date.isoformat(),
-            "peak_kw": rec.peak_load_kw,
+
+    alarm_stmt = (
+        select(Alarm)
+        .where(
+            Alarm.station_id == station_id,
+            Alarm.created_at >= start_date,
+            Alarm.created_at <= end_date,
+        )
+        .order_by(Alarm.created_at)
+    )
+    alarm_result = await db.execute(alarm_stmt)
+    alarms = alarm_result.scalars().all()
+
+    alarm_by_date: dict[str, list[Alarm]] = {}
+    for alarm in alarms:
+        d = alarm.created_at.strftime("%Y-%m-%d") if alarm.created_at else ""
+        alarm_by_date.setdefault(d, []).append(alarm)
+
+    peaks = []
+    for rec in records:
+        d = rec.record_date.isoformat()
+        related = alarm_by_date.get(d, [])
+        alarm_id = str(related[0].id) if related else None
+        alarm_type = related[0].alarm_type if related else None
+        alarm_severity = related[0].severity if related else None
+        peaks.append({
+            "record_date": d,
+            "peak_kw": float(rec.peak_load_kw) if rec.peak_load_kw else 0.0,
             "hour": 12,
-        }
-        for rec in records
-    ]
+            "alarm_id": alarm_id,
+            "alarm_type": alarm_type,
+            "alarm_severity": alarm_severity,
+        })
+    return peaks
 
 
 async def trace_strategy_failure(db: AsyncSession, alarm_id: uuid.UUID) -> dict:
