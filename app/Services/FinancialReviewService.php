@@ -16,9 +16,8 @@ class FinancialReviewService
             'pending' => FinancialReview::where('status', 'pending')->count(),
             'approved' => FinancialReview::where('status', 'approved')->count(),
             'rejected' => FinancialReview::where('status', 'rejected')->count(),
-            'needs_revision' => FinancialReview::where('status', 'needs_revision')->count(),
-            'total_reviewed_amount' => FinancialReview::whereIn('status', ['approved', 'rejected'])->sum('reviewed_amount'),
-            'pending_amount' => FinancialReview::where('status', 'pending')->sum('reviewed_amount'),
+            'total_reviewed_amount' => FinancialReview::whereIn('status', ['approved', 'rejected'])->sum('total_amount'),
+            'pending_amount' => FinancialReview::where('status', 'pending')->sum('total_amount'),
         ];
     }
 
@@ -26,34 +25,64 @@ class FinancialReviewService
     {
         $count = 0;
 
-        FinancialReview::where('synced_to_dashboard', false)
-            ->orWhereNull('synced_to_dashboard')
+        FinancialReview::where('entity_type', 'quotation')
             ->chunk(50, function ($reviews) use (&$count) {
                 foreach ($reviews as $review) {
-                    $quotation = $review->quotation;
-                    $expected = $quotation?->total_amount ?? 0;
-                    $actual = $review->reviewed_amount ?? $expected;
+                    $quotation = \App\Models\Quotation::find($review->entity_id);
+                    if (!$quotation) {
+                        continue;
+                    }
+
+                    $firstItem = $quotation->items()->first();
+                    $difference = $review->total_amount - $quotation->total_amount;
+                    $severity = $this->calculateSeverity($difference, $quotation->total_amount);
+                    $status = $review->status === 'approved' ? 'resolved' : 'reported';
 
                     DeliveryDiscrepancy::updateOrCreate(
-                        ['financial_review_id' => $review->id],
                         [
-                            'quotation_id' => $review->quotation_id,
-                            'reviewer_id' => $review->reviewer_id,
-                            'discrepancy_type' => $review->discrepancy_type ?? 'price',
-                            'expected_amount' => $expected,
-                            'actual_amount' => $actual,
-                            'difference' => $actual - $expected,
-                            'description' => $review->comments ?? '',
-                            'status' => $review->status === 'approved' ? 'resolved' : 'pending',
-                            'synced_at' => now(),
+                            'supply_id' => $firstItem?->supply_id,
+                            'discrepancy_type' => 'price',
+                        ],
+                        [
+                            'delivery_id' => null,
+                            'supply_id' => $firstItem?->supply_id,
+                            'supply_name' => $firstItem?->supply_name ?? 'N/A',
+                            'specification' => $firstItem?->specification,
+                            'unit' => $firstItem?->unit,
+                            'discrepancy_type' => 'price',
+                            'expected_quantity' => 0,
+                            'actual_quantity' => 0,
+                            'difference' => $difference,
+                            'description' => $review->review_comments,
+                            'severity' => $severity,
+                            'status' => $status,
+                            'handling_measures' => $review->review_comments,
+                            'resolved_at' => $review->status === 'approved' ? $review->reviewed_at : null,
+                            'handled_by' => $review->reviewer_id,
                         ]
                     );
 
-                    $review->update(['synced_to_dashboard' => true]);
                     $count++;
                 }
             });
 
         return $count;
+    }
+
+    protected function calculateSeverity(float $difference, float $totalAmount): string
+    {
+        if ($totalAmount == 0) {
+            return 'minor';
+        }
+
+        $percentage = abs($difference) / $totalAmount * 100;
+
+        if ($percentage >= 20) {
+            return 'critical';
+        } elseif ($percentage >= 10) {
+            return 'major';
+        }
+
+        return 'minor';
     }
 }

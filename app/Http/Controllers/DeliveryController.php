@@ -27,11 +27,28 @@ class DeliveryController extends Controller
             ->whereDoesntHave('deliveryConfirmations')
             ->count();
 
+        $approvedPurchaseRequests = PurchaseRequest::where('status', 'approved')
+            ->whereDoesntHave('deliveryConfirmations')
+            ->with(['items.supply', 'quotations.supplier'])
+            ->latest()
+            ->get();
+
         return Inertia::render('Delivery/Index', [
             'deliveries' => $deliveries,
             'pending_count' => $pendingCount,
+            'approved_purchase_requests' => $approvedPurchaseRequests,
             'filters' => $request->only(['status']),
             'confirmation_enabled' => $this->configService->getBoolean(ConfigKey::DELIVERY_CONFIRMATION_ENABLED->value, true),
+        ]);
+    }
+
+    public function create(PurchaseRequest $purchaseRequest)
+    {
+        $purchaseRequest->load(['items.supply', 'quotations.supplier']);
+
+        return Inertia::render('Delivery/Show', [
+            'purchaseRequest' => $purchaseRequest,
+            'delivery' => null,
         ]);
     }
 

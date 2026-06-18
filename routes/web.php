@@ -94,12 +94,14 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('deliveries')->name('deliveries.')->group(function () {
         Route::get('/', [\App\Http\Controllers\DeliveryController::class, 'index'])->name('index');
+        Route::get('/create/{purchaseRequest}', [\App\Http\Controllers\DeliveryController::class, 'create'])->name('create');
         Route::get('/{deliveryConfirmation}', [\App\Http\Controllers\DeliveryController::class, 'show'])->name('show');
         Route::post('/{purchaseRequest}/confirm', [\App\Http\Controllers\DeliveryController::class, 'confirm'])->name('confirm');
     });
 
     Route::prefix('delivery')->name('delivery.')->group(function () {
         Route::get('/', [\App\Http\Controllers\DeliveryController::class, 'index'])->name('index');
+        Route::get('/create/{purchaseRequest}', [\App\Http\Controllers\DeliveryController::class, 'create'])->name('create');
         Route::get('/{deliveryConfirmation}', [\App\Http\Controllers\DeliveryController::class, 'show'])->name('show');
         Route::post('/{purchaseRequest}/confirm', [\App\Http\Controllers\DeliveryController::class, 'confirm'])->name('confirm');
     });

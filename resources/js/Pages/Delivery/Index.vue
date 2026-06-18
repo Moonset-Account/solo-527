@@ -16,6 +16,7 @@ const toast = useToast();
 const deliveries = computed(() => page.props.deliveries?.data || []);
 const pagination = computed(() => page.props.deliveries || { current_page: 1, last_page: 1, per_page: 15, total: 0 });
 const stats = computed(() => page.props.stats || { pending: 0, confirmed: 0, partial: 0, total: 0 });
+const approvedPurchaseRequests = computed(() => page.props.approved_purchase_requests || []);
 const filters = ref({
     search: '',
     status: '',
@@ -23,6 +24,7 @@ const filters = ref({
     date_to: '',
 });
 const showConfirmModal = ref(false);
+const showPurchaseRequestModal = ref(false);
 const currentDelivery = ref(null);
 const confirmItems = ref([]);
 
@@ -76,6 +78,14 @@ const openConfirmModal = (delivery) => {
     showConfirmModal.value = true;
 };
 
+const openPurchaseRequestModal = () => {
+    showPurchaseRequestModal.value = true;
+};
+
+const selectPurchaseRequest = (purchaseRequest) => {
+    router.get(route('delivery.create', purchaseRequest.id));
+};
+
 const confirmDelivery = () => {
     router.post(route('delivery.confirm', currentDelivery.value.id), {
         items: confirmItems.value,
@@ -99,6 +109,9 @@ const confirmDelivery = () => {
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white">到货确认</h1>
+                    <Button variant="primary" @click="openPurchaseRequestModal">
+                        新建到货确认
+                    </Button>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -287,6 +300,61 @@ const confirmDelivery = () => {
                 <div class="flex space-x-3">
                     <Button variant="secondary" @click="showConfirmModal = false">取消</Button>
                     <Button variant="primary" @click="confirmDelivery">确认到货</Button>
+                </div>
+            </template>
+        </Modal>
+
+        <Modal
+            v-model:show="showPurchaseRequestModal"
+            title="选择采购申请"
+            size="xl"
+        >
+            <div class="space-y-4">
+                <div v-if="approvedPurchaseRequests.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                    暂无已审批且未到货的采购申请
+                </div>
+                <div v-else class="space-y-3 max-h-96 overflow-y-auto">
+                    <div
+                        v-for="pr in approvedPurchaseRequests"
+                        :key="pr.id"
+                        class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                        @click="selectPurchaseRequest(pr)"
+                    >
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-gray-900 dark:text-white">{{ pr.pr_number }}</div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ pr.title }}</div>
+                                <div class="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                                    明细: {{ pr.items?.length || 0 }} 项 | 创建时间: {{ pr.created_at }}
+                                </div>
+                            </div>
+                            <Badge type="success">已审批</Badge>
+                        </div>
+                        <div v-if="pr.items && pr.items.length > 0" class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">耗材明细:</div>
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    v-for="(item, idx) in pr.items.slice(0, 3)"
+                                    :key="idx"
+                                    class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300"
+                                >
+                                    {{ item.supply_name }} ({{ item.quantity }}{{ item.unit || '' }})
+                                </span>
+                                <span
+                                    v-if="pr.items.length > 3"
+                                    class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300"
+                                >
+                                    +{{ pr.items.length - 3 }} 项
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex justify-end">
+                    <Button variant="secondary" @click="showPurchaseRequestModal = false">取消</Button>
                 </div>
             </template>
         </Modal>

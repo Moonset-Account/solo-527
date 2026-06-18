@@ -24,18 +24,43 @@ class SyncDeliveryDiscrepancyJob implements ShouldQueue
     public function handle(): void
     {
         try {
+            $quotation = \App\Models\Quotation::find($this->review->entity_id);
+            if (!$quotation) {
+                Log::warning("Quotation not found for financial review", [
+                    'review_id' => $this->review->id,
+                    'entity_id' => $this->review->entity_id,
+                ]);
+                return;
+            }
+
+            $firstItem = $quotation->items()->first();
+            $difference = $this->review->total_amount - $quotation->total_amount;
+            $severity = $this->calculateSeverity($difference, $quotation->total_amount);
+            $status = $this->review->status === 'approved' ? 'resolved' : 'reported';
+
+            $description = trim(($this->review->review_comments ?? '') . "\n" . ($this->review->reject_reason ?? ''));
+
             $discrepancy = DeliveryDiscrepancy::updateOrCreate(
-                ['financial_review_id' => $this->review->id],
                 [
-                    'quotation_id' => $this->review->quotation_id,
-                    'reviewer_id' => $this->review->reviewer_id,
-                    'discrepancy_type' => $this->review->discrepancy_type ?? 'price',
-                    'expected_amount' => $this->review->quotation?->total_amount ?? 0,
-                    'actual_amount' => $this->review->reviewed_amount ?? 0,
-                    'difference' => ($this->review->reviewed_amount ?? 0) - ($this->review->quotation?->total_amount ?? 0),
-                    'description' => $this->review->comments ?? '',
-                    'status' => $this->review->status === 'approved' ? 'resolved' : 'pending',
-                    'synced_at' => now(),
+                    'supply_id' => $firstItem?->supply_id,
+                    'discrepancy_type' => 'price',
+                ],
+                [
+                    'delivery_id' => null,
+                    'supply_id' => $firstItem?->supply_id,
+                    'supply_name' => $firstItem?->supply_name ?? 'N/A',
+                    'specification' => $firstItem?->specification,
+                    'unit' => $firstItem?->unit,
+                    'discrepancy_type' => 'price',
+                    'expected_quantity' => 0,
+                    'actual_quantity' => 0,
+                    'difference' => $difference,
+                    'description' => $description,
+                    'severity' => $severity,
+                    'status' => $status,
+                    'handling_measures' => $this->review->review_comments,
+                    'resolved_at' => $this->review->status === 'approved' ? $this->review->reviewed_at : null,
+                    'handled_by' => $this->review->reviewer_id,
                 ]
             );
 
@@ -50,5 +75,22 @@ class SyncDeliveryDiscrepancyJob implements ShouldQueue
             ]);
             throw $e;
         }
+    }
+
+    protected function calculateSeverity(float $difference, float $totalAmount): string
+    {
+        if ($totalAmount == 0) {
+            return 'minor';
+        }
+
+        $percentage = abs($difference) / $totalAmount * 100;
+
+        if ($percentage >= 20) {
+            return 'critical';
+        } elseif ($percentage >= 10) {
+            return 'major';
+        }
+
+        return 'minor';
     }
 }
