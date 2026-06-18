@@ -68,7 +68,6 @@ export class ReportsService {
     const pendingContracts = await this.contractModel
       .find({ status: 'pending' })
       .populate('leadId', 'customerName')
-      .populate('responsiblePerson', 'name')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -80,7 +79,7 @@ export class ReportsService {
       byReason[reason].details.push({
         leadId: (c.leadId as any)?._id || c.leadId,
         leadName: (c.leadId as any)?.customerName || '',
-        responsiblePerson: (c.responsiblePerson as any)?.name || '',
+        responsiblePerson: c.responsiblePerson || '',
       });
     }
 

@@ -15,8 +15,8 @@ export class Contract {
   @Prop()
   processingHours: number;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  responsiblePerson: Types.ObjectId;
+  @Prop()
+  responsiblePerson: string;
 
   @Prop({ default: Date.now, type: Date })
   createdAt: Date;
