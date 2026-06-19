@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, Link } from '@tanstack/react-router';
-import { LayoutDashboard, FileUp, AlertTriangle, Clock, Tag } from 'lucide-react';
+import { LayoutDashboard, FileUp, AlertTriangle, Clock, Tag, FileText, Calendar, BarChart3 } from 'lucide-react';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -16,6 +16,9 @@ function RootLayout() {
         <nav className="flex-1 py-3">
           <NavItem to="/" icon={<LayoutDashboard size={18} />} label="数据看板" />
           <NavItem to="/materials" icon={<FileUp size={18} />} label="素材管理" />
+          <NavItem to="/scripts" icon={<FileText size={18} />} label="选题脚本" />
+          <NavItem to="/schedules" icon={<Calendar size={18} />} label="发布排期" />
+          <NavItem to="/conversions" icon={<BarChart3 size={18} />} label="阅读转化" />
           <NavItem to="/exceptions" icon={<AlertTriangle size={18} />} label="异常处理" />
           <NavItem to="/history" icon={<Clock size={18} />} label="操作历史" />
           <NavItem to="/tags" icon={<Tag size={18} />} label="标签管理" />

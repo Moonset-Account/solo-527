@@ -10,16 +10,29 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TagsRouteImport } from './routes/tags'
+import { Route as ScriptsRouteImport } from './routes/scripts'
+import { Route as SchedulesRouteImport } from './routes/schedules'
 import { Route as Materials_idRouteImport } from './routes/materials_$id'
 import { Route as MaterialsRouteImport } from './routes/materials'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ExceptionsRouteImport } from './routes/exceptions'
+import { Route as ConversionsRouteImport } from './routes/conversions'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MaterialsIdRouteImport } from './routes/materials.$id'
 
 const TagsRoute = TagsRouteImport.update({
   id: '/tags',
   path: '/tags',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScriptsRoute = ScriptsRouteImport.update({
+  id: '/scripts',
+  path: '/scripts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SchedulesRoute = SchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Materials_idRoute = Materials_idRouteImport.update({
@@ -42,6 +55,11 @@ const ExceptionsRoute = ExceptionsRouteImport.update({
   path: '/exceptions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConversionsRoute = ConversionsRouteImport.update({
+  id: '/conversions',
+  path: '/conversions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,29 +73,38 @@ const MaterialsIdRoute = MaterialsIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/conversions': typeof ConversionsRoute
   '/exceptions': typeof ExceptionsRoute
   '/history': typeof HistoryRoute
   '/materials': typeof MaterialsRouteWithChildren
   '/materials_$id': typeof Materials_idRoute
+  '/schedules': typeof SchedulesRoute
+  '/scripts': typeof ScriptsRoute
   '/tags': typeof TagsRoute
   '/materials/$id': typeof MaterialsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/conversions': typeof ConversionsRoute
   '/exceptions': typeof ExceptionsRoute
   '/history': typeof HistoryRoute
   '/materials': typeof MaterialsRouteWithChildren
   '/materials_$id': typeof Materials_idRoute
+  '/schedules': typeof SchedulesRoute
+  '/scripts': typeof ScriptsRoute
   '/tags': typeof TagsRoute
   '/materials/$id': typeof MaterialsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/conversions': typeof ConversionsRoute
   '/exceptions': typeof ExceptionsRoute
   '/history': typeof HistoryRoute
   '/materials': typeof MaterialsRouteWithChildren
   '/materials_$id': typeof Materials_idRoute
+  '/schedules': typeof SchedulesRoute
+  '/scripts': typeof ScriptsRoute
   '/tags': typeof TagsRoute
   '/materials/$id': typeof MaterialsIdRoute
 }
@@ -85,38 +112,50 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/conversions'
     | '/exceptions'
     | '/history'
     | '/materials'
     | '/materials_$id'
+    | '/schedules'
+    | '/scripts'
     | '/tags'
     | '/materials/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/conversions'
     | '/exceptions'
     | '/history'
     | '/materials'
     | '/materials_$id'
+    | '/schedules'
+    | '/scripts'
     | '/tags'
     | '/materials/$id'
   id:
     | '__root__'
     | '/'
+    | '/conversions'
     | '/exceptions'
     | '/history'
     | '/materials'
     | '/materials_$id'
+    | '/schedules'
+    | '/scripts'
     | '/tags'
     | '/materials/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConversionsRoute: typeof ConversionsRoute
   ExceptionsRoute: typeof ExceptionsRoute
   HistoryRoute: typeof HistoryRoute
   MaterialsRoute: typeof MaterialsRouteWithChildren
   Materials_idRoute: typeof Materials_idRoute
+  SchedulesRoute: typeof SchedulesRoute
+  ScriptsRoute: typeof ScriptsRoute
   TagsRoute: typeof TagsRoute
 }
 
@@ -127,6 +166,20 @@ declare module '@tanstack/react-router' {
       path: '/tags'
       fullPath: '/tags'
       preLoaderRoute: typeof TagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scripts': {
+      id: '/scripts'
+      path: '/scripts'
+      fullPath: '/scripts'
+      preLoaderRoute: typeof ScriptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedules': {
+      id: '/schedules'
+      path: '/schedules'
+      fullPath: '/schedules'
+      preLoaderRoute: typeof SchedulesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/materials_$id': {
@@ -155,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/exceptions'
       fullPath: '/exceptions'
       preLoaderRoute: typeof ExceptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conversions': {
+      id: '/conversions'
+      path: '/conversions'
+      fullPath: '/conversions'
+      preLoaderRoute: typeof ConversionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -188,10 +248,13 @@ const MaterialsRouteWithChildren = MaterialsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConversionsRoute: ConversionsRoute,
   ExceptionsRoute: ExceptionsRoute,
   HistoryRoute: HistoryRoute,
   MaterialsRoute: MaterialsRouteWithChildren,
   Materials_idRoute: Materials_idRoute,
+  SchedulesRoute: SchedulesRoute,
+  ScriptsRoute: ScriptsRoute,
   TagsRoute: TagsRoute,
 }
 export const routeTree = rootRouteImport

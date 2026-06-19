@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db/connection.js';
-import { materials, materialTags, auditLogs } from '../db/schema.js';
-import { eq, ilike, and, sql } from 'drizzle-orm';
+import { materials, materialTags, tags, auditLogs } from '../db/schema.js';
+import { eq, ilike, and, sql, inArray } from 'drizzle-orm';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 
@@ -16,18 +16,58 @@ const materialSchema = z.object({
   tagIds: z.array(z.string().uuid()).optional(),
 });
 
+async function attachTagsToMaterials(materialList: any[]) {
+  if (materialList.length === 0) return [];
+  const materialIds = materialList.map((m) => m.id);
+  const tagLinks = await db
+    .select({
+      materialId: materialTags.materialId,
+      tagId: tags.id,
+      tagName: tags.name,
+      tagColor: tags.color,
+    })
+    .from(materialTags)
+    .innerJoin(tags, eq(materialTags.tagId, tags.id))
+    .where(inArray(materialTags.materialId, materialIds));
+
+  const tagMap = new Map<string, any[]>();
+  for (const link of tagLinks) {
+    if (!tagMap.has(link.materialId)) tagMap.set(link.materialId, []);
+    tagMap.get(link.materialId)!.push({
+      id: link.tagId,
+      name: link.tagName,
+      color: link.tagColor,
+    });
+  }
+
+  return materialList.map((m) => ({
+    ...m,
+    tags: tagMap.get(m.id) || [],
+  }));
+}
+
 app.get('/', async (c) => {
   const { tag, q, page, limit } = c.req.query();
   const pageNum = Number(page) || 1;
   const limitNum = Number(limit) || 20;
   const offset = (pageNum - 1) * limitNum;
 
-  let query = db.select().from(materials);
+  let materialIds: string[] | null = null;
+
+  if (tag) {
+    const filteredIds = await db
+      .select({ materialId: materialTags.materialId })
+      .from(materialTags)
+      .where(eq(materialTags.tagId, tag));
+    materialIds = filteredIds.map((r) => r.materialId);
+    if (materialIds.length === 0) {
+      return c.json({ data: [], total: 0, page: pageNum, limit: limitNum });
+    }
+  }
 
   const conditions = [];
-  if (q) {
-    conditions.push(ilike(materials.title, `%${q}%`));
-  }
+  if (q) conditions.push(ilike(materials.title, `%${q}%`));
+  if (materialIds) conditions.push(inArray(materials.id, materialIds));
 
   const result = await db
     .select()
@@ -37,17 +77,9 @@ app.get('/', async (c) => {
     .offset(offset)
     .orderBy(sql`${materials.createdAt} DESC`);
 
-  if (tag) {
-    const filteredIds = await db
-      .select({ materialId: materialTags.materialId })
-      .from(materialTags)
-      .where(eq(materialTags.tagId, tag));
-    const ids = filteredIds.map((r) => r.materialId);
-    const filtered = result.filter((m) => ids.includes(m.id));
-    return c.json({ data: filtered, total: ids.length, page: pageNum, limit: limitNum });
-  }
+  const withTags = await attachTagsToMaterials(result);
 
-  return c.json({ data: result, page: pageNum, limit: limitNum });
+  return c.json({ data: withTags, page: pageNum, limit: limitNum });
 });
 
 app.get('/reuse-suggestions', async (c) => {
@@ -57,7 +89,8 @@ app.get('/reuse-suggestions', async (c) => {
     .where(sql`${materials.reuseCount} > 0`)
     .orderBy(sql`${materials.reuseCount} DESC`)
     .limit(10);
-  return c.json({ data: result });
+  const withTags = await attachTagsToMaterials(result);
+  return c.json({ data: withTags });
 });
 
 app.get('/:id', async (c) => {
@@ -65,12 +98,19 @@ app.get('/:id', async (c) => {
   const [material] = await db.select().from(materials).where(eq(materials.id, id));
   if (!material) return c.json({ error: 'Not found' }, 404);
 
-  const tagsResult = await db
-    .select({ id: materialTags.tagId })
+  const tagLinks = await db
+    .select({ id: tags.id, name: tags.name, color: tags.color })
     .from(materialTags)
+    .innerJoin(tags, eq(materialTags.tagId, tags.id))
     .where(eq(materialTags.materialId, id));
 
-  return c.json({ data: { ...material, tagIds: tagsResult.map((t) => t.id) } });
+  return c.json({
+    data: {
+      ...material,
+      tagIds: tagLinks.map((t) => t.id),
+      tags: tagLinks,
+    },
+  });
 });
 
 app.post('/', zValidator('json', materialSchema), async (c) => {
@@ -97,7 +137,8 @@ app.post('/', zValidator('json', materialSchema), async (c) => {
     details: { title: body.title },
   });
 
-  return c.json({ data: material }, 201);
+  const [withTags] = await attachTagsToMaterials([material]);
+  return c.json({ data: withTags }, 201);
 });
 
 app.put('/:id', zValidator('json', materialSchema.partial()), async (c) => {
@@ -128,7 +169,8 @@ app.put('/:id', zValidator('json', materialSchema.partial()), async (c) => {
     details: body,
   });
 
-  return c.json({ data: updated });
+  const [withTags] = await attachTagsToMaterials([updated]);
+  return c.json({ data: withTags });
 });
 
 app.delete('/:id', async (c) => {

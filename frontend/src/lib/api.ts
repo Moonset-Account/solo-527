@@ -23,6 +23,7 @@ export interface Material {
   createdAt: string;
   updatedAt: string;
   tagIds?: string[];
+  tags?: { id: string; name: string; color: string | null }[];
 }
 
 export interface Tag {
