@@ -8,6 +8,7 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
+  children?: ReactNode;
   addHref?: string;
   addLabel?: string;
   backHref?: string;
@@ -17,6 +18,7 @@ export function PageHeader({
   title,
   description,
   actions,
+  children,
   addHref,
   addLabel = '新增',
   backHref,
@@ -41,6 +43,7 @@ export function PageHeader({
         </div>
         <div className="flex items-center gap-2">
           {actions}
+          {children}
           {addHref && (
             <Link href={addHref} className="btn-primary">
               <Plus className="w-4 h-4" />

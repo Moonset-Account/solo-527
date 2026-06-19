@@ -206,7 +206,7 @@ export default function WorkOrderDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <CarFront className="w-4.5 h-4.5 text-slate-600" />
+                  <CarFront className="w-4 h-4 text-slate-600" />
                 </div>
                 <div>
                   <div className="text-xs text-slate-500 mb-0.5">关联车辆</div>
