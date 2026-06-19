@@ -19,8 +19,12 @@ router.get('/on-time-rate/by-date', async (c) => {
     .select({
       date: orders.scheduledDate,
       total: count(),
-      onTime: sum(sql<number>`CASE WHEN ${orders.isOnTime} = true THEN 1 ELSE 0 END`),
-      onTimeRate: avg(sql<number>`CASE WHEN ${orders.isOnTime} = true THEN 1 ELSE 0 END`) * 100,
+      onTime: sum(sql<number>`CASE WHEN ${orders.isOnTime} IS TRUE THEN 1 ELSE 0 END`),
+      delayed: sum(sql<number>`CASE WHEN ${orders.isOnTime} IS FALSE THEN 1 ELSE 0 END`),
+      onTimeRate: sql<string>`ROUND(
+        (SUM(CASE WHEN ${orders.isOnTime} IS TRUE THEN 1 ELSE 0 END)::numeric / COUNT(*)::numeric) * 100,
+        2
+      )`,
     })
     .from(orders)
     .where(where)
@@ -46,9 +50,12 @@ router.get('/on-time-rate/by-city-manager', async (c) => {
       cityManagerName: cityManagers.name,
       city: cityManagers.city,
       total: count(),
-      onTime: sum(sql<number>`CASE WHEN ${orders.isOnTime} = true THEN 1 ELSE 0 END`),
-      onTimeRate: avg(sql<number>`CASE WHEN ${orders.isOnTime} = true THEN 1 ELSE 0 END`) * 100,
-      delayed: sum(sql<number>`CASE WHEN ${orders.isOnTime} = false THEN 1 ELSE 0 END`),
+      onTime: sum(sql<number>`CASE WHEN ${orders.isOnTime} IS TRUE THEN 1 ELSE 0 END`),
+      delayed: sum(sql<number>`CASE WHEN ${orders.isOnTime} IS FALSE THEN 1 ELSE 0 END`),
+      onTimeRate: sql<string>`ROUND(
+        (SUM(CASE WHEN ${orders.isOnTime} IS TRUE THEN 1 ELSE 0 END)::numeric / COUNT(*)::numeric) * 100,
+        2
+      )`,
     })
     .from(orders)
     .leftJoin(cityManagers, eq(orders.cityManagerId, cityManagers.id))
@@ -176,7 +183,11 @@ router.get('/overview', async (c) => {
         completed: sum(sql<number>`CASE WHEN ${orders.status} = 'completed' THEN 1 ELSE 0 END`),
         pending: sum(sql<number>`CASE WHEN ${orders.status} = 'pending' THEN 1 ELSE 0 END`),
         cancelled: sum(sql<number>`CASE WHEN ${orders.status} = 'cancelled' THEN 1 ELSE 0 END`),
-        onTimeRate: avg(sql<number>`CASE WHEN ${orders.isOnTime} = true THEN 1 ELSE 0 END`) * 100,
+        onTimeRate: sql<string>`ROUND(
+          (SUM(CASE WHEN ${orders.isOnTime} IS TRUE AND ${orders.status} = 'completed' THEN 1 ELSE 0 END)::numeric /
+           NULLIF(SUM(CASE WHEN ${orders.status} = 'completed' THEN 1 ELSE 0 END), 0)::numeric) * 100,
+          2
+        )`,
       })
       .from(orders)
       .where(orderWhere),

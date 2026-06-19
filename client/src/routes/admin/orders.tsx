@@ -51,6 +51,7 @@ function OrdersPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [technicians, setTechnicians] = useState<any[]>([]);
+  const [managers, setManagers] = useState<any[]>([]);
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -58,6 +59,7 @@ function OrdersPage() {
     status: '',
     city: '',
     source: '',
+    cityManagerId: '',
     startDate: '',
     endDate: '',
     keyword: '',
@@ -69,6 +71,7 @@ function OrdersPage() {
   useEffect(() => {
     fetchOrders();
     fetchTechnicians();
+    fetchManagers();
   }, [filters]);
 
   const fetchOrders = async () => {
@@ -94,6 +97,17 @@ function OrdersPage() {
       setTechnicians(data);
     } catch (error) {
       console.error('Failed to fetch technicians:', error);
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const params: any = {};
+      if (filters.city) params.city = filters.city;
+      const data: any = await technicianApi.managers(params);
+      setManagers(data);
+    } catch (error) {
+      console.error('Failed to fetch managers:', error);
     }
   };
 
@@ -133,6 +147,7 @@ function OrdersPage() {
       status: '',
       city: '',
       source: '',
+      cityManagerId: '',
       startDate: '',
       endDate: '',
       keyword: '',
@@ -192,6 +207,22 @@ function OrdersPage() {
               <option value="">全部城市</option>
               {['北京', '上海', '广州', '深圳', '杭州', '成都'].map((city) => (
                 <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">负责人</label>
+            <select
+              name="cityManagerId"
+              value={filters.cityManagerId}
+              onChange={handleFilterChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+            >
+              <option value="">全部负责人</option>
+              {managers.map((mgr) => (
+                <option key={mgr.id} value={String(mgr.id)}>
+                  {mgr.name} ({mgr.city})
+                </option>
               ))}
             </select>
           </div>
@@ -256,6 +287,7 @@ function OrdersPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客户信息</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">家电类型</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预约时间</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">负责人</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">师傅</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">来源</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
@@ -276,6 +308,9 @@ function OrdersPage() {
                       <td className="px-4 py-4 text-sm text-gray-700">
                         <div>{dayjs(order.scheduledDate).format('YYYY-MM-DD')}</div>
                         <div className="text-xs text-gray-500">{order.scheduledTimeSlot}</div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {order.cityManager?.name || '-'}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-700">
                         {order.technician?.name || '未分配'}

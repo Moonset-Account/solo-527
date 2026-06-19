@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db';
-import { technicians, technicianLoads, orders } from '../db/schema';
+import { technicians, technicianLoads, orders, cityManagers } from '../db/schema';
 import { eq, and, gte, lte, desc, count, sum } from 'drizzle-orm';
 
 const router = new Hono();
@@ -136,6 +136,25 @@ router.put('/:id', async (c) => {
   }
 
   return c.json(result[0]);
+});
+
+router.get('/managers/list', async (c) => {
+  const { city } = c.req.query();
+
+  const conditions = [];
+  if (city) {
+    conditions.push(eq(cityManagers.city, city));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const managerList = await db
+    .select()
+    .from(cityManagers)
+    .where(where)
+    .orderBy(desc(cityManagers.createdAt));
+
+  return c.json(managerList);
 });
 
 export default router;

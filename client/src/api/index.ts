@@ -38,6 +38,7 @@ export const technicianApi = {
   detail: (id: number, params?: any) => api.get(`/technicians/${id}/detail`, { params }),
   create: (data: any) => api.post('/technicians', data),
   update: (id: number, data: any) => api.put(`/technicians/${id}`, data),
+  managers: (params?: any) => api.get('/technicians/managers/list', { params }),
 };
 
 export const reviewApi = {

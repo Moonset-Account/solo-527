@@ -171,10 +171,22 @@ async function seed() {
   console.log(`⭐ 插入 ${reviewValues.length} 条评价`);
 
   const refundOrders = seededOrders.filter((o) => o.status === 'refunded' || Math.random() < 0.1);
-  const refundValues = [];
+  const refundStatuses = ['pending', 'approved', 'rejected', 'completed'] as const;
+  type RefundStatus = typeof refundStatuses[number];
+  const refundValues: {
+    refundNo: string;
+    orderId: number;
+    userId: number | null;
+    amount: string;
+    reason: string;
+    status: RefundStatus;
+    handledBy: number | null;
+    handledAt: Date | null;
+    handleNote: string | null;
+  }[] = [];
   for (let i = 0; i < Math.min(refundOrders.length, 12); i++) {
     const order = refundOrders[i];
-    const refundStatus = ['pending', 'approved', 'rejected', 'completed'][Math.floor(Math.random() * 4)] as const;
+    const refundStatus = refundStatuses[Math.floor(Math.random() * refundStatuses.length)];
     const manager = seededCityManagers.find((m) => m.city === order.city);
     refundValues.push({
       refundNo: `RF${String(i + 1).padStart(6, '0')}`,
@@ -183,9 +195,9 @@ async function seed() {
       amount: order.actualCost || order.estimatedCost || '200',
       reason: ['维修效果不佳', '师傅态度不好', '价格不合理', '客户取消订单', '重复收费'][Math.floor(Math.random() * 5)],
       status: refundStatus,
-      handledBy: ['pending'].includes(refundStatus) ? null : manager?.id || null,
-      handledAt: ['pending'].includes(refundStatus) ? null : new Date(),
-      handleNote: ['approved', 'completed'].includes(refundStatus) ? '已核实情况，同意退款' : refundStatus === 'rejected' ? '不符合退款条件，已驳回' : null,
+      handledBy: refundStatus === 'pending' ? null : manager?.id || null,
+      handledAt: refundStatus === 'pending' ? null : new Date(),
+      handleNote: refundStatus === 'approved' || refundStatus === 'completed' ? '已核实情况，同意退款' : refundStatus === 'rejected' ? '不符合退款条件，已驳回' : null,
     });
   }
   await db.insert(refunds).values(refundValues);

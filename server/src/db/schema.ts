@@ -1,5 +1,6 @@
 import {
   pgTable,
+  pgEnum,
   serial,
   text,
   varchar,
@@ -9,7 +10,6 @@ import {
   decimal,
   boolean,
   json,
-  enum as pgEnum,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -164,7 +164,7 @@ export const technicianLoads = pgTable('technician_loads', {
   date: date('date').notNull(),
   assignedCount: integer('assigned_count').default(0).notNull(),
   completedCount: integer('completed_count').default(0).notNull(),
-  loadRate: decimal('load_rate', { precision: 5, scale: 2 }).default(0).notNull(),
+  loadRate: decimal('load_rate', { precision: 5, scale: 2 }).default('0').notNull(),
   city: varchar('city', { length: 50 }),
 });
 
