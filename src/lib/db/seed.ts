@@ -480,8 +480,8 @@ async function seed() {
 seed()
 	.catch((error) => {
 		console.error('❌ 种子数据插入失败:', error);
-		process.exit(1);
+		if (typeof process !== 'undefined') process.exit(1);
 	})
 	.finally(async () => {
-		process.exit(0);
+		if (typeof process !== 'undefined') process.exit(0);
 	});

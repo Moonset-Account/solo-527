@@ -1,8 +1,62 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { inventories, inventoryLogs } from '$lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { inventories, inventoryLogs, reminderRules, todoItems, tourRoutes } from '$lib/db/schema';
+import { eq, sql, and } from 'drizzle-orm';
+
+async function checkRulesAndCreateTodos(
+	routeId: string,
+	available: number,
+	total: number,
+	operatorId: string,
+	operatorName: string
+) {
+	const rules = await db
+		.select()
+		.from(reminderRules)
+		.where(eq(reminderRules.enabled, true));
+
+	const [route] = await db
+		.select({ name: tourRoutes.name })
+		.from(tourRoutes)
+		.where(eq(tourRoutes.id, routeId));
+
+	for (const rule of rules) {
+		const cond = rule.condition as Record<string, unknown>;
+		let shouldCreate = false;
+
+		if ('availableLessThan' in cond && typeof cond.availableLessThan === 'number') {
+			if (available < cond.availableLessThan) {
+				shouldCreate = true;
+			}
+		}
+
+		if ('availableEquals' in cond && typeof cond.availableEquals === 'number') {
+			if (available === cond.availableEquals) {
+				shouldCreate = true;
+			}
+		}
+
+		if (shouldCreate) {
+			const action = rule.action as Record<string, unknown>;
+			const urgency = (action.urgency as string) || 'high';
+
+			await db.insert(todoItems).values({
+				source: 'escalation',
+				sourceRuleId: rule.id,
+				itineraryId: null,
+				routeId: routeId,
+				urgency: urgency as 'high' | 'medium' | 'low',
+				description: `路线「${route?.name || routeId}」库存不足：当前可用 ${available} 个名额（总量 ${total}），触发规则「${rule.name}」`,
+				status: 'pending',
+				result: null,
+				evidence: `库存快照: 可用=${available}, 已售=${total - available}, 总量=${total}。触发规则: ${rule.name}`,
+				operatorId: operatorId,
+				operatorName: operatorName
+			});
+		}
+	}
+}
 
 export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
@@ -74,6 +128,14 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 				operatorName
 			})
 			.returning();
+
+		await checkRulesAndCreateTodos(
+			current.routeId,
+			newAvailable,
+			newTotal,
+			operatorId,
+			operatorName
+		);
 
 		return json({ inventory: updatedInventory, log });
 	} catch (error) {

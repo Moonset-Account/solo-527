@@ -1,20 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { todoItems } from '$lib/db/schema';
-import { eq, desc, sql, and } from 'drizzle-orm';
+import { todoItems, todoStatusEnum, todoUrgencyEnum } from '$lib/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
-		const status = url.searchParams.get('status');
-		const urgency = url.searchParams.get('urgency');
+		const statusParam = url.searchParams.get('status');
+		const urgencyParam = url.searchParams.get('urgency');
 
 		const conditions = [];
-		if (status) {
-			conditions.push(eq(todoItems.status, status));
+		if (statusParam && todoStatusEnum.enumValues.includes(statusParam as typeof todoStatusEnum.enumValues[number])) {
+			conditions.push(eq(todoItems.status, statusParam as typeof todoStatusEnum.enumValues[number]));
 		}
-		if (urgency) {
-			conditions.push(eq(todoItems.urgency, urgency));
+		if (urgencyParam && todoUrgencyEnum.enumValues.includes(urgencyParam as typeof todoUrgencyEnum.enumValues[number])) {
+			conditions.push(eq(todoItems.urgency, urgencyParam as typeof todoUrgencyEnum.enumValues[number]));
 		}
 
 		const todos = await db

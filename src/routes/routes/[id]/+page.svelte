@@ -352,7 +352,7 @@
 						<textarea
 							bind:value={editForm.content}
 							rows="10"
-							placeholder='{"stops": [...]}'
+							placeholder="请输入 JSON 格式的行程内容，例如 stops 和 tips 数组"
 							class="w-full rounded-lg border border-gray-200 bg-surface px-3 py-2.5 text-sm font-mono outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-y"
 						></textarea>
 					</div>

@@ -253,8 +253,21 @@
 										</div>
 									</div>
 								{:else}
-									<div class="mt-2 text-xs text-text-muted">
-										创建时间: {relativeTime(todo.createdAt)}
+									<div class="mt-3 space-y-1">
+										{#if todo.evidence}
+											<div class="rounded-lg bg-accent/5 border border-accent/10 p-3 text-xs">
+												<span class="font-medium text-text">触发依据:</span> <span class="text-text-muted">{todo.evidence}</span>
+											</div>
+										{/if}
+										{#if todo.operatorName}
+											<div class="text-xs text-text-muted">
+												创建人: {todo.operatorName} · {relativeTime(todo.createdAt)}
+											</div>
+										{:else}
+											<div class="text-xs text-text-muted">
+												创建时间: {relativeTime(todo.createdAt)}
+											</div>
+										{/if}
 									</div>
 								{/if}
 							</div>
