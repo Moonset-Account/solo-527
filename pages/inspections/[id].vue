@@ -433,6 +433,16 @@
               ></textarea>
             </div>
 
+            <Transition name="fade">
+              <div v-if="uploadError" class="p-3 bg-danger-50 border border-danger-200 rounded-xl flex items-center gap-2">
+                <XCircle class="w-5 h-5 text-danger-600 flex-shrink-0" />
+                <div>
+                  <p class="text-sm font-medium text-danger-700">上传失败</p>
+                  <p class="text-xs text-danger-600 mt-0.5">{{ uploadErrorMessage }}</p>
+                </div>
+              </div>
+            </Transition>
+
             <div class="flex justify-end gap-3 pt-2">
               <button type="button" class="btn-secondary" @click="showUploadModal = false">取消</button>
               <button
@@ -619,8 +629,21 @@ const fetchInspection = async () => {
   try {
     const data = await $fetch<Inspection>(`/api/inspections/${inspectionId.value}`)
     inspection.value = data
+
+    const cachedPhotos = getCachedPhotos()
+    if (cachedPhotos.length > 0 && inspection.value) {
+      const existingIds = new Set((inspection.value.photos || []).map(p => p.id))
+      const newPhotos = cachedPhotos.filter((p: any) => !existingIds.has(p.id))
+      if (newPhotos.length > 0) {
+        inspection.value.photos = [...newPhotos, ...(inspection.value.photos || [])]
+      }
+    }
   } catch {
-    inspection.value = mockInspection
+    inspection.value = { ...mockInspection }
+    const cachedPhotos = getCachedPhotos()
+    if (cachedPhotos.length > 0 && inspection.value) {
+      inspection.value.photos = [...cachedPhotos, ...(inspection.value.photos || [])]
+    }
   }
 }
 
@@ -707,6 +730,27 @@ const clearSelectedPhotos = () => {
   }
 }
 
+const uploadError = ref(false)
+const uploadErrorMessage = ref('')
+
+const STORAGE_KEY = 'inspection_photos_'
+
+const getCachedPhotos = () => {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY + inspectionId.value)
+    return cached ? JSON.parse(cached) : []
+  } catch {
+    return []
+  }
+}
+
+const setCachedPhotos = (photos: any[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY + inspectionId.value, JSON.stringify(photos))
+  } catch {
+  }
+}
+
 const handleUploadPhotos = async () => {
   if (uploadForm.previews.length === 0) return
 
@@ -714,58 +758,95 @@ const handleUploadPhotos = async () => {
   uploadProgress.value = 0
   uploadingPhotos.value = [...uploadForm.previews]
   uploadSuccess.value = false
+  uploadError.value = false
+  uploadErrorMessage.value = ''
 
   const totalSteps = 10
   for (let i = 0; i <= totalSteps; i++) {
-    await new Promise(resolve => setTimeout(resolve, 150))
+    await new Promise(resolve => setTimeout(resolve, 100))
     uploadProgress.value = Math.round((i / totalSteps) * 100)
   }
 
   try {
-    const photos = uploadForm.previews.map((_, index) => ({
-      url: '',
+    const photosData = uploadForm.previews.map((preview, index) => ({
+      url: preview,
       category: uploadForm.category,
       description: uploadForm.description || `照片${index + 1}`,
     }))
 
+    let serverPhotos: any[] = []
+    let serverError = false
+
     try {
-      await $fetch(`/api/inspections/${inspectionId.value}/photos`, {
+      const response: any = await $fetch(`/api/inspections/${inspectionId.value}/photos`, {
         method: 'POST',
-        body: { photos },
+        body: { photos: photosData },
       })
-    } catch {
+      if (response && response.data) {
+        serverPhotos = response.data
+      }
+    } catch (err: any) {
+      serverError = true
+      uploadErrorMessage.value = err?.data?.message || err?.message || '上传失败，请稍后重试'
     }
 
+    if (serverError) {
+      uploadError.value = true
+      uploadSuccess.value = false
+      return
+    }
+
+    const newPhotos: InspectionPhoto[] = serverPhotos.length > 0
+      ? serverPhotos.map((p: any) => ({
+          id: p.id,
+          inspectionId: inspectionId.value,
+          url: p.url,
+          category: p.category,
+          description: p.description,
+          uploadedAt: p.uploadedAt || new Date().toISOString(),
+        }))
+      : photosData.map((p, idx) => ({
+          id: `p_new_${Date.now()}_${idx}`,
+          inspectionId: inspectionId.value,
+          url: p.url,
+          category: p.category,
+          description: p.description,
+          uploadedAt: new Date().toISOString(),
+        }))
+
     if (inspection.value) {
-      const newPhotos: InspectionPhoto[] = photos.map((p, idx) => ({
-        id: `p_new_${Date.now()}_${idx}`,
-        inspectionId: inspectionId.value,
-        url: p.url,
-        category: p.category,
-        description: p.description,
-        uploadedAt: new Date().toISOString(),
-      }))
-      inspection.value.photos = [...(inspection.value.photos || []), ...newPhotos]
+      const allPhotos = [...newPhotos, ...(inspection.value.photos || [])]
+      inspection.value.photos = allPhotos
+      setCachedPhotos(allPhotos)
     }
 
     uploadSuccess.value = true
+    uploadError.value = false
     setTimeout(() => {
       uploadSuccess.value = false
     }, 3000)
-  } catch (err) {
-    console.error('Upload photos failed:', err)
+
+    fetchInspection()
+  } catch (err: any) {
+    uploadError.value = true
+    uploadErrorMessage.value = err?.message || '上传失败，请稍后重试'
+    uploadSuccess.value = false
   } finally {
     isUploading.value = false
     uploadingPhotos.value = []
     uploadProgress.value = 0
-    showUploadModal.value = false
-    clearSelectedPhotos()
+
+    if (!uploadError.value) {
+      showUploadModal.value = false
+      clearSelectedPhotos()
+    }
   }
 }
 
 const deletePhoto = (photoId: string) => {
   if (inspection.value?.photos) {
     inspection.value.photos = inspection.value.photos.filter(p => p.id !== photoId)
+    setCachedPhotos(inspection.value.photos)
   }
 }
 

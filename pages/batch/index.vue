@@ -507,7 +507,7 @@
 
     <Transition name="fade">
       <div
-        v-if="showSuccessToast"
+        v-if="isToastVisible"
         class="fixed top-20 right-6 z-50 animate-slide-in-right"
       >
         <div class="flex items-center gap-2 px-4 py-3 bg-success-50 border border-success-200 rounded-xl shadow-lg">
@@ -580,7 +580,7 @@ const assignForm = reactive({
   remark: '',
 })
 
-const showSuccessToast = ref(false)
+const isToastVisible = ref(false)
 const successToastMessage = ref('')
 
 const assignableUsers = computed(() => {
@@ -737,17 +737,47 @@ const toggleProject = (id: string) => {
   }
 }
 
+const buildParams = () => {
+  const params: any = {}
+  switch (createForm.type) {
+    case 'assign_inspection':
+      params.inspectorId = createForm.inspectorId || undefined
+      params.scheduledAt = createForm.scheduledAt || undefined
+      params.title = '例行巡检'
+      break
+    case 'update_status':
+      params.status = createForm.targetStatus || undefined
+      break
+    case 'notify_owner':
+      params.message = createForm.message || undefined
+      break
+  }
+  return params
+}
+
 const previewOperation = async () => {
+  const params = buildParams()
   try {
     const data = await $fetch('/api/batch/preview', {
       method: 'POST',
       body: {
         type: createForm.type,
         targetIds: selectedProjects.value,
-        ...createForm,
+        params,
       },
     })
-    previewResult.value = data
+    previewResult.value = {
+      ...data,
+      affectedCount: data.totalCount,
+      items: (data as any).affectedItems?.map((item: any) => ({
+        ...item,
+        name: item.name,
+        status: item.currentStatus || item.status || 'in_progress',
+        canExecute: item.canExecute,
+        errorMessage: item.reason || item.errorMessage || '',
+        remark: item.ownerName ? `业主：${item.ownerName}` : '',
+      })) || [],
+    }
     showPreview.value = true
   } catch {
     previewResult.value = {
@@ -820,45 +850,83 @@ const executeOperation = async () => {
   const executableItems = items.filter((item: any) => item.canExecute)
   const total = executableItems.length
 
+  let serverResult: any = null
+  let executeError = false
+
+  const executePromise = (async () => {
+    try {
+      const params = buildParams()
+      const data = await $fetch('/api/batch/execute', {
+        method: 'POST',
+        body: {
+          type: createForm.type,
+          targetIds: selectedProjects.value,
+          params,
+        },
+      })
+      serverResult = data
+    } catch {
+      executeError = true
+    }
+  })()
+
   for (let i = 0; i < total; i++) {
     const item = executableItems[i]
     item.executeStatus = 'executing'
     executeStats.pending = total - i - 1
 
-    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500))
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300))
 
-    const isSuccess = Math.random() > 0.2
-    if (isSuccess) {
-      item.executeStatus = 'success'
-      executeStats.success++
-    } else {
-      item.executeStatus = 'failed'
-      item.errorMessage = item.errorMessage || '执行失败，请重试'
-      executeStats.failed++
-    }
+    item.executeStatus = 'success'
+    executeStats.success++
 
     executeProgress.value = Math.round(((i + 1) / total) * 100)
   }
 
-  executeResult.value = {
-    successCount: executeStats.success,
-    failedCount: executeStats.failed,
-    allSuccess: executeStats.failed === 0,
-  }
+  await executePromise
 
-  try {
-    await $fetch('/api/batch/execute', {
-      method: 'POST',
-      body: {
-        type: createForm.type,
-        targetIds: selectedProjects.value,
-        ...createForm,
-      },
-    })
-  } catch {
+  if (serverResult) {
+    executeStats.success = serverResult.successCount || executeStats.success
+    executeStats.failed = serverResult.failedCount || 0
+
+    const failedMap = new Map()
+    if (serverResult.failedRecords) {
+      for (const fr of serverResult.failedRecords) {
+        failedMap.set(fr.targetId, fr)
+      }
+    }
+
+    for (const item of executableItems) {
+      const failedRecord = failedMap.get(item.id)
+      if (failedRecord) {
+        item.executeStatus = 'failed'
+        item.errorMessage = failedRecord.errorMessage || '执行失败'
+      }
+    }
+
+    executeResult.value = {
+      successCount: serverResult.successCount,
+      failedCount: serverResult.failedCount,
+      allSuccess: serverResult.failedCount === 0,
+      batchOperation: serverResult,
+    }
+  } else if (executeError) {
+    executeResult.value = {
+      successCount: executeStats.success,
+      failedCount: executeStats.failed,
+      allSuccess: false,
+      error: '后端执行出错，以上为模拟结果',
+    }
+  } else {
+    executeResult.value = {
+      successCount: executeStats.success,
+      failedCount: executeStats.failed,
+      allSuccess: executeStats.failed === 0,
+    }
   }
 
   isExecuting.value = false
+  fetchOperations()
 }
 
 const viewOperation = (op: BatchOperation) => {
@@ -893,7 +961,7 @@ const confirmAssign = async () => {
     }
   }
 
-  showSuccessToast('负责人分配成功')
+  showToast('负责人分配成功')
 
   isAssigning.value = false
   assigningRecordId.value = null
@@ -917,16 +985,16 @@ const markResolved = async (record: FailedRecord) => {
     }
   }
 
-  showSuccessToast('已标记为解决')
+  showToast('已标记为解决')
 
   assigningRecordId.value = null
 }
 
-const showSuccessToast = (message: string) => {
+const showToast = (message: string) => {
   successToastMessage.value = message
-  showSuccessToast.value = true
+  isToastVisible.value = true
   setTimeout(() => {
-    showSuccessToast.value = false
+    isToastVisible.value = false
   }, 2500)
 }
 
