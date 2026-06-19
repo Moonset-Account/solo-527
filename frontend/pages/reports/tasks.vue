@@ -26,88 +26,13 @@
         </div>
       </template>
 
-      <n-table
+      <n-data-table
         :data="tasks"
         :columns="columns"
+        :loading="loading"
+        :pagination="pagination"
         bordered
-        :pagination="{
-          page: page,
-          pageSize: pageSize,
-          itemCount: total,
-          onUpdatePage: (p) => { page = p; loadTasks() },
-          onUpdatePageSize: (ps) => { pageSize = ps; page = 1; loadTasks() }
-        }"
-      >
-        <template #status="{ row }">
-          <n-space>
-            <n-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </n-tag>
-            <n-spin v-if="row.status === 'running' || row.status === 'pending'" size="small" />
-          </n-space>
-        </template>
-        <template #progress="{ row }">
-          <div v-if="row.status === 'running'" class="w-full">
-            <n-progress type="line" :percentage="50" :indeterminate="true" height="6" />
-          </div>
-          <div v-else-if="row.status === 'success'" class="text-green-500 text-sm">
-            100%
-          </div>
-          <div v-else-if="row.status === 'failed'" class="text-red-500 text-sm">
-            失败
-          </div>
-          <div v-else class="text-gray-400 text-sm">
-            等待中
-          </div>
-        </template>
-        <template #retry="{ row }">
-          <div v-if="row.retry_count > 0">
-            <n-tag type="warning" size="small">
-              {{ row.retry_count }} / {{ row.max_retries }}
-            </n-tag>
-          </div>
-          <div v-else class="text-gray-400">-</div>
-        </template>
-        <template #duration="{ row }">
-          <div v-if="row.started_at && row.completed_at">
-            {{ calculateDuration(row.started_at, row.completed_at) }}
-          </div>
-          <div v-else-if="row.started_at">
-            执行中...
-          </div>
-          <div v-else>-</div>
-        </template>
-        <template #actions="{ row }">
-          <n-space>
-            <n-button
-              v-if="row.status === 'success'"
-              size="small"
-              text
-              type="primary"
-              @click="viewResult(row)"
-            >
-              查看结果
-            </n-button>
-            <n-button
-              v-if="row.status === 'failed'"
-              size="small"
-              text
-              @click="viewError(row)"
-            >
-              错误详情
-            </n-button>
-            <n-button
-              v-if="row.status === 'failed' && row.retry_count < row.max_retries"
-              size="small"
-              text
-              type="warning"
-              @click="retryTask(row)"
-            >
-              重试
-            </n-button>
-          </n-space>
-        </template>
-      </n-table>
+      />
     </n-card>
 
     <n-modal v-model:show="showErrorModal" preset="card" title="错误详情" style="width: 700px">
@@ -174,9 +99,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
+  NDataTable,
   NTable,
   NButton,
   NInput,
@@ -191,15 +117,18 @@ import {
   NTabs,
   NTabPane,
   useMessage,
+  DataTableColumns,
   TableColumns,
-  SelectOption
+  SelectOption,
+  DataTablePagination
 } from 'naive-ui'
 import { useAuth } from '~/composables/useAuth'
 
 const message = useMessage()
-const { apiRequest } = useAuth()
+const { apiRequest, downloadFile } = useAuth()
 
 const tasks = ref<any[]>([])
+const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -216,41 +145,6 @@ const statusOptions: SelectOption[] = [
   { label: '成功', value: 'success' },
   { label: '失败', value: 'failed' },
   { label: '重试中', value: 'retrying' }
-]
-
-const columns: TableColumns = [
-  { title: '任务名称', key: 'task_name' },
-  { title: '状态', key: 'status', width: 120 },
-  { title: '进度', key: 'progress', width: 150 },
-  { title: '重试', key: 'retry', width: 100 },
-  { title: '耗时', key: 'duration', width: 100 },
-  { title: '创建时间', key: 'created_at' },
-  { title: '操作', key: 'actions', width: 200 }
-]
-
-const utilizationColumns: TableColumns = [
-  { title: '咨询师', key: 'counselor_name' },
-  { title: '日期', key: 'schedule_date' },
-  { title: '时段', key: 'time_slot' },
-  { title: '最大预约', key: 'max_appointments' },
-  { title: '已预约', key: 'booked_count' },
-  { title: '利用率', key: 'utilization_rate' }
-]
-
-const conflictColumns: TableColumns = [
-  { title: '访客', key: 'visitor_name' },
-  { title: '电话', key: 'visitor_phone' },
-  { title: '咨询师', key: 'counselor_name' },
-  { title: '日期', key: 'schedule_date' },
-  { title: '冲突原因', key: 'conflict_reason' }
-]
-
-const operationColumns: TableColumns = [
-  { title: '操作人', key: 'operator' },
-  { title: '操作类型', key: 'operation_type' },
-  { title: '目标类型', key: 'target_type' },
-  { title: 'IP', key: 'ip_address' },
-  { title: '时间', key: 'created_at' }
 ]
 
 function getStatusType(status: string) {
@@ -287,8 +181,156 @@ function calculateDuration(start: string, end: string) {
   return `${Math.floor(seconds / 3600)}时${Math.floor((seconds % 3600) / 60)}分`
 }
 
+const columns = computed<DataTableColumns>(() => [
+  { title: '任务名称', key: 'task_name' },
+  {
+    title: '状态',
+    key: 'status',
+    width: 120,
+    render: (row: any) => {
+      const children: any[] = [
+        h(NTag, { type: getStatusType(row.status) }, () => getStatusText(row.status))
+      ]
+      if (row.status === 'running' || row.status === 'pending') {
+        children.push(h(NSpin, { size: 'small' }))
+      }
+      return h(NSpace, null, () => children)
+    }
+  },
+  {
+    title: '进度',
+    key: 'progress',
+    width: 150,
+    render: (row: any) => {
+      if (row.status === 'running') {
+        return h('div', { class: 'w-full' }, [
+          h(NProgress, { type: 'line', percentage: 50, indeterminate: true, height: 6 })
+        ])
+      }
+      if (row.status === 'success') {
+        return h('div', { class: 'text-green-500 text-sm' }, '100%')
+      }
+      if (row.status === 'failed') {
+        return h('div', { class: 'text-red-500 text-sm' }, '失败')
+      }
+      return h('div', { class: 'text-gray-400 text-sm' }, '等待中')
+    }
+  },
+  {
+    title: '重试',
+    key: 'retry',
+    width: 100,
+    render: (row: any) => {
+      if (row.retry_count > 0) {
+        return h(NTag, { type: 'warning', size: 'small' }, () => `${row.retry_count} / ${row.max_retries}`)
+      }
+      return h('div', { class: 'text-gray-400' }, '-')
+    }
+  },
+  {
+    title: '耗时',
+    key: 'duration',
+    width: 100,
+    render: (row: any) => {
+      if (row.started_at && row.completed_at) {
+        return calculateDuration(row.started_at, row.completed_at)
+      }
+      if (row.started_at) {
+        return '执行中...'
+      }
+      return '-'
+    }
+  },
+  { title: '创建时间', key: 'created_at' },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 200,
+    fixed: 'right',
+    render: (row: any) => {
+      const children: any[] = []
+      if (row.status === 'success') {
+        children.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              type: 'primary',
+              onClick: () => viewResult(row)
+            },
+            () => '查看结果'
+          )
+        )
+      }
+      if (row.status === 'failed') {
+        children.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              onClick: () => viewError(row)
+            },
+            () => '错误详情'
+          )
+        )
+      }
+      if (row.status === 'failed' && row.retry_count < row.max_retries) {
+        children.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              type: 'warning',
+              onClick: () => retryTask(row)
+            },
+            () => '重试'
+          )
+        )
+      }
+      return h(NSpace, null, () => children)
+    }
+  }
+])
+
+const utilizationColumns: TableColumns = [
+  { title: '咨询师', key: 'counselor_name' },
+  { title: '日期', key: 'schedule_date' },
+  { title: '时段', key: 'time_slot' },
+  { title: '最大预约', key: 'max_appointments' },
+  { title: '已预约', key: 'booked_count' },
+  { title: '利用率', key: 'utilization_rate' }
+]
+
+const conflictColumns: TableColumns = [
+  { title: '访客', key: 'visitor_name' },
+  { title: '电话', key: 'visitor_phone' },
+  { title: '咨询师', key: 'counselor_name' },
+  { title: '日期', key: 'schedule_date' },
+  { title: '冲突原因', key: 'conflict_reason' }
+]
+
+const operationColumns: TableColumns = [
+  { title: '操作人', key: 'operator' },
+  { title: '操作类型', key: 'operation_type' },
+  { title: '目标类型', key: 'target_type' },
+  { title: 'IP', key: 'ip_address' },
+  { title: '时间', key: 'created_at' }
+]
+
+const pagination = computed<DataTablePagination>(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  itemCount: total.value,
+  onUpdatePage: (p: number) => { page.value = p; loadTasks() },
+  onUpdatePageSize: (ps: number) => { pageSize.value = ps; page.value = 1; loadTasks() }
+}))
+
 async function loadTasks() {
   try {
+    loading.value = true
     const params: any = {
       skip: (page.value - 1) * pageSize.value,
       limit: pageSize.value
@@ -305,6 +347,8 @@ async function loadTasks() {
     total.value = data.length
   } catch (error) {
     message.error('加载任务列表失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -333,12 +377,10 @@ async function retryTask(row: any) {
 
 async function downloadReport(taskId: string) {
   try {
-    const link = document.createElement('a')
-    link.href = `/api/reports/download/${taskId}`
-    link.target = '_blank'
-    link.click()
-  } catch (error) {
-    message.error('下载失败')
+    await downloadFile(`/api/reports/download/${taskId}`, `report_${taskId}.xlsx`)
+    message.success('下载已开始')
+  } catch (error: any) {
+    message.error(error.message || '下载失败')
   }
 }
 

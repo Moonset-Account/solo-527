@@ -13,31 +13,13 @@
         </div>
       </template>
 
-      <n-table :data="timeSlots" :columns="columns" bordered>
-        <template #day_of_week="{ row }">
-          {{ getDayText(row.day_of_week) }}
-        </template>
-        <template #is_active="{ row }">
-          <n-tag :type="row.is_active ? 'success' : 'default'">
-            {{ row.is_active ? '启用' : '停用' }}
-          </n-tag>
-        </template>
-        <template #actions="{ row }">
-          <n-space>
-            <n-button size="small" text @click="editTimeSlot(row)">
-              编辑
-            </n-button>
-            <n-button
-              size="small"
-              text
-              :type="row.is_active ? 'warning' : 'success'"
-              @click="toggleStatus(row)"
-            >
-              {{ row.is_active ? '停用' : '启用' }}
-            </n-button>
-          </n-space>
-        </template>
-      </n-table>
+      <n-data-table
+        :data="timeSlots"
+        :columns="columns"
+        :loading="loading"
+        bordered
+        :pagination="pagination"
+      />
     </n-card>
 
     <n-modal v-model:show="showCreateModal" preset="card" :title="editingSlot ? '编辑时段' : '新增时段'" style="width: 450px">
@@ -88,10 +70,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
-  NTable,
+  NDataTable,
   NButton,
   NSpace,
   NModal,
@@ -101,8 +83,9 @@ import {
   NSelect,
   NSwitch,
   NTag,
+  NPopconfirm,
   useMessage,
-  TableColumns,
+  DataTableColumns,
   SelectOption,
   FormInst,
   FormRules
@@ -114,9 +97,13 @@ const message = useMessage()
 const { apiRequest } = useAuth()
 
 const timeSlots = ref<any[]>([])
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 const showCreateModal = ref(false)
 const editingSlot = ref<any>(null)
 const submitting = ref(false)
+const loading = ref(false)
 
 const dayOptions: SelectOption[] = [
   { label: '周一', value: 1 },
@@ -141,15 +128,20 @@ const rules: FormRules = {
   end_time: [{ required: true, message: '请选择结束时间', trigger: 'change' }]
 }
 
-const columns: TableColumns = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: '开始时间', key: 'start_time' },
-  { title: '结束时间', key: 'end_time' },
-  { title: '适用星期', key: 'day_of_week' },
-  { title: '状态', key: 'is_active' },
-  { title: '创建时间', key: 'created_at' },
-  { title: '操作', key: 'actions', width: 150 }
-]
+const pagination = computed(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  itemCount: total.value,
+  onUpdatePage: (p: number) => {
+    page.value = p
+    loadData()
+  },
+  onUpdatePageSize: (ps: number) => {
+    pageSize.value = ps
+    page.value = 1
+    loadData()
+  }
+}))
 
 function getDayText(day: number | null) {
   if (day === null) return '全部'
@@ -157,12 +149,82 @@ function getDayText(day: number | null) {
   return days[day] || '-'
 }
 
+const columns: DataTableColumns = [
+  { title: 'ID', key: 'id', width: 80 },
+  { title: '开始时间', key: 'start_time', width: 120 },
+  { title: '结束时间', key: 'end_time', width: 120 },
+  {
+    title: '适用星期',
+    key: 'day_of_week',
+    width: 120,
+    render: (row: any) => getDayText(row.day_of_week)
+  },
+  {
+    title: '状态',
+    key: 'is_active',
+    width: 100,
+    render: (row: any) => h(
+      NTag,
+      { type: row.is_active ? 'success' : 'default' },
+      { default: () => row.is_active ? '启用' : '停用' }
+    )
+  },
+  { title: '创建时间', key: 'created_at', width: 180 },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 180,
+    fixed: 'right',
+    render: (row: any) => h(
+      NSpace,
+      {},
+      {
+        default: () => [
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              onClick: () => editTimeSlot(row)
+            },
+            { default: () => '编辑' }
+          ),
+          h(
+            NPopconfirm,
+            {
+              positiveText: '确认',
+              negativeText: '取消',
+              onPositiveClick: () => toggleStatus(row)
+            },
+            {
+              trigger: () => h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: row.is_active ? 'warning' : 'success'
+                },
+                { default: () => row.is_active ? '停用' : '启用' }
+              ),
+              default: () => row.is_active ? '确定要停用该时段吗？' : '确定要启用该时段吗？'
+            }
+          )
+        ]
+      }
+    )
+  }
+]
+
 async function loadData() {
+  loading.value = true
   try {
     const data = await apiRequest<any[]>('/api/time-slots')
     timeSlots.value = data
+    total.value = data.length
   } catch (error) {
     message.error('加载数据失败')
+  } finally {
+    loading.value = false
   }
 }
 

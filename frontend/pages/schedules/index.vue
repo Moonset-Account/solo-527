@@ -31,51 +31,13 @@
         </div>
       </template>
 
-      <n-table
+      <n-data-table
         :data="schedules"
         :columns="columns"
+        :loading="loading"
         bordered
-        :pagination="{
-          page: page,
-          pageSize: pageSize,
-          itemCount: total,
-          onUpdatePage: (p) => { page = p; loadData() },
-          onUpdatePageSize: (ps) => { pageSize = ps; page = 1; loadData() }
-        }"
-      >
-        <template #counselor="{ row }">
-          {{ row.counselor_info?.name || '-' }}
-        </template>
-        <template #time_slot="{ row }">
-          <div v-if="row.time_slot_info">
-            {{ row.time_slot_info.start_time }} - {{ row.time_slot_info.end_time }}
-          </div>
-        </template>
-        <template #is_available="{ row }">
-          <n-tag :type="row.is_available ? 'success' : 'default'">
-            {{ row.is_available ? '可用' : '停用' }}
-          </n-tag>
-        </template>
-        <template #actions="{ row }">
-          <n-space>
-            <n-button size="small" text @click="editSchedule(row)">
-              编辑
-            </n-button>
-            <n-popconfirm
-              positive-text="删除"
-              negative-text="取消"
-              @positive-click="deleteSchedule(row)"
-            >
-              <template #trigger>
-                <n-button size="small" text type="error">
-                  删除
-                </n-button>
-              </template>
-              确定要删除该排班吗？
-            </n-popconfirm>
-          </n-space>
-        </template>
-      </n-table>
+        :pagination="pagination"
+      />
     </n-card>
 
     <n-modal v-model:show="showCreateModal" preset="card" :title="editingSchedule ? '编辑排班' : '新增排班'" style="width: 500px">
@@ -171,10 +133,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
-  NTable,
+  NDataTable,
   NButton,
   NSelect,
   NDatePicker,
@@ -187,7 +149,7 @@ import {
   NTag,
   NPopconfirm,
   useMessage,
-  TableColumns,
+  DataTableColumns,
   SelectOption,
   FormInst,
   FormRules
@@ -208,6 +170,7 @@ const showCreateModal = ref(false)
 const showBatchModal = ref(false)
 const editingSchedule = ref<any>(null)
 const submitting = ref(false)
+const loading = ref(false)
 
 const counselorOptions = ref<SelectOption[]>([])
 const timeSlotOptions = ref<SelectOption[]>([])
@@ -236,15 +199,96 @@ const rules: FormRules = {
   schedule_date: [{ required: true, message: '请选择日期', trigger: 'change' }]
 }
 
-const columns: TableColumns = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: '咨询师', key: 'counselor' },
-  { title: '日期', key: 'schedule_date' },
-  { title: '时段', key: 'time_slot' },
-  { title: '最大预约数', key: 'max_appointments' },
-  { title: '状态', key: 'is_available' },
-  { title: '创建时间', key: 'created_at' },
-  { title: '操作', key: 'actions', width: 150 }
+const pagination = computed(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  itemCount: total.value,
+  onUpdatePage: (p: number) => {
+    page.value = p
+    loadData()
+  },
+  onUpdatePageSize: (ps: number) => {
+    pageSize.value = ps
+    page.value = 1
+    loadData()
+  }
+}))
+
+const columns: DataTableColumns = [
+  { title: 'ID', key: 'id', width: 80 },
+  {
+    title: '咨询师',
+    key: 'counselor',
+    width: 120,
+    render: (row: any) => row.counselor_info?.name || '-'
+  },
+  { title: '日期', key: 'schedule_date', width: 140 },
+  {
+    title: '时段',
+    key: 'time_slot',
+    width: 180,
+    render: (row: any) => {
+      if (row.time_slot_info) {
+        return `${row.time_slot_info.start_time} - ${row.time_slot_info.end_time}`
+      }
+      return '-'
+    }
+  },
+  { title: '最大预约数', key: 'max_appointments', width: 120 },
+  {
+    title: '状态',
+    key: 'is_available',
+    width: 100,
+    render: (row: any) => h(
+      NTag,
+      { type: row.is_available ? 'success' : 'default' },
+      { default: () => row.is_available ? '可用' : '停用' }
+    )
+  },
+  { title: '创建时间', key: 'created_at', width: 180 },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 160,
+    fixed: 'right',
+    render: (row: any) => h(
+      NSpace,
+      {},
+      {
+        default: () => [
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              onClick: () => editSchedule(row)
+            },
+            { default: () => '编辑' }
+          ),
+          h(
+            NPopconfirm,
+            {
+              positiveText: '删除',
+              negativeText: '取消',
+              onPositiveClick: () => deleteSchedule(row)
+            },
+            {
+              trigger: () => h(
+                NButton,
+                {
+                  size: 'small',
+                  text: true,
+                  type: 'error'
+                },
+                { default: () => '删除' }
+              ),
+              default: () => '确定要删除该排班吗？'
+            }
+          )
+        ]
+      }
+    )
+  }
 ]
 
 async function loadCounselors() {
@@ -269,6 +313,7 @@ async function loadTimeSlots() {
 }
 
 async function loadData() {
+  loading.value = true
   try {
     const params: any = {
       skip: (page.value - 1) * pageSize.value,
@@ -287,6 +332,8 @@ async function loadData() {
     total.value = data.length
   } catch (error) {
     message.error('加载数据失败')
+  } finally {
+    loading.value = false
   }
 }
 

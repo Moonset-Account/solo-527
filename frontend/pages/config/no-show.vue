@@ -29,43 +29,12 @@
         </div>
       </template>
 
-      <n-table :data="noShowList" :columns="columns" bordered>
-        <template #is_blocked="{ row }">
-          <n-tag :type="row.is_blocked ? 'error' : 'success'">
-            {{ row.is_blocked ? '已封禁' : '已解除' }}
-          </n-tag>
-        </template>
-        <template #created_by="{ row }">
-          {{ getOperatorName(row.created_by) }}
-        </template>
-        <template #actions="{ row }">
-          <n-space>
-            <n-button size="small" text @click="editEntry(row)">
-              编辑
-            </n-button>
-            <n-button
-              size="small"
-              text
-              :type="row.is_blocked ? 'success' : 'error'"
-              @click="toggleBlock(row)"
-            >
-              {{ row.is_blocked ? '解除封禁' : '封禁' }}
-            </n-button>
-            <n-popconfirm
-              positive-text="删除"
-              negative-text="取消"
-              @positive-click="deleteEntry(row)"
-            >
-              <template #trigger>
-                <n-button size="small" text type="error">
-                  删除
-                </n-button>
-              </template>
-              确定要删除该记录吗？
-            </n-popconfirm>
-          </n-space>
-        </template>
-      </n-table>
+      <n-data-table
+        :data="noShowList"
+        :columns="columns"
+        :loading="loading"
+        bordered
+      />
     </n-card>
 
     <n-modal v-model:show="showCreateModal" preset="card" :title="editingEntry ? '编辑记录' : '添加爽约名单'" style="width: 450px">
@@ -109,10 +78,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
-  NTable,
+  NDataTable,
   NButton,
   NInput,
   NSelect,
@@ -125,7 +94,7 @@ import {
   NTag,
   NPopconfirm,
   useMessage,
-  TableColumns,
+  DataTableColumns,
   SelectOption,
   FormInst,
   FormRules
@@ -137,6 +106,7 @@ const message = useMessage()
 const { apiRequest } = useAuth()
 
 const noShowList = ref<any[]>([])
+const loading = ref(false)
 const searchPhone = ref('')
 const filterBlocked = ref<boolean | null>(null)
 const showCreateModal = ref(false)
@@ -164,24 +134,76 @@ const rules: FormRules = {
   ]
 }
 
-const columns: TableColumns = [
+function getOperatorName(userId: number) {
+  return userId || '-'
+}
+
+const columns = computed<DataTableColumns>(() => [
   { title: 'ID', key: 'id', width: 60 },
   { title: '手机号', key: 'visitor_phone' },
   { title: '姓名', key: 'visitor_name' },
   { title: '爽约次数', key: 'no_show_count' },
   { title: '原因', key: 'reason', ellipsis: { tooltip: true } },
-  { title: '状态', key: 'is_blocked' },
-  { title: '操作人', key: 'created_by' },
+  {
+    title: '状态',
+    key: 'is_blocked',
+    render: (row: any) => {
+      return h(NTag, { type: row.is_blocked ? 'error' : 'success' }, () => row.is_blocked ? '已封禁' : '已解除')
+    }
+  },
+  {
+    title: '操作人',
+    key: 'created_by',
+    render: (row: any) => getOperatorName(row.created_by)
+  },
   { title: '创建时间', key: 'created_at' },
-  { title: '操作', key: 'actions', width: 200 }
-]
-
-function getOperatorName(userId: number) {
-  return userId || '-'
-}
+  {
+    title: '操作',
+    key: 'actions',
+    width: 200,
+    fixed: 'right',
+    render: (row: any) => {
+      return h(NSpace, null, () => [
+        h(
+          NButton,
+          { size: 'small', text: true, onClick: () => editEntry(row) },
+          () => '编辑'
+        ),
+        h(
+          NButton,
+          {
+            size: 'small',
+            text: true,
+            type: row.is_blocked ? 'success' : 'error',
+            onClick: () => toggleBlock(row)
+          },
+          () => row.is_blocked ? '解除封禁' : '封禁'
+        ),
+        h(
+          NPopconfirm,
+          {
+            positiveText: '删除',
+            negativeText: '取消',
+            onPositiveClick: () => deleteEntry(row)
+          },
+          {
+            trigger: () =>
+              h(
+                NButton,
+                { size: 'small', text: true, type: 'error' },
+                () => '删除'
+              ),
+            default: () => '确定要删除该记录吗？'
+          }
+        )
+      ])
+    }
+  }
+])
 
 async function loadData() {
   try {
+    loading.value = true
     const params: any = {}
     if (searchPhone.value) {
       params.visitor_phone = searchPhone.value
@@ -194,6 +216,8 @@ async function loadData() {
     noShowList.value = data
   } catch (error) {
     message.error('加载数据失败')
+  } finally {
+    loading.value = false
   }
 }
 

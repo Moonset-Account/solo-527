@@ -33,41 +33,13 @@
         </div>
       </template>
 
-      <n-table
+      <n-data-table
         :data="logs"
         :columns="columns"
+        :loading="loading"
+        :pagination="pagination"
         bordered
-        :pagination="{
-          page: page,
-          pageSize: pageSize,
-          itemCount: total,
-          onUpdatePage: (p) => { page = p; loadData() },
-          onUpdatePageSize: (ps) => { pageSize = ps; page = 1; loadData() }
-        }"
-      >
-        <template #operator="{ row }">
-          <div>
-            <div>{{ row.operator_info?.real_name || '-' }}</div>
-            <div class="text-xs text-gray-500">{{ row.ip_address || '-' }}</div>
-          </div>
-        </template>
-        <template #operation_type="{ row }">
-          <n-tag :type="getOperationType(row.operation_type)">
-            {{ getOperationText(row.operation_type) }}
-          </n-tag>
-        </template>
-        <template #target="{ row }">
-          <div>
-            <div>{{ getTargetText(row.target_type) }}</div>
-            <div class="text-xs text-gray-500">ID: {{ row.target_id || '-' }}</div>
-          </div>
-        </template>
-        <template #actions="{ row }">
-          <n-button size="small" text @click="viewDetail(row)">
-            详情
-          </n-button>
-        </template>
-      </n-table>
+      />
     </n-card>
 
     <n-modal v-model:show="showDetailModal" preset="card" title="操作详情" style="width: 600px">
@@ -119,10 +91,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
-  NTable,
+  NDataTable,
   NButton,
   NSelect,
   NSpace,
@@ -132,8 +104,9 @@ import {
   NDescriptionsItem,
   NDivider,
   useMessage,
-  TableColumns,
-  SelectOption
+  DataTableColumns,
+  SelectOption,
+  DataTablePagination
 } from 'naive-ui'
 import { useAuth } from '~/composables/useAuth'
 
@@ -141,6 +114,7 @@ const message = useMessage()
 const { apiRequest } = useAuth()
 
 const logs = ref<any[]>([])
+const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -167,16 +141,6 @@ const targetTypeOptions: SelectOption[] = [
   { label: '时段', value: 'time_slot' },
   { label: '预约', value: 'appointment' },
   { label: '爽约名单', value: 'no_show_list' }
-]
-
-const columns: TableColumns = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: '操作人', key: 'operator', width: 150 },
-  { title: '操作类型', key: 'operation_type', width: 120 },
-  { title: '目标', key: 'target', width: 150 },
-  { title: 'IP地址', key: 'ip_address', width: 120 },
-  { title: '操作时间', key: 'created_at' },
-  { title: '操作', key: 'actions', width: 80 }
 ]
 
 function getOperationType(type: string) {
@@ -222,6 +186,63 @@ function formatTime(time: string) {
   return time ? new Date(time).toLocaleString('zh-CN') : '-'
 }
 
+const columns = computed<DataTableColumns>(() => [
+  { title: 'ID', key: 'id', width: 60 },
+  {
+    title: '操作人',
+    key: 'operator',
+    width: 150,
+    render: (row: any) => {
+      return h('div', null, [
+        h('div', null, row.operator_info?.real_name || '-'),
+        h('div', { class: 'text-xs text-gray-500' }, row.ip_address || '-')
+      ])
+    }
+  },
+  {
+    title: '操作类型',
+    key: 'operation_type',
+    width: 120,
+    render: (row: any) => {
+      return h(NTag, { type: getOperationType(row.operation_type) }, () => getOperationText(row.operation_type))
+    }
+  },
+  {
+    title: '目标',
+    key: 'target',
+    width: 150,
+    render: (row: any) => {
+      return h('div', null, [
+        h('div', null, getTargetText(row.target_type)),
+        h('div', { class: 'text-xs text-gray-500' }, `ID: ${row.target_id || '-'}`)
+      ])
+    }
+  },
+  { title: 'IP地址', key: 'ip_address', width: 120 },
+  { title: '操作时间', key: 'created_at' },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 80,
+    fixed: 'right',
+    render: (row: any) => {
+      return h(
+        NButton,
+        { size: 'small', text: true, onClick: () => viewDetail(row) },
+        () => '详情'
+      )
+    }
+  }
+])
+
+const pagination = computed<DataTablePagination>(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  itemCount: total.value,
+  onUpdatePage: (p: number) => { page.value = p; loadData() },
+  onUpdatePageSize: (ps: number) => { pageSize.value = ps; page.value = 1; loadData() }
+}))
+
 async function loadUsers() {
   try {
     const users = await apiRequest<any[]>('/api/auth/users')
@@ -233,6 +254,7 @@ async function loadUsers() {
 
 async function loadData() {
   try {
+    loading.value = true
     const params: any = {
       skip: (page.value - 1) * pageSize.value,
       limit: pageSize.value
@@ -252,6 +274,8 @@ async function loadData() {
     total.value = data.length
   } catch (error) {
     message.error('加载数据失败')
+  } finally {
+    loading.value = false
   }
 }
 

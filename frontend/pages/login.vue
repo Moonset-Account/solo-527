@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
     <n-card class="w-full max-w-md" title="心理咨询排班管理系统" bordered>
       <n-form
         ref="formRef"
@@ -45,8 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import {
   NCard,
   NForm,
@@ -62,9 +61,18 @@ import { PeopleOutline, LockClosedOutline } from '@vicons/ionicons5'
 import { h } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 
-const router = useRouter()
 const message = useMessage()
-const { login } = useAuth()
+const { login, isAuthenticated } = useAuth()
+
+onMounted(() => {
+  if (isAuthenticated.value) {
+    navigateTo('/')
+  }
+})
+
+definePageMeta({
+  layout: false
+})
 
 const formRef = ref<FormInst | null>(null)
 const loading = ref(false)
@@ -89,14 +97,14 @@ function renderIcon(icon: any) {
 
 async function handleLogin() {
   if (!formRef.value) return
-  
+
   try {
     await formRef.value.validate()
     loading.value = true
-    
+
     await login(formValue.value.username, formValue.value.password)
     message.success('登录成功')
-    router.push('/')
+    navigateTo('/')
   } catch (error: any) {
     message.error(error.message || '登录失败')
   } finally {

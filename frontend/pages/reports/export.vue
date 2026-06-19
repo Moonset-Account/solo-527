@@ -52,60 +52,13 @@
     </n-card>
 
     <n-card title="最近导出任务">
-      <n-table
+      <n-data-table
         :data="tasks"
         :columns="columns"
+        :loading="loading"
+        :pagination="pagination"
         bordered
-        :pagination="{
-          page: page,
-          pageSize: pageSize,
-          itemCount: total,
-          onUpdatePage: (p) => { page = p; loadTasks() },
-          onUpdatePageSize: (ps) => { pageSize = ps; page = 1; loadTasks() }
-        }"
-      >
-        <template #status="{ row }">
-          <n-tag :type="getStatusType(row.status)">
-            {{ getStatusText(row.status) }}
-          </n-tag>
-        </template>
-        <template #retry="{ row }">
-          <div v-if="row.retry_count > 0" class="text-orange-500">
-            {{ row.retry_count }} / {{ row.max_retries }}
-          </div>
-          <div v-else class="text-gray-400">-</div>
-        </template>
-        <template #actions="{ row }">
-          <n-space>
-            <n-button
-              v-if="row.status === 'success'"
-              size="small"
-              text
-              type="primary"
-              @click="downloadReport(row.task_id)"
-            >
-              下载
-            </n-button>
-            <n-button
-              v-if="row.status === 'failed' && row.retry_count < row.max_retries"
-              size="small"
-              text
-              type="warning"
-              @click="retryTask(row)"
-            >
-              重试
-            </n-button>
-            <n-button
-              v-if="row.status === 'failed'"
-              size="small"
-              text
-              @click="viewError(row)"
-            >
-              查看错误
-            </n-button>
-          </n-space>
-        </template>
-      </n-table>
+      />
     </n-card>
 
     <n-modal v-model:show="showErrorModal" preset="card" title="错误详情" style="width: 600px">
@@ -150,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
   NForm,
@@ -162,25 +115,27 @@ import {
   NCheckbox,
   NSpace,
   NButton,
-  NTable,
+  NDataTable,
   NTag,
   NModal,
   NDescriptions,
   NDescriptionsItem,
   NDivider,
   useMessage,
-  TableColumns,
-  FormInst
+  DataTableColumns,
+  FormInst,
+  DataTablePagination
 } from 'naive-ui'
 import { DownloadOutline } from '@vicons/ionicons5'
 import { useAuth } from '~/composables/useAuth'
 
 const message = useMessage()
-const { apiRequest } = useAuth()
+const { apiRequest, downloadFile } = useAuth()
 
 const formRef = ref<FormInst | null>(null)
 const exporting = ref(false)
 const tasks = ref<any[]>([])
+const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -192,15 +147,6 @@ const formValue = ref({
   end_date: null as number | null,
   include_items: ['utilization', 'conflicts', 'operations'] as string[]
 })
-
-const columns: TableColumns = [
-  { title: '任务名称', key: 'task_name' },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '重试', key: 'retry', width: 80 },
-  { title: '创建时间', key: 'created_at' },
-  { title: '完成时间', key: 'completed_at' },
-  { title: '操作', key: 'actions', width: 180 }
-]
 
 function getStatusType(status: string) {
   const map: Record<string, any> = {
@@ -227,6 +173,90 @@ function getStatusText(status: string) {
 function formatTime(time: string) {
   return time ? new Date(time).toLocaleString('zh-CN') : '-'
 }
+
+const columns = computed<DataTableColumns>(() => [
+  { title: '任务名称', key: 'task_name' },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render: (row: any) => {
+      return h(NTag, { type: getStatusType(row.status) }, () => getStatusText(row.status))
+    }
+  },
+  {
+    title: '重试',
+    key: 'retry',
+    width: 80,
+    render: (row: any) => {
+      if (row.retry_count > 0) {
+        return h('div', { class: 'text-orange-500' }, `${row.retry_count} / ${row.max_retries}`)
+      }
+      return h('div', { class: 'text-gray-400' }, '-')
+    }
+  },
+  { title: '创建时间', key: 'created_at' },
+  { title: '完成时间', key: 'completed_at' },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 180,
+    fixed: 'right',
+    render: (row: any) => {
+      const children: any[] = []
+      if (row.status === 'success') {
+        children.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              type: 'primary',
+              onClick: () => downloadReport(row.task_id)
+            },
+            () => '下载'
+          )
+        )
+      }
+      if (row.status === 'failed' && row.retry_count < row.max_retries) {
+        children.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              type: 'warning',
+              onClick: () => retryTask(row)
+            },
+            () => '重试'
+          )
+        )
+      }
+      if (row.status === 'failed') {
+        children.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              text: true,
+              onClick: () => viewError(row)
+            },
+            () => '查看错误'
+          )
+        )
+      }
+      return h(NSpace, null, () => children)
+    }
+  }
+])
+
+const pagination = computed<DataTablePagination>(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  itemCount: total.value,
+  onUpdatePage: (p: number) => { page.value = p; loadTasks() },
+  onUpdatePageSize: (ps: number) => { pageSize.value = ps; page.value = 1; loadTasks() }
+}))
 
 async function handleExport() {
   try {
@@ -261,6 +291,7 @@ async function handleExport() {
 
 async function loadTasks() {
   try {
+    loading.value = true
     const params = {
       skip: (page.value - 1) * pageSize.value,
       limit: pageSize.value
@@ -270,18 +301,17 @@ async function loadTasks() {
     total.value = data.length
   } catch (error) {
     message.error('加载任务列表失败')
+  } finally {
+    loading.value = false
   }
 }
 
 async function downloadReport(taskId: string) {
   try {
-    const token = localStorage.getItem('token')
-    const link = document.createElement('a')
-    link.href = `/api/reports/download/${taskId}`
-    link.target = '_blank'
-    link.click()
-  } catch (error) {
-    message.error('下载失败')
+    await downloadFile(`/api/reports/download/${taskId}`, `report_${taskId}.xlsx`)
+    message.success('下载已开始')
+  } catch (error: any) {
+    message.error(error.message || '下载失败')
   }
 }
 

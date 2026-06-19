@@ -25,9 +25,9 @@
               placeholder="选择日期范围"
               clearable
             />
-            <n-button type="primary" @click="router.push('/appointments/new')">
+            <n-button type="primary" @click="navigateTo('/appointments/new')">
               <template #icon>
-                <AddCircleOutline />
+                <n-icon><AddCircleOutline /></n-icon>
               </template>
               新建预约
             </n-button>
@@ -35,57 +35,13 @@
         </div>
       </template>
 
-      <n-table
+      <n-data-table
         :data="appointments"
         :columns="columns"
+        :pagination="pagination"
+        :loading="loading"
         bordered
-        :pagination="{
-          page: page,
-          pageSize: pageSize,
-          itemCount: total,
-          onUpdatePage: (p) => { page = p; loadData() },
-          onUpdatePageSize: (ps) => { pageSize = ps; page = 1; loadData() }
-        }"
-      >
-        <template #status="{ row }">
-          <n-tag :type="getStatusType(row.status)">
-            {{ getStatusText(row.status) }}
-          </n-tag>
-        </template>
-        <template #schedule="{ row }">
-          <div v-if="row.schedule_info">
-            <div>{{ row.schedule_info.schedule_date }}</div>
-            <div class="text-xs text-gray-500">
-              {{ row.schedule_info.time_slot_info?.start_time }} - {{ row.schedule_info.time_slot_info?.end_time }}
-            </div>
-          </div>
-        </template>
-        <template #counselor="{ row }">
-          {{ row.schedule_info?.counselor_info?.name || '-' }}
-        </template>
-        <template #creator="{ row }">
-          {{ row.creator_info?.real_name || '-' }}
-        </template>
-        <template #last_operation="{ row }">
-          <div v-if="row.last_operation" class="text-xs">
-            <div>{{ row.last_operation.operator }}</div>
-            <div class="text-gray-500">{{ formatTime(row.last_operation.timestamp) }}</div>
-          </div>
-        </template>
-        <template #actions="{ row }">
-          <n-space>
-            <n-dropdown
-              :options="getActionOptions(row)"
-              @select="(key) => handleAction(row, key)"
-              trigger="click"
-            >
-              <n-button size="small" text>
-                操作 <ChevronDownOutline />
-              </n-button>
-            </n-dropdown>
-          </n-space>
-        </template>
-      </n-table>
+      />
     </n-card>
 
     <n-modal v-model:show="showDetailModal" preset="card" title="预约详情" style="width: 600px">
@@ -144,6 +100,9 @@
             修改内容: {{ JSON.stringify(currentAppointment.last_operation.changes) }}
           </div>
         </div>
+        <div v-else class="text-gray-500 text-center py-4">
+          暂无操作记录
+        </div>
       </div>
       <template #footer>
         <n-space justify="end">
@@ -155,11 +114,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, h, computed } from 'vue'
 import {
   NCard,
-  NTable,
+  NDataTable,
   NButton,
   NInput,
   NSelect,
@@ -170,20 +128,20 @@ import {
   NDescriptions,
   NDescriptionsItem,
   NDivider,
-  NDropdown,
+  NPopconfirm,
+  NIcon,
   useMessage,
-  TableColumns,
-  SelectOption,
-  DropdownOption
+  DataTableColumns,
+  SelectOption
 } from 'naive-ui'
-import { AddCircleOutline, ChevronDownOutline } from '@vicons/ionicons5'
+import { AddCircleOutline, EyeOutline, CheckmarkOutline, CloseOutline, AlertCircleOutline, CheckmarkDoneOutline } from '@vicons/ionicons5'
 import { useAuth } from '~/composables/useAuth'
 
-const router = useRouter()
 const message = useMessage()
 const { apiRequest } = useAuth()
 
 const appointments = ref<any[]>([])
+const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -201,17 +159,13 @@ const statusOptions: SelectOption[] = [
   { label: '爽约', value: 'no_show' }
 ]
 
-const columns: TableColumns = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: '访客姓名', key: 'visitor_name' },
-  { title: '访客电话', key: 'visitor_phone' },
-  { title: '咨询师', key: 'counselor' },
-  { title: '预约信息', key: 'schedule' },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '创建人', key: 'creator' },
-  { title: '最近操作', key: 'last_operation' },
-  { title: '操作', key: 'actions', width: 100 }
-]
+const pagination = computed(() => ({
+  page: page.value,
+  pageSize: pageSize.value,
+  itemCount: total.value,
+  onUpdatePage: (p: number) => { page.value = p; loadData() },
+  onUpdatePageSize: (ps: number) => { pageSize.value = ps; page.value = 1; loadData() }
+}))
 
 function getStatusType(status: string) {
   const map: Record<string, any> = {
@@ -249,71 +203,170 @@ function formatTime(time: string) {
   return time ? new Date(time).toLocaleString('zh-CN') : '-'
 }
 
-function getActionOptions(row: any): DropdownOption[] {
-  const options: DropdownOption[] = [
-    { label: '查看详情', key: 'view' }
-  ]
-  
-  if (row.status === 'pending') {
-    options.push({ label: '确认预约', key: 'confirm' })
+const columns: DataTableColumns = [
+  { title: 'ID', key: 'id', width: 60 },
+  { title: '访客姓名', key: 'visitor_name', width: 100 },
+  { title: '访客电话', key: 'visitor_phone', width: 130 },
+  {
+    title: '咨询师',
+    key: 'counselor',
+    width: 100,
+    render: (row: any) => row.schedule_info?.counselor_info?.name || '-'
+  },
+  {
+    title: '预约信息',
+    key: 'schedule',
+    width: 180,
+    render: (row: any) => {
+      const schedule = row.schedule_info
+      if (!schedule) return '-'
+      return h('div', null, [
+        h('div', null, String(schedule.schedule_date)),
+        h('div', { class: 'text-xs text-gray-500 mt-1' },
+          `${schedule.time_slot_info?.start_time || ''} - ${schedule.time_slot_info?.end_time || ''}`
+        )
+      ])
+    }
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render: (row: any) => h(NTag, { type: getStatusType(row.status) }, () => getStatusText(row.status))
+  },
+  {
+    title: '创建人',
+    key: 'creator',
+    width: 100,
+    render: (row: any) => row.creator_info?.real_name || '-'
+  },
+  {
+    title: '最近操作',
+    key: 'last_operation',
+    width: 150,
+    render: (row: any) => {
+      const op = row.last_operation
+      if (!op) return h('span', { class: 'text-gray-400' }, '-')
+      return h('div', null, [
+        h('div', { class: 'text-xs font-medium' }, String(op.operator)),
+        h('div', { class: 'text-xs text-gray-500 mt-1' }, formatTime(op.timestamp))
+      ])
+    }
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 260,
+    fixed: 'right',
+    render: (row: any) => {
+      const actions: any[] = [
+        h(NButton, {
+          size: 'small',
+          type: 'default',
+          onClick: () => {
+            currentAppointment.value = row
+            showDetailModal.value = true
+          }
+        }, {
+          icon: () => h(NIcon, null, () => h(EyeOutline)),
+          default: () => '查看'
+        })
+      ]
+
+      if (row.status === 'pending') {
+        actions.push(h(NButton, {
+          size: 'small',
+          type: 'success',
+          onClick: () => handleAction(row, 'confirm')
+        }, {
+          icon: () => h(NIcon, null, () => h(CheckmarkOutline)),
+          default: () => '确认'
+        }))
+      }
+
+      if (row.status === 'confirmed') {
+        actions.push(h(NButton, {
+          size: 'small',
+          type: 'primary',
+          onClick: () => handleAction(row, 'complete')
+        }, {
+          icon: () => h(NIcon, null, () => h(CheckmarkDoneOutline)),
+          default: () => '完成'
+        }))
+      }
+
+      if (row.status !== 'cancelled' && row.status !== 'completed' && row.status !== 'no_show') {
+        actions.push(h(NPopconfirm, {
+          positiveText: '确定',
+          negativeText: '取消',
+          onPositiveClick: () => handleAction(row, 'cancel')
+        }, {
+          trigger: () => h(NButton, { size: 'small', type: 'warning' }, {
+            icon: () => h(NIcon, null, () => h(CloseOutline)),
+            default: () => '取消'
+          }),
+          default: () => '确定要取消这个预约吗？'
+        }))
+      }
+
+      if ((row.status === 'confirmed' || row.status === 'pending') && row.status !== 'no_show') {
+        actions.push(h(NPopconfirm, {
+          positiveText: '确定',
+          negativeText: '取消',
+          onPositiveClick: () => handleAction(row, 'no_show')
+        }, {
+          trigger: () => h(NButton, { size: 'small', type: 'error' }, {
+            icon: () => h(NIcon, null, () => h(AlertCircleOutline)),
+            default: () => '爽约'
+          }),
+          default: () => '标记为爽约会将该访客加入爽约名单，确定继续？'
+        }))
+      }
+
+      return h(NSpace, { size: 8 }, () => actions)
+    }
   }
-  if (row.status !== 'cancelled' && row.status !== 'completed' && row.status !== 'no_show') {
-    options.push({ label: '取消预约', key: 'cancel' })
-  }
-  if (row.status === 'confirmed' || row.status === 'pending') {
-    options.push({ label: '标记爽约', key: 'no_show' })
-  }
-  if (row.status === 'confirmed') {
-    options.push({ label: '标记完成', key: 'complete' })
-  }
-  
-  return options
-}
+]
 
 async function handleAction(row: any, key: string) {
   try {
-    if (key === 'view') {
-      currentAppointment.value = row
-      showDetailModal.value = true
-    } else if (key === 'confirm') {
+    if (key === 'confirm') {
       await apiRequest(`/api/appointments/${row.id}`, {
         method: 'PUT',
         body: { status: 'confirmed' }
       })
       message.success('预约已确认')
-      loadData()
     } else if (key === 'complete') {
       await apiRequest(`/api/appointments/${row.id}`, {
         method: 'PUT',
         body: { status: 'completed' }
       })
       message.success('预约已完成')
-      loadData()
     } else if (key === 'cancel') {
       await apiRequest(`/api/appointments/${row.id}`, {
         method: 'DELETE'
       })
       message.success('预约已取消')
-      loadData()
     } else if (key === 'no_show') {
       await apiRequest(`/api/appointments/${row.id}/mark-no-show`, {
         method: 'POST'
       })
       message.success('已标记为爽约')
-      loadData()
     }
+    loadData()
   } catch (error: any) {
     message.error(error.data?.detail || '操作失败')
   }
 }
 
 async function loadData() {
+  loading.value = true
   try {
     const params: any = {
       skip: (page.value - 1) * pageSize.value,
       limit: pageSize.value
     }
-    
+
     if (searchPhone.value) {
       params.visitor_phone = searchPhone.value
     }
@@ -324,12 +377,22 @@ async function loadData() {
       params.start_date = new Date(dateRange.value[0]).toISOString().split('T')[0]
       params.end_date = new Date(dateRange.value[1]).toISOString().split('T')[0]
     }
-    
-    const data = await apiRequest<any[]>('/api/appointments', { params })
-    appointments.value = data
-    total.value = data.length
+
+    const data = await apiRequest<any>('/api/appointments', { params })
+    if (Array.isArray(data)) {
+      appointments.value = data
+      total.value = data.length
+    } else if (data && Array.isArray(data.items)) {
+      appointments.value = data.items
+      total.value = data.total || data.items.length
+    } else {
+      appointments.value = []
+      total.value = 0
+    }
   } catch (error) {
     message.error('加载数据失败')
+  } finally {
+    loading.value = false
   }
 }
 
