@@ -35,22 +35,34 @@ export default function MaterialBoardPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedContract, setSelectedContract] = useState<any>(null);
 
-  useEffect(() => {
-    (async () => {
-      const svc = await getDataService();
-      const [contracts, users, materials] = await Promise.all([
-        svc.getContracts(),
-        svc.getUsers(),
-        svc.getContractMaterials(''),
-      ]);
-      // Get all materials
-      const allMaterials: any[] = [];
-      for (const c of contracts as any[]) {
-        const ms = await svc.getContractMaterials(c.id);
-        allMaterials.push(...(ms as any[]).map((m: any) => ({ ...m, contractTitle: c.title })));
+  async function loadBoard() {
+    const [contractsRes, usersRes] = await Promise.all([
+      fetch('/api/contracts'),
+      fetch('/api/users'),
+    ]);
+    let contracts: any[] = [];
+    let users: any[] = [];
+    if (contractsRes.ok) {
+      const cData = await contractsRes.json();
+      contracts = cData.contracts || [];
+    }
+    if (usersRes.ok) {
+      const uData = await usersRes.json();
+      users = uData.users || [];
+    }
+    const allMaterials: any[] = [];
+    for (const c of contracts) {
+      const mRes = await fetch(`/api/contracts/${c.id}/materials`);
+      if (mRes.ok) {
+        const mData = await mRes.json();
+        allMaterials.push(...(mData.materials || []).map((m: any) => ({ ...m, contractTitle: c.title })));
       }
-      setData({ contracts, users, materials: allMaterials });
-    })();
+    }
+    setData({ contracts, users, materials: allMaterials });
+  }
+
+  useEffect(() => {
+    loadBoard();
   }, []);
 
   if (!data) return <div className="p-8 text-gray-500">加载中...</div>;

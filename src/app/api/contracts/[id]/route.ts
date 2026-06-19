@@ -37,10 +37,12 @@ export async function PATCH(
     const svc = await getDataService();
     const body = await request.json();
 
-    const updated = await svc.updateContract(params.id, body, {
-      actorUserId: body.actorUserId || 'user-1',
-      operationType: body.operationType as OperationType || undefined,
-      description: body.description || undefined,
+    const { actorUserId, operationType, description, ...contractData } = body;
+
+    const updated = await svc.updateContract(params.id, contractData, {
+      actorUserId: actorUserId || 'user-1',
+      operationType: operationType as OperationType || undefined,
+      description: description || undefined,
     });
 
     if (!updated) {

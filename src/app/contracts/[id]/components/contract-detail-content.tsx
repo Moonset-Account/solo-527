@@ -56,25 +56,29 @@ export function ContractDetailContent() {
   });
   const [actionLoading, setActionLoading] = useState(false);
 
+  async function loadDetail() {
+    const [detailRes, usersRes] = await Promise.all([
+      fetch(`/api/contracts/${contractId}`),
+      fetch('/api/users'),
+    ]);
+    if (detailRes.ok) {
+      const detailData = await detailRes.json();
+      setContract(detailData.contract);
+      setReviews(detailData.reviews || []);
+      setMaterials(detailData.materials || []);
+      setStampNodes(detailData.stampNodes || []);
+      setDownloadRecords(detailData.downloadRecords || []);
+      setLogs(detailData.logs || []);
+    }
+    if (usersRes.ok) {
+      const usersData = await usersRes.json();
+      setUsers(usersData.users || []);
+    }
+  }
+
   useEffect(() => {
     async function loadData() {
-      const service = await getDataService();
-      const [contractData, reviewsData, materialsData, stampNodesData, downloadRecordsData, logsData, usersData] = await Promise.all([
-        service.getContractById(contractId),
-        service.getContractReviews(contractId),
-        service.getContractMaterials(contractId),
-        service.getStampNodes(contractId),
-        service.getDownloadRecords({ contractId }),
-        service.getOperationLogs({ contractId }),
-        service.getUsers(),
-      ]);
-      setContract(contractData);
-      setReviews(reviewsData);
-      setMaterials(materialsData);
-      setStampNodes(stampNodesData);
-      setDownloadRecords(downloadRecordsData);
-      setLogs(logsData);
-      setUsers(usersData);
+      await loadDetail();
       setLoading(false);
     }
     loadData();
@@ -156,9 +160,7 @@ export function ContractDetailContent() {
         }),
       });
       if (res.ok) {
-        const service = await getDataService();
-        const updatedReviews = await service.getContractReviews(contractId);
-        setReviews(updatedReviews);
+        await loadDetail();
         setReviewText('');
       }
     } finally {
@@ -181,9 +183,7 @@ export function ContractDetailContent() {
         }),
       });
       if (res.ok) {
-        const service = await getDataService();
-        const updatedMaterials = await service.getContractMaterials(contractId);
-        setMaterials(updatedMaterials);
+        await loadDetail();
         setShowAddMaterial(false);
         setMaterialForm({ name: '', description: '', fileName: '' });
       }
@@ -206,13 +206,7 @@ export function ContractDetailContent() {
         }),
       });
       if (res.ok) {
-        const service = await getDataService();
-        const [contractData, materialsData] = await Promise.all([
-          service.getContractById(contractId),
-          service.getContractMaterials(contractId),
-        ]);
-        setContract(contractData);
-        setMaterials(materialsData);
+        await loadDetail();
       }
     } finally {
       setActionLoading(false);
@@ -231,13 +225,7 @@ export function ContractDetailContent() {
         }),
       });
       if (res.ok) {
-        const service = await getDataService();
-        const [contractData, nodesData] = await Promise.all([
-          service.getContractById(contractId),
-          service.getStampNodes(contractId),
-        ]);
-        setContract(contractData);
-        setStampNodes(nodesData);
+        await loadDetail();
       }
     } finally {
       setActionLoading(false);
@@ -256,9 +244,7 @@ export function ContractDetailContent() {
           fileName: contract?.fileName || contract?.title || '合同文件',
         }),
       });
-      const service = await getDataService();
-      const updatedRecords = await service.getDownloadRecords({ contractId });
-      setDownloadRecords(updatedRecords);
+      await loadDetail();
     } finally {
       setActionLoading(false);
     }

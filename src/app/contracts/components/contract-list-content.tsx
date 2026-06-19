@@ -37,11 +37,17 @@ export function ContractListContent() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  async function loadContracts() {
+    const res = await fetch('/api/contracts');
+    if (res.ok) {
+      const data = await res.json();
+      setContracts(data.contracts || []);
+    }
+  }
+
   useEffect(() => {
     async function loadData() {
-      const service = await getDataService();
-      const data = await service.getContracts();
-      setContracts(data);
+      await loadContracts();
       setLoading(false);
     }
     loadData();
@@ -65,9 +71,7 @@ export function ContractListContent() {
         }),
       });
       if (res.ok) {
-        const service = await getDataService();
-        const data = await service.getContracts();
-        setContracts(data);
+        await loadContracts();
         setShowUploadModal(false);
         setUploadForm({ title: '', contractNumber: '', assigneeId: '', deadline: '', fileName: '', fileSize: 0 });
       }
