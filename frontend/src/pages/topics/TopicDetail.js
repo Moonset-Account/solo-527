@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Descriptions, Card, Tag, Button, Modal, Form, Input, message, List, Space, Row, Col, Statistic, Progress } from 'antd';
+import { Descriptions, Card, Tag, Button, Modal, Form, Input, Select, message, List, Space, Row, Col, Statistic, Progress } from 'antd';
 import { ArrowLeftOutlined, PlusOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { topicsAPI, votingAPI } from '../../services/api';
 import { formatDate, formatDateTime, getStatusBadge, handleApiError } from '../../utils/helpers';
 import ProcessRecordList from '../../components/ProcessRecordList';
+
+const { Option } = Select;
 
 const TopicDetail = () => {
   const { id } = useParams();
@@ -58,8 +60,9 @@ const TopicDetail = () => {
   const handleCastVote = async (values) => {
     try {
       await votingAPI.castVote({
-        topic: id,
-        ...values,
+        topic_id: id,
+        vote: values.vote,
+        is_anonymous: false,
       });
       message.success('投票成功');
       setVoteModalVisible(false);
@@ -198,8 +201,8 @@ const TopicDetail = () => {
                     </Space>
                   }
                 />
-                <Tag color={vote.vote === 'agree' ? 'green' : vote.vote === 'disagree' ? 'red' : 'orange'}>
-                  {vote.vote === 'agree' ? '赞成' : vote.vote === 'disagree' ? '反对' : '弃权'}
+                <Tag color={vote.vote === 'yes' ? 'green' : vote.vote === 'no' ? 'red' : 'orange'}>
+                  {vote.vote === 'yes' ? '赞成' : vote.vote === 'no' ? '反对' : '弃权'}
                 </Tag>
               </List.Item>
             )}
@@ -256,20 +259,13 @@ const TopicDetail = () => {
       >
         <Form form={voteForm} layout="vertical" onFinish={handleCastVote}>
           <Form.Item 
-            name="resident" 
-            label="选择居民" 
-            rules={[{ required: true, message: '请选择投票居民' }]}
-          >
-            <Input placeholder="请输入居民ID" type="number" />
-          </Form.Item>
-          <Form.Item 
             name="vote" 
             label="投票选项" 
             rules={[{ required: true, message: '请选择投票选项' }]}
           >
             <Select placeholder="请选择">
-              <Option value="agree">赞成</Option>
-              <Option value="disagree">反对</Option>
+              <Option value="yes">赞成</Option>
+              <Option value="no">反对</Option>
               <Option value="abstain">弃权</Option>
             </Select>
           </Form.Item>
