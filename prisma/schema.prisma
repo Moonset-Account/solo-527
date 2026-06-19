@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Contract {
+  id                       Int       @id @default(autoincrement())
+  contractNo               String    @unique @db.VarChar(64)
+  title                    String    @db.VarChar(255)
+  applicant                String    @db.VarChar(64)
+  department               String    @db.VarChar(64)
+  status                   ContractStatus @default(PENDING)
+  isDuplicate              Boolean   @default(false)
+  duplicateAffectedObjects String?   @db.Text
+  duplicateHandler         String?   @db.VarChar(64)
+  duplicateNextStep        String?   @db.Text
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  approvalNodes    ApprovalNode[]
+  reminderRecords  ReminderRecord[]
+  materialItems    MaterialItem[]
+
+  @@index([status])
+}
+
+model ApprovalNode {
+  id                  Int       @id @default(autoincrement())
+  contractId          Int
+  nodeName            String    @db.VarChar(128)
+  assignee            String    @db.VarChar(64)
+  assigneeDepartment  String    @db.VarChar(64)
+  status              NodeStatus @default(PENDING)
+  timeoutMinutes      Int       @default(60)
+  elapsedMinutes      Int       @default(0)
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+
+  contract   Contract         @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  reminders  ReminderRecord[]
+
+  @@index([contractId, status])
+  @@index([status])
+}
+
+model ReminderRecord {
+  id            Int           @id @default(autoincrement())
+  contractId    Int
+  nodeId        Int
+  remindType    RemindType
+  remindContent String        @db.Text
+  remindBy      String        @db.VarChar(64)
+  remindTo      String        @db.VarChar(64)
+  replyStatus   ReplyStatus   @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  contract Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  node     ApprovalNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, nodeId])
+}
+
+model MaterialItem {
+  id            Int             @id @default(autoincrement())
+  contractId    Int
+  materialName  String          @db.VarChar(255)
+  status        MaterialStatus  @default(MISSING)
+  requiredBy    String          @db.VarChar(64)
+  submittedAt   DateTime?
+  expectedAt    DateTime?
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, status])
+}
+
+enum ContractStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ABNORMAL_CLOSED
+}
+
+enum NodeStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  TIMEOUT
+}
+
+enum RemindType {
+  SMS
+  EMAIL
+  SYSTEM
+}
+
+enum ReplyStatus {
+  PENDING
+  REPLIED
+  IGNORED
+}
+
+enum MaterialStatus {
+  MISSING
+  SUBMITTED
+  SUPPLEMENTING
+}
