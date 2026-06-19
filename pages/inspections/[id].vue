@@ -101,12 +101,31 @@
               :key="photo.id"
               class="aspect-square rounded-lg bg-slate-100 overflow-hidden group relative cursor-pointer animate-fade-in"
             >
-              <div class="w-full h-full bg-gradient-to-br from-slate-300 to-slate-400 flex items-center justify-center text-white text-xs">
+              <img
+                v-if="photo.url && photo.url.startsWith('data:image')"
+                :src="photo.url"
+                :alt="photo.description || photo.category"
+                class="w-full h-full object-cover"
+              />
+              <img
+                v-else-if="photo.url && photo.url.startsWith('http')"
+                :src="photo.url"
+                :alt="photo.description || photo.category"
+                class="w-full h-full object-cover"
+                @error="onPhotoError($event, photo)"
+              />
+              <div
+                v-else
+                class="w-full h-full bg-gradient-to-br from-slate-300 to-slate-400 flex items-center justify-center text-white text-xs"
+              >
                 {{ photo.category || '现场照片' }}
               </div>
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                 <Eye class="w-6 h-6 text-white" />
               </div>
+              <span class="absolute top-2 left-2 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
+                {{ photo.category }}
+              </span>
               <p v-if="photo.description" class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
                 {{ photo.description }}
               </p>
@@ -850,6 +869,25 @@ const deletePhoto = (photoId: string) => {
   }
 }
 
+const onPhotoError = (event: Event, photo: any) => {
+  const target = event.target as HTMLImageElement
+  const parent = target.parentElement
+  if (parent) {
+    target.style.display = 'none'
+    const fallbackDiv = document.createElement('div')
+    fallbackDiv.className = 'w-full h-full bg-gradient-to-br from-slate-300 to-slate-400 flex items-center justify-center text-white text-xs'
+    fallbackDiv.textContent = photo.category || '现场照片'
+    parent.insertBefore(fallbackDiv, target.nextSibling)
+  }
+}
+
+const samplePhotos = [
+  'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=400&h=400&fit=crop',
+]
+
 const mockInspection: Inspection = {
   id: 'ins1',
   projectId: '1',
@@ -863,10 +901,10 @@ const mockInspection: Inspection = {
   budgetVersionId: 'bv1',
   remark: '重点检查水电管线走向和防水工程',
   photos: [
-    { id: 'p1', inspectionId: 'ins1', url: '', category: '水电', description: '客厅电路布线', uploadedAt: '2024-01-20T10:30:00' },
-    { id: 'p2', inspectionId: 'ins1', url: '', category: '水电', description: '卫生间水管', uploadedAt: '2024-01-20T10:35:00' },
-    { id: 'p3', inspectionId: 'ins1', url: '', category: '防水', description: '厨房防水', uploadedAt: '2024-01-20T10:40:00' },
-    { id: 'p4', inspectionId: 'ins1', url: '', category: '水电', description: '配电箱', uploadedAt: '2024-01-20T10:45:00' },
+    { id: 'p1', inspectionId: 'ins1', url: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=400&fit=crop', category: '水电', description: '客厅电路布线', uploadedAt: '2024-01-20T10:30:00' },
+    { id: 'p2', inspectionId: 'ins1', url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=400&fit=crop', category: '水电', description: '卫生间水管', uploadedAt: '2024-01-20T10:35:00' },
+    { id: 'p3', inspectionId: 'ins1', url: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=400&fit=crop', category: '防水', description: '厨房防水', uploadedAt: '2024-01-20T10:40:00' },
+    { id: 'p4', inspectionId: 'ins1', url: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=400&h=400&fit=crop', category: '水电', description: '配电箱', uploadedAt: '2024-01-20T10:45:00' },
   ],
   rectifications: [
     {

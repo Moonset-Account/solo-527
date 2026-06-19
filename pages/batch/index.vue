@@ -318,8 +318,39 @@
               </div>
               <p class="text-sm" :class="executeResult.allSuccess ? 'text-success-600' : 'text-warning-600'">
                 成功 {{ executeResult.successCount }} 项，失败 {{ executeResult.failedCount }} 项
-                <span v-if="executeResult.failedCount > 0">，失败记录已保存，可在详情中分配负责人处理</span>
+                <span v-if="executeResult.failedCount > 0">，失败记录已保存，可在下方分配负责人处理</span>
               </p>
+            </div>
+
+            <div v-if="executeResult && executeResult.failedRecords && executeResult.failedRecords.length > 0" class="space-y-2">
+              <h4 class="font-semibold text-slate-800 text-sm">失败记录</h4>
+              <div
+                v-for="record in executeResult.failedRecords"
+                :key="record.id || record.targetId"
+                class="p-3 border border-danger-200 bg-danger-50/50 rounded-xl"
+              >
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-slate-700">{{ record.targetName || record.targetId }}</p>
+                    <p class="text-xs text-danger-600 mt-1">{{ record.errorMessage }}</p>
+                  </div>
+                  <span v-if="record.resolved" class="badge badge-success">已解决</span>
+                  <span v-else class="badge badge-danger">待处理</span>
+                </div>
+                <div class="flex items-center justify-between mt-2 pt-2 border-t border-danger-100">
+                  <div class="text-xs">
+                    <span v-if="record.assigneeName" class="text-slate-600">负责人：{{ record.assigneeName }}</span>
+                    <span v-else class="text-slate-400">未分配负责人</span>
+                  </div>
+                  <button
+                    v-if="!record.resolved"
+                    class="text-xs text-primary-600 hover:text-primary-700"
+                    @click="openAssignModalFromResult(record)"
+                  >
+                    {{ record.assigneeName ? '重新分配' : '分配处理' }}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="flex justify-between pt-2">
@@ -852,8 +883,9 @@ const executeOperation = async () => {
 
   let serverResult: any = null
   let executeError = false
+  let executeErrorMessage = ''
 
-  const executePromise = (async () => {
+  const serverPromise = (async () => {
     try {
       const params = buildParams()
       const data = await $fetch('/api/batch/execute', {
@@ -865,8 +897,9 @@ const executeOperation = async () => {
         },
       })
       serverResult = data
-    } catch {
+    } catch (err: any) {
       executeError = true
+      executeErrorMessage = err?.data?.message || err?.message || '操作执行失败'
     }
   })()
 
@@ -875,58 +908,82 @@ const executeOperation = async () => {
     item.executeStatus = 'executing'
     executeStats.pending = total - i - 1
 
-    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300))
-
-    item.executeStatus = 'success'
-    executeStats.success++
-
+    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 200))
     executeProgress.value = Math.round(((i + 1) / total) * 100)
   }
 
-  await executePromise
+  await serverPromise
 
   if (serverResult) {
-    executeStats.success = serverResult.successCount || executeStats.success
-    executeStats.failed = serverResult.failedCount || 0
+    const realSuccess = typeof serverResult.successCount === 'number' ? serverResult.successCount : 0
+    const realFailed = typeof serverResult.failedCount === 'number' ? serverResult.failedCount : 0
+
+    executeStats.success = realSuccess
+    executeStats.failed = realFailed
+    executeStats.pending = 0
 
     const failedMap = new Map()
-    if (serverResult.failedRecords) {
+    if (serverResult.failedRecords && Array.isArray(serverResult.failedRecords)) {
       for (const fr of serverResult.failedRecords) {
         failedMap.set(fr.targetId, fr)
       }
     }
 
+    let successIndex = 0
     for (const item of executableItems) {
       const failedRecord = failedMap.get(item.id)
       if (failedRecord) {
         item.executeStatus = 'failed'
         item.errorMessage = failedRecord.errorMessage || '执行失败'
+        item.failedRecord = failedRecord
+      } else if (successIndex < realSuccess) {
+        item.executeStatus = 'success'
+        successIndex++
+      } else {
+        item.executeStatus = 'failed'
+        item.errorMessage = '执行失败'
       }
     }
 
     executeResult.value = {
-      successCount: serverResult.successCount,
-      failedCount: serverResult.failedCount,
-      allSuccess: serverResult.failedCount === 0,
+      successCount: realSuccess,
+      failedCount: realFailed,
+      allSuccess: realFailed === 0,
       batchOperation: serverResult,
     }
-  } else if (executeError) {
-    executeResult.value = {
-      successCount: executeStats.success,
-      failedCount: executeStats.failed,
-      allSuccess: false,
-      error: '后端执行出错，以上为模拟结果',
+
+    if (serverResult.failedRecords && Array.isArray(serverResult.failedRecords)) {
+      executeResult.value.failedRecords = serverResult.failedRecords
     }
-  } else {
+
+    if (serverResult.id) {
+      const newOp = {
+        ...serverResult,
+        operatorName: serverResult.operatorName || '当前用户',
+        targetIds: serverResult.targetIds || selectedProjects.value,
+        failedRecords: serverResult.failedRecords || [],
+      }
+      operations.value = [newOp as BatchOperation, ...operations.value]
+      total.value++
+    }
+  } else if (executeError) {
+    for (const item of executableItems) {
+      item.executeStatus = 'failed'
+      item.errorMessage = executeErrorMessage
+    }
+    executeStats.success = 0
+    executeStats.failed = total
+    executeStats.pending = 0
+
     executeResult.value = {
-      successCount: executeStats.success,
-      failedCount: executeStats.failed,
-      allSuccess: executeStats.failed === 0,
+      successCount: 0,
+      failedCount: total,
+      allSuccess: false,
+      error: executeErrorMessage,
     }
   }
 
   isExecuting.value = false
-  fetchOperations()
 }
 
 const viewOperation = (op: BatchOperation) => {
@@ -936,6 +993,13 @@ const viewOperation = (op: BatchOperation) => {
 
 const openAssignModal = (record: FailedRecord) => {
   currentAssignRecord.value = record
+  assignForm.assigneeId = record.assignee || ''
+  assignForm.remark = ''
+  showAssignModal.value = true
+}
+
+const openAssignModalFromResult = (record: any) => {
+  currentAssignRecord.value = record as FailedRecord
   assignForm.assigneeId = record.assignee || ''
   assignForm.remark = ''
   showAssignModal.value = true
@@ -954,6 +1018,16 @@ const confirmAssign = async () => {
   if (selectedOperation.value?.failedRecords) {
     const record = selectedOperation.value.failedRecords.find(
       r => r.id === currentAssignRecord.value?.id
+    )
+    if (record) {
+      record.assignee = assignForm.assigneeId
+      record.assigneeName = assignee?.name || ''
+    }
+  }
+
+  if (executeResult.value?.failedRecords) {
+    const record = executeResult.value.failedRecords.find(
+      (r: any) => (r.id === currentAssignRecord.value?.id) || (r.targetId === currentAssignRecord.value?.targetId)
     )
     if (record) {
       record.assignee = assignForm.assigneeId
