@@ -20,6 +20,7 @@ const ruleTypeOptions = [
   { value: 'SUPPLIER_QUOTE', label: '供应商报价' },
   { value: 'DELIVERY_RECORD', label: '交付记录' },
   { value: 'FRAMEWORK_AGREEMENT', label: '框架协议' },
+  { value: 'PAYMENT_DISCREPANCY', label: '付款差异' },
 ]
 
 const schema = z.object({

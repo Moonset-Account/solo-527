@@ -73,12 +73,15 @@ export const procurementRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { items, ...data } = input
-      return ctx.prisma.frameworkAgreement.create({
+      const agreement = await ctx.prisma.frameworkAgreement.create({
         data: {
           ...data,
           items: { create: items },
         },
       })
+
+      await checkAndTriggerAlerts(ctx.prisma, 'FRAMEWORK_AGREEMENT', agreement.id, agreement)
+      return agreement
     }),
 
   listRequirements: protectedProcedure
@@ -238,7 +241,11 @@ async function checkAndTriggerAlerts(prisma: Prisma.TransactionClient | any, sou
 
     if (conditions.priority && sourceData.priority >= conditions.priority) triggered = true
     if (conditions.totalAmount && sourceData.totalAmount >= conditions.totalAmount) triggered = true
+    if (conditions.amountThreshold && sourceData.totalAmount >= conditions.amountThreshold) triggered = true
     if (conditions.status && sourceData.status === conditions.status) triggered = true
+    if (conditions.differenceAmount && sourceData.differenceAmount >= conditions.differenceAmount) triggered = true
+    if (sourceType === 'PAYMENT_DISCREPANCY') triggered = true
+    if (sourceType === 'FRAMEWORK_AGREEMENT') triggered = true
 
     if (triggered) {
       logs.push({

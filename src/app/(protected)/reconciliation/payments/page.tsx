@@ -25,7 +25,7 @@ export default function PaymentsPage() {
   const { data: payments = [] } = api.reconciliation.listPaymentSuggestions.useQuery({
     status: statusFilter || undefined,
   })
-  const { data: reconciliations = [] } = api.reconciliation.listReconciliations.useQuery({ status: 'MATCHED' })
+  const { data: reconciliations = [] } = api.reconciliation.listReconciliationsAvailableForPayment.useQuery()
   const { data: suppliers = [] } = api.procurement.listSuppliers.useQuery({})
 
   const form = useForm({

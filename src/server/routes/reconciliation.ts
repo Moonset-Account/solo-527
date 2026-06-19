@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { protectedProcedure, createTRPCRouter, requireRole } from '../trpc'
 import type { RiskLevel } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 
 export const reconciliationRouter = createTRPCRouter({
   listReconciliations: protectedProcedure
@@ -27,6 +28,21 @@ export const reconciliationRouter = createTRPCRouter({
       })
     }),
 
+  listReconciliationsAvailableForPayment: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.prisma.reconciliation.findMany({
+        where: {
+          status: { in: ['MATCHED', 'RESOLVED'] },
+          payments: { none: {} },
+        },
+        include: {
+          delivery: { include: { supplier: true } },
+        },
+        orderBy: { period: 'desc' },
+        take: 200,
+      })
+    }),
+
   createReconciliation: protectedProcedure
     .input(z.object({
       deliveryId: z.string(),
@@ -45,7 +61,7 @@ export const reconciliationRouter = createTRPCRouter({
           ...input,
           userId: ctx.user.id,
           differenceAmount,
-          status: hasDiscrepancy ? 'DISCREPANCY' : 'PENDING',
+          status: hasDiscrepancy ? 'DISCREPANCY' : 'MATCHED',
           reconciliationDate: new Date(),
         },
       })
@@ -160,6 +176,7 @@ export const reconciliationRouter = createTRPCRouter({
         data: {
           ...input,
           suggestedDate: new Date(),
+          status: 'RECOMMENDED',
         },
       })
 
@@ -171,7 +188,7 @@ export const reconciliationRouter = createTRPCRouter({
       return payment
     }),
 
-  approvePayment: protectedProcedure
+  approvePayment: requireRole('APPROVER', 'ADMIN')
     .input(z.object({
       id: z.string(),
       status: z.enum(['APPROVED', 'DISPUTED']),
@@ -214,17 +231,22 @@ export const reconciliationRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { paymentId, ...data } = input
-      return ctx.prisma.paymentDiscrepancy.create({
+      const discrepancy = await ctx.prisma.paymentDiscrepancy.create({
         data: {
           ...data,
+          status: 'OPEN',
           payment: {
             connect: { id: paymentId },
           },
         },
       })
+
+      await checkAndTriggerAlerts(ctx.prisma, 'PAYMENT_DISCREPANCY', discrepancy.id, discrepancy)
+
+      return discrepancy
     }),
 
-  reviewPaymentDiscrepancy: protectedProcedure
+  reviewPaymentDiscrepancy: requireRole('APPROVER', 'ADMIN')
     .input(z.object({
       id: z.string(),
       status: z.enum(['INVESTIGATING', 'CONFIRMED', 'RESOLVED', 'CLOSED']),
@@ -287,3 +309,34 @@ export const reconciliationRouter = createTRPCRouter({
       return discrepancy
     }),
 })
+
+async function checkAndTriggerAlerts(prisma: Prisma.TransactionClient | any, sourceType: string, sourceId: string, sourceData: any) {
+  const rules = await prisma.alertRule.findMany({ where: { enabled: true, ruleType: sourceType } })
+  const logs: any[] = []
+
+  for (const rule of rules) {
+    const conditions = rule.conditions as Record<string, any>
+    let triggered = false
+
+    if (conditions.priority && sourceData.priority >= conditions.priority) triggered = true
+    if (conditions.totalAmount && sourceData.totalAmount >= conditions.totalAmount) triggered = true
+    if (conditions.amountThreshold && sourceData.totalAmount >= conditions.amountThreshold) triggered = true
+    if (conditions.differenceAmount && sourceData.differenceAmount >= conditions.differenceAmount) triggered = true
+    if (conditions.status && sourceData.status === conditions.status) triggered = true
+    if (sourceType === 'PAYMENT_DISCREPANCY') triggered = true
+
+    if (triggered) {
+      logs.push({
+        ruleId: rule.id,
+        sourceType,
+        sourceId,
+        message: rule.description || `触发规则: ${rule.name}`,
+        severity: rule.severity,
+      })
+    }
+  }
+
+  if (logs.length > 0) {
+    await prisma.alertRuleLog.createMany({ data: logs })
+  }
+}
