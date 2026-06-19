@@ -1,0 +1,205 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.site-layout .site-layout-background {
+  background: #fff;
+}
+
+.site-layout-content {
+  padding: 24px;
+  min-height: 280px;
+}
+
+.logo {
+  height: 32px;
+  margin: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.trigger {
+  padding: 0 24px;
+  font-size: 18px;
+  line-height: 64px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.trigger:hover {
+  color: #1890ff;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 20px;
+}
+
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+.stat-card .stat-label {
+  color: #666;
+  margin-top: 8px;
+}
+
+.process-record-item {
+  padding: 12px;
+  border-left: 3px solid #1890ff;
+  margin-bottom: 12px;
+  background: #f9f9f9;
+}
+
+.process-record-item .record-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.process-record-item .record-operator {
+  font-weight: bold;
+  color: #1890ff;
+}
+
+.process-record-item .record-time {
+  color: #999;
+  font-size: 12px;
+}
+
+.process-record-item .record-content {
+  color: #333;
+}
+
+.process-record-item .record-remark {
+  color: #666;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.kanban-column {
+  background: #f0f2f5;
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 400px;
+}
+
+.kanban-column-title {
+  font-weight: bold;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #d9d9d9;
+}
+
+.kanban-card {
+  background: white;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.kanban-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.kanban-card .card-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.kanban-card .card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #999;
+}
+
+.priority-high {
+  border-left: 4px solid #ff4d4f;
+}
+
+.priority-medium {
+  border-left: 4px solid #faad14;
+}
+
+.priority-low {
+  border-left: 4px solid #52c41a;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.status-draft {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.status-pending {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.status-approved {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-voting {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-completed {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-rejected {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.status-todo {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.status-in_progress {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-done {
+  background: #f6ffed;
+  color: #52c41a;
+}
