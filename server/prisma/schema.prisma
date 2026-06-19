@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id            Int      @id @default(autoincrement())
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  industry      String?
+  level         String?  @default("NORMAL")
+  remark        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders         Order[]
+  brandQuotes    BrandQuote[]
+  contracts      Contract[]
+  sponsorships   Sponsorship[]
+  exceptionPools ExceptionPool[]
+}
+
+model Order {
+  id             Int      @id @default(autoincrement())
+  orderNo        String   @unique
+  brandId        Int
+  brand          Brand    @relation(fields: [brandId], references: [id])
+  orderType      String   @default("PHOTOSHOOT")
+  title          String
+  description    String?
+  status         String   @default("PENDING")
+  totalAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  paidAmount     Decimal  @default(0) @db.Decimal(12, 2)
+  photographer   String?
+  clientConfirm  Boolean  @default(false)
+  finalDelivery  Boolean  @default(false)
+  remark         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  schedules        Schedule[]
+  deliveryNodes    DeliveryNode[]
+  contracts        Contract[]
+  payments         Payment[]
+  workAuthorizations WorkAuthorization[]
+  selectedPhotos   SelectedPhoto[]
+  finalPhotos      FinalPhoto[]
+  exceptionPools   ExceptionPool[]
+}
+
+model Schedule {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  order      Order    @relation(fields: [orderId], references: [id])
+  title      String
+  startTime  DateTime
+  endTime    DateTime
+  location   String?
+  status     String   @default("SCHEDULED")
+  remark     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DeliveryNode {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id])
+  nodeName    String
+  nodeType    String   @default("NORMAL")
+  plannedDate DateTime?
+  actualDate  DateTime?
+  status      String   @default("PENDING")
+  description String?
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BrandQuote {
+  id           Int      @id @default(autoincrement())
+  brandId      Int
+  brand        Brand    @relation(fields: [brandId], references: [id])
+  quoteNo      String   @unique
+  title        String
+  serviceType  String
+  amount       Decimal  @default(0) @db.Decimal(12, 2)
+  validFrom    DateTime?
+  validTo      DateTime?
+  status       String   @default("DRAFT")
+  description  String?
+  remark       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Contract {
+  id           Int      @id @default(autoincrement())
+  orderId      Int?
+  order        Order?   @relation(fields: [orderId], references: [id])
+  brandId      Int
+  brand        Brand    @relation(fields: [brandId], references: [id])
+  contractNo   String   @unique
+  title        String
+  contractType String   @default("SERVICE")
+  amount       Decimal  @default(0) @db.Decimal(12, 2)
+  signDate     DateTime?
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String   @default("DRAFT")
+  attachmentUrl String?
+  remark       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  orderId       Int
+  order         Order    @relation(fields: [orderId], references: [id])
+  paymentNo     String   @unique
+  amount        Decimal  @default(0) @db.Decimal(12, 2)
+  paymentDate   DateTime?
+  paymentMethod String?
+  status        String   @default("PENDING")
+  remark        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model WorkAuthorization {
+  id              Int      @id @default(autoincrement())
+  orderId         Int
+  order           Order    @relation(fields: [orderId], references: [id])
+  authType        String   @default("COMMERCIAL")
+  scope           String?
+  territory       String?
+  durationMonths  Int?
+  startDate       DateTime?
+  endDate         DateTime?
+  status          String   @default("PENDING")
+  fee             Decimal  @default(0) @db.Decimal(12, 2)
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SelectedPhoto {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  order      Order    @relation(fields: [orderId], references: [id])
+  photoUrl   String
+  photoName  String
+  isSelected Boolean  @default(false)
+  selectedAt DateTime?
+  remark     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model FinalPhoto {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id])
+  photoUrl    String
+  photoName   String
+  fileSize    Int?
+  isDownloaded Boolean @default(false)
+  downloadedAt DateTime?
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Member {
+  id              Int      @id @default(autoincrement())
+  name            String
+  phone           String?
+  email           String?
+  level           String   @default("NORMAL")
+  status          String   @default("ACTIVE")
+  totalSpent      Decimal  @default(0) @db.Decimal(12, 2)
+  retentionDays   Int      @default(0)
+  lastActiveDate  DateTime?
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id          Int      @id @default(autoincrement())
+  memberId    Int
+  member      Member   @relation(fields: [memberId], references: [id])
+  planName    String
+  planType    String   @default("MONTHLY")
+  amount      Decimal  @default(0) @db.Decimal(12, 2)
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String   @default("ACTIVE")
+  autoRenew   Boolean  @default(true)
+  renewalCount Int     @default(0)
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Sponsorship {
+  id             Int      @id @default(autoincrement())
+  brandId        Int
+  brand          Brand    @relation(fields: [brandId], references: [id])
+  title          String
+  sponsorshipType String  @default("EVENT")
+  amount         Decimal  @default(0) @db.Decimal(12, 2)
+  startDate      DateTime?
+  endDate        DateTime?
+  status         String   @default("PENDING")
+  benefits       String?
+  deliverables   String?
+  remark         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ExceptionPool {
+  id              Int      @id @default(autoincrement())
+  orderId         Int?
+  order           Order?   @relation(fields: [orderId], references: [id])
+  brandId         Int?
+  brand           Brand?   @relation(fields: [brandId], references: [id])
+  exceptionType   String
+  title           String
+  description     String?
+  status          String   @default("PENDING")
+  priority        String   @default("MEDIUM")
+  brandConfirmed  Boolean  @default(false)
+  illustratorConclusion String?
+  illustratorId   Int?
+  handledAt       DateTime?
+  handledBy       String?
+  handleSuggestion String?
+  syncError       String?
+  syncSuggestion  String?
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SyncLog {
+  id        Int      @id @default(autoincrement())
+  syncType  String
+  status    String   @default("SUCCESS")
+  errorMsg  String?
+  suggestion String?
+  syncTime  DateTime @default(now())
+  remark    String?
+}

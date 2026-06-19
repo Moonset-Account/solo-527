@@ -1,0 +1,107 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.logo {
+  height: 32px;
+  margin: 16px;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 32px;
+}
+
+.site-layout-background {
+  background: #fff;
+}
+
+.page-header {
+  margin-bottom: 16px;
+}
+
+.page-content {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-card .ant-statistic-title {
+  color: #666;
+  font-size: 14px;
+}
+
+.stat-card .ant-statistic-content {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.filter-bar {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.table-toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sync-error-tip {
+  margin-bottom: 16px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.photo-item {
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.photo-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.photo-item.selected {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.photo-item img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-item .photo-info {
+  padding: 8px;
+  font-size: 12px;
+  background: #fff;
+}
