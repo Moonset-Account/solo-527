@@ -1,0 +1,21 @@
+{
+  "name": "auto-maintenance-system",
+  "version": "1.0.0",
+  "description": "汽车保养客户回访系统 - 全栈应用",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "dev": "concurrently -k -n \"CLIENT,SERVER\" -c \"cyan,magenta\" \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "npm run dev -w client",
+    "dev:server": "npm run start:dev -w server",
+    "build:all": "npm run build -w client && npm run build -w server",
+    "start:prod": "npm run start:prod -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

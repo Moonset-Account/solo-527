@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # MongoDB 6.0 数据库服务
+  mongodb:
+    image: mongo:6.0
+    container_name: auto-maintenance-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      # MongoDB 初始管理员账号（可选，生产环境建议启用认证）
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME:-}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-}
+      # 默认数据库名
+      MONGO_INITDB_DATABASE: auto_maintenance
+    volumes:
+      # 数据持久化卷
+      - mongodb_data:/data/db
+      # 初始化脚本目录（可选）
+      - ./docker/mongodb/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - auto-maintenance-network
+    command: [
+      "--wiredTigerCacheSizeGB", "1",
+      "--logappend",
+      "--bind_ip_all"
+    ]
+
+  # Redis 7.0 缓存服务
+  redis:
+    image: redis:7.0-alpine
+    container_name: auto-maintenance-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    environment:
+      # Redis 密码（可选，生产环境建议设置）
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      # 数据持久化卷
+      - redis_data:/data
+      # 自定义配置文件
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - auto-maintenance-network
+    command: [
+      "redis-server",
+      "/usr/local/etc/redis/redis.conf",
+      "--appendonly", "yes",
+      "--maxmemory", "256mb",
+      "--maxmemory-policy", "allkeys-lru"
+    ]
+
+  # Redis 管理界面（可选，开发环境使用）
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: auto-maintenance-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-}
+      - HTTP_USER=${REDIS_COMMANDER_USER:-admin}
+      - HTTP_PASSWORD=${REDIS_COMMANDER_PASSWORD:-admin123}
+    depends_on:
+      - redis
+    networks:
+      - auto-maintenance-network
+    profiles:
+      - dev
+
+  # MongoDB 管理界面（可选，开发环境使用）
+  mongo-express:
+    image: mongo-express:latest
+    container_name: auto-maintenance-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGODB_USERNAME:-}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGODB_PASSWORD:-}
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USER:-admin}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_EXPRESS_PASSWORD:-admin123}
+    depends_on:
+      - mongodb
+    networks:
+      - auto-maintenance-network
+    profiles:
+      - dev
+
+# 网络配置
+networks:
+  auto-maintenance-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 数据卷配置
+volumes:
+  mongodb_data:
+    driver: local
+    name: auto-maintenance-mongodb-data
+  redis_data:
+    driver: local
+    name: auto-maintenance-redis-data

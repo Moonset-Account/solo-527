@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #165DFF;
+  --primary-color-hover: #4080FF;
+  --primary-color-active: #0E42D2;
+  --accent-orange: #FF7D00;
+  --accent-green: #00B42A;
+  --text-primary: #1F1F1F;
+  --text-secondary: #595959;
+  --text-tertiary: #8C8C8C;
+  --bg-page: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --border-color: #E8E8E8;
+
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica,
+    Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--primary-color-hover);
+}
+
