@@ -4,10 +4,24 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('开始初始化种子数据...')
 
-  const brand1 = await prisma.brand.upsert({
-    where: { name: '潮流服饰 VOGUE' },
-    update: {},
-    create: {
+  await prisma.exceptionPool.deleteMany()
+  await prisma.syncLog.deleteMany()
+  await prisma.subscription.deleteMany()
+  await prisma.sponsorship.deleteMany()
+  await prisma.member.deleteMany()
+  await prisma.finalPhoto.deleteMany()
+  await prisma.selectedPhoto.deleteMany()
+  await prisma.workAuthorization.deleteMany()
+  await prisma.payment.deleteMany()
+  await prisma.contract.deleteMany()
+  await prisma.deliveryNode.deleteMany()
+  await prisma.schedule.deleteMany()
+  await prisma.order.deleteMany()
+  await prisma.brandQuote.deleteMany()
+  await prisma.brand.deleteMany()
+
+  const brand1 = await prisma.brand.create({
+    data: {
       name: '潮流服饰 VOGUE',
       contactPerson: '张经理',
       phone: '13800138001',
@@ -17,10 +31,8 @@ async function main() {
     }
   })
 
-  const brand2 = await prisma.brand.upsert({
-    where: { name: '轻奢美妆 CHERRY' },
-    update: {},
-    create: {
+  const brand2 = await prisma.brand.create({
+    data: {
       name: '轻奢美妆 CHERRY',
       contactPerson: '李总监',
       phone: '13900139002',
@@ -30,10 +42,8 @@ async function main() {
     }
   })
 
-  const brand3 = await prisma.brand.upsert({
-    where: { name: '家居生活 LIVING' },
-    update: {},
-    create: {
+  const brand3 = await prisma.brand.create({
+    data: {
       name: '家居生活 LIVING',
       contactPerson: '王主管',
       phone: '13700137003',
@@ -45,10 +55,8 @@ async function main() {
 
   console.log('品牌数据初始化完成')
 
-  const order1 = await prisma.order.upsert({
-    where: { orderNo: 'PO202506001' },
-    update: {},
-    create: {
+  const order1 = await prisma.order.create({
+    data: {
       orderNo: 'PO202506001',
       brandId: brand1.id,
       orderType: 'PHOTOSHOOT',
@@ -63,10 +71,8 @@ async function main() {
     }
   })
 
-  const order2 = await prisma.order.upsert({
-    where: { orderNo: 'PO202506002' },
-    update: {},
-    create: {
+  const order2 = await prisma.order.create({
+    data: {
       orderNo: 'PO202506002',
       brandId: brand2.id,
       orderType: 'PHOTOSHOOT',
@@ -81,10 +87,8 @@ async function main() {
     }
   })
 
-  const order3 = await prisma.order.upsert({
-    where: { orderNo: 'PO202505003' },
-    update: {},
-    create: {
+  const order3 = await prisma.order.create({
+    data: {
       orderNo: 'PO202505003',
       brandId: brand3.id,
       orderType: 'PHOTOSHOOT',
@@ -101,78 +105,72 @@ async function main() {
 
   console.log('订单数据初始化完成')
 
-  await prisma.selectedPhoto.deleteMany({ where: { orderId: order1.id } })
-  const selectedPhotos1 = []
   for (let i = 1; i <= 8; i++) {
-    selectedPhotos1.push({
-      orderId: order1.id,
-      photoUrl: `https://picsum.photos/seed/ss${order1.id}-${i}/800/600`,
-      photoName: `春夏新品_${String(i).padStart(3, '0')}.jpg`,
-      isSelected: i <= 3,
-      selectedAt: i <= 3 ? new Date() : null
+    await prisma.selectedPhoto.create({
+      data: {
+        orderId: order1.id,
+        photoUrl: `https://picsum.photos/seed/sel${order1.id}-${i}/800/600`,
+        photoName: `春夏新品_${String(i).padStart(3, '0')}.jpg`,
+        isSelected: i <= 3,
+        selectedAt: i <= 3 ? new Date() : null
+      }
     })
   }
-  await prisma.selectedPhoto.createMany({ data: selectedPhotos1 })
 
-  await prisma.selectedPhoto.deleteMany({ where: { orderId: order2.id } })
-  const selectedPhotos2 = []
   for (let i = 1; i <= 6; i++) {
-    selectedPhotos2.push({
-      orderId: order2.id,
-      photoUrl: `https://picsum.photos/seed/ss${order2.id}-${i}/800/600`,
-      photoName: `口红产品_${String(i).padStart(3, '0')}.jpg`,
-      isSelected: true,
-      selectedAt: new Date()
+    await prisma.selectedPhoto.create({
+      data: {
+        orderId: order2.id,
+        photoUrl: `https://picsum.photos/seed/sel${order2.id}-${i}/800/600`,
+        photoName: `口红产品_${String(i).padStart(3, '0')}.jpg`,
+        isSelected: true,
+        selectedAt: new Date()
+      }
     })
   }
-  await prisma.selectedPhoto.createMany({ data: selectedPhotos2 })
 
-  await prisma.selectedPhoto.deleteMany({ where: { orderId: order3.id } })
-  const selectedPhotos3 = []
   for (let i = 1; i <= 10; i++) {
-    selectedPhotos3.push({
-      orderId: order3.id,
-      photoUrl: `https://picsum.photos/seed/ss${order3.id}-${i}/800/600`,
-      photoName: `家居场景_${String(i).padStart(3, '0')}.jpg`,
-      isSelected: true,
-      selectedAt: new Date()
+    await prisma.selectedPhoto.create({
+      data: {
+        orderId: order3.id,
+        photoUrl: `https://picsum.photos/seed/sel${order3.id}-${i}/800/600`,
+        photoName: `家居场景_${String(i).padStart(3, '0')}.jpg`,
+        isSelected: true,
+        selectedAt: new Date()
+      }
     })
   }
-  await prisma.selectedPhoto.createMany({ data: selectedPhotos3 })
 
   console.log('选片照片数据初始化完成')
 
-  await prisma.finalPhoto.deleteMany({ where: { orderId: order2.id } })
-  const finalPhotos2 = []
   for (let i = 1; i <= 6; i++) {
-    finalPhotos2.push({
-      orderId: order2.id,
-      photoUrl: `https://picsum.photos/seed/ff${order2.id}-${i}/1600/1200`,
-      photoName: `精修成片_口红_${String(i).padStart(3, '0')}.jpg`,
-      fileSize: Math.floor(Math.random() * 5 + 3) * 1024 * 1024,
-      isDownloaded: false,
-      downloadedAt: null
+    await prisma.finalPhoto.create({
+      data: {
+        orderId: order2.id,
+        photoUrl: `https://picsum.photos/seed/final${order2.id}-${i}/1600/1200`,
+        photoName: `精修成片_口红_${String(i).padStart(3, '0')}.jpg`,
+        fileSize: Math.floor(Math.random() * 5 + 3) * 1024 * 1024,
+        isDownloaded: false,
+        downloadedAt: null
+      }
     })
   }
-  await prisma.finalPhoto.createMany({ data: finalPhotos2 })
 
-  await prisma.finalPhoto.deleteMany({ where: { orderId: order3.id } })
-  const finalPhotos3 = []
   for (let i = 1; i <= 10; i++) {
-    finalPhotos3.push({
-      orderId: order3.id,
-      photoUrl: `https://picsum.photos/seed/ff${order3.id}-${i}/1600/1200`,
-      photoName: `精修成片_家居_${String(i).padStart(3, '0')}.jpg`,
-      fileSize: Math.floor(Math.random() * 6 + 4) * 1024 * 1024,
-      isDownloaded: i <= 5,
-      downloadedAt: i <= 5 ? new Date() : null
+    await prisma.finalPhoto.create({
+      data: {
+        orderId: order3.id,
+        photoUrl: `https://picsum.photos/seed/final${order3.id}-${i}/1600/1200`,
+        photoName: `精修成片_家居_${String(i).padStart(3, '0')}.jpg`,
+        fileSize: Math.floor(Math.random() * 6 + 4) * 1024 * 1024,
+        isDownloaded: i <= 5,
+        downloadedAt: i <= 5 ? new Date() : null
+      }
     })
   }
-  await prisma.finalPhoto.createMany({ data: finalPhotos3 })
 
   console.log('成片数据初始化完成')
 
-  await prisma.schedule.deleteMany({ where: { orderId: order1.id } })
   await prisma.schedule.create({
     data: {
       orderId: order1.id,
@@ -184,7 +182,6 @@ async function main() {
     }
   })
 
-  await prisma.deliveryNode.deleteMany({ where: { orderId: order1.id } })
   await prisma.deliveryNode.createMany({
     data: [
       { orderId: order1.id, nodeName: '选片确认', nodeType: 'MILESTONE', plannedDate: new Date('2025-06-28'), status: 'IN_PROGRESS' },
@@ -193,10 +190,8 @@ async function main() {
     ]
   })
 
-  const member1 = await prisma.member.upsert({
-    where: { name: '品牌会员-张先生' },
-    update: {},
-    create: {
+  const member1 = await prisma.member.create({
+    data: {
       name: '品牌会员-张先生',
       phone: '13811112222',
       level: 'GOLD',
@@ -206,10 +201,8 @@ async function main() {
     }
   })
 
-  await prisma.subscription.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
+  await prisma.subscription.create({
+    data: {
       memberId: member1.id,
       planName: '年度高级会员',
       planType: 'YEARLY',
@@ -222,10 +215,8 @@ async function main() {
     }
   })
 
-  await prisma.sponsorship.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
+  await prisma.sponsorship.create({
+    data: {
       brandId: brand1.id,
       title: '2025 春夏时装周赞助',
       sponsorshipType: 'EVENT',
@@ -238,10 +229,8 @@ async function main() {
     }
   })
 
-  await prisma.exceptionPool.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
+  await prisma.exceptionPool.create({
+    data: {
       orderId: order1.id,
       brandId: brand1.id,
       exceptionType: 'SYNC_ERROR',
@@ -258,11 +247,11 @@ async function main() {
   console.log('\n========================================')
   console.log('所有种子数据初始化完成！')
   console.log('========================================')
-  console.log(`已创建品牌: 3 个 (${brand1.name}, ${brand2.name}, ${brand3.name})`)
-  console.log(`已创建订单: 3 个 (${order1.orderNo}, ${order2.orderNo}, ${order3.orderNo})`)
-  console.log(`  - ${order1.orderNo}: 待选片 (未确认选片)`)
-  console.log(`  - ${order2.orderNo}: 待成片下载 (已选片, 未交付)`)
-  console.log(`  - ${order3.orderNo}: 已完成 (全部交付)`)
+  console.log(`品牌: 3 个 (${brand1.name}, ${brand2.name}, ${brand3.name})`)
+  console.log(`订单: 3 个`)
+  console.log(`  - ${order1.orderNo}: 待选片 (8张选片照片, 3张已选, clientConfirm=false)`)
+  console.log(`  - ${order2.orderNo}: 待成片下载 (6张成片, 均未下载, clientConfirm=true)`)
+  console.log(`  - ${order3.orderNo}: 已完成 (10张成片, 5张已下载, finalDelivery=true)`)
   console.log('========================================')
 }
 

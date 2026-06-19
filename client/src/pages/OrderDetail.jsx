@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Descriptions, Tag, Button, Space, Tabs, Table, Modal, Form, Input, Select, DatePicker, InputNumber, message, Popconfirm, List } from 'antd'
-import { ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons'
+import { Card, Descriptions, Tag, Button, Space, Tabs, Table, Modal, Form, Input, Select, DatePicker, InputNumber, message, Popconfirm } from 'antd'
+import { ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, DownloadOutlined } from '@ant-design/icons'
 import { getOrder, updateOrder, confirmPhotoSelection, markFinalDelivery } from '../services/api'
 import {
   getSchedules, createSchedule, updateSchedule, deleteSchedule,
   getDeliveryNodes, createDeliveryNode, updateDeliveryNode, deleteDeliveryNode,
   getPayments, createPayment, updatePayment, deletePayment,
   getWorkAuthorizations, createWorkAuthorization, updateWorkAuthorization, deleteWorkAuthorization,
-  getSelectedPhotos, createSelectedPhoto,
-  getFinalPhotos, createFinalPhoto, downloadFinalPhoto
+  updateSelectedPhoto,
+  downloadFinalPhoto
 } from '../services/api'
 import dayjs from 'dayjs'
 
@@ -260,57 +260,77 @@ function OrderDetail() {
     }
   }
 
-  const handleConfirmSelection = async () => {
+  const handleTogglePhoto = async photo => {
+    if (order?.clientConfirm) return
+    const newSelected = !photo.isSelected
+    setSelectedPhotos(prev =>
+      prev.map(p => p.id === photo.id ? { ...p, isSelected: newSelected } : p)
+    )
     try {
-      const selectedIds = selectedPhotos.filter(p => p.isSelected).map(p => p.id)
-      await confirmPhotoSelection(id, { photoIds: selectedIds })
-      message.success('选片确认成功')
-      loadOrderDetail()
+      await updateSelectedPhoto(photo.id, { isSelected: newSelected })
     } catch (err) {
       console.error(err)
+      message.error('更新失败')
+      setSelectedPhotos(prev =>
+        prev.map(p => p.id === photo.id ? { ...p, isSelected: !newSelected } : p)
+      )
     }
+  }
+
+  const handleConfirmSelection = async () => {
+    const selectedIds = selectedPhotos.filter(p => p.isSelected).map(p => p.id)
+    if (selectedIds.length === 0) {
+      message.warning('请至少选择一张照片')
+      return
+    }
+    Modal.confirm({
+      title: '确认选片',
+      content: `已选择 ${selectedIds.length} 张照片，确认提交后将通知摄影师修片。`,
+      onOk: async () => {
+        try {
+          await confirmPhotoSelection(id, { photoIds: selectedIds })
+          message.success('选片确认成功')
+          loadOrderDetail()
+        } catch (err) {
+          console.error(err)
+          message.error('选片确认失败')
+        }
+      }
+    })
   }
 
   const handleMarkFinalDelivery = async () => {
-    try {
-      await markFinalDelivery(id)
-      message.success('标记成片交付成功')
-      loadOrderDetail()
-    } catch (err) {
-      console.error(err)
-    }
+    Modal.confirm({
+      title: '标记成片交付',
+      content: '确认所有成片已交付给客户？',
+      onOk: async () => {
+        try {
+          await markFinalDelivery(id)
+          message.success('标记成片交付成功')
+          loadOrderDetail()
+        } catch (err) {
+          console.error(err)
+        }
+      }
+    })
   }
 
-  const handleAddMockPhotos = async () => {
-    const mockPhotos = [
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/400/300?random=1', photoName: '照片_001.jpg' },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/400/300?random=2', photoName: '照片_002.jpg' },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/400/300?random=3', photoName: '照片_003.jpg' },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/400/300?random=4', photoName: '照片_004.jpg' },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/400/300?random=5', photoName: '照片_005.jpg' },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/400/300?random=6', photoName: '照片_006.jpg' }
-    ]
+  const handleDownloadPhoto = async photo => {
     try {
-      await createSelectedPhoto({ photos: mockPhotos })
-      message.success('添加示例照片成功')
+      await downloadFinalPhoto(photo.id)
+      const link = document.createElement('a')
+      link.href = photo.photoUrl
+      link.download = photo.photoName
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      message.success(`开始下载：${photo.photoName}`)
       loadOrderDetail()
     } catch (err) {
       console.error(err)
-    }
-  }
-
-  const handleAddMockFinalPhotos = async () => {
-    const mockPhotos = [
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/800/600?random=10', photoName: '成片_001.jpg', fileSize: 2048000 },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/800/600?random=11', photoName: '成片_002.jpg', fileSize: 3145728 },
-      { orderId: Number(id), photoUrl: 'https://picsum.photos/800/600?random=12', photoName: '成片_003.jpg', fileSize: 2621440 }
-    ]
-    try {
-      await createFinalPhoto({ photos: mockPhotos })
-      message.success('添加示例成片成功')
-      loadOrderDetail()
-    } catch (err) {
-      console.error(err)
+      message.error('下载失败')
     }
   }
 
@@ -399,6 +419,12 @@ function OrderDetail() {
     }
   ]
 
+  const formatFileSize = bytes => {
+    if (!bytes || bytes < 1024) return (bytes || 0) + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
   const tabItems = [
     {
       key: 'schedules',
@@ -455,10 +481,11 @@ function OrderDetail() {
         <div>
           <div className="table-toolbar">
             <Space>
-              <Button onClick={handleAddMockPhotos}>添加示例照片</Button>
-              <Button type="primary" icon={<CheckOutlined />} onClick={handleConfirmSelection} disabled={!selectedPhotos.some(p => p.isSelected)}>
-                确认选片
-              </Button>
+              {!order?.clientConfirm && (
+                <Button type="primary" icon={<CheckOutlined />} onClick={handleConfirmSelection} disabled={!selectedPhotos.some(p => p.isSelected)}>
+                  确认选片
+                </Button>
+              )}
               <Tag color={order?.clientConfirm ? 'green' : 'orange'}>
                 {order?.clientConfirm ? '客户已确认' : '待客户确认'}
               </Tag>
@@ -470,22 +497,33 @@ function OrderDetail() {
                 <div
                   key={photo.id}
                   className={`photo-item ${photo.isSelected ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedPhotos(prev =>
-                      prev.map(p => p.id === photo.id ? { ...p, isSelected: !p.isSelected } : p)
-                    )
-                  }}
+                  onClick={() => handleTogglePhoto(photo)}
                 >
-                  <img src={photo.photoUrl} alt={photo.photoName} />
+                  <div style={{ position: 'relative' }}>
+                    <img src={photo.photoUrl} alt={photo.photoName} />
+                    {photo.isSelected && (
+                      <div style={{
+                        position: 'absolute', top: 8, right: 8,
+                        background: '#1890ff', color: 'white', borderRadius: '50%',
+                        width: 24, height: 24, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 14,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                      }}>
+                        <CheckOutlined />
+                      </div>
+                    )}
+                  </div>
                   <div className="photo-info">
                     <div>{photo.photoName}</div>
-                    <div>{photo.isSelected ? '✓ 已选中' : '点击选择'}</div>
+                    <div style={{ color: photo.isSelected ? '#1890ff' : '#999' }}>
+                      {photo.isSelected ? '✓ 已选中' : '点击选择'}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无选片照片</p>
+            <p style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无选片照片，摄影师上传后将在此显示</p>
           )}
         </div>
       )
@@ -497,10 +535,11 @@ function OrderDetail() {
         <div>
           <div className="table-toolbar">
             <Space>
-              <Button onClick={handleAddMockFinalPhotos}>添加示例成片</Button>
-              <Button type="primary" icon={<CheckOutlined />} onClick={handleMarkFinalDelivery} disabled={order?.finalDelivery}>
-                {order?.finalDelivery ? '已交付' : '标记成片交付'}
-              </Button>
+              {!order?.finalDelivery && (
+                <Button type="primary" icon={<CheckOutlined />} onClick={handleMarkFinalDelivery} disabled={finalPhotos.length === 0}>
+                  标记成片交付
+                </Button>
+              )}
               <Tag color={order?.finalDelivery ? 'green' : 'orange'}>
                 {order?.finalDelivery ? '已交付' : '待交付'}
               </Tag>
@@ -509,20 +548,40 @@ function OrderDetail() {
           {finalPhotos.length > 0 ? (
             <div className="photo-grid">
               {finalPhotos.map(photo => (
-                <div key={photo.id} className="photo-item">
-                  <img src={photo.photoUrl} alt={photo.photoName} />
+                <div key={photo.id} className="photo-item" style={{ cursor: 'default' }}>
+                  <div style={{ position: 'relative' }}>
+                    <img src={photo.photoUrl} alt={photo.photoName} />
+                    {photo.isDownloaded && (
+                      <div style={{
+                        position: 'absolute', top: 8, right: 8,
+                        background: '#52c41a', color: 'white', borderRadius: '50%',
+                        width: 24, height: 24, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 14,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                      }}>
+                        <CheckOutlined />
+                      </div>
+                    )}
+                  </div>
                   <div className="photo-info">
                     <div>{photo.photoName}</div>
-                    <div>{(photo.fileSize / 1024 / 1024).toFixed(2)} MB</div>
-                    <div style={{ color: photo.isDownloaded ? '#52c41a' : '#999' }}>
-                      {photo.isDownloaded ? '已下载' : '待下载'}
-                    </div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{formatFileSize(photo.fileSize)}</div>
+                    <Button
+                      size="small"
+                      type={photo.isDownloaded ? 'default' : 'primary'}
+                      icon={<DownloadOutlined />}
+                      onClick={() => handleDownloadPhoto(photo)}
+                      block
+                      style={{ marginTop: 4 }}
+                    >
+                      {photo.isDownloaded ? '重新下载' : '下载'}
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无成片</p>
+            <p style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无成片，摄影师修片完成后将在此显示</p>
           )}
         </div>
       )
