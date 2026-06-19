@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.decoration.cooperation.mapper.BizPaymentPlanMapper">
+
+    <resultMap id="BaseResultMap" type="com.decoration.cooperation.entity.BizPaymentPlan">
+        <id column="id" property="id"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+        <result column="contract_id" property="contractId"/>
+        <result column="lead_id" property="leadId"/>
+        <result column="period_no" property="periodNo"/>
+        <result column="period_name" property="periodName"/>
+        <result column="payment_ratio" property="paymentRatio"/>
+        <result column="plan_amount" property="planAmount"/>
+        <result column="actual_amount" property="actualAmount"/>
+        <result column="plan_date" property="planDate"/>
+        <result column="actual_date" property="actualDate"/>
+        <result column="status" property="status"/>
+        <result column="collector_id" property="collectorId"/>
+        <result column="remark" property="remark"/>
+    </resultMap>
+
+    <select id="selectPaymentProgressReport" resultType="java.util.Map">
+        SELECT
+            c.id AS contract_id,
+            c.contract_no AS contract_no,
+            c.contract_name AS contract_name,
+            c.status AS contract_status,
+            c.final_price AS contract_amount,
+            c.sign_date AS sign_date,
+            l.id AS lead_id,
+            l.lead_no AS lead_no,
+            l.project_name AS project_name,
+            l.status AS lead_status,
+            cu.id AS customer_id,
+            cu.customer_name AS customer_name,
+            cu.phone AS customer_phone,
+            u.id AS owner_id,
+            u.real_name AS owner_name,
+            SUM(pp.plan_amount) AS total_plan_amount,
+            SUM(pp.actual_amount) AS total_actual_amount,
+            CASE
+                WHEN SUM(pp.plan_amount) > 0
+                THEN ROUND(SUM(pp.actual_amount) / SUM(pp.plan_amount) * 100, 2)
+                ELSE 0
+            END AS payment_progress,
+            COUNT(CASE WHEN pp.status = 'PAID' THEN 1 END) AS paid_periods,
+            COUNT(CASE WHEN pp.status = 'UNPAID' THEN 1 END) AS unpaid_periods,
+            COUNT(CASE WHEN pp.status = 'OVERDUE' THEN 1 END) AS overdue_periods,
+            COUNT(pp.id) AS total_periods
+        FROM biz_contract c
+        INNER JOIN biz_lead l ON c.lead_id = l.id AND l.deleted = 0
+        INNER JOIN biz_customer cu ON c.customer_id = cu.id AND cu.deleted = 0
+        LEFT JOIN sys_user u ON c.owner_id = u.id AND u.deleted = 0
+        LEFT JOIN biz_payment_plan pp ON c.id = pp.contract_id AND pp.deleted = 0
+        WHERE c.deleted = 0
+        <if test="startDate != null and startDate != ''">
+            AND c.sign_date >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND c.sign_date <= #{endDate}
+        </if>
+        <if test="ownerId != null">
+            AND c.owner_id = #{ownerId}
+        </if>
+        GROUP BY c.id, c.contract_no, c.contract_name, c.status, c.final_price, c.sign_date,
+                 l.id, l.lead_no, l.project_name, l.status,
+                 cu.id, cu.customer_name, cu.phone,
+                 u.id, u.real_name
+        ORDER BY c.sign_date DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.decoration.cooperation.mapper.BizLeadMapper">
+
+    <resultMap id="BaseResultMap" type="com.decoration.cooperation.entity.BizLead">
+        <id column="id" property="id"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="deleted" property="deleted"/>
+        <result column="lead_no" property="leadNo"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="source" property="source"/>
+        <result column="source_detail" property="sourceDetail"/>
+        <result column="project_name" property="projectName"/>
+        <result column="decoration_type" property="decorationType"/>
+        <result column="house_area" property="houseArea"/>
+        <result column="budget_min" property="budgetMin"/>
+        <result column="budget_max" property="budgetMax"/>
+        <result column="city" property="city"/>
+        <result column="district" property="district"/>
+        <result column="community" property="community"/>
+        <result column="expect_start_date" property="expectStartDate"/>
+        <result column="owner_id" property="ownerId"/>
+        <result column="status" property="status"/>
+        <result column="follow_stage" property="followStage"/>
+        <result column="importance" property="importance"/>
+        <result column="conflict_flag" property="conflictFlag"/>
+        <result column="conflict_with_ids" property="conflictWithIds"/>
+        <result column="predict_deal_date" property="predictDealDate"/>
+        <result column="predict_deal_rate" property="predictDealRate"/>
+        <result column="remark" property="remark"/>
+        <result column="assign_time" property="assignTime"/>
+        <result column="last_follow_time" property="lastFollowTime"/>
+        <result column="next_follow_time" property="nextFollowTime"/>
+    </resultMap>
+
+    <select id="selectConflictLeads" resultMap="BaseResultMap">
+        SELECT DISTINCT l.*
+        FROM biz_lead l
+        LEFT JOIN biz_customer c ON l.customer_id = c.id
+        WHERE l.deleted = 0
+        <if test="excludeId != null">
+            AND l.id != #{excludeId}
+        </if>
+        <if test="phone != null and phone != ''">
+            AND c.phone = #{phone}
+        </if>
+        <if test="customerName != null and customerName != ''">
+            AND c.customer_name = #{customerName}
+        </if>
+        <if test="community != null and community != ''">
+            AND l.community = #{community}
+        </if>
+        <if test="phone == null or phone == ''">
+            <if test="customerName == null or customerName == ''">
+                <if test="community == null or community == ''">
+                    AND 1 = 0
+                </if>
+            </if>
+        </if>
+    </select>
+
+    <select id="selectDealPrediction" resultType="java.util.Map">
+        SELECT
+            DATE_FORMAT(l.predict_deal_date, '%Y-%m') AS month,
+            COUNT(l.id) AS lead_count,
+            SUM(CASE WHEN l.status = 'DEALED' THEN 1 ELSE 0 END) AS deal_count,
+            ROUND(AVG(l.predict_deal_rate), 2) AS avg_deal_rate,
+            SUM(CASE WHEN l.status = 'DEALED' THEN c.final_price ELSE 0 END) AS deal_amount,
+            SUM((l.budget_min + l.budget_max) / 2 * l.predict_deal_rate / 100) AS predicted_amount
+        FROM biz_lead l
+        LEFT JOIN biz_contract c ON l.id = c.lead_id AND c.deleted = 0
+        WHERE l.deleted = 0
+        <if test="startDate != null and startDate != ''">
+            AND l.predict_deal_date >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND l.predict_deal_date <= #{endDate}
+        </if>
+        GROUP BY DATE_FORMAT(l.predict_deal_date, '%Y-%m')
+        ORDER BY month ASC
+    </select>
+
+    <select id="selectLeadStatistics" resultType="java.util.Map">
+        SELECT
+            l.status AS status,
+            COUNT(l.id) AS count
+        FROM biz_lead l
+        WHERE l.deleted = 0
+        GROUP BY l.status
+        ORDER BY count DESC
+    </select>
+
+</mapper>
