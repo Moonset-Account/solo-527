@@ -9,7 +9,7 @@ export async function getCompleteness() {
   const submitted = materials.filter((m) => m.status === 'SUBMITTED').length
   const missing = materials.filter((m) => m.status === 'MISSING').length
   const supplementing = materials.filter((m) => m.status === 'SUPPLEMENTING').length
-  const rate = total > 0 ? submitted / total : 0
+  const rate = total > 0 ? Math.round((submitted / total) * 100) : 0
 
   return { total, submitted, missing, supplementing, rate }
 }

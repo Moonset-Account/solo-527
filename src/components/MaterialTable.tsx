@@ -45,10 +45,9 @@ export default function MaterialTable({ materials, onStatusChange, onBatchRemind
       ),
     },
     {
-      title: '要求日期',
+      title: '责任人',
       dataIndex: 'requiredBy',
       key: 'requiredBy',
-      render: (v: string) => new Date(v).toLocaleDateString('zh-CN'),
     },
     {
       title: '提交日期',
@@ -57,7 +56,7 @@ export default function MaterialTable({ materials, onStatusChange, onBatchRemind
       render: (v: string | null) => v ? new Date(v).toLocaleDateString('zh-CN') : '-',
     },
     {
-      title: '预计日期',
+      title: '预计补齐日期',
       dataIndex: 'expectedAt',
       key: 'expectedAt',
       render: (v: string | null) => v ? new Date(v).toLocaleDateString('zh-CN') : '-',

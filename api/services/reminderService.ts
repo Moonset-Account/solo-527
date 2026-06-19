@@ -20,8 +20,28 @@ export async function getRemindersByContract(contractId: number) {
 }
 
 export async function updateReminderReply(id: number, replyStatus: ReplyStatus) {
-  return prisma.reminderRecord.update({
+  const reminder = await prisma.reminderRecord.findUnique({
+    where: { id },
+    select: { nodeId: true },
+  })
+
+  const updated = await prisma.reminderRecord.update({
     where: { id },
     data: { replyStatus },
   })
+
+  if (replyStatus === 'REPLIED' && reminder) {
+    const node = await prisma.approvalNode.findUnique({
+      where: { id: reminder.nodeId },
+      select: { status: true },
+    })
+    if (node && node.status === 'TIMEOUT') {
+      await prisma.approvalNode.update({
+        where: { id: reminder.nodeId },
+        data: { status: 'PROCESSING' },
+      })
+    }
+  }
+
+  return updated
 }

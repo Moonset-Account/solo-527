@@ -28,7 +28,40 @@ export async function updateNodeStatus(id: number, status: NodeStatus) {
     data,
   })
 
-  if (status === 'COMPLETED' && node) {
+  if (status === 'COMPLETED') {
+    await prisma.reminderRecord.updateMany({
+      where: { nodeId: id, replyStatus: 'PENDING' },
+      data: { replyStatus: 'REPLIED' },
+    })
+
+    if (node) {
+      const contract = await prisma.contract.findUnique({
+        where: { id: node.contractId },
+        select: { status: true },
+      })
+      if (contract && contract.status === 'PENDING') {
+        await prisma.contract.update({
+          where: { id: node.contractId },
+          data: { status: 'IN_PROGRESS' },
+        })
+      }
+
+      const remainingNodes = await prisma.approvalNode.findMany({
+        where: {
+          contractId: node.contractId,
+          status: { not: 'COMPLETED' },
+        },
+      })
+      if (remainingNodes.length === 0) {
+        await prisma.contract.update({
+          where: { id: node.contractId },
+          data: { status: 'COMPLETED' },
+        })
+      }
+    }
+  }
+
+  if (status === 'PROCESSING' && node) {
     const contract = await prisma.contract.findUnique({
       where: { id: node.contractId },
       select: { status: true },
