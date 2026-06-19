@@ -1,0 +1,104 @@
+<!-- BEGIN app/views/layouts/application.html.erb
+--><!DOCTYPE html>
+<html>
+  <head>
+    <title>冷链运输管理系统</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="冷链运输管理系统">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="HprDTnI5zsUKD__6Hu9Myr8VT-tbL-e58h0WBXkP6TTO_guVQKzyI3yNKH_KWJTblfFkI_cMeZnfINAaD11XzA" />
+    
+
+    
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <link rel="stylesheet" href="/assets/application-3e1e8f54.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/application.tailwind-ee41ae41.css" data-turbo-track="reload" />
+    <script src="/assets/application-22dc1be8.js" data-turbo-track="reload" type="module"></script>
+  </head>
+
+  <body class="bg-gray-50">
+      <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+        <!-- BEGIN app/views/shared/_flash.html.erb
+-->
+
+
+<!-- END app/views/shared/_flash.html.erb -->
+        <!-- BEGIN app/views/devise/sessions/new.html.erb
+--><div class="w-full max-w-md">
+  <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4">
+        <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900">冷链运输管理系统</h1>
+      <p class="mt-2 text-sm text-gray-500">Cold Chain Management System</p>
+    </div>
+
+    <form class="new_user" id="new_user" action="/users/sign_in" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="ljrnYUN_Z1UI0Y_uLWCGg6EWTeohOX6CPstCE6isUqKU8UScFhfueHHDDDxf7hfm2IOWkF0JUmeNonauMNDi8g" />
+      <div class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2" for="user_email">邮箱</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+              </svg>
+            </div>
+            <input autofocus="autofocus" autocomplete="email" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white" placeholder="请输入邮箱" type="email" value="" name="user[email]" id="user_email" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2" for="user_password">密码</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+            </div>
+            <input autocomplete="current-password" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white" placeholder="请输入密码" type="password" name="user[password]" id="user_password" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <input name="user[remember_me]" type="hidden" value="0" /><input class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" type="checkbox" value="1" name="user[remember_me]" id="user_remember_me" />
+            <label class="ml-2 block text-sm text-gray-700" for="user_remember_me">记住我</label>
+          </div>
+
+            <div class="text-sm">
+              <a class="font-medium text-blue-600 hover:text-blue-700 transition-colors" href="/users/password/new">忘记密码?</a>
+            </div>
+        </div>
+
+        <div>
+          <input type="submit" name="commit" value="登录" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all cursor-pointer" data-disable-with="登录" />
+        </div>
+      </div>
+</form>
+      <div class="mt-6 text-center">
+        <p class="text-sm text-gray-500">
+          还没有账号？
+          <a class="font-medium text-blue-600 hover:text-blue-700 transition-colors" href="/users/sign_up">立即注册</a>
+        </p>
+      </div>
+  </div>
+
+  <p class="mt-8 text-center text-xs text-gray-400">
+    © 2026 冷链运输管理系统. All rights reserved.
+  </p>
+</div>
+<!-- END app/views/devise/sessions/new.html.erb -->
+      </div>
+  </body>
+</html>
+<!-- END app/views/layouts/application.html.erb -->

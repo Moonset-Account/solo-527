@@ -1,0 +1,286 @@
+<%= turbo_frame_tag "dashboard" do %>
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">仪表盘</h1>
+        <p class="mt-1 text-sm text-gray-500">冷链运输监控概览</p>
+      </div>
+      <div class="text-right">
+        <p class="text-sm text-gray-500">当前时间</p>
+        <p class="text-lg font-semibold text-gray-900"><%= Time.current.strftime("%Y-%m-%d %H:%M") %></p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">车辆总数</p>
+            <p class="mt-2 text-3xl font-bold text-gray-900"><%= @vehicles_count %></p>
+            <p class="mt-2 text-xs text-gray-400">全部运营车辆</p>
+          </div>
+          <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">在线车辆</p>
+            <p class="mt-2 text-3xl font-bold text-green-600"><%= @active_vehicles_count %></p>
+            <p class="mt-2 text-xs text-gray-400">
+              <% if @vehicles_count > 0 %>
+                在线率 <%= number_with_precision(@active_vehicles_count.to_f / @vehicles_count * 100, precision: 1) %>%
+              <% end %>
+            </p>
+          </div>
+          <div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">温度告警</p>
+            <p class="mt-2 text-3xl font-bold text-orange-600"><%= @temperature_alerts_count %></p>
+            <p class="mt-2 text-xs text-gray-400">待处理告警</p>
+          </div>
+          <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500">今日工单</p>
+            <p class="mt-2 text-3xl font-bold text-purple-600"><%= @today_claims_count %></p>
+            <p class="mt-2 text-xs text-gray-400">待处理赔付工单</p>
+          </div>
+          <div class="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">车辆温度监控</h2>
+              <p class="mt-1 text-sm text-gray-500">实时监控所有车辆温度状态</p>
+            </div>
+            <div class="flex items-center gap-4 text-sm">
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                正常
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                警告
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                危险
+              </span>
+            </div>
+          </div>
+          <div class="p-6">
+            <% if @recent_vehicles.any? %>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <% @recent_vehicles.each do |vehicle| %>
+                  <% status = vehicle.current_temperature_status %>
+                  <% status_colors = {
+                    'normal' => 'border-green-200 bg-green-50/50',
+                    'warning' => 'border-yellow-200 bg-yellow-50/50',
+                    'danger' => 'border-red-200 bg-red-50/50'
+                  } %>
+                  <% status_dot_colors = {
+                    'normal' => 'bg-green-500',
+                    'warning' => 'bg-yellow-500',
+                    'danger' => 'bg-red-500'
+                  } %>
+                  <% status_text_colors = {
+                    'normal' => 'text-green-700',
+                    'warning' => 'text-yellow-700',
+                    'danger' => 'text-red-700'
+                  } %>
+                  <% status_labels = {
+                    'normal' => '正常',
+                    'warning' => '警告',
+                    'danger' => '危险'
+                  } %>
+                  <div class="border <%= status_colors[status] %> rounded-xl p-4 transition-all hover:shadow-sm">
+                    <div class="flex items-start justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-gray-200">
+                          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+                          </svg>
+                        </div>
+                        <div>
+                          <p class="font-semibold text-gray-900"><%= vehicle.plate_number %></p>
+                          <p class="text-xs text-gray-500">
+                            <%= case vehicle.vehicle_type
+                            when 'refrigerated' then '冷藏车'
+                            when 'freezer' then '冷冻车'
+                            when 'normal' then '普通货车'
+                            end %>
+                          </p>
+                        </div>
+                      </div>
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium <%= status_text_colors[status] %> bg-white">
+                        <span class="w-2 h-2 rounded-full <%= status_dot_colors[status] %> animate-pulse"></span>
+                        <%= status_labels[status] %>
+                      </span>
+                    </div>
+                    <div class="mt-4 flex items-end justify-between">
+                      <div>
+                        <p class="text-2xl font-bold text-gray-900">
+                          <% if vehicle.latest_temperature %>
+                            <%= number_with_precision(vehicle.latest_temperature, precision: 1) %>°C
+                          <% else %>
+                            --
+                          <% end %>
+                        </p>
+                        <% if vehicle.min_temperature && vehicle.max_temperature %>
+                          <p class="text-xs text-gray-500 mt-1">
+                            阈值: <%= vehicle.min_temperature %>°C ~ <%= vehicle.max_temperature %>°C
+                          </p>
+                        <% end %>
+                      </div>
+                      <%= link_to vehicle_path(vehicle), class: "text-sm text-blue-600 hover:text-blue-700 font-medium" do %>
+                        查看详情 →
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="text-center py-12">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+                </svg>
+                <p class="text-gray-500">暂无车辆数据</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="px-6 py-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-900">待处理赔付工单</h2>
+            <p class="mt-1 text-sm text-gray-500">最近的工单申请</p>
+          </div>
+          <div class="divide-y divide-gray-100">
+            <% if @recent_claims.any? %>
+              <% @recent_claims.each do |claim| %>
+                <%= link_to claim_path(claim), class: "block px-6 py-4 hover:bg-gray-50 transition-colors" do %>
+                  <div class="flex items-center justify-between">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-gray-900 truncate"><%= claim.claim_no %></p>
+                      <p class="text-xs text-gray-500 mt-1"><%= claim.vehicle&.plate_number %></p>
+                    </div>
+                    <div class="text-right ml-4 flex-shrink-0">
+                      <p class="text-sm font-semibold text-gray-900">¥<%= number_with_precision(claim.amount, precision: 2) %></p>
+                      <% status_classes = {
+                        'pending' => 'bg-yellow-100 text-yellow-700',
+                        'processing' => 'bg-blue-100 text-blue-700',
+                        'approved' => 'bg-green-100 text-green-700',
+                        'rejected' => 'bg-red-100 text-red-700',
+                        'paid' => 'bg-purple-100 text-purple-700'
+                      } %>
+                      <% status_texts = {
+                        'pending' => '待处理',
+                        'processing' => '处理中',
+                        'approved' => '已通过',
+                        'rejected' => '已拒绝',
+                        'paid' => '已支付'
+                      } %>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium <%= status_classes[claim.status.to_s] %>">
+                        <%= status_texts[claim.status.to_s] %>
+                      </span>
+                    </div>
+                  </div>
+                <% end %>
+              <% end %>
+              <div class="px-6 py-3 bg-gray-50 rounded-b-2xl">
+                <%= link_to claims_path, class: "text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center" do %>
+                  查看全部工单 →
+                <% end %>
+              </div>
+            <% else %>
+              <div class="px-6 py-12 text-center">
+                <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <p class="text-sm text-gray-500">暂无赔付工单</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="px-6 py-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-900">温度告警</h2>
+            <p class="mt-1 text-sm text-gray-500">活跃告警列表</p>
+          </div>
+          <div class="divide-y divide-gray-100">
+            <% if @active_alerts.any? %>
+              <% @active_alerts.each do |alert| %>
+                <div class="px-6 py-4">
+                  <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                      </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-900"><%= alert.vehicle&.plate_number %></p>
+                      <p class="text-xs text-gray-500 mt-1">
+                        <%= alert.over_high? ? '温度过高' : '温度过低' %>:
+                        <%= number_with_precision(alert.temperature, precision: 1) %>°C
+                        (阈值: <%= alert.threshold %>°C)
+                      </p>
+                      <p class="text-xs text-gray-400 mt-1">
+                        <%= time_ago_in_words(alert.start_time) %>前
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% else %>
+              <div class="px-6 py-12 text-center">
+                <svg class="w-12 h-12 text-green-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-sm text-gray-500">暂无温度告警</p>
+                <p class="text-xs text-gray-400 mt-1">所有车辆温度正常</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>

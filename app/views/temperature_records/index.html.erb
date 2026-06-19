@@ -1,0 +1,164 @@
+<% content_for :title, "温度记录" %>
+
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900">温度记录</h1>
+      <p class="mt-1 text-sm text-gray-500">查看所有车辆的温度历史记录</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+      <%= search_form_for @q, class: "space-y-4", url: temperature_records_path do |f| %>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div>
+            <%= f.label :vehicle_id_eq, "车辆", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.select :vehicle_id_eq, Vehicle.all.map { |v| [v.plate_number, v.id] }, { include_blank: "全部车辆" }, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+          <div>
+            <%= f.label :recorded_at_gteq, "开始时间", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.datetime_field :recorded_at_gteq, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+          <div>
+            <%= f.label :recorded_at_lteq, "结束时间", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.datetime_field :recorded_at_lteq, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+          <div>
+            <%= f.label :temperature_gteq, "最低温度", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.number_field :temperature_gteq, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm", placeholder: "°C", step: "0.1" %>
+          </div>
+          <div>
+            <%= f.label :temperature_lteq, "最高温度", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.number_field :temperature_lteq, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm", placeholder: "°C", step: "0.1" %>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="setQuickFilter('today')" class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">今天</button>
+            <button type="button" onclick="setQuickFilter('yesterday')" class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">昨天</button>
+            <button type="button" onclick="setQuickFilter('7days')" class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">最近7天</button>
+            <button type="button" onclick="setQuickFilter('30days')" class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">最近30天</button>
+          </div>
+          <div class="flex items-center space-x-2">
+            <%= f.submit "搜索", class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:text-sm font-medium" %>
+            <%= link_to "重置", temperature_records_path, class: "text-gray-600 hover:text-gray-900 px-4 py-2 text-sm font-medium" %>
+            <button type="button" onclick="exportData()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:text-sm font-medium">
+              导出
+            </button>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-gray-900">记录列表</h2>
+          <span class="text-sm text-gray-500">共 <%= @temperature_records.total_count %> 条记录</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">车牌号</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">温度</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% @temperature_records.each do |record| %>
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <%= record.recorded_at.strftime("%Y-%m-%d %H:%M:%S") %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <%= link_to record.vehicle.plate_number, vehicle_path(record.vehicle), class: "text-blue-600 hover:text-blue-900 font-medium" %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                  <%= "%.2f" % record.temperature %>°C
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <%= render "shared/temperature_badge", temperature: record.temperature, vehicle: record.vehicle %>
+                </td>
+              </tr>
+            <% end %>
+            <% if @temperature_records.empty? %>
+              <tr>
+                <td colspan="4" class="px-6 py-12 text-center">
+                  <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <p class="text-sm text-gray-500">暂无温度记录</p>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @temperature_records.total_pages > 1 %>
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+          <nav class="flex items-center justify-between" aria-label="Pagination">
+            <div class="hidden sm:block">
+              <p class="text-sm text-gray-700">
+                显示第 <span class="font-medium"><%= @temperature_records.offset + 1 %></span> 到 <span class="font-medium"><%= [@temperature_records.offset + @temperature_records.size, @temperature_records.total_count].min %></span> 条，共 <span class="font-medium"><%= @temperature_records.total_count %></span> 条
+              </p>
+            </div>
+            <div class="flex-1 flex justify-between sm:justify-end">
+              <%= paginate @temperature_records, window: 2, outer_window: 1, theme: "tailwind" %>
+            </div>
+          </nav>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setQuickFilter(filter) {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    switch(filter) {
+      case 'today':
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'yesterday':
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(end.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case '7days':
+        start.setDate(start.getDate() - 7);
+        break;
+      case '30days':
+        start.setDate(start.getDate() - 30);
+        break;
+    }
+
+    document.querySelector('input[name="q[recorded_at_gteq]"]').value = formatDateTime(start);
+    document.querySelector('input[name="q[recorded_at_lteq]"]').value = formatDateTime(end);
+    document.querySelector('form').submit();
+  }
+
+  function formatDateTime(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function exportData() {
+    const form = document.querySelector('form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData).toString();
+    const url = `<%= temperature_records_path(format: :csv) %>?${params}`;
+    window.location.href = url;
+  }
+</script>

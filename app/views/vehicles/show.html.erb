@@ -1,0 +1,256 @@
+<% content_for :title, "车辆详情 - #{@vehicle.plate_number}" %>
+
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-6">
+      <div class="flex items-center">
+        <%= link_to vehicles_path, class: "text-gray-400 hover:text-gray-600 mr-3" do %>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        <% end %>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900"><%= @vehicle.plate_number %></h1>
+          <p class="mt-1 text-sm text-gray-500"><%= @vehicle.vehicle_type.text %> · <%= @vehicle.status.text %></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">车辆信息</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm font-medium text-gray-500">车牌号</label>
+              <p class="mt-1 text-sm font-semibold text-gray-900"><%= @vehicle.plate_number %></p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-500">车辆类型</label>
+              <p class="mt-1 text-sm font-semibold text-gray-900"><%= @vehicle.vehicle_type.text %></p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-500">状态</label>
+              <p class="mt-1">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= @vehicle.active? ? 'bg-green-100 text-green-800' : @vehicle.maintenance? ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' %>">
+                  <%= @vehicle.status.text %>
+                </span>
+              </p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-500">当前司机</label>
+              <p class="mt-1 text-sm font-semibold text-gray-900">
+                <% if @vehicle.current_driver %>
+                  <%= @vehicle.current_driver.email %>
+                <% else %>
+                  <span class="text-gray-400">未分配</span>
+                <% end %>
+              </p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-500">温度下限</label>
+              <p class="mt-1 text-sm font-semibold text-gray-900">
+                <% if @vehicle.min_temperature %>
+                  <%= @vehicle.min_temperature %>°C
+                <% else %>
+                  <span class="text-gray-400">未设置</span>
+                <% end %>
+              </p>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-gray-500">温度上限</label>
+              <p class="mt-1 text-sm font-semibold text-gray-900">
+                <% if @vehicle.max_temperature %>
+                  <%= @vehicle.max_temperature %>°C
+                <% else %>
+                  <span class="text-gray-400">未设置</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-1">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">当前温度</h2>
+          <% if @latest_temperature %>
+            <%
+              status = @vehicle.current_temperature_status
+              temp_color = status == 'normal' ? 'text-green-600' : status == 'warning' ? 'text-yellow-600' : 'text-red-600'
+              bg_color = status == 'normal' ? 'bg-green-50' : status == 'warning' ? 'bg-yellow-50' : 'bg-red-50'
+              border_color = status == 'normal' ? 'border-green-200' : status == 'warning' ? 'border-yellow-200' : 'border-red-200'
+            %>
+            <div class="text-center p-6 rounded-lg border-2 <%= bg_color %> <%= border_color %>">
+              <div class="text-5xl font-bold <%= temp_color %>">
+                <%= "%.1f" % @latest_temperature.temperature %>°C
+              </div>
+              <div class="mt-2">
+                <%= render "shared/temperature_badge", temperature: @latest_temperature.temperature, vehicle: @vehicle %>
+              </div>
+              <p class="mt-3 text-sm text-gray-500">
+                更新时间：<%= @latest_temperature.recorded_at.strftime("%Y-%m-%d %H:%M:%S") %>
+              </p>
+            </div>
+          <% else %>
+            <div class="text-center p-6 rounded-lg border-2 border-gray-200 bg-gray-50">
+              <div class="text-5xl font-bold text-gray-400">--°C</div>
+              <p class="mt-3 text-sm text-gray-500">暂无温度数据</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">当前位置</h2>
+      <% if @latest_location %>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="text-sm font-medium text-gray-500">纬度</label>
+            <p class="mt-1 text-sm font-semibold text-gray-900"><%= @latest_location.latitude %></p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-500">经度</label>
+            <p class="mt-1 text-sm font-semibold text-gray-900"><%= @latest_location.longitude %></p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-500">更新时间</label>
+            <p class="mt-1 text-sm font-semibold text-gray-900">
+              <%= @latest_location.recorded_at.strftime("%Y-%m-%d %H:%M:%S") %>
+            </p>
+          </div>
+        </div>
+      <% else %>
+        <p class="text-sm text-gray-500">暂无位置数据</p>
+      <% end %>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">温度趋势</h2>
+        <%= link_to "查看更多", temperature_history_vehicle_path(@vehicle), class: "text-sm text-blue-600 hover:text-blue-800" %>
+      </div>
+      <div id="temperature-chart">
+        <% if @recent_temperatures.any? %>
+          <%= line_chart @recent_temperatures.map { |r| [r.recorded_at, r.temperature] },
+                         xtitle: "时间",
+                         ytitle: "温度 (°C)",
+                         colors: ["#3b82f6"],
+                         height: "300px",
+                         min: @vehicle.min_temperature ? @vehicle.min_temperature - 5 : nil,
+                         max: @vehicle.max_temperature ? @vehicle.max_temperature + 5 : nil,
+                         library: {
+                           chart: { zoomType: 'x' },
+                           plotLines: [
+                             if @vehicle.min_temperature
+                               {
+                                 color: '#f59e0b',
+                                 dashStyle: 'dash',
+                                 value: @vehicle.min_temperature,
+                                 width: 1,
+                                 label: { text: '下限', align: 'right', style: { color: '#f59e0b' } }
+                               }
+                             end,
+                             if @vehicle.max_temperature
+                               {
+                                 color: '#f59e0b',
+                                 dashStyle: 'dash',
+                                 value: @vehicle.max_temperature,
+                                 width: 1,
+                                 label: { text: '上限', align: 'right', style: { color: '#f59e0b' } }
+                               }
+                             end
+                           ].compact
+                         } %>
+        <% else %>
+          <div class="text-center py-8 text-gray-500">
+            暂无温度数据
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-gray-900">最近温度记录</h2>
+          <%= link_to "全部", temperature_records_path(q: { vehicle_id_eq: @vehicle.id }), class: "text-sm text-blue-600 hover:text-blue-800" %>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">温度</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @recent_temperatures.each do |record| %>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <%= record.recorded_at.strftime("%m-%d %H:%M") %>
+                  </td>
+                  <td class="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    <%= "%.1f" % record.temperature %>°C
+                  </td>
+                  <td class="px-6 py-3 whitespace-nowrap">
+                    <%= render "shared/temperature_badge", temperature: record.temperature, vehicle: @vehicle %>
+                  </td>
+                </tr>
+              <% end %>
+              <% if @recent_temperatures.empty? %>
+                <tr>
+                  <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">
+                    暂无温度记录
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-gray-900">最近位置记录</h2>
+          <%= link_to "全部", location_records_path(q: { vehicle_id_eq: @vehicle.id }), class: "text-sm text-blue-600 hover:text-blue-800" %>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">纬度</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">经度</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @vehicle.location_records.order_by_time.limit(10).each do |record| %>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <%= record.recorded_at.strftime("%m-%d %H:%M") %>
+                  </td>
+                  <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <%= record.latitude %>
+                  </td>
+                  <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                    <%= record.longitude %>
+                  </td>
+                </tr>
+              <% end %>
+              <% if @vehicle.location_records.none? %>
+                <tr>
+                  <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">
+                    暂无位置记录
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

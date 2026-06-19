@@ -1,0 +1,135 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="px-4 py-6 sm:px-6 lg:px-8">
+    <div class="mb-6 flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">用户管理</h1>
+      <%= link_to '新建用户', new_admin_user_path, class: 'inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' %>
+    </div>
+
+    <div class="mb-6 rounded-lg bg-white p-4 shadow-sm">
+      <%= search_form_for [:admin, @q] do |f| %>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <%= f.label :name_or_email_cont, '姓名/邮箱', class: 'block text-sm font-medium text-gray-700' %>
+            <%= f.text_field :name_or_email_cont, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm', placeholder: '请输入姓名或邮箱' %>
+          </div>
+          <div>
+            <%= f.label :role_eq, '角色', class: 'block text-sm font-medium text-gray-700' %>
+            <%= f.select :role_eq, User.role.options, { include_blank: '全部' }, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm' %>
+          </div>
+          <div>
+            <%= f.label :status_eq, '状态', class: 'block text-sm font-medium text-gray-700' %>
+            <%= f.select :status_eq, User.status.options, { include_blank: '全部' }, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm' %>
+          </div>
+          <div class="flex items-end">
+            <%= f.submit '筛选', class: 'w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="mb-4 flex flex-wrap gap-2">
+      <%= link_to '全部', admin_users_path, class: "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium #{params[:q]&.dig(:status_eq).nil? && params[:q]&.dig(:role_eq).nil? ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}" %>
+      <% User.role.each do |role| %>
+        <% count = User.where(role: role.value).count %>
+        <%= link_to "#{role.text} (#{count})", admin_users_path(q: { role_eq: role.value }), class: "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium #{params[:q]&.dig(:role_eq) == role.value ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}" %>
+      <% end %>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">用户</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">邮箱</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">手机号</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">角色</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">状态</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">最后登录时间</th>
+              <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white">
+            <% @users.each do |user| %>
+              <tr class="hover:bg-gray-50">
+                <td class="whitespace-nowrap px-6 py-4">
+                  <div class="flex items-center">
+                    <div class="h-10 w-10 rounded-full <%= user.admin? ? 'bg-red-100' : user.captain? ? 'bg-blue-100' : 'bg-gray-100' %> flex items-center justify-center">
+                      <span class="text-sm font-medium <%= user.admin? ? 'text-red-600' : user.captain? ? 'text-blue-600' : 'text-gray-600' %>">
+                        <%= user.name.present? ? user.name.first.upcase : user.email.first.upcase %>
+                      </span>
+                    </div>
+                    <div class="ml-3">
+                      <p class="text-sm font-medium text-gray-900"><%= user.name || user.email %></p>
+                    </div>
+                  </div>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= user.email %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= user.phone_number || '-' %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4">
+                  <% role_class = case user.role
+                    when 'admin' then 'bg-red-100 text-red-800'
+                    when 'captain' then 'bg-blue-100 text-blue-800'
+                    when 'driver' then 'bg-gray-100 text-gray-800'
+                    else 'bg-gray-100 text-gray-800'
+                    end %>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium <%= role_class %>">
+                    <%= user.role.text %>
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4">
+                  <% status_class = case user.status
+                    when 'active' then 'bg-green-100 text-green-800'
+                    when 'inactive' then 'bg-gray-100 text-gray-800'
+                    else 'bg-gray-100 text-gray-800'
+                    end %>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium <%= status_class %>">
+                    <%= user.status.text %>
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <%= user.last_sign_in_at&.strftime('%Y-%m-%d %H:%M') || '从未登录' %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                  <div class="flex items-center justify-end space-x-2">
+                    <%= link_to '编辑', edit_admin_user_path(user), class: 'text-blue-600 hover:text-blue-900' %>
+                    <% if user.active? %>
+                      <%= link_to '禁用', disable_admin_user_path(user), method: :post, class: 'text-red-600 hover:text-red-900', data: { confirm: '确定要禁用该用户吗？' } %>
+                    <% else %>
+                      <%= link_to '启用', enable_admin_user_path(user), method: :post, class: 'text-green-600 hover:text-green-900' %>
+                    <% end %>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @users.empty? %>
+        <div class="py-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">暂无用户</h3>
+          <p class="mt-1 text-sm text-gray-500">还没有任何用户记录。</p>
+        </div>
+      <% end %>
+
+      <div class="border-t border-gray-200 px-4 py-3 sm:px-6">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-gray-700">
+            显示第 <%= @users.offset_value + 1 %> - <%= [@users.offset_value + @users.limit_value, @users.total_count].min %> 条，共 <%= @users.total_count %> 条
+          </div>
+          <div class="flex justify-end">
+            <%= paginate @users, theme: 'tailwind' %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

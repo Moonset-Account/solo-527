@@ -1,0 +1,272 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="px-4 py-6 sm:px-6 lg:px-8">
+    <div class="mb-6 flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">温控安全统计</h1>
+      <div class="flex items-center space-x-3">
+        <%= link_to '导出报表', '#', class: 'inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2' do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          导出
+        <% end %>
+      </div>
+    </div>
+
+    <div class="mb-6 rounded-lg bg-white p-4 shadow-sm">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div>
+          <%= label_tag :start_date, '开始日期', class: 'block text-sm font-medium text-gray-700' %>
+          <%= date_field_tag :start_date, params[:start_date] || 30.days.ago.to_date, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm' %>
+        </div>
+        <div>
+          <%= label_tag :end_date, '结束日期', class: 'block text-sm font-medium text-gray-700' %>
+          <%= date_field_tag :end_date, params[:end_date] || Date.today, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm' %>
+        </div>
+        <div class="flex items-end">
+          <%= button_tag '查询', class: 'w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' %>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
+            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">总车辆数</p>
+            <p class="text-2xl font-bold text-gray-900"><%= @total_vehicles || 0 %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">正常车辆数</p>
+            <p class="text-2xl font-bold text-green-600"><%= @normal_vehicles || 0 %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100">
+            <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">告警次数</p>
+            <p class="text-2xl font-bold text-red-600"><%= @alert_count || 0 %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100">
+            <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">告警率</p>
+            <p class="text-2xl font-bold text-yellow-600"><%= @alert_rate || 0 %>%</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
+            <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">平均处理时长</p>
+            <p class="text-2xl font-bold text-gray-900"><%= @avg_handle_time || 0 %> 分钟</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div class="lg:col-span-2 rounded-lg bg-white p-6 shadow-sm">
+        <h3 class="mb-4 text-lg font-semibold text-gray-900">温度告警趋势</h3>
+        <div class="h-80">
+          <%= line_chart @alert_trend_data || {}, colors: ["#EF4444", "#F59E0B"], library: { legend: { position: "bottom" } } %>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <h3 class="mb-4 text-lg font-semibold text-gray-900">告警类型分布</h3>
+        <div class="h-80">
+          <%= pie_chart @alert_type_data || {}, colors: ["#EF4444", "#F59E0B", "#3B82F6", "#8B5CF6", "#10B981"] %>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6 overflow-hidden rounded-lg bg-white shadow-sm">
+      <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+        <h3 class="text-lg font-semibold text-gray-900">车辆温度合规率排行</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">排名</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">车牌号</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">车型</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">总记录数</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">正常次数</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">告警次数</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">合规率</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">平均温度</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white">
+            <% (@vehicle_compliance || []).each_with_index do |vehicle, index| %>
+              <tr class="hover:bg-gray-50">
+                <td class="whitespace-nowrap px-6 py-4">
+                  <% if index < 3 %>
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full <%= index == 0 ? 'bg-yellow-100 text-yellow-700' : index == 1 ? 'bg-gray-200 text-gray-700' : 'bg-orange-100 text-orange-700' %> text-sm font-bold">
+                      <%= index + 1 %>
+                    </span>
+                  <% else %>
+                    <span class="text-sm text-gray-500"><%= index + 1 %></span>
+                  <% end %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4">
+                  <span class="text-sm font-medium text-gray-900"><%= vehicle[:plate_number] %></span>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4">
+                  <% vehicle_type_class = case vehicle[:vehicle_type]
+                    when 'refrigerated' then 'bg-blue-100 text-blue-800'
+                    when 'freezer' then 'bg-cyan-100 text-cyan-800'
+                    else 'bg-gray-100 text-gray-800'
+                    end %>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium <%= vehicle_type_class %>">
+                    <%= vehicle[:vehicle_type_text] || vehicle[:vehicle_type] %>
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= vehicle[:total_records] || 0 %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-green-600 font-medium">
+                  <%= vehicle[:normal_count] || 0 %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-red-600 font-medium">
+                  <%= vehicle[:alert_count] || 0 %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4">
+                  <% compliance_rate = vehicle[:compliance_rate] || 0 %>
+                  <% compliance_color = if compliance_rate >= 95 then 'green'
+                    elsif compliance_rate >= 80 then 'yellow'
+                    else 'red'
+                    end %>
+                  <div class="flex items-center">
+                    <div class="w-20 mr-2">
+                      <div class="h-2 overflow-hidden rounded-full bg-gray-200">
+                        <% bar_color = case compliance_color
+                          when 'green' then 'bg-green-500'
+                          when 'yellow' then 'bg-yellow-500'
+                          when 'red' then 'bg-red-500'
+                          end %>
+                        <div class="h-full rounded-full <%= bar_color %>" style="width: <%= compliance_rate %>%"></div>
+                      </div>
+                    </div>
+                    <span class="text-sm font-medium <%= compliance_color == 'green' ? 'text-green-600' : compliance_color == 'yellow' ? 'text-yellow-600' : 'text-red-600' %>">
+                      <%= compliance_rate %>%
+                    </span>
+                  </div>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= vehicle[:avg_temperature] || '-' %> °C
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if (@vehicle_compliance || []).empty? %>
+        <div class="py-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">暂无数据</h3>
+          <p class="mt-1 text-sm text-gray-500">该时间段内没有温度数据。</p>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+      <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+        <h3 class="text-lg font-semibold text-gray-900">温控安全评分排名</h3>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <% (@safety_scores || []).first(9).each_with_index do |item, index| %>
+            <div class="rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center">
+                  <% if index < 3 %>
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full <%= index == 0 ? 'bg-yellow-100 text-yellow-700' : index == 1 ? 'bg-gray-200 text-gray-700' : 'bg-orange-100 text-orange-700' %> text-sm font-bold mr-3">
+                      <%= index + 1 %>
+                    </span>
+                  <% else %>
+                    <span class="h-8 w-8 flex items-center justify-center text-sm text-gray-500 mr-3"><%= index + 1 %></span>
+                  <% end %>
+                  <div>
+                    <p class="text-sm font-medium text-gray-900"><%= item[:plate_number] %></p>
+                    <p class="text-xs text-gray-500"><%= item[:driver_name] %></p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <% score = item[:score] || 0 %>
+                  <% score_color = if score >= 90 then 'text-green-600'
+                    elsif score >= 70 then 'text-yellow-600'
+                    else 'text-red-600'
+                    end %>
+                  <span class="text-2xl font-bold <%= score_color %>"><%= score %></span>
+                  <span class="text-sm text-gray-500">分</span>
+                </div>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-gray-200">
+                <% bar_color = if score >= 90 then 'bg-green-500'
+                  elsif score >= 70 then 'bg-yellow-500'
+                  else 'bg-red-500'
+                  end %>
+                <div class="h-full rounded-full <%= bar_color %>" style="width: <%= score %>%"></div>
+              </div>
+              <div class="mt-2 flex justify-between text-xs text-gray-500">
+                <span>告警 <%= item[:alert_count] || 0 %> 次</span>
+                <span>合规率 <%= item[:compliance_rate] || 0 %>%</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <% if (@safety_scores || []).empty? %>
+          <div class="py-8 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">暂无评分数据</h3>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

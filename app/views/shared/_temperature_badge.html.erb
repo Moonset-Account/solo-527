@@ -1,0 +1,41 @@
+<%
+  temperature = local_assigns[:temperature]
+  vehicle = local_assigns[:vehicle]
+  min_temp = local_assigns[:min_temperature] || (vehicle&.min_temperature)
+  max_temp = local_assigns[:max_temperature] || (vehicle&.max_temperature)
+
+  if temperature.nil?
+    status = 'unknown'
+  elsif min_temp && max_temp
+    if temperature < min_temp || temperature > max_temp
+      status = 'danger'
+    elsif temperature < min_temp + 2 || temperature > max_temp - 2
+      status = 'warning'
+    else
+      status = 'normal'
+    end
+  else
+    status = 'normal'
+  end
+
+  status_classes = {
+    'normal' => 'bg-green-100 text-green-800 border-green-200',
+    'warning' => 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'danger' => 'bg-red-100 text-red-800 border-red-200',
+    'unknown' => 'bg-gray-100 text-gray-800 border-gray-200'
+  }
+
+  status_text = {
+    'normal' => '正常',
+    'warning' => '警告',
+    'danger' => '危险',
+    'unknown' => '未知'
+  }
+%>
+
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border <%= status_classes[status] %>">
+  <% if status != 'unknown' %>
+    <span class="w-2 h-2 rounded-full mr-1.5 <%= status == 'normal' ? 'bg-green-500' : status == 'warning' ? 'bg-yellow-500' : 'bg-red-500' %>"></span>
+  <% end %>
+  <%= status_text[status] %>
+</span>

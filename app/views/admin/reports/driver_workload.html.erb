@@ -1,0 +1,218 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="px-4 py-6 sm:px-6 lg:px-8">
+    <div class="mb-6 flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-900">司机/师傅负载报表</h1>
+      <div class="flex items-center space-x-3">
+        <%= link_to '导出报表', '#', class: 'inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2' do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          导出
+        <% end %>
+      </div>
+    </div>
+
+    <div class="mb-6 rounded-lg bg-white p-4 shadow-sm">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div>
+          <%= label_tag :start_date, '开始日期', class: 'block text-sm font-medium text-gray-700' %>
+          <%= date_field_tag :start_date, params[:start_date] || 30.days.ago.to_date, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm' %>
+        </div>
+        <div>
+          <%= label_tag :end_date, '结束日期', class: 'block text-sm font-medium text-gray-700' %>
+          <%= date_field_tag :end_date, params[:end_date] || Date.today, class: 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm' %>
+        </div>
+        <div class="flex items-end">
+          <%= button_tag '查询', class: 'w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2' %>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
+            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">总司机数</p>
+            <p class="text-2xl font-bold text-gray-900"><%= @total_drivers || 0 %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">总行驶时长</p>
+            <p class="text-2xl font-bold text-gray-900"><%= @total_driving_hours || 0 %> 小时</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
+            <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">总里程</p>
+            <p class="text-2xl font-bold text-gray-900"><%= @total_mileage || 0 %> km</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <div class="flex items-center">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100">
+            <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-500">平均负载</p>
+            <p class="text-2xl font-bold text-gray-900"><%= @avg_load_rate || 0 %>%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <h3 class="mb-4 text-lg font-semibold text-gray-900">司机负载对比</h3>
+        <div class="h-80">
+          <%= bar_chart @driver_workload_data || {}, colors: ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"], library: { legend: { position: "bottom" } } %>
+        </div>
+      </div>
+
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <h3 class="mb-4 text-lg font-semibold text-gray-900">负载分布</h3>
+        <div class="space-y-4">
+          <% [{ name: "正常 (0-70%)", count: @normal_count || 0, color: "green", percent: @normal_percent || 0 },
+              { name: "较高 (70-90%)", count: @high_count || 0, color: "yellow", percent: @high_percent || 0 },
+              { name: "过载 (90%+)", count: @overload_count || 0, color: "red", percent: @overload_percent || 0 }].each do |item| %>
+            <div>
+              <div class="mb-1 flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700"><%= item[:name] %></span>
+                <span class="text-sm text-gray-500"><%= item[:count] %> 人 (<%= item[:percent] %>%)</span>
+              </div>
+              <% bar_color = case item[:color]
+                when "green" then "bg-green-500"
+                when "yellow" then "bg-yellow-500"
+                when "red" then "bg-red-500"
+                else "bg-gray-500"
+                end %>
+              <div class="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                <div class="h-full rounded-full <%= bar_color %>" style="width: <%= item[:percent] %>%"></div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+      <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+        <h3 class="text-lg font-semibold text-gray-900">司机负载排行榜</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">排名</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">司机姓名</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">驾驶车辆数</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">总里程</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">总时长</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">完成订单数</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">平均每日时长</th>
+              <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">负载率</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white">
+            <% (@driver_workloads || []).each_with_index do |driver, index| %>
+              <tr class="hover:bg-gray-50">
+                <td class="whitespace-nowrap px-6 py-4">
+                  <% if index < 3 %>
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full <%= index == 0 ? 'bg-yellow-100 text-yellow-700' : index == 1 ? 'bg-gray-200 text-gray-700' : 'bg-orange-100 text-orange-700' %> text-sm font-bold">
+                      <%= index + 1 %>
+                    </span>
+                  <% else %>
+                    <span class="text-sm text-gray-500"><%= index + 1 %></span>
+                  <% end %>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4">
+                  <div class="flex items-center">
+                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span class="text-sm font-medium text-blue-600"><%= driver[:name]&.first || 'D' %></span>
+                    </div>
+                    <div class="ml-3">
+                      <p class="text-sm font-medium text-gray-900"><%= driver[:name] %></p>
+                      <p class="text-xs text-gray-500"><%= driver[:email] %></p>
+                    </div>
+                  </div>
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= driver[:vehicle_count] || 0 %> 辆
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                  <%= driver[:total_mileage] || 0 %> km
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= driver[:total_hours] || 0 %> 小时
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= driver[:completed_orders] || 0 %> 单
+                </td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                  <%= driver[:avg_daily_hours] || 0 %> 小时
+                </td>
+                <td class="px-6 py-4">
+                  <% load_rate = driver[:load_rate] || 0 %>
+                  <% load_color = if load_rate < 70 then 'green'
+                    elsif load_rate < 90 then 'yellow'
+                    else 'red'
+                    end %>
+                  <div class="flex items-center">
+                    <div class="w-24 mr-2">
+                      <div class="h-2 overflow-hidden rounded-full bg-gray-200">
+                        <% bar_color = case load_color
+                          when 'green' then 'bg-green-500'
+                          when 'yellow' then 'bg-yellow-500'
+                          when 'red' then 'bg-red-500'
+                          end %>
+                        <div class="h-full rounded-full <%= bar_color %>" style="width: <%= [load_rate, 100].min %>%"></div>
+                      </div>
+                    </div>
+                    <span class="text-sm font-medium <%= load_color == 'green' ? 'text-green-600' : load_color == 'yellow' ? 'text-yellow-600' : 'text-red-600' %>">
+                      <%= load_rate %>%
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if (@driver_workloads || []).empty? %>
+        <div class="py-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">暂无数据</h3>
+          <p class="mt-1 text-sm text-gray-500">该时间段内没有司机负载数据。</p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

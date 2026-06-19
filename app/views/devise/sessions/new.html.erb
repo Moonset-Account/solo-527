@@ -1,0 +1,72 @@
+<div class="w-full max-w-md">
+  <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto mb-4">
+        <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900">冷链运输管理系统</h1>
+      <p class="mt-2 text-sm text-gray-500">Cold Chain Management System</p>
+    </div>
+
+    <%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+      <div class="space-y-5">
+        <div>
+          <%= f.label :email, "邮箱", class: "block text-sm font-medium text-gray-700 mb-2" %>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+              </svg>
+            </div>
+            <%= f.email_field :email, autofocus: true, autocomplete: "email", class: "w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white", placeholder: "请输入邮箱" %>
+          </div>
+        </div>
+
+        <div>
+          <%= f.label :password, "密码", class: "block text-sm font-medium text-gray-700 mb-2" %>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+            </div>
+            <%= f.password_field :password, autocomplete: "current-password", class: "w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-gray-50 focus:bg-white", placeholder: "请输入密码" %>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <%= f.check_box :remember_me, class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" %>
+            <%= f.label :remember_me, "记住我", class: "ml-2 block text-sm text-gray-700" %>
+          </div>
+
+          <% if devise_mapping.recoverable? %>
+            <div class="text-sm">
+              <%= link_to "忘记密码?", new_password_path(resource_name), class: "font-medium text-blue-600 hover:text-blue-700 transition-colors" %>
+            </div>
+          <% end %>
+        </div>
+
+        <div>
+          <%= f.submit "登录", class: "w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if devise_mapping.registerable? %>
+      <div class="mt-6 text-center">
+        <p class="text-sm text-gray-500">
+          还没有账号？
+          <%= link_to "立即注册", new_registration_path(resource_name), class: "font-medium text-blue-600 hover:text-blue-700 transition-colors" %>
+        </p>
+      </div>
+    <% end %>
+  </div>
+
+  <p class="mt-8 text-center text-xs text-gray-400">
+    © <%= Date.current.year %> 冷链运输管理系统. All rights reserved.
+  </p>
+</div>

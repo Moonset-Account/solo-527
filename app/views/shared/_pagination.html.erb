@@ -1,0 +1,76 @@
+<% if collection.respond_to?(:total_pages) && collection.total_pages > 1 %>
+  <div class="flex items-center justify-between mt-6 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+    <div class="flex-1 flex justify-between sm:hidden">
+      <% if collection.first_page? %>
+        <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-300 bg-white border border-gray-200 rounded-lg cursor-default">
+          上一页
+        </span>
+      <% else %>
+        <%= link_to_unless collection.first_page?, "上一页", url_for(page: collection.prev_page), class: "relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50" %>
+      <% end %>
+      <% if collection.last_page? %>
+        <span class="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-300 bg-white border border-gray-200 rounded-lg cursor-default">
+          下一页
+        </span>
+      <% else %>
+        <%= link_to_unless collection.last_page?, "下一页", url_for(page: collection.next_page), class: "relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50" %>
+      <% end %>
+    </div>
+    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+      <div>
+        <p class="text-sm text-gray-700">
+          共 <span class="font-medium"><%= collection.total_count %></span> 条记录，
+          第 <span class="font-medium"><%= collection.offset + 1 %></span> -
+          <span class="font-medium"><%= [collection.offset + collection.limit_value, collection.total_count].min %></span> 条
+        </p>
+      </div>
+      <div>
+        <nav class="relative z-0 inline-flex rounded-lg shadow-sm -space-x-px" aria-label="Pagination">
+          <% if collection.first_page? %>
+            <span class="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-300 bg-white border border-gray-200 rounded-l-lg cursor-default">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            </span>
+          <% else %>
+            <%= link_to url_for(page: collection.prev_page), class: "relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-200 rounded-l-lg hover:bg-gray-50" do %>
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            <% end %>
+          <% end %>
+
+          <% collection.each_page do |page| %>
+            <% if page.number == collection.current_page %>
+              <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 z-10">
+                <%= page.number %>
+              </span>
+            <% else %>
+              <% if page.number == 1 || page.number == collection.total_pages || (page.number - collection.current_page).abs <= 2 %>
+                <%= link_to page.number, url_for(page: page.number), class: "relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50" %>
+              <% elsif page.number == 2 || page.number == collection.total_pages - 1 %>
+                <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200">
+                  ...
+                </span>
+              <% end %>
+            <% end %>
+          <% end %>
+
+          <% if collection.last_page? %>
+            <span class="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-300 bg-white border border-gray-200 rounded-r-lg cursor-default">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            </span>
+          <% else %>
+            <%= link_to url_for(page: collection.next_page), class: "relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-200 rounded-r-lg hover:bg-gray-50" do %>
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            <% end %>
+          <% end %>
+        </nav>
+      </div>
+    </div>
+  </div>
+<% end %>
