@@ -194,7 +194,7 @@ public class ReportServiceImpl implements ReportService {
             wrapper.eq(BizContract::getOwnerId, pageQuery.getOwnerId());
         }
         wrapper.orderByDesc(BizContract::getCreateTime);
-        Page<BizContract> result = page(page, wrapper);
+        Page<BizContract> result = bizContractMapper.selectPage(page, wrapper);
 
         List<PaymentProgressVO> voList = new ArrayList<>();
         for (BizContract contract : result.getRecords()) {

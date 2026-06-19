@@ -16,6 +16,7 @@ import com.decoration.cooperation.service.BizAttachmentService;
 import com.decoration.cooperation.service.BizFollowRecordService;
 import com.decoration.cooperation.vo.TimelineItemVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,9 @@ public class BizFollowRecordServiceImpl extends ServiceImpl<BizFollowRecordMappe
     private final BizLeadMapper bizLeadMapper;
     private final BizAttachmentMapper bizAttachmentMapper;
     private final BizAttachmentService bizAttachmentService;
+
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -141,7 +145,10 @@ public class BizFollowRecordServiceImpl extends ServiceImpl<BizFollowRecordMappe
                         .map(Long::parseLong)
                         .collect(Collectors.toList());
                 if (!attachmentIdList.isEmpty()) {
-                    List<BizAttachment> attachments = bizAttachmentMapper.selectBatchIds(attachmentIdList);
+                    List<BizAttachment> attachments = bizAttachmentService.listByIds(attachmentIdList);
+                    for (BizAttachment att : attachments) {
+                        att.setFileUrl(buildFileUrl(att.getFilePath()));
+                    }
                     item.setAttachments(attachments);
                 }
             }
@@ -181,5 +188,13 @@ public class BizFollowRecordServiceImpl extends ServiceImpl<BizFollowRecordMappe
             case "SIGN" -> "签约";
             default -> "跟进";
         };
+    }
+
+    private String buildFileUrl(String filePath) {
+        if (filePath == null) {
+            return null;
+        }
+        String base = contextPath.endsWith("/") ? contextPath : contextPath + "/";
+        return base + "uploads/" + filePath;
     }
 }

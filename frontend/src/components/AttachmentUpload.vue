@@ -92,10 +92,15 @@ const beforeUpload = (file) => {
 
 const handleSuccess = (response, file) => {
   if (response.code === 200 || response.success) {
+    const att = response.data || {}
     const newFile = {
-      id: response.data?.id,
-      name: file.name,
-      url: response.data?.url || file.url
+      id: att.id,
+      name: att.fileName || file.name,
+      size: att.fileSize || file.size,
+      url: att.fileUrl || att.url || file.url,
+      filePath: att.filePath,
+      fileType: att.fileType,
+      response: response
     }
     const newValue = [...props.modelValue, newFile]
     emit('update:modelValue', newValue)

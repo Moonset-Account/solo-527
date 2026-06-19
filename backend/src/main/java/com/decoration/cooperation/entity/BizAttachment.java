@@ -1,5 +1,6 @@
 package com.decoration.cooperation.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.decoration.cooperation.common.BaseEntity;
 import lombok.Data;
@@ -18,4 +19,7 @@ public class BizAttachment extends BaseEntity {
     private Long uploaderId;
     private String uploaderName;
     private String remark;
+
+    @TableField(exist = false)
+    private String fileUrl;
 }

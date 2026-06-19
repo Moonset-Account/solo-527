@@ -129,6 +129,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import TimelineCard from '@/components/TimelineCard.vue'
 import AttachmentUpload from '@/components/AttachmentUpload.vue'
 import { getContractDetail, deleteContractAttachment } from '@/api/contract'
+import { getTimeline } from '@/api/follow'
 import { DECORATION_TYPE, getDecorationTypeName } from '@/utils/dict'
 import { formatAmount, formatPercent, formatPhone, formatFileSize } from '@/utils/format'
 
@@ -136,6 +137,7 @@ const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
+const rawData = ref({})
 const detail = ref({})
 const attachmentList = ref([])
 const timelineItems = ref([])
@@ -166,15 +168,52 @@ const uploadUrl = computed(() => {
   return `/api/contracts/${id}/attachments`
 })
 
+const mapAttachment = (att) => ({
+  id: att.id,
+  name: att.fileName,
+  size: att.fileSize,
+  url: att.fileUrl || `/api/uploads/${att.filePath}`,
+  filePath: att.filePath,
+  fileType: att.fileType
+})
+
 const fetchDetail = async () => {
   loading.value = true
   try {
     const id = route.params.id
     const res = await getContractDetail(id)
-    detail.value = res.data || {}
-    decorationType.value = detail.value.decorationType
-    attachmentList.value = detail.value.attachments || []
-    timelineItems.value = detail.value.operationLogs || detail.value.timeline || []
+    rawData.value = res.data || {}
+    const { contract, lead, customer, owner, attachments } = rawData.value
+
+    detail.value = {
+      ...contract,
+      contractNo: contract?.contractNo,
+      contractName: contract?.contractName,
+      decorationType: contract?.decorationType,
+      originalAmount: contract?.originalPrice,
+      discountRate: contract?.discountRate,
+      discountAmount: contract?.discountAmount,
+      contractAmount: contract?.finalPrice,
+      paymentTerms: contract?.paymentTerms,
+      constructionPeriod: contract?.constructionPeriod,
+      startDate: contract?.startDate,
+      endDate: contract?.endDate,
+      signDate: contract?.signDate,
+      status: contract?.status,
+      approvalStatus: contract?.approvalStatus,
+      approvalRemark: contract?.approvalRemark,
+      ownerName: owner?.realName,
+      leadName: lead?.projectName || lead?.leadNo,
+      customerName: customer?.customerName,
+      customerPhone: customer?.phone,
+      customerAddress: customer?.address
+    }
+
+    decorationType.value = contract?.decorationType
+    attachmentList.value = (attachments || []).map(mapAttachment)
+
+    const timelineRes = await getTimeline({ contractId: id })
+    timelineItems.value = timelineRes.data || []
   } catch (e) {
     console.error(e)
   } finally {
@@ -191,7 +230,12 @@ const handleEdit = () => {
 }
 
 const handleAttachmentChange = (files) => {
-  attachmentList.value = files
+  attachmentList.value = files.map(f => {
+    if (f.response && f.response.data) {
+      return mapAttachment(f.response.data)
+    }
+    return f
+  })
 }
 
 const handleDeleteAttachment = async (item) => {

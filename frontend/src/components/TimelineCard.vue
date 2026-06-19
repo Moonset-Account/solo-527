@@ -105,7 +105,7 @@ const getDefaultColor = (type) => {
 }
 
 const previewAttachment = (file) => {
-  const url = `/uploads/${file.filePath}`
+  const url = file.fileUrl || `/api/uploads/${file.filePath}`
   window.open(url, '_blank')
 }
 </script>

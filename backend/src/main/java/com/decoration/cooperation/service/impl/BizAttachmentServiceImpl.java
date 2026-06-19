@@ -25,6 +25,9 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
     @Value("${upload.path:uploads}")
     private String uploadPath;
 
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
+
     @Override
     public BizAttachment uploadAttachment(String bizType, Long bizId, MultipartFile file, Long uploaderId, String uploaderName) {
         if (file.isEmpty()) {
@@ -64,6 +67,7 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
         attachment.setUploaderName(uploaderName);
         save(attachment);
 
+        attachment.setFileUrl(buildFileUrl(relativePath));
         return attachment;
     }
 
@@ -73,6 +77,15 @@ public class BizAttachmentServiceImpl extends ServiceImpl<BizAttachmentMapper, B
         wrapper.eq(BizAttachment::getBizType, bizType);
         wrapper.eq(BizAttachment::getBizId, bizId);
         wrapper.orderByDesc(BizAttachment::getCreateTime);
-        return list(wrapper);
+        List<BizAttachment> list = list(wrapper);
+        for (BizAttachment att : list) {
+            att.setFileUrl(buildFileUrl(att.getFilePath()));
+        }
+        return list;
+    }
+
+    private String buildFileUrl(String filePath) {
+        String base = contextPath.endsWith("/") ? contextPath : contextPath + "/";
+        return base + "uploads/" + filePath;
     }
 }
