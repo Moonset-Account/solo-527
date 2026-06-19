@@ -150,6 +150,15 @@ export interface Space {
   createdAt: string;
 }
 
+export interface SpaceQuery extends PagedQuery {
+  type?: number;
+  status?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  minArea?: number;
+  maxArea?: number;
+}
+
 export interface FollowUp {
   id: string;
   consultantId: string;

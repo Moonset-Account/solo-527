@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Input, Select, Button, Tag, Space, Pagination, message, Empty } from 'antd';
+import { Card, Row, Col, Input, Select, Button, Tag, Space as AntSpace, Pagination, message, Empty } from 'antd';
 import { SearchOutlined, EnvironmentOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { spaceApi } from '../../services/api';
 import { spaceStatusLabels, spaceStatusColors, spaceTypeLabels } from '../../utils/enums';
 import { SpaceType, SpaceStatus } from '../../types';
-import type { Space } from '../../types';
+import type { Space as SpaceEntity } from '../../types';
 
 const { Search } = Input;
 
 function SpaceList() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [list, setList] = useState<Space[]>([]);
+  const [list, setList] = useState<SpaceEntity[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(9);
@@ -51,7 +51,7 @@ function SpaceList() {
   return (
     <div>
       <Card style={{ marginBottom: 24 }}>
-        <Space size="middle" wrap>
+        <AntSpace size="middle" wrap>
           <Search
             placeholder="搜索房源名称、地址"
             prefix={<SearchOutlined />}
@@ -79,7 +79,7 @@ function SpaceList() {
           <Button type="primary" onClick={handleSearch}>
             查询
           </Button>
-        </Space>
+        </AntSpace>
       </Card>
 
       {list.length === 0 && !loading ? (
@@ -108,12 +108,12 @@ function SpaceList() {
                 >
                   <Card.Meta
                     title={
-                      <Space>
+                      <AntSpace>
                         <span>{space.name}</span>
                         <Tag color={spaceStatusColors[space.status]}>
                           {spaceStatusLabels[space.status]}
                         </Tag>
-                      </Space>
+                      </AntSpace>
                     }
                     description={
                       <div style={{ marginTop: 8 }}>

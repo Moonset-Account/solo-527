@@ -1,10 +1,5 @@
 import api from '../utils/request';
-import type { ApiResponse, LoginResponse, PagedResult, PagedQuery, UserInfo } from '../types';
-import type { Space, SpaceQuery } from '../types';
-import type { Appointment, NoShowRecord } from '../types';
-import type { Contract, Bill } from '../types';
-import type { Order } from '../types';
-import type { OperationLog } from '../types';
+import type { ApiResponse, LoginResponse, PagedResult, PagedQuery, UserInfo, Space, SpaceQuery, Appointment, NoShowRecord, Contract, Bill, Order, OperationLog } from '../types';
 
 export const authApi = {
   login: (data: { userName: string; password: string }) =>

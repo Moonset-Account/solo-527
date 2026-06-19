@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Table, Tag, Button, Input, Select, Space, Modal, Form, InputNumber,
+  Table, Tag, Button, Input, Select, Space as AntSpace, Modal, Form, InputNumber,
   DatePicker, message, Popconfirm, Descriptions, Row, Col, Card, Divider,
 } from 'antd';
 import {
@@ -13,11 +13,11 @@ import {
   spaceStatusLabels, spaceStatusColors, spaceTypeLabels,
 } from '../../utils/enums';
 import { SpaceType, SpaceStatus } from '../../types';
-import type { Space } from '../../types';
+import type { Space as SpaceEntity } from '../../types';
 
 function SpaceManage() {
   const [loading, setLoading] = useState(false);
-  const [list, setList] = useState<Space[]>([]);
+  const [list, setList] = useState<SpaceEntity[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -25,7 +25,7 @@ function SpaceManage() {
   const [type, setType] = useState<SpaceType | undefined>();
   const [status, setStatus] = useState<SpaceStatus | undefined>();
   const [modal, setModal] = useState(false);
-  const [detail, setDetail] = useState<Space | null>(null);
+  const [detail, setDetail] = useState<SpaceEntity | null>(null);
   const [form] = Form.useForm();
 
   const fetchData = async () => {
@@ -114,8 +114,8 @@ function SpaceManage() {
     { title: '创建时间', dataIndex: 'createdAt', width: 140, render: (v: string) => dayjs(v).format('YYYY-MM-DD') },
     {
       title: '操作', width: 180,
-      render: (_: any, r: Space) => (
-        <Space>
+      render: (_: any, r: SpaceEntity) => (
+        <AntSpace>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(r.id)}>详情</Button>
           <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => {
             Modal.confirm({
@@ -124,7 +124,7 @@ function SpaceManage() {
               onOk: () => handleDelete(r.id),
             });
           }}>删除</Button>
-        </Space>
+        </AntSpace>
       ),
     },
   ];
@@ -132,7 +132,7 @@ function SpaceManage() {
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <Space size="middle" wrap>
+        <AntSpace size="middle" wrap>
           <Input placeholder="搜索名称/编号/地址" prefix={<SearchOutlined />} allowClear style={{ width: 260 }}
             value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} />
           <Select placeholder="类型" allowClear style={{ width: 140 }} value={type} onChange={(v) => { setType(v); setPage(1); }}
@@ -140,7 +140,7 @@ function SpaceManage() {
           <Select placeholder="状态" allowClear style={{ width: 140 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }}
             options={Object.entries(spaceStatusLabels).map(([k, v]) => ({ value: Number(k), label: v }))} />
           <Button type="primary" onClick={handleSearch}>查询</Button>
-        </Space>
+        </AntSpace>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModal(true)}>新增房源</Button>
       </div>
 
@@ -229,7 +229,7 @@ function SpaceManage() {
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => (
-                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                  <AntSpace key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
                     <Form.Item {...restField} name={[name, 'priceType']} rules={[{ required: true, message: '必填' }]}>
                       <Select placeholder="类型" style={{ width: 100 }} options={[
                         { value: '月租', label: '月租' },
@@ -259,7 +259,7 @@ function SpaceManage() {
                       <DatePicker placeholder="生效日" />
                     </Form.Item>
                     <Button type="text" danger onClick={() => remove(name)}>删除</Button>
-                  </Space>
+                  </AntSpace>
                 ))}
                 <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                   添加价格
@@ -269,10 +269,10 @@ function SpaceManage() {
           </Form.List>
 
           <Form.Item style={{ marginTop: 24, textAlign: 'right', marginBottom: 0 }}>
-            <Space>
+            <AntSpace>
               <Button onClick={() => { setModal(false); form.resetFields(); }}>取消</Button>
               <Button type="primary" htmlType="submit">提交</Button>
-            </Space>
+            </AntSpace>
           </Form.Item>
         </Form>
       </Modal>

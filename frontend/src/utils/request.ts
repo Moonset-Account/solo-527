@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { message } from 'antd';
-import type { ApiResponse } from '@/types';
+import type { ApiResponse } from '../types';
 
 const api: AxiosInstance = axios.create({
   baseURL: '/api',

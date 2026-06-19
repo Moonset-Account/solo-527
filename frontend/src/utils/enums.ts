@@ -9,7 +9,7 @@ import {
   NoShowHandleResult,
   FulfillmentStatus,
   PaymentMethod,
-} from './types';
+} from '../types';
 
 export const roleLabels: Record<UserRole, string> = {
   [UserRole.SuperAdmin]: '超级管理员',

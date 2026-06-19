@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Tag, Button, Descriptions, Divider, Form, Input, DatePicker, TimePicker, InputNumber, Select, message, Spin, Space, Result } from 'antd';
+import { Card, Row, Col, Tag, Button, Descriptions, Divider, Form, Input, DatePicker, TimePicker, InputNumber, Select, message, Spin, Space as AntSpace, Result } from 'antd';
 import { EnvironmentOutlined, TeamOutlined, CalendarOutlined, UserOutlined, PhoneOutlined, MailOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { spaceApi, appointmentApi } from '../../services/api';
 import { spaceStatusLabels, spaceStatusColors, spaceTypeLabels } from '../../utils/enums';
-import type { Space } from '../../types';
+import type { Space as SpaceEntity } from '../../types';
 
 function SpaceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [space, setSpace] = useState<Space | null>(null);
+  const [space, setSpace] = useState<SpaceEntity | null>(null);
   const [form] = Form.useForm();
   const [booked, setBooked] = useState(false);
 
@@ -101,13 +101,13 @@ function SpaceDetail() {
             }}>
               🏢
             </div>
-            <Space style={{ marginBottom: 16 }}>
+            <AntSpace style={{ marginBottom: 16 }}>
               <h2 style={{ margin: 0 }}>{space.name}</h2>
               <Tag color={spaceStatusColors[space.status]} style={{ fontSize: 14, padding: '2px 12px' }}>
                 {spaceStatusLabels[space.status]}
               </Tag>
               <Tag color="blue">{spaceTypeLabels[space.type]}</Tag>
-            </Space>
+            </AntSpace>
 
             <Descriptions column={1} bordered size="middle">
               <Descriptions.Item label="房源编号">{space.code}</Descriptions.Item>

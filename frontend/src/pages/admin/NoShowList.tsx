@@ -110,7 +110,7 @@ function NoShowList() {
         <Space>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrent(r); setDetailModal(true); }}>详情</Button>
           {!r.isHandled && (
-            <Button type="link" size="small" type="primary" onClick={() => { setCurrent(r); setHandleModal(true); }} icon={<CheckOutlined />}>
+            <Button type="primary" size="small" onClick={() => { setCurrent(r); setHandleModal(true); }} icon={<CheckOutlined />}>
               处理
             </Button>
           )}
