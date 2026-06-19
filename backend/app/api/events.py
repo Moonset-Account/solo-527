@@ -18,11 +18,7 @@ def list_events(
     db: Session = Depends(get_db),
 ):
     skip = (page - 1) * page_size
-    query = db.query(crud_event.model)
-    if is_active is not None:
-        query = query.filter(crud_event.model.is_active == is_active)
-    total = query.count()
-    items = query.order_by(crud_event.model.created_at.desc()).offset(skip).limit(page_size).all()
+    items, total = crud_event.get_multi(db, skip=skip, limit=page_size, is_active=is_active)
     return {"total": total, "items": items}
 
 

@@ -91,5 +91,11 @@ class CRUDRegistration(CRUDBase[Registration, RegistrationCreate, RegistrationUp
             query = query.filter(Registration.status == status)
         return query.count()
 
+    def count(self, db: Session, *, status: Optional[RegistrationStatus] = None) -> int:
+        query = db.query(Registration)
+        if status:
+            query = query.filter(Registration.status == status)
+        return query.count()
+
 
 crud_registration = CRUDRegistration(Registration)

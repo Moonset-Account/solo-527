@@ -57,6 +57,27 @@ class CRUDTodo(CRUDBase[Todo, TodoCreate, TodoUpdate]):
             db.refresh(todo)
         return todo
 
+    def count(
+        self, db: Session, *,
+        status: Optional[TodoStatus] = None,
+        priority: Optional[TodoPriority] = None,
+        todo_type: Optional[TodoType] = None,
+        assigned_to_id: Optional[int] = None,
+        created_by_id: Optional[int] = None,
+    ) -> int:
+        query = db.query(Todo)
+        if status:
+            query = query.filter(Todo.status == status)
+        if priority:
+            query = query.filter(Todo.priority == priority)
+        if todo_type:
+            query = query.filter(Todo.todo_type == todo_type)
+        if assigned_to_id:
+            query = query.filter(Todo.assigned_to_id == assigned_to_id)
+        if created_by_id:
+            query = query.filter(Todo.created_by_id == created_by_id)
+        return query.count()
+
     def get_todo_detail(self, db: Session, *, todo_id: int) -> Optional[dict]:
         todo = self.get(db, id=todo_id)
         if not todo:

@@ -75,6 +75,12 @@ class CRUDCheckIn(CRUDBase[CheckIn, CheckInCreate, dict]):
             query = query.filter(CheckIn.status == status)
         return query.count()
 
+    def count(self, db: Session, *, status: Optional[CheckInStatus] = None) -> int:
+        query = db.query(CheckIn)
+        if status:
+            query = query.filter(CheckIn.status == status)
+        return query.count()
+
     def get_checkin_detail(self, db: Session, *, checkin_id: int) -> Optional[dict]:
         checkin = self.get(db, id=checkin_id)
         if not checkin:

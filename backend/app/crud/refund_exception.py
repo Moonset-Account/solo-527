@@ -58,5 +58,20 @@ class CRUDRefundException(CRUDBase[RefundException, RefundExceptionCreate, Refun
             db.refresh(exception)
         return exception
 
+    def count(
+        self, db: Session, *,
+        status: Optional[RefundExceptionStatus] = None,
+        registration_id: Optional[int] = None,
+        auto_generated: Optional[bool] = None,
+    ) -> int:
+        query = db.query(RefundException)
+        if status:
+            query = query.filter(RefundException.status == status)
+        if registration_id:
+            query = query.filter(RefundException.registration_id == registration_id)
+        if auto_generated is not None:
+            query = query.filter(RefundException.auto_generated == auto_generated)
+        return query.count()
+
 
 crud_refund_exception = CRUDRefundException(RefundException)

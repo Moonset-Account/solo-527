@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.crud.base import CRUDBase
@@ -12,6 +12,23 @@ class CRUDEvent(CRUDBase[Event, EventCreate, EventUpdate]):
 
     def get_by_name(self, db: Session, *, name: str) -> Optional[Event]:
         return db.query(Event).filter(Event.name == name).first()
+
+    def get_multi(
+        self, db: Session, *, skip: int = 0, limit: int = 100,
+        is_active: Optional[bool] = None,
+    ) -> Tuple[List[Event], int]:
+        query = db.query(Event)
+        if is_active is not None:
+            query = query.filter(Event.is_active == is_active)
+        total = query.count()
+        items = query.order_by(Event.created_at.desc()).offset(skip).limit(limit).all()
+        return items, total
+
+    def count(self, db: Session, *, is_active: Optional[bool] = None) -> int:
+        query = db.query(Event)
+        if is_active is not None:
+            query = query.filter(Event.is_active == is_active)
+        return query.count()
 
 
 crud_event = CRUDEvent(Event)

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Tuple, Type, TypeVar, Union
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -20,6 +20,17 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self, db: Session, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
         return db.query(self.model).offset(skip).limit(limit).all()
+
+    def get_multi_with_total(
+        self, db: Session, *, skip: int = 0, limit: int = 100
+    ) -> Tuple[List[ModelType], int]:
+        query = db.query(self.model)
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return items, total
+
+    def count(self, db: Session) -> int:
+        return db.query(self.model).count()
 
     def create(self, db: Session, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.model_dump()

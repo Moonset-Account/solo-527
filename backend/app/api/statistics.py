@@ -79,44 +79,29 @@ def get_overview_statistics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_operator),
 ):
-    _, event_count = crud_event.get_multi(db, limit=1)
-    
-    total_registrations = db.query(crud_registration.model).count()
-    confirmed_count = db.query(crud_registration.model).filter(
-        crud_registration.model.status == RegistrationStatus.CONFIRMED
-    ).count()
-    refunded_count = db.query(crud_registration.model).filter(
-        crud_registration.model.status == RegistrationStatus.REFUNDED
-    ).count()
-    refund_exception_count = db.query(crud_registration.model).filter(
-        crud_registration.model.status == RegistrationStatus.REFUND_EXCEPTION
-    ).count()
-    
-    total_checkins = db.query(crud_checkin.model).count()
-    success_checkins = db.query(crud_checkin.model).filter(
-        crud_checkin.model.status == CheckInStatus.SUCCESS
-    ).count()
-    
-    pending_todos = db.query(crud_todo.model).filter(
-        crud_todo.model.status == TodoStatus.PENDING
-    ).count()
-    processing_todos = db.query(crud_todo.model).filter(
-        crud_todo.model.status == TodoStatus.PROCESSING
-    ).count()
-    
-    pending_refund_exceptions = db.query(crud_refund_exception.model).filter(
-        crud_refund_exception.model.status == RefundExceptionStatus.PENDING
-    ).count()
-    
-    active_events = db.query(crud_event.model).filter(
-        crud_event.model.is_active == True
-    ).count()
-    
+    event_count = crud_event.count(db)
+    active_events = crud_event.count(db, is_active=True)
+    inactive_events = event_count - active_events
+
+    total_registrations = crud_registration.count(db)
+    confirmed_count = crud_registration.count(db, status=RegistrationStatus.CONFIRMED)
+    refunded_count = crud_registration.count(db, status=RegistrationStatus.REFUNDED)
+    refund_exception_count = crud_registration.count(db, status=RegistrationStatus.REFUND_EXCEPTION)
+
+    total_checkins = crud_checkin.count(db)
+    success_checkins = crud_checkin.count(db, status=CheckInStatus.SUCCESS)
+
+    pending_todos = crud_todo.count(db, status=TodoStatus.PENDING)
+    processing_todos = crud_todo.count(db, status=TodoStatus.PROCESSING)
+    total_todos = crud_todo.count(db)
+
+    pending_refund_exceptions = crud_refund_exception.count(db, status=RefundExceptionStatus.PENDING)
+
     return {
         "events": {
             "total": event_count,
             "active": active_events,
-            "inactive": event_count - active_events,
+            "inactive": inactive_events,
         },
         "registrations": {
             "total": total_registrations,
@@ -131,7 +116,7 @@ def get_overview_statistics(
         "todos": {
             "pending": pending_todos,
             "processing": processing_todos,
-            "total": pending_todos + processing_todos,
+            "total": total_todos,
         },
         "refund_exceptions": {
             "pending": pending_refund_exceptions,
