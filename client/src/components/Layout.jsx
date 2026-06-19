@@ -59,10 +59,10 @@ const menuItems = [
   {
     key: 'client-mgmt',
     icon: <PictureOutlined />,
-    label: '客户端',
+    label: '客户端入口',
     children: [
-      { key: '/photo-selection/demo', icon: <PictureOutlined />, label: '选片确认' },
-      { key: '/final-delivery/demo', icon: <DownloadOutlined />, label: '成片下载' }
+      { key: '/orders#photo', icon: <PictureOutlined />, label: '选片确认' },
+      { key: '/orders#delivery', icon: <DownloadOutlined />, label: '成片下载' }
     ]
   },
   { key: '/exception-pool', icon: <WarningOutlined />, label: '异常池' },
@@ -78,14 +78,19 @@ function MainLayout() {
   } = theme.useToken()
 
   const handleMenuClick = ({ key }) => {
-    navigate(key)
+    if (key.includes('#')) {
+      const [path, hash] = key.split('#')
+      navigate(path, { state: { scrollTo: hash } })
+    } else {
+      navigate(key)
+    }
   }
 
   const getSelectedKeys = () => {
     const path = location.pathname
     if (path.startsWith('/orders/')) return ['/orders']
-    if (path.startsWith('/photo-selection/')) return ['/photo-selection/demo']
-    if (path.startsWith('/final-delivery/')) return ['/final-delivery/demo']
+    if (path.startsWith('/photo-selection/')) return ['/orders#photo']
+    if (path.startsWith('/final-delivery/')) return ['/orders#delivery']
     return [path]
   }
 

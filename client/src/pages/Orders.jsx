@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Row, Col, Tag, InputNumber } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Row, Col, Tag, InputNumber, Card, Empty } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, PictureOutlined, DownloadOutlined } from '@ant-design/icons'
 import { getOrders, createOrder, updateOrder, deleteOrder, getBrands } from '../services/api'
 import dayjs from 'dayjs'
 
 function Orders() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const photoSectionRef = useRef(null)
+  const deliverySectionRef = useRef(null)
   const [list, setList] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -21,6 +24,28 @@ function Orders() {
     loadData()
     loadBrands()
   }, [pagination.current, pagination.pageSize])
+
+  useEffect(() => {
+    if (location.state?.scrollTo) {
+      setTimeout(() => {
+        if (location.state.scrollTo === 'photo' && photoSectionRef.current) {
+          photoSectionRef.current.scrollIntoView({ behavior: 'smooth' })
+        }
+        if (location.state.scrollTo === 'delivery' && deliverySectionRef.current) {
+          deliverySectionRef.current.scrollIntoView({ behavior: 'smooth' })
+        }
+        window.history.replaceState({}, document.title)
+      }, 300)
+    }
+  }, [location.state])
+
+  const handlePhotoSelection = record => {
+    navigate(`/photo-selection/${record.id}`)
+  }
+
+  const handleFinalDelivery = record => {
+    navigate(`/final-delivery/${record.id}`)
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -140,10 +165,26 @@ function Orders() {
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 300,
       render: (_, record) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleDetail(record)}>详情</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<PictureOutlined />}
+            onClick={() => handlePhotoSelection(record)}
+          >
+            选片
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() => handleFinalDelivery(record)}
+          >
+            成片
+          </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
           <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
@@ -153,10 +194,96 @@ function Orders() {
     }
   ]
 
+  const photoOrders = list.filter(o => !o.clientConfirm)
+  const deliveryOrders = list.filter(o => o.clientConfirm && !o.finalDelivery)
+
   return (
     <div className="page-content">
       <div className="page-header">
         <h2>订单管理</h2>
+      </div>
+
+      <div ref={photoSectionRef}>
+        <Card
+          style={{ marginBottom: 16 }}
+          title={
+            <Space>
+              <PictureOutlined style={{ color: '#1890ff' }} />
+              <span>待选片订单</span>
+              <Tag color="blue">{photoOrders.length}</Tag>
+            </Space>
+          }
+          size="small"
+          extra={<Button type="link" size="small" onClick={() => photoSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}>快捷入口</Button>}
+        >
+          {photoOrders.length > 0 ? (
+            <Row gutter={[12, 12]}>
+              {photoOrders.slice(0, 6).map(order => (
+                <Col span={8} key={order.id}>
+                  <Card
+                    size="small"
+                    hoverable
+                    onClick={() => handlePhotoSelection(order)}
+                    style={{ cursor: 'pointer' }}
+                    title={order.title}
+                    extra={<Tag size="small">{order.status}</Tag>}
+                  >
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      <div>订单号：{order.orderNo}</div>
+                      <div>品牌：{order.brand?.name || '-'}</div>
+                    </div>
+                    <Button type="primary" size="small" block style={{ marginTop: 8 }} icon={<PictureOutlined />}>
+                      去选片
+                    </Button>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Empty description="暂无待选片订单" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </Card>
+      </div>
+
+      <div ref={deliverySectionRef}>
+        <Card
+          style={{ marginBottom: 16 }}
+          title={
+            <Space>
+              <DownloadOutlined style={{ color: '#52c41a' }} />
+              <span>待成片下载订单</span>
+              <Tag color="green">{deliveryOrders.length}</Tag>
+            </Space>
+          }
+          size="small"
+        >
+          {deliveryOrders.length > 0 ? (
+            <Row gutter={[12, 12]}>
+              {deliveryOrders.slice(0, 6).map(order => (
+                <Col span={8} key={order.id}>
+                  <Card
+                    size="small"
+                    hoverable
+                    onClick={() => handleFinalDelivery(order)}
+                    style={{ cursor: 'pointer' }}
+                    title={order.title}
+                    extra={<Tag size="small" color="green">已选片</Tag>}
+                  >
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      <div>订单号：{order.orderNo}</div>
+                      <div>品牌：{order.brand?.name || '-'}</div>
+                    </div>
+                    <Button type="primary" size="small" block style={{ marginTop: 8 }} icon={<DownloadOutlined />}>
+                      下载成片
+                    </Button>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Empty description="暂无待成片下载订单" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </Card>
       </div>
 
       <div className="filter-bar">
