@@ -13,7 +13,8 @@ import {
   enumOptions,
 } from "@/lib/label-maps";
 import { formatDateTime, truncate } from "@/lib/utils";
-import type { Asset, AssetStatus, AssetType, User } from "@prisma/client";
+import { AssetStatus, AssetType } from "@prisma/client";
+import type { Asset, User } from "@prisma/client";
 
 type Row = Asset & {
   owner: Pick<User, "id" | "name" | "email" | "role"> | null;
