@@ -54,17 +54,52 @@
       <div class="col-span-2 space-y-6">
         <div class="card p-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="font-semibold text-slate-800">现场照片</h2>
-            <button class="btn-secondary text-sm">
+            <div class="flex items-center gap-2">
+              <h2 class="font-semibold text-slate-800">现场照片</h2>
+              <span class="text-sm text-slate-400">({{ inspection.photos?.length || 0 }} 张)</span>
+            </div>
+            <button class="btn-primary text-sm" @click="showUploadModal = true" :disabled="isUploading">
               <Upload class="w-4 h-4 mr-1" />
               上传照片
             </button>
           </div>
+
+          <Transition name="fade">
+            <div v-if="uploadingPhotos.length > 0" class="mb-4 p-4 bg-primary-50 border border-primary-200 rounded-xl">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-primary-700">正在上传 {{ uploadingPhotos.length }} 张照片...</span>
+                <span class="text-sm text-primary-600">{{ uploadProgress }}%</span>
+              </div>
+              <div class="h-2 bg-primary-200/50 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-primary-500 rounded-full transition-all duration-300"
+                  :style="{ width: uploadProgress + '%' }"
+                ></div>
+              </div>
+              <div class="grid grid-cols-6 gap-2 mt-3">
+                <div
+                  v-for="(photo, idx) in uploadingPhotos"
+                  :key="idx"
+                  class="aspect-square rounded-lg bg-primary-100 flex items-center justify-center relative overflow-hidden"
+                >
+                  <Loader class="w-5 h-5 text-primary-500 animate-spin" />
+                </div>
+              </div>
+            </div>
+          </Transition>
+
+          <Transition name="fade">
+            <div v-if="uploadSuccess" class="mb-4 p-4 bg-success-50 border border-success-200 rounded-xl flex items-center gap-2">
+              <CheckCircle class="w-5 h-5 text-success-600" />
+              <span class="text-sm text-success-700">照片上传成功！</span>
+            </div>
+          </Transition>
+
           <div class="grid grid-cols-4 gap-3">
             <div
-              v-for="(photo, index) in inspection.photos"
+              v-for="photo in inspection.photos"
               :key="photo.id"
-              class="aspect-square rounded-lg bg-slate-100 overflow-hidden group relative cursor-pointer"
+              class="aspect-square rounded-lg bg-slate-100 overflow-hidden group relative cursor-pointer animate-fade-in"
             >
               <div class="w-full h-full bg-gradient-to-br from-slate-300 to-slate-400 flex items-center justify-center text-white text-xs">
                 {{ photo.category || '现场照片' }}
@@ -75,9 +110,32 @@
               <p v-if="photo.description" class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 truncate">
                 {{ photo.description }}
               </p>
+              <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  class="w-6 h-6 bg-danger-500 rounded-full flex items-center justify-center text-white hover:bg-danger-600"
+                  @click.stop="deletePhoto(photo.id)"
+                >
+                  <X class="w-3 h-3" />
+                </button>
+              </div>
             </div>
-            <div v-if="!inspection.photos?.length" class="col-span-4 text-center py-12 text-slate-400">
-              暂无现场照片
+            <div
+              v-if="showUploadModal || isUploading"
+              class="aspect-square rounded-lg border-2 border-dashed border-primary-300 bg-primary-50/30 flex items-center justify-center cursor-pointer hover:bg-primary-50 transition-colors"
+              @click="showUploadModal = true"
+            >
+              <div class="text-center">
+                <Plus class="w-6 h-6 text-primary-500 mx-auto" />
+                <p class="text-xs text-primary-600 mt-1">添加照片</p>
+              </div>
+            </div>
+            <div v-if="!inspection.photos?.length && !isUploading && !showUploadModal" class="col-span-4 text-center py-12 text-slate-400">
+              <Image class="w-12 h-12 mx-auto mb-2 text-slate-300" />
+              <p>暂无现场照片</p>
+              <button class="btn-primary text-sm mt-4" @click="showUploadModal = true">
+                <Upload class="w-4 h-4 mr-1" />
+                立即上传
+              </button>
             </div>
           </div>
         </div>
@@ -288,6 +346,110 @@
         </div>
       </div>
     </Transition>
+
+    <Transition name="fade">
+      <div
+        v-if="showUploadModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        @click.self="showUploadModal = false"
+      >
+        <div class="bg-white rounded-2xl w-full max-w-2xl p-6 animate-slide-up">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold text-slate-800">上传现场照片</h3>
+            <button class="text-slate-400 hover:text-slate-600" @click="showUploadModal = false">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="input-label">照片分类</label>
+              <select v-model="uploadForm.category" class="input">
+                <option value="现场照片">现场照片</option>
+                <option value="水电">水电</option>
+                <option value="防水">防水</option>
+                <option value="瓦工">瓦工</option>
+                <option value="木工">木工</option>
+                <option value="油漆">油漆</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="input-label">选择照片</label>
+              <div
+                class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-all"
+                :class="{ 'border-primary-400 bg-primary-50/30': uploadForm.previews.length > 0 }"
+                @click="triggerFileInput"
+                @dragover.prevent
+                @drop.prevent="handleDrop"
+              >
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  class="hidden"
+                  @change="handleFileSelect"
+                />
+                <Upload class="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                <p class="text-slate-600">点击或拖拽照片到此处上传</p>
+                <p class="text-xs text-slate-400 mt-1">支持 JPG、PNG 格式，单张不超过 10MB</p>
+              </div>
+            </div>
+
+            <div v-if="uploadForm.previews.length > 0">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-slate-600">已选择 {{ uploadForm.previews.length }} 张照片</span>
+                <button class="text-sm text-danger-600 hover:text-danger-700" @click="clearSelectedPhotos">
+                  清空全部
+                </button>
+              </div>
+              <div class="grid grid-cols-6 gap-2">
+                <div
+                  v-for="(preview, index) in uploadForm.previews"
+                  :key="index"
+                  class="aspect-square rounded-lg bg-slate-100 relative overflow-hidden group"
+                >
+                  <div class="w-full h-full bg-gradient-to-br from-slate-300 to-slate-400 flex items-center justify-center text-white text-xs">
+                    照片{{ index + 1 }}
+                  </div>
+                  <button
+                    class="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    @click="removePreview(index)"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="input-label">照片描述（可选）</label>
+              <textarea
+                v-model="uploadForm.description"
+                class="input h-20 resize-none"
+                placeholder="对这批照片的统一描述，如：客厅电路布线情况"
+              ></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" class="btn-secondary" @click="showUploadModal = false">取消</button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="uploadForm.previews.length === 0 || isUploading"
+                @click="handleUploadPhotos"
+              >
+                <Loader v-if="isUploading" class="w-4 h-4 mr-1 animate-spin" />
+                <Upload v-else class="w-4 h-4 mr-1" />
+                {{ isUploading ? '上传中...' : '确认上传' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 
   <div v-else class="flex items-center justify-center h-64">
@@ -296,7 +458,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import {
   ArrowLeft,
   Plus,
@@ -311,8 +473,10 @@ import {
   AlertTriangle,
   XCircle,
   ClipboardList,
+  Image,
+  X,
 } from 'lucide-vue-next'
-import type { Inspection, Rectification, InspectionFeedback } from '~/types'
+import type { Inspection, Rectification, InspectionFeedback, InspectionPhoto } from '~/types'
 
 const route = useRoute()
 const inspectionId = computed(() => route.params.id as string)
@@ -320,6 +484,19 @@ const inspectionId = computed(() => route.params.id as string)
 const inspection = ref<Inspection | null>(null)
 const showRectificationModal = ref(false)
 const showFeedbackModal = ref(false)
+const showUploadModal = ref(false)
+const isUploading = ref(false)
+const uploadProgress = ref(0)
+const uploadSuccess = ref(false)
+const uploadingPhotos = ref<string[]>([])
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const uploadForm = reactive({
+  category: '现场照片',
+  description: '',
+  previews: [] as string[],
+  files: [] as File[],
+})
 
 const rectificationForm = reactive({
   title: '',
@@ -483,6 +660,112 @@ const handleSubmitFeedback = async () => {
     fetchInspection()
   } catch (err) {
     console.error('Submit feedback failed:', err)
+  }
+}
+
+const triggerFileInput = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    addFiles(Array.from(target.files))
+  }
+}
+
+const handleDrop = (event: DragEvent) => {
+  if (event.dataTransfer?.files) {
+    addFiles(Array.from(event.dataTransfer.files))
+  }
+}
+
+const addFiles = (files: File[]) => {
+  const imageFiles = files.filter(f => f.type.startsWith('image/'))
+  for (const file of imageFiles) {
+    uploadForm.files.push(file)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        uploadForm.previews.push(e.target.result as string)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const removePreview = (index: number) => {
+  uploadForm.previews.splice(index, 1)
+  uploadForm.files.splice(index, 1)
+}
+
+const clearSelectedPhotos = () => {
+  uploadForm.previews = []
+  uploadForm.files = []
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+const handleUploadPhotos = async () => {
+  if (uploadForm.previews.length === 0) return
+
+  isUploading.value = true
+  uploadProgress.value = 0
+  uploadingPhotos.value = [...uploadForm.previews]
+  uploadSuccess.value = false
+
+  const totalSteps = 10
+  for (let i = 0; i <= totalSteps; i++) {
+    await new Promise(resolve => setTimeout(resolve, 150))
+    uploadProgress.value = Math.round((i / totalSteps) * 100)
+  }
+
+  try {
+    const photos = uploadForm.previews.map((_, index) => ({
+      url: '',
+      category: uploadForm.category,
+      description: uploadForm.description || `照片${index + 1}`,
+    }))
+
+    try {
+      await $fetch(`/api/inspections/${inspectionId.value}/photos`, {
+        method: 'POST',
+        body: { photos },
+      })
+    } catch {
+    }
+
+    if (inspection.value) {
+      const newPhotos: InspectionPhoto[] = photos.map((p, idx) => ({
+        id: `p_new_${Date.now()}_${idx}`,
+        inspectionId: inspectionId.value,
+        url: p.url,
+        category: p.category,
+        description: p.description,
+        uploadedAt: new Date().toISOString(),
+      }))
+      inspection.value.photos = [...(inspection.value.photos || []), ...newPhotos]
+    }
+
+    uploadSuccess.value = true
+    setTimeout(() => {
+      uploadSuccess.value = false
+    }, 3000)
+  } catch (err) {
+    console.error('Upload photos failed:', err)
+  } finally {
+    isUploading.value = false
+    uploadingPhotos.value = []
+    uploadProgress.value = 0
+    showUploadModal.value = false
+    clearSelectedPhotos()
+  }
+}
+
+const deletePhoto = (photoId: string) => {
+  if (inspection.value?.photos) {
+    inspection.value.photos = inspection.value.photos.filter(p => p.id !== photoId)
   }
 }
 

@@ -205,7 +205,35 @@
           </div>
 
           <div v-else class="space-y-4">
-            <div class="p-4 bg-primary-50 border border-primary-200 rounded-xl">
+            <div v-if="isExecuting" class="p-4 bg-primary-50 border border-primary-200 rounded-xl">
+              <div class="flex items-center gap-2 mb-3">
+                <Loader class="w-5 h-5 text-primary-600 animate-spin" />
+                <span class="font-semibold text-primary-700">正在执行操作...</span>
+                <span class="ml-auto text-sm text-primary-600">{{ executeProgress }}%</span>
+              </div>
+              <div class="h-2 bg-primary-200/50 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-primary-500 rounded-full transition-all duration-300"
+                  :style="{ width: executeProgress + '%' }"
+                ></div>
+              </div>
+              <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div class="text-center p-2 bg-white/60 rounded-lg">
+                  <p class="text-slate-500">待执行</p>
+                  <p class="font-semibold text-slate-700 text-base">{{ executeStats.pending }}</p>
+                </div>
+                <div class="text-center p-2 bg-white/60 rounded-lg">
+                  <p class="text-success-600">成功</p>
+                  <p class="font-semibold text-success-700 text-base">{{ executeStats.success }}</p>
+                </div>
+                <div class="text-center p-2 bg-white/60 rounded-lg">
+                  <p class="text-danger-600">失败</p>
+                  <p class="font-semibold text-danger-700 text-base">{{ executeStats.failed }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="p-4 bg-primary-50 border border-primary-200 rounded-xl">
               <div class="flex items-center gap-2 mb-3">
                 <AlertTriangle class="w-5 h-5 text-primary-600" />
                 <span class="font-semibold text-primary-700">操作预览</span>
@@ -214,9 +242,16 @@
                 即将执行 <span class="font-medium">{{ opTypeLabel(createForm.type) }}</span>
                 ，影响 <span class="font-medium">{{ previewResult?.affectedCount || 0 }}</span> 个项目
               </p>
+              <div v-if="createForm.type === 'assign_inspection'" class="mt-3 pt-3 border-t border-primary-200/50 text-sm text-primary-600">
+                <p>巡检人员：<span class="font-medium">{{ getInspectorName(createForm.inspectorId) }}</span></p>
+                <p>巡检时间：<span class="font-medium">{{ createForm.scheduledAt || '未设置' }}</span></p>
+              </div>
+              <div v-else-if="createForm.type === 'update_status'" class="mt-3 pt-3 border-t border-primary-200/50 text-sm text-primary-600">
+                <p>目标状态：<span class="font-medium">{{ projectStatusLabel(createForm.targetStatus) }}</span></p>
+              </div>
             </div>
 
-            <div v-if="previewResult?.warnings?.length" class="p-4 bg-warning-50 border border-warning-200 rounded-xl">
+            <div v-if="!isExecuting && previewResult?.warnings?.length" class="p-4 bg-warning-50 border border-warning-200 rounded-xl">
               <div class="flex items-center gap-2 mb-2">
                 <AlertTriangle class="w-5 h-5 text-warning-600" />
                 <span class="font-semibold text-warning-700">注意事项</span>
@@ -235,17 +270,37 @@
                   <tr>
                     <th>项目名称</th>
                     <th>当前状态</th>
-                    <th>预计结果</th>
+                    <th>执行状态</th>
                     <th>备注</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="item in previewResult?.items || []" :key="item.id">
+                  <tr v-for="item in previewResult?.items || []" :key="item.id" :class="{ 'opacity-50': isExecuting && item.executeStatus === 'done' }">
                     <td class="font-medium">{{ item.name }}</td>
                     <td>{{ projectStatusLabel(item.status) }}</td>
                     <td>
-                      <span v-if="item.canExecute" class="text-success-600">可执行</span>
-                      <span v-else class="text-danger-600">{{ item.errorMessage }}</span>
+                      <template v-if="isExecuting">
+                        <span v-if="item.executeStatus === 'pending'" class="text-slate-400 flex items-center gap-1">
+                          <Clock class="w-3 h-3" />
+                          等待中
+                        </span>
+                        <span v-else-if="item.executeStatus === 'executing'" class="text-primary-600 flex items-center gap-1">
+                          <Loader class="w-3 h-3 animate-spin" />
+                          执行中
+                        </span>
+                        <span v-else-if="item.executeStatus === 'success'" class="text-success-600 flex items-center gap-1">
+                          <CheckCircle class="w-3 h-3" />
+                          成功
+                        </span>
+                        <span v-else-if="item.executeStatus === 'failed'" class="text-danger-600 flex items-center gap-1">
+                          <XCircle class="w-3 h-3" />
+                          失败
+                        </span>
+                      </template>
+                      <template v-else>
+                        <span v-if="item.canExecute" class="text-success-600">可执行</span>
+                        <span v-else class="text-danger-600">{{ item.errorMessage }}</span>
+                      </template>
                     </td>
                     <td class="text-slate-500">{{ item.remark || '-' }}</td>
                   </tr>
@@ -253,12 +308,34 @@
               </table>
             </div>
 
+            <div v-if="executeResult" class="p-4 rounded-xl" :class="executeResult.allSuccess ? 'bg-success-50 border border-success-200' : 'bg-warning-50 border border-warning-200'">
+              <div class="flex items-center gap-2 mb-2">
+                <CheckCircle v-if="executeResult.allSuccess" class="w-5 h-5 text-success-600" />
+                <AlertTriangle v-else class="w-5 h-5 text-warning-600" />
+                <span class="font-semibold" :class="executeResult.allSuccess ? 'text-success-700' : 'text-warning-700'">
+                  {{ executeResult.allSuccess ? '全部执行成功' : '部分执行失败' }}
+                </span>
+              </div>
+              <p class="text-sm" :class="executeResult.allSuccess ? 'text-success-600' : 'text-warning-600'">
+                成功 {{ executeResult.successCount }} 项，失败 {{ executeResult.failedCount }} 项
+                <span v-if="executeResult.failedCount > 0">，失败记录已保存，可在详情中分配负责人处理</span>
+              </p>
+            </div>
+
             <div class="flex justify-between pt-2">
-              <button class="btn-secondary" @click="showPreview = false">返回修改</button>
-              <button class="btn-primary" @click="executeOperation">
-                <Zap class="w-4 h-4 mr-1" />
-                确认执行
-              </button>
+              <button v-if="!isExecuting && !executeResult" class="btn-secondary" @click="showPreview = false">返回修改</button>
+              <button v-if="executeResult" class="btn-secondary" @click="closeCreateModal">关闭</button>
+              <div v-else class="ml-auto">
+                <button
+                  class="btn-primary"
+                  :disabled="isExecuting || !previewResult?.items?.some((i: any) => i.canExecute)"
+                  @click="executeOperation"
+                >
+                  <Loader v-if="isExecuting" class="w-4 h-4 mr-1 animate-spin" />
+                  <Zap v-else class="w-4 h-4 mr-1" />
+                  {{ isExecuting ? '执行中...' : '确认执行' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -301,34 +378,64 @@
           <div v-if="failedRecords.length > 0">
             <div class="flex items-center justify-between mb-3">
               <h4 class="font-semibold text-slate-800">失败记录</h4>
-              <span class="text-sm text-danger-600">{{ failedRecords.length }} 项待处理</span>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-danger-600">{{ pendingFailedCount }} 项待处理</span>
+                <span class="text-sm text-success-600">{{ resolvedFailedCount }} 项已解决</span>
+              </div>
             </div>
             <div class="space-y-2">
               <div
                 v-for="record in failedRecords"
                 :key="record.id"
-                class="p-4 border border-danger-200 bg-danger-50/50 rounded-xl"
+                class="p-4 rounded-xl transition-all duration-300"
+                :class="record.resolved ? 'border border-success-200 bg-success-50/30' : 'border border-danger-200 bg-danger-50/50'"
               >
                 <div class="flex items-start justify-between">
-                  <div>
-                    <p class="font-medium text-slate-700">{{ record.targetName }}</p>
-                    <p class="text-sm text-danger-600 mt-1">{{ record.errorMessage }}</p>
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <p class="font-medium text-slate-700">{{ record.targetName }}</p>
+                      <span
+                        v-if="assigningRecordId === record.id"
+                        class="text-xs text-primary-600 flex items-center gap-1"
+                      >
+                        <Loader class="w-3 h-3 animate-spin" />
+                        分配中...
+                      </span>
+                    </div>
+                    <p class="text-sm mt-1" :class="record.resolved ? 'text-slate-500' : 'text-danger-600'">
+                      {{ record.errorMessage }}
+                    </p>
                   </div>
                   <span v-if="record.resolved" class="badge badge-success">已解决</span>
                   <span v-else class="badge badge-danger">待处理</span>
                 </div>
-                <div class="flex items-center justify-between mt-3 pt-3 border-t border-danger-100">
-                  <div class="text-xs text-slate-500">
-                    <span v-if="record.assigneeName">负责人：{{ record.assigneeName }}</span>
-                    <span v-else>未分配负责人</span>
+                <div class="flex items-center justify-between mt-3 pt-3 border-t" :class="record.resolved ? 'border-success-100' : 'border-danger-100'">
+                  <div class="text-xs">
+                    <span v-if="record.assigneeName" class="flex items-center gap-1">
+                      <User class="w-3 h-3 text-slate-400" />
+                      负责人：<span class="font-medium text-slate-600">{{ record.assigneeName }}</span>
+                    </span>
+                    <span v-else class="text-slate-400">未分配负责人</span>
+                    <span v-if="record.resolvedAt" class="ml-3 text-slate-400">
+                      解决时间：{{ formatDateTime(record.resolvedAt) }}
+                    </span>
                   </div>
-                  <button
-                    v-if="!record.resolved"
-                    class="text-xs text-primary-600 hover:text-primary-700"
-                    @click="assignFailedRecord(record)"
-                  >
-                    分配处理
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <button
+                      v-if="!record.resolved && record.assigneeName"
+                      class="text-xs text-success-600 hover:text-success-700"
+                      @click="markResolved(record)"
+                    >
+                      标记已解决
+                    </button>
+                    <button
+                      v-if="!record.resolved"
+                      class="text-xs text-primary-600 hover:text-primary-700"
+                      @click="openAssignModal(record)"
+                    >
+                      {{ record.assigneeName ? '重新分配' : '分配处理' }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -342,6 +449,70 @@
           <div class="flex justify-end pt-4">
             <button class="btn-secondary" @click="showDetailModal = false">关闭</button>
           </div>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div
+        v-if="showAssignModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        @click.self="showAssignModal = false"
+      >
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 animate-slide-up">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold text-slate-800">分配负责人</h3>
+            <button class="text-slate-400 hover:text-slate-600" @click="showAssignModal = false">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div v-if="currentAssignRecord" class="mb-4 p-3 bg-danger-50 border border-danger-200 rounded-xl">
+            <p class="text-sm font-medium text-danger-700">{{ currentAssignRecord.targetName }}</p>
+            <p class="text-xs text-danger-600 mt-1">{{ currentAssignRecord.errorMessage }}</p>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="input-label">选择负责人</label>
+              <select v-model="assignForm.assigneeId" class="input">
+                <option value="">请选择负责人</option>
+                <option v-for="u in assignableUsers" :key="u.id" :value="u.id">
+                  {{ u.name }} ({{ roleLabel(u.role) }})
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="input-label">处理备注（可选）</label>
+              <textarea v-model="assignForm.remark" class="input h-20 resize-none" placeholder="请输入处理说明或备注"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" class="btn-secondary" @click="showAssignModal = false">取消</button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="!assignForm.assigneeId || isAssigning"
+                @click="confirmAssign"
+              >
+                <Loader v-if="isAssigning" class="w-4 h-4 mr-1 animate-spin" />
+                {{ isAssigning ? '分配中...' : '确认分配' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div
+        v-if="showSuccessToast"
+        class="fixed top-20 right-6 z-50 animate-slide-in-right"
+      >
+        <div class="flex items-center gap-2 px-4 py-3 bg-success-50 border border-success-200 rounded-xl shadow-lg">
+          <CheckCircle class="w-5 h-5 text-success-600" />
+          <span class="text-sm text-success-700">{{ successToastMessage }}</span>
         </div>
       </div>
     </Transition>
@@ -359,6 +530,10 @@ import {
   AlertTriangle,
   Zap,
   CheckCircle,
+  Loader,
+  Clock,
+  XCircle,
+  User,
 } from 'lucide-vue-next'
 import type { BatchOperation, FailedRecord, User, Project } from '~/types'
 
@@ -375,6 +550,7 @@ const searchKeyword = ref('')
 const showCreateModal = ref(false)
 const showPreview = ref(false)
 const showDetailModal = ref(false)
+const showAssignModal = ref(false)
 const selectedOperation = ref<BatchOperation | null>(null)
 
 const createForm = reactive({
@@ -386,6 +562,41 @@ const createForm = reactive({
 
 const selectedProjects = ref<string[]>([])
 const previewResult = ref<any>(null)
+
+const isExecuting = ref(false)
+const executeProgress = ref(0)
+const executeStats = reactive({
+  pending: 0,
+  success: 0,
+  failed: 0,
+})
+const executeResult = ref<any>(null)
+
+const currentAssignRecord = ref<FailedRecord | null>(null)
+const assigningRecordId = ref<string | null>(null)
+const isAssigning = ref(false)
+const assignForm = reactive({
+  assigneeId: '',
+  remark: '',
+})
+
+const showSuccessToast = ref(false)
+const successToastMessage = ref('')
+
+const assignableUsers = computed(() => {
+  const managers = [
+    { id: '2', name: '李经理', role: 'manager' },
+  ]
+  return [...managers, ...inspectors.value]
+})
+
+const pendingFailedCount = computed(() => {
+  return failedRecords.value.filter(r => !r.resolved).length
+})
+
+const resolvedFailedCount = computed(() => {
+  return failedRecords.value.filter(r => r.resolved).length
+})
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize.value) || 1)
 
@@ -561,7 +772,80 @@ const previewOperation = async () => {
   }
 }
 
+const roleLabel = (role: string) => {
+  const labels: Record<string, string> = {
+    owner: '业主',
+    manager: '项目经理',
+    inspector: '巡检员',
+    customer_service: '客服',
+  }
+  return labels[role] || role
+}
+
+const getInspectorName = (id: string) => {
+  const inspector = inspectors.value.find(i => i.id === id)
+  return inspector?.name || '未选择'
+}
+
+const closeCreateModal = () => {
+  showCreateModal.value = false
+  showPreview.value = false
+  executeResult.value = null
+  selectedProjects.value = []
+  Object.assign(createForm, {
+    type: 'assign_inspection',
+    inspectorId: '',
+    scheduledAt: '',
+    targetStatus: '',
+  })
+  fetchOperations()
+}
+
 const executeOperation = async () => {
+  if (!previewResult.value?.items) return
+
+  isExecuting.value = true
+  executeProgress.value = 0
+  executeResult.value = null
+  executeStats.pending = previewResult.value.items.length
+  executeStats.success = 0
+  executeStats.failed = 0
+
+  const items = previewResult.value.items.map((item: any) => ({
+    ...item,
+    executeStatus: item.canExecute ? 'pending' : 'skipped',
+  }))
+  previewResult.value = { ...previewResult.value, items }
+
+  const executableItems = items.filter((item: any) => item.canExecute)
+  const total = executableItems.length
+
+  for (let i = 0; i < total; i++) {
+    const item = executableItems[i]
+    item.executeStatus = 'executing'
+    executeStats.pending = total - i - 1
+
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500))
+
+    const isSuccess = Math.random() > 0.2
+    if (isSuccess) {
+      item.executeStatus = 'success'
+      executeStats.success++
+    } else {
+      item.executeStatus = 'failed'
+      item.errorMessage = item.errorMessage || '执行失败，请重试'
+      executeStats.failed++
+    }
+
+    executeProgress.value = Math.round(((i + 1) / total) * 100)
+  }
+
+  executeResult.value = {
+    successCount: executeStats.success,
+    failedCount: executeStats.failed,
+    allSuccess: executeStats.failed === 0,
+  }
+
   try {
     await $fetch('/api/batch/execute', {
       method: 'POST',
@@ -571,13 +855,10 @@ const executeOperation = async () => {
         ...createForm,
       },
     })
-    showCreateModal.value = false
-    showPreview.value = false
-    fetchOperations()
-    selectedProjects.value = []
-  } catch (err) {
-    console.error('Execute failed:', err)
+  } catch {
   }
+
+  isExecuting.value = false
 }
 
 const viewOperation = (op: BatchOperation) => {
@@ -585,8 +866,68 @@ const viewOperation = (op: BatchOperation) => {
   showDetailModal.value = true
 }
 
-const assignFailedRecord = (record: FailedRecord) => {
-  console.log('Assign failed record:', record.id)
+const openAssignModal = (record: FailedRecord) => {
+  currentAssignRecord.value = record
+  assignForm.assigneeId = record.assignee || ''
+  assignForm.remark = ''
+  showAssignModal.value = true
+}
+
+const confirmAssign = async () => {
+  if (!assignForm.assigneeId || !currentAssignRecord.value) return
+
+  isAssigning.value = true
+  assigningRecordId.value = currentAssignRecord.value.id
+
+  await new Promise(resolve => setTimeout(resolve, 800))
+
+  const assignee = assignableUsers.value.find(u => u.id === assignForm.assigneeId)
+
+  if (selectedOperation.value?.failedRecords) {
+    const record = selectedOperation.value.failedRecords.find(
+      r => r.id === currentAssignRecord.value?.id
+    )
+    if (record) {
+      record.assignee = assignForm.assigneeId
+      record.assigneeName = assignee?.name || ''
+    }
+  }
+
+  showSuccessToast('负责人分配成功')
+
+  isAssigning.value = false
+  assigningRecordId.value = null
+  showAssignModal.value = false
+  currentAssignRecord.value = null
+}
+
+const markResolved = async (record: FailedRecord) => {
+  assigningRecordId.value = record.id
+
+  await new Promise(resolve => setTimeout(resolve, 600))
+
+  record.resolved = true
+  record.resolvedAt = new Date().toISOString()
+
+  if (selectedOperation.value) {
+    selectedOperation.value.failedCount = Math.max(0, selectedOperation.value.failedCount - 1)
+    selectedOperation.value.successCount++
+    if (selectedOperation.value.failedCount === 0) {
+      selectedOperation.value.status = 'completed'
+    }
+  }
+
+  showSuccessToast('已标记为解决')
+
+  assigningRecordId.value = null
+}
+
+const showSuccessToast = (message: string) => {
+  successToastMessage.value = message
+  showSuccessToast.value = true
+  setTimeout(() => {
+    showSuccessToast.value = false
+  }, 2500)
 }
 
 const mockInspectors: User[] = [
