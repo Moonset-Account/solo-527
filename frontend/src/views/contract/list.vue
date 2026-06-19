@@ -16,11 +16,9 @@
       <el-table :data="tableData" v-loading="loading" stripe>
         <el-table-column prop="contractNo" label="合同编号" min-width="160" />
         <el-table-column prop="contractName" label="合同名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="leadName" label="关联线索" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="customerName" label="客户" min-width="120" />
         <el-table-column label="原价" min-width="120" align="right">
           <template #default="{ row }">
-            {{ formatAmount(row.originalAmount) }}
+            {{ formatAmount(row.originalPrice) }}
           </template>
         </el-table-column>
         <el-table-column label="折扣率" min-width="100" align="center">
@@ -30,7 +28,7 @@
         </el-table-column>
         <el-table-column label="合同金额" min-width="120" align="right">
           <template #default="{ row }">
-            <span class="amount-highlight">{{ formatAmount(row.contractAmount) }}</span>
+            <span class="amount-highlight">{{ formatAmount(row.finalPrice) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" min-width="100" align="center">
@@ -38,7 +36,6 @@
             <StatusTag :status="row.status" :status-map="contractStatusTagMap" />
           </template>
         </el-table-column>
-        <el-table-column prop="ownerName" label="负责人" min-width="100" />
         <el-table-column prop="signDate" label="签约日期" min-width="120" />
         <el-table-column label="操作" min-width="240" fixed="right" align="center">
           <template #default="{ row }">
@@ -49,8 +46,8 @@
         </el-table-column>
       </el-table>
       <el-pagination
-        v-model:current-page="pagination.pageNum"
-        v-model:page-size="pagination.pageSize"
+        v-model:current-page="pagination.current"
+        v-model:page-size="pagination.size"
         :page-sizes="[10, 20, 50, 100]"
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
@@ -81,8 +78,8 @@ const userList = ref([])
 const searchParams = reactive({})
 
 const pagination = reactive({
-  pageNum: 1,
-  pageSize: 10,
+  current: 1,
+  size: 10,
   total: 0
 })
 
@@ -101,8 +98,7 @@ const contractStatusTagMap = {
 
 const fetchUserList = async () => {
   try {
-    const res = await getUserList()
-    userList.value = res.data || []
+    userList.value = await getUserList() || []
   } catch (e) {
     console.error(e)
   }
@@ -111,13 +107,13 @@ const fetchUserList = async () => {
 const fetchList = async () => {
   loading.value = true
   try {
-    const res = await getContractList({
+    const pageResult = await getContractList({
       ...searchParams,
-      pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      current: pagination.current,
+      size: pagination.size
     })
-    tableData.value = res.data?.records || res.data?.list || []
-    pagination.total = res.data?.total || 0
+    tableData.value = pageResult?.records || []
+    pagination.total = pageResult?.total || 0
   } catch (e) {
     console.error(e)
   } finally {
@@ -127,13 +123,13 @@ const fetchList = async () => {
 
 const handleSearch = (params) => {
   Object.assign(searchParams, params)
-  pagination.pageNum = 1
+  pagination.current = 1
   fetchList()
 }
 
 const handleReset = () => {
   Object.keys(searchParams).forEach(key => delete searchParams[key])
-  pagination.pageNum = 1
+  pagination.current = 1
   fetchList()
 }
 

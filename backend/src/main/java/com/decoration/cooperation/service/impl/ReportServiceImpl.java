@@ -197,9 +197,39 @@ public class ReportServiceImpl implements ReportService {
         Page<BizContract> result = bizContractMapper.selectPage(page, wrapper);
 
         List<PaymentProgressVO> voList = new ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalPlanAmount = BigDecimal.ZERO;
+        BigDecimal totalActualAmount = BigDecimal.ZERO;
+        BigDecimal overdueAmount = BigDecimal.ZERO;
+        LocalDate today = LocalDate.now();
+
         for (BizContract contract : result.getRecords()) {
             PaymentProgressVO vo = buildPaymentProgressVO(contract, false);
             voList.add(vo);
+
+            if (vo.getContractAmount() != null) {
+                totalAmount = totalAmount.add(vo.getContractAmount());
+            }
+            if (vo.getTotalPlanAmount() != null) {
+                totalPlanAmount = totalPlanAmount.add(vo.getTotalPlanAmount());
+            }
+            if (vo.getTotalActualAmount() != null) {
+                totalActualAmount = totalActualAmount.add(vo.getTotalActualAmount());
+            }
+
+            LambdaQueryWrapper<BizPaymentPlan> overdueWrapper = new LambdaQueryWrapper<>();
+            overdueWrapper.eq(BizPaymentPlan::getContractId, contract.getId());
+            overdueWrapper.lt(BizPaymentPlan::getPlanDate, today);
+            List<BizPaymentPlan> overduePlans = bizPaymentPlanMapper.selectList(overdueWrapper);
+            for (BizPaymentPlan plan : overduePlans) {
+                BigDecimal remain = plan.getPlanAmount() != null ? plan.getPlanAmount() : BigDecimal.ZERO;
+                if (plan.getActualAmount() != null) {
+                    remain = remain.subtract(plan.getActualAmount());
+                }
+                if (remain.compareTo(BigDecimal.ZERO) > 0) {
+                    overdueAmount = overdueAmount.add(remain);
+                }
+            }
         }
 
         PageResult<PaymentProgressVO> pageResult = new PageResult<>();
@@ -207,6 +237,14 @@ public class ReportServiceImpl implements ReportService {
         pageResult.setTotal(result.getTotal());
         pageResult.setCurrent(result.getCurrent());
         pageResult.setSize(result.getSize());
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("totalAmount", totalAmount);
+        summary.put("plannedAmount", totalPlanAmount);
+        summary.put("receivedAmount", totalActualAmount);
+        summary.put("overdueAmount", overdueAmount);
+        pageResult.setSummary(summary);
+
         return pageResult;
     }
 

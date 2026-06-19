@@ -235,13 +235,13 @@ const userRules = {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getUserList({
+    const pageResult = await getUserList({
       ...queryForm,
-      pageNum: pagination.current,
-      pageSize: pagination.size
+      current: pagination.current,
+      size: pagination.size
     })
-    tableData.value = res.data?.records || []
-    pagination.total = res.data?.total || 0
+    tableData.value = pageResult?.records || []
+    pagination.total = pageResult?.total || 0
   } finally {
     loading.value = false
   }

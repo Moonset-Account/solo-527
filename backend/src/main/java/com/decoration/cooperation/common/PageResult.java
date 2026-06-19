@@ -3,6 +3,7 @@ package com.decoration.cooperation.common;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -12,6 +13,7 @@ public class PageResult<T> {
     private Long current;
     private Long size;
     private List<T> records;
+    private Object summary;
 
     public static <T> PageResult<T> of(IPage<T> page) {
         PageResult<T> result = new PageResult<>();

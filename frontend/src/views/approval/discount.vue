@@ -89,8 +89,8 @@
         </el-table-column>
       </el-table>
       <el-pagination
-        v-model:current-page="pagination.pageNum"
-        v-model:page-size="pagination.pageSize"
+        v-model:current-page="pagination.current"
+        v-model:page-size="pagination.size"
         :page-sizes="[10, 20, 50, 100]"
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
@@ -147,8 +147,8 @@ const filterForm = reactive({
 })
 
 const pagination = reactive({
-  pageNum: 1,
-  pageSize: 10,
+  current: 1,
+  size: 10,
   total: 0
 })
 
@@ -171,8 +171,7 @@ const approvalStatusTagMap = {
 
 const fetchUserList = async () => {
   try {
-    const res = await getUserList()
-    userList.value = res.data || []
+    userList.value = await getUserList() || []
   } catch (e) {
     console.error(e)
   }
@@ -181,15 +180,15 @@ const fetchUserList = async () => {
 const fetchList = async () => {
   loading.value = true
   try {
-    const res = await getApprovalList({
+    const pageResult = await getApprovalList({
       ...searchParams,
       type: 'DISCOUNT',
       scope: activeTab.value,
-      pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      current: pagination.current,
+      size: pagination.size
     })
-    tableData.value = res.data?.records || res.data?.list || []
-    pagination.total = res.data?.total || 0
+    tableData.value = pageResult?.records || []
+    pagination.total = pageResult?.total || 0
   } catch (e) {
     console.error(e)
   } finally {
@@ -198,7 +197,7 @@ const fetchList = async () => {
 }
 
 const handleTabChange = () => {
-  pagination.pageNum = 1
+  pagination.current = 1
   fetchList()
 }
 
@@ -214,7 +213,7 @@ const handleSearch = () => {
     delete searchParams.startDate
     delete searchParams.endDate
   }
-  pagination.pageNum = 1
+  pagination.current = 1
   fetchList()
 }
 
@@ -223,7 +222,7 @@ const handleReset = () => {
   filterForm.dateRange = []
   filterForm.applicantId = null
   Object.keys(searchParams).forEach(key => delete searchParams[key])
-  pagination.pageNum = 1
+  pagination.current = 1
   fetchList()
 }
 

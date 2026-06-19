@@ -18,7 +18,7 @@
             <div class="card-icon green"><el-icon :size="24"><CircleCheck /></el-icon></div>
             <div class="card-info">
               <div class="card-label">已成交数</div>
-              <div class="card-value">{{ kpi.dealedLeads }}</div>
+              <div class="card-value">{{ kpi.totalDeals }}</div>
             </div>
           </div>
         </el-card>
@@ -29,7 +29,7 @@
             <div class="card-icon orange"><el-icon :size="24"><TrendCharts /></el-icon></div>
             <div class="card-info">
               <div class="card-label">成交率</div>
-              <div class="card-value">{{ formatPercent(kpi.dealRate) }}</div>
+              <div class="card-value">{{ formatPercent(kpi.overallDealRate) }}</div>
             </div>
           </div>
         </el-card>
@@ -40,7 +40,7 @@
             <div class="card-icon purple"><el-icon :size="24"><Wallet /></el-icon></div>
             <div class="card-info">
               <div class="card-label">预测本月成交金额</div>
-              <div class="card-value">{{ formatAmountWithPrefix(kpi.predictedAmount) }}</div>
+              <div class="card-value">{{ formatAmountWithPrefix(kpi.predictedMonthAmount) }}</div>
             </div>
           </div>
         </el-card>
@@ -85,34 +85,6 @@
         </el-card>
       </el-col>
     </el-row>
-
-    <el-card shadow="never" class="table-section">
-      <template #header>
-        <div class="chart-title">高意向线索列表</div>
-      </template>
-      <el-table :data="highIntentLeads" stripe>
-        <el-table-column prop="leadNo" label="线索编号" width="160" />
-        <el-table-column prop="customerName" label="客户" width="140" />
-        <el-table-column prop="projectName" label="项目名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="source" label="来源" width="120" />
-        <el-table-column prop="stage" label="当前阶段" width="120" />
-        <el-table-column prop="ownerName" label="负责人" width="100" />
-        <el-table-column prop="expectedDealDate" label="预测成交日期" width="140" />
-        <el-table-column label="预测成交率" width="160">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="Math.round((row.dealProbability || 0) * 100)"
-              :status="(row.dealProbability || 0) >= 0.8 ? 'success' : (row.dealProbability || 0) >= 0.6 ? '' : 'warning'"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="expectedAmount" label="预计成交金额" width="150" align="right">
-          <template #default="{ row }">
-            {{ formatAmountWithPrefix(row.expectedAmount) }}
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
   </div>
 </template>
 
@@ -135,22 +107,21 @@ let trendChart = null
 
 const kpi = reactive({
   totalLeads: 0,
-  dealedLeads: 0,
-  dealRate: 0,
-  predictedAmount: 0
+  totalDeals: 0,
+  overallDealRate: 0,
+  predictedMonthAmount: 0,
+  predictedQuarterAmount: 0
 })
 
-const highIntentLeads = ref([])
 const chartData = reactive({
-  stageData: [],
-  ownerData: [],
-  sourceData: [],
-  trendMonths: [],
-  trendAmounts: []
+  byStage: [],
+  byOwner: [],
+  bySource: [],
+  monthlyTrend: []
 })
 
 const initCharts = () => {
-  if (stageChartRef.value) {
+  if (stageChartRef.value && chartData.byStage) {
     stageChart = echarts.init(stageChartRef.value)
     const option = {
       tooltip: { trigger: 'item' },
@@ -164,20 +135,23 @@ const initCharts = () => {
         emphasis: {
           label: { show: true, fontSize: 14, fontWeight: 'bold' }
         },
-        data: chartData.stageData
+        data: chartData.byStage.map(item => ({
+          name: item.stageName,
+          value: item.count
+        }))
       }]
     }
     stageChart.setOption(option)
   }
 
-  if (ownerChartRef.value) {
+  if (ownerChartRef.value && chartData.byOwner) {
     ownerChart = echarts.init(ownerChartRef.value)
     const option = {
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: {
         type: 'category',
-        data: chartData.ownerData.map(i => i.name),
+        data: chartData.byOwner.map(i => i.ownerName),
         axisLabel: { interval: 0 }
       },
       yAxis: { type: 'value' },
@@ -192,13 +166,13 @@ const initCharts = () => {
             { offset: 1, color: '#188df0' }
           ])
         },
-        data: chartData.ownerData.map(i => i.value)
+        data: chartData.byOwner.map(i => i.dealAmount)
       }]
     }
     ownerChart.setOption(option)
   }
 
-  if (sourceChartRef.value) {
+  if (sourceChartRef.value && chartData.bySource) {
     sourceChart = echarts.init(sourceChartRef.value)
     const option = {
       tooltip: { trigger: 'item' },
@@ -213,13 +187,16 @@ const initCharts = () => {
         emphasis: {
           label: { show: true, fontSize: 14, fontWeight: 'bold' }
         },
-        data: chartData.sourceData
+        data: chartData.bySource.map(item => ({
+          name: item.sourceName,
+          value: item.count
+        }))
       }]
     }
     sourceChart.setOption(option)
   }
 
-  if (trendChartRef.value) {
+  if (trendChartRef.value && chartData.monthlyTrend) {
     trendChart = echarts.init(trendChartRef.value)
     const option = {
       tooltip: { trigger: 'axis' },
@@ -227,7 +204,7 @@ const initCharts = () => {
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        data: chartData.trendMonths
+        data: chartData.monthlyTrend.map(i => i.month)
       },
       yAxis: { type: 'value' },
       series: [{
@@ -244,7 +221,7 @@ const initCharts = () => {
             { offset: 1, color: 'rgba(103,194,58,0.05)' }
           ])
         },
-        data: chartData.trendAmounts
+        data: chartData.monthlyTrend.map(i => i.dealAmount)
       }]
     }
     trendChart.setOption(option)
@@ -260,14 +237,14 @@ const handleResize = () => {
 
 const fetchData = async () => {
   try {
-    const res = await getDealPrediction()
-    if (res.data) {
-      Object.assign(kpi, res.data.kpi || {})
-      highIntentLeads.value = res.data.highIntentLeads || []
-      Object.assign(chartData, res.data.charts || {})
-      await nextTick()
-      initCharts()
-    }
+    const data = await getDealPrediction()
+    Object.assign(kpi, data)
+    chartData.byStage = data.byStage || []
+    chartData.byOwner = data.byOwner || []
+    chartData.bySource = data.bySource || []
+    chartData.monthlyTrend = data.monthlyTrend || []
+    await nextTick()
+    initCharts()
   } catch (e) {
     console.error(e)
   }
@@ -354,10 +331,6 @@ onBeforeUnmount(() => {
   .chart-container {
     height: 280px;
     width: 100%;
-  }
-
-  .table-section {
-    margin-top: 16px;
   }
 }
 </style>

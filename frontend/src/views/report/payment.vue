@@ -55,38 +55,38 @@
             {{ formatAmount(row.contractAmount) }}
           </template>
         </el-table-column>
-        <el-table-column prop="plannedAmount" label="计划回款" width="130" align="right">
+        <el-table-column prop="totalPlanAmount" label="计划回款" width="130" align="right">
           <template #default="{ row }">
-            {{ formatAmount(row.plannedAmount) }}
+            {{ formatAmount(row.totalPlanAmount) }}
           </template>
         </el-table-column>
-        <el-table-column prop="receivedAmount" label="实际回款" width="130" align="right">
+        <el-table-column prop="totalActualAmount" label="实际回款" width="130" align="right">
           <template #default="{ row }">
-            {{ formatAmount(row.receivedAmount) }}
+            {{ formatAmount(row.totalActualAmount) }}
           </template>
         </el-table-column>
         <el-table-column label="回款进度" width="180">
           <template #default="{ row }">
             <el-progress
-              :percentage="Math.min(Math.round(row.progress * 100), 100)"
-              :status="row.progress >= 1 ? 'success' : row.progress >= 0.8 ? '' : 'warning'"
+              :percentage="Math.min(Math.round(row.paymentProgress || 0), 100)"
+              :status="(row.paymentProgress || 0) >= 100 ? 'success' : (row.paymentProgress || 0) >= 80 ? '' : 'warning'"
             />
           </template>
         </el-table-column>
         <el-table-column label="撞单说明" width="160">
           <template #default="{ row }">
-            <el-tag v-if="row.conflictRemark" type="warning" size="small" effect="light">
-              {{ row.conflictRemark }}
+            <el-tag v-if="row.conflictExplain" type="warning" size="small" effect="light">
+              {{ row.conflictExplain }}
             </el-tag>
             <span v-else class="text-muted">无</span>
           </template>
         </el-table-column>
-        <el-table-column prop="handleDuration" label="处理耗时" width="130">
+        <el-table-column prop="processDuration" label="处理耗时" width="130">
           <template #default="{ row }">
-            {{ formatDuration(row.handleDuration) }}
+            {{ formatDuration(row.processDuration) }}
           </template>
         </el-table-column>
-        <el-table-column prop="handlerName" label="责任人" width="100" />
+        <el-table-column prop="ownerName" label="责任人" width="100" />
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleViewDetail(row)">查看详情</el-button>
@@ -140,15 +140,15 @@ const queryParams = reactive({
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getPaymentProgress({
+    const pageResult = await getPaymentProgress({
       ...queryParams,
-      pageNum: pagination.current,
-      pageSize: pagination.size
+      current: pagination.current,
+      size: pagination.size
     })
-    tableData.value = res.data?.records || []
-    pagination.total = res.data?.total || 0
-    if (res.data?.summary) {
-      Object.assign(summary, res.data.summary)
+    tableData.value = pageResult.records || []
+    pagination.total = pageResult.total || 0
+    if (pageResult.summary) {
+      Object.assign(summary, pageResult.summary)
     }
   } finally {
     loading.value = false
