@@ -1,0 +1,99 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">探访详情</h2>
+  <%= link_to "返回列表", visit_records_path, class: "text-blue-600 hover:underline" %>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-xl font-semibold text-gray-900"><%= @visit_record.target_name %></h3>
+    <div class="flex items-center gap-2">
+      <%= status_badge(@visit_record.status) %>
+      <span class="text-sm text-gray-500"><%= next_action_for(@visit_record) %></span>
+    </div>
+  </div>
+
+  <dl class="grid grid-cols-2 gap-4">
+    <div>
+      <dt class="text-sm font-medium text-gray-500">探访日期</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.visit_date %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">志愿者</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.volunteer.name %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">地址</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.target_address || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">联系方式</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.target_contact || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">目的</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.purpose || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">结果</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.result || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">下一步动作</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @visit_record.next_action || '-' %></dd>
+    </div>
+  </dl>
+
+  <div class="mt-4 flex gap-2">
+    <% if @visit_record.may_start_visit? %>
+      <%= button_to "开始探访", start_visit_visit_record_path(@visit_record), method: :post, class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
+    <% end %>
+    <% if @visit_record.may_complete? %>
+      <%= button_to "完成探访", complete_visit_record_path(@visit_record), method: :post, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+    <% end %>
+    <% if @visit_record.may_mark_overdue? %>
+      <%= button_to "标记逾期", mark_overdue_visit_record_path(@visit_record), method: :post, class: "bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" %>
+    <% end %>
+    <%= link_to "编辑", edit_visit_record_path(@visit_record), class: "bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700" %>
+  </div>
+</div>
+
+<% if @visit_record.overdue? %>
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+    <h3 class="text-lg font-semibold text-red-800 mb-2">逾期记录</h3>
+    <% if @overdue_review.present? %>
+      <p class="text-sm text-red-700">已创建复盘记录</p>
+      <%= link_to "查看复盘", visit_record_overdue_review_path(@visit_record, @overdue_review), class: "text-red-600 hover:underline text-sm" %>
+    <% else %>
+      <p class="text-sm text-red-700 mb-2">尚未创建复盘记录</p>
+      <%= link_to "创建过期复盘", new_visit_record_overdue_review_path(@visit_record), class: "bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm" %>
+    <% end %>
+  </div>
+<% end %>
+
+<% if @visit_record.tracking_reminders.any? %>
+  <div class="bg-white rounded-lg shadow">
+    <div class="p-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">追踪提醒</h3>
+    </div>
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">提醒类型</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">提醒日期</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">消息</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        <% @visit_record.tracking_reminders.each do |reminder| %>
+          <tr>
+            <td class="px-6 py-4 text-sm text-gray-900"><%= reminder.reminder_type %></td>
+            <td class="px-6 py-4 text-sm text-gray-500"><%= reminder.reminder_date %></td>
+            <td class="px-6 py-4 text-sm text-gray-500"><%= reminder.message %></td>
+            <td class="px-6 py-4 text-sm"><%= status_badge(reminder.status) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>

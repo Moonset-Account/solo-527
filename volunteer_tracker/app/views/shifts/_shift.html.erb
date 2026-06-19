@@ -1,0 +1,16 @@
+<tr id="<%= dom_id(shift) %>">
+  <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= link_to shift.title, shift_path(shift) %></td>
+  <td class="px-6 py-4 text-sm text-gray-500"><%= format_datetime(shift.start_time) %> - <%= format_datetime(shift.end_time) %></td>
+  <td class="px-6 py-4 text-sm text-gray-500"><%= shift.capacity %></td>
+  <td class="px-6 py-4 text-sm text-gray-500"><%= shift.enrolled_count %></td>
+  <td class="px-6 py-4 text-sm"><%= status_badge(shift.status) %></td>
+  <td class="px-6 py-4 text-sm">
+    <%= turbo_frame_tag dom_id(shift, :actions) do %>
+      <% if shift.can_enroll? %>
+        <%= button_to "报名", enroll_shift_path(shift), method: :post, class: "bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700" %>
+      <% elsif shift.closed? && shift.shift_enrollments.exists?(user: current_user, status: 'enrolled') %>
+        <%= button_to "签到", check_in_shift_path(shift), method: :post, class: "bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700" %>
+      <% end %>
+    <% end %>
+  </td>
+</tr>

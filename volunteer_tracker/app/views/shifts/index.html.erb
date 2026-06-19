@@ -1,0 +1,46 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">班次管理</h2>
+  <%= link_to "新建班次", new_shift_path, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+</div>
+
+<div class="mb-4 flex gap-2">
+  <%= link_to "全部", shifts_path, class: "px-3 py-1 rounded #{params[:status].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}" %>
+  <% %w[open closed completed].each do |s| %>
+    <%= link_to s == 'open' ? '开放中' : s == 'closed' ? '已关闭' : '已完成', shifts_path(status: s), class: "px-3 py-1 rounded #{params[:status] == s ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}" %>
+  <% end %>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">标题</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">容量</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">已报名</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      <% @shifts.each do |shift| %>
+        <tr id="<%= dom_id(shift) %>">
+          <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= link_to shift.title, shift_path(shift) %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= format_datetime(shift.start_time) %> - <%= format_datetime(shift.end_time) %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= shift.capacity %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= shift.enrolled_count %></td>
+          <td class="px-6 py-4 text-sm"><%= status_badge(shift.status) %></td>
+          <td class="px-6 py-4 text-sm">
+            <%= turbo_frame_tag dom_id(shift, :actions) do %>
+              <% if shift.can_enroll? %>
+                <%= button_to "报名", enroll_shift_path(shift), method: :post, class: "bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700" %>
+              <% elsif shift.closed? && shift.shift_enrollments.exists?(user: current_user, status: 'enrolled') %>
+                <%= button_to "签到", check_in_shift_path(shift), method: :post, class: "bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700" %>
+              <% end %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

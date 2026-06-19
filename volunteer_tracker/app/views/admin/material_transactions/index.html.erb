@@ -1,0 +1,38 @@
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-900">物资流水（管理后台）</h2>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">物资</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">类型</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">数量</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作人</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">领用人</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">备注</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      <% @material_transactions.each do |tx| %>
+        <tr>
+          <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= tx.material.name %></td>
+          <td class="px-6 py-4 text-sm">
+            <% if tx.transaction_type == 'in' %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">入库</span>
+            <% else %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">出库</span>
+            <% end %>
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-900"><%= tx.quantity %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= tx.operator&.name || '-' %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= tx.recipient || '-' %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= tx.remark || '-' %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= format_datetime(tx.created_at) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

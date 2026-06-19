@@ -1,0 +1,66 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">班次详情</h2>
+  <%= link_to "返回列表", shifts_path, class: "text-blue-600 hover:underline" %>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-xl font-semibold text-gray-900"><%= @shift.title %></h3>
+    <div class="flex items-center gap-2">
+      <%= status_badge(@shift.status) %>
+      <span class="text-sm text-gray-500"><%= next_action_for(@shift) %></span>
+    </div>
+  </div>
+
+  <dl class="grid grid-cols-2 gap-4">
+    <div>
+      <dt class="text-sm font-medium text-gray-500">描述</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @shift.description || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">时间</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= format_datetime(@shift.start_time) %> - <%= format_datetime(@shift.end_time) %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">容量</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @shift.enrolled_count %> / <%= @shift.capacity %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">剩余名额</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @shift.available_slots %></dd>
+    </div>
+  </dl>
+
+  <div class="mt-4 flex gap-2">
+    <% if @shift.can_enroll? %>
+      <%= button_to "报名", enroll_shift_path(@shift), method: :post, class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
+    <% elsif @shift.closed? && @shift.shift_enrollments.exists?(user: current_user, status: 'enrolled') %>
+      <%= button_to "签到", check_in_shift_path(@shift), method: :post, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+    <% end %>
+    <%= link_to "编辑", edit_shift_path(@shift), class: "bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700" %>
+  </div>
+</div>
+
+<div class="bg-white rounded-lg shadow">
+  <div class="p-4 border-b border-gray-200">
+    <h3 class="text-lg font-semibold text-gray-900">已报名用户</h3>
+  </div>
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">报名时间</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      <% @enrollments.each do |enrollment| %>
+        <tr>
+          <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= enrollment.user.name %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= format_datetime(enrollment.created_at) %></td>
+          <td class="px-6 py-4 text-sm"><%= status_badge(enrollment.status) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

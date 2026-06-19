@@ -1,0 +1,58 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">捐赠详情</h2>
+  <%= link_to "返回列表", donations_path, class: "text-blue-600 hover:underline" %>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-xl font-semibold text-gray-900"><%= @donation.donor_name %></h3>
+    <div class="flex items-center gap-2">
+      <%= status_badge(@donation.status) %>
+      <span class="text-sm text-gray-500"><%= next_action_for(@donation) %></span>
+    </div>
+  </div>
+
+  <dl class="grid grid-cols-2 gap-4">
+    <div>
+      <dt class="text-sm font-medium text-gray-500">联系方式</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @donation.donor_contact || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">捐赠类型</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @donation.donation_type == 'money' ? '资金' : '物资' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500"><%= @donation.donation_type == 'money' ? '金额' : '数量' %></dt>
+      <dd class="mt-1 text-sm text-gray-900">
+        <% if @donation.donation_type == 'money' %>
+          ¥<%= @donation.amount || 0 %>
+        <% else %>
+          <%= @donation.quantity || 0 %>
+        <% end %>
+      </dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">备注</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @donation.remark || '-' %></dd>
+    </div>
+    <% if @donation.material_donation? && @donation.material.present? %>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">关联物资</dt>
+        <dd class="mt-1 text-sm text-blue-600"><%= link_to @donation.material.name, material_path(@donation.material) %></dd>
+      </div>
+    <% end %>
+  </dl>
+
+  <div class="mt-4 flex gap-2">
+    <% if @donation.may_receive? %>
+      <%= button_to "接收", receive_donation_path(@donation), method: :post, class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
+    <% end %>
+    <% if @donation.may_confirm? %>
+      <%= button_to "确认", confirm_donation_path(@donation), method: :post, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+    <% end %>
+    <% if @donation.may_reject? %>
+      <%= button_to "拒绝", reject_donation_path(@donation), method: :post, class: "bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" %>
+    <% end %>
+    <%= link_to "编辑", edit_donation_path(@donation), class: "bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700" %>
+  </div>
+</div>

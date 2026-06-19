@@ -1,0 +1,7 @@
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-900">创建过期复盘</h2>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6">
+  <%= render partial: "overdue_reviews/form", locals: { visit_record: @visit_record, overdue_review: OverdueReview.new } %>
+</div>

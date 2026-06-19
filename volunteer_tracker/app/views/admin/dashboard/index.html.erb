@@ -1,0 +1,37 @@
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-900">管理后台</h2>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="text-sm font-medium text-gray-500">总用户数</div>
+    <div class="mt-1 text-3xl font-bold text-gray-900"><%= @total_users %></div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="text-sm font-medium text-gray-500">总班次</div>
+    <div class="mt-1 text-3xl font-bold text-gray-900"><%= @total_shifts %></div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="text-sm font-medium text-gray-500">活跃服务</div>
+    <div class="mt-1 text-3xl font-bold text-gray-900"><%= @active_services %></div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="text-sm font-medium text-gray-500">低库存物资</div>
+    <div class="mt-1 text-3xl font-bold text-gray-900"><%= @low_stock_materials %></div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <%= link_to admin_materials_path, class: "bg-white rounded-lg shadow p-6 hover:shadow-lg transition" do %>
+    <h3 class="text-lg font-semibold text-gray-900">物资管理</h3>
+    <p class="text-sm text-gray-500 mt-1">管理物资库存与预警</p>
+  <% end %>
+
+  <%= link_to admin_material_transactions_path, class: "bg-white rounded-lg shadow p-6 hover:shadow-lg transition" do %>
+    <h3 class="text-lg font-semibold text-gray-900">物资流水</h3>
+    <p class="text-sm text-gray-500 mt-1">查看出入库记录</p>
+  <% end %>
+</div>

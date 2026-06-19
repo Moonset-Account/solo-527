@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "志愿者追踪系统" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="志愿者追踪系统">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= yield :head %>
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="min-h-screen flex">
+    <aside class="w-64 flex-shrink-0 bg-gray-800 text-white flex flex-col">
+      <div class="p-4 border-b border-gray-700">
+        <h1 class="text-xl font-bold">志愿者追踪系统</h1>
+      </div>
+      <nav class="flex-1 p-4 space-y-1">
+        <%= link_to "仪表盘", root_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(root_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "班次管理", shifts_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(shifts_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "我的报名", shift_enrollments_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(shift_enrollments_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "物资管理", materials_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(materials_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "物资流水", material_transactions_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(material_transactions_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "捐赠管理", donations_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(donations_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "探访记录", visit_records_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(visit_records_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "志愿服务", volunteer_services_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(volunteer_services_path) ? 'bg-gray-700' : ''}" %>
+        <%= link_to "追踪提醒", tracking_reminders_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{current_page?(tracking_reminders_path) ? 'bg-gray-700' : ''}" %>
+        <% if current_user_admin? %>
+          <%= link_to "管理后台", admin_dashboard_path, class: "block px-3 py-2 rounded hover:bg-gray-700 #{request.path.start_with?('/admin') ? 'bg-gray-700' : ''}" %>
+        <% end %>
+      </nav>
+      <div class="p-4 border-t border-gray-700">
+        <span class="text-sm"><%= current_user&.name %></span>
+        <%= button_to "退出", destroy_user_session_path, method: :delete, class: "text-sm text-gray-400 hover:text-white mt-1 block" %>
+      </div>
+    </aside>
+
+    <main class="flex-1 bg-gray-50">
+      <% if notice %>
+        <div class="bg-green-100 text-green-800 px-6 py-3"><%= notice %></div>
+      <% end %>
+      <% if alert %>
+        <div class="bg-red-100 text-red-800 px-6 py-3"><%= alert %></div>
+      <% end %>
+      <div class="p-6">
+        <%= yield %>
+      </div>
+    </main>
+  </body>
+</html>

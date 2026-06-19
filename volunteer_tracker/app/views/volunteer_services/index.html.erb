@@ -1,0 +1,66 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">志愿服务</h2>
+  <%= link_to "新建服务", new_volunteer_service_path, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+</div>
+
+<div class="bg-white rounded-lg shadow p-4 mb-6">
+  <%= search_form_for @q, url: volunteer_services_path, method: :get do |f| %>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <%= f.label :title_cont, "标题", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.search_field :title_cont, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+      <div>
+        <%= f.label :category_eq, "分类", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.search_field :category_eq, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+      <div>
+        <%= f.label :status_eq, "状态", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.select :status_eq, VolunteerService.aasm.states.map { |s| [ApplicationHelper::STATUS_LABEL_MAP[s.name.to_s] || s.name, s.name] }, { include_blank: true }, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+    </div>
+    <div class="mt-3">
+      <%= f.submit "搜索", class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">标题</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间范围</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      <% @volunteer_services.each do |service| %>
+        <tr>
+          <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= link_to service.title, volunteer_service_path(service) %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= service.category %></td>
+          <td class="px-6 py-4 text-sm"><%= status_badge(service.status) %></td>
+          <td class="px-6 py-4 text-sm text-gray-500">
+            <%= service.start_date || '-' %> ~ <%= service.end_date || '-' %>
+          </td>
+          <td class="px-6 py-4 text-sm">
+            <% if service.may_activate? %>
+              <%= button_to "激活", activate_volunteer_service_path(service), method: :post, class: "bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700" %>
+            <% end %>
+            <% if service.may_pause? %>
+              <%= button_to "暂停", pause_volunteer_service_path(service), method: :post, class: "bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700" %>
+            <% end %>
+            <% if service.may_resume? %>
+              <%= button_to "恢复", resume_volunteer_service_path(service), method: :post, class: "bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700" %>
+            <% end %>
+            <% if service.may_complete? %>
+              <%= button_to "完成", complete_volunteer_service_path(service), method: :post, class: "bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-700" %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

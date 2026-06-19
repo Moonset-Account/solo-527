@@ -1,0 +1,30 @@
+<tr id="<%= dom_id(donation) %>">
+  <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= link_to donation.donor_name, donation_path(donation) %></td>
+  <td class="px-6 py-4 text-sm text-gray-500"><%= donation.donor_contact || '-' %></td>
+  <td class="px-6 py-4 text-sm">
+    <% if donation.donation_type == 'money' %>
+      <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">资金</span>
+    <% else %>
+      <span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">物资</span>
+    <% end %>
+  </td>
+  <td class="px-6 py-4 text-sm text-gray-900">
+    <% if donation.donation_type == 'money' %>
+      ¥<%= donation.amount || 0 %>
+    <% else %>
+      <%= donation.quantity || 0 %>
+    <% end %>
+  </td>
+  <td class="px-6 py-4 text-sm"><%= status_badge(donation.status) %></td>
+  <td class="px-6 py-4 text-sm">
+    <% if donation.may_receive? %>
+      <%= button_to "接收", receive_donation_path(donation), method: :post, class: "bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700" %>
+    <% end %>
+    <% if donation.may_confirm? %>
+      <%= button_to "确认", confirm_donation_path(donation), method: :post, class: "bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700" %>
+    <% end %>
+    <% if donation.may_reject? %>
+      <%= button_to "拒绝", reject_donation_path(donation), method: :post, class: "bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700" %>
+    <% end %>
+  </td>
+</tr>

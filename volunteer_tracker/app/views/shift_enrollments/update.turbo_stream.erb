@@ -1,0 +1,12 @@
+<%= turbo_stream.replace dom_id(enrollment) do %>
+  <tr id="<%= dom_id(enrollment) %>">
+    <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= link_to enrollment.shift.title, shift_path(enrollment.shift) %></td>
+    <td class="px-6 py-4 text-sm text-gray-500"><%= format_datetime(enrollment.created_at) %></td>
+    <td class="px-6 py-4 text-sm"><%= status_badge(enrollment.status) %></td>
+    <td class="px-6 py-4 text-sm">
+      <% if enrollment.enrolled? %>
+        <%= button_to "取消报名", shift_enrollment_path(enrollment), method: :patch, class: "bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700" %>
+      <% end %>
+    </td>
+  </tr>
+<% end %>

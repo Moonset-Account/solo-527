@@ -1,0 +1,3 @@
+<%= turbo_stream.replace dom_id(@material) do %>
+  <%= render partial: "materials/material", locals: { material: @material } %>
+<% end %>

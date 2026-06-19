@@ -1,0 +1,3 @@
+<%= turbo_stream.replace dom_id(shift) do %>
+  <%= render partial: "shifts/shift", locals: { shift: shift } %>
+<% end %>

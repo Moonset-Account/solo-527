@@ -1,0 +1,50 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">物资管理</h2>
+  <% if current_user_admin? %>
+    <%= link_to "新建物资", new_material_path, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  <% end %>
+</div>
+
+<div class="mb-4 flex gap-2 flex-wrap">
+  <%= link_to "全部", materials_path, class: "px-3 py-1 rounded #{params[:category].blank? ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}" %>
+  <% @categories.each do |cat| %>
+    <%= link_to cat, materials_path(category: cat), class: "px-3 py-1 rounded #{params[:category] == cat ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}" %>
+  <% end %>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">名称</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">分类</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">单位</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">当前库存</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">预警阈值</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      <% @materials.each do |material| %>
+        <tr id="<%= dom_id(material) %>" class="<%= material.low_stock? ? 'bg-red-50' : '' %>">
+          <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= link_to material.name, material_path(material) %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= material.category %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= material.unit %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= material.current_quantity %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= material.threshold || '-' %></td>
+          <td class="px-6 py-4 text-sm">
+            <% if material.low_stock? %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">库存不足</span>
+            <% else %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">正常</span>
+            <% end %>
+          </td>
+          <td class="px-6 py-4 text-sm">
+            <%= link_to "查看", material_path(material), class: "text-blue-600 hover:underline" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

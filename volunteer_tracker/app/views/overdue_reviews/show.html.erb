@@ -1,0 +1,33 @@
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">逾期复盘详情</h2>
+  <%= link_to "返回探访记录", visit_record_path(@visit_record), class: "text-blue-600 hover:underline" %>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6">
+  <dl class="grid grid-cols-2 gap-4">
+    <div>
+      <dt class="text-sm font-medium text-gray-500">关联探访</dt>
+      <dd class="mt-1 text-sm text-blue-600"><%= link_to @visit_record.target_name, visit_record_path(@visit_record) %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">复盘日期</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @overdue_review.review_date || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">复盘人</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @overdue_review.reviewer&.name || '-' %></dd>
+    </div>
+    <div>
+      <dt class="text-sm font-medium text-gray-500">责任人</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @overdue_review.responsible_person %></dd>
+    </div>
+    <div class="col-span-2">
+      <dt class="text-sm font-medium text-gray-500">影响范围</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @overdue_review.impact_scope %></dd>
+    </div>
+    <div class="col-span-2">
+      <dt class="text-sm font-medium text-gray-500">结论</dt>
+      <dd class="mt-1 text-sm text-gray-900"><%= @overdue_review.conclusion %></dd>
+    </div>
+  </dl>
+</div>
