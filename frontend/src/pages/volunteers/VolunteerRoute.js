@@ -172,8 +172,12 @@ const VolunteerRoute = () => {
   const handleEditAssignment = (record) => {
     setEditingAssignment(record);
     assignmentForm.setFieldsValue({
-      ...record,
-      date: record.date ? record.date.split('T')[0] : null,
+      volunteer: record.volunteer_id,
+      route: record.route_id,
+      date: record.scheduled_date || record.date || null,
+      time_slot: record.time_slot || '',
+      status: record.status || 'pending',
+      notes: record.notes || '',
     });
     setAssignmentModalVisible(true);
   };
@@ -190,9 +194,23 @@ const VolunteerRoute = () => {
 
   const handleAssignmentSubmit = async (values) => {
     try {
+      const parseTimeSlot = (slot) => {
+        if (!slot) return { start: null, end: null };
+        const parts = slot.split('-');
+        return {
+          start: parts[0] ? parts[0].trim() + ':00' : null,
+          end: parts[1] ? parts[1].trim() + ':00' : null,
+        };
+      };
+      const times = parseTimeSlot(values.time_slot);
       const submitData = {
-        ...values,
-        date: values.date ? values.date.format('YYYY-MM-DD') : null,
+        volunteer_id: values.volunteer,
+        route_id: values.route,
+        scheduled_date: values.date,
+        scheduled_start_time: times.start,
+        scheduled_end_time: times.end,
+        status: values.status || 'pending',
+        notes: values.notes || '',
       };
       if (editingAssignment) {
         await volunteersAPI.assignments.update(editingAssignment.id, submitData);
@@ -202,6 +220,7 @@ const VolunteerRoute = () => {
         message.success('创建成功');
       }
       setAssignmentModalVisible(false);
+      assignmentForm.resetFields();
       fetchAssignments();
     } catch (error) {
       message.error(handleApiError(error, editingAssignment ? '更新失败' : '创建失败'));

@@ -65,7 +65,12 @@ const VotingPage = () => {
 
   const handleCastVote = async (values) => {
     try {
-      await votingAPI.castVote(values);
+      const payload = {
+        topic_id: values.topic,
+        vote: values.vote,
+        is_anonymous: false,
+      };
+      await votingAPI.castVote(payload);
       message.success('投票成功');
       setVoteModalVisible(false);
       form.resetFields();
@@ -94,8 +99,8 @@ const VotingPage = () => {
       dataIndex: 'vote',
       key: 'vote',
       render: (text) => (
-        <Tag color={text === 'agree' ? 'green' : text === 'disagree' ? 'red' : 'orange'}>
-          {text === 'agree' ? '赞成' : text === 'disagree' ? '反对' : '弃权'}
+        <Tag color={text === 'yes' ? 'green' : text === 'no' ? 'red' : 'orange'}>
+          {text === 'yes' ? '赞成' : text === 'no' ? '反对' : '弃权'}
         </Tag>
       ),
     },
@@ -272,20 +277,13 @@ const VotingPage = () => {
             </Select>
           </Form.Item>
           <Form.Item 
-            name="resident" 
-            label="居民ID" 
-            rules={[{ required: true, message: '请输入居民ID' }]}
-          >
-            <Input placeholder="请输入居民ID" type="number" />
-          </Form.Item>
-          <Form.Item 
             name="vote" 
             label="投票选项" 
             rules={[{ required: true, message: '请选择投票选项' }]}
           >
             <Select placeholder="请选择">
-              <Option value="agree">赞成</Option>
-              <Option value="disagree">反对</Option>
+              <Option value="yes">赞成</Option>
+              <Option value="no">反对</Option>
               <Option value="abstain">弃权</Option>
             </Select>
           </Form.Item>

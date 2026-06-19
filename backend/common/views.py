@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.conf import settings
+from django.utils import timezone
 from .permissions import IsProductionData
 from .utils import export_to_excel
 
@@ -24,6 +25,43 @@ class BaseViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def statistics_view(request):
+    from residents.models import Resident
+    from topics.models import Topic
+    from patrol.models import PatrolTask
+    from assistance.models import AssistanceDemand
+    from tasks.models import Task
+    from voting.models import Vote
+    from django.db.models import Q
+
+    resident_count = Resident.objects.all().count()
+    pending_topics = Topic.objects.filter(status__in=['draft', 'pending_review']).count()
+    active_patrols = PatrolTask.objects.filter(status='in_progress').count()
+    pending_assistance = AssistanceDemand.objects.filter(status__in=['pending', 'accepted']).count()
+    pending_tasks = Task.objects.filter(status='pending').count()
+    qualification_exceptions = Vote.objects.filter(
+        has_qualification_exception=True,
+        exception_handled=False
+    ).count()
+
+    return Response({
+        'resident_count': resident_count,
+        'pending_topics': pending_topics,
+        'active_patrols': active_patrols,
+        'pending_assistance': pending_assistance,
+        'pending_tasks': pending_tasks,
+        'qualification_exceptions': qualification_exceptions,
+        'voting_topics': Topic.objects.filter(status='voting').count(),
+        'completed_tasks_today': Task.objects.filter(
+            status='completed',
+            completed_at__date=timezone.now().date()
+        ).count(),
+        'is_production': settings.IS_PRODUCTION,
+    })
 
 
 @api_view(['GET'])

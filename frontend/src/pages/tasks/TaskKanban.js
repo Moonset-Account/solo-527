@@ -93,9 +93,19 @@ const TaskKanban = () => {
 
   const handleSubmit = async (values) => {
     try {
-      await tasksAPI.create(values);
+      const payload = {
+        title: values.title,
+        type: values.task_type,
+        priority: values.priority,
+        description: values.description || '',
+        assigned_to_id: values.assignee || null,
+        deadline: values.due_date || null,
+        community: '默认社区',
+      };
+      await tasksAPI.create(payload);
       message.success('创建成功');
       setModalVisible(false);
+      form.resetFields();
       fetchKanbanData();
     } catch (error) {
       message.error(handleApiError(error, '创建失败'));
