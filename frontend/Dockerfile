@@ -1,0 +1,14 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache git
+
+COPY package.json ./
+RUN yarn install || npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["yarn", "dev"]
