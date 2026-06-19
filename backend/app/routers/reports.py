@@ -40,7 +40,7 @@ async def create_export_task(
         status=TaskStatus.SUCCESS,
         retry_count=0,
         max_retries=3,
-        request_data=export_data.model_dump(),
+        request_data=export_params,
         response_data=report_data,
         created_by=current_user.id,
         started_at=datetime.utcnow(),
@@ -88,7 +88,7 @@ async def export_sync(
         status=TaskStatus.SUCCESS,
         retry_count=0,
         max_retries=3,
-        request_data=export_data.model_dump(),
+        request_data=export_params,
         response_data={
             "summary": report_data.get("summary", {}),
             "stats": report_data.get("summary", {}).get("stats", {})
@@ -182,12 +182,19 @@ async def retry_task(
     db.commit()
 
     try:
+        rd = task.request_data or {}
+        start_date = rd.get("start_date")
+        end_date = rd.get("end_date")
+        if isinstance(start_date, date):
+            start_date = start_date.isoformat()
+        if isinstance(end_date, date):
+            end_date = end_date.isoformat()
         export_params = {
-            "start_date": task.request_data.get("start_date") if task.request_data else None,
-            "end_date": task.request_data.get("end_date") if task.request_data else None,
-            "include_utilization": task.request_data.get("include_utilization", True) if task.request_data else True,
-            "include_conflicts": task.request_data.get("include_conflicts", True) if task.request_data else True,
-            "include_operations": task.request_data.get("include_operations", True) if task.request_data else True
+            "start_date": start_date,
+            "end_date": end_date,
+            "include_utilization": rd.get("include_utilization", True),
+            "include_conflicts": rd.get("include_conflicts", True),
+            "include_operations": rd.get("include_operations", True)
         }
         report_data = generate_report(db, export_params)
         task.status = TaskStatus.SUCCESS
@@ -229,12 +236,19 @@ async def download_report(
     if task.status != TaskStatus.SUCCESS:
         if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.RETRYING]:
             if task.request_data:
+                rd = task.request_data
+                start_date = rd.get("start_date")
+                end_date = rd.get("end_date")
+                if isinstance(start_date, date):
+                    start_date = start_date.isoformat()
+                if isinstance(end_date, date):
+                    end_date = end_date.isoformat()
                 export_params = {
-                    "start_date": task.request_data.get("start_date"),
-                    "end_date": task.request_data.get("end_date"),
-                    "include_utilization": task.request_data.get("include_utilization", True),
-                    "include_conflicts": task.request_data.get("include_conflicts", True),
-                    "include_operations": task.request_data.get("include_operations", True)
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "include_utilization": rd.get("include_utilization", True),
+                    "include_conflicts": rd.get("include_conflicts", True),
+                    "include_operations": rd.get("include_operations", True)
                 }
                 try:
                     report_data = generate_report(db, export_params)
@@ -302,12 +316,19 @@ async def preview_report(
 
     if task.status != TaskStatus.SUCCESS:
         if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING] and task.request_data:
+            rd = task.request_data
+            start_date = rd.get("start_date")
+            end_date = rd.get("end_date")
+            if isinstance(start_date, date):
+                start_date = start_date.isoformat()
+            if isinstance(end_date, date):
+                end_date = end_date.isoformat()
             export_params = {
-                "start_date": task.request_data.get("start_date"),
-                "end_date": task.request_data.get("end_date"),
-                "include_utilization": task.request_data.get("include_utilization", True),
-                "include_conflicts": task.request_data.get("include_conflicts", True),
-                "include_operations": task.request_data.get("include_operations", True)
+                "start_date": start_date,
+                "end_date": end_date,
+                "include_utilization": rd.get("include_utilization", True),
+                "include_conflicts": rd.get("include_conflicts", True),
+                "include_operations": rd.get("include_operations", True)
             }
             try:
                 report_data = generate_report(db, export_params)

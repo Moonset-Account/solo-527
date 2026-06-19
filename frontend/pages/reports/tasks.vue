@@ -69,17 +69,35 @@
       </template>
     </n-modal>
 
-    <n-modal v-model:show="showResultModal" preset="card" title="执行结果" style="width: 700px">
+    <n-modal v-model:show="showResultModal" preset="card" title="执行结果" style="width: 900px">
       <div v-if="currentTask && currentTask.response_data" class="space-y-4">
         <n-tabs v-model:value="activeResultTab" type="line">
           <n-tab-pane name="utilization" tab="档期利用" v-if="currentTask.response_data.utilization">
-            <n-table :data="currentTask.response_data.utilization" :columns="utilizationColumns" size="small" bordered />
+            <n-data-table
+              :data="currentTask.response_data.utilization"
+              :columns="utilizationColumns"
+              size="small"
+              bordered
+              :scroll="{ x: 1200 }"
+            />
           </n-tab-pane>
           <n-tab-pane name="conflicts" tab="预约冲突" v-if="currentTask.response_data.conflicts">
-            <n-table :data="currentTask.response_data.conflicts" :columns="conflictColumns" size="small" bordered />
+            <n-data-table
+              :data="currentTask.response_data.conflicts"
+              :columns="conflictColumns"
+              size="small"
+              bordered
+              :scroll="{ x: 1000 }"
+            />
           </n-tab-pane>
           <n-tab-pane name="operations" tab="操作记录" v-if="currentTask.response_data.operations">
-            <n-table :data="currentTask.response_data.operations" :columns="operationColumns" size="small" bordered />
+            <n-data-table
+              :data="currentTask.response_data.operations"
+              :columns="operationColumns"
+              size="small"
+              bordered
+              :scroll="{ x: 1100 }"
+            />
           </n-tab-pane>
         </n-tabs>
 
@@ -103,7 +121,6 @@ import { ref, onMounted, computed, h } from 'vue'
 import {
   NCard,
   NDataTable,
-  NTable,
   NButton,
   NInput,
   NSelect,
@@ -118,7 +135,6 @@ import {
   NTabPane,
   useMessage,
   DataTableColumns,
-  TableColumns,
   SelectOption,
   DataTablePagination
 } from 'naive-ui'
@@ -295,29 +311,106 @@ const columns = computed<DataTableColumns>(() => [
   }
 ])
 
-const utilizationColumns: TableColumns = [
-  { title: '咨询师', key: 'counselor_name' },
-  { title: '日期', key: 'schedule_date' },
-  { title: '时段', key: 'time_slot' },
-  { title: '最大预约', key: 'max_appointments' },
-  { title: '已预约', key: 'booked_count' },
-  { title: '利用率', key: 'utilization_rate' }
+const utilizationColumns: DataTableColumns = [
+  { title: '排班ID', key: 'schedule_id', width: 80 },
+  { title: '咨询师', key: 'counselor_name', width: 100 },
+  { title: '日期', key: 'schedule_date', width: 110 },
+  { title: '时段', key: 'time_slot', width: 130 },
+  { title: '最大预约', key: 'max_appointments', width: 90 },
+  { title: '已预约', key: 'booked_count', width: 80 },
+  { title: '剩余名额', key: 'available_slots', width: 90 },
+  { title: '利用率(%)', key: 'utilization_rate', width: 90 },
+  {
+    title: '档期状态',
+    key: 'status',
+    width: 90,
+    render: (row: any) => {
+      const text = row.status === 'active' ? '可预约' : row.status === 'full' ? '已满' : row.status
+      const type = row.status === 'active' ? 'success' : row.status === 'full' ? 'warning' : 'default'
+      return h(NTag, { type, size: 'small' }, () => text)
+    }
+  },
+  { title: '最近操作人', key: 'last_operator', width: 100 },
+  { title: '最近操作类型', key: 'last_operation_type', width: 110 },
+  { title: '最近操作时间', key: 'last_operation_time', width: 180 }
 ]
 
-const conflictColumns: TableColumns = [
-  { title: '访客', key: 'visitor_name' },
-  { title: '电话', key: 'visitor_phone' },
-  { title: '咨询师', key: 'counselor_name' },
-  { title: '日期', key: 'schedule_date' },
-  { title: '冲突原因', key: 'conflict_reason' }
+const conflictColumns: DataTableColumns = [
+  { title: '预约ID', key: 'appointment_id', width: 80 },
+  { title: '访客', key: 'visitor_name', width: 90 },
+  { title: '电话', key: 'visitor_phone', width: 120 },
+  { title: '咨询师', key: 'counselor_name', width: 100 },
+  { title: '日期', key: 'schedule_date', width: 110 },
+  { title: '时段', key: 'time_slot', width: 130 },
+  {
+    title: '预约状态',
+    key: 'appointment_status',
+    width: 100,
+    render: (row: any) => {
+      const map: Record<string, any> = {
+        pending: { text: '待确认', type: 'warning' },
+        confirmed: { text: '已确认', type: 'success' },
+        completed: { text: '已完成', type: 'info' },
+        cancelled: { text: '已取消', type: 'default' },
+        no_show: { text: '爽约', type: 'error' }
+      }
+      const cfg = map[row.appointment_status] || { text: row.appointment_status, type: 'default' }
+      return h(NTag, { type: cfg.type, size: 'small' }, () => cfg.text)
+    }
+  },
+  { title: '冲突/异常原因', key: 'conflict_reason', width: 200 },
+  { title: '冲突预约ID', key: 'conflict_with_ids', width: 120 }
 ]
 
-const operationColumns: TableColumns = [
-  { title: '操作人', key: 'operator' },
-  { title: '操作类型', key: 'operation_type' },
-  { title: '目标类型', key: 'target_type' },
-  { title: 'IP', key: 'ip_address' },
-  { title: '时间', key: 'created_at' }
+const operationColumns: DataTableColumns = [
+  { title: '日志ID', key: 'id', width: 70 },
+  { title: '操作人', key: 'operator', width: 90 },
+  { title: '操作人账号', key: 'operator_username', width: 110 },
+  {
+    title: '操作类型',
+    key: 'operation_type',
+    width: 90,
+    render: (row: any) => {
+      const map: Record<string, string> = {
+        create: '创建',
+        update: '更新',
+        delete: '删除',
+        login: '登录',
+        logout: '登出',
+        export: '导出',
+        download: '下载',
+        retry: '重试',
+        cancel: '取消',
+        mark_no_show: '标记爽约',
+        confirm: '确认',
+        complete: '完成'
+      }
+      return h(NTag, { size: 'small' }, () => map[row.operation_type] || row.operation_type)
+    }
+  },
+  {
+    title: '目标类型',
+    key: 'target_type',
+    width: 90,
+    render: (row: any) => {
+      const map: Record<string, string> = {
+        user: '用户',
+        counselor: '咨询师',
+        schedule: '排班',
+        appointment: '预约',
+        time_slot: '时段',
+        no_show: '爽约名单',
+        report: '报表',
+        task: '任务'
+      }
+      return map[row.target_type] || row.target_type
+    }
+  },
+  { title: '目标ID', key: 'target_id', width: 80 },
+  { title: 'IP地址', key: 'ip_address', width: 110 },
+  { title: '变更前摘要', key: 'old_value_summary', width: 150, ellipsis: { tooltip: true } },
+  { title: '变更后摘要', key: 'new_value_summary', width: 150, ellipsis: { tooltip: true } },
+  { title: '操作时间', key: 'created_at', width: 180 }
 ]
 
 const pagination = computed<DataTablePagination>(() => ({
