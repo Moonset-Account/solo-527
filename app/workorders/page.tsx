@@ -90,8 +90,8 @@ export default function WorkOrdersPage() {
       key: 'status',
       header: '状态',
       render: (r: any) => (
-        <Badge className={workOrderStatusColor[r.status]}>
-          {workOrderStatusLabel[r.status]}
+        <Badge className={workOrderStatusColor[r.status as WorkOrderStatus]}>
+          {workOrderStatusLabel[r.status as WorkOrderStatus]}
         </Badge>
       ),
     },

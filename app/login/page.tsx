@@ -41,6 +41,13 @@ export default function LoginPage() {
     const ok = login(values.email);
     setLoading(false);
     if (ok) {
+      const user = DEMO_ACCOUNTS.find((u) => u.email === values.email);
+      if (user) {
+        document.cookie = `demo_role=${user.role}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `demo_email=${encodeURIComponent(user.email)}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `demo_name=${encodeURIComponent(user.full_name)}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `demo_uid=${user.id}; path=/; max-age=86400; SameSite=Lax`;
+      }
       router.push('/dashboard');
     } else {
       setError('未找到该用户，请检查邮箱或使用下方演示账号登录');

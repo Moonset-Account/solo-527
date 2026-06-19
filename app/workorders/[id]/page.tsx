@@ -15,7 +15,7 @@ import {
   ClipboardCheck,
   ArrowRight,
 } from 'lucide-react';
-import type { WorkOrderStatus } from '@/lib/types';
+import type { WorkOrderStatus, TurnoverType } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { DataTable, Badge } from '@/components/DataTable';
@@ -123,8 +123,8 @@ export default function WorkOrderDetailPage() {
       key: 'type',
       header: '类型',
       render: (r: any) => (
-        <Badge className={turnoverTypeColor[r.type]}>
-          {turnoverTypeLabel[r.type]}
+        <Badge className={turnoverTypeColor[r.type as TurnoverType]}>
+          {turnoverTypeLabel[r.type as TurnoverType]}
         </Badge>
       ),
     },
@@ -219,7 +219,7 @@ export default function WorkOrderDetailPage() {
 
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <User className="w-4.5 h-4.5 text-slate-600" />
+                  <User className="w-4 h-4 text-slate-600" />
                 </div>
                 <div>
                   <div className="text-xs text-slate-500 mb-0.5">负责人</div>

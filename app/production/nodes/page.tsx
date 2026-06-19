@@ -208,8 +208,8 @@ export default function ProductionNodesPage() {
       key: 'status',
       header: '状态',
       render: (row: any) => (
-        <Badge className={nodeStatusColor[row.status]}>
-          {nodeStatusLabel[row.status]}
+        <Badge className={nodeStatusColor[row.status as NodeStatus]}>
+          {nodeStatusLabel[row.status as NodeStatus]}
         </Badge>
       ),
     },

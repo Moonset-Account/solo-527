@@ -33,7 +33,7 @@ import {
   turnoverTypeLabel,
   turnoverTypeColor,
 } from '@/lib/utils';
-import type { WorkOrder } from '@/lib/types';
+import type { WorkOrder, TurnoverType } from '@/lib/types';
 
 function WorkOrderTimeline({ orders }: { orders: WorkOrder[] }) {
   if (orders.length === 0) {
@@ -411,10 +411,10 @@ export default function VehicleDetailPage() {
                   header: '类型',
                   render: (r) => (
                     <Badge
-                      className={cn(turnoverTypeColor[r.type], 'gap-1')}
+                      className={cn(turnoverTypeColor[r.type as TurnoverType], 'gap-1')}
                     >
                       {getTurnoverIcon(r.type)}
-                      {turnoverTypeLabel[r.type]}
+                      {turnoverTypeLabel[r.type as TurnoverType]}
                     </Badge>
                   ),
                 },

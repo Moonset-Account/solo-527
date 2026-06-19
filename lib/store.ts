@@ -102,6 +102,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ currentUser: null });
     try {
       localStorage.removeItem('auth_user_id');
+      document.cookie.split(';').forEach((c) => {
+        const name = c.trim().split('=')[0];
+        if (name.startsWith('demo_')) {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
+      });
     } catch {
       /* empty */
     }

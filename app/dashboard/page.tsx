@@ -25,6 +25,7 @@ import {
 import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard, Badge, DataTable } from '@/components/DataTable';
+import type { WorkOrderStatus } from '@/lib/types';
 import {
   workOrderStatusLabel,
   workOrderStatusColor,
@@ -329,8 +330,8 @@ export default function DashboardPage() {
               key: 'status',
               header: '状态',
               render: (r) => (
-                <Badge className={workOrderStatusColor[r.status]}>
-                  {workOrderStatusLabel[r.status]}
+                <Badge className={workOrderStatusColor[r.status as WorkOrderStatus]}>
+                  {workOrderStatusLabel[r.status as WorkOrderStatus]}
                 </Badge>
               ),
             },
