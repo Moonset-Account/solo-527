@@ -131,6 +131,26 @@ public class AuthService : IAuthService
         });
     }
 
+    public async Task<ApiResponse<List<ConsultantDto>>> GetConsultantsAsync()
+    {
+        var consultants = await _userManager.GetUsersInRoleAsync(UserRole.Consultant.ToString());
+        var managers = await _userManager.GetUsersInRoleAsync(UserRole.ConsultantManager.ToString());
+
+        var result = consultants.Concat(managers)
+            .Where(u => u.IsActive)
+            .Select(u => new ConsultantDto
+            {
+                Id = u.Id,
+                UserName = u.UserName!,
+                RealName = u.RealName,
+                Department = u.Department,
+                Role = u.Role
+            })
+            .ToList();
+
+        return ApiResponse<List<ConsultantDto>>.Ok(result);
+    }
+
     private async Task<string> GenerateJwtToken(ApplicationUser user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!));

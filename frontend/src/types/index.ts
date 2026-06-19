@@ -107,9 +107,17 @@ export interface UserInfo {
   userName: string;
   realName: string;
   email: string;
-  role: UserRole;
+  role: number;
   department?: string;
   avatar?: string;
+}
+
+export interface ConsultantDto {
+  id: string;
+  userName: string;
+  realName: string;
+  department?: string;
+  role: number;
 }
 
 export interface LoginResponse {

@@ -11,11 +11,11 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { appointmentApi } from '../../services/api';
+import { appointmentApi, authApi } from '../../services/api';
 import { appointmentStatusLabels, appointmentStatusColors } from '../../utils/enums';
 import { useAuthStore } from '../../store/auth';
 import { UserRole, AppointmentStatus } from '../../types';
-import type { Appointment } from '../../types';
+import type { Appointment, ConsultantDto } from '../../types';
 
 const { RangePicker } = DatePicker;
 
@@ -31,6 +31,8 @@ function AppointmentList() {
   const [status, setStatus] = useState<AppointmentStatus | undefined>();
   const [dateRange, setDateRange] = useState<any>(null);
   const [assignModal, setAssignModal] = useState(false);
+  const [consultants, setConsultants] = useState<ConsultantDto[]>([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
   const [current, setCurrent] = useState<Appointment | null>(null);
   const [form] = Form.useForm();
 
@@ -115,7 +117,7 @@ function AppointmentList() {
 
   const getActionMenu = (record: Appointment): MenuProps => ({
     items: [
-      canManage && { key: 'assign', label: '分配顾问', icon: <UserOutlined />, onClick: () => { setCurrent(record); setAssignModal(true); } },
+      canManage && { key: 'assign', label: '分配顾问', icon: <UserOutlined />, onClick: async () => { setCurrent(record); setAssignModal(true); try { setConsultantsLoading(true); const res = await authApi.getConsultants(); if (res.success) setConsultants(res.data || []); } finally { setConsultantsLoading(false); } } },
       { key: 'noshow', label: '标记爽约', icon: <ExceptionOutlined />, onClick: () => handleMarkNoShow(record), disabled: record.status === AppointmentStatus.NoShow },
     ].filter(Boolean) as MenuProps['items'],
   });
@@ -205,9 +207,14 @@ function AppointmentList() {
       >
         <Form form={form} layout="vertical" onFinish={handleAssign}>
           <Form.Item name="consultantId" label="选择顾问" rules={[{ required: true, message: '请选择顾问' }]}>
-            <Select placeholder="请选择顾问" options={[
-              { value: 'test-consultant-id', label: '张顾问 (示例)' },
-            ]} />
+            <Select
+              placeholder="请选择顾问"
+              loading={consultantsLoading}
+              options={consultants.map(c => ({
+                value: c.id,
+                label: `${c.realName} (${c.userName}${c.department ? ' - ' + c.department : ''})`
+              }))}
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>

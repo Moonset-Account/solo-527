@@ -24,6 +24,11 @@ public class ApiResponse : ApiResponse<object>
     {
         return new ApiResponse { Success = true, Message = message, Data = null, Code = 200 };
     }
+
+    public static ApiResponse Fail(string message, int code = 400)
+    {
+        return new ApiResponse { Success = false, Message = message, Data = null, Code = code };
+    }
 }
 
 public class PagedResult<T>

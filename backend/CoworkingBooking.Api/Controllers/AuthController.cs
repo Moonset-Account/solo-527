@@ -49,4 +49,12 @@ public class AuthController : ControllerBase
             return NotFound(result);
         return Ok(result);
     }
+
+    [HttpGet("consultants")]
+    [Authorize(Roles = nameof(UserRole.SuperAdmin) + "," + nameof(UserRole.ConsultantManager) + "," + nameof(UserRole.Finance) + "," + nameof(UserRole.LandlordManager))]
+    public async Task<ActionResult<ApiResponse<List<ConsultantDto>>>> GetConsultants()
+    {
+        var result = await _authService.GetConsultantsAsync();
+        return Ok(result);
+    }
 }

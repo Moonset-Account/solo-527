@@ -35,3 +35,12 @@ public class RegisterRequest
     public string? PhoneNumber { get; set; }
     public UserRole Role { get; set; } = UserRole.Customer;
 }
+
+public class ConsultantDto
+{
+    public Guid Id { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public string RealName { get; set; } = string.Empty;
+    public string? Department { get; set; }
+    public UserRole Role { get; set; }
+}

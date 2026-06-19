@@ -1,5 +1,5 @@
 import api from '../utils/request';
-import type { ApiResponse, LoginResponse, PagedResult, PagedQuery, UserInfo, Space, SpaceQuery, Appointment, NoShowRecord, Contract, Bill, Order, OperationLog } from '../types';
+import type { ApiResponse, LoginResponse, PagedResult, PagedQuery, UserInfo, ConsultantDto, Space, SpaceQuery, Appointment, NoShowRecord, Contract, Bill, Order, OperationLog } from '../types';
 
 export const authApi = {
   login: (data: { userName: string; password: string }) =>
@@ -8,6 +8,8 @@ export const authApi = {
     api.post<ApiResponse>('/auth/register', data).then((res) => res.data),
   me: () =>
     api.get<ApiResponse<UserInfo>>('/auth/me').then((res) => res.data),
+  getConsultants: () =>
+    api.get<ApiResponse<ConsultantDto[]>>('/auth/consultants').then((res) => res.data),
 };
 
 export const spaceApi = {

@@ -8,4 +8,5 @@ public interface IAuthService
     Task<ApiResponse<LoginResponse>> LoginAsync(LoginRequest request);
     Task<ApiResponse> RegisterAsync(RegisterRequest request);
     Task<ApiResponse<UserInfo>> GetCurrentUserInfoAsync(Guid userId);
+    Task<ApiResponse<List<ConsultantDto>>> GetConsultantsAsync();
 }

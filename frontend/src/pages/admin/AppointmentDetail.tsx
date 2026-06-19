@@ -11,11 +11,11 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { appointmentApi } from '../../services/api';
+import { appointmentApi, authApi } from '../../services/api';
 import { appointmentStatusLabels, appointmentStatusColors } from '../../utils/enums';
 import { useAuthStore } from '../../store/auth';
 import { UserRole, AppointmentStatus } from '../../types';
-import type { Appointment, FollowUp } from '../../types';
+import type { Appointment, FollowUp, ConsultantDto } from '../../types';
 
 function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,9 +26,22 @@ function AppointmentDetail() {
   const [statusModal, setStatusModal] = useState(false);
   const [followModal, setFollowModal] = useState(false);
   const [assignModal, setAssignModal] = useState(false);
+  const [consultants, setConsultants] = useState<ConsultantDto[]>([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
   const [form] = Form.useForm();
   const [followForm] = Form.useForm();
   const [assignForm] = Form.useForm();
+
+  const openAssignModal = async () => {
+    setAssignModal(true);
+    try {
+      setConsultantsLoading(true);
+      const res = await authApi.getConsultants();
+      if (res.success) setConsultants(res.data || []);
+    } finally {
+      setConsultantsLoading(false);
+    }
+  };
 
   const canManage = user && (user.role === UserRole.SuperAdmin || user.role === UserRole.ConsultantManager);
   const canHandle = user && (user.role === UserRole.SuperAdmin || user.role === UserRole.Consultant || user.role === UserRole.ConsultantManager);
@@ -179,7 +192,7 @@ function AppointmentDetail() {
               <div>
                 <Tag color="orange">暂未分配顾问</Tag>
                 {canManage && (
-                  <Button type="primary" size="small" style={{ marginLeft: 8 }} onClick={() => setAssignModal(true)}>
+                  <Button type="primary" size="small" style={{ marginLeft: 8 }} onClick={openAssignModal}>
                     立即分配
                   </Button>
                 )}
@@ -190,7 +203,7 @@ function AppointmentDetail() {
           <Card title={<Space><EditOutlined /> 处理操作</Space>}>
             <Space direction="vertical" style={{ width: '100%' }}>
               {canManage && (
-                <Button block onClick={() => setAssignModal(true)} icon={<UserOutlined />}>
+                <Button block onClick={openAssignModal} icon={<UserOutlined />}>
                   分配/更换顾问
                 </Button>
               )}
@@ -275,10 +288,13 @@ function AppointmentDetail() {
       <Modal title="分配顾问" open={assignModal} onCancel={() => setAssignModal(false)} footer={null}>
         <Form form={assignForm} layout="vertical" onFinish={handleAssign}>
           <Form.Item name="consultantId" label="选择顾问" rules={[{ required: true, message: '请选择顾问' }]}>
-            <Select options={[
-              { value: 'test-1', label: '张顾问' },
-              { value: 'test-2', label: '李顾问' },
-            ]} />
+            <Select
+              loading={consultantsLoading}
+              options={consultants.map(c => ({
+                value: c.id,
+                label: `${c.realName} (${c.userName}${c.department ? ' - ' + c.department : ''})`
+              }))}
+            />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
