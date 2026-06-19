@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_20_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_20_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -46,7 +46,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_20_000001) do
     t.string "category"
     t.datetime "created_at", null: false
     t.string "name"
-    t.integer "quantity"
     t.integer "threshold"
     t.string "unit"
     t.datetime "updated_at", null: false
@@ -61,8 +60,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_20_000001) do
     t.bigint "reviewer_id"
     t.datetime "updated_at", null: false
     t.bigint "visit_record_id", null: false
+    t.bigint "volunteer_service_id"
     t.index ["reviewer_id"], name: "index_overdue_reviews_on_reviewer_id"
     t.index ["visit_record_id"], name: "index_overdue_reviews_on_visit_record_id"
+    t.index ["volunteer_service_id"], name: "index_overdue_reviews_on_volunteer_service_id"
   end
 
   create_table "shift_enrollments", force: :cascade do |t|
@@ -159,6 +160,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_20_000001) do
   add_foreign_key "material_transactions", "users", column: "operator_id"
   add_foreign_key "overdue_reviews", "users", column: "reviewer_id"
   add_foreign_key "overdue_reviews", "visit_records"
+  add_foreign_key "overdue_reviews", "volunteer_services"
   add_foreign_key "shift_enrollments", "shifts"
   add_foreign_key "shift_enrollments", "users"
   add_foreign_key "visit_records", "users", column: "volunteer_id"

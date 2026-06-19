@@ -7,6 +7,7 @@ class VolunteerServicesController < ApplicationController
   end
 
   def show
+    @overdue_reviews = @volunteer_service.overdue_reviews.includes(:visit_record => :volunteer, :reviewer, :volunteer_service).order(created_at: :desc)
   end
 
   def new

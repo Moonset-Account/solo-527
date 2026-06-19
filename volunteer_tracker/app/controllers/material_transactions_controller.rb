@@ -9,8 +9,10 @@ class MaterialTransactionsController < ApplicationController
     @material_transaction = MaterialTransaction.new(material_transaction_params)
     @material_transaction.operator = current_user
     if @material_transaction.save
+      material = @material_transaction.material
+      material.reload
       respond_to do |format|
-        format.turbo_stream { render turbo_stream: turbo_stream.replace("material_#{@material_transaction.material_id}", partial: "materials/material", locals: { material: @material_transaction.material.reload }) }
+        format.turbo_stream { render turbo_stream: turbo_stream.replace("material_#{material.id}", partial: "materials/material", locals: { material: material }) }
         format.html { redirect_to material_transactions_url, notice: "Transaction recorded." }
       end
     else

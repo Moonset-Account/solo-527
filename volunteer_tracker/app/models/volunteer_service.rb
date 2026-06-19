@@ -3,12 +3,7 @@ class VolunteerService < ApplicationRecord
 
   has_many :volunteer_service_assignments, dependent: :destroy
   has_many :users, through: :volunteer_service_assignments
-
-  def overdue_reviews
-    OverdueReview.joins(visit_record: :volunteer)
-      .where(users: { id: user_ids })
-      .order(created_at: :desc)
-  end
+  has_many :overdue_reviews, dependent: :nullify
 
   validates :title, :category, presence: true
 

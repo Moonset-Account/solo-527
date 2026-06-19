@@ -60,14 +60,13 @@
   <% end %>
 </div>
 
-<% reviews = @volunteer_service.overdue_reviews.includes(visit_record: :volunteer) %>
-<% if reviews.any? %>
+<% if @overdue_reviews.any? %>
   <div class="bg-white rounded-lg shadow mt-6">
     <div class="p-4 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">逾期复盘记录</h3>
     </div>
     <div class="divide-y divide-gray-200">
-      <% reviews.each do |review| %>
+      <% @overdue_reviews.each do |review| %>
         <div class="p-6">
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">

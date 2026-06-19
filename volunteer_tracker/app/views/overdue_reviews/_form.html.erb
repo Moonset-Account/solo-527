@@ -10,6 +10,11 @@
   <% end %>
 
   <div class="mb-4">
+    <%= f.label :volunteer_service_id, "关联志愿服务", class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <%= f.collection_select :volunteer_service_id, VolunteerService.order(:title).pluck(:title, :id), :last, :first, { prompt: "请选择关联的志愿服务" }, class: "w-full border border-gray-300 rounded px-3 py-2", required: true %>
+  </div>
+
+  <div class="mb-4">
     <%= f.label :impact_scope, "影响范围", class: "block text-sm font-medium text-gray-700 mb-1" %>
     <%= f.text_area :impact_scope, rows: 3, class: "w-full border border-gray-300 rounded px-3 py-2" %>
   </div>

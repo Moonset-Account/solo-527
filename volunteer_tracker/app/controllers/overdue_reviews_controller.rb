@@ -41,6 +41,6 @@ class OverdueReviewsController < ApplicationController
   end
 
   def overdue_review_params
-    params.require(:overdue_review).permit(:impact_scope, :responsible_person, :conclusion)
+    params.require(:overdue_review).permit(:impact_scope, :responsible_person, :conclusion, :volunteer_service_id)
   end
 end

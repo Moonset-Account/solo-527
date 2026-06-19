@@ -10,6 +10,16 @@
       <dd class="mt-1 text-sm text-blue-600"><%= link_to @visit_record.target_name, visit_record_path(@visit_record) %></dd>
     </div>
     <div>
+      <dt class="text-sm font-medium text-gray-500">关联志愿服务</dt>
+      <dd class="mt-1 text-sm">
+        <% if @overdue_review.volunteer_service.present? %>
+          <%= link_to @overdue_review.volunteer_service.title, volunteer_service_path(@overdue_review.volunteer_service) %>
+        <% else %>
+          -
+        <% end %>
+      </dd>
+    </div>
+    <div>
       <dt class="text-sm font-medium text-gray-500">复盘日期</dt>
       <dd class="mt-1 text-sm text-gray-900"><%= @overdue_review.review_date || '-' %></dd>
     </div>

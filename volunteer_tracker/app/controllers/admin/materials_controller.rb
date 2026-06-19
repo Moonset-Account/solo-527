@@ -3,12 +3,12 @@ class Admin::MaterialsController < ApplicationController
   before_action :set_material, only: [:show, :edit, :update, :destroy]
 
   def index
-    @materials = Material.order(:name)
+    @materials = Material.includes(:material_transactions).order(:name)
     if params[:category].present?
       @materials = @materials.where(category: params[:category])
     end
     if params[:low_stock].present?
-      @materials = @materials.where("quantity <= threshold")
+      @materials = @materials.select { |m| m.current_quantity <= m.threshold }
     end
     @categories = Material.distinct.pluck(:category).compact.sort
   end
@@ -22,8 +22,23 @@ class Admin::MaterialsController < ApplicationController
 
   def create
     @material = Material.new(material_params)
-    if @material.save
-      redirect_to admin_materials_url, notice: "Material was successfully created."
+    ActiveRecord::Base.transaction do
+      if @material.save
+        if params[:material][:initial_quantity].present? && params[:material][:initial_quantity].to_i > 0
+          MaterialTransaction.create!(
+            material: @material,
+            transaction_type: 'in',
+            quantity: params[:material][:initial_quantity].to_i,
+            operator: current_user,
+            remark: '初始库存入库'
+          )
+        end
+      else
+        raise ActiveRecord::Rollback
+      end
+    end
+    if @material.persisted?
+      redirect_to admin_materials_url, notice: "物资已创建成功。"
     else
       render :new, status: :unprocessable_entity
     end
@@ -52,6 +67,6 @@ class Admin::MaterialsController < ApplicationController
   end
 
   def material_params
-    params.require(:material).permit(:name, :category, :unit, :quantity, :threshold)
+    params.require(:material).permit(:name, :category, :unit, :initial_quantity, :threshold)
   end
 end

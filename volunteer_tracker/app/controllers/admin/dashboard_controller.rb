@@ -5,6 +5,6 @@ class Admin::DashboardController < ApplicationController
     @total_users = User.count
     @total_shifts = Shift.count
     @active_services = VolunteerService.where(status: "active").count
-    @low_stock_materials = Material.where("quantity <= threshold").count
+    @low_stock_materials = Material.all.select { |m| m.below_threshold? }.count
   end
 end
