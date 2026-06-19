@@ -1,0 +1,33 @@
+{
+  "name": "@seat-platform/api",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@seat-platform/shared": "^1.0.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "mongoose": "^8.3.2",
+    "redis": "^4.6.13",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.4",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "morgan": "^1.10.0",
+    "csv-writer": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/morgan": "^1.9.9",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5"
+  }
+}
