@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  LEGAL_MANAGER
+  PRO_BONO_LAWYER
+  REVIEWER
+  ADMIN
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_REVIEW
+  UNDER_REVIEW
+  REVISE_REQUESTED
+  APPROVED
+  STAMPED
+  COMPLETED
+  REJECTED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReminderType {
+  REVIEW_DEADLINE
+  STAMP_DEADLINE
+  MATERIAL_INCOMPLETE
+  RISK_ALERT
+  EFFICIENCY_REMINDER
+}
+
+enum ReminderChannel {
+  EMAIL
+  SYSTEM
+  SMS
+}
+
+enum MaterialStatus {
+  PENDING
+  UPLOADED
+  VERIFIED
+  REJECTED
+}
+
+enum OperationType {
+  UPLOAD
+  VIEW
+  REVIEW
+  APPROVE
+  REJECT
+  DOWNLOAD
+  STAMP
+  UPDATE_RULE
+  UPDATE_PERMISSION
+  RISK_FLAG
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  name            String
+  passwordHash    String
+  role            UserRole
+  avatarUrl       String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  contracts           Contract[]         @relation("uploadedContracts")
+  assignedContracts   Contract[]         @relation("assignedContracts")
+  reviews             ContractReview[]
+  reminders           Reminder[]
+  operationLogs       OperationLog[]
+  stampRecords        StampNode[]
+  downloadRecords     DownloadRecord[]
+  materialVerifications EvidenceMaterial[] @relation("materialVerifier")
+
+  @@map("users")
+}
+
+model RolePermission {
+  id        String   @id @default(cuid())
+  role      UserRole @unique
+  canUpload     Boolean @default(false)
+  canReview     Boolean @default(false)
+  canApprove    Boolean @default(false)
+  canManageRules   Boolean @default(false)
+  canManageUsers   Boolean @default(false)
+  canViewDashboard Boolean @default(false)
+  canDownload      Boolean @default(true)
+  canStamp         Boolean @default(false)
+  canViewLogs      Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("role_permissions")
+}
+
+model Contract {
+  id              String         @id @default(cuid())
+  title           String
+  contractNumber  String?        @unique
+  description     String?
+  fileUrl         String
+  fileName        String
+  fileSize        Int
+  version         Int            @default(1)
+  status          ContractStatus @default(DRAFT)
+  riskLevel       RiskLevel?
+  riskDescription String?
+  deadline        DateTime?
+  materialComplete Boolean       @default(false)
+
+  uploaderId String
+  uploader   User     @relation("uploadedContracts", fields: [uploaderId], references: [id])
+
+  assigneeId String?
+  assignee   User?   @relation("assignedContracts", fields: [assigneeId], references: [id])
+
+  reviews         ContractReview[]
+  evidenceMaterials EvidenceMaterial[]
+  stampNodes      StampNode[]
+  downloadRecords DownloadRecord[]
+  reminders       Reminder[]
+  operationLogs   OperationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([uploaderId])
+  @@index([assigneeId])
+  @@index([deadline])
+  @@map("contracts")
+}
+
+model ContractReview {
+  id          String   @id @default(cuid())
+  contractId  String
+  contract    Contract @relation(fields: [contractId], references: [id])
+  reviewerId  String
+  reviewer    User     @relation(fields: [reviewerId], references: [id])
+  comment     String
+  suggestions String?
+  riskLevel   RiskLevel?
+  isApproved  Boolean?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([reviewerId])
+  @@map("contract_reviews")
+}
+
+model ReminderRule {
+  id            String   @id @default(cuid())
+  name          String
+  type          ReminderType
+  description   String?
+  isEnabled     Boolean  @default(true)
+  beforeHours   Int      @default(24)
+  channel       ReminderChannel @default(SYSTEM)
+  template      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reminders     Reminder[]
+
+  @@index([type])
+  @@index([isEnabled])
+  @@map("reminder_rules")
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  ruleId    String?
+  rule      ReminderRule? @relation(fields: [ruleId], references: [id])
+  type      ReminderType
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  contractId String?
+  contract   Contract? @relation(fields: [contractId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  isSent    Boolean  @default(false)
+  scheduledAt DateTime?
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([contractId])
+  @@index([isRead])
+  @@map("reminders")
+}
+
+model EvidenceMaterial {
+  id          String         @id @default(cuid())
+  contractId  String
+  contract    Contract       @relation(fields: [contractId], references: [id])
+  name        String
+  fileUrl     String
+  fileType    String
+  status      MaterialStatus @default(PENDING)
+  description String?
+  uploaderId  String
+  verifierId  String?
+  verifier    User?          @relation("materialVerifier", fields: [verifierId], references: [id])
+  verifiedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([contractId])
+  @@index([status])
+  @@map("evidence_materials")
+}
+
+model StampNode {
+  id          String   @id @default(cuid())
+  contractId  String
+  contract    Contract @relation(fields: [contractId], references: [id])
+  nodeName    String
+  orderIndex  Int
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+  stampUserId String?
+  stampUser   User?    @relation(fields: [stampUserId], references: [id])
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([contractId])
+  @@map("stamp_nodes")
+}
+
+model DownloadRecord {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  fileName   String
+  downloadAt DateTime @default(now())
+  ipAddress  String?
+
+  @@index([contractId])
+  @@index([userId])
+  @@map("download_records")
+}
+
+model OperationLog {
+  id             String        @id @default(cuid())
+  operationType  OperationType
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  contractId     String?
+  contract       Contract?     @relation(fields: [contractId], references: [id])
+  description    String
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+
+  @@index([userId])
+  @@index([contractId])
+  @@index([operationType])
+  @@index([createdAt])
+  @@map("operation_logs")
+}
+
+model EfficiencyStat {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime @db.Date
+  reviewCount     Int      @default(0)
+  avgReviewTime   Int?
+  uploadCount     Int      @default(0)
+  stampCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("efficiency_stats")
+}
