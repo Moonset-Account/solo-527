@@ -55,7 +55,10 @@ export async function updateContractStatus(id: number, status: ContractStatus) {
 export async function getStuckNodes() {
   const nodes = await prisma.approvalNode.findMany({
     where: {
-      status: { in: ['PENDING', 'PROCESSING'] },
+      status: { in: ['PENDING', 'PROCESSING', 'TIMEOUT'] },
+      contract: {
+        status: { notIn: ['COMPLETED', 'ABNORMAL_CLOSED'] },
+      },
     },
     include: {
       contract: {

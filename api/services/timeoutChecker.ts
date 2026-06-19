@@ -7,6 +7,9 @@ export function startTimeoutChecker() {
       const activeNodes = await prisma.approvalNode.findMany({
         where: {
           status: { in: ['PENDING', 'PROCESSING', 'TIMEOUT'] },
+          contract: {
+            status: { notIn: ['COMPLETED', 'ABNORMAL_CLOSED'] },
+          },
         },
         include: { contract: true },
       })
