@@ -5,7 +5,7 @@
         <n-dialog-provider>
           <n-notification-provider>
             <n-loading-bar-provider>
-              <slot />
+              <NuxtPage />
             </n-loading-bar-provider>
           </n-notification-provider>
         </n-dialog-provider>

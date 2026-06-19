@@ -184,10 +184,14 @@ function statusText(s: string) {
 
 function actionOptions(row: any) {
   const opts: any[] = []
-  if (auth.isPurchaser) {
+  if (auth.canAccessAdmin) {
     if (row.status === 'pending') {
       opts.push({ label: '分配采购员', key: 'assign' })
-      opts.push({ label: '标记采购中', key: 'progress' })
+    }
+  }
+  if (auth.isPurchaser) {
+    if (row.status === 'pending' || row.status === 'assigned') {
+      opts.push({ label: '标记采购中', key: 'in_progress' })
     }
     if (['pending', 'assigned', 'in_progress'].includes(row.status)) {
       opts.push({ label: '标记已下单', key: 'ordered' })

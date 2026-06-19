@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosRequestConfig } from 'axios'
 
 const config = useRuntimeConfig()
 
@@ -39,9 +39,9 @@ api.interceptors.response.use(
 
 export const apiClient = {
   get: <T = any>(url: string, params?: any) => api.get<T, T>(url, { params }),
-  post: <T = any>(url: string, data?: any) => api.post<T, T>(url, data),
-  put: <T = any>(url: string, data?: any) => api.put<T, T>(url, data),
-  delete: <T = any>(url: string) => api.delete<T, T>(url),
+  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => api.post<T, T>(url, data, config),
+  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => api.put<T, T>(url, data, config),
+  delete: <T = any>(url: string, config?: AxiosRequestConfig) => api.delete<T, T>(url, config),
   download: (url: string) => {
     const token = localStorage.getItem('token')
     return fetch(`${config.public.apiBase || '/api/v1'}${url}`, {

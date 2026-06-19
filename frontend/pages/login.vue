@@ -89,6 +89,8 @@ onMounted(() => {
   }
 })
 
+definePageMeta({ layout: false })
+
 async function handleLogin() {
   try {
     await formRef.value?.validate()
@@ -104,3 +106,47 @@ async function handleLogin() {
   }
 }
 </script>
+
+<style lang="scss" scoped>
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 40px 36px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1d2129;
+  margin: 0 0 8px;
+  text-align: center;
+}
+.login-subtitle {
+  color: #86909c;
+  font-size: 14px;
+  margin: 0 0 32px;
+  text-align: center;
+}
+.login-form {
+  margin-bottom: 24px;
+}
+.login-footer {
+  text-align: center;
+  color: #86909c;
+  font-size: 12px;
+  line-height: 1.8;
+  border-top: 1px solid #f2f3f5;
+  padding-top: 16px;
+  p { margin: 0; }
+}
+</style>
