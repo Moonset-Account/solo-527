@@ -6,55 +6,59 @@ import com.decoration.cooperation.common.Result;
 import com.decoration.cooperation.dto.ApprovalActionDTO;
 import com.decoration.cooperation.dto.DiscountApprovalCreateDTO;
 import com.decoration.cooperation.entity.BizDiscountApproval;
-import com.decoration.cooperation.service.ApprovalService;
+import com.decoration.cooperation.service.BizDiscountApprovalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/approvals")
 @RequiredArgsConstructor
 public class ApprovalController {
 
-    private final ApprovalService approvalService;
+    private final BizDiscountApprovalService bizDiscountApprovalService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('approval:list')")
-    public Result<PageResult<BizDiscountApproval>> page(PageQuery query) {
-        return Result.success(approvalService.page(query));
+    @PreAuthorize("hasAuthority('approval:discount')")
+    public Result<PageResult<BizDiscountApproval>> page(PageQuery pageQuery) {
+        return Result.success(bizDiscountApprovalService.listApprovals(pageQuery));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('approval:list')")
-    public Result<BizDiscountApproval> getById(@PathVariable Long id) {
-        return Result.success(approvalService.getById(id));
+    @PreAuthorize("hasAuthority('approval:discount')")
+    public Result<Map<String, Object>> getById(@PathVariable Long id) {
+        return Result.success(bizDiscountApprovalService.getApprovalDetail(id));
     }
 
     @PostMapping("/discount")
-    @PreAuthorize("hasAuthority('approval:create')")
+    @PreAuthorize("hasAuthority('approval:discount')")
     public Result<Long> createDiscountApproval(@Valid @RequestBody DiscountApprovalCreateDTO dto) {
-        return Result.success(approvalService.createDiscountApproval(dto));
+        return Result.success(bizDiscountApprovalService.createApproval(dto).getId());
     }
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAuthority('approval:submit')")
+    @PreAuthorize("hasAuthority('approval:discount')")
     public Result<Void> submit(@PathVariable Long id) {
-        approvalService.submit(id);
+        bizDiscountApprovalService.submitApproval(id);
         return Result.success();
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAuthority('approval:approve')")
-    public Result<Void> approve(@PathVariable Long id, @RequestBody ApprovalActionDTO dto) {
-        approvalService.approve(id, dto);
+    @PreAuthorize("hasAuthority('approval:discount')")
+    public Result<Void> approve(@PathVariable Long id, @Valid @RequestBody ApprovalActionDTO dto) {
+        dto.setApprovalId(id);
+        bizDiscountApprovalService.approve(dto);
         return Result.success();
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAuthority('approval:approve')")
-    public Result<Void> reject(@PathVariable Long id, @RequestBody ApprovalActionDTO dto) {
-        approvalService.reject(id, dto);
+    @PreAuthorize("hasAuthority('approval:discount')")
+    public Result<Void> reject(@PathVariable Long id, @Valid @RequestBody ApprovalActionDTO dto) {
+        dto.setApprovalId(id);
+        bizDiscountApprovalService.reject(dto);
         return Result.success();
     }
 }

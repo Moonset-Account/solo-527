@@ -47,6 +47,9 @@ jwt:
   header: Authorization
   prefix: Bearer
 
+upload:
+  path: uploads
+
 logging:
   level:
     com.decoration.cooperation: debug

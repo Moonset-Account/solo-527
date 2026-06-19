@@ -267,7 +267,7 @@ const confirmReject = async () => {
 }
 
 const handleView = (row) => {
-  router.push(`/approval/${row.id}`)
+  router.push(`/approvals/${row.id}`)
 }
 
 onMounted(() => {

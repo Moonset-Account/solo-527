@@ -3,22 +3,29 @@ package com.decoration.cooperation.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.decoration.cooperation.dto.FollowRecordCreateDTO;
+import com.decoration.cooperation.entity.BizAttachment;
 import com.decoration.cooperation.entity.BizFollowRecord;
 import com.decoration.cooperation.entity.BizLead;
 import com.decoration.cooperation.entity.SysUser;
 import com.decoration.cooperation.exception.BusinessException;
+import com.decoration.cooperation.mapper.BizAttachmentMapper;
 import com.decoration.cooperation.mapper.BizFollowRecordMapper;
 import com.decoration.cooperation.mapper.BizLeadMapper;
 import com.decoration.cooperation.mapper.SysUserMapper;
+import com.decoration.cooperation.service.BizAttachmentService;
 import com.decoration.cooperation.service.BizFollowRecordService;
 import com.decoration.cooperation.vo.TimelineItemVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,13 +33,19 @@ public class BizFollowRecordServiceImpl extends ServiceImpl<BizFollowRecordMappe
 
     private final SysUserMapper sysUserMapper;
     private final BizLeadMapper bizLeadMapper;
+    private final BizAttachmentMapper bizAttachmentMapper;
+    private final BizAttachmentService bizAttachmentService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public BizFollowRecord createFollow(FollowRecordCreateDTO dto) {
+        SysUser currentUser = (SysUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
         BizFollowRecord record = new BizFollowRecord();
         record.setLeadId(dto.getLeadId());
         record.setContractId(dto.getContractId());
+        record.setFollowerId(currentUser.getId());
+        record.setFollowerName(currentUser.getRealName());
         record.setFollowType(dto.getFollowType());
         record.setFollowStage(dto.getFollowStage());
         record.setSourceReference(dto.getSourceReference());
@@ -42,6 +55,24 @@ public class BizFollowRecordServiceImpl extends ServiceImpl<BizFollowRecordMappe
         record.setProcessDuration(dto.getProcessDuration());
         record.setAttachmentIds(dto.getAttachmentIds());
         save(record);
+
+        if (StringUtils.hasText(dto.getContractReference()) && dto.getContractId() != null) {
+            List<BizAttachment> contractAttachments = bizAttachmentService.listByBiz("CONTRACT", dto.getContractId());
+            if (contractAttachments != null && !contractAttachments.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                if (StringUtils.hasText(dto.getAttachmentIds())) {
+                    sb.append(dto.getAttachmentIds());
+                }
+                for (BizAttachment att : contractAttachments) {
+                    if (sb.length() > 0) {
+                        sb.append(",");
+                    }
+                    sb.append(att.getId());
+                }
+                record.setAttachmentIds(sb.toString());
+                updateById(record);
+            }
+        }
 
         if (dto.getLeadId() != null) {
             BizLead lead = bizLeadMapper.selectById(dto.getLeadId());
@@ -100,6 +131,18 @@ public class BizFollowRecordServiceImpl extends ServiceImpl<BizFollowRecordMappe
                 SysUser user = sysUserMapper.selectById(record.getFollowerId());
                 if (user != null) {
                     item.setOperatorName(user.getRealName());
+                }
+            }
+
+            if (StringUtils.hasText(record.getAttachmentIds())) {
+                List<Long> attachmentIdList = Arrays.stream(record.getAttachmentIds().split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .map(Long::parseLong)
+                        .collect(Collectors.toList());
+                if (!attachmentIdList.isEmpty()) {
+                    List<BizAttachment> attachments = bizAttachmentMapper.selectBatchIds(attachmentIdList);
+                    item.setAttachments(attachments);
                 }
             }
 

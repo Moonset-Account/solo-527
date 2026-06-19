@@ -19,27 +19,27 @@ public class ReportController {
 
     private final ReportService reportService;
 
+    @GetMapping("/deal-prediction")
+    @PreAuthorize("hasAuthority('report:prediction')")
+    public Result<DealPredictionVO> dealPrediction() {
+        return Result.success(reportService.getDealPrediction());
+    }
+
     @GetMapping("/payment-progress")
-    @PreAuthorize("hasAuthority('report:view')")
-    public Result<PageResult<PaymentProgressVO>> paymentProgressPage(PageQuery query) {
-        return Result.success(reportService.paymentProgressPage(query));
+    @PreAuthorize("hasAuthority('report:payment')")
+    public Result<PageResult<PaymentProgressVO>> paymentProgress(PageQuery pageQuery) {
+        return Result.success(reportService.getPaymentProgressReport(pageQuery));
     }
 
     @GetMapping("/payment-progress/{contractId}")
-    @PreAuthorize("hasAuthority('report:view')")
+    @PreAuthorize("hasAuthority('report:payment')")
     public Result<PaymentProgressVO> paymentProgressDetail(@PathVariable Long contractId) {
-        return Result.success(reportService.paymentProgressDetail(contractId));
-    }
-
-    @GetMapping("/deal-prediction")
-    @PreAuthorize("hasAuthority('report:view')")
-    public Result<DealPredictionVO> dealPrediction() {
-        return Result.success(reportService.dealPrediction());
+        return Result.success(reportService.getPaymentProgressDetail(contractId));
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('dashboard')")
     public Result<Map<String, Object>> dashboard() {
-        return Result.success(reportService.dashboard());
+        return Result.success(reportService.getDashboardStatistics());
     }
 }

@@ -445,13 +445,13 @@ INSERT INTO sys_role (id, role_code, role_name, description) VALUES
 (6, 'GENERAL_MANAGER', '总经理', '高层审批、数据看板');
 
 INSERT INTO sys_user (id, username, password, real_name, phone, email, dept_id, status) VALUES
-(1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '系统管理员', '13800000000', 'admin@decoration.com', 1, 1),
-(2, 'manager', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '李经理', '13800000002', 'manager@decoration.com', 2, 1),
-(3, 'sales01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '销售员A', '13800000010', 'sales01@decoration.com', 2, 1),
-(4, 'sales02', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '销售员B', '13800000011', 'sales02@decoration.com', 2, 1),
-(5, 'designer01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '设计师A', '13800000020', 'designer01@decoration.com', 3, 1),
-(6, 'finance01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '财务A', '13800000030', 'finance01@decoration.com', 5, 1),
-(7, 'gm01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '总经理', '13800000099', 'gm@decoration.com', 1, 1);
+(1, 'admin', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '系统管理员', '13800000000', 'admin@decoration.com', 1, 1),
+(2, 'manager', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '李经理', '13800000002', 'manager@decoration.com', 2, 1),
+(3, 'sales01', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '销售员A', '13800000010', 'sales01@decoration.com', 2, 1),
+(4, 'sales02', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '销售员B', '13800000011', 'sales02@decoration.com', 2, 1),
+(5, 'designer01', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '设计师A', '13800000020', 'designer01@decoration.com', 3, 1),
+(6, 'finance01', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '财务A', '13800000030', 'finance01@decoration.com', 5, 1),
+(7, 'gm01', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '总经理', '13800000099', 'gm@decoration.com', 1, 1);
 
 INSERT INTO sys_user_role (user_id, role_id) VALUES
 (1, 1), (2, 2), (3, 3), (4, 3), (5, 4), (6, 5), (7, 6);
@@ -467,23 +467,28 @@ INSERT INTO sys_permission (id, permission_code, permission_name, parent_id, typ
 (8, 'contract', '合同管理', 0, 1, '/contract', 'document', 3),
 (9, 'contract:list', '合同列表', 8, 2, '/contract/list', '', 1),
 (10, 'contract:create', '创建合同', 8, 2, '', '', 2),
-(11, 'contract:discount', '折扣申请', 8, 2, '', '', 3),
-(12, 'approval', '审批中心', 0, 1, '/approval', 'check', 4),
-(13, 'approval:discount', '折扣审批', 12, 2, '/approval/discount', '', 1),
-(14, 'approval:contract', '合同审批', 12, 2, '/approval/contract', '', 2),
-(15, 'todo', '待办任务', 0, 1, '/todo', 'bell', 5),
-(16, 'todo:my', '我的待办', 15, 2, '/todo/my', '', 1),
-(17, 'report', '报表中心', 0, 1, '/report', 'data-analysis', 6),
-(18, 'report:payment', '回款进度', 17, 2, '/report/payment', '', 1),
-(19, 'report:prediction', '成交预测', 17, 2, '/report/prediction', '', 2),
-(20, 'system', '系统管理', 0, 1, '/system', 'setting', 99),
-(21, 'system:user', '用户管理', 20, 2, '/system/user', '', 1),
-(22, 'system:role', '角色管理', 20, 2, '/system/role', '', 2);
+(11, 'contract:edit', '编辑合同', 8, 2, '', '', 3),
+(12, 'contract:view', '查看合同详情', 8, 2, '', '', 4),
+(13, 'approval', '审批中心', 0, 1, '/approval', 'check', 4),
+(14, 'approval:discount', '折扣审批', 13, 2, '/approval/discount', '', 1),
+(15, 'approval:contract', '合同审批', 13, 2, '/approval/contract', '', 2),
+(16, 'approval:approve', '审批操作', 13, 2, '', '', 3),
+(17, 'todo', '待办任务', 0, 1, '/todo', 'bell', 5),
+(18, 'todo:my', '我的待办', 17, 2, '/todo/my', '', 1),
+(19, 'todo:create', '新建待办', 17, 2, '', '', 2),
+(20, 'todo:edit', '编辑待办', 17, 2, '', '', 3),
+(21, 'report', '报表中心', 0, 1, '/report', 'data-analysis', 6),
+(22, 'report:payment', '回款进度', 21, 2, '/report/payment', '', 1),
+(23, 'report:prediction', '成交预测', 21, 2, '/report/prediction', '', 2),
+(24, 'report:view', '查看报表', 21, 2, '', '', 3),
+(25, 'system', '系统管理', 0, 1, '/system', 'setting', 99),
+(26, 'system:user', '用户管理', 25, 2, '/system/user', '', 1),
+(27, 'system:role', '角色管理', 25, 2, '/system/role', '', 2);
 
 INSERT INTO sys_role_permission (role_id, permission_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21), (1, 22),
-(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (2, 11), (2, 12), (2, 13), (2, 15), (2, 16), (2, 17), (2, 18), (2, 19),
-(3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 8), (3, 9), (3, 10), (3, 11), (3, 15), (3, 16),
-(4, 1), (4, 2), (4, 3), (4, 6), (4, 15), (4, 16),
-(5, 1), (5, 8), (5, 9), (5, 17), (5, 18),
-(6, 1), (6, 2), (6, 3), (6, 6), (6, 8), (6, 9), (6, 12), (6, 13), (6, 14), (6, 17), (6, 18), (6, 19);
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 26), (1, 27),
+(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (2, 11), (2, 12), (2, 13), (2, 14), (2, 16), (2, 17), (2, 18), (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24),
+(3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 17), (3, 18), (3, 19), (3, 20),
+(4, 1), (4, 2), (4, 3), (4, 6), (4, 17), (4, 18), (4, 19), (4, 20),
+(5, 1), (5, 8), (5, 9), (5, 12), (5, 21), (5, 22), (5, 24),
+(6, 1), (6, 2), (6, 3), (6, 6), (6, 8), (6, 9), (6, 12), (6, 13), (6, 14), (6, 15), (6, 16), (6, 21), (6, 22), (6, 23), (6, 24);

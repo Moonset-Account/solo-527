@@ -1,8 +1,10 @@
 package com.decoration.cooperation.vo;
 
+import com.decoration.cooperation.entity.BizAttachment;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class TimelineItemVO {
@@ -19,4 +21,5 @@ public class TimelineItemVO {
     private String contractReference;
     private String stageReference;
     private String sourceReference;
+    private List<BizAttachment> attachments;
 }

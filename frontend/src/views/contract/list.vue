@@ -138,19 +138,19 @@ const handleReset = () => {
 }
 
 const handleCreate = () => {
-  router.push('/contract/create')
+  router.push('/contracts/create')
 }
 
 const handleView = (row) => {
-  router.push(`/contract/${row.id}`)
+  router.push(`/contracts/${row.id}`)
 }
 
 const handleDiscountApply = (row) => {
-  router.push({ path: '/approval/discount/apply', query: { contractId: row.id } })
+  router.push({ path: '/approvals/discount/apply', query: { contractId: row.id } })
 }
 
 const handleApprovalStatus = (row) => {
-  router.push(`/contract/${row.id}/approval`)
+  router.push(`/contracts/${row.id}/approval`)
 }
 
 onMounted(() => {

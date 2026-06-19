@@ -3,6 +3,7 @@
     <el-upload
       :action="uploadUrl"
       :headers="uploadHeaders"
+      :name="fileParamName"
       :file-list="fileList"
       :multiple="multiple"
       :limit="limit"
@@ -26,9 +27,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getToken } from '@/utils/auth'
 
 const props = defineProps({
   modelValue: {
@@ -38,6 +40,10 @@ const props = defineProps({
   uploadUrl: {
     type: String,
     default: '/api/upload'
+  },
+  fileParamName: {
+    type: String,
+    default: 'file'
   },
   multiple: {
     type: Boolean,
@@ -60,8 +66,10 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const fileList = ref([])
-const token = localStorage.getItem('token')
-const uploadHeaders = ref(token ? { Authorization: `Bearer ${token}` } : {})
+const uploadHeaders = computed(() => {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+})
 
 watch(() => props.modelValue, (val) => {
   if (val && val.length) {

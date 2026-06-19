@@ -45,11 +45,14 @@ import { useUserStore } from '@/store/user'
 import {
   DataAnalysis,
   User,
-  Files,
-  EditPen,
-  List,
-  Timer,
-  Document
+  Document,
+  Check,
+  Bell,
+  Wallet,
+  TrendCharts,
+  Setting,
+  UserFilled,
+  HomeFilled
 } from '@element-plus/icons-vue'
 
 defineProps({
@@ -67,8 +70,8 @@ const activeMenu = computed(() => route.path)
 const allMenus = [
   {
     path: '/dashboard',
-    title: '数据看板',
-    icon: DataAnalysis,
+    title: '工作台',
+    icon: HomeFilled,
     permission: null
   },
   {
@@ -77,36 +80,53 @@ const allMenus = [
     icon: User,
     permission: 'lead:list',
     children: [
-      { path: '/leads', title: '线索列表', permission: 'lead:list' },
-      { path: '/leads/create', title: '新建线索', permission: 'lead:create' }
+      { path: '/leads', title: '线索列表', permission: 'lead:list' }
     ]
   },
   {
     path: '/contracts',
     title: '合同管理',
-    icon: Files,
-    permission: 'contract:list'
+    icon: Document,
+    permission: 'contract:list',
+    children: [
+      { path: '/contracts', title: '合同列表', permission: 'contract:list' }
+    ]
   },
   {
     path: '/approvals',
-    title: '审批管理',
-    icon: EditPen,
-    permission: 'approval:list'
+    title: '审批中心',
+    icon: Check,
+    permission: 'approval:discount',
+    children: [
+      { path: '/approvals/discount', title: '折扣审批', permission: 'approval:discount' }
+    ]
   },
   {
     path: '/todos',
-    title: '待办事项',
-    icon: List,
-    permission: null
+    title: '待办任务',
+    icon: Bell,
+    permission: 'todo:my',
+    children: [
+      { path: '/todos/my', title: '我的待办', permission: 'todo:my' }
+    ]
   },
   {
     path: '/reports',
     title: '报表中心',
-    icon: Document,
-    permission: 'report:view',
+    icon: DataAnalysis,
+    permission: 'report:payment',
     children: [
-      { path: '/reports/payment', title: '回款进度', permission: 'report:view' },
-      { path: '/reports/prediction', title: '成单预测', permission: 'report:view' }
+      { path: '/reports/payment', title: '回款进度', permission: 'report:payment' },
+      { path: '/reports/prediction', title: '成交预测', permission: 'report:prediction' }
+    ]
+  },
+  {
+    path: '/system',
+    title: '系统管理',
+    icon: Setting,
+    permission: 'system:user',
+    children: [
+      { path: '/system/user', title: '用户管理', permission: 'system:user' }
     ]
   }
 ]

@@ -96,9 +96,9 @@
                 </template>
               </el-table-column>
               <el-table-column prop="signTime" label="签约时间" />
-              <el-table-column label="操作">
+              <el-table-column label="操作" width="100">
                 <template #default="{ row }">
-                  <el-button type="primary" link size="small">查看</el-button>
+                  <el-button type="primary" link size="small" @click="handleViewContract(row)">查看</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -336,6 +336,10 @@ const confirmFollow = async () => {
 
 const handleCreateContract = () => {
   ElMessage.info('创建合同')
+}
+
+const handleViewContract = (row) => {
+  router.push(`/contracts/${row.id}`)
 }
 
 const handleUpdateStatus = async (status) => {

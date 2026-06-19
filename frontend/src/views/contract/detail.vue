@@ -80,14 +80,30 @@
               <span class="card-title">附件列表</span>
             </div>
           </template>
-          <div v-if="attachments && attachments.length" class="attachment-list">
-            <div v-for="(item, index) in attachments" :key="index" class="attachment-item">
+          <div class="attachment-upload-wrapper">
+            <AttachmentUpload
+              v-model="attachmentList"
+              :upload-url="uploadUrl"
+              @change="handleAttachmentChange"
+            />
+          </div>
+          <div v-if="attachmentList && attachmentList.length" class="attachment-list">
+            <div v-for="(item, index) in attachmentList" :key="item.id || index" class="attachment-item">
               <el-icon class="attachment-icon"><Document /></el-icon>
               <a :href="item.url" target="_blank" class="attachment-name">{{ item.name }}</a>
               <span class="attachment-size">{{ formatFileSize(item.size) }}</span>
+              <el-button
+                type="danger"
+                link
+                size="small"
+                class="delete-btn"
+                @click="handleDeleteAttachment(item)"
+              >
+                删除
+              </el-button>
             </div>
           </div>
-          <el-empty v-else description="暂无附件" />
+          <el-empty v-if="!attachmentList || !attachmentList.length" description="暂无附件" />
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -105,12 +121,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import TimelineCard from '@/components/TimelineCard.vue'
-import { getContractDetail } from '@/api/contract'
+import AttachmentUpload from '@/components/AttachmentUpload.vue'
+import { getContractDetail, deleteContractAttachment } from '@/api/contract'
 import { DECORATION_TYPE, getDecorationTypeName } from '@/utils/dict'
 import { formatAmount, formatPercent, formatPhone, formatFileSize } from '@/utils/format'
 
@@ -119,7 +137,7 @@ const router = useRouter()
 
 const loading = ref(false)
 const detail = ref({})
-const attachments = ref([])
+const attachmentList = ref([])
 const timelineItems = ref([])
 
 const contractStatusTagMap = {
@@ -143,6 +161,11 @@ const approvalStatusTagMap = {
 
 const decorationType = ref('')
 
+const uploadUrl = computed(() => {
+  const id = route.params.id
+  return `/api/contracts/${id}/attachments`
+})
+
 const fetchDetail = async () => {
   loading.value = true
   try {
@@ -150,7 +173,7 @@ const fetchDetail = async () => {
     const res = await getContractDetail(id)
     detail.value = res.data || {}
     decorationType.value = detail.value.decorationType
-    attachments.value = detail.value.attachments || []
+    attachmentList.value = detail.value.attachments || []
     timelineItems.value = detail.value.operationLogs || detail.value.timeline || []
   } catch (e) {
     console.error(e)
@@ -164,7 +187,30 @@ const handleBack = () => {
 }
 
 const handleEdit = () => {
-  router.push(`/contract/${route.params.id}/edit`)
+  router.push(`/contracts/${route.params.id}/edit`)
+}
+
+const handleAttachmentChange = (files) => {
+  attachmentList.value = files
+}
+
+const handleDeleteAttachment = async (item) => {
+  try {
+    await ElMessageBox.confirm('确定删除该附件吗？', '提示', {
+      type: 'warning'
+    })
+    if (item.id) {
+      await deleteContractAttachment(route.params.id, item.id)
+    }
+    attachmentList.value = attachmentList.value.filter(
+      att => att.id !== item.id && att.url !== item.url
+    )
+    ElMessage.success('删除成功')
+  } catch (e) {
+    if (e !== 'cancel') {
+      console.error(e)
+    }
+  }
 }
 
 onMounted(() => {
@@ -210,6 +256,12 @@ onMounted(() => {
     font-weight: 600;
   }
 
+  .attachment-upload-wrapper {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #ebeef5;
+  }
+
   .attachment-list {
     .attachment-item {
       display: flex;
@@ -244,6 +296,11 @@ onMounted(() => {
         color: #909399;
         font-size: 12px;
         margin-left: 8px;
+        margin-right: 8px;
+      }
+
+      .delete-btn {
+        margin-left: auto;
       }
     }
   }

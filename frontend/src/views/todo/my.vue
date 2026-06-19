@@ -227,9 +227,9 @@ const handleReset = () => {
 const handleProcess = async (row) => {
   if (row.businessType && row.businessId) {
     const routeMap = {
-      CONTRACT: `/contract/${row.businessId}`,
-      APPROVAL: `/approval/${row.businessId}`,
-      LEAD: `/lead/${row.businessId}`
+      CONTRACT: `/contracts/${row.businessId}`,
+      APPROVAL: `/approvals/${row.businessId}`,
+      LEAD: `/leads/${row.businessId}`
     }
     const path = routeMap[row.businessType]
     if (path) {
@@ -252,9 +252,9 @@ const handleProcess = async (row) => {
 const handleView = (row) => {
   if (row.businessType && row.businessId) {
     const routeMap = {
-      CONTRACT: `/contract/${row.businessId}`,
-      APPROVAL: `/approval/${row.businessId}`,
-      LEAD: `/lead/${row.businessId}`
+      CONTRACT: `/contracts/${row.businessId}`,
+      APPROVAL: `/approvals/${row.businessId}`,
+      LEAD: `/leads/${row.businessId}`
     }
     const path = routeMap[row.businessType]
     if (path) {
@@ -262,7 +262,7 @@ const handleView = (row) => {
       return
     }
   }
-  router.push(`/todo/${row.id}`)
+  router.push(`/todos/${row.id}`)
 }
 
 onMounted(() => {

@@ -177,9 +177,9 @@ const loadTodoList = async () => {
 
 const handleTodo = (row) => {
   if (row.relatedType === 'LEAD' && row.relatedId) {
-    router.push(`/lead/detail/${row.relatedId}`)
+    router.push(`/leads/${row.relatedId}`)
   } else if (row.relatedType === 'CONTRACT' && row.relatedId) {
-    router.push(`/contract/detail/${row.relatedId}`)
+    router.push(`/contracts/${row.relatedId}`)
   } else {
     ElMessage.info('请前往待办页面处理')
   }
@@ -197,19 +197,19 @@ const handleComplete = async (row) => {
 }
 
 const goToTodo = () => {
-  router.push('/todo/my')
+  router.push('/todos/my')
 }
 
 const goToCreateLead = () => {
-  router.push('/lead/list')
+  router.push('/leads')
 }
 
 const goToApproval = () => {
-  router.push('/approval/discount')
+  router.push('/approvals/discount')
 }
 
 const goToCustomer = () => {
-  router.push('/lead/list')
+  router.push('/leads')
 }
 
 onMounted(() => {

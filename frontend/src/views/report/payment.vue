@@ -170,7 +170,7 @@ const handleReset = () => {
 }
 
 const handleViewDetail = (row) => {
-  router.push(`/report/payment-detail/${row.contractId}`)
+  router.push(`/reports/payment/${row.contractId}`)
 }
 
 onMounted(() => {

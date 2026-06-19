@@ -18,6 +18,7 @@ import com.decoration.cooperation.mapper.BizLeadMapper;
 import com.decoration.cooperation.mapper.BizPaymentPlanMapper;
 import com.decoration.cooperation.mapper.BizPaymentRecordMapper;
 import com.decoration.cooperation.mapper.SysUserMapper;
+import com.decoration.cooperation.service.BizAttachmentService;
 import com.decoration.cooperation.service.BizContractService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class BizContractServiceImpl extends ServiceImpl<BizContractMapper, BizCo
     private final SysUserMapper sysUserMapper;
     private final BizPaymentPlanMapper bizPaymentPlanMapper;
     private final BizPaymentRecordMapper bizPaymentRecordMapper;
+    private final BizAttachmentService bizAttachmentService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -127,6 +129,8 @@ public class BizContractServiceImpl extends ServiceImpl<BizContractMapper, BizCo
         recordWrapper.orderByDesc(BizPaymentRecord::getCreateTime);
         List<BizPaymentRecord> records = bizPaymentRecordMapper.selectList(recordWrapper);
         detail.put("paymentRecords", records);
+
+        detail.put("attachments", bizAttachmentService.listByBiz("CONTRACT", id));
 
         return detail;
     }

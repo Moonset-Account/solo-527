@@ -37,37 +37,37 @@ const asyncRoutes = [
     ]
   },
   {
-    path: '/lead',
+    path: '/leads',
     component: () => import('@/layout/index.vue'),
     meta: { title: '线索管理', icon: 'User' },
     children: [
       {
-        path: 'list',
+        path: '',
         name: 'LeadList',
         component: () => import('@/views/lead/list.vue'),
         meta: { title: '线索列表', icon: 'List', permission: 'lead:list' }
       },
       {
-        path: 'detail/:id',
+        path: ':id',
         name: 'LeadDetail',
         component: () => import('@/views/lead/detail.vue'),
-        meta: { title: '线索详情', hidden: true, permission: 'lead:view' }
+        meta: { title: '线索详情', hidden: true, permission: 'lead:list' }
       }
     ]
   },
   {
-    path: '/contract',
+    path: '/contracts',
     component: () => import('@/layout/index.vue'),
     meta: { title: '合同管理', icon: 'Document' },
     children: [
       {
-        path: 'list',
+        path: '',
         name: 'ContractList',
         component: () => import('@/views/contract/list.vue'),
         meta: { title: '合同列表', icon: 'Document', permission: 'contract:list' }
       },
       {
-        path: 'detail/:id',
+        path: ':id',
         name: 'ContractDetail',
         component: () => import('@/views/contract/detail.vue'),
         meta: { title: '合同详情', hidden: true, permission: 'contract:list' }
@@ -75,7 +75,7 @@ const asyncRoutes = [
     ]
   },
   {
-    path: '/approval',
+    path: '/approvals',
     component: () => import('@/layout/index.vue'),
     meta: { title: '审批中心', icon: 'Check' },
     children: [
@@ -86,7 +86,7 @@ const asyncRoutes = [
         meta: { title: '折扣审批', icon: 'Money', permission: 'approval:discount' }
       },
       {
-        path: 'detail/:id',
+        path: ':id',
         name: 'ApprovalDetail',
         component: () => import('@/views/approval/detail.vue'),
         meta: { title: '审批详情', hidden: true, permission: 'approval:discount' }
@@ -94,7 +94,7 @@ const asyncRoutes = [
     ]
   },
   {
-    path: '/todo',
+    path: '/todos',
     component: () => import('@/layout/index.vue'),
     meta: { title: '待办任务', icon: 'Bell' },
     children: [
@@ -107,7 +107,7 @@ const asyncRoutes = [
     ]
   },
   {
-    path: '/report',
+    path: '/reports',
     component: () => import('@/layout/index.vue'),
     meta: { title: '报表中心', icon: 'DataAnalysis' },
     children: [
@@ -118,7 +118,7 @@ const asyncRoutes = [
         meta: { title: '回款进度', icon: 'Wallet', permission: 'report:payment' }
       },
       {
-        path: 'payment-detail/:id',
+        path: 'payment/:id',
         name: 'PaymentDetail',
         component: () => import('@/views/report/payment-detail.vue'),
         meta: { title: '回款详情', hidden: true, permission: 'report:payment' }

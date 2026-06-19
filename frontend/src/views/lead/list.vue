@@ -196,7 +196,7 @@ const handleCreate = () => {
 }
 
 const handleView = (row) => {
-  router.push(`/lead/detail/${row.id}`)
+  router.push(`/leads/${row.id}`)
 }
 
 const handleEdit = (row) => {

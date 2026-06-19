@@ -38,3 +38,28 @@ export function updateContractStatus(id, status) {
     params: { status }
   })
 }
+
+export function getContractAttachments(id) {
+  return request({
+    url: `/contracts/${id}/attachments`,
+    method: 'get'
+  })
+}
+
+export function uploadContractAttachment(id, formData) {
+  return request({
+    url: `/contracts/${id}/attachments`,
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+export function deleteContractAttachment(id, attachmentId) {
+  return request({
+    url: `/contracts/${id}/attachments/${attachmentId}`,
+    method: 'delete'
+  })
+}

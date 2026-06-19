@@ -1,28 +1,42 @@
 package com.decoration.cooperation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.decoration.cooperation.common.PageQuery;
+import com.decoration.cooperation.common.PageResult;
+import com.decoration.cooperation.entity.BizConflictRecord;
 import com.decoration.cooperation.entity.BizContract;
+import com.decoration.cooperation.entity.BizCustomer;
 import com.decoration.cooperation.entity.BizLead;
+import com.decoration.cooperation.entity.BizPaymentPlan;
 import com.decoration.cooperation.entity.BizPaymentRecord;
 import com.decoration.cooperation.entity.BizTodoTask;
 import com.decoration.cooperation.entity.SysUser;
+import com.decoration.cooperation.exception.BusinessException;
+import com.decoration.cooperation.mapper.BizConflictRecordMapper;
 import com.decoration.cooperation.mapper.BizContractMapper;
+import com.decoration.cooperation.mapper.BizCustomerMapper;
 import com.decoration.cooperation.mapper.BizLeadMapper;
+import com.decoration.cooperation.mapper.BizPaymentPlanMapper;
 import com.decoration.cooperation.mapper.BizPaymentRecordMapper;
 import com.decoration.cooperation.mapper.BizTodoTaskMapper;
 import com.decoration.cooperation.mapper.SysUserMapper;
 import com.decoration.cooperation.service.ReportService;
 import com.decoration.cooperation.vo.DealPredictionVO;
+import com.decoration.cooperation.vo.PaymentProgressVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +47,9 @@ public class ReportServiceImpl implements ReportService {
     private final BizPaymentRecordMapper bizPaymentRecordMapper;
     private final BizTodoTaskMapper bizTodoTaskMapper;
     private final SysUserMapper sysUserMapper;
+    private final BizCustomerMapper bizCustomerMapper;
+    private final BizPaymentPlanMapper bizPaymentPlanMapper;
+    private final BizConflictRecordMapper bizConflictRecordMapper;
 
     @Override
     public DealPredictionVO getDealPrediction() {
@@ -162,6 +179,157 @@ public class ReportServiceImpl implements ReportService {
         vo.setMonthlyTrend(monthlyTrend);
 
         return vo;
+    }
+
+    @Override
+    public PageResult<PaymentProgressVO> getPaymentProgressReport(PageQuery pageQuery) {
+        Page<BizContract> page = new Page<>(pageQuery.getCurrent(), pageQuery.getSize());
+        LambdaQueryWrapper<BizContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(BizContract::getStatus, "SIGNED", "EFFECTIVE", "COMPLETED");
+        if (StringUtils.hasText(pageQuery.getKeyword())) {
+            wrapper.and(w -> w.like(BizContract::getContractName, pageQuery.getKeyword())
+                    .or().like(BizContract::getContractNo, pageQuery.getKeyword()));
+        }
+        if (pageQuery.getOwnerId() != null) {
+            wrapper.eq(BizContract::getOwnerId, pageQuery.getOwnerId());
+        }
+        wrapper.orderByDesc(BizContract::getCreateTime);
+        Page<BizContract> result = page(page, wrapper);
+
+        List<PaymentProgressVO> voList = new ArrayList<>();
+        for (BizContract contract : result.getRecords()) {
+            PaymentProgressVO vo = buildPaymentProgressVO(contract, false);
+            voList.add(vo);
+        }
+
+        PageResult<PaymentProgressVO> pageResult = new PageResult<>();
+        pageResult.setRecords(voList);
+        pageResult.setTotal(result.getTotal());
+        pageResult.setCurrent(result.getCurrent());
+        pageResult.setSize(result.getSize());
+        return pageResult;
+    }
+
+    @Override
+    public PaymentProgressVO getPaymentProgressDetail(Long contractId) {
+        BizContract contract = bizContractMapper.selectById(contractId);
+        if (contract == null) {
+            throw new BusinessException("合同不存在");
+        }
+        return buildPaymentProgressVO(contract, true);
+    }
+
+    private PaymentProgressVO buildPaymentProgressVO(BizContract contract, boolean includeDetail) {
+        PaymentProgressVO vo = new PaymentProgressVO();
+        vo.setContractId(contract.getId());
+        vo.setContractNo(contract.getContractNo());
+        vo.setContractName(contract.getContractName());
+
+        BigDecimal contractAmount = contract.getFinalPrice() != null ? contract.getFinalPrice() : contract.getOriginalPrice();
+        if (contractAmount == null) {
+            contractAmount = BigDecimal.ZERO;
+        }
+        vo.setContractAmount(contractAmount);
+
+        if (contract.getLeadId() != null) {
+            BizLead lead = bizLeadMapper.selectById(contract.getLeadId());
+            if (lead != null) {
+                vo.setLeadId(lead.getId());
+                vo.setLeadNo(lead.getLeadNo());
+                vo.setProjectName(lead.getProjectName());
+                vo.setConflictExplain(buildConflictExplain(lead));
+            }
+        }
+
+        if (contract.getCustomerId() != null) {
+            BizCustomer customer = bizCustomerMapper.selectById(contract.getCustomerId());
+            if (customer != null) {
+                vo.setCustomerId(customer.getId());
+                vo.setCustomerName(customer.getCustomerName());
+                vo.setCustomerPhone(customer.getPhone());
+            }
+        }
+
+        if (contract.getOwnerId() != null) {
+            SysUser owner = sysUserMapper.selectById(contract.getOwnerId());
+            if (owner != null) {
+                vo.setOwnerId(owner.getId());
+                vo.setOwnerName(owner.getRealName());
+            }
+        }
+
+        LambdaQueryWrapper<BizPaymentPlan> planWrapper = new LambdaQueryWrapper<>();
+        planWrapper.eq(BizPaymentPlan::getContractId, contract.getId());
+        planWrapper.orderByAsc(BizPaymentPlan::getPeriodNo);
+        List<BizPaymentPlan> plans = bizPaymentPlanMapper.selectList(planWrapper);
+        BigDecimal totalPlanAmount = BigDecimal.ZERO;
+        BigDecimal totalActualAmount = BigDecimal.ZERO;
+        for (BizPaymentPlan plan : plans) {
+            if (plan.getPlanAmount() != null) {
+                totalPlanAmount = totalPlanAmount.add(plan.getPlanAmount());
+            }
+            if (plan.getActualAmount() != null) {
+                totalActualAmount = totalActualAmount.add(plan.getActualAmount());
+            }
+        }
+        vo.setTotalPlanAmount(totalPlanAmount);
+        vo.setTotalActualAmount(totalActualAmount);
+
+        if (contractAmount.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal progress = totalActualAmount.divide(contractAmount, 4, BigDecimal.ROUND_HALF_UP)
+                    .multiply(new BigDecimal("100"));
+            vo.setPaymentProgress(progress);
+        } else {
+            vo.setPaymentProgress(BigDecimal.ZERO);
+        }
+
+        LocalDateTime startTime = contract.getCreateTime();
+        LocalDateTime endTime;
+        if ("COMPLETED".equals(contract.getStatus())) {
+            endTime = contract.getUpdateTime();
+        } else {
+            endTime = LocalDateTime.now();
+        }
+        if (startTime != null && endTime != null) {
+            vo.setProcessDuration(Duration.between(startTime, endTime).toMillis());
+        }
+
+        if (includeDetail) {
+            vo.setPlans(plans);
+
+            LambdaQueryWrapper<BizPaymentRecord> recordWrapper = new LambdaQueryWrapper<>();
+            recordWrapper.eq(BizPaymentRecord::getContractId, contract.getId());
+            recordWrapper.orderByDesc(BizPaymentRecord::getCreateTime);
+            List<BizPaymentRecord> records = bizPaymentRecordMapper.selectList(recordWrapper);
+            vo.setRecords(records);
+        }
+
+        return vo;
+    }
+
+    private String buildConflictExplain(BizLead lead) {
+        if (lead.getConflictFlag() == null || lead.getConflictFlag() == 0) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder("存在撞单情况");
+        if (StringUtils.hasText(lead.getConflictWithIds())) {
+            List<Long> conflictIds = java.util.Arrays.stream(lead.getConflictWithIds().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::parseLong)
+                    .collect(Collectors.toList());
+            if (!conflictIds.isEmpty()) {
+                List<BizLead> conflictLeads = bizLeadMapper.selectBatchIds(conflictIds);
+                if (!conflictLeads.isEmpty()) {
+                    sb.append("，撞单线索：");
+                    List<String> leadNos = conflictLeads.stream()
+                            .map(BizLead::getLeadNo)
+                            .collect(Collectors.toList());
+                    sb.append(String.join("、", leadNos));
+                }
+            }
+        }
+        return sb.toString();
     }
 
     @Override
