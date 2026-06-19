@@ -137,7 +137,6 @@ const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-const rawData = ref({})
 const detail = ref({})
 const attachmentList = ref([])
 const timelineItems = ref([])
@@ -181,39 +180,36 @@ const fetchDetail = async () => {
   loading.value = true
   try {
     const id = route.params.id
-    const res = await getContractDetail(id)
-    rawData.value = res.data || {}
-    const { contract, lead, customer, owner, attachments } = rawData.value
+    const { contract, lead, customer, owner, approver, attachments } = await getContractDetail(id)
 
     detail.value = {
       ...contract,
       contractNo: contract?.contractNo,
       contractName: contract?.contractName,
-      decorationType: contract?.decorationType,
+      decorationType: contract?.contractType,
       originalAmount: contract?.originalPrice,
       discountRate: contract?.discountRate,
       discountAmount: contract?.discountAmount,
       contractAmount: contract?.finalPrice,
       paymentTerms: contract?.paymentTerms,
-      constructionPeriod: contract?.constructionPeriod,
+      constructionPeriod: contract?.projectCycle,
       startDate: contract?.startDate,
       endDate: contract?.endDate,
       signDate: contract?.signDate,
       status: contract?.status,
-      approvalStatus: contract?.approvalStatus,
+      approvalStatus: contract?.status,
       approvalRemark: contract?.approvalRemark,
       ownerName: owner?.realName,
+      currentApproverName: approver?.realName,
       leadName: lead?.projectName || lead?.leadNo,
       customerName: customer?.customerName,
       customerPhone: customer?.phone,
       customerAddress: customer?.address
     }
 
-    decorationType.value = contract?.decorationType
+    decorationType.value = contract?.contractType
     attachmentList.value = (attachments || []).map(mapAttachment)
-
-    const timelineRes = await getTimeline({ contractId: id })
-    timelineItems.value = timelineRes.data || []
+    timelineItems.value = await getTimeline({ contractId: id })
   } catch (e) {
     console.error(e)
   } finally {

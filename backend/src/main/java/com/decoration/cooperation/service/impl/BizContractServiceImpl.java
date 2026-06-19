@@ -118,6 +118,11 @@ public class BizContractServiceImpl extends ServiceImpl<BizContractMapper, BizCo
             detail.put("owner", owner);
         }
 
+        if (contract.getApproverId() != null) {
+            SysUser approver = sysUserMapper.selectById(contract.getApproverId());
+            detail.put("approver", approver);
+        }
+
         LambdaQueryWrapper<BizPaymentPlan> planWrapper = new LambdaQueryWrapper<>();
         planWrapper.eq(BizPaymentPlan::getContractId, id);
         planWrapper.orderByAsc(BizPaymentPlan::getPeriodNo);
