@@ -3,15 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Space, Tag, message, Alert,
   Spin, Empty, Row, Col, Statistic, Divider, Progress, Tooltip,
-  Result, Modal, Form, InputNumber
+  Result, Modal
 } from 'antd'
 import {
   ArrowLeftOutlined, DownloadOutlined, CheckOutlined,
   SyncOutlined, PictureOutlined, InfoCircleOutlined,
-  CloudDownloadOutlined, PlusOutlined
+  CloudDownloadOutlined
 } from '@ant-design/icons'
 import {
-  getOrder, getFinalPhotos, downloadFinalPhoto, createFinalPhoto
+  getOrder, getFinalPhotos, downloadFinalPhoto
 } from '../services/api'
 import dayjs from 'dayjs'
 
@@ -24,8 +24,6 @@ function FinalDelivery() {
   const [downloading, setDownloading] = useState(null)
   const [batchDownloading, setBatchDownloading] = useState(false)
   const [orderError, setOrderError] = useState(null)
-  const [addModalVisible, setAddModalVisible] = useState(false)
-  const [addForm] = Form.useForm()
 
   const isNumericOrderId = !isNaN(Number(orderId))
 
@@ -116,30 +114,6 @@ function FinalDelivery() {
         loadData()
       }
     })
-  }
-
-  const handleAddMockPhotos = async () => {
-    const count = addForm.getFieldValue('count') || 5
-    const mockPhotos = []
-    for (let i = 1; i <= count; i++) {
-      const size = Math.floor(Math.random() * 5 + 2) * 1024 * 1024
-      mockPhotos.push({
-        orderId: Number(orderId),
-        photoUrl: `https://picsum.photos/1200/800?random=${Date.now() + i}`,
-        photoName: `精修成片_${String(i).padStart(3, '0')}.jpg`,
-        fileSize: size
-      })
-    }
-    try {
-      await createFinalPhoto({ photos: mockPhotos })
-      message.success(`成功添加 ${count} 张示例成片`)
-      setAddModalVisible(false)
-      addForm.resetFields()
-      loadData()
-    } catch (err) {
-      console.error(err)
-      message.error('添加成片失败')
-    }
   }
 
   const downloadedCount = photos.filter(p => p.isDownloaded).length
@@ -257,21 +231,13 @@ function FinalDelivery() {
             image={<PictureOutlined style={{ fontSize: 48, color: '#ccc' }} />}
             description="暂未交付成片，请等待摄影师修片完成"
           >
-            <Space>
-              <Button onClick={loadData} icon={<SyncOutlined />}>刷新</Button>
-              <Button type="primary" onClick={() => setAddModalVisible(true)} icon={<PlusOutlined />}>
-                添加示例成片
-              </Button>
-            </Space>
+            <Button onClick={loadData} icon={<SyncOutlined />}>刷新</Button>
           </Empty>
         </Card>
       ) : (
         <>
           <div className="table-toolbar">
             <Space>
-              <Button icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-                添加成片
-              </Button>
               <Tooltip title="下载所有未下载的照片">
                 <Button
                   type="primary"
@@ -324,7 +290,6 @@ function FinalDelivery() {
                   <div style={{ fontWeight: 500, marginBottom: 4 }}>{photo.photoName}</div>
                   <div style={{ color: '#999', fontSize: 11, marginBottom: 8 }}>
                     {formatFileSize(photo.fileSize || 0)}
-                    {photo.fileSize && ` · ${Math.round(photo.fileSize / (1024 * 1024))}MB`}
                   </div>
                   <Button
                     size="small"
@@ -354,25 +319,6 @@ function FinalDelivery() {
           </div>
         </>
       )}
-
-      <Modal
-        title="添加示例成片"
-        open={addModalVisible}
-        onCancel={() => setAddModalVisible(false)}
-        footer={null}
-      >
-        <Form form={addForm} layout="vertical" onFinish={handleAddMockPhotos}>
-          <Form.Item name="count" label="成片数量" initialValue={5}>
-            <InputNumber min={1} max={50} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">添加</Button>
-              <Button onClick={() => setAddModalVisible(false)}>取消</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }

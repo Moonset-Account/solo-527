@@ -3,15 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Space, Tag, message, Checkbox, Alert,
   Spin, Result, Empty, Row, Col, Statistic, Divider,
-  Modal, Form, InputNumber
+  Modal
 } from 'antd'
 import {
   ArrowLeftOutlined, CheckOutlined, SyncOutlined,
-  PictureOutlined, InfoCircleOutlined, PlusOutlined
+  PictureOutlined, InfoCircleOutlined
 } from '@ant-design/icons'
 import {
   getOrder, getSelectedPhotos, confirmPhotoSelection,
-  createSelectedPhoto, updateSelectedPhoto
+  updateSelectedPhoto
 } from '../services/api'
 import dayjs from 'dayjs'
 
@@ -24,8 +24,6 @@ function PhotoSelection() {
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [orderError, setOrderError] = useState(null)
-  const [addModalVisible, setAddModalVisible] = useState(false)
-  const [addForm] = Form.useForm()
 
   const isNumericOrderId = !isNaN(Number(orderId))
 
@@ -67,6 +65,10 @@ function PhotoSelection() {
       await updateSelectedPhoto(photo.id, { isSelected: newSelected })
     } catch (err) {
       console.error('更新照片状态失败:', err)
+      message.error('更新失败，请重试')
+      setPhotos(prev =>
+        prev.map(p => p.id === photo.id ? { ...p, isSelected: !newSelected } : p)
+      )
     }
   }
 
@@ -101,28 +103,6 @@ function PhotoSelection() {
         }
       }
     })
-  }
-
-  const handleAddMockPhotos = async () => {
-    const count = addForm.getFieldValue('count') || 6
-    const mockPhotos = []
-    for (let i = 1; i <= count; i++) {
-      mockPhotos.push({
-        orderId: Number(orderId),
-        photoUrl: `https://picsum.photos/600/400?random=${Date.now() + i}`,
-        photoName: `原图_${String(i).padStart(3, '0')}.jpg`
-      })
-    }
-    try {
-      await createSelectedPhoto({ photos: mockPhotos })
-      message.success(`成功添加 ${count} 张示例照片`)
-      setAddModalVisible(false)
-      addForm.resetFields()
-      loadData()
-    } catch (err) {
-      console.error(err)
-      message.error('添加照片失败')
-    }
   }
 
   const selectedCount = photos.filter(p => p.isSelected).length
@@ -221,14 +201,13 @@ function PhotoSelection() {
         <Card>
           <Empty
             image={<PictureOutlined style={{ fontSize: 48, color: '#ccc' }} />}
-            description="暂无选片照片，选片数据准备中..."
+            description={
+              <span>
+                摄影师尚未上传选片照片，请稍候或联系摄影师确认进度
+              </span>
+            }
           >
-            <Space>
-              <Button onClick={loadData} icon={<SyncOutlined />}>刷新</Button>
-              <Button type="primary" onClick={() => setAddModalVisible(true)} icon={<PlusOutlined />}>
-                添加示例照片
-              </Button>
-            </Space>
+            <Button onClick={loadData} icon={<SyncOutlined />}>刷新</Button>
           </Empty>
         </Card>
       ) : (
@@ -248,9 +227,6 @@ function PhotoSelection() {
               </span>
             </Space>
             <Space>
-              <Button icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-                添加照片
-              </Button>
               <Button icon={<SyncOutlined />} onClick={loadData}>刷新</Button>
               {!confirmed && (
                 <Button
@@ -317,25 +293,6 @@ function PhotoSelection() {
           </div>
         </>
       )}
-
-      <Modal
-        title="添加示例照片"
-        open={addModalVisible}
-        onCancel={() => setAddModalVisible(false)}
-        footer={null}
-      >
-        <Form form={addForm} layout="vertical" onFinish={handleAddMockPhotos}>
-          <Form.Item name="count" label="照片数量" initialValue={6}>
-            <InputNumber min={1} max={50} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">添加</Button>
-              <Button onClick={() => setAddModalVisible(false)}>取消</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }
