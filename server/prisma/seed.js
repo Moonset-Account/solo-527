@@ -190,6 +190,57 @@ async function main() {
     ]
   })
 
+  await prisma.payment.create({
+    data: {
+      paymentNo: 'PAY202506001',
+      orderId: order1.id,
+      amount: 14000,
+      paymentDate: new Date('2025-06-10'),
+      paymentMethod: 'BANK_TRANSFER',
+      status: 'PAID',
+      remark: '50% 定金'
+    }
+  })
+
+  await prisma.payment.create({
+    data: {
+      paymentNo: 'PAY202506002',
+      orderId: order2.id,
+      amount: 15000,
+      paymentDate: new Date('2025-06-12'),
+      paymentMethod: 'WECHAT',
+      status: 'PAID',
+      remark: '全额付款'
+    }
+  })
+
+  await prisma.payment.create({
+    data: {
+      paymentNo: 'PAY202505003',
+      orderId: order3.id,
+      amount: 32000,
+      paymentDate: new Date('2025-05-28'),
+      paymentMethod: 'BANK_TRANSFER',
+      status: 'PAID',
+      remark: '尾款结算完成'
+    }
+  })
+
+  console.log('回款数据初始化完成')
+
+  for (const oid of [order1.id, order2.id, order3.id]) {
+    const paidPayments = await prisma.payment.findMany({
+      where: { orderId: oid, status: 'PAID' }
+    })
+    const totalPaid = paidPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+    await prisma.order.update({
+      where: { id: oid },
+      data: { paidAmount: totalPaid }
+    })
+  }
+
+  console.log('订单已付金额重算完成')
+
   const member1 = await prisma.member.create({
     data: {
       name: '品牌会员-张先生',
