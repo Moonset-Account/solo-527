@@ -220,15 +220,24 @@
               <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
                 <div class="text-center p-2 bg-white/60 rounded-lg">
                   <p class="text-slate-500">待执行</p>
-                  <p class="font-semibold text-slate-700 text-base">{{ executeStats.pending }}</p>
+                  <p class="font-semibold text-slate-700 text-base">
+                    <template v-if="executeProgress < 100">{{ executeStats.pending }}</template>
+                    <template v-else>-</template>
+                  </p>
                 </div>
                 <div class="text-center p-2 bg-white/60 rounded-lg">
                   <p class="text-success-600">成功</p>
-                  <p class="font-semibold text-success-700 text-base">{{ executeStats.success }}</p>
+                  <p class="font-semibold text-success-700 text-base">
+                    <template v-if="executeProgress < 100">{{ executeStats.success }}</template>
+                    <template v-else class="text-slate-400">计算中</template>
+                  </p>
                 </div>
                 <div class="text-center p-2 bg-white/60 rounded-lg">
                   <p class="text-danger-600">失败</p>
-                  <p class="font-semibold text-danger-700 text-base">{{ executeStats.failed }}</p>
+                  <p class="font-semibold text-danger-700 text-base">
+                    <template v-if="executeProgress < 100">{{ executeStats.failed }}</template>
+                    <template v-else class="text-slate-400">计算中</template>
+                  </p>
                 </div>
               </div>
             </div>
@@ -275,8 +284,17 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="item in previewResult?.items || []" :key="item.id" :class="{ 'opacity-50': isExecuting && item.executeStatus === 'done' }">
-                    <td class="font-medium">{{ item.name }}</td>
+                  <tr v-for="item in previewResult?.items || []" :key="item.id" :class="{ 'opacity-50': isExecuting && item.executeStatus === 'success' }">
+                    <td class="font-medium">
+                      <div>{{ item.name }}</div>
+                      <div
+                        v-if="executeResult && item.executeStatus === 'failed' && item.errorMessage"
+                        class="text-xs text-danger-600 mt-1 flex items-start gap-1"
+                      >
+                        <AlertCircle class="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        <span>{{ item.errorMessage }}</span>
+                      </div>
+                    </td>
                     <td>{{ projectStatusLabel(item.status) }}</td>
                     <td>
                       <template v-if="isExecuting">
@@ -297,12 +315,42 @@
                           失败
                         </span>
                       </template>
+                      <template v-else-if="executeResult">
+                        <span v-if="item.executeStatus === 'success'" class="text-success-600 flex items-center gap-1">
+                          <CheckCircle class="w-3 h-3" />
+                          成功
+                        </span>
+                        <span v-else class="text-danger-600 flex items-center gap-1">
+                          <XCircle class="w-3 h-3" />
+                          失败
+                        </span>
+                      </template>
                       <template v-else>
                         <span v-if="item.canExecute" class="text-success-600">可执行</span>
                         <span v-else class="text-danger-600">{{ item.errorMessage }}</span>
                       </template>
                     </td>
-                    <td class="text-slate-500">{{ item.remark || '-' }}</td>
+                    <td class="text-slate-500">
+                      <template v-if="executeResult && item.executeStatus === 'failed' && !item.failedRecord?.resolved">
+                        <div>
+                          <span v-if="item.failedRecord?.assigneeName" class="text-xs text-slate-600 block mb-1">
+                            负责人：{{ item.failedRecord.assigneeName }}
+                          </span>
+                          <button
+                            class="text-xs text-primary-600 hover:text-primary-700"
+                            @click="openAssignModalFromItem(item)"
+                          >
+                            {{ item.failedRecord?.assigneeName ? '重新分配' : '分配处理' }}
+                          </button>
+                        </div>
+                      </template>
+                      <template v-else-if="executeResult && item.executeStatus === 'failed' && item.failedRecord?.resolved">
+                        <span class="badge badge-success text-xs">已解决</span>
+                      </template>
+                      <template v-else>
+                        {{ item.remark || '-' }}
+                      </template>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -906,11 +954,11 @@ const executeOperation = async () => {
   for (let i = 0; i < total; i++) {
     const item = executableItems[i]
     item.executeStatus = 'executing'
-    executeStats.pending = total - i - 1
-
-    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 200))
     executeProgress.value = Math.round(((i + 1) / total) * 100)
+    await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 200))
   }
+
+  executeProgress.value = 100
 
   await serverPromise
 
@@ -942,6 +990,13 @@ const executeOperation = async () => {
       } else {
         item.executeStatus = 'failed'
         item.errorMessage = '执行失败'
+        item.failedRecord = {
+          id: `fr_${item.id}`,
+          targetId: item.id,
+          targetName: item.name,
+          errorMessage: '执行失败',
+          resolved: false,
+        }
       }
     }
 
@@ -954,6 +1009,9 @@ const executeOperation = async () => {
 
     if (serverResult.failedRecords && Array.isArray(serverResult.failedRecords)) {
       executeResult.value.failedRecords = serverResult.failedRecords
+    } else if (realFailed > 0) {
+      const failedItems = executableItems.filter((item: any) => item.executeStatus === 'failed')
+      executeResult.value.failedRecords = failedItems.map((item: any) => item.failedRecord).filter(Boolean)
     }
 
     if (serverResult.id) {
@@ -970,6 +1028,13 @@ const executeOperation = async () => {
     for (const item of executableItems) {
       item.executeStatus = 'failed'
       item.errorMessage = executeErrorMessage
+      item.failedRecord = {
+        id: `fr_${item.id}`,
+        targetId: item.id,
+        targetName: item.name,
+        errorMessage: executeErrorMessage,
+        resolved: false,
+      }
     }
     executeStats.success = 0
     executeStats.failed = total
@@ -980,6 +1045,7 @@ const executeOperation = async () => {
       failedCount: total,
       allSuccess: false,
       error: executeErrorMessage,
+      failedRecords: executableItems.map((item: any) => item.failedRecord),
     }
   }
 
@@ -999,6 +1065,14 @@ const openAssignModal = (record: FailedRecord) => {
 }
 
 const openAssignModalFromResult = (record: any) => {
+  currentAssignRecord.value = record as FailedRecord
+  assignForm.assigneeId = record.assignee || ''
+  assignForm.remark = ''
+  showAssignModal.value = true
+}
+
+const openAssignModalFromItem = (item: any) => {
+  const record = item.failedRecord || item
   currentAssignRecord.value = record as FailedRecord
   assignForm.assigneeId = record.assignee || ''
   assignForm.remark = ''
@@ -1032,6 +1106,15 @@ const confirmAssign = async () => {
     if (record) {
       record.assignee = assignForm.assigneeId
       record.assigneeName = assignee?.name || ''
+    }
+  }
+
+  if (previewResult.value?.items) {
+    for (const item of previewResult.value.items) {
+      if (item.failedRecord && (item.failedRecord.id === currentAssignRecord.value?.id || item.failedRecord.targetId === currentAssignRecord.value?.targetId)) {
+        item.failedRecord.assignee = assignForm.assigneeId
+        item.failedRecord.assigneeName = assignee?.name || ''
+      }
     }
   }
 
