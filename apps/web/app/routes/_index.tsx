@@ -94,8 +94,9 @@ export default function Index() {
     const mockTrend = Array.from({ length: 14 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (13 - i));
+      d.setHours(0, 0, 0, 0);
       return {
-        date: `${d.getMonth() + 1}/${d.getDate()}`,
+        date: d.toISOString(),
         apiCalls: 800000 + Math.floor(Math.random() * 400000),
         errorCount: 100 + Math.floor(Math.random() * 300),
       };

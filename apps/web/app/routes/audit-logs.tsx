@@ -10,7 +10,7 @@ import {
   formatDate,
 } from '~/components/ui';
 import { api } from '~/api.client';
-import type { AuditLog, PaginationResult } from '@seat-platform/shared';
+import type { AuditLog, OperationAction, PaginationResult } from '@seat-platform/shared';
 
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
@@ -19,7 +19,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     const data = await api.logs.audit(query);
     return json(data);
   } catch {
-    const actions = ['seat.create', 'seat.update', 'seat.status_change', 'seat.threshold_update', 'reminder.send', 'reminder.batch_send', 'payment.callback', 'payment.callback_resolve', 'export.create'];
+    const actions: OperationAction[] = ['seat.create', 'seat.update', 'seat.status_change', 'seat.threshold_update', 'reminder.send', 'reminder.batch_send', 'payment.callback', 'payment.callback_resolve', 'export.create'];
     const entityTypes: AuditLog['entityType'][] = ['seat', 'reminder', 'payment', 'export'];
     const operators = ['产品经理A', '产品经理B', '运营C', 'system', '支付网关'];
     const items: AuditLog[] = Array.from({ length: 15 }, (_, i) => {

@@ -73,9 +73,46 @@ export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
   const id = formData.get('id') as string;
   const _action = formData.get('_action') as string;
+
   try {
     if (_action === 'delete' && id) {
       await api.seats.remove(id);
+    } else if (_action === 'create') {
+      const seatCode = formData.get('seatCode') as string;
+      const customerName = formData.get('customerName') as string;
+      const customerEmail = formData.get('customerEmail') as string;
+      const customerPhone = formData.get('customerPhone') as string || undefined;
+      const status = formData.get('status') as Seat['status'] || 'active';
+      const quota = parseInt(formData.get('quota') as string, 10) || 100000;
+      const expireDate = formData.get('expireDate') as string || undefined;
+      const warningThreshold = parseInt(formData.get('warningThreshold') as string, 10) || 70;
+      const usageThreshold = parseInt(formData.get('usageThreshold') as string, 10) || 80;
+      const criticalThreshold = parseInt(formData.get('criticalThreshold') as string, 10) || 95;
+      const ownerName = formData.get('ownerName') as string || undefined;
+      const ownerEmail = formData.get('ownerEmail') as string || undefined;
+
+      const trialStatus = status === 'trial' ? 'in_progress' : 'not_started';
+      const trialStartDate = status === 'trial' ? new Date().toISOString() : undefined;
+      const trialEndDate = status === 'trial' && expireDate ? expireDate : undefined;
+
+      await api.seats.create({
+        seatCode,
+        customerName,
+        customerEmail,
+        customerPhone,
+        status,
+        trialStatus,
+        trialStartDate,
+        trialEndDate,
+        quota,
+        usedQuota: 0,
+        usageThreshold,
+        warningThreshold,
+        criticalThreshold,
+        expireDate,
+        ownerName,
+        ownerEmail,
+      });
     }
   } catch {
     // ignore
@@ -280,6 +317,7 @@ export default function SeatsPage() {
               className="p-6 space-y-4"
               onSubmit={() => setShowForm(false)}
             >
+              <input type="hidden" name="_action" value="create" />
               <div>
                 <label className="label">席位编码 *</label>
                 <input name="seatCode" className="input" placeholder="如 VIP-009" required />

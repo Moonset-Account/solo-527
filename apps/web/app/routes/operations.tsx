@@ -9,7 +9,7 @@ import {
   formatDate,
 } from '~/components/ui';
 import { api } from '~/api.client';
-import type { OperationLog, PaginationResult } from '@seat-platform/shared';
+import type { OperationLog, OperationAction, PaginationResult } from '@seat-platform/shared';
 
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
@@ -18,7 +18,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     const data = await api.logs.operations(query);
     return json(data);
   } catch {
-    const actions = ['seat.create', 'seat.update', 'reminder.send', 'reminder.batch_send', 'payment.callback_retry', 'payment.callback_resolve', 'export.create', 'export.download', 'user.login', 'user.logout'];
+    const actions: OperationAction[] = ['seat.create', 'seat.update', 'reminder.send', 'reminder.batch_send', 'payment.callback_retry', 'payment.callback_resolve', 'export.create', 'export.download', 'user.login', 'user.logout'];
     const targetTypes = ['seat', 'reminder', 'payment', 'export_task', 'user'];
     const users = [
       { id: 'u1', name: '产品经理A' },

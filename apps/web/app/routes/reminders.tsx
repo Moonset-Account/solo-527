@@ -1,5 +1,6 @@
 import { json, type LoaderFunction, type ActionFunction, redirect } from '@remix-run/node';
-import { useLoaderData, useSearchParams, useState } from '@remix-run/react';
+import { useLoaderData, useSearchParams } from '@remix-run/react';
+import { useState } from 'react';
 import AppLayout from '~/components/AppLayout';
 import {
   PageHeader,
@@ -10,14 +11,56 @@ import {
   formatDate,
 } from '~/components/ui';
 import { api } from '~/api.client';
-import type { Reminder, PaginationResult } from '@seat-platform/shared';
+import type { Reminder, ReminderBatch, PaginationResult } from '@seat-platform/shared';
+
+interface LoaderData {
+  reminders: PaginationResult<Reminder>;
+  batches: PaginationResult<ReminderBatch>;
+}
+
+function mockBatches(): PaginationResult<ReminderBatch> {
+  const batchStatuses: ReminderBatch['status'][] = ['completed', 'processing', 'failed', 'completed', 'completed'];
+  const levels: ReminderBatch['level'][] = ['warning', 'critical', 'urgent', 'info', 'warning'];
+  const types: ReminderBatch['type'][] = ['quota', 'trial_expire', 'payment_failed', 'abnormal_usage', 'quota'];
+  const names = ['2025年6月高用量客户续费提醒', '试用期到期提醒', '支付异常紧急跟进', '异常波动通知', '月度用量提醒'];
+  const creators = ['产品经理A', '产品经理B', '运营C', 'system', '产品经理A'];
+
+  const items: ReminderBatch[] = Array.from({ length: 5 }, (_, i) => {
+    const total = 20 + i * 10;
+    const success = batchStatuses[i] === 'processing' ? Math.floor(total * 0.6) : batchStatuses[i] === 'failed' ? 0 : total - (i % 3);
+    return {
+      id: `batch_mock_${i}`,
+      name: names[i],
+      level: levels[i],
+      type: types[i],
+      seatIds: Array.from({ length: total }, (_, j) => `seat_mock_${j + 1}`),
+      totalCount: total,
+      successCount: success,
+      failedCount: total - success,
+      createdAt: new Date(Date.now() - i * 86400000 * 2).toISOString(),
+      createdBy: creators[i],
+      status: batchStatuses[i],
+    };
+  });
+
+  return {
+    items,
+    total: 28,
+    page: 1,
+    pageSize: 10,
+    totalPages: 3,
+  };
+}
 
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
   const query = Object.fromEntries(url.searchParams);
+
+  let reminders: PaginationResult<Reminder>;
+  let batches: PaginationResult<ReminderBatch>;
+
   try {
-    const data = await api.reminders.list(query);
-    return json(data);
+    reminders = await api.reminders.list(query);
   } catch {
     const types: Reminder['type'][] = ['quota', 'trial_expire', 'payment_failed', 'abnormal_usage'];
     const levels: Reminder['level'][] = ['info', 'warning', 'critical', 'urgent'];
@@ -44,22 +87,49 @@ export const loader: LoaderFunction = async ({ request }) => {
       sentAt: new Date(Date.now() - i * 3600000 * 5).toISOString(),
       createdAt: new Date(Date.now() - i * 3600000 * 5).toISOString(),
     }));
-    const res: PaginationResult<Reminder> = {
+    reminders = {
       items,
       total: 342,
       page: 1,
       pageSize: 20,
       totalPages: 18,
     };
-    return json(res);
   }
+
+  try {
+    batches = await api.reminders.batches(query);
+  } catch {
+    batches = mockBatches();
+  }
+
+  return json({ reminders, batches } as LoaderData);
 };
 
 export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
+  const _action = formData.get('_action') as string;
   const id = formData.get('id') as string;
-  if (id) {
-    try { await api.reminders.dismiss(id); } catch { /* ignore */ }
+
+  try {
+    if (_action === 'batch') {
+      const name = formData.get('name') as string;
+      const level = formData.get('level') as ReminderBatch['level'];
+      const type = formData.get('type') as ReminderBatch['type'];
+      const titleTemplate = formData.get('titleTemplate') as string || undefined;
+      const contentTemplate = formData.get('contentTemplate') as string || undefined;
+
+      await api.reminders.batchSend({
+        name,
+        level,
+        type,
+        titleTemplate,
+        contentTemplate,
+      });
+    } else if (id) {
+      await api.reminders.dismiss(id);
+    }
+  } catch {
+    /* ignore */
   }
   return redirect('/reminders');
 };
@@ -71,14 +141,28 @@ const typeLabels: Record<Reminder['type'], string> = {
   abnormal_usage: '异常波动',
 };
 
+const batchTypeLabels: Record<ReminderBatch['type'], string> = {
+  quota: '用量告警',
+  trial_expire: '试用到期',
+  payment_failed: '支付异常',
+  abnormal_usage: '异常波动',
+};
+
+const batchStatusLabels: Record<ReminderBatch['status'], string> = {
+  processing: '发送中',
+  completed: '已完成',
+  failed: '发送失败',
+};
+
 export default function RemindersPage() {
-  const data = useLoaderData<PaginationResult<Reminder>>();
+  const { reminders, batches } = useLoaderData<LoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showBatch, setShowBatch] = useState(false);
+  const [showBatchList, setShowBatchList] = useState(false);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
-  const pendingCount = data.items.filter((r) => r.status === 'pending' || r.status === 'sent').length;
-  const urgentCount = data.items.filter((r) => r.level === 'critical' || r.level === 'urgent').length;
+  const pendingCount = reminders.items.filter((r) => r.status === 'pending' || r.status === 'sent').length;
+  const urgentCount = reminders.items.filter((r) => r.level === 'critical' || r.level === 'urgent').length;
 
   return (
     <AppLayout>
@@ -87,14 +171,16 @@ export default function RemindersPage() {
         description="管理席位续费、用量、试用到期与支付异常提醒，支持批量发送给负责人"
         actions={
           <>
-            <button className="btn-secondary btn-sm">查看发送批次</button>
+            <button className="btn-secondary btn-sm" onClick={() => setShowBatchList(!showBatchList)}>
+              {showBatchList ? '返回提醒列表' : '查看发送批次'}
+            </button>
             <button className="btn-primary btn-sm" onClick={() => setShowBatch(true)}>批量发送提醒</button>
           </>
         }
       />
 
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="提醒总数" value={data.total} />
+        <StatCard label="提醒总数" value={reminders.total} />
         <StatCard label="待处理" value={pendingCount} delta="需人工跟进" deltaType="neutral" />
         <StatCard label="紧急/严重" value={urgentCount} delta="需要优先处理" deltaType="neutral" />
         <StatCard label="今日已发送" value="23" delta="+8 较昨日" deltaType="up" />
@@ -162,77 +248,137 @@ export default function RemindersPage() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        {data.items.length === 0 ? (
-          <EmptyState message="暂无提醒" />
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>级别</th>
-                    <th>类型</th>
-                    <th>席位</th>
-                    <th>客户</th>
-                    <th>标题</th>
-                    <th>用量情况</th>
-                    <th>状态</th>
-                    <th>发送时间</th>
-                    <th className="text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((r) => (
-                    <tr key={r.id}>
-                      <td><StatusBadge status={r.level} /></td>
-                      <td>{typeLabels[r.type]}</td>
-                      <td className="font-mono text-xs">{r.seatCode}</td>
-                      <td>{r.customerName}</td>
-                      <td>
-                        <div className="max-w-sm truncate font-medium">{r.title}</div>
-                        <div className="text-xs text-gray-500 max-w-sm truncate">{r.content}</div>
-                      </td>
-                      <td>
-                        {r.currentUsage !== undefined && r.threshold !== undefined ? (
-                          <div className="text-xs">
-                            当前 <span className={r.currentUsage >= r.threshold ? 'text-red-600 font-semibold' : 'text-gray-700'}>{r.currentUsage}%</span>
-                            <span className="text-gray-400"> / 阈值 {r.threshold}%</span>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td><StatusBadge status={r.status} type="reminder" /></td>
-                      <td className="text-gray-500 text-xs">{r.sentAt ? formatDate(r.sentAt) : '-'}</td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button className="text-xs text-brand-600 hover:underline">查看</button>
-                          {r.status !== 'dismissed' && (
-                            <form method="post">
-                              <input type="hidden" name="id" value={r.id} />
-                              <button type="submit" className="text-xs text-gray-600 hover:underline">忽略</button>
-                            </form>
-                          )}
-                        </div>
-                      </td>
+      {showBatchList ? (
+        <div className="card overflow-hidden">
+          {batches.items.length === 0 ? (
+            <EmptyState message="暂无发送批次" />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>批次名称</th>
+                      <th>级别</th>
+                      <th>类型</th>
+                      <th>发送状态</th>
+                      <th>发送结果</th>
+                      <th>创建人</th>
+                      <th>创建时间</th>
+                      <th className="text-right">操作</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={page}
-              totalPages={data.totalPages}
-              total={data.total}
-              pageSize={data.pageSize}
-              onPageChange={(p) => {
-                const np = new URLSearchParams(searchParams);
-                np.set('page', String(p));
-                setSearchParams(np);
-              }}
-            />
-          </>
-        )}
-      </div>
+                  </thead>
+                  <tbody>
+                    {batches.items.map((batch) => (
+                      <tr key={batch.id}>
+                        <td className="font-medium">{batch.name}</td>
+                        <td><StatusBadge status={batch.level} /></td>
+                        <td>{batchTypeLabels[batch.type]}</td>
+                        <td><StatusBadge status={batch.status} type="reminder" /></td>
+                        <td className="text-xs">
+                          <span className="text-green-600">成功 {batch.successCount}</span>
+                          <span className="text-gray-400 mx-1">/</span>
+                          <span className="text-red-600">失败 {batch.failedCount}</span>
+                          <span className="text-gray-400 mx-1">/</span>
+                          <span className="text-gray-600">总计 {batch.totalCount}</span>
+                        </td>
+                        <td>{batch.createdBy}</td>
+                        <td className="text-gray-500 text-xs">{formatDate(batch.createdAt)}</td>
+                        <td className="text-right">
+                          <button className="text-xs text-brand-600 hover:underline">查看详情</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={page}
+                totalPages={batches.totalPages}
+                total={batches.total}
+                pageSize={batches.pageSize}
+                onPageChange={(p) => {
+                  const np = new URLSearchParams(searchParams);
+                  np.set('page', String(p));
+                  setSearchParams(np);
+                }}
+              />
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          {reminders.items.length === 0 ? (
+            <EmptyState message="暂无提醒" />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>级别</th>
+                      <th>类型</th>
+                      <th>席位</th>
+                      <th>客户</th>
+                      <th>标题</th>
+                      <th>用量情况</th>
+                      <th>状态</th>
+                      <th>发送时间</th>
+                      <th className="text-right">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reminders.items.map((r) => (
+                      <tr key={r.id}>
+                        <td><StatusBadge status={r.level} /></td>
+                        <td>{typeLabels[r.type]}</td>
+                        <td className="font-mono text-xs">{r.seatCode}</td>
+                        <td>{r.customerName}</td>
+                        <td>
+                          <div className="max-w-sm truncate font-medium">{r.title}</div>
+                          <div className="text-xs text-gray-500 max-w-sm truncate">{r.content}</div>
+                        </td>
+                        <td>
+                          {r.currentUsage !== undefined && r.threshold !== undefined ? (
+                            <div className="text-xs">
+                              当前 <span className={r.currentUsage >= r.threshold ? 'text-red-600 font-semibold' : 'text-gray-700'}>{r.currentUsage}%</span>
+                              <span className="text-gray-400"> / 阈值 {r.threshold}%</span>
+                            </div>
+                          ) : '-'}
+                        </td>
+                        <td><StatusBadge status={r.status} type="reminder" /></td>
+                        <td className="text-gray-500 text-xs">{r.sentAt ? formatDate(r.sentAt) : '-'}</td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button className="text-xs text-brand-600 hover:underline">查看</button>
+                            {r.status !== 'dismissed' && (
+                              <form method="post">
+                                <input type="hidden" name="id" value={r.id} />
+                                <button type="submit" className="text-xs text-gray-600 hover:underline">忽略</button>
+                              </form>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={page}
+                totalPages={reminders.totalPages}
+                total={reminders.total}
+                pageSize={reminders.pageSize}
+                onPageChange={(p) => {
+                  const np = new URLSearchParams(searchParams);
+                  np.set('page', String(p));
+                  setSearchParams(np);
+                }}
+              />
+            </>
+          )}
+        </div>
+      )}
 
       {showBatch && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -242,6 +388,7 @@ export default function RemindersPage() {
               <button className="text-gray-400 hover:text-gray-600" onClick={() => setShowBatch(false)}>✕</button>
             </div>
             <form method="post" className="p-6 space-y-4" onSubmit={() => setShowBatch(false)}>
+              <input type="hidden" name="_action" value="batch" />
               <div>
                 <label className="label">批次名称 *</label>
                 <input name="name" className="input" placeholder="如 2025年6月高用量客户续费提醒" required />

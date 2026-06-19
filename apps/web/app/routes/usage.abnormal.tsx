@@ -20,7 +20,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   const seatId = url.searchParams.get('seatId') || undefined;
 
   try {
-    const data = await api.usage.abnormal(page, pageSize, undefined, undefined, seatId);
+    const data = await api.usage.abnormal({ page, pageSize, seatId });
     return json(data);
   } catch {
     const items: UsageRecord[] = Array.from({ length: 10 }, (_, i) => ({

@@ -47,10 +47,11 @@ export const loader: LoaderFunction = async ({ request }) => {
     trend = Array.from({ length: 14 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (13 - i));
+      d.setHours(0, 0, 0, 0);
       const calls = 600000 + Math.floor(Math.random() * 500000);
       const errors = 200 + Math.floor(Math.random() * 400);
       return {
-        date: `${d.getMonth() + 1}/${d.getDate()}`,
+        date: d.toISOString(),
         apiCalls: calls,
         errorCount: errors,
         avgLatency: 100 + Math.floor(Math.random() * 150),
@@ -60,7 +61,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   try {
     if (seatId) {
-      records = await api.usage.list(seatId, page, pageSize);
+      records = await api.usage.list(seatId, { page, pageSize });
     }
   } catch {
     // ignore
