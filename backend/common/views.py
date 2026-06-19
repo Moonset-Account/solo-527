@@ -36,12 +36,13 @@ def statistics_view(request):
     from assistance.models import AssistanceDemand
     from tasks.models import Task
     from voting.models import Vote
-    from django.db.models import Q
 
     resident_count = Resident.objects.all().count()
-    pending_topics = Topic.objects.filter(status__in=['draft', 'pending_review']).count()
+    pending_topics = Topic.objects.filter(status__in=['draft', 'pending']).count()
     active_patrols = PatrolTask.objects.filter(status='in_progress').count()
-    pending_assistance = AssistanceDemand.objects.filter(status__in=['pending', 'accepted']).count()
+    pending_assistance = AssistanceDemand.objects.filter(
+        status__in=['pending', 'assigned', 'in_progress']
+    ).count()
     pending_tasks = Task.objects.filter(status='pending').count()
     qualification_exceptions = Vote.objects.filter(
         has_qualification_exception=True,

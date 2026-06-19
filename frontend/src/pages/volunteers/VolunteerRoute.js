@@ -176,7 +176,7 @@ const VolunteerRoute = () => {
       route: record.route_id,
       date: record.scheduled_date || record.date || null,
       time_slot: record.time_slot || '',
-      status: record.status || 'pending',
+      status: record.status || 'scheduled',
       notes: record.notes || '',
     });
     setAssignmentModalVisible(true);
@@ -209,7 +209,7 @@ const VolunteerRoute = () => {
         scheduled_date: values.date,
         scheduled_start_time: times.start,
         scheduled_end_time: times.end,
-        status: values.status || 'pending',
+        status: values.status || 'scheduled',
         notes: values.notes || '',
       };
       if (editingAssignment) {
@@ -337,9 +337,9 @@ const VolunteerRoute = () => {
       dataIndex: 'status',
       key: 'status',
       render: (text) => {
-        const colors = { pending: 'orange', completed: 'green', cancelled: 'red' };
-        const labels = { pending: '待执行', completed: '已完成', cancelled: '已取消' };
-        return <Tag color={colors[text]}>{labels[text]}</Tag>;
+        const colors = { scheduled: 'blue', in_progress: 'orange', completed: 'green', cancelled: 'red' };
+        const labels = { scheduled: '已排班', in_progress: '进行中', completed: '已完成', cancelled: '已取消' };
+        return <Tag color={colors[text]}>{labels[text] || text}</Tag>;
       },
     },
     {
@@ -592,8 +592,9 @@ const VolunteerRoute = () => {
             </Col>
           </Row>
           <Form.Item name="status" label="状态">
-            <Select defaultValue="pending">
-              <Option value="pending">待执行</Option>
+            <Select defaultValue="scheduled">
+              <Option value="scheduled">已排班</Option>
+              <Option value="in_progress">进行中</Option>
               <Option value="completed">已完成</Option>
               <Option value="cancelled">已取消</Option>
             </Select>

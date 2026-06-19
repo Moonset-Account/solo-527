@@ -49,15 +49,15 @@ export const getRoleText = (role) => {
 
 export const getTaskTypeText = (type) => {
   const typeMap = {
-    patrol: '巡逻任务',
-    assistance: '帮扶任务',
-    voting: '投票任务',
-    meeting: '会议任务',
-    inspection: '检查任务',
-    maintenance: '维修任务',
-    complaint: '投诉处理',
-    suggestion: '建议处理',
-    qualification_exception: '资格异常处理',
+    voting: '投票相关',
+    patrol: '巡逻相关',
+    assistance: '帮扶相关',
+    resident: '居民管理',
+    topic: '议题相关',
+    qualification_exception: '资格异常',
+    reminder: '提醒任务',
+    issue: '问题处理',
+    other: '其他',
   };
   return typeMap[type] || type;
 };

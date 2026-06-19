@@ -113,15 +113,15 @@ const TaskKanban = () => {
   };
 
   const taskTypes = [
-    { value: 'patrol', label: '巡逻任务' },
-    { value: 'assistance', label: '帮扶任务' },
-    { value: 'voting', label: '投票任务' },
-    { value: 'meeting', label: '会议任务' },
-    { value: 'inspection', label: '检查任务' },
-    { value: 'maintenance', label: '维修任务' },
-    { value: 'complaint', label: '投诉处理' },
-    { value: 'suggestion', label: '建议处理' },
-    { value: 'qualification_exception', label: '资格异常处理' },
+    { value: 'voting', label: '投票相关' },
+    { value: 'patrol', label: '巡逻相关' },
+    { value: 'assistance', label: '帮扶相关' },
+    { value: 'resident', label: '居民管理' },
+    { value: 'topic', label: '议题相关' },
+    { value: 'qualification_exception', label: '资格异常' },
+    { value: 'reminder', label: '提醒任务' },
+    { value: 'issue', label: '问题处理' },
+    { value: 'other', label: '其他' },
   ];
 
   const columns = [
