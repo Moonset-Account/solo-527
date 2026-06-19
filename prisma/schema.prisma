@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String?   @unique
+  phone         String    @unique
+  role          String
+  passwordHash  String
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ownedProjects     Project[]         @relation("ProjectOwner")
+  inspections       Inspection[]      @relation("Inspector")
+  notifications     Notification[]
+  batchOperations   BatchOperation[]
+  confirmedBudgets  BudgetVersion[]   @relation("BudgetConfirmer")
+  createdBudgets    BudgetVersion[]   @relation("BudgetCreator")
+  feedbacks         InspectionFeedback[]
+}
+
+model Project {
+  id                    String    @id @default(cuid())
+  name                  String
+  ownerId               String
+  owner                 User      @relation("ProjectOwner", fields: [ownerId], references: [id])
+  status                String    @default("draft")
+  currentBudgetVersionId String?
+  startDate             DateTime?
+  endDate               DateTime?
+  description           String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  budgetVersions  BudgetVersion[]
+  inspections     Inspection[]
+  attachments     Attachment[]
+  notifications   Notification[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  name        String
+  url         String
+  type        String
+  size        Int
+  uploadedAt  DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model BudgetVersion {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  version        Int
+  totalAmount    Decimal  @db.Decimal(12, 2)
+  changeAmount   Decimal  @default(0) @db.Decimal(12, 2)
+  changeReason   String?
+  status         String   @default("draft")
+  confirmedAt    DateTime?
+  confirmedBy    String?
+  confirmer      User?    @relation("BudgetConfirmer", fields: [confirmedBy], references: [id])
+  createdBy      String
+  creator        User     @relation("BudgetCreator", fields: [createdBy], references: [id])
+  snapshot       Json?
+  createdAt      DateTime @default(now())
+
+  items         BudgetItem[]
+  changeLogs    BudgetChangeLog[]
+  inspections   Inspection[]
+
+  @@index([projectId, version])
+  @@index([status])
+}
+
+model BudgetItem {
+  id              String        @id @default(cuid())
+  budgetVersionId String
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  name            String
+  category        String
+  unit            String
+  quantity        Decimal       @db.Decimal(10, 2)
+  unitPrice       Decimal       @db.Decimal(10, 2)
+  amount          Decimal       @db.Decimal(12, 2)
+  remark          String?
+
+  @@index([budgetVersionId])
+}
+
+model BudgetChangeLog {
+  id              String        @id @default(cuid())
+  budgetVersionId String
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  fieldName       String
+  oldValue        String?
+  newValue        String?
+  changedBy       String
+  changedAt       DateTime      @default(now())
+
+  @@index([budgetVersionId])
+}
+
+model Inspection {
+  id             String        @id @default(cuid())
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id])
+  title          String
+  inspectorId    String
+  inspector      User          @relation("Inspector", fields: [inspectorId], references: [id])
+  status         String        @default("pending")
+  scheduledAt    DateTime
+  completedAt    DateTime?
+  budgetVersionId String?
+  budgetVersion  BudgetVersion? @relation(fields: [budgetVersionId], references: [id])
+  remark         String?
+  createdAt      DateTime      @default(now())
+
+  photos          InspectionPhoto[]
+  rectifications  Rectification[]
+  feedback        InspectionFeedback?
+
+  @@index([projectId])
+  @@index([inspectorId])
+  @@index([status])
+}
+
+model InspectionPhoto {
+  id           String     @id @default(cuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id])
+  url          String
+  category     String
+  description  String?
+  uploadedAt   DateTime   @default(now())
+
+  @@index([inspectionId])
+}
+
+model Rectification {
+  id                String              @id @default(cuid())
+  inspectionId      String
+  inspection        Inspection          @relation(fields: [inspectionId], references: [id])
+  title             String
+  description       String
+  responsiblePerson String
+  deadline          DateTime
+  status            String              @default("pending")
+  photos            Json?
+  createdAt         DateTime            @default(now())
+  completedAt       DateTime?
+
+  rectificationPhotos RectificationPhoto[]
+
+  @@index([inspectionId])
+  @@index([status])
+  @@index([deadline])
+}
+
+model RectificationPhoto {
+  id               String        @id @default(cuid())
+  rectificationId  String
+  rectification    Rectification @relation(fields: [rectificationId], references: [id])
+  url              String
+  uploadedAt       DateTime      @default(now())
+
+  @@index([rectificationId])
+}
+
+model InspectionFeedback {
+  id             String     @id @default(cuid())
+  inspectionId   String     @unique
+  inspection     Inspection @relation(fields: [inspectionId], references: [id])
+  conclusion     String
+  remark         String?
+  confirmedBy    String
+  confirmer      User       @relation(fields: [confirmedBy], references: [id])
+  confirmedAt    DateTime   @default(now())
+  beforePhotos   Json?
+  afterPhotos    Json?
+
+  @@index([inspectionId])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id])
+  type       String
+  title      String
+  content    String
+  relatedId  String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([projectId])
+}
+
+model BatchOperation {
+  id            String   @id @default(cuid())
+  type          String
+  status        String   @default("preview")
+  totalCount    Int
+  successCount  Int      @default(0)
+  failedCount   Int      @default(0)
+  targetIds     Json
+  operatorId    String
+  operator      User     @relation(fields: [operatorId], references: [id])
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  failedRecords FailedRecord[]
+
+  @@index([operatorId])
+}
+
+model FailedRecord {
+  id               String         @id @default(cuid())
+  batchOperationId String
+  batchOperation   BatchOperation @relation(fields: [batchOperationId], references: [id])
+  targetId         String
+  targetName       String
+  errorMessage     String
+  assignee         String
+  resolved         Boolean        @default(false)
+  resolvedAt       DateTime?
+  createdAt        DateTime       @default(now())
+
+  @@index([batchOperationId])
+  @@index([assignee, resolved])
+}
