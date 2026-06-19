@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #0891b2;
+}
+
+@layer base {
+  * {
+    border-color: #e2e8f0;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white border-primary hover:bg-primary-dark focus:ring-primary;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 border-slate-300 hover:bg-slate-50 focus:ring-slate-500 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white border-danger hover:bg-red-700 focus:ring-danger;
+  }
+  .btn-success {
+    @apply btn bg-success text-white border-success hover:bg-green-700 focus:ring-success;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 min-h-[38px];
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5;
+  }
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .table-container {
+    @apply w-full overflow-x-auto;
+  }
+  .table {
+    @apply w-full text-sm border-collapse;
+  }
+  .table th {
+    @apply px-4 py-3 text-left font-semibold text-slate-600 bg-slate-50 dark:bg-slate-800 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap;
+  }
+  .table td {
+    @apply px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300;
+  }
+  .table tr:hover td {
+    @apply bg-slate-50/50 dark:bg-slate-800/30;
+  }
+}
+
+.form-grid {
+  @apply grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+}
+
+.form-grid-full {
+  @apply sm:col-span-2 lg:col-span-3;
+}
+
+@media (max-width: 640px) {
+  .btn {
+    @apply w-full sm:w-auto;
+  }
+  .action-group {
+    @apply flex flex-col gap-2 sm:flex-row sm:flex-wrap;
+  }
+  .action-group .btn {
+    @apply w-full;
+  }
+}

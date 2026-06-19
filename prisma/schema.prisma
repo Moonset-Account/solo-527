@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  EMPLOYEE
+  PROCUREMENT_MANAGER
+  SUPPLIER_COORDINATOR
+  APPROVER
+  ADMIN
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReconciliationStatus {
+  PENDING
+  MATCHED
+  DISCREPANCY
+  RESOLVED
+}
+
+enum PaymentStatus {
+  PENDING
+  RECOMMENDED
+  APPROVED
+  PAID
+  DISPUTED
+}
+
+enum DiscrepancyType {
+  QUANTITY
+  QUALITY
+  PRICE
+  DELIVERY_DATE
+  SPECIFICATION
+}
+
+enum DiscrepancyStatus {
+  OPEN
+  INVESTIGATING
+  CONFIRMED
+  RESOLVED
+  CLOSED
+}
+
+enum AgreementStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum RequirementStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  FULFILLED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  clerkId      String   @unique
+  email        String   @unique
+  name         String
+  role         UserRole @default(EMPLOYEE)
+  department   String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  monthlyUsages      MonthlyUsage[]          @relation("UserMonthlyUsages")
+  purchaseRequirements PurchaseRequirement[] @relation("UserRequirements")
+  reconciliations    Reconciliation[]        @relation("UserReconciliations")
+  paymentApprovals   PaymentSuggestion[]     @relation("UserPaymentApprovals")
+  discrepancyReviews PaymentDiscrepancy[]    @relation("UserDiscrepancyReviews")
+  createdRisks       SupplierRisk[]          @relation("UserCreatedRisks")
+  riskBoardApprovals RiskBoardEntry[]        @relation("UserBoardApprovals")
+}
+
+model Supplier {
+  id               String   @id @default(cuid())
+  name             String
+  code             String   @unique
+  contactPerson    String
+  contactEmail     String
+  contactPhone     String
+  address          String?
+  taxNumber        String?
+  bankAccount      String?
+  rating           Int      @default(3)
+  status           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  frameworkAgreements FrameworkAgreement[]
+  quotes             SupplierQuote[]
+  deliveries         DeliveryRecord[]
+  risks              SupplierRisk[]
+  riskBoardEntries   RiskBoardEntry[]
+  paymentSuggestions PaymentSuggestion[]
+}
+
+model SupplyCategory {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items SupplyItem[]
+}
+
+model SupplyItem {
+  id            String   @id @default(cuid())
+  categoryId    String
+  name          String
+  specification String
+  unit          String
+  barcode       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category       SupplyCategory     @relation(fields: [categoryId], references: [id])
+  monthlyUsages  MonthlyUsage[]
+  agreements     AgreementItem[]
+  requirements   RequirementItem[]
+  quotes         QuoteItem[]
+  deliveries     DeliveryItem[]
+}
+
+model MonthlyUsage {
+  id         String   @id @default(cuid())
+  userId     String
+  itemId     String
+  yearMonth  String
+  quantity   Decimal
+  actualCost Decimal?
+  remark     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User       @relation("UserMonthlyUsages", fields: [userId], references: [id])
+  item SupplyItem @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId, yearMonth])
+}
+
+model FrameworkAgreement {
+  id              String          @id @default(cuid())
+  supplierId      String
+  agreementNumber String          @unique
+  title           String
+  startDate       DateTime
+  endDate         DateTime
+  status          AgreementStatus @default(DRAFT)
+  totalAmount     Decimal
+  paymentTerms    String
+  termsConditions String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  items    AgreementItem[]
+}
+
+model AgreementItem {
+  id               String  @id @default(cuid())
+  agreementId      String
+  itemId           String
+  unitPrice        Decimal
+  minOrderQuantity Int     @default(1)
+  maxOrderQuantity Int?
+  leadTimeDays     Int     @default(7)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  agreement FrameworkAgreement @relation(fields: [agreementId], references: [id])
+  item      SupplyItem         @relation(fields: [itemId], references: [id])
+
+  @@unique([agreementId, itemId])
+}
+
+model PurchaseRequirement {
+  id            String            @id @default(cuid())
+  userId        String
+  title         String
+  department    String
+  requiredDate  DateTime
+  status        RequirementStatus @default(DRAFT)
+  priority      Int               @default(1)
+  remark        String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user      User             @relation("UserRequirements", fields: [userId], references: [id])
+  items     RequirementItem[]
+  quotes    SupplierQuote[]
+}
+
+model RequirementItem {
+  id            String  @id @default(cuid())
+  requirementId String
+  itemId        String
+  quantity      Decimal
+  expectedPrice Decimal?
+  remark        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  requirement PurchaseRequirement @relation(fields: [requirementId], references: [id])
+  item        SupplyItem          @relation(fields: [itemId], references: [id])
+
+  @@unique([requirementId, itemId])
+}
+
+model SupplierQuote {
+  id               String      @id @default(cuid())
+  supplierId       String
+  requirementId    String?
+  quoteNumber      String      @unique
+  status           QuoteStatus @default(DRAFT)
+  validUntil       DateTime
+  totalAmount      Decimal
+  deliveryDate     DateTime?
+  paymentTerms     String?
+  remark           String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  supplier    Supplier             @relation(fields: [supplierId], references: [id])
+  requirement PurchaseRequirement? @relation(fields: [requirementId], references: [id])
+  items       QuoteItem[]
+}
+
+model QuoteItem {
+  id        String  @id @default(cuid())
+  quoteId   String
+  itemId    String
+  quantity  Decimal
+  unitPrice Decimal
+  remark    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quote SupplierQuote @relation(fields: [quoteId], references: [id])
+  item  SupplyItem    @relation(fields: [itemId], references: [id])
+
+  @@unique([quoteId, itemId])
+}
+
+model DeliveryRecord {
+  id               String   @id @default(cuid())
+  supplierId       String
+  deliveryNumber   String   @unique
+  deliveryDate     DateTime
+  receivedDate     DateTime?
+  totalAmount      Decimal
+  invoiceNumber    String?
+  invoiceDate      DateTime?
+  remark           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  supplier     Supplier          @relation(fields: [supplierId], references: [id])
+  items        DeliveryItem[]
+  reconciliations Reconciliation[]
+}
+
+model DeliveryItem {
+  id           String  @id @default(cuid())
+  deliveryId   String
+  itemId       String
+  quantity     Decimal
+  unitPrice    Decimal
+  batchNumber  String?
+  expireDate   DateTime?
+  qualified    Boolean @default(true)
+  remark       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  delivery DeliveryRecord @relation(fields: [deliveryId], references: [id])
+  item     SupplyItem     @relation(fields: [itemId], references: [id])
+}
+
+model Reconciliation {
+  id                  String                @id @default(cuid())
+  deliveryId          String
+  userId              String
+  period              String
+  status              ReconciliationStatus  @default(PENDING)
+  expectedAmount      Decimal
+  actualAmount        Decimal
+  differenceAmount    Decimal
+  differenceNote      String?
+  reconciliationDate  DateTime?
+  remark              String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  delivery DeliveryRecord   @relation(fields: [deliveryId], references: [id])
+  user     User             @relation("UserReconciliations", fields: [userId], references: [id])
+  payments PaymentSuggestion[]
+  discrepancies DeliveryDiscrepancy[]
+}
+
+model PaymentSuggestion {
+  id                 String        @id @default(cuid())
+  reconciliationId   String
+  supplierId         String
+  suggestedAmount    Decimal
+  suggestedDate      DateTime
+  status             PaymentStatus @default(PENDING)
+  paymentDueDate     DateTime
+  actualPaidAmount   Decimal?
+  actualPaidDate     DateTime?
+  approverId         String?
+  approvalDate       DateTime?
+  remark             String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  reconciliation Reconciliation @relation(fields: [reconciliationId], references: [id])
+  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  approver       User?          @relation("UserPaymentApprovals", fields: [approverId], references: [id])
+  discrepancies  PaymentDiscrepancy[]
+}
+
+model DeliveryDiscrepancy {
+  id                 String            @id @default(cuid())
+  reconciliationId   String
+  type               DiscrepancyType
+  description        String
+  expectedValue      String
+  actualValue        String
+  impactAmount       Decimal?
+  status             DiscrepancyStatus @default(OPEN)
+  handlerId          String?
+  resolution         String?
+  resolutionDate     DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  reconciliation Reconciliation @relation(fields: [reconciliationId], references: [id])
+  risk           SupplierRisk?
+}
+
+model PaymentDiscrepancy {
+  id                String            @id @default(cuid())
+  paymentId         String
+  expectedAmount    Decimal
+  actualAmount      Decimal
+  differenceAmount  Decimal
+  reason            String
+  status            DiscrepancyStatus @default(OPEN)
+  coordinatorNote   String?
+  reviewerId        String?
+  reviewNote        String?
+  reviewDate        DateTime?
+  syncedToRiskBoard Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  payment  PaymentSuggestion @relation(fields: [paymentId], references: [id])
+  reviewer User?             @relation("UserDiscrepancyReviews", fields: [reviewerId], references: [id])
+  risk     SupplierRisk?
+}
+
+model SupplierRisk {
+  id                    String    @id @default(cuid())
+  supplierId            String
+  title                 String
+  description           String
+  level                 RiskLevel
+  sourceType            String
+  creatorId             String
+  impactAnalysis        String?
+  mitigationPlan        String?
+  resolved              Boolean   @default(false)
+  resolvedDate          DateTime?
+  deliveryDiscrepancyId String?   @unique
+  paymentDiscrepancyId  String?   @unique
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  supplier  Supplier             @relation(fields: [supplierId], references: [id])
+  creator   User                 @relation("UserCreatedRisks", fields: [creatorId], references: [id])
+  delivery  DeliveryDiscrepancy? @relation(fields: [deliveryDiscrepancyId], references: [id])
+  payment   PaymentDiscrepancy?  @relation(fields: [paymentDiscrepancyId], references: [id])
+  boardEntry RiskBoardEntry?
+}
+
+model RiskBoardEntry {
+  id           String    @id @default(cuid())
+  supplierId   String
+  riskId       String    @unique
+  title        String
+  level        RiskLevel
+  sourceType   String
+  description  String
+  status       String    @default("PUBLISHED")
+  approverId   String?
+  approvedDate DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplier  Supplier  @relation(fields: [supplierId], references: [id])
+  risk      SupplierRisk @relation(fields: [riskId], references: [id])
+  approver  User?     @relation("UserBoardApprovals", fields: [approverId], references: [id])
+}
+
+model AlertRule {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  ruleType       String
+  conditions     Json
+  actions        Json
+  enabled        Boolean  @default(true)
+  severity       String   @default("WARNING")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  logs AlertRuleLog[]
+}
+
+model AlertRuleLog {
+  id        String   @id @default(cuid())
+  ruleId    String
+  sourceType String
+  sourceId   String
+  message    String
+  severity   String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  rule AlertRule @relation(fields: [ruleId], references: [id])
+
+  @@index([sourceType, sourceId])
+}
