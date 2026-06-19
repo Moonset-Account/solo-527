@@ -1,0 +1,397 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  OPERATOR
+}
+
+enum MemberLevel {
+  TRIAL
+  BASIC
+  PREMIUM
+  VIP
+}
+
+enum MemberStatus {
+  ACTIVE
+  EXPIRED
+  FROZEN
+  CANCELLED
+}
+
+enum CampStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum CourseType {
+  VIDEO
+  AUDIO
+  PDF
+  LIVE
+  HOMEWORK
+}
+
+enum CheckInStatus {
+  PENDING
+  COMPLETED
+  LATE
+  MISSED
+}
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TodoType {
+  FOLLOW_UP
+  COURSE_EXPIRE
+  MEMBER_WARNING
+  LAGGING_STUDENT
+  CUSTOM
+}
+
+enum ConversionChannel {
+  WECHAT_GROUP
+  MOMENTS
+  FRIEND_REFERRAL
+  OFFLINE_EVENT
+  LIVE_STREAM
+  ADVERTISEMENT
+  ORGANIC
+  OTHER
+}
+
+enum OperationAction {
+  CREATE
+  UPDATE
+  DELETE
+  CHECK_IN
+  ASSIGN
+  COMPLETE
+  TRANSFER
+  REMIND
+  EXPORT
+  LOGIN
+  LOGOUT
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  username      String          @unique
+  password      String
+  name          String
+  role          Role            @default(OPERATOR)
+  phone         String?
+  email         String?
+  avatar        String?
+  isActive      Boolean         @default(true)
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  operations    OperationLog[]
+  assignedTodos Todo[]          @relation("AssignedTodos")
+  createdTodos  Todo[]          @relation("CreatedTodos")
+  campTeachers  MemberCamp[]
+
+  @@index([username])
+  @@index([role])
+}
+
+model Member {
+  id                Int              @id @default(autoincrement())
+  name              String
+  phone             String           @unique
+  childName         String?
+  childAge          Int?
+  avatar            String?
+  wechatId          String?
+  level             MemberLevel      @default(TRIAL)
+  status            MemberStatus     @default(ACTIVE)
+  conversionSource  ConversionSource? @relation(fields: [conversionSourceId], references: [id])
+  conversionSourceId Int?
+  sourceDetail      String?
+  subscribedAt      DateTime?
+  expiresAt         DateTime?
+  totalCheckInDays  Int              @default(0)
+  continuousDays    Int              @default(0)
+  lastCheckInAt     DateTime?
+  isLagging         Boolean          @default(false)
+  laggingDays       Int              @default(0)
+  remark            String?
+  tags              String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  benefits          MemberBenefit[]
+  checkIns          CheckIn[]
+  memberCamps       MemberCamp[]
+  laggingRecords    FallingBehind[]
+  todos             Todo[]
+  conversionLogs    ConversionLog[]
+  operationLogs     OperationLog[]
+
+  @@index([phone])
+  @@index([status])
+  @@index([level])
+  @@index([isLagging])
+  @@index([expiresAt])
+}
+
+model MemberBenefit {
+  id          Int       @id @default(autoincrement())
+  memberId    Int
+  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  benefitType String
+  name        String
+  description String?
+  totalCount  Int?
+  usedCount   Int       @default(0)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([memberId])
+}
+
+model ConversionSource {
+  id           Int             @id @default(autoincrement())
+  name         String
+  channel      ConversionChannel
+  description  String?
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  members      Member[]
+  logs         ConversionLog[]
+}
+
+model ConversionLog {
+  id                 Int              @id @default(autoincrement())
+  memberId           Int
+  member             Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  sourceId           Int
+  conversionSource   ConversionSource @relation(fields: [sourceId], references: [id])
+  operatorId         Int?
+  stage              String
+  detail             String?
+  result             String?
+  convertedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  operationLogId     Int?
+}
+
+model Camp {
+  id            Int          @id @default(autoincrement())
+  name          String
+  description   String?
+  status        CampStatus   @default(UPCOMING)
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int
+  checkInRule   String?
+  maxMembers    Int?
+  teacherId     Int?
+  coverImage    String?
+  tags          String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  courses       Course[]
+  memberCamps   MemberCamp[]
+  checkIns      CheckIn[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+model Course {
+  id            Int        @id @default(autoincrement())
+  campId        Int
+  camp          Camp       @relation(fields: [campId], references: [id], onDelete: Cascade)
+  title         String
+  type          CourseType
+  description   String?
+  dayIndex      Int
+  duration      Int?
+  resourceUrl   String?
+  resourceType  String?
+  hasTrial      Boolean    @default(false)
+  trialUrl      String?
+  trialDuration Int?
+  materialUrl   String?
+  homeworkUrl   String?
+  sortOrder     Int        @default(0)
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  checkIns      CheckIn[]
+
+  @@index([campId])
+  @@index([dayIndex])
+}
+
+model MemberCamp {
+  id          Int           @id @default(autoincrement())
+  memberId    Int
+  member      Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  campId      Int
+  camp        Camp          @relation(fields: [campId], references: [id], onDelete: Cascade)
+  teacherId   Int?
+  teacher     User?         @relation(fields: [teacherId], references: [id])
+  joinedAt    DateTime      @default(now())
+  completedDays Int         @default(0)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  checkIns    CheckIn[]
+
+  @@unique([memberId, campId])
+  @@index([campId])
+}
+
+model CheckIn {
+  id              Int            @id @default(autoincrement())
+  memberCampId    Int
+  memberCamp      MemberCamp     @relation(fields: [memberCampId], references: [id], onDelete: Cascade)
+  memberId        Int
+  member          Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  campId          Int
+  camp            Camp           @relation(fields: [campId], references: [id], onDelete: Cascade)
+  courseId        Int?
+  course          Course?        @relation(fields: [courseId], references: [id])
+  dayIndex        Int
+  checkInDate     DateTime
+  status          CheckInStatus  @default(PENDING)
+  completedAt     DateTime?
+  remark          String?
+  homeworkUrl     String?
+  mediaUrl        String?
+  score           Int?
+  operatorId      Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  operationLogs   OperationLog[]
+
+  @@unique([memberCampId, dayIndex])
+  @@index([memberCampId])
+  @@index([memberId])
+  @@index([campId])
+  @@index([checkInDate])
+  @@index([status])
+}
+
+model FallingBehind {
+  id              Int        @id @default(autoincrement())
+  memberId        Int
+  member          Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  campId          Int
+  reason          String?
+  lagDays         Int
+  lastCheckInAt   DateTime?
+  detectedAt      DateTime   @default(now())
+  followUpStatus  String     @default("PENDING")
+  followUpResult  String?
+  followUpRemark  String?
+  lastFollowedAt  DateTime?
+  operatorId      Int?
+  resolvedAt      DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  todos           Todo[]
+
+  @@index([memberId])
+  @@index([campId])
+  @@index([followUpStatus])
+}
+
+model Todo {
+  id             Int          @id @default(autoincrement())
+  type           TodoType     @default(CUSTOM)
+  title          String
+  description    String?
+  status         TodoStatus   @default(PENDING)
+  priority       TodoPriority @default(MEDIUM)
+  dueDate        DateTime?
+  assigneeId     Int?
+  assignee       User?        @relation("AssignedTodos", fields: [assigneeId], references: [id])
+  creatorId      Int?
+  creator        User?        @relation("CreatedTodos", fields: [creatorId], references: [id])
+  memberId       Int?
+  member         Member?      @relation(fields: [memberId], references: [id])
+  laggingId      Int?
+  fallingBehind  FallingBehind? @relation(fields: [laggingId], references: [id])
+  relatedType    String?
+  relatedId      Int?
+  completedAt    DateTime?
+  completedNote  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([dueDate])
+  @@index([priority])
+  @@index([type])
+}
+
+model OperationLog {
+  id          Int              @id @default(autoincrement())
+  operatorId  Int?
+  operator    User?            @relation(fields: [operatorId], references: [id])
+  memberId    Int?
+  member      Member?          @relation(fields: [memberId], references: [id])
+  action      OperationAction
+  targetType  String
+  targetId    Int?
+  targetName  String?
+  oldValue    String?
+  newValue    String?
+  detail      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime         @default(now())
+  checkInId   Int?
+  CheckIn     CheckIn?         @relation(fields: [checkInId], references: [id])
+
+  @@index([operatorId])
+  @@index([memberId])
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
+
+model SubscriptionRetention {
+  id             Int      @id @default(autoincrement())
+  reportDate     DateTime @unique
+  newMembers     Int      @default(0)
+  activeMembers  Int      @default(0)
+  expiredMembers Int      @default(0)
+  renewedMembers Int      @default(0)
+  churnRate      Float    @default(0)
+  retentionRate  Float    @default(0)
+  expiredToTodo  Int      @default(0)
+  totalRevenue   Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
