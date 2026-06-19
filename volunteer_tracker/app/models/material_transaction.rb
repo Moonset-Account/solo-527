@@ -6,11 +6,12 @@ class MaterialTransaction < ApplicationRecord
   validates :quantity, numericality: { greater_than: 0 }
   validates :transaction_type, inclusion: { in: %w[in out] }
 
-  after_create :update_material_quantity
+  after_create :sync_material_quantity
 
   private
 
-  def update_material_quantity
-    material.update_column(:quantity, material.current_quantity)
+  def sync_material_quantity
+    delta = transaction_type == 'in' ? quantity : -quantity
+    material.update_column(:quantity, material.quantity + delta)
   end
 end

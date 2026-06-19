@@ -16,4 +16,10 @@ class Material < ApplicationRecord
   def below_threshold?
     threshold.present? && current_quantity < threshold
   end
+
+  def self.recalculate_all_quantities
+    find_each do |material|
+      material.update_column(:quantity, material.current_quantity)
+    end
+  end
 end

@@ -30,7 +30,7 @@
           <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= material.name %></td>
           <td class="px-6 py-4 text-sm text-gray-500"><%= material.category %></td>
           <td class="px-6 py-4 text-sm text-gray-500"><%= material.unit %></td>
-          <td class="px-6 py-4 text-sm text-gray-500"><%= material.current_quantity %></td>
+          <td class="px-6 py-4 text-sm text-gray-500"><%= material.current_quantity %> <%= material.unit %></td>
           <td class="px-6 py-4 text-sm text-gray-500"><%= material.threshold || '-' %></td>
           <td class="px-6 py-4 text-sm">
             <% if material.low_stock? %>
@@ -40,6 +40,7 @@
             <% end %>
           </td>
           <td class="px-6 py-4 text-sm">
+            <%= link_to "查看", admin_material_path(material), class: "text-blue-600 hover:underline mr-2" %>
             <%= link_to "编辑", edit_admin_material_path(material), class: "text-blue-600 hover:underline" %>
           </td>
         </tr>

@@ -1,8 +1,54 @@
-<div class="mb-6">
-  <h2 class="text-2xl font-bold text-gray-900">物资流水（管理后台）</h2>
+<div class="mb-6 flex items-center justify-between">
+  <h2 class="text-2xl font-bold text-gray-900">出入库登记</h2>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+  <h3 class="text-lg font-semibold text-gray-900 mb-4">新增出入库记录</h3>
+  <%= form_with(model: [:admin, @material_transaction || MaterialTransaction.new], url: admin_material_transactions_path, local: true) do |f| %>
+    <% if f.object.errors.any? %>
+      <div class="bg-red-50 text-red-800 p-4 rounded mb-4">
+        <ul>
+          <% f.object.errors.full_messages.each do |msg| %>
+            <li><%= msg %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      <div>
+        <%= f.label :material_id, "物资", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.collection_select :material_id, Material.order(:name), :id, :name, { prompt: "选择物资" }, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+      <div>
+        <%= f.label :transaction_type, "类型", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.select :transaction_type, [['入库', 'in'], ['出库', 'out']], { prompt: "选择类型" }, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+      <div>
+        <%= f.label :quantity, "数量", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.number_field :quantity, min: 1, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <%= f.label :recipient, "领用人", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.text_field :recipient, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+      <div>
+        <%= f.label :remark, "备注", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.text_field :remark, class: "w-full border border-gray-300 rounded px-3 py-2" %>
+      </div>
+    </div>
+
+    <%= f.submit "提交", class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+  <% end %>
 </div>
 
 <div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="p-4 border-b border-gray-200">
+    <h3 class="text-lg font-semibold text-gray-900">流水记录</h3>
+  </div>
   <table class="min-w-full divide-y divide-gray-200">
     <thead class="bg-gray-50">
       <tr>

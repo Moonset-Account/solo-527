@@ -4,11 +4,13 @@ class OverdueReview < ApplicationRecord
 
   validates :visit_record, :impact_scope, :responsible_person, :conclusion, presence: true
 
-  after_create :update_visit_record_status
+  after_create :link_conclusion_to_service
 
   private
 
-  def update_visit_record_status
-    visit_record.mark_overdue! if visit_record.may_mark_overdue?
+  def link_conclusion_to_service
+    if visit_record.may_mark_overdue?
+      visit_record.mark_overdue!
+    end
   end
 end

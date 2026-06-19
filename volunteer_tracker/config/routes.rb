@@ -59,7 +59,7 @@ Rails.application.routes.draw do
 
   namespace :admin do
     resources :materials
-    resources :material_transactions, only: [:index, :create]
+    resources :material_transactions, only: [:index, :new, :create]
     get "dashboard", to: "dashboard#index", as: :dashboard
   end
 end

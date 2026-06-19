@@ -59,3 +59,51 @@
     <div class="p-6 text-gray-500 text-sm">暂无分配志愿者</div>
   <% end %>
 </div>
+
+<% reviews = @volunteer_service.overdue_reviews.includes(visit_record: :volunteer) %>
+<% if reviews.any? %>
+  <div class="bg-white rounded-lg shadow mt-6">
+    <div class="p-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">逾期复盘记录</h3>
+    </div>
+    <div class="divide-y divide-gray-200">
+      <% reviews.each do |review| %>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">逾期复盘</span>
+              <span class="text-sm text-gray-500"><%= review.review_date %></span>
+            </div>
+            <%= link_to "查看探访", visit_record_path(review.visit_record), class: "text-blue-600 hover:underline text-sm" %>
+          </div>
+          <div class="grid grid-cols-2 gap-4 mt-3">
+            <div>
+              <dt class="text-xs font-medium text-gray-500">探访对象</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= review.visit_record.target_name %></dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-gray-500">负责志愿者</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= review.visit_record.volunteer.name %></dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-gray-500">责任人</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= review.responsible_person %></dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-gray-500">复盘人</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= review.reviewer&.name || '-' %></dd>
+            </div>
+            <div class="col-span-2">
+              <dt class="text-xs font-medium text-gray-500">影响范围</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= review.impact_scope %></dd>
+            </div>
+            <div class="col-span-2">
+              <dt class="text-xs font-medium text-gray-500">处理结论</dt>
+              <dd class="mt-1 text-sm text-gray-900 font-medium"><%= review.conclusion %></dd>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

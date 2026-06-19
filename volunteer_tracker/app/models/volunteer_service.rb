@@ -4,6 +4,12 @@ class VolunteerService < ApplicationRecord
   has_many :volunteer_service_assignments, dependent: :destroy
   has_many :users, through: :volunteer_service_assignments
 
+  def overdue_reviews
+    OverdueReview.joins(visit_record: :volunteer)
+      .where(users: { id: user_ids })
+      .order(created_at: :desc)
+  end
+
   validates :title, :category, presence: true
 
   def self.ransackable_attributes(auth_object = nil)
