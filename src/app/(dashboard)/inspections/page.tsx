@@ -26,6 +26,7 @@ export default function InspectionPage() {
   const utils = api.useUtils();
   const updateMutation = api.inspection.update.useMutation();
   const createMutation = api.inspection.create.useMutation();
+  const exportMutation = api.inspection.export.useMutation();
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
@@ -111,7 +112,7 @@ export default function InspectionPage() {
         ]}
         onRowClick={(r) => router.push(`/assets/${r.assetId}`)}
         query={(input) => api.inspection.list.useQuery(input, { placeholderData: keepPreviousData })}
-        exportMutation={api.inspection.export.useMutation as unknown as {
+        exportMutation={exportMutation as unknown as {
           mutateAsync: (input: Omit<Record<string, unknown>, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">) => Promise<Row[]>;
           isPending: boolean;
         }}

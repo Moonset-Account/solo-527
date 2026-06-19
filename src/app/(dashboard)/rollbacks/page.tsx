@@ -28,8 +28,9 @@ export default function RollbackPage() {
   const utils = api.useUtils();
   const updateMutation = api.rollback.update.useMutation();
   const approveMutation = api.rollback.approve.useMutation();
-  const createMutation = api.rollback.create.useMutation();
   const [createOpen, setCreateOpen] = useState(false);
+  const createMutation = api.rollback.create.useMutation();
+  const exportMutation = api.rollback.export.useMutation();
 
   return (
     <>
@@ -128,7 +129,7 @@ export default function RollbackPage() {
         ]}
         onRowClick={(r) => router.push(`/assets/${r.assetId}`)}
         query={(input) => api.rollback.list.useQuery(input, { placeholderData: keepPreviousData })}
-        exportMutation={api.rollback.export.useMutation as unknown as {
+        exportMutation={exportMutation as unknown as {
           mutateAsync: (input: Omit<Record<string, unknown>, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">) => Promise<Row[]>;
           isPending: boolean;
         }}

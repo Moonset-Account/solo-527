@@ -36,6 +36,7 @@ export default function AlertsPage() {
 
   const assignMutation = api.alert.assign.useMutation();
   const createMutation = api.alert.create.useMutation();
+  const exportMutation = api.alert.export.useMutation();
   const utils = api.useUtils();
 
   return (
@@ -207,17 +208,22 @@ export default function AlertsPage() {
             { placeholderData: keepPreviousData }
           )
         }
-        exportMutation={
-          api.alert.export.useMutation() as unknown as {
-            mutateAsync: (
-              input: Omit<
-                Record<string, unknown>,
-                "page" | "pageSize" | "groupByOwner" | "groupByAssignee"
-              >
-            ) => Promise<Row[]>;
-            isPending: boolean;
-          }
-        }
+        exportMutation={exportMutation as unknown as {
+          mutateAsync: (
+            input: Omit<
+              Record<string, unknown>,
+              "page" | "pageSize" | "groupByOwner" | "groupByAssignee"
+            >
+          ) => Promise<Row[]>;
+          isPending: boolean;
+        }}
+        exportInputTransform={(input) => {
+          const bc = input.businessConfirmed as string | null;
+          return {
+            ...input,
+            businessConfirmed: bc === "true" ? true : bc === "false" ? false : null,
+          } as Omit<Record<string, unknown>, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">;
+        }}
       />
       {createOpen && (
         <CreateAlertModal

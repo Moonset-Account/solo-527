@@ -36,6 +36,7 @@ export default function VulnPage() {
   const updateMutation = api.vulnerability.update.useMutation();
   const [createOpen, setCreateOpen] = useState(false);
   const createMutation = api.vulnerability.create.useMutation();
+  const exportMutation = api.vulnerability.export.useMutation();
 
   return (
     <>
@@ -131,7 +132,7 @@ export default function VulnPage() {
         ]}
         onRowClick={(r) => router.push(`/assets/${r.assetId}`)}
         query={(input) => api.vulnerability.list.useQuery(input, { placeholderData: keepPreviousData })}
-        exportMutation={api.vulnerability.export.useMutation as unknown as {
+        exportMutation={exportMutation as unknown as {
           mutateAsync: (input: Omit<Record<string, unknown>, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">) => Promise<Row[]>;
           isPending: boolean;
         }}

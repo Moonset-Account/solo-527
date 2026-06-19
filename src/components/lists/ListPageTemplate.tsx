@@ -54,6 +54,7 @@ export interface ListPageTemplateProps<
     mutateAsync: (input: Omit<F, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">) => Promise<T[]>;
     isPending: boolean;
   };
+  exportInputTransform?: (input: Record<string, unknown>) => Omit<F, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">;
   defaultFilters?: Partial<F>;
 }
 
@@ -76,6 +77,7 @@ export function ListPageTemplate<
     onRowClick,
     query,
     exportMutation,
+    exportInputTransform,
     defaultFilters = {},
   } = props;
 
@@ -114,10 +116,12 @@ export function ListPageTemplate<
 
   const handleExport = async () => {
     if (!exportMutation) return;
-    const exportInput = { ...filterState } as Omit<
-      F,
-      "page" | "pageSize" | "groupByOwner" | "groupByAssignee"
-    >;
+    const exportInput = exportInputTransform
+      ? exportInputTransform({ ...filterState })
+      : ({ ...filterState } as Omit<
+          F,
+          "page" | "pageSize" | "groupByOwner" | "groupByAssignee"
+        >);
     const rows = await exportMutation.mutateAsync(exportInput);
     const headers =
       exportHeaders ??
