@@ -49,6 +49,12 @@ export function ContractDetailContent() {
   const [logs, setLogs] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [materialForm, setMaterialForm] = useState({
+    name: '',
+    description: '',
+    fileName: '',
+  });
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -138,17 +144,124 @@ export function ContractDetailContent() {
 
   async function handleSubmitReview() {
     if (!reviewText.trim()) return;
-    const service = await getDataService();
-    await service.createContractReview({
-      contractId,
-      reviewerId: 'user-1',
-      comment: reviewText,
-      riskLevel: RiskLevel.MEDIUM,
-      isApproved: undefined,
-    });
-    setReviewText('');
-    const updatedReviews = await service.getContractReviews(contractId);
-    setReviews(updatedReviews);
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comment: reviewText,
+          reviewerId: 'user-1',
+          riskLevel: 'MEDIUM',
+        }),
+      });
+      if (res.ok) {
+        const service = await getDataService();
+        const updatedReviews = await service.getContractReviews(contractId);
+        setReviews(updatedReviews);
+        setReviewText('');
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleAddMaterial() {
+    if (!materialForm.name.trim()) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: materialForm.name,
+          description: materialForm.description || undefined,
+          fileName: materialForm.fileName || '材料文件.pdf',
+          uploaderId: 'user-1',
+        }),
+      });
+      if (res.ok) {
+        const service = await getDataService();
+        const updatedMaterials = await service.getContractMaterials(contractId);
+        setMaterials(updatedMaterials);
+        setShowAddMaterial(false);
+        setMaterialForm({ name: '', description: '', fileName: '' });
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleMarkMaterialComplete() {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          materialComplete: true,
+          actorUserId: 'user-1',
+          operationType: 'REVIEW',
+          description: '标记材料完整',
+        }),
+      });
+      if (res.ok) {
+        const service = await getDataService();
+        const [contractData, materialsData] = await Promise.all([
+          service.getContractById(contractId),
+          service.getContractMaterials(contractId),
+        ]);
+        setContract(contractData);
+        setMaterials(materialsData);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleCompleteStamp(nodeId: string) {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/stamp-nodes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodeId,
+          userId: 'user-1',
+        }),
+      });
+      if (res.ok) {
+        const service = await getDataService();
+        const [contractData, nodesData] = await Promise.all([
+          service.getContractById(contractId),
+          service.getStampNodes(contractId),
+        ]);
+        setContract(contractData);
+        setStampNodes(nodesData);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDownload() {
+    setActionLoading(true);
+    try {
+      await fetch('/api/downloads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractId,
+          userId: 'user-1',
+          fileName: contract?.fileName || contract?.title || '合同文件',
+        }),
+      });
+      const service = await getDataService();
+      const updatedRecords = await service.getDownloadRecords({ contractId });
+      setDownloadRecords(updatedRecords);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   if (loading) {
@@ -204,11 +317,11 @@ export function ContractDetailContent() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary">
+          <button className="btn-secondary" onClick={handleDownload} disabled={actionLoading}>
             <Download className="mr-2 h-4 w-4" />
             下载
           </button>
-          <button className="btn-primary">
+          <button className="btn-primary" disabled={actionLoading}>
             提交审阅
           </button>
         </div>
@@ -546,8 +659,12 @@ export function ContractDetailContent() {
                     材料完整度：{verifiedCount} / {materials.length} 已验证
                   </span>
                 </div>
-                <button className="btn-primary text-sm">
-                  标记材料完整
+                <button
+                  className="btn-primary text-sm"
+                  onClick={handleMarkMaterialComplete}
+                  disabled={actionLoading || materialComplete}
+                >
+                  {actionLoading ? '处理中...' : '标记材料完整'}
                 </button>
               </div>
 
@@ -558,25 +675,61 @@ export function ContractDetailContent() {
                     <div className="space-y-4">
                       <div>
                         <label className="label">材料名称</label>
-                        <input type="text" className="input" placeholder="请输入材料名称" />
+                        <input
+                          type="text"
+                          className="input"
+                          placeholder="请输入材料名称"
+                          value={materialForm.name}
+                          onChange={(e) => setMaterialForm({ ...materialForm, name: e.target.value })}
+                        />
                       </div>
                       <div>
                         <label className="label">材料文件</label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors cursor-pointer">
+                        <div
+                          className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setMaterialForm({
+                              ...materialForm,
+                              fileName: `${materialForm.name || '材料'}.pdf`,
+                            });
+                          }}
+                        >
                           <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-600">点击或拖拽文件上传</p>
+                          {materialForm.fileName ? (
+                            <p className="text-sm text-primary-600 font-medium">{materialForm.fileName}</p>
+                          ) : (
+                            <p className="text-sm text-gray-600">点击或拖拽文件上传</p>
+                          )}
                         </div>
                       </div>
                       <div>
                         <label className="label">备注说明</label>
-                        <textarea className="input min-h-[80px] resize-none" placeholder="可选" />
+                        <textarea
+                          className="input min-h-[80px] resize-none"
+                          placeholder="可选"
+                          value={materialForm.description}
+                          onChange={(e) => setMaterialForm({ ...materialForm, description: e.target.value })}
+                        />
                       </div>
                     </div>
                     <div className="mt-6 flex justify-end gap-3">
-                      <button onClick={() => setShowAddMaterial(false)} className="btn-secondary">
+                      <button
+                        onClick={() => {
+                          setShowAddMaterial(false);
+                          setMaterialForm({ name: '', description: '', fileName: '' });
+                        }}
+                        className="btn-secondary"
+                        disabled={actionLoading}
+                      >
                         取消
                       </button>
-                      <button className="btn-primary">确认添加</button>
+                      <button
+                        className="btn-primary"
+                        onClick={handleAddMaterial}
+                        disabled={actionLoading || !materialForm.name.trim()}
+                      >
+                        {actionLoading ? '添加中...' : '确认添加'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -652,8 +805,12 @@ export function ContractDetailContent() {
                           )}
                           {!isCompleted && index === stampNodes.filter((n: any) => !n.isCompleted)[0]?.orderIndex - 1 && (
                             <div className="mt-3 flex gap-2">
-                              <button className="btn-primary text-sm">
-                                完成盖章
+                              <button
+                                className="btn-primary text-sm"
+                                onClick={() => handleCompleteStamp(node.id)}
+                                disabled={actionLoading}
+                              >
+                                {actionLoading ? '处理中...' : '完成盖章'}
                               </button>
                             </div>
                           )}

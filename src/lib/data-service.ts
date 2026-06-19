@@ -131,7 +131,11 @@ export interface DataService {
     uploaderId: string;
     assigneeId?: string;
   }) => Promise<any>;
-  updateContract: (id: string, data: any) => Promise<any>;
+  updateContract: (id: string, data: any, options?: {
+    actorUserId?: string;
+    operationType?: OperationType;
+    description?: string;
+  }) => Promise<any>;
   getContractReviews: (contractId: string) => Promise<any[]>;
   createContractReview: (data: {
     contractId: string;
@@ -298,8 +302,23 @@ export const prismaService: DataService = {
     return contract;
   },
 
-  async updateContract(id: string, data: Prisma.ContractUpdateInput) {
-    return prisma.contract.update({ where: { id }, data });
+  async updateContract(id: string, data: Prisma.ContractUpdateInput, options?: {
+    actorUserId?: string;
+    operationType?: OperationType;
+    description?: string;
+  }) {
+    const updated = await prisma.contract.update({ where: { id }, data });
+
+    if (options?.actorUserId && options.operationType) {
+      await logOperation(
+        options.operationType,
+        options.actorUserId,
+        options.description || `更新合同`,
+        id
+      );
+    }
+
+    return updated;
   },
 
   // ============ Review ============
@@ -414,6 +433,13 @@ export const prismaService: DataService = {
         status: MaterialStatus.UPLOADED,
       },
     });
+
+    await logOperation(
+      OperationType.UPLOAD,
+      data.uploaderId,
+      `上传证据材料：${data.name}`,
+      data.contractId
+    );
 
     await prisma.contract.update({
       where: { id: data.contractId },
@@ -731,7 +757,18 @@ export const mockService: DataService = {
     }
     return c as any;
   },
-  updateContract: (id, data) => Promise.resolve(mockDb.contracts.update({ where: { id }, data }) as any),
+  updateContract: async (id, data, options) => {
+    const updated = mockDb.contracts.update({ where: { id }, data }) as any;
+    if (options?.actorUserId && options.operationType) {
+      await logOperation(
+        options.operationType,
+        options.actorUserId,
+        options.description || `更新合同`,
+        id
+      );
+    }
+    return updated;
+  },
   getContractReviews: (contractId) => Promise.resolve(mockDb.contractReviews.findMany({ where: { contractId } }) as any),
   createContractReview: async (data) => {
     const r = mockDb.contractReviews.create({ data }) as any;
@@ -756,6 +793,22 @@ export const mockService: DataService = {
       data: { ...data, status: MaterialStatus.UPLOADED, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any,
     }) as any;
     mockDb.contracts.update({ where: { id: data.contractId }, data: { materialComplete: false } });
+    await logOperation(
+      OperationType.UPLOAD,
+      data.uploaderId,
+      `上传证据材料：${data.name}`,
+      data.contractId
+    );
+    const contract = mockDb.contracts.findUnique({ where: { id: data.contractId } }) as any;
+    if (contract?.assigneeId) {
+      await pushReminder(
+        ReminderType.MATERIAL_INCOMPLETE,
+        contract.assigneeId,
+        '新证据材料已上传',
+        `《${contract.title}》有新证据材料：${data.name}，请验证`,
+        data.contractId
+      );
+    }
     return m;
   },
   updateMaterial: async (id, data) => {

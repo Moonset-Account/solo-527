@@ -27,6 +27,15 @@ export function ContractListContent() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    contractNumber: '',
+    assigneeId: '',
+    deadline: '',
+    fileName: '',
+    fileSize: 0,
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -37,6 +46,35 @@ export function ContractListContent() {
     }
     loadData();
   }, []);
+
+  async function handleUploadSubmit() {
+    if (!uploadForm.title.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: uploadForm.title,
+          contractNumber: uploadForm.contractNumber || undefined,
+          assigneeId: uploadForm.assigneeId || undefined,
+          deadline: uploadForm.deadline || undefined,
+          fileName: uploadForm.fileName || '合同文件.pdf',
+          fileSize: uploadForm.fileSize || 102400,
+          uploaderId: 'user-1',
+        }),
+      });
+      if (res.ok) {
+        const service = await getDataService();
+        const data = await service.getContracts();
+        setContracts(data);
+        setShowUploadModal(false);
+        setUploadForm({ title: '', contractNumber: '', assigneeId: '', deadline: '', fileName: '', fileSize: 0 });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   let filteredContracts = contracts;
 
@@ -261,23 +299,49 @@ export function ContractListContent() {
             <div className="space-y-4">
               <div>
                 <label className="label">合同名称</label>
-                <input type="text" className="input" placeholder="请输入合同名称" />
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="请输入合同名称"
+                  value={uploadForm.title}
+                  onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                />
               </div>
               <div>
                 <label className="label">合同编号</label>
-                <input type="text" className="input" placeholder="请输入合同编号" />
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="请输入合同编号"
+                  value={uploadForm.contractNumber}
+                  onChange={(e) => setUploadForm({ ...uploadForm, contractNumber: e.target.value })}
+                />
               </div>
               <div>
                 <label className="label">合同文件</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors cursor-pointer">
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors cursor-pointer"
+                  onClick={() => {
+                    const mockName = `合同_${uploadForm.title || '未命名'}.pdf`;
+                    setUploadForm({ ...uploadForm, fileName: mockName, fileSize: Math.floor(Math.random() * 500000) + 50000 });
+                  }}
+                >
                   <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600">点击或拖拽文件到此处上传</p>
+                  {uploadForm.fileName ? (
+                    <p className="text-sm text-primary-600 font-medium">{uploadForm.fileName}</p>
+                  ) : (
+                    <p className="text-sm text-gray-600">点击或拖拽文件到此处上传</p>
+                  )}
                   <p className="text-xs text-gray-400 mt-1">支持 PDF、DOC、DOCX 格式</p>
                 </div>
               </div>
               <div>
                 <label className="label">指派给</label>
-                <select className="input">
+                <select
+                  className="input"
+                  value={uploadForm.assigneeId}
+                  onChange={(e) => setUploadForm({ ...uploadForm, assigneeId: e.target.value })}
+                >
                   <option value="">请选择</option>
                   <option value="user-2">李公益（公益律师）</option>
                   <option value="user-3">王审阅（合同审阅人）</option>
@@ -285,18 +349,28 @@ export function ContractListContent() {
               </div>
               <div>
                 <label className="label">截止日期</label>
-                <input type="date" className="input" />
+                <input
+                  type="date"
+                  className="input"
+                  value={uploadForm.deadline}
+                  onChange={(e) => setUploadForm({ ...uploadForm, deadline: e.target.value })}
+                />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => setShowUploadModal(false)}
                 className="btn-secondary"
+                disabled={submitting}
               >
                 取消
               </button>
-              <button className="btn-primary">
-                提交
+              <button
+                className="btn-primary"
+                onClick={handleUploadSubmit}
+                disabled={submitting || !uploadForm.title.trim()}
+              >
+                {submitting ? '提交中...' : '提交'}
               </button>
             </div>
           </div>

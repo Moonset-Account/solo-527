@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDataService } from '@/lib/data-service';
+import { OperationType } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +37,11 @@ export async function PATCH(
     const svc = await getDataService();
     const body = await request.json();
 
-    const updated = await svc.updateContract(params.id, body);
+    const updated = await svc.updateContract(params.id, body, {
+      actorUserId: body.actorUserId || 'user-1',
+      operationType: body.operationType as OperationType || undefined,
+      description: body.description || undefined,
+    });
 
     if (!updated) {
       return NextResponse.json({ error: '合同不存在' }, { status: 404 });
