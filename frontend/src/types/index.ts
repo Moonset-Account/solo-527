@@ -1,6 +1,22 @@
-import { Role } from '@prisma/client';
+export type Role = 'ADMIN' | 'TEACHER' | 'OPERATOR';
 
-export { Role };
+export const ROLE: Record<Role, Role> = {
+  ADMIN: 'ADMIN',
+  TEACHER: 'TEACHER',
+  OPERATOR: 'OPERATOR',
+};
+
+export const roleLabel: Record<Role, string> = {
+  ADMIN: '系统管理员',
+  TEACHER: '课程老师',
+  OPERATOR: '运营人员',
+};
+
+export const roleColor: Record<Role, string> = {
+  ADMIN: 'red',
+  TEACHER: 'blue',
+  OPERATOR: 'green',
+};
 
 export type MemberLevel = 'TRIAL' | 'BASIC' | 'PREMIUM' | 'VIP';
 export type MemberStatus = 'ACTIVE' | 'EXPIRED' | 'FROZEN' | 'CANCELLED';
@@ -10,8 +26,32 @@ export type CheckInStatus = 'PENDING' | 'COMPLETED' | 'LATE' | 'MISSED';
 export type TodoStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TodoPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type TodoType = 'FOLLOW_UP' | 'COURSE_EXPIRE' | 'MEMBER_WARNING' | 'LAGGING_STUDENT' | 'CUSTOM';
-export type ConversionChannel = 'WECHAT_GROUP' | 'MOMENTS' | 'FRIEND_REFERRAL' | 'OFFLINE_EVENT' | 'LIVE_STREAM' | 'ADVERTISEMENT' | 'ORGANIC' | 'OTHER';
-export type OperationAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'CHECK_IN' | 'ASSIGN' | 'COMPLETE' | 'TRANSFER' | 'REMIND' | 'EXPORT' | 'LOGIN' | 'LOGOUT';
+export type ConversionChannel =
+  | 'WECHAT_GROUP'
+  | 'MOMENTS'
+  | 'FRIEND_REFERRAL'
+  | 'OFFLINE_EVENT'
+  | 'LIVE_STREAM'
+  | 'ADVERTISEMENT'
+  | 'ORGANIC'
+  | 'OTHER'
+  | 'REFERRAL'
+  | 'OFFLINE';
+export type FunnelStage = 'LEAD' | 'CONTACTED' | 'TRIAL' | 'CONVERTED';
+export type OperationAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'CHECK_IN'
+  | 'ASSIGN'
+  | 'COMPLETE'
+  | 'TRANSFER'
+  | 'REMIND'
+  | 'EXPORT'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'FOLLOW_UP'
+  | 'RESOLVE';
 
 export interface PaginationParams {
   page?: number;
@@ -25,12 +65,6 @@ export interface PaginatedData<T> {
   page: number;
   pageSize: number;
 }
-
-export const roleLabel: Record<Role, string> = {
-  [Role.ADMIN]: '系统管理员',
-  [Role.TEACHER]: '课程老师',
-  [Role.OPERATOR]: '运营人员',
-};
 
 export const memberLevelLabel: Record<MemberLevel, string> = {
   TRIAL: '体验会员',
@@ -132,15 +166,33 @@ export const todoTypeLabel: Record<TodoType, string> = {
   CUSTOM: '自定义',
 };
 
-export const conversionChannelLabel: Record<ConversionChannel, string> = {
+export const channelTypeLabel: Record<ConversionChannel, string> = {
   WECHAT_GROUP: '微信群',
   MOMENTS: '朋友圈',
   FRIEND_REFERRAL: '朋友推荐',
+  REFERRAL: '转介绍',
   OFFLINE_EVENT: '线下活动',
+  OFFLINE: '线下',
   LIVE_STREAM: '直播',
   ADVERTISEMENT: '广告投放',
   ORGANIC: '自然流量',
   OTHER: '其他',
+};
+
+export const conversionChannelLabel = channelTypeLabel;
+
+export const funnelStageLabel: Record<FunnelStage, string> = {
+  LEAD: '线索',
+  CONTACTED: '已接触',
+  TRIAL: '试听体验',
+  CONVERTED: '转化付费',
+};
+
+export const funnelStageColor: Record<FunnelStage, string> = {
+  LEAD: 'default',
+  CONTACTED: 'geekblue',
+  TRIAL: 'orange',
+  CONVERTED: 'green',
 };
 
 export const operationActionLabel: Record<OperationAction, string> = {
@@ -155,6 +207,8 @@ export const operationActionLabel: Record<OperationAction, string> = {
   EXPORT: '导出',
   LOGIN: '登录',
   LOGOUT: '退出',
+  FOLLOW_UP: '跟进',
+  RESOLVE: '恢复',
 };
 
 export interface MemberSummary {
