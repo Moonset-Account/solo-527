@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  IT_MANAGER
+  USER
+}
+
+enum AssetType {
+  SERVER
+  NETWORK_DEVICE
+  DATABASE
+  STORAGE
+  APPLICATION
+  OTHER
+}
+
+enum AssetStatus {
+  RUNNING
+  MAINTENANCE
+  STOPPED
+  DECOMMISSIONED
+}
+
+enum AlertSeverity {
+  CRITICAL
+  WARNING
+  INFO
+  LOW
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum VulnerabilitySeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum VulnerabilityStatus {
+  IDENTIFIED
+  PATCHING
+  TESTING
+  RESOLVED
+  ACCEPTED_RISK
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  DEFERRED
+}
+
+enum RollbackStatus {
+  PLANNED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+model User {
+  id             String   @id @default(cuid())
+  clerkId        String   @unique
+  email          String
+  name           String?
+  role           UserRole @default(USER)
+  department     String?
+  phone          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assetsOwned    Asset[]  @relation("AssetOwner")
+  alertsAssigned Alert[]  @relation("AlertAssignee")
+  alertsCreated  Alert[]  @relation("AlertCreator")
+  audits         AuditLog[]
+}
+
+model Asset {
+  id             String   @id @default(cuid())
+  name           String
+  type           AssetType
+  ipAddress      String?
+  hostname       String?
+  location       String?
+  status         AssetStatus @default(RUNNING)
+  description    String?
+  ownerId        String?
+  owner          User?    @relation("AssetOwner", fields: [ownerId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  configItems    ConfigItem[]
+  alerts         Alert[]
+  vulnerabilities Vulnerability[]
+  inspections    Inspection[]
+  rollbackPlans  RollbackPlan[]
+  audits         AuditLog[]
+}
+
+model ConfigItem {
+  id             String   @id @default(cuid())
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  category       String
+  key            String
+  value          String?
+  description    String?
+  version        String?
+  lastModifiedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  audits         AuditLog[]
+}
+
+model Alert {
+  id             String   @id @default(cuid())
+  title          String
+  severity       AlertSeverity
+  status         AlertStatus @default(OPEN)
+  description    String?
+  source         String?
+  assetId        String?
+  asset          Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  assigneeId     String?
+  assignee       User?    @relation("AlertAssignee", fields: [assigneeId], references: [id])
+  creatorId      String?
+  creator        User?    @relation("AlertCreator", fields: [creatorId], references: [id])
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  resolution     String?
+  businessConfirmed Boolean @default(false)
+  businessConfirmedBy String?
+  businessConfirmedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  histories      AlertHistory[]
+  audits         AuditLog[]
+}
+
+model AlertHistory {
+  id             String   @id @default(cuid())
+  alertId        String
+  alert          Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  fromStatus     AlertStatus?
+  toStatus       AlertStatus
+  note           String?
+  actorId        String?
+  createdAt      DateTime @default(now())
+}
+
+model Vulnerability {
+  id             String   @id @default(cuid())
+  cveId          String?
+  title          String
+  description    String?
+  severity       VulnerabilitySeverity
+  status         VulnerabilityStatus @default(IDENTIFIED)
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  discoveredBy   String?
+  discoveredAt   DateTime
+  dueDate        DateTime?
+  fixedAt        DateTime?
+  fixVersion     String?
+  patchReference String?
+  responsibleUserId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Inspection {
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+  status         InspectionStatus @default(PENDING)
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scheduledAt    DateTime
+  startedAt      DateTime?
+  completedAt    DateTime?
+  inspectorUserId String?
+  responsibleUserId String?
+  checklist      Json?
+  result         String?
+  issuesFound    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model RollbackPlan {
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+  status         RollbackStatus @default(PLANNED)
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  changeReason   String?
+  rollbackSteps  Json?
+  riskAssessment String?
+  approverUserId String?
+  executedByUserId String?
+  responsibleUserId String?
+  approvedAt     DateTime?
+  executedAt     DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  CONFIRM
+  EXPORT
+}
+
+enum AuditEntity {
+  ASSET
+  CONFIG_ITEM
+  ALERT
+  VULNERABILITY
+  INSPECTION
+  ROLLBACK_PLAN
+  USER
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  action         AuditAction
+  entity         AuditEntity
+  entityId       String?
+  assetId        String?
+  asset          Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  oldValue       Json?
+  newValue       Json?
+  changedFields  String[]
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail      String?
+  note           String?
+  createdAt      DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@index([userId])
+}
