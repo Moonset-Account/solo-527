@@ -16,6 +16,7 @@ import type { Reminder, ReminderBatch, PaginationResult } from '@seat-platform/s
 interface LoaderData {
   reminders: PaginationResult<Reminder>;
   batches: PaginationResult<ReminderBatch>;
+  seatIds: string[];
 }
 
 function mockBatches(): PaginationResult<ReminderBatch> {
@@ -102,7 +103,9 @@ export const loader: LoaderFunction = async ({ request }) => {
     batches = mockBatches();
   }
 
-  return json({ reminders, batches } as LoaderData);
+  const seatIds = [...new Set(reminders.items.map((r) => r.seatId))];
+
+  return json({ reminders, batches, seatIds } as LoaderData);
 };
 
 export const action: ActionFunction = async ({ request }) => {
@@ -115,16 +118,19 @@ export const action: ActionFunction = async ({ request }) => {
       const name = formData.get('name') as string;
       const level = formData.get('level') as ReminderBatch['level'];
       const type = formData.get('type') as ReminderBatch['type'];
-      const titleTemplate = formData.get('titleTemplate') as string || undefined;
-      const contentTemplate = formData.get('contentTemplate') as string || undefined;
+      const titleTemplate = formData.get('titleTemplate') as string;
+      const contentTemplate = formData.get('contentTemplate') as string;
+      const seatIds = formData.getAll('seatIds') as string[];
 
       await api.reminders.batchSend({
         name,
         level,
         type,
+        seatIds,
         titleTemplate,
         contentTemplate,
       });
+      return redirect('/reminders?tab=batches');
     } else if (id) {
       await api.reminders.dismiss(id);
     }
@@ -155,10 +161,10 @@ const batchStatusLabels: Record<ReminderBatch['status'], string> = {
 };
 
 export default function RemindersPage() {
-  const { reminders, batches } = useLoaderData<LoaderData>();
+  const { reminders, batches, seatIds } = useLoaderData<LoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showBatch, setShowBatch] = useState(false);
-  const [showBatchList, setShowBatchList] = useState(false);
+  const [showBatchList, setShowBatchList] = useState(() => searchParams.get('tab') === 'batches');
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   const pendingCount = reminders.items.filter((r) => r.status === 'pending' || r.status === 'sent').length;
@@ -389,6 +395,9 @@ export default function RemindersPage() {
             </div>
             <form method="post" className="p-6 space-y-4" onSubmit={() => setShowBatch(false)}>
               <input type="hidden" name="_action" value="batch" />
+              {seatIds.map((sid) => (
+                <input key={sid} type="hidden" name="seatIds" value={sid} />
+              ))}
               <div>
                 <label className="label">批次名称 *</label>
                 <input name="name" className="input" placeholder="如 2025年6月高用量客户续费提醒" required />
@@ -414,18 +423,18 @@ export default function RemindersPage() {
                 </div>
               </div>
               <div>
-                <label className="label">目标席位（按用量阈值或到期日筛选）</label>
+                <label className="label">目标席位</label>
                 <div className="border border-gray-200 rounded-md p-3 bg-gray-50 text-sm text-gray-600">
-                  已自动筛选：用量 ≥ 80% 的席位 23 个 · 试用 7 天内到期 8 个 · 支付回调失败 5 个
+                  已选中 {seatIds.length} 个席位（来自当前提醒列表的去重席位）
                 </div>
               </div>
               <div>
-                <label className="label">邮件标题模板</label>
-                <input name="titleTemplate" className="input" defaultValue="【续费提醒】{customerName} API 用量即将耗尽" />
+                <label className="label">邮件标题模板 *</label>
+                <input name="titleTemplate" className="input" defaultValue="【续费提醒】{customerName} API 用量即将耗尽" required />
               </div>
               <div>
-                <label className="label">邮件内容模板</label>
-                <textarea name="contentTemplate" rows={4} className="input" defaultValue={`尊敬的 {customerName}，
+                <label className="label">邮件内容模板 *</label>
+                <textarea name="contentTemplate" rows={4} className="input" required defaultValue={`尊敬的 {customerName}，
 
 您的席位 {seatCode} 当前 API 用量已达 {usedQuota}/{quota} 次，为避免影响业务，请及时联系我们续费。
 
@@ -433,7 +442,7 @@ export default function RemindersPage() {
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <button type="button" className="btn-secondary" onClick={() => setShowBatch(false)}>取消</button>
-                <button type="submit" className="btn-primary">发送 {23 + 8 + 5} 条提醒</button>
+                <button type="submit" className="btn-primary">发送 {seatIds.length} 个席位提醒</button>
               </div>
             </form>
           </div>
