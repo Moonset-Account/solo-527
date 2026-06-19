@@ -88,6 +88,15 @@ export function getReminderChannelLabel(channel: string): string {
   return (reminderChannelLabels as Record<string, string>)[channel] || channel;
 }
 
+export function getOperationTypeLabel(type: string): string {
+  return (operationTypeLabels as Record<string, string>)[type] || type;
+}
+
+export function getRoleLabel(role: string | null | undefined): string {
+  if (!role) return '未知';
+  return (roleLabels as Record<string, string>)[role] || role;
+}
+
 export function cn(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ');
 }

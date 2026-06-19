@@ -3,24 +3,24 @@ import { getDataService } from '@/lib/data-service';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { contractId: string } }
+  { params }: { params: { id: string } }
 ) {
   const svc = await getDataService();
-  const reviews = await svc.getContractReviews(params.contractId);
+  const reviews = await svc.getContractReviews(params.id);
 
   return NextResponse.json({ reviews });
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { contractId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const svc = await getDataService();
     const body = await request.json();
 
     const review = await svc.createContractReview({
-      contractId: params.contractId,
+      contractId: params.id,
       reviewerId: body.reviewerId || 'user-1',
       comment: body.comment,
       suggestions: body.suggestions || undefined,

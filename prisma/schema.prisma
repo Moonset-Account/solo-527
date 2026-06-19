@@ -83,7 +83,9 @@ model User {
   operationLogs       OperationLog[]
   stampRecords        StampNode[]
   downloadRecords     DownloadRecord[]
+  uploadedMaterials   EvidenceMaterial[] @relation("materialUploader")
   materialVerifications EvidenceMaterial[] @relation("materialVerifier")
+  efficiencyStats     EfficiencyStat[]
 
   @@map("users")
 }
@@ -214,6 +216,7 @@ model EvidenceMaterial {
   status      MaterialStatus @default(PENDING)
   description String?
   uploaderId  String
+  uploader    User           @relation("materialUploader", fields: [uploaderId], references: [id])
   verifierId  String?
   verifier    User?          @relation("materialVerifier", fields: [verifierId], references: [id])
   verifiedAt  DateTime?
@@ -280,6 +283,7 @@ model OperationLog {
 model EfficiencyStat {
   id              String   @id @default(cuid())
   userId          String
+  user            User     @relation(fields: [userId], references: [id])
   date            DateTime @db.Date
   reviewCount     Int      @default(0)
   avgReviewTime   Int?

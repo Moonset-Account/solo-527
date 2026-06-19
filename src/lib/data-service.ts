@@ -64,7 +64,7 @@ async function logOperation(
 }
 
 async function pushReminder(
-  type: ReminderType,
+  type: string,
   userId: string,
   title: string,
   message: string,
@@ -76,7 +76,7 @@ async function pushReminder(
     if (usePrisma) {
       await prisma.reminder.create({
         data: {
-          type,
+          type: type as ReminderType,
           userId,
           contractId,
           title,
@@ -89,7 +89,7 @@ async function pushReminder(
     } else {
       mockDb.reminders.create({
         data: {
-          type,
+          type: type as ReminderType,
           userId,
           contractId,
           title,
@@ -106,7 +106,95 @@ async function pushReminder(
   }
 }
 
-export const prismaService = {
+export interface DataService {
+  getContracts: (params?: {
+    status?: ContractStatus;
+    assigneeId?: string;
+    uploaderId?: string;
+    materialComplete?: boolean;
+    take?: number;
+  }) => Promise<any[]>;
+  getContractById: (id: string) => Promise<any | null>;
+  countContracts: (params?: {
+    status?: ContractStatus;
+    assigneeId?: string;
+    materialComplete?: boolean;
+  }) => Promise<number>;
+  createContract: (data: {
+    title: string;
+    contractNumber?: string;
+    description?: string;
+    fileUrl: string;
+    fileName: string;
+    fileSize: number;
+    deadline?: Date;
+    uploaderId: string;
+    assigneeId?: string;
+  }) => Promise<any>;
+  updateContract: (id: string, data: any) => Promise<any>;
+  getContractReviews: (contractId: string) => Promise<any[]>;
+  createContractReview: (data: {
+    contractId: string;
+    reviewerId: string;
+    comment: string;
+    suggestions?: string;
+    riskLevel?: RiskLevel;
+    isApproved?: boolean;
+  }) => Promise<any>;
+  getContractMaterials: (contractId: string) => Promise<any[]>;
+  countMaterials: (contractId: string, status?: MaterialStatus) => Promise<number>;
+  createMaterial: (data: {
+    contractId: string;
+    name: string;
+    fileUrl: string;
+    fileType: string;
+    description?: string;
+    uploaderId: string;
+  }) => Promise<any>;
+  updateMaterial: (id: string, data: any) => Promise<any>;
+  getStampNodes: (contractId: string) => Promise<any[]>;
+  completeStampNode: (id: string, userId: string, remark?: string) => Promise<any>;
+  getReminders: (params?: {
+    userId?: string;
+    isRead?: boolean;
+    contractId?: string;
+    take?: number;
+  }) => Promise<any[]>;
+  countReminders: (params?: { userId?: string; isRead?: boolean }) => Promise<number>;
+  markReminderRead: (id: string) => Promise<any>;
+  getReminderRules: (params?: { isEnabled?: boolean; type?: ReminderType }) => Promise<any[]>;
+  toggleReminderRule: (id: string, isEnabled: boolean, actorUserId: string) => Promise<any>;
+  createReminderRule: (data: any, actorUserId: string) => Promise<any>;
+  updateReminderRule: (id: string, data: any, actorUserId: string) => Promise<any>;
+  getRolePermissions: (role?: string) => Promise<any>;
+  updateRolePermission: (role: string, data: any, actorUserId: string) => Promise<any>;
+  getUsers: (params?: { role?: string }) => Promise<any[]>;
+  getOperationLogs: (params?: {
+    userId?: string;
+    contractId?: string;
+    operationType?: OperationType;
+    take?: number;
+  }) => Promise<any[]>;
+  getEfficiencyStats: (userId?: string) => Promise<any[]>;
+  recordDownload: (contractId: string, userId: string, fileName: string, ipAddress?: string) => Promise<any>;
+  getDownloadRecords: (params?: { contractId?: string; userId?: string }) => Promise<any[]>;
+  logOperation: (
+    operationType: OperationType,
+    userId: string,
+    description: string,
+    contractId?: string,
+    ipAddress?: string
+  ) => Promise<void>;
+  pushReminder: (
+    type: ReminderType | string,
+    userId: string,
+    title: string,
+    message: string,
+    contractId?: string
+  ) => Promise<void>;
+}
+
+export const prismaService: DataService = {
   // ============ Contract ============
   async getContracts(params?: {
     status?: ContractStatus;
@@ -629,7 +717,7 @@ export const prismaService = {
   pushReminder,
 };
 
-export const mockService: typeof prismaService = {
+export const mockService: DataService = {
   getContracts: (params) => Promise.resolve(mockDb.contracts.findMany(params) as any),
   getContractById: (id) => Promise.resolve(mockDb.contracts.findUnique({ where: { id } }) as any),
   countContracts: (params) => Promise.resolve(mockDb.contracts.count(params)),

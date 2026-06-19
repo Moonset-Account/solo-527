@@ -56,7 +56,7 @@ export default function MaterialBoardPage() {
   if (!data) return <div className="p-8 text-gray-500">加载中...</div>;
 
   const { contracts, users, materials } = data;
-  const userMap = new Map(users.map((u: any) => [u.id, u]));
+  const userMap = new Map<string, any>(users.map((u: any) => [u.id, u]));
 
   const materialIncompleteContracts = contracts.filter((c: any) => !c.materialComplete);
   const materialCompleteContracts = contracts.filter((c: any) => c.materialComplete);

@@ -144,7 +144,7 @@ export function ContractDetailContent() {
       reviewerId: 'user-1',
       comment: reviewText,
       riskLevel: RiskLevel.MEDIUM,
-      isApproved: null,
+      isApproved: undefined,
     });
     setReviewText('');
     const updatedReviews = await service.getContractReviews(contractId);

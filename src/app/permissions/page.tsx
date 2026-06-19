@@ -18,7 +18,7 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { getDataService } from '@/lib/data-service';
-import { roleLabels, cn } from '@/lib/utils';
+import { getRoleLabel, cn } from '@/lib/utils';
 import { UserRole } from '@prisma/client';
 
 export default function PermissionsPage() {
@@ -36,8 +36,8 @@ export default function PermissionsPage() {
         service.getUsers(),
         service.getRolePermissions(),
       ]);
-      setUsers(usersData);
-      setRolePermissions(permsData);
+      setUsers(usersData as any[]);
+      setRolePermissions(Array.isArray(permsData) ? permsData : []);
       setLoading(false);
     }
     loadData();
@@ -164,7 +164,7 @@ export default function PermissionsPage() {
                         </div>
                         <div>
                           <h3 className="font-medium text-gray-900">
-                            {roleLabels[rp.role] || rp.role}
+                            {getRoleLabel(rp.role)}
                           </h3>
                           <p className="text-sm text-gray-500">
                             角色代码：{rp.role}
@@ -293,7 +293,7 @@ export default function PermissionsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-4">
                         <span className="badge badge-primary">
-                          {roleLabels[user.role] || user.role}
+                          {getRoleLabel(user.role)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-500">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDataService } from '@/lib/data-service';
+import { getDataService, type DataService } from '@/lib/data-service';
 import { REMINDER_QUEUE_KEY } from '@/lib/redis';
 import { ReminderType, RiskLevel, ContractStatus } from '@prisma/client';
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function checkReviewDeadlines(svc: Awaited<ReturnType<typeof getDataService>>) {
+async function checkReviewDeadlines(svc: DataService) {
   const now = new Date();
   const contracts = await svc.getContracts({
     status: ContractStatus.UNDER_REVIEW,
@@ -76,7 +76,7 @@ async function checkReviewDeadlines(svc: Awaited<ReturnType<typeof getDataServic
   }
 }
 
-async function checkMaterialCompleteness(svc: Awaited<ReturnType<typeof getDataService>>) {
+async function checkMaterialCompleteness(svc: DataService) {
   const contracts = await svc.getContracts({
     materialComplete: false,
   });
@@ -104,7 +104,7 @@ async function checkMaterialCompleteness(svc: Awaited<ReturnType<typeof getDataS
   }
 }
 
-async function checkRiskAlerts(svc: Awaited<ReturnType<typeof getDataService>>) {
+async function checkRiskAlerts(svc: DataService) {
   const allContracts = await svc.getContracts();
   const highRiskContracts = allContracts.filter(c =>
     c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL
@@ -134,7 +134,7 @@ async function checkRiskAlerts(svc: Awaited<ReturnType<typeof getDataService>>) 
   }
 }
 
-async function checkEfficiency(svc: Awaited<ReturnType<typeof getDataService>>) {
+async function checkEfficiency(svc: DataService) {
   const stats = await svc.getEfficiencyStats();
   const validStats = stats.filter(s => s.avgReviewTime);
   const avgTime = validStats.length > 0

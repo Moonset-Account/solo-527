@@ -18,6 +18,7 @@ export async function pushReminderQueue(data: {
   contractId?: string;
   userId?: string;
   type: string;
+  title: string;
   message: string;
 }) {
   await redis.lpush(REMINDER_QUEUE_KEY, JSON.stringify(data));
