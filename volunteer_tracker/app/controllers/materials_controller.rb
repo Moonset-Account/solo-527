@@ -22,13 +22,14 @@ class MaterialsController < ApplicationController
 
   def create
     @material = Material.new(material_params)
+    initial_qty = params[:material][:initial_quantity].to_i
     ActiveRecord::Base.transaction do
       if @material.save
-        if params[:material][:initial_quantity].present? && params[:material][:initial_quantity].to_i > 0
+        if initial_qty > 0
           MaterialTransaction.create!(
             material: @material,
             transaction_type: 'in',
-            quantity: params[:material][:initial_quantity].to_i,
+            quantity: initial_qty,
             operator: current_user,
             remark: '初始库存入库'
           )
@@ -67,6 +68,6 @@ class MaterialsController < ApplicationController
   end
 
   def material_params
-    params.require(:material).permit(:name, :category, :unit, :initial_quantity, :threshold)
+    params.require(:material).permit(:name, :category, :unit, :threshold)
   end
 end

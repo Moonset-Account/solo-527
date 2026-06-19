@@ -14,6 +14,6 @@ class Material < ApplicationRecord
   end
 
   def below_threshold?
-    threshold.present? && current_quantity < threshold
+    low_stock?
   end
 end

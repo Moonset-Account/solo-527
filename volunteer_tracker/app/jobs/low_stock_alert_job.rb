@@ -3,7 +3,7 @@ class LowStockAlertJob < ApplicationJob
 
   def perform
     Material.find_each do |material|
-      next unless material.below_threshold?
+      next unless material.low_stock?
 
       TrackingReminder.create!(
         trackable: material,

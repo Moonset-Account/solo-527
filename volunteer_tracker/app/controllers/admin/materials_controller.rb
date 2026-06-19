@@ -8,7 +8,7 @@ class Admin::MaterialsController < ApplicationController
       @materials = @materials.where(category: params[:category])
     end
     if params[:low_stock].present?
-      @materials = @materials.select { |m| m.current_quantity <= m.threshold }
+      @materials = @materials.select { |m| m.low_stock? }
     end
     @categories = Material.distinct.pluck(:category).compact.sort
   end
@@ -22,13 +22,14 @@ class Admin::MaterialsController < ApplicationController
 
   def create
     @material = Material.new(material_params)
+    initial_qty = params[:material][:initial_quantity].to_i
     ActiveRecord::Base.transaction do
       if @material.save
-        if params[:material][:initial_quantity].present? && params[:material][:initial_quantity].to_i > 0
+        if initial_qty > 0
           MaterialTransaction.create!(
             material: @material,
             transaction_type: 'in',
-            quantity: params[:material][:initial_quantity].to_i,
+            quantity: initial_qty,
             operator: current_user,
             remark: '初始库存入库'
           )
@@ -49,7 +50,7 @@ class Admin::MaterialsController < ApplicationController
 
   def update
     if @material.update(material_params)
-      redirect_to admin_materials_url, notice: "Material was successfully updated."
+      redirect_to admin_materials_url, notice: "物资已更新成功。"
     else
       render :edit, status: :unprocessable_entity
     end
@@ -57,7 +58,7 @@ class Admin::MaterialsController < ApplicationController
 
   def destroy
     @material.destroy!
-    redirect_to admin_materials_url, notice: "Material was successfully destroyed."
+    redirect_to admin_materials_url, notice: "物资已删除成功。"
   end
 
   private
@@ -67,6 +68,6 @@ class Admin::MaterialsController < ApplicationController
   end
 
   def material_params
-    params.require(:material).permit(:name, :category, :unit, :initial_quantity, :threshold)
+    params.require(:material).permit(:name, :category, :unit, :threshold)
   end
 end
