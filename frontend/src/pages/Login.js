@@ -8,18 +8,15 @@ import { handleApiError } from '../utils/helpers';
 
 const Login = () => {
   const navigate = useNavigate();
-  const setToken = useAuthStore((state) => state.setToken);
+  const login = useAuthStore((state) => state.login);
   const [loading, setLoading] = React.useState(false);
 
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await authAPI.login(values);
-      if (response.data.token) {
-        setToken(response.data.token);
-        message.success('登录成功');
-        navigate('/dashboard');
-      }
+      await login(values);
+      message.success('登录成功');
+      navigate('/dashboard');
     } catch (error) {
       message.error(handleApiError(error, '登录失败'));
     } finally {

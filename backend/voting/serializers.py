@@ -11,6 +11,9 @@ class VoteSerializer(ProductionDataSerializerMixin, serializers.ModelSerializer)
     voter = UserSerializer(read_only=True)
     vote_display = serializers.CharField(source='get_vote_display', read_only=True)
     voter_name = serializers.SerializerMethodField()
+    topic_title = serializers.CharField(source='topic.title', read_only=True)
+    is_qualified_exception = serializers.BooleanField(source='has_qualification_exception', read_only=True)
+    exception_reason = serializers.CharField(source='exception_remark', read_only=True)
 
     class Meta:
         model = Vote
@@ -44,6 +47,13 @@ class VoteSerializer(ProductionDataSerializerMixin, serializers.ModelSerializer)
 
 class VotingStatisticsSerializer(serializers.ModelSerializer):
     topic = TopicSerializer(read_only=True)
+    total_votes = serializers.IntegerField(source='actual_voters', read_only=True)
+    agree_votes = serializers.IntegerField(source='yes_votes', read_only=True)
+    disagree_votes = serializers.IntegerField(source='no_votes', read_only=True)
+    voting_rate = serializers.DecimalField(source='turnout_rate', max_digits=5, decimal_places=2, read_only=True)
+    agree_rate = serializers.DecimalField(source='yes_rate', max_digits=5, decimal_places=2, read_only=True)
+    disagree_rate_field = serializers.DecimalField(source='no_rate', max_digits=5, decimal_places=2, read_only=True)
+    qualification_exceptions = serializers.IntegerField(source='exception_count', read_only=True)
 
     class Meta:
         model = VotingStatistics

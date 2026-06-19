@@ -170,6 +170,7 @@ export const commonAPI = {
   export: (module, params) => 
     api.get(`/common/export/?module=${module}`, { params, responseType: 'blob' }),
   getStatistics: () => api.get('/common/statistics/'),
+  getEnvironment: () => api.get('/common/environment/'),
 };
 
 export default api;

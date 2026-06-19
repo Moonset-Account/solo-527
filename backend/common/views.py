@@ -26,6 +26,16 @@ class BaseViewSet(viewsets.ModelViewSet):
         serializer.save(updated_by=self.request.user)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def environment_info(request):
+    return Response({
+        'environment': 'production' if settings.IS_PRODUCTION else 'development',
+        'is_production': settings.IS_PRODUCTION,
+        'is_test_data_visible': not settings.IS_PRODUCTION,
+    })
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def DataExportView(request):

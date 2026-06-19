@@ -1,38 +1,63 @@
 import { create } from 'zustand';
-import { jwtDecode } from 'jwt-decode';
+import { authAPI } from '../services/api';
 
 const useAuthStore = create((set, get) => ({
   token: localStorage.getItem('token') || null,
-  user: null,
-  isAuthenticated: false,
+  user: JSON.parse(localStorage.getItem('user') || 'null'),
+  isAuthenticated: !!localStorage.getItem('token'),
   
   setToken: (token) => {
     localStorage.setItem('token', token);
-    const user = jwtDecode(token);
-    set({ token, user, isAuthenticated: true });
+    set({ token, isAuthenticated: true });
   },
   
-  logout: () => {
+  setUser: (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
+  },
+  
+  login: async (credentials) => {
+    const response = await authAPI.login(credentials);
+    const token = response.data.token;
+    const user = response.data.user;
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ token, user, isAuthenticated: true });
+    
+    return { token, user };
+  },
+  
+  logout: async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     set({ token: null, user: null, isAuthenticated: false });
+  },
+  
+  fetchCurrentUser: async () => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      const user = response.data;
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ user });
+      return user;
+    } catch (error) {
+      get().logout();
+      throw error;
+    }
   },
   
   checkAuth: () => {
     const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        const currentTime = Date.now() / 1000;
-        if (decoded.exp < currentTime) {
-          get().logout();
-          return false;
-        }
-        set({ token, user: decoded, isAuthenticated: true });
-        return true;
-      } catch (error) {
-        get().logout();
-        return false;
-      }
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (token && user) {
+      set({ token, user, isAuthenticated: true });
+      return true;
     }
     return false;
   },

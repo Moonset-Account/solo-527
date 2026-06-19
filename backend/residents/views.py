@@ -90,7 +90,7 @@ class ResidentViewSet(BaseViewSet):
             'user__username', 'user__first_name', 'user__last_name',
             'user__phone', 'user__community', 'user__building',
             'user__unit', 'user__room_number', 'household_type',
-            'household_members', 'is_voter_qualified', 'registered_address',
+            'household_member_count', 'is_voter_qualified', 'registered_address',
             'residence_address', 'created_at'
         ]
         return generate_excel_response(queryset, fields, '居民台账')

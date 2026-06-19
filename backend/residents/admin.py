@@ -32,7 +32,7 @@ class ResidentAdmin(admin.ModelAdmin):
     inlines = [HouseholdMemberInline, ResidentProcessRecordInline]
     fieldsets = (
         ('基本信息', {
-            'fields': ('user', 'household_type', 'household_members', 'is_voter_qualified', 'qualification_exception_reason')
+            'fields': ('user', 'household_type', 'household_member_count', 'is_voter_qualified', 'qualification_exception_reason')
         }),
         ('居住信息', {
             'fields': ('registered_address', 'residence_address', 'household_register_type')

@@ -26,7 +26,7 @@ class Resident(BaseModel):
         default='ordinary',
         verbose_name='家庭类型'
     )
-    household_members = models.IntegerField(default=1, verbose_name='家庭人数')
+    household_member_count = models.IntegerField(default=1, verbose_name='家庭人数')
     is_voter_qualified = models.BooleanField(default=True, verbose_name='是否有投票资格')
     qualification_exception_reason = models.TextField(blank=True, verbose_name='资格异常原因')
     registered_address = models.CharField(max_length=255, blank=True, verbose_name='户籍地址')

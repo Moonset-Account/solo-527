@@ -246,6 +246,12 @@ class TaskViewSet(BaseViewSet):
         if request.user.role == 'volunteer':
             queryset = queryset.filter(assigned_to=request.user)
 
+        status_map = {
+            'pending': 'todo',
+            'in_progress': 'in_progress',
+            'completed': 'done'
+        }
+
         def format_tasks(tasks):
             result = []
             for task in tasks:
@@ -261,10 +267,16 @@ class TaskViewSet(BaseViewSet):
                     'id': task['id'],
                     'title': task['title'],
                     'type': task['type'],
+                    'task_type': task['type'],
                     'priority': task['priority'],
+                    'status': status_map.get(task.get('status'), 'todo'),
+                    'description': task.get('description', ''),
                     'created_at': task['created_at'],
+                    'deadline': task.get('deadline'),
+                    'due_date': task.get('deadline'),
                     'completed_at': task.get('completed_at'),
                     'assigned_to_name': assigned_to_name,
+                    'assignee_name': assigned_to_name,
                     'resident_name': resident_name,
                     'status_display': dict(Task.STATUS_CHOICES).get(task.get('status', 'pending'), '待处理'),
                     'type_display': dict(Task.TYPE_CHOICES).get(task.get('type', ''), task.get('type', '')),
@@ -274,17 +286,17 @@ class TaskViewSet(BaseViewSet):
 
         columns = {
             'todo': format_tasks(queryset.filter(status='pending').values(
-                'id', 'title', 'type', 'priority', 'status', 'created_at',
+                'id', 'title', 'type', 'priority', 'status', 'description', 'created_at', 'deadline',
                 'assigned_to__first_name', 'assigned_to__last_name',
                 'related_resident__user__first_name', 'related_resident__user__last_name'
             )),
             'in_progress': format_tasks(queryset.filter(status='in_progress').values(
-                'id', 'title', 'type', 'priority', 'status', 'created_at',
+                'id', 'title', 'type', 'priority', 'status', 'description', 'created_at', 'deadline',
                 'assigned_to__first_name', 'assigned_to__last_name',
                 'related_resident__user__first_name', 'related_resident__user__last_name'
             )),
             'done': format_tasks(queryset.filter(status='completed').values(
-                'id', 'title', 'type', 'priority', 'status', 'created_at', 'completed_at',
+                'id', 'title', 'type', 'priority', 'status', 'description', 'created_at', 'deadline', 'completed_at',
                 'assigned_to__first_name', 'assigned_to__last_name',
                 'related_resident__user__first_name', 'related_resident__user__last_name'
             )),

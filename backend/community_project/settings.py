@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-in-production')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-ENV = os.environ.get('ENV', 'development')
+ENV = os.environ.get('DJANGO_ENV', os.environ.get('ENV', 'development'))
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -166,6 +166,9 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 IS_PRODUCTION = ENV == 'production'
 
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -173,7 +176,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
+            'filename': LOG_DIR / 'django.log',
         },
         'console': {
             'class': 'logging.StreamHandler',
