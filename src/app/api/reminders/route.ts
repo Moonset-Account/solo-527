@@ -1,38 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 
 export async function GET(request: NextRequest) {
+  const svc = await getDataService();
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
   const isRead = searchParams.get('isRead');
 
-  const where: any = {};
-  if (userId) where.userId = userId;
-  if (isRead !== null) where.isRead = isRead === 'true';
-
-  const reminders = db.reminders.findMany(where ? { where } : undefined);
+  const reminders = await svc.getReminders({
+    userId: userId || undefined,
+    isRead: isRead !== null ? isRead === 'true' : undefined,
+  });
 
   return NextResponse.json({ reminders });
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const svc = await getDataService();
     const body = await request.json();
 
-    const reminder = db.reminders.create({
-      data: {
-        type: body.type,
-        userId: body.userId,
-        contractId: body.contractId || null,
-        ruleId: body.ruleId || null,
-        title: body.title,
-        message: body.message,
-        isRead: false,
-        isSent: body.isSent ?? true,
-        scheduledAt: body.scheduledAt || null,
-        sentAt: body.sentAt || new Date().toISOString(),
-      },
+    await svc.pushReminder(
+      body.type,
+      body.userId,
+      body.title,
+      body.message,
+      body.contractId || undefined
+    );
+
+    const reminders = await svc.getReminders({
+      userId: body.userId,
+      take: 1,
     });
+    const reminder = reminders[0] || null;
 
     return NextResponse.json({ reminder }, { status: 201 });
   } catch (error) {

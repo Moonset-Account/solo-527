@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 
 export async function GET() {
-  const permissions = db.rolePermissions.findMany();
+  const svc = await getDataService();
+  const permissions = await svc.getRolePermissions();
   return NextResponse.json({ permissions });
 }
 
 export async function PATCH(request: NextRequest) {
   try {
+    const svc = await getDataService();
     const body = await request.json();
     const { role, ...data } = body;
 
@@ -15,22 +17,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: '缺少角色参数' }, { status: 400 });
     }
 
-    const updated = db.rolePermissions.update({
-      where: { role },
-      data,
-    });
+    const updated = await svc.updateRolePermission(role, data, 'user-1');
 
     if (!updated) {
       return NextResponse.json({ error: '角色权限不存在' }, { status: 404 });
     }
-
-    db.operationLogs.create({
-      data: {
-        operationType: 'UPDATE_PERMISSION',
-        userId: 'user-1',
-        description: `更新 ${role} 角色权限`,
-      },
-    });
 
     return NextResponse.json({ permission: updated });
   } catch (error) {

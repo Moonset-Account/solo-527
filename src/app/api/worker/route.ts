@@ -1,31 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
-import { pushReminderQueue, REMINDER_QUEUE_KEY } from '@/lib/redis';
-import { ReminderType, RiskLevel } from '@prisma/client';
+import { getDataService } from '@/lib/data-service';
+import { REMINDER_QUEUE_KEY } from '@/lib/redis';
+import { ReminderType, RiskLevel, ContractStatus } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   try {
+    const svc = await getDataService();
     const { action } = await request.json();
 
     switch (action) {
       case 'checkDeadlines':
-        await checkReviewDeadlines();
+        await checkReviewDeadlines(svc);
         return NextResponse.json({ success: true, message: '已检查截止日期提醒' });
 
       case 'checkMaterials':
-        await checkMaterialCompleteness();
+        await checkMaterialCompleteness(svc);
         return NextResponse.json({ success: true, message: '已检查材料完整性' });
 
       case 'checkRiskAlerts':
-        await checkRiskAlerts();
+        await checkRiskAlerts(svc);
         return NextResponse.json({ success: true, message: '已检查风险预警' });
 
       case 'checkEfficiency':
-        await checkEfficiency();
+        await checkEfficiency(svc);
         return NextResponse.json({ success: true, message: '已检查审阅效率' });
 
       case 'processQueue':
-        const result = await processReminderQueue();
+        const result = await processReminderQueue(svc);
         return NextResponse.json({ success: true, processed: result });
 
       default:
@@ -36,137 +37,130 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function checkReviewDeadlines() {
+async function checkReviewDeadlines(svc: Awaited<ReturnType<typeof getDataService>>) {
   const now = new Date();
-  const contracts = db.contracts.findMany({
-    where: {
-      status: { in: ['UNDER_REVIEW', 'PENDING_REVIEW', 'REVISE_REQUESTED'] },
-    },
+  const contracts = await svc.getContracts({
+    status: ContractStatus.UNDER_REVIEW,
   });
+  const pendingContracts = await svc.getContracts({
+    status: ContractStatus.PENDING_REVIEW,
+  });
+  const reviseContracts = await svc.getContracts({
+    status: ContractStatus.REVISE_REQUESTED,
+  });
+  const allContracts = [...contracts, ...pendingContracts, ...reviseContracts];
 
-  for (const contract of contracts) {
+  for (const contract of allContracts) {
     if (!contract.deadline || !contract.assigneeId) continue;
 
     const deadline = new Date(contract.deadline);
     const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (hoursLeft > 0 && hoursLeft <= 24) {
-      const existingReminder = db.reminders.findMany({
-        where: {
-          contractId: contract.id,
-          userId: contract.assigneeId,
-          type: ReminderType.REVIEW_DEADLINE,
-        },
+      const existingReminder = await svc.getReminders({
+        contractId: contract.id,
+        userId: contract.assigneeId,
       });
+      const hasDeadlineReminder = existingReminder.some(r => r.type === ReminderType.REVIEW_DEADLINE);
 
-      if (existingReminder.length === 0) {
-        await pushReminderQueue({
-          contractId: contract.id,
-          userId: contract.assigneeId,
-          type: ReminderType.REVIEW_DEADLINE,
-          message: `《${contract.title}》审阅即将到期，请尽快处理`,
-        });
+      if (!hasDeadlineReminder) {
+        await svc.pushReminder(
+          ReminderType.REVIEW_DEADLINE,
+          contract.assigneeId,
+          '审阅即将到期',
+          `《${contract.title}》审阅即将到期，请尽快处理`,
+          contract.id
+        );
       }
     }
   }
 }
 
-async function checkMaterialCompleteness() {
-  const contracts = db.contracts.findMany({
-    where: { materialComplete: false },
+async function checkMaterialCompleteness(svc: Awaited<ReturnType<typeof getDataService>>) {
+  const contracts = await svc.getContracts({
+    materialComplete: false,
   });
 
   for (const contract of contracts) {
-    const materials = db.evidenceMaterials.findMany({
-      where: { contractId: contract.id },
-    });
+    const materials = await svc.getContractMaterials(contract.id);
 
     const allVerified = materials.length > 0 && materials.every(m => m.status === 'VERIFIED');
 
     if (materials.length > 0 && allVerified) {
-      db.contracts.update({
-        where: { id: contract.id },
-        data: { materialComplete: true },
-      });
+      await svc.updateContract(contract.id, { materialComplete: true });
     }
 
     if (materials.length === 0 || !allVerified) {
       if (contract.assigneeId) {
-        await pushReminderQueue({
-          contractId: contract.id,
-          userId: contract.assigneeId,
-          type: ReminderType.MATERIAL_INCOMPLETE,
-          message: `《${contract.title}》证据材料不完整，请补充`,
-        });
+        await svc.pushReminder(
+          ReminderType.MATERIAL_INCOMPLETE,
+          contract.assigneeId,
+          '证据材料不完整',
+          `《${contract.title}》证据材料不完整，请补充`,
+          contract.id
+        );
       }
     }
   }
 }
 
-async function checkRiskAlerts() {
-  const contracts = db.contracts.findMany({
-    where: {
-      riskLevel: { in: [RiskLevel.HIGH, RiskLevel.CRITICAL] },
-    },
-  });
+async function checkRiskAlerts(svc: Awaited<ReturnType<typeof getDataService>>) {
+  const allContracts = await svc.getContracts();
+  const highRiskContracts = allContracts.filter(c =>
+    c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL
+  );
 
-  const legalManagers = db.users.findMany({
-    where: { role: 'LEGAL_MANAGER' },
-  });
+  const allUsers = await svc.getUsers();
+  const legalManagers = allUsers.filter(u => u.role === 'LEGAL_MANAGER');
 
-  for (const contract of contracts) {
+  for (const contract of highRiskContracts) {
     for (const manager of legalManagers) {
-      const existingAlert = db.reminders.findMany({
-        where: {
-          contractId: contract.id,
-          userId: manager.id,
-          type: ReminderType.RISK_ALERT,
-        },
+      const existingAlerts = await svc.getReminders({
+        contractId: contract.id,
+        userId: manager.id,
       });
+      const hasRiskAlert = existingAlerts.some(r => r.type === ReminderType.RISK_ALERT);
 
-      if (existingAlert.length === 0) {
-        db.reminders.create({
-          data: {
-            type: ReminderType.RISK_ALERT,
-            userId: manager.id,
-            contractId: contract.id,
-            title: '高风险合同预警',
-            message: `《${contract.title}》被标记为${contract.riskLevel === 'CRITICAL' ? '严重风险' : '高风险'}，请重点关注`,
-            isRead: false,
-            isSent: true,
-            sentAt: new Date().toISOString(),
-          },
-        });
+      if (!hasRiskAlert) {
+        await svc.pushReminder(
+          ReminderType.RISK_ALERT,
+          manager.id,
+          '高风险合同预警',
+          `《${contract.title}》被标记为${contract.riskLevel === RiskLevel.CRITICAL ? '严重风险' : '高风险'}，请重点关注`,
+          contract.id
+        );
       }
     }
   }
 }
 
-async function checkEfficiency() {
-  const stats = db.efficiencyStats.findMany();
-  const avgTime = stats.filter(s => s.avgReviewTime).reduce((sum, s) => sum + (s.avgReviewTime || 0), 0) / stats.filter(s => s.avgReviewTime).length || 0;
+async function checkEfficiency(svc: Awaited<ReturnType<typeof getDataService>>) {
+  const stats = await svc.getEfficiencyStats();
+  const validStats = stats.filter(s => s.avgReviewTime);
+  const avgTime = validStats.length > 0
+    ? validStats.reduce((sum, s) => sum + (s.avgReviewTime || 0), 0) / validStats.length
+    : 0;
 
-  const slowUsers = stats.filter(s => s.avgReviewTime && s.avgReviewTime > avgTime * 1.3);
+  const slowUsers = validStats.filter(s => (s.avgReviewTime || 0) > avgTime * 1.3);
 
   for (const stat of slowUsers) {
-    const existing = db.reminders.findMany({
-      where: {
-        userId: stat.userId,
-        type: ReminderType.EFFICIENCY_REMINDER,
-      },
+    const existing = await svc.getReminders({
+      userId: stat.userId,
     });
+    const hasEfficiencyReminder = existing.some(r => r.type === ReminderType.EFFICIENCY_REMINDER);
 
-    if (existing.length === 0) {
-      await pushReminderQueue({
-        userId: stat.userId,
-        type: ReminderType.EFFICIENCY_REMINDER,
-        message: '您的审阅效率略低于团队平均水平，建议优化工作流程',
-      });
+    if (!hasEfficiencyReminder) {
+      await svc.pushReminder(
+        ReminderType.EFFICIENCY_REMINDER,
+        stat.userId,
+        '效率提醒',
+        '您的审阅效率略低于团队平均水平，建议优化工作流程'
+      );
     }
   }
 }
 
-async function processReminderQueue(): Promise<number> {
+async function processReminderQueue(svc: Awaited<ReturnType<typeof getDataService>>): Promise<number> {
   let processed = 0;
 
   while (true) {
@@ -176,19 +170,13 @@ async function processReminderQueue(): Promise<number> {
     try {
       const data = JSON.parse(item);
 
-      db.reminders.create({
-        data: {
-          type: data.type,
-          userId: data.userId || 'user-1',
-          contractId: data.contractId || null,
-          ruleId: data.ruleId || null,
-          title: data.title || '系统提醒',
-          message: data.message,
-          isRead: false,
-          isSent: true,
-          sentAt: new Date().toISOString(),
-        },
-      });
+      await svc.pushReminder(
+        data.type,
+        data.userId || 'user-1',
+        data.title || '系统提醒',
+        data.message,
+        data.contractId || undefined
+      );
 
       processed++;
     } catch (e) {

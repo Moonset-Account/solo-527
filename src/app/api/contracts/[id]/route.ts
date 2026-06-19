@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const contract = db.contracts.findUnique({ where: { id: params.id } });
+  const svc = await getDataService();
+  const contract = await svc.getContractById(params.id);
 
   if (!contract) {
     return NextResponse.json({ error: '合同不存在' }, { status: 404 });
   }
 
-  const reviews = db.contractReviews.findMany({ where: { contractId: params.id } });
-  const materials = db.evidenceMaterials.findMany({ where: { contractId: params.id } });
-  const stampNodes = db.stampNodes.findMany({ where: { contractId: params.id } });
-  const downloadRecords = db.downloadRecords.findMany({ where: { contractId: params.id } });
-  const logs = db.operationLogs.findMany({ where: { contractId: params.id } });
+  const reviews = await svc.getContractReviews(params.id);
+  const materials = await svc.getContractMaterials(params.id);
+  const stampNodes = await svc.getStampNodes(params.id);
+  const downloadRecords = await svc.getDownloadRecords({ contractId: params.id });
+  const logs = await svc.getOperationLogs({ contractId: params.id });
 
   return NextResponse.json({
     contract,
@@ -32,12 +33,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const svc = await getDataService();
     const body = await request.json();
 
-    const updated = db.contracts.update({
-      where: { id: params.id },
-      data: body,
-    });
+    const updated = await svc.updateContract(params.id, body);
 
     if (!updated) {
       return NextResponse.json({ error: '合同不存在' }, { status: 404 });

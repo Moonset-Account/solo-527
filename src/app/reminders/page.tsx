@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Bell,
@@ -10,11 +10,14 @@ import {
   FileWarning,
   Filter,
   CheckCheck,
-  ArrowLeft,
   ChevronRight,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
-import { reminderTypeLabels, formatDate, cn } from '@/lib/utils';
+import { getDataService } from '@/lib/data-service';
+import {
+  getReminderTypeLabel,
+  formatDate,
+  cn,
+} from '@/lib/utils';
 import { ReminderType } from '@prisma/client';
 
 const userId = 'user-1';
@@ -22,20 +25,27 @@ const userId = 'user-1';
 export default function RemindersPage() {
   const [filter, setFilter] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
-  let reminders = db.reminders.findMany({ where: { userId } });
+  useEffect(() => {
+    (async () => {
+      const svc = await getDataService();
+      const [data, count] = await Promise.all([
+        svc.getReminders({ userId }),
+        svc.countReminders({ userId, isRead: false }),
+      ]);
+      setReminders(data as any);
+      setUnreadCount(count);
+      setLoaded(true);
+    })();
+  }, []);
 
-  if (filter === 'unread') {
-    reminders = reminders.filter(r => !r.isRead);
-  } else if (filter === 'read') {
-    reminders = reminders.filter(r => r.isRead);
-  }
-
-  if (selectedType !== 'all') {
-    reminders = reminders.filter(r => r.type === selectedType);
-  }
-
-  const unreadCount = db.reminders.count({ where: { userId, isRead: false } });
+  let filtered = reminders;
+  if (filter === 'unread') filtered = filtered.filter(r => !r.isRead);
+  else if (filter === 'read') filtered = filtered.filter(r => r.isRead);
+  if (selectedType !== 'all') filtered = filtered.filter(r => r.type === selectedType);
 
   function getTypeIcon(type: string) {
     switch (type) {
@@ -66,12 +76,18 @@ export default function RemindersPage() {
     }
   }
 
-  function markAllRead() {
-    reminders.forEach((r: any) => {
+  async function markAllRead() {
+    const svc = await getDataService();
+    const updated = filtered.map(async (r: any) => {
       if (!r.isRead) {
-        db.reminders.update({ where: { id: r.id }, data: { isRead: true } });
+        try { await svc.markReminderRead(r.id); } catch {}
+        return { ...r, isRead: true };
       }
+      return r;
     });
+    const results = await Promise.all(updated);
+    setReminders(results);
+    setUnreadCount(0);
   }
 
   const typeStats = [
@@ -80,6 +96,8 @@ export default function RemindersPage() {
     { type: ReminderType.RISK_ALERT, label: '风险预警' },
     { type: ReminderType.STAMP_DEADLINE, label: '盖章提醒' },
   ];
+
+  if (!loaded) return <div className="p-8 text-gray-500">加载中...</div>;
 
   return (
     <div className="space-y-6">
@@ -91,10 +109,7 @@ export default function RemindersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={markAllRead}
-            className="btn-secondary"
-          >
+          <button onClick={markAllRead} className="btn-secondary">
             <CheckCheck className="mr-2 h-4 w-4" />
             全部标为已读
           </button>
@@ -138,107 +153,83 @@ export default function RemindersPage() {
       <div className="card">
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                filter === 'all'
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              全部
-            </button>
-            <button
-              onClick={() => setFilter('unread')}
-              className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                filter === 'unread'
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              未读
-            </button>
-            <button
-              onClick={() => setFilter('read')}
-              className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                filter === 'read'
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              已读
-            </button>
+            {(['all', 'unread', 'read'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                  filter === f
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-600 hover:bg-gray-100'
+                )}
+              >
+                {f === 'all' ? '全部' : f === 'unread' ? '未读' : '已读'}
+              </button>
+            ))}
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Filter className="h-4 w-4" />
-            共 {reminders.length} 条
+            共 {filtered.length} 条
           </div>
         </div>
 
         <div className="divide-y divide-gray-100">
-          {reminders.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="p-12 text-center">
               <Bell className="mx-auto h-12 w-12 text-gray-300 mb-3" />
               <p className="text-gray-500">暂无提醒</p>
             </div>
           ) : (
-            reminders.map((reminder: any) => {
-              const contract = reminder.contractId
-                ? db.contracts.findUnique({ where: { id: reminder.contractId } })
-                : null;
-              return (
-                <div
-                  key={reminder.id}
-                  className={cn(
-                    'flex items-start gap-4 p-4 hover:bg-gray-50 cursor-pointer transition-colors',
-                    !reminder.isRead ? 'bg-primary-50/50' : ''
-                  )}
-                >
-                  <div className={cn(
-                    'mt-0.5 flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0',
-                    getTypeColor(reminder.type)
-                  )}>
-                    {getTypeIcon(reminder.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className={cn(
-                        'text-sm font-medium',
-                        !reminder.isRead ? 'text-gray-900' : 'text-gray-600'
-                      )}>
-                        {reminder.title}
-                      </h4>
-                      {!reminder.isRead && (
-                        <span className="h-2 w-2 rounded-full bg-primary-500"></span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-sm text-gray-500">{reminder.message}</p>
-                    <div className="mt-2 flex items-center gap-3">
-                      <span className="text-xs text-gray-400">
-                        {reminderTypeLabels[reminder.type]}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {formatDate(reminder.createdAt)}
-                      </span>
-                      {contract && (
-                        <Link
-                          href={`/contracts/${contract.id}`}
-                          className="text-xs text-primary-600 hover:text-primary-700 flex items-center"
-                        >
-                          查看合同 <ChevronRight className="h-3 w-3" />
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                  <button className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600">
-                    <Check className="h-4 w-4" />
-                  </button>
+            filtered.map((reminder: any) => (
+              <div
+                key={reminder.id}
+                className={cn(
+                  'flex items-start gap-4 p-4 hover:bg-gray-50 cursor-pointer transition-colors',
+                  !reminder.isRead ? 'bg-primary-50/50' : ''
+                )}
+              >
+                <div className={cn(
+                  'mt-0.5 flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0',
+                  getTypeColor(reminder.type)
+                )}>
+                  {getTypeIcon(reminder.type)}
                 </div>
-              );
-            })
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className={cn(
+                      'text-sm font-medium',
+                      !reminder.isRead ? 'text-gray-900' : 'text-gray-600'
+                    )}>
+                      {reminder.title}
+                    </h4>
+                    {!reminder.isRead && (
+                      <span className="h-2 w-2 rounded-full bg-primary-500"></span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-gray-500">{reminder.message}</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-xs text-gray-400">
+                      {getReminderTypeLabel(reminder.type)}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {formatDate(reminder.createdAt)}
+                    </span>
+                    {reminder.contractId && (
+                      <Link
+                        href={`/contracts/${reminder.contractId}`}
+                        className="text-xs text-primary-600 hover:text-primary-700 flex items-center"
+                      >
+                        查看合同 <ChevronRight className="h-3 w-3" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                <button className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600">
+                  <Check className="h-4 w-4" />
+                </button>
+              </div>
+            ))
           )}
         </div>
       </div>

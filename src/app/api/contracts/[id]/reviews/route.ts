@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { contractId: string } }
 ) {
-  const reviews = db.contractReviews.findMany({
-    where: { contractId: params.contractId },
-  });
+  const svc = await getDataService();
+  const reviews = await svc.getContractReviews(params.contractId);
 
   return NextResponse.json({ reviews });
 }
@@ -17,26 +16,16 @@ export async function POST(
   { params }: { params: { contractId: string } }
 ) {
   try {
+    const svc = await getDataService();
     const body = await request.json();
 
-    const review = db.contractReviews.create({
-      data: {
-        contractId: params.contractId,
-        reviewerId: body.reviewerId || 'user-1',
-        comment: body.comment,
-        suggestions: body.suggestions || null,
-        riskLevel: body.riskLevel || null,
-        isApproved: body.isApproved ?? null,
-      },
-    });
-
-    db.operationLogs.create({
-      data: {
-        operationType: 'REVIEW',
-        userId: 'user-1',
-        contractId: params.contractId,
-        description: `提交审阅意见：${body.comment.substring(0, 30)}...`,
-      },
+    const review = await svc.createContractReview({
+      contractId: params.contractId,
+      reviewerId: body.reviewerId || 'user-1',
+      comment: body.comment,
+      suggestions: body.suggestions || undefined,
+      riskLevel: body.riskLevel || undefined,
+      isApproved: body.isApproved ?? undefined,
     });
 
     return NextResponse.json({ review }, { status: 201 });

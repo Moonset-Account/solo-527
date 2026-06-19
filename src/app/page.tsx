@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   FileText,
@@ -12,40 +15,67 @@ import {
   FileWarning,
   Users,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
-import { contractStatusLabels, riskLevelLabels, formatDate, formatFileSize, cn } from '@/lib/utils';
-import { ContractStatus, RiskLevel, OperationType } from '@prisma/client';
+import { getDataService } from '@/lib/data-service';
+import {
+  getContractStatusLabel,
+  getRiskLevelLabel,
+  getOperationTypeLabel,
+  formatDate,
+  formatFileSize,
+  cn,
+} from '@/lib/utils';
+import { ContractStatus, RiskLevel, type UserRole } from '@prisma/client';
 
 const userId = 'user-1';
 
+function getRoleLabel(role: string) {
+  switch (role) {
+    case 'LEGAL_MANAGER': return '法务负责人';
+    case 'PRO_BONO_LAWYER': return '公益律师';
+    case 'REVIEWER': return '合同审阅人';
+    case 'ADMIN': return '系统管理员';
+    default: return role;
+  }
+}
+
 export default function DashboardPage() {
-  const pendingReview = db.contracts.count({ where: { status: ContractStatus.PENDING_REVIEW } });
-  const underReview = db.contracts.count({ where: { status: ContractStatus.UNDER_REVIEW } });
-  const highRisk = db.contracts.findMany({ where: { riskLevel: RiskLevel.HIGH } }).length;
-  const materialIncomplete = db.contracts.count({ where: { materialComplete: false } });
-  const approved = db.contracts.count({ where: { status: ContractStatus.APPROVED } });
+  const [data, setData] = useState<any>(null);
 
-  const unreadReminders = db.reminders.findMany({
-    where: { userId, isRead: false },
-  });
+  useEffect(() => {
+    (async () => {
+      const svc = await getDataService();
+      const [pending, under, materialInc, approved, unread, recent, myAssign, logs, users] = await Promise.all([
+        svc.countContracts({ status: ContractStatus.PENDING_REVIEW }),
+        svc.countContracts({ status: ContractStatus.UNDER_REVIEW }),
+        svc.countContracts({ materialComplete: false }),
+        svc.countContracts({ status: ContractStatus.APPROVED }),
+        svc.getReminders({ userId, isRead: false, take: 10 }),
+        svc.getContracts({ take: 5 }),
+        svc.getContracts({ assigneeId: userId, take: 5 }),
+        svc.getOperationLogs({ take: 8 }),
+        svc.getUsers(),
+      ]);
+      const allContracts = await svc.getContracts();
+      const highRisk = allContracts.filter((c: any) =>
+        c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL
+      ).length;
+      const userMap = new Map(users.map((u: any) => [u.id, u]));
+      setData({
+        pending, under, materialInc, approved, highRisk,
+        unread, recent, myAssign, logs, users, userMap, allContracts,
+      });
+    })();
+  }, []);
 
-  const recentContracts = db.contracts.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-  });
+  if (!data) {
+    return <div className="p-8 text-gray-500">加载中...</div>;
+  }
 
-  const myAssigned = db.contracts.findMany({
-    where: { assigneeId: userId, status: { in: [ContractStatus.UNDER_REVIEW, ContractStatus.PENDING_REVIEW, ContractStatus.REVISE_REQUESTED] } },
-    orderBy: { deadline: 'asc' },
-    take: 5,
-  });
+  const { pending, under, materialInc, approved, highRisk,
+    unread, recent, myAssign, logs, users, userMap, allContracts } = data;
 
-  const recentLogs = db.operationLogs.findMany({
-    take: 8,
-  });
-
-  const users = db.users.findMany();
-  const userMap = new Map(users.map(u => [u.id, u]));
+  const allComplete = allContracts.filter((c: any) => c.materialComplete).length;
+  const totalContracts = allContracts.length || 1;
 
   function getStatusBadgeClass(status: string) {
     switch (status) {
@@ -65,7 +95,7 @@ export default function DashboardPage() {
     }
   }
 
-  function getRiskBadgeClass(risk: string | null) {
+  function getRiskBadgeClass(risk: string | null | undefined) {
     switch (risk) {
       case RiskLevel.CRITICAL:
       case RiskLevel.HIGH:
@@ -77,6 +107,18 @@ export default function DashboardPage() {
       default:
         return 'badge-gray';
     }
+  }
+
+  function getReminderIcon(type: string) {
+    if (type === 'RISK_ALERT') return <AlertTriangle className="h-4 w-4" />;
+    if (type === 'MATERIAL_INCOMPLETE') return <FileWarning className="h-4 w-4" />;
+    return <Clock className="h-4 w-4" />;
+  }
+
+  function getReminderColor(type: string) {
+    if (type === 'RISK_ALERT') return 'bg-danger-100 text-danger-600';
+    if (type === 'MATERIAL_INCOMPLETE') return 'bg-warning-100 text-warning-600';
+    return 'bg-primary-100 text-primary-600';
   }
 
   return (
@@ -97,14 +139,14 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">待审阅合同</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{pendingReview + underReview}</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">{pending + under}</p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 text-primary-600">
               <FileText className="h-6 w-6" />
             </div>
           </div>
           <p className="mt-3 text-xs text-gray-500">
-            <span className="text-primary-600 font-medium">{pendingReview}</span> 份待分配审阅
+            <span className="text-primary-600 font-medium">{pending}</span> 份待分配审阅
           </p>
         </div>
 
@@ -118,24 +160,20 @@ export default function DashboardPage() {
               <AlertTriangle className="h-6 w-6" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
-            需要重点关注的风险合同
-          </p>
+          <p className="mt-3 text-xs text-gray-500">需要重点关注的风险合同</p>
         </div>
 
         <div className="card p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">材料不完整</p>
-              <p className="mt-1 text-3xl font-bold text-warning-600">{materialIncomplete}</p>
+              <p className="mt-1 text-3xl font-bold text-warning-600">{materialInc}</p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-warning-100 text-warning-600">
               <FileCheck className="h-6 w-6" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
-            待补充证据材料
-          </p>
+          <p className="mt-3 text-xs text-gray-500">待补充证据材料</p>
         </div>
 
         <div className="card p-5">
@@ -168,41 +206,28 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="divide-y divide-gray-100">
-              {unreadReminders.length === 0 ? (
+              {unread.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell className="mx-auto h-10 w-10 text-gray-300 mb-2" />
                   <p>暂无新的待办提醒</p>
                 </div>
               ) : (
-                unreadReminders.slice(0, 5).map((reminder) => {
-                  const contract = reminder.contractId
-                    ? db.contracts.findUnique({ where: { id: reminder.contractId } })
-                    : null;
-                  return (
-                    <div key={reminder.id} className="flex items-start gap-3 p-4 hover:bg-gray-50 cursor-pointer">
-                      <div className={cn(
-                        'mt-0.5 flex h-8 w-8 items-center justify-center rounded-full',
-                        reminder.type === 'RISK_ALERT' ? 'bg-danger-100 text-danger-600' :
-                        reminder.type === 'MATERIAL_INCOMPLETE' ? 'bg-warning-100 text-warning-600' :
-                        'bg-primary-100 text-primary-600'
-                      )}>
-                        {reminder.type === 'RISK_ALERT' ? (
-                          <AlertTriangle className="h-4 w-4" />
-                        ) : reminder.type === 'MATERIAL_INCOMPLETE' ? (
-                          <FileWarning className="h-4 w-4" />
-                        ) : (
-                          <Clock className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{reminder.title}</p>
-                        <p className="mt-0.5 text-sm text-gray-500 truncate">{reminder.message}</p>
-                        <p className="mt-1 text-xs text-gray-400">{formatDate(reminder.createdAt)}</p>
-                      </div>
-                      <span className="flex-shrink-0 h-2 w-2 rounded-full bg-primary-500"></span>
+                unread.slice(0, 5).map((reminder: any) => (
+                  <div key={reminder.id} className="flex items-start gap-3 p-4 hover:bg-gray-50 cursor-pointer">
+                    <div className={cn(
+                      'mt-0.5 flex h-8 w-8 items-center justify-center rounded-full',
+                      getReminderColor(reminder.type)
+                    )}>
+                      {getReminderIcon(reminder.type)}
                     </div>
-                  );
-                })
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{reminder.title}</p>
+                      <p className="mt-0.5 text-sm text-gray-500 truncate">{reminder.message}</p>
+                      <p className="mt-1 text-xs text-gray-400">{formatDate(reminder.createdAt)}</p>
+                    </div>
+                    <span className="flex-shrink-0 h-2 w-2 rounded-full bg-primary-500"></span>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -218,13 +243,13 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="divide-y divide-gray-100">
-              {myAssigned.length === 0 ? (
+              {myAssign.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <FileText className="mx-auto h-10 w-10 text-gray-300 mb-2" />
                   <p>暂无待您审阅的合同</p>
                 </div>
               ) : (
-                myAssigned.map((contract: any) => (
+                myAssign.map((contract: any) => (
                   <Link
                     key={contract.id}
                     href={`/contracts/${contract.id}`}
@@ -235,7 +260,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-gray-900 truncate">{contract.title}</p>
                           <span className={cn('badge', getStatusBadgeClass(contract.status))}>
-                            {contractStatusLabels[contract.status]}
+                            {getContractStatusLabel(contract.status)}
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">
@@ -243,7 +268,7 @@ export default function DashboardPage() {
                         </p>
                         {contract.riskLevel && (
                           <span className={cn('mt-2 badge', getRiskBadgeClass(contract.riskLevel))}>
-                            {riskLevelLabels[contract.riskLevel]}
+                            {getRiskLevelLabel(contract.riskLevel)}
                           </span>
                         )}
                       </div>
@@ -276,23 +301,21 @@ export default function DashboardPage() {
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">材料完整</span>
-                <span className="text-sm font-medium text-success-600">{db.contracts.count({ where: { materialComplete: true } })}</span>
+                <span className="text-sm font-medium text-success-600">{allComplete}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">材料不完整</span>
-                <span className="text-sm font-medium text-danger-600">{db.contracts.count({ where: { materialComplete: false } })}</span>
+                <span className="text-sm font-medium text-danger-600">{totalContracts - allComplete}</span>
               </div>
               <div className="pt-2">
                 <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
                   <div
                     className="h-full bg-success-500 rounded-full"
-                    style={{
-                      width: `${(db.contracts.count({ where: { materialComplete: true } }) / db.contracts.findMany().length) * 100}%`,
-                    }}
+                    style={{ width: `${(allComplete / totalContracts) * 100}%` }}
                   ></div>
                 </div>
                 <p className="mt-2 text-xs text-gray-500 text-right">
-                  完成率 {Math.round((db.contracts.count({ where: { materialComplete: true } }) / db.contracts.findMany().length) * 100)}%
+                  完成率 {Math.round((allComplete / totalContracts) * 100)}%
                 </p>
               </div>
             </div>
@@ -309,25 +332,13 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="divide-y divide-gray-100">
-              {recentLogs.map((log: any) => {
-                const user = userMap.get(log.userId);
-                const typeLabels: Record<string, string> = {
-                  UPLOAD: '上传',
-                  VIEW: '查看',
-                  REVIEW: '审阅',
-                  APPROVE: '通过',
-                  REJECT: '驳回',
-                  DOWNLOAD: '下载',
-                  STAMP: '盖章',
-                  UPDATE_RULE: '规则',
-                  UPDATE_PERMISSION: '权限',
-                  RISK_FLAG: '风险',
-                };
+              {logs.map((log: any) => {
+                const user = userMap.get(log.userId) || log.user;
                 return (
                   <div key={log.id} className="p-3">
                     <div className="flex items-start gap-2">
                       <span className="badge badge-primary mt-0.5 flex-shrink-0">
-                        {typeLabels[log.operationType] || log.operationType}
+                        {getOperationTypeLabel(log.operationType)}
                       </span>
                       <p className="text-sm text-gray-700 line-clamp-2">{log.description}</p>
                     </div>
@@ -357,11 +368,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {user.role === 'LEGAL_MANAGER' ? '法务负责人' :
-                       user.role === 'PRO_BONO_LAWYER' ? '公益律师' :
-                       user.role === 'REVIEWER' ? '合同审阅人' : '系统管理员'}
-                    </p>
+                    <p className="text-xs text-gray-500 truncate">{getRoleLabel(user.role)}</p>
                   </div>
                 </div>
               ))}

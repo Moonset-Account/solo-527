@@ -8,20 +8,37 @@ import {
   AlertTriangle,
   FileWarning,
   Plus,
-  Switch,
+  ToggleLeft,
+  ToggleRight,
   Edit,
   Trash2,
   Gauge,
   Save,
+  X,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
-import { reminderTypeLabels, formatDate, cn } from '@/lib/utils';
+import { getDataService } from '@/lib/data-service';
+import {
+  getReminderTypeLabel,
+  getReminderChannelLabel,
+  formatDate,
+  cn,
+} from '@/lib/utils';
 import { ReminderType, ReminderChannel } from '@prisma/client';
 
 export default function ReminderRulesPage() {
-  const rules = db.reminderRules.findMany();
+  const [rules, setRules] = useState<any[]>([]);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  if (!loaded) {
+    (async () => {
+      const svc = await getDataService();
+      const data = await svc.getReminderRules();
+      setRules(data as any);
+      setLoaded(true);
+    })();
+  }
 
   function getTypeIcon(type: string) {
     switch (type) {
@@ -56,21 +73,16 @@ export default function ReminderRulesPage() {
     }
   }
 
-  function toggleRule(ruleId: string) {
-    const rule = rules.find((r: any) => r.id === ruleId);
-    if (rule) {
-      db.reminderRules.update({
-        where: { id: ruleId },
-        data: { isEnabled: !rule.isEnabled },
-      });
-    }
+  async function toggleRule(ruleId: string) {
+    const rule = rules.find((r) => r.id === ruleId);
+    if (!rule) return;
+    const svc = await getDataService();
+    await svc.toggleReminderRule(ruleId, !rule.isEnabled, 'user-1');
+    setRules(rules.map((r) => (r.id === ruleId ? { ...r, isEnabled: !r.isEnabled } : r)));
   }
 
-  const channelLabels: Record<string, string> = {
-    [ReminderChannel.SYSTEM]: '系统通知',
-    [ReminderChannel.EMAIL]: '邮件',
-    [ReminderChannel.SMS]: '短信',
-  };
+  const enabledCount = rules.filter((r) => r.isEnabled).length;
+  const disabledCount = rules.length - enabledCount;
 
   return (
     <div className="space-y-6">
@@ -79,10 +91,7 @@ export default function ReminderRulesPage() {
           <h1 className="text-2xl font-bold text-gray-900">提醒规则设置</h1>
           <p className="mt-1 text-sm text-gray-500">配置合同审查各节点的提醒规则和通知方式</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary"
-        >
+        <button onClick={() => setShowAddModal(true)} className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
           新建规则
         </button>
@@ -103,12 +112,10 @@ export default function ReminderRulesPage() {
         <div className="card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success-100 text-success-600">
-              <Switch className="h-5 w-5" />
+              <ToggleRight className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {rules.filter((r: any) => r.isEnabled).length}
-              </p>
+              <p className="text-2xl font-bold text-gray-900">{enabledCount}</p>
               <p className="text-sm text-gray-500">已启用</p>
             </div>
           </div>
@@ -116,12 +123,10 @@ export default function ReminderRulesPage() {
         <div className="card p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-              <Settings className="h-5 w-5" />
+              <ToggleLeft className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {rules.filter((r: any) => !r.isEnabled).length}
-              </p>
+              <p className="text-2xl font-bold text-gray-900">{disabledCount}</p>
               <p className="text-sm text-gray-500">已停用</p>
             </div>
           </div>
@@ -169,28 +174,24 @@ export default function ReminderRulesPage() {
                   </div>
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-600">
-                  {reminderTypeLabels[rule.type]}
+                  {getReminderTypeLabel(rule.type)}
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-600">
                   {rule.beforeHours > 0 ? `提前 ${rule.beforeHours} 小时` : '即时'}
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-600">
-                  {channelLabels[rule.channel] || rule.channel}
+                  {getReminderChannelLabel(rule.channel)}
                 </td>
                 <td className="px-4 py-4">
                   <button
                     onClick={() => toggleRule(rule.id)}
-                    className={cn(
-                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                      rule.isEnabled ? 'bg-primary-600' : 'bg-gray-300'
-                    )}
+                    className="text-gray-500 hover:text-gray-700 transition-colors"
                   >
-                    <span
-                      className={cn(
-                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                        rule.isEnabled ? 'translate-x-6' : 'translate-x-1'
-                      )}
-                    />
+                    {rule.isEnabled ? (
+                      <ToggleRight className="h-6 w-6 text-primary-600" />
+                    ) : (
+                      <ToggleLeft className="h-6 w-6 text-gray-400" />
+                    )}
                   </button>
                 </td>
                 <td className="px-4 py-4 text-right text-sm">
@@ -215,9 +216,20 @@ export default function ReminderRulesPage() {
       {(editingRule || showAddModal) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {editingRule ? '编辑提醒规则' : '新建提醒规则'}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingRule ? '编辑提醒规则' : '新建提醒规则'}
+              </h3>
+              <button
+                onClick={() => {
+                  setEditingRule(null);
+                  setShowAddModal(false);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="label">规则名称</label>
@@ -241,10 +253,10 @@ export default function ReminderRulesPage() {
               </div>
               <div>
                 <label className="label">通知方式</label>
-                <select className="input" defaultValue={editingRule?.channel || 'SYSTEM'}>
-                  <option value="SYSTEM">系统通知</option>
-                  <option value="EMAIL">邮件</option>
-                  <option value="SMS">短信</option>
+                <select className="input" defaultValue={editingRule?.channel || ReminderChannel.SYSTEM}>
+                  <option value={ReminderChannel.SYSTEM}>系统通知</option>
+                  <option value={ReminderChannel.EMAIL}>邮件</option>
+                  <option value={ReminderChannel.SMS}>短信</option>
                 </select>
               </div>
               <div>

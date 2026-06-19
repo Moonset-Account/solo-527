@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Shield,
   Users,
@@ -17,16 +17,31 @@ import {
   FileText,
   ClipboardList,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 import { roleLabels, cn } from '@/lib/utils';
 import { UserRole } from '@prisma/client';
 
 export default function PermissionsPage() {
-  const users = db.users.findMany();
-  const rolePermissions = db.rolePermissions.findMany();
+  const [users, setUsers] = useState<any[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'roles' | 'users'>('roles');
   const [editingRole, setEditingRole] = useState<UserRole | null>(null);
   const [tempPerms, setTempPerms] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      const service = await getDataService();
+      const [usersData, permsData] = await Promise.all([
+        service.getUsers(),
+        service.getRolePermissions(),
+      ]);
+      setUsers(usersData);
+      setRolePermissions(permsData);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
 
   const permissionItems = [
     { key: 'canUpload', label: '上传合同', icon: Upload },
@@ -45,12 +60,15 @@ export default function PermissionsPage() {
     setTempPerms({ ...rolePerm });
   }
 
-  function saveRolePerms() {
+  async function saveRolePerms() {
     if (editingRole && tempPerms) {
-      db.rolePermissions.update({
-        where: { role: editingRole },
-        data: tempPerms,
-      });
+      const service = await getDataService();
+      const { id, role, createdAt, updatedAt, ...data } = tempPerms;
+      const updated = await service.updateRolePermission(editingRole, data, 'user-1');
+      const newRolePermissions = rolePermissions.map((rp: any) =>
+        rp.role === editingRole ? { ...rp, ...data } : rp
+      );
+      setRolePermissions(newRolePermissions);
       setEditingRole(null);
       setTempPerms(null);
     }
@@ -63,6 +81,22 @@ export default function PermissionsPage() {
         [key]: !tempPerms[key],
       });
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">权限设置</h1>
+            <p className="mt-1 text-sm text-gray-500">管理系统角色权限和用户分配</p>
+          </div>
+        </div>
+        <div className="card p-12 text-center">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

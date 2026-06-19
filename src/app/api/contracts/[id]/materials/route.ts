@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { contractId: string } }
 ) {
-  const materials = db.evidenceMaterials.findMany({
-    where: { contractId: params.contractId },
-  });
+  const svc = await getDataService();
+  const materials = await svc.getContractMaterials(params.contractId);
 
   return NextResponse.json({ materials });
 }
@@ -17,27 +16,17 @@ export async function POST(
   { params }: { params: { contractId: string } }
 ) {
   try {
+    const svc = await getDataService();
     const body = await request.json();
 
-    const material = db.evidenceMaterials.create({
-      data: {
-        contractId: params.contractId,
-        name: body.name,
-        fileUrl: body.fileUrl || '/uploads/material.pdf',
-        fileType: body.fileType || 'application/pdf',
-        status: body.status || 'UPLOADED',
-        description: body.description || null,
-        uploaderId: body.uploaderId || 'user-1',
-      },
+    const material = await svc.createMaterial({
+      contractId: params.contractId,
+      name: body.name,
+      fileUrl: body.fileUrl || '/uploads/material.pdf',
+      fileType: body.fileType || 'application/pdf',
+      description: body.description || undefined,
+      uploaderId: body.uploaderId || 'user-1',
     });
-
-    const contract = db.contracts.findUnique({ where: { id: params.contractId } });
-    if (contract) {
-      db.contracts.update({
-        where: { id: params.contractId },
-        data: { materialComplete: false },
-      });
-    }
 
     return NextResponse.json({ material }, { status: 201 });
   } catch (error) {

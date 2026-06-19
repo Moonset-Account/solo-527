@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   FileCheck,
@@ -18,39 +18,65 @@ import {
   FileText,
   Check,
   X,
-  Filter,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 import {
-  contractStatusLabels,
-  riskLevelLabels,
-  materialStatusLabels,
+  getContractStatusLabel,
+  getRiskLevelLabel,
+  getMaterialStatusLabel,
   formatDate,
   cn,
 } from '@/lib/utils';
 import { ContractStatus, RiskLevel, MaterialStatus, UserRole } from '@prisma/client';
 
 export default function MaterialBoardPage() {
-  const contracts = db.contracts.findMany();
-  const users = db.users.findMany();
-  const userMap = new Map(users.map(u => [u.id, u]));
-
+  const [data, setData] = useState<any>(null);
   const [filterRisk, setFilterRisk] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedContract, setSelectedContract] = useState<any>(null);
 
+  useEffect(() => {
+    (async () => {
+      const svc = await getDataService();
+      const [contracts, users, materials] = await Promise.all([
+        svc.getContracts(),
+        svc.getUsers(),
+        svc.getContractMaterials(''),
+      ]);
+      // Get all materials
+      const allMaterials: any[] = [];
+      for (const c of contracts as any[]) {
+        const ms = await svc.getContractMaterials(c.id);
+        allMaterials.push(...(ms as any[]).map((m: any) => ({ ...m, contractTitle: c.title })));
+      }
+      setData({ contracts, users, materials: allMaterials });
+    })();
+  }, []);
+
+  if (!data) return <div className="p-8 text-gray-500">加载中...</div>;
+
+  const { contracts, users, materials } = data;
+  const userMap = new Map(users.map((u: any) => [u.id, u]));
+
   const materialIncompleteContracts = contracts.filter((c: any) => !c.materialComplete);
   const materialCompleteContracts = contracts.filter((c: any) => c.materialComplete);
-  const highRiskContracts = contracts.filter((c: any) => c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL);
+  const highRiskContracts = contracts.filter((c: any) =>
+    c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL
+  );
+  const proBonoLawyers = users.filter((u: any) => u.role === UserRole.PRO_BONO_LAWYER);
 
   let filteredContracts = contracts;
   if (filterRisk !== 'all') {
     if (filterRisk === 'high') {
-      filteredContracts = filteredContracts.filter((c: any) => c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL);
+      filteredContracts = filteredContracts.filter((c: any) =>
+        c.riskLevel === RiskLevel.HIGH || c.riskLevel === RiskLevel.CRITICAL
+      );
     } else if (filterRisk === 'medium') {
       filteredContracts = filteredContracts.filter((c: any) => c.riskLevel === RiskLevel.MEDIUM);
     } else if (filterRisk === 'low') {
-      filteredContracts = filteredContracts.filter((c: any) => c.riskLevel === RiskLevel.LOW || !c.riskLevel);
+      filteredContracts = filteredContracts.filter((c: any) =>
+        c.riskLevel === RiskLevel.LOW || !c.riskLevel
+      );
     }
   }
   if (filterStatus !== 'all') {
@@ -61,9 +87,7 @@ export default function MaterialBoardPage() {
     }
   }
 
-  const proBonoLawyers = users.filter((u: any) => u.role === UserRole.PRO_BONO_LAWYER);
-
-  function getRiskBadgeClass(risk: string | null) {
+  function getRiskBadgeClass(risk: string | null | undefined) {
     switch (risk) {
       case RiskLevel.CRITICAL:
       case RiskLevel.HIGH:
@@ -85,8 +109,17 @@ export default function MaterialBoardPage() {
     );
   }
 
+  function getMaterialStatusBadgeClass(status: string) {
+    switch (status) {
+      case MaterialStatus.VERIFIED: return 'badge-success';
+      case MaterialStatus.UPLOADED: return 'badge-primary';
+      case MaterialStatus.REJECTED: return 'badge-danger';
+      default: return 'badge-gray';
+    }
+  }
+
   const selectedMaterials = selectedContract
-    ? db.evidenceMaterials.findMany({ where: { contractId: selectedContract.id } })
+    ? materials.filter((m: any) => m.contractId === selectedContract.id)
     : [];
 
   const pendingCount = selectedMaterials.filter((m: any) => m.status === MaterialStatus.PENDING).length;
@@ -94,12 +127,20 @@ export default function MaterialBoardPage() {
   const verifiedCount = selectedMaterials.filter((m: any) => m.status === MaterialStatus.VERIFIED).length;
   const rejectedCount = selectedMaterials.filter((m: any) => m.status === MaterialStatus.REJECTED).length;
 
-  function markMaterialComplete(contractId: string) {
-    db.contracts.update({
-      where: { id: contractId },
-      data: { materialComplete: true },
-    });
+  async function markMaterialComplete(contractId: string) {
+    const svc = await getDataService();
+    const all = await svc.getContractMaterials(contractId);
+    await Promise.all(all.map((m: any) => svc.updateMaterial(m.id, { status: MaterialStatus.VERIFIED })));
     setSelectedContract(null);
+    // Refresh
+    const contracts = await svc.getContracts();
+    setData({ ...data, contracts });
+  }
+
+  const contractMaterialsMap: Record<string, any[]> = {};
+  for (const m of materials) {
+    if (!contractMaterialsMap[m.contractId]) contractMaterialsMap[m.contractId] = [];
+    contractMaterialsMap[m.contractId].push(m);
   }
 
   return (
@@ -130,7 +171,7 @@ export default function MaterialBoardPage() {
           </div>
           <p className="mt-3 text-xs text-gray-500 flex items-center">
             <TrendingUp className="mr-1 h-3 w-3 text-success-600" />
-            占比 {Math.round((materialCompleteContracts.length / contracts.length) * 100)}%
+            占比 {contracts.length ? Math.round((materialCompleteContracts.length / contracts.length) * 100) : 0}%
           </p>
         </div>
 
@@ -144,9 +185,7 @@ export default function MaterialBoardPage() {
               <FileWarning className="h-5 w-5" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
-            需要补充材料
-          </p>
+          <p className="mt-3 text-xs text-gray-500">需要补充材料</p>
         </div>
 
         <div className="card p-5">
@@ -159,9 +198,7 @@ export default function MaterialBoardPage() {
               <AlertTriangle className="h-5 w-5" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
-            需重点关注
-          </p>
+          <p className="mt-3 text-xs text-gray-500">需重点关注</p>
         </div>
 
         <div className="card p-5">
@@ -174,9 +211,7 @@ export default function MaterialBoardPage() {
               <Users className="h-5 w-5" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
-            在线处理中
-          </p>
+          <p className="mt-3 text-xs text-gray-500">在线处理中</p>
         </div>
       </div>
 
@@ -213,8 +248,8 @@ export default function MaterialBoardPage() {
             <div className="divide-y divide-gray-100">
               {filteredContracts.map((contract: any) => {
                 const assignee = contract.assigneeId ? userMap.get(contract.assigneeId) : null;
-                const materials = db.evidenceMaterials.findMany({ where: { contractId: contract.id } });
-                const verified = materials.filter((m: any) => m.status === MaterialStatus.VERIFIED).length;
+                const cMaterials = contractMaterialsMap[contract.id] || [];
+                const verified = cMaterials.filter((m: any) => m.status === MaterialStatus.VERIFIED).length;
 
                 return (
                   <div
@@ -235,14 +270,14 @@ export default function MaterialBoardPage() {
                           <span className="text-gray-400">{contract.contractNumber || '未编号'}</span>
                           {contract.riskLevel && (
                             <span className={cn('badge', getRiskBadgeClass(contract.riskLevel))}>
-                              {riskLevelLabels[contract.riskLevel]}
+                              {getRiskLevelLabel(contract.riskLevel)}
                             </span>
                           )}
                           <span className="badge badge-primary">
-                            {contractStatusLabels[contract.status]}
+                            {getContractStatusLabel(contract.status)}
                           </span>
                         </div>
-                        {materials.length > 0 && (
+                        {cMaterials.length > 0 && (
                           <div className="mt-2 flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                               <div
@@ -250,11 +285,11 @@ export default function MaterialBoardPage() {
                                   'h-full rounded-full',
                                   contract.materialComplete ? 'bg-success-500' : 'bg-warning-500'
                                 )}
-                                style={{ width: `${materials.length > 0 ? (verified / materials.length) * 100 : 0}%` }}
+                                style={{ width: `${cMaterials.length > 0 ? (verified / cMaterials.length) * 100 : 0}%` }}
                               ></div>
                             </div>
                             <span className="text-xs text-gray-500 flex-shrink-0">
-                              {verified}/{materials.length}
+                              {verified}/{cMaterials.length}
                             </span>
                           </div>
                         )}
@@ -325,9 +360,7 @@ export default function MaterialBoardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{lawyer.name}</p>
-                      <p className="text-xs text-gray-500">
-                        待处理 {assignedCount} 份
-                      </p>
+                      <p className="text-xs text-gray-500">待处理 {assignedCount} 份</p>
                     </div>
                     <span className="flex h-2 w-2 rounded-full bg-success-500"></span>
                   </div>
@@ -369,25 +402,24 @@ export default function MaterialBoardPage() {
                 </div>
 
                 <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
-                  {selectedMaterials.map((material: any) => (
-                    <div key={material.id} className="flex items-center gap-2 text-sm p-2 rounded bg-gray-50">
-                      <Paperclip className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <span className="flex-1 truncate text-gray-700">{material.name}</span>
-                      <span className={cn(
-                        'badge text-xs flex-shrink-0',
-                        material.status === MaterialStatus.VERIFIED ? 'badge-success' :
-                        material.status === MaterialStatus.UPLOADED ? 'badge-primary' :
-                        material.status === MaterialStatus.REJECTED ? 'badge-danger' : 'badge-gray'
-                      )}>
-                        {materialStatusLabels[material.status]}
-                      </span>
-                    </div>
-                  ))}
+                  {selectedMaterials.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-4">暂无材料</p>
+                  ) : (
+                    selectedMaterials.map((material: any) => (
+                      <div key={material.id} className="flex items-center gap-2 text-sm p-2 rounded bg-gray-50">
+                        <Paperclip className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <span className="flex-1 truncate text-gray-700">{material.name}</span>
+                        <span className={cn('badge text-xs flex-shrink-0', getMaterialStatusBadgeClass(material.status))}>
+                          {getMaterialStatusLabel(material.status)}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="flex gap-2">
                   <Link
-                    href={`/contracts/${selectedContract.id}/materials`}
+                    href={`/contracts/${selectedContract.id}`}
                     className="btn-secondary flex-1 text-sm"
                   >
                     <Eye className="mr-1 h-4 w-4" />
@@ -420,8 +452,8 @@ export default function MaterialBoardPage() {
           </Link>
         </div>
         <div className="divide-y divide-gray-100">
-          {db.evidenceMaterials.findMany().slice(0, 5).map((material: any) => {
-            const contract = db.contracts.findUnique({ where: { id: material.contractId } });
+          {materials.slice(0, 5).map((material: any) => {
+            const contract = contracts.find((c: any) => c.id === material.contractId);
             const uploader = userMap.get(material.uploaderId);
             return (
               <div key={material.id} className="p-4 hover:bg-gray-50">
@@ -435,20 +467,13 @@ export default function MaterialBoardPage() {
                     <Paperclip className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {material.name}
-                    </p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{material.name}</p>
                     <p className="text-xs text-gray-500">
                       {contract?.title || '未知合同'} · {uploader?.name || '未知用户'}
                     </p>
                   </div>
-                  <span className={cn(
-                    'badge',
-                    material.status === MaterialStatus.VERIFIED ? 'badge-success' :
-                    material.status === MaterialStatus.UPLOADED ? 'badge-primary' :
-                    material.status === MaterialStatus.REJECTED ? 'badge-danger' : 'badge-gray'
-                  )}>
-                    {materialStatusLabels[material.status]}
+                  <span className={cn('badge', getMaterialStatusBadgeClass(material.status))}>
+                    {getMaterialStatusLabel(material.status)}
                   </span>
                 </div>
               </div>

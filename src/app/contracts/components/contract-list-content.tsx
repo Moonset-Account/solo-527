@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -14,8 +14,8 @@ import {
   Clock,
   FileCheck,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
-import { contractStatusLabels, riskLevelLabels, formatDate, formatFileSize, cn } from '@/lib/utils';
+import { getDataService } from '@/lib/data-service';
+import { getContractStatusLabel, getRiskLevelLabel, formatDate, formatFileSize, cn } from '@/lib/utils';
 import { ContractStatus, RiskLevel } from '@prisma/client';
 
 export function ContractListContent() {
@@ -25,22 +25,34 @@ export function ContractListContent() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  let contracts = db.contracts.findMany({ orderBy: { createdAt: 'desc' } });
+  useEffect(() => {
+    async function loadData() {
+      const service = await getDataService();
+      const data = await service.getContracts();
+      setContracts(data);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  let filteredContracts = contracts;
 
   if (searchTerm) {
-    contracts = contracts.filter((c: any) =>
+    filteredContracts = filteredContracts.filter((c: any) =>
       c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.contractNumber?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
 
   if (statusFilter !== 'all') {
-    contracts = contracts.filter((c: any) => c.status === statusFilter);
+    filteredContracts = filteredContracts.filter((c: any) => c.status === statusFilter);
   }
 
   if (riskFilter !== 'all') {
-    contracts = contracts.filter((c: any) => c.riskLevel === riskFilter);
+    filteredContracts = filteredContracts.filter((c: any) => c.riskLevel === riskFilter);
   }
 
   function getStatusBadgeClass(status: string) {
@@ -74,6 +86,22 @@ export function ContractListContent() {
       default:
         return 'badge-gray';
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">合同管理</h1>
+            <p className="mt-1 text-sm text-gray-500">管理所有合同的上传、审阅和跟踪</p>
+          </div>
+        </div>
+        <div className="card p-12 text-center">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -160,7 +188,7 @@ export function ContractListContent() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {contracts.map((contract: any) => (
+            {filteredContracts.map((contract: any) => (
               <tr key={contract.id} className="hover:bg-gray-50">
                 <td className="whitespace-nowrap px-4 py-4">
                   <div className="flex items-center">
@@ -177,13 +205,13 @@ export function ContractListContent() {
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className={cn('badge', getStatusBadgeClass(contract.status))}>
-                    {contractStatusLabels[contract.status]}
+                    {getContractStatusLabel(contract.status)}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   {contract.riskLevel ? (
                     <span className={cn('badge', getRiskBadgeClass(contract.riskLevel))}>
-                      {riskLevelLabels[contract.riskLevel]}
+                      {getRiskLevelLabel(contract.riskLevel)}
                     </span>
                   ) : (
                     <span className="badge badge-gray">未评估</span>
@@ -218,7 +246,7 @@ export function ContractListContent() {
           </tbody>
         </table>
 
-        {contracts.length === 0 && (
+        {filteredContracts.length === 0 && (
           <div className="p-12 text-center">
             <FileText className="mx-auto h-12 w-12 text-gray-300 mb-3" />
             <p className="text-gray-500">暂无合同数据</p>

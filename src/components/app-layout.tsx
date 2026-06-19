@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { UserProvider } from '@/app/context/user-context';
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <UserProvider>
       <div className="flex min-h-screen bg-gray-50">

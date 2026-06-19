@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 import { setCache, getCache } from '@/lib/redis';
 
 const EFFICIENCY_STATS_KEY = 'contract:efficiency:stats';
 
 export async function GET(request: NextRequest) {
+  const svc = await getDataService();
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
   const useCache = searchParams.get('cache') !== 'false';
@@ -16,10 +17,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const where: any = {};
-  if (userId) where.userId = userId;
-
-  const stats = db.efficiencyStats.findMany(Object.keys(where).length > 0 ? { where } : undefined);
+  const stats = await svc.getEfficiencyStats(userId || undefined);
 
   await setCache(
     EFFICIENCY_STATS_KEY + (userId ? `:${userId}` : ''),

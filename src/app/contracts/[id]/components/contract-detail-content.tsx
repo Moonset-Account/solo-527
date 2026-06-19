@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -20,11 +20,12 @@ import {
   User,
   Upload,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 import {
-  contractStatusLabels,
-  riskLevelLabels,
-  materialStatusLabels,
+  getContractStatusLabel,
+  getRiskLevelLabel,
+  getMaterialStatusLabel,
+  getOperationTypeLabel,
   formatDate,
   formatFileSize,
   cn,
@@ -40,30 +41,43 @@ export function ContractDetailContent() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [reviewText, setReviewText] = useState('');
   const [showAddMaterial, setShowAddMaterial] = useState(false);
+  const [contract, setContract] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [stampNodes, setStampNodes] = useState<any[]>([]);
+  const [downloadRecords, setDownloadRecords] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const contract = db.contracts.findUnique({ where: { id: contractId } });
-  if (!contract) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <FileText className="h-16 w-16 text-gray-300 mb-4" />
-        <p className="text-gray-500 mb-4">合同不存在</p>
-        <Link href="/contracts" className="btn-primary">
-          返回列表
-        </Link>
-      </div>
-    );
-  }
+  useEffect(() => {
+    async function loadData() {
+      const service = await getDataService();
+      const [contractData, reviewsData, materialsData, stampNodesData, downloadRecordsData, logsData, usersData] = await Promise.all([
+        service.getContractById(contractId),
+        service.getContractReviews(contractId),
+        service.getContractMaterials(contractId),
+        service.getStampNodes(contractId),
+        service.getDownloadRecords({ contractId }),
+        service.getOperationLogs({ contractId }),
+        service.getUsers(),
+      ]);
+      setContract(contractData);
+      setReviews(reviewsData);
+      setMaterials(materialsData);
+      setStampNodes(stampNodesData);
+      setDownloadRecords(downloadRecordsData);
+      setLogs(logsData);
+      setUsers(usersData);
+      setLoading(false);
+    }
+    loadData();
+  }, [contractId]);
 
-  const reviews = db.contractReviews.findMany({ where: { contractId } });
-  const materials = db.evidenceMaterials.findMany({ where: { contractId } });
-  const stampNodes = db.stampNodes.findMany({ where: { contractId } });
-  const downloadRecords = db.downloadRecords.findMany({ where: { contractId } });
-  const logs = db.operationLogs.findMany({ where: { contractId } });
-  const users = db.users.findMany();
   const userMap = new Map(users.map(u => [u.id, u]));
 
-  const uploader = userMap.get(contract.uploaderId);
-  const assignee = contract.assigneeId ? userMap.get(contract.assigneeId) : null;
+  const uploader = contract ? userMap.get(contract.uploaderId) : null;
+  const assignee = contract && contract.assigneeId ? userMap.get(contract.assigneeId) : null;
 
   const tabs = [
     { id: 'overview', label: '概览', icon: FileText },
@@ -122,19 +136,49 @@ export function ContractDetailContent() {
   const verifiedCount = materials.filter((m: any) => m.status === MaterialStatus.VERIFIED).length;
   const materialComplete = verifiedCount === materials.length && materials.length > 0;
 
-  function handleSubmitReview() {
+  async function handleSubmitReview() {
     if (!reviewText.trim()) return;
-    db.contractReviews.create({
-      data: {
-        contractId,
-        reviewerId: 'user-1',
-        comment: reviewText,
-        riskLevel: RiskLevel.MEDIUM,
-        isApproved: null,
-      },
+    const service = await getDataService();
+    await service.createContractReview({
+      contractId,
+      reviewerId: 'user-1',
+      comment: reviewText,
+      riskLevel: RiskLevel.MEDIUM,
+      isApproved: null,
     });
     setReviewText('');
-    router.refresh();
+    const updatedReviews = await service.getContractReviews(contractId);
+    setReviews(updatedReviews);
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/contracts" className="text-gray-500 hover:text-gray-700">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 truncate">加载中...</h1>
+          </div>
+        </div>
+        <div className="card p-12 text-center">
+          <p className="text-gray-500">正在加载合同详情...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!contract) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <FileText className="h-16 w-16 text-gray-300 mb-4" />
+        <p className="text-gray-500 mb-4">合同不存在</p>
+        <Link href="/contracts" className="btn-primary">
+          返回列表
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -147,11 +191,11 @@ export function ContractDetailContent() {
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-gray-900 truncate">{contract.title}</h1>
             <span className={cn('badge', getStatusBadgeClass(contract.status))}>
-              {contractStatusLabels[contract.status]}
+              {getContractStatusLabel(contract.status)}
             </span>
             {contract.riskLevel && (
               <span className={cn('badge', getRiskBadgeClass(contract.riskLevel))}>
-                {riskLevelLabels[contract.riskLevel]}
+                {getRiskLevelLabel(contract.riskLevel)}
               </span>
             )}
           </div>
@@ -340,7 +384,7 @@ export function ContractDetailContent() {
                   </div>
                 ) : (
                   reviews.map((review: any) => {
-                    const reviewer = userMap.get(review.reviewerId);
+                    const reviewer = userMap.get(review.reviewerId) || review.reviewer;
                     return (
                       <div key={review.id} className="rounded-lg border border-gray-200 p-4">
                         <div className="flex items-start justify-between">
@@ -360,7 +404,7 @@ export function ContractDetailContent() {
                           <div className="flex items-center gap-2">
                             {review.riskLevel && (
                               <span className={cn('badge', getRiskBadgeClass(review.riskLevel))}>
-                                {riskLevelLabels[review.riskLevel]}
+                                {getRiskLevelLabel(review.riskLevel)}
                               </span>
                             )}
                             {review.isApproved === true && (
@@ -464,8 +508,8 @@ export function ContractDetailContent() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {materials.map((material: any) => {
-                      const uploader = userMap.get(material.uploaderId);
-                      const verifier = material.verifierId ? userMap.get(material.verifierId) : null;
+                      const materialUploader = userMap.get(material.uploaderId) || material.uploader;
+                      const verifier = material.verifierId ? (userMap.get(material.verifierId) || material.verifier) : null;
                       return (
                         <tr key={material.id} className="hover:bg-gray-50">
                           <td className="whitespace-nowrap px-4 py-3">
@@ -476,11 +520,11 @@ export function ContractDetailContent() {
                           </td>
                           <td className="whitespace-nowrap px-4 py-3">
                             <span className={cn('badge', getMaterialStatusClass(material.status))}>
-                              {materialStatusLabels[material.status]}
+                              {getMaterialStatusLabel(material.status)}
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                            {uploader?.name || '-'}
+                            {materialUploader?.name || '-'}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
                             {verifier?.name || '-'}
@@ -554,7 +598,7 @@ export function ContractDetailContent() {
                 <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
                 <div className="space-y-6">
                   {stampNodes.map((node: any, index: number) => {
-                    const stampUser = node.stampUserId ? userMap.get(node.stampUserId) : null;
+                    const stampUser = node.stampUserId ? (userMap.get(node.stampUserId) || node.stampUser) : null;
                     const isCompleted = node.isCompleted;
                     return (
                       <div key={node.id} className="relative flex items-start gap-4 pl-12">
@@ -649,7 +693,7 @@ export function ContractDetailContent() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {downloadRecords.map((record: any) => {
-                      const user = userMap.get(record.userId);
+                      const user = userMap.get(record.userId) || record.user;
                       return (
                         <tr key={record.id} className="hover:bg-gray-50">
                           <td className="whitespace-nowrap px-4 py-3">
@@ -687,19 +731,7 @@ export function ContractDetailContent() {
                 <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200"></div>
                 <div className="space-y-4">
                   {logs.map((log: any) => {
-                    const user = userMap.get(log.userId);
-                    const typeLabels: Record<string, string> = {
-                      UPLOAD: '上传',
-                      VIEW: '查看',
-                      REVIEW: '审阅',
-                      APPROVE: '通过',
-                      REJECT: '驳回',
-                      DOWNLOAD: '下载',
-                      STAMP: '盖章',
-                      UPDATE_RULE: '规则',
-                      UPDATE_PERMISSION: '权限',
-                      RISK_FLAG: '风险',
-                    };
+                    const user = userMap.get(log.userId) || log.user;
                     return (
                       <div key={log.id} className="relative pl-8">
                         <div className="absolute left-0 flex h-6 w-6 items-center justify-center rounded-full bg-white border-2 border-primary-200">
@@ -708,7 +740,7 @@ export function ContractDetailContent() {
                         <div className="rounded-lg bg-gray-50 p-3">
                           <div className="flex items-center gap-2">
                             <span className="badge badge-primary text-xs">
-                              {typeLabels[log.operationType] || log.operationType}
+                              {getOperationTypeLabel(log.operationType)}
                             </span>
                             <span className="text-xs text-gray-500">
                               {formatDate(log.createdAt)}

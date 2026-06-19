@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/mock-db';
+import { getDataService } from '@/lib/data-service';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const svc = await getDataService();
     const body = await request.json();
 
-    const updated = db.reminders.update({
-      where: { id: params.id },
-      data: body,
-    });
+    let updated;
+    if (body.isRead === true && Object.keys(body).length === 1) {
+      updated = await svc.markReminderRead(params.id);
+    } else {
+      updated = await svc.markReminderRead(params.id);
+    }
 
     if (!updated) {
       return NextResponse.json({ error: '提醒不存在' }, { status: 404 });

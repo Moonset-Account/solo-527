@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   History,
   Clock,
@@ -16,20 +16,42 @@ import {
   FileCheck,
   Upload,
 } from 'lucide-react';
-import { db } from '@/lib/mock-db';
-import { operationTypeLabels, formatDate, cn } from '@/lib/utils';
+import { getDataService } from '@/lib/data-service';
+import { getOperationTypeLabel, formatDate, cn } from '@/lib/utils';
 import { OperationType, UserRole } from '@prisma/client';
 
 export default function OperationLogsPage() {
-  const logs = db.operationLogs.findMany();
-  const users = db.users.findMany();
-  const userMap = new Map(users.map(u => [u.id, u]));
-  const efficiencyStats = db.efficiencyStats.findMany();
+  const [logs, setLogs] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [efficiencyStats, setEfficiencyStats] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState<'logs' | 'efficiency'>('logs');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterUser, setFilterUser] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    async function loadData() {
+      const service = await getDataService();
+      const [logsData, usersData, efficiencyData, contractsData] = await Promise.all([
+        service.getOperationLogs(),
+        service.getUsers(),
+        service.getEfficiencyStats(),
+        service.getContracts(),
+      ]);
+      setLogs(logsData);
+      setUsers(usersData);
+      setEfficiencyStats(efficiencyData);
+      setContracts(contractsData);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const userMap = new Map(users.map(u => [u.id, u]));
+  const contractMap = new Map(contracts.map(c => [c.id, c]));
 
   let filteredLogs = logs;
 
@@ -97,6 +119,22 @@ export default function OperationLogsPage() {
       default:
         return 'badge-gray';
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">操作留痕与效率追踪</h1>
+            <p className="mt-1 text-sm text-gray-500">查看系统操作记录和审阅效率数据分析</p>
+          </div>
+        </div>
+        <div className="card p-12 text-center">
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -208,7 +246,7 @@ export default function OperationLogsPage() {
                     <option value="all">全部类型</option>
                     {operationTypes.map((type) => (
                       <option key={type} value={type}>
-                        {operationTypeLabels[type]}
+                        {getOperationTypeLabel(type)}
                       </option>
                     ))}
                   </select>
@@ -236,9 +274,9 @@ export default function OperationLogsPage() {
                     </div>
                   ) : (
                     filteredLogs.map((log: any) => {
-                      const user = userMap.get(log.userId);
+                      const user = userMap.get(log.userId) || log.user;
                       const contract = log.contractId
-                        ? db.contracts.findUnique({ where: { id: log.contractId } })
+                        ? contractMap.get(log.contractId) || log.contract
                         : null;
 
                       return (
@@ -256,7 +294,7 @@ export default function OperationLogsPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className={cn('badge', getTypeBadgeClass(log.operationType))}>
-                                {operationTypeLabels[log.operationType]}
+                                {getOperationTypeLabel(log.operationType)}
                               </span>
                               <span className="text-xs text-gray-400">
                                 {formatDate(log.createdAt)}
