@@ -1,5 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_active_operator, get_client_ip
@@ -7,7 +8,8 @@ from app.schemas.registration import (
     RegistrationCreate, RegistrationUpdate, RegistrationResponse,
     RegistrationListResponse, RegistrationDetailResponse, RegistrationQualityUpdate
 )
-from app.crud import crud_registration, crud_event, crud_operation_log
+from app.schemas.todo import TodoCreate, TodoType, TodoPriority
+from app.crud import crud_registration, crud_event, crud_operation_log, crud_refund_exception, crud_todo
 from app.models.user import User
 from app.models.registration import RegistrationStatus, RegistrationQuality
 from app.models.operation_log import OperationType
@@ -216,3 +218,86 @@ def update_quality(
     )
     
     return registration
+
+
+class MarkRefundExceptionIn(BaseModel):
+    description: Optional[str] = None
+    refund_amount: int = 0
+
+
+@router.post("/{registration_id}/mark-refund-exception")
+def mark_refund_exception(
+    registration_id: int,
+    body: MarkRefundExceptionIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_operator),
+):
+    registration = crud_registration.get(db, id=registration_id)
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="报名记录不存在",
+        )
+    if registration.status == RegistrationStatus.REFUND_EXCEPTION:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该报名已处于退票异常状态",
+        )
+    if registration.status == RegistrationStatus.REFUNDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该报名已退款完成",
+        )
+    if registration.status == RegistrationStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该报名已取消",
+        )
+    
+    old_status = registration.status
+    registration.status = RegistrationStatus.REFUND_EXCEPTION
+    db.add(registration)
+    
+    exception = crud_refund_exception.create_auto(
+        db,
+        registration_id=registration.id,
+        description=body.description or f"运营人员手动标记退票异常 - {registration.real_name}",
+        refund_amount=body.refund_amount or registration.ticket_price,
+    )
+    
+    todo_data = TodoCreate(
+        title=f"退票异常处理 - {registration.real_name}",
+        description=body.description or f"运营人员手动标记退票异常\n报名编号：{registration.registration_no}",
+        priority=TodoPriority.HIGH,
+        todo_type=TodoType.REFUND_EXCEPTION,
+        registration_id=registration.id,
+    )
+    todo = crud_todo.create_with_creator(db, obj_in=todo_data, created_by_id=current_user.id)
+    todo.refund_exception_id = exception.id
+    db.commit()
+    db.refresh(registration)
+    db.refresh(todo)
+    db.refresh(exception)
+    
+    crud_operation_log.create_log(
+        db,
+        operation_type=OperationType.STATUS_CHANGE,
+        operator_id=current_user.id,
+        operator_name=current_user.full_name or current_user.username,
+        registration_id=registration.id,
+        target_type="registration",
+        target_id=registration.id,
+        old_value={"status": old_status.value if old_status else None},
+        new_value={"status": RegistrationStatus.REFUND_EXCEPTION.value},
+        remark=body.description or "手动标记退票异常，已自动生成待办",
+        ip_address=get_client_ip(request),
+    )
+    
+    return {
+        "message": "已标记为退票异常，并自动生成待办事项",
+        "registration_id": registration.id,
+        "registration_status": registration.status.value,
+        "exception_id": exception.id,
+        "todo_id": todo.id,
+    }

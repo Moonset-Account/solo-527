@@ -125,9 +125,9 @@ const fetchLogs = async () => {
     if (filterType.value) params.operation_type = filterType.value
     if (filterTarget.value) params.target_type = filterTarget.value
     
-    const data: any = await api.get('/operation-logs', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/operation-logs', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
   } catch (e: any) {
     message.error(e.message || '获取数据失败')
   } finally {

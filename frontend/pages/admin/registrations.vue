@@ -61,6 +61,14 @@
           <n-space>
             <n-button size="small" @click="handleView(row)">详情</n-button>
             <n-button size="small" @click="handleQualityChange(row)">质量调整</n-button>
+            <n-button
+              v-if="row.status === 'confirmed' || row.status === 'pending'"
+              size="small"
+              type="warning"
+              @click="handleMarkRefundException(row)"
+            >
+              退票异常
+            </n-button>
           </n-space>
         </template>
       </n-data-table>
@@ -153,6 +161,30 @@
         </n-space>
       </template>
     </n-modal>
+    
+    <n-modal v-model:show="showRefundDialog" preset="card" title="标记为退票异常" style="width: 500px">
+      <div v-if="refundTarget" class="refund-info">
+        <p class="refund-target-name">姓名：{{ refundTarget.real_name }}</p>
+        <p>报名编号：{{ refundTarget.registration_no }}</p>
+        <p>票种：{{ refundTarget.ticket_type || '未指定' }}，票价：{{ refundTarget.ticket_price || 0 }} 元</p>
+      </div>
+      <n-form label-placement="top">
+        <n-form-item label="退款金额（元）">
+          <n-input-number v-model:value="refundAmount" :min="0" style="width: 100%" />
+        </n-form-item>
+        <n-form-item label="异常说明">
+          <n-input v-model:value="refundDescription" type="textarea" :rows="3" placeholder="请输入退票异常说明" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showRefundDialog = false">取消</n-button>
+          <n-button type="warning" :loading="refundSubmitting" @click="submitMarkRefundException">
+            确认标记
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -160,7 +192,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  NCard, NInput, NSelect, NButton, NSpace, NDataTable,
+  NCard, NInput, NInputNumber, NSelect, NButton, NSpace, NDataTable,
   NModal, NTag, NTimeline, NForm, NFormItem, useMessage
 } from 'naive-ui'
 import { useApi } from '~/composables/useApi'
@@ -188,6 +220,12 @@ const currentItem = ref<any>(null)
 const showQualityDialog = ref(false)
 const newQuality = ref('medium')
 const qualityReason = ref('')
+
+const showRefundDialog = ref(false)
+const refundSubmitting = ref(false)
+const refundTarget = ref<any>(null)
+const refundAmount = ref(0)
+const refundDescription = ref('')
 
 const eventOptions = computed(() => 
   events.value.map(e => ({ label: e.name, value: e.id }))
@@ -277,8 +315,8 @@ const qualityTagType = (quality: string) => {
 
 const fetchEvents = async () => {
   try {
-    const data: any = await api.get('/events', { is_active: true, page_size: 100 })
-    events.value = data.items || []
+    const resp: any = await api.get('/events', { is_active: true, page_size: 100 })
+    events.value = resp.items || []
     if (events.value.length > 0 && !selectedEvent.value) {
       const routeEventId = route.query.event_id
       if (routeEventId) {
@@ -307,9 +345,9 @@ const fetchRegistrations = async () => {
     if (filterQuality.value) params.quality = filterQuality.value
     if (keyword.value) params.keyword = keyword.value
     
-    const data: any = await api.get('/registrations', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/registrations', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
   } catch (e: any) {
     message.error(e.message || '获取数据失败')
   } finally {
@@ -384,6 +422,39 @@ const handleExport = async () => {
   }
 }
 
+const handleMarkRefundException = (row: any) => {
+  if (!isOperator.value) {
+    message.warning('没有权限')
+    return
+  }
+  refundTarget.value = row
+  refundAmount.value = row.ticket_price || 0
+  refundDescription.value = ''
+  showRefundDialog.value = true
+}
+
+const submitMarkRefundException = async () => {
+  if (!refundTarget.value) return
+  
+  refundSubmitting.value = true
+  try {
+    const resp: any = await api.post(
+      `/registrations/${refundTarget.value.id}/mark-refund-exception`,
+      {
+        description: refundDescription.value,
+        refund_amount: refundAmount.value,
+      }
+    )
+    message.success(resp.message || '已标记为退票异常，待办事项已自动生成')
+    showRefundDialog.value = false
+    fetchRegistrations()
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
+  } finally {
+    refundSubmitting.value = false
+  }
+}
+
 onMounted(() => {
   fetchEvents()
 })
@@ -418,5 +489,21 @@ onMounted(() => {
   color: #666;
   font-size: 14px;
   line-height: 1.6;
+}
+
+.refund-info {
+  padding: 12px 16px;
+  background: #fff7e6;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  line-height: 1.8;
+  font-size: 14px;
+  
+  .refund-target-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #d46b08;
+    margin-bottom: 4px;
+  }
 }
 </style>

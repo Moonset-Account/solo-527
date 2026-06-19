@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_active_operator, get_client_ip
@@ -133,9 +133,9 @@ def update_refund_exception(
 @router.post("/{exception_id}/resolve", response_model=RefundExceptionResponse)
 def resolve_refund_exception(
     exception_id: int,
-    handle_result: str,
     request: Request,
-    actual_refund_amount: int = 0,
+    handle_result: str = Body(..., embed=True),
+    actual_refund_amount: int = Body(0, embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_operator),
 ):
@@ -155,6 +155,8 @@ def resolve_refund_exception(
     if registration:
         if actual_refund_amount > 0:
             crud_registration.update(db, db_obj=registration, obj_in={"status": RegistrationStatus.REFUNDED})
+        else:
+            crud_registration.update(db, db_obj=registration, obj_in={"status": RegistrationStatus.CONFIRMED})
     
     if exception.todo:
         crud_todo.complete(db, todo_id=exception.todo.id, result=handle_result)

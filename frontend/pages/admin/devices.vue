@@ -204,8 +204,8 @@ const typeLabel = (type: string) => {
 
 const fetchEvents = async () => {
   try {
-    const data: any = await api.get('/events', { page_size: 100 })
-    events.value = data.items || []
+    const resp: any = await api.get('/events', { page_size: 100 })
+    events.value = resp.items || []
     if (events.value.length > 0) {
       selectedEvent.value = events.value[0].id
       fetchDevices()
@@ -228,9 +228,9 @@ const fetchDevices = async () => {
     if (filterStatus.value) params.device_status = filterStatus.value
     if (filterType.value) params.device_type = filterType.value
     
-    const data: any = await api.get('/devices', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/devices', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
   } catch (e: any) {
     message.error(e.message || '获取数据失败')
   } finally {

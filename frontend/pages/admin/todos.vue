@@ -309,9 +309,9 @@ const fetchTodos = async () => {
     if (filterType.value) params.todo_type = filterType.value
     if (myTasks.value) params.my_tasks = true
     
-    const data: any = await api.get('/todos', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/todos', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
   } catch (e: any) {
     message.error(e.message || '获取数据失败')
   } finally {
@@ -373,10 +373,10 @@ const submitComplete = async () => {
   
   submitting.value = true
   try {
-    await api.post(`/todos/${currentItem.value.id}/complete`, null, {
-      params: { result: completeResult.value },
+    await api.post(`/todos/${currentItem.value.id}/complete`, {
+      result: completeResult.value,
     })
-    message.success('已标记完成')
+    message.success('已标记完成，关联数据已同步')
     showCompleteDialog.value = false
     showDetail.value = false
     fetchTodos()

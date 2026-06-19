@@ -206,9 +206,9 @@ const fetchExceptions = async () => {
     if (filterStatus.value) params.status = filterStatus.value
     if (onlyAuto.value) params.auto_generated = true
     
-    const data: any = await api.get('/refund-exceptions', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/refund-exceptions', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
   } catch (e: any) {
     message.error(e.message || '获取数据失败')
   } finally {
@@ -239,13 +239,11 @@ const submitResolve = async () => {
   
   submitting.value = true
   try {
-    await api.post(`/refund-exceptions/${currentItem.value.id}/resolve`, null, {
-      params: {
-        handle_result: handleResult.value,
-        actual_refund_amount: actualRefundAmount.value,
-      },
+    await api.post(`/refund-exceptions/${currentItem.value.id}/resolve`, {
+      handle_result: handleResult.value,
+      actual_refund_amount: actualRefundAmount.value,
     })
-    message.success('处理成功')
+    message.success('处理成功，报名状态已同步更新')
     showResolveDialog.value = false
     fetchExceptions()
   } catch (e: any) {

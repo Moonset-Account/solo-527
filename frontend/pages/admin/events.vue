@@ -163,9 +163,9 @@ const fetchEvents = async () => {
       params.is_active = filterStatus.value === 'active'
     }
     
-    const data: any = await api.get('/events', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/events', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
   } catch (e: any) {
     message.error(e.message || '获取数据失败')
   } finally {

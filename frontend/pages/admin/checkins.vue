@@ -249,8 +249,8 @@ const feedbackTagType = (fb: string) => {
 
 const fetchEvents = async () => {
   try {
-    const data: any = await api.get('/events', { is_active: true, page_size: 100 })
-    events.value = data.items || []
+    const resp: any = await api.get('/events', { is_active: true, page_size: 100 })
+    events.value = resp.items || []
     if (events.value.length > 0) {
       selectedEvent.value = events.value[0].id
       fetchCheckins()
@@ -272,9 +272,9 @@ const fetchCheckins = async () => {
     }
     if (filterStatus.value) params.status = filterStatus.value
     
-    const data: any = await api.get('/checkins', params)
-    data.value = data.items || []
-    total.value = data.total || 0
+    const resp: any = await api.get('/checkins', params)
+    data.value = resp.items || []
+    total.value = resp.total || 0
     
     successCheckins.value = data.value.filter((c: any) => c.status === 'success').length
     duplicateCheckins.value = data.value.filter((c: any) => c.status === 'duplicate').length

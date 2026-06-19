@@ -3,36 +3,67 @@
     <div class="card-wrapper">
       <h2 class="page-title">数据概览</h2>
       
-      <n-grid :cols="4" :x-gap="16" :y-gap="16" class="stats-grid">
+      <n-grid :cols="3" :x-gap="16" :y-gap="16" class="stats-grid">
         <n-grid-item>
           <n-card>
             <div class="stat-item">
-              <div class="stat-label">活动总数</div>
-              <div class="stat-value">{{ stats?.events?.total || 0 }}</div>
+              <div class="stat-label">活动总数 / 进行中</div>
+              <div class="stat-value">
+                {{ stats?.events?.total || 0 }}
+                <span class="stat-sub"> / {{ stats?.events?.active || 0 }}</span>
+              </div>
             </div>
           </n-card>
         </n-grid-item>
         <n-grid-item>
           <n-card>
             <div class="stat-item">
-              <div class="stat-label">报名总数</div>
-              <div class="stat-value">{{ stats?.registrations?.total || 0 }}</div>
+              <div class="stat-label">报名总数 / 已确认</div>
+              <div class="stat-value">
+                {{ stats?.registrations?.total || 0 }}
+                <span class="stat-sub"> / {{ stats?.registrations?.confirmed || 0 }}</span>
+              </div>
             </div>
           </n-card>
         </n-grid-item>
         <n-grid-item>
           <n-card>
             <div class="stat-item">
-              <div class="stat-label">签到总数</div>
-              <div class="stat-value">{{ stats?.checkins?.total || 0 }}</div>
+              <div class="stat-label">签到总数 / 成功</div>
+              <div class="stat-value">
+                {{ stats?.checkins?.total || 0 }}
+                <span class="stat-sub"> / {{ stats?.checkins?.success || 0 }}</span>
+              </div>
             </div>
           </n-card>
         </n-grid-item>
         <n-grid-item>
           <n-card>
             <div class="stat-item">
-              <div class="stat-label">待办事项</div>
-              <div class="stat-value todo">{{ stats?.todos?.pending || 0 }}</div>
+              <div class="stat-label">待办 / 处理中</div>
+              <div class="stat-value todo">
+                {{ stats?.todos?.pending || 0 }}
+                <span class="stat-sub"> / {{ stats?.todos?.processing || 0 }}</span>
+              </div>
+            </div>
+          </n-card>
+        </n-grid-item>
+        <n-grid-item>
+          <n-card>
+            <div class="stat-item">
+              <div class="stat-label">待处理退票异常</div>
+              <div class="stat-value refund">{{ stats?.refund_exceptions?.pending || 0 }}</div>
+            </div>
+          </n-card>
+        </n-grid-item>
+        <n-grid-item>
+          <n-card>
+            <div class="stat-item">
+              <div class="stat-label">已退款 / 退票异常报名</div>
+              <div class="stat-value">
+                {{ stats?.registrations?.refunded || 0 }}
+                <span class="stat-sub refund"> / {{ stats?.registrations?.refund_exception || 0 }}</span>
+              </div>
             </div>
           </n-card>
         </n-grid-item>
@@ -79,8 +110,8 @@ const eventColumns = [
 
 const fetchStats = async () => {
   try {
-    const data: any = await api.get('/statistics/overview')
-    stats.value = data
+    const resp: any = await api.get('/statistics/overview')
+    stats.value = resp
   } catch (e) {
     console.error('获取统计数据失败', e)
   }
@@ -88,8 +119,8 @@ const fetchStats = async () => {
 
 const fetchEvents = async () => {
   try {
-    const data: any = await api.get('/events', { page: 1, page_size: 10 })
-    events.value = data.items || []
+    const resp: any = await api.get('/events', { page: 1, page_size: 10 })
+    events.value = resp.items || []
   } catch (e) {
     console.error('获取活动列表失败', e)
   }
@@ -126,6 +157,20 @@ onMounted(() => {
     
     &.todo {
       color: #f0a020;
+    }
+    
+    &.refund {
+      color: #d03050;
+    }
+    
+    .stat-sub {
+      font-size: 16px;
+      color: #999;
+      font-weight: 400;
+      
+      &.refund {
+        color: #d03050;
+      }
     }
   }
 }

@@ -1,13 +1,15 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, get_client_ip
 from app.schemas.todo import TodoCreate, TodoUpdate, TodoResponse, TodoListResponse
-from app.crud import crud_todo, crud_operation_log
+from app.crud import crud_todo, crud_operation_log, crud_refund_exception, crud_registration
 from app.models.user import User
 from app.models.todo import TodoStatus, TodoPriority, TodoType
 from app.models.operation_log import OperationType
+from app.models.refund_exception import RefundExceptionStatus
+from app.models.registration import RegistrationStatus
 
 router = APIRouter(prefix="/todos", tags=["待办事项"])
 
@@ -127,7 +129,7 @@ def update_todo(
 def complete_todo(
     todo_id: int,
     request: Request,
-    result: Optional[str] = None,
+    result: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -137,6 +139,18 @@ def complete_todo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="待办事项不存在",
         )
+    
+    if todo.todo_type == TodoType.REFUND_EXCEPTION and todo.refund_exception_id:
+        exception = crud_refund_exception.resolve(
+            db, exception_id=todo.refund_exception_id,
+            handle_result=result or "待办完成同步处理",
+            actual_refund_amount=0,
+            handled_by=current_user.full_name or current_user.username,
+        )
+        if exception and exception.registration_id:
+            registration = crud_registration.get(db, id=exception.registration_id)
+            if registration:
+                crud_registration.update(db, db_obj=registration, obj_in={"status": RegistrationStatus.CONFIRMED})
     
     crud_operation_log.create_log(
         db,
