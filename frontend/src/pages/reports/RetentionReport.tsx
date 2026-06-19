@@ -44,7 +44,7 @@ export default function RetentionReport() {
         reportApi.dashboard(),
         reportApi.retention({ periodDays: days, campId: selectedCampId }),
         campApi.active(),
-        reportApi.checkInTrend({ start, end })
+        reportApi.checkIn({ start, end })
       ]);
       setOverview(overviewRes);
       setRetention(retentionRes.data || []);
@@ -307,23 +307,23 @@ export default function RetentionReport() {
           <Card title="📊 留存率看板（Cohort）" bordered={false} size="small">
             <Row gutter={[8, 8]}>
               <Col span={24}>
-                <Statistic title="次日留存 (D1)" value={d1} suffix="%" valueStyle={{ fontSize: 28, color: d1 >= 60 ? '#52c41a' : '#faad14' }} />
+                <Statistic title="次日留存 (D1)" value={d1} suffix="%" valueStyle={{ fontSize: 28, color: Number(d1) >= 60 ? '#52c41a' : '#faad14' }} />
                 <Progress percent={Number(d1)} size="small" status={Number(d1) >= 60 ? 'success' : 'active'} style={{ margin: '4px 0 8px' }} />
               </Col>
               <Col span={12}>
-                <Statistic title="3日 (D3)" value={d3} suffix="%" valueStyle={{ fontSize: 18, color: d3 >= 40 ? '#52c41a' : '#faad14' }} />
+                <Statistic title="3日 (D3)" value={d3} suffix="%" valueStyle={{ fontSize: 18, color: Number(d3) >= 40 ? '#52c41a' : '#faad14' }} />
                 <Progress percent={Number(d3)} size="small" />
               </Col>
               <Col span={12}>
-                <Statistic title="7日 (D7)" value={d7} suffix="%" valueStyle={{ fontSize: 18, color: d7 >= 30 ? '#52c41a' : '#faad14' }} />
+                <Statistic title="7日 (D7)" value={d7} suffix="%" valueStyle={{ fontSize: 18, color: Number(d7) >= 30 ? '#52c41a' : '#faad14' }} />
                 <Progress percent={Number(d7)} size="small" />
               </Col>
               <Col span={12}>
-                <Statistic title="14日 (D14)" value={d14} suffix="%" valueStyle={{ fontSize: 18, color: d14 >= 25 ? '#52c41a' : '#ff4d4f' }} />
+                <Statistic title="14日 (D14)" value={d14} suffix="%" valueStyle={{ fontSize: 18, color: Number(d14) >= 25 ? '#52c41a' : '#ff4d4f' }} />
                 <Progress percent={Number(d14)} size="small" status={Number(d14) < 25 ? 'exception' : undefined} />
               </Col>
               <Col span={12}>
-                <Statistic title="30日 (D30)" value={d30} suffix="%" valueStyle={{ fontSize: 18, color: d30 >= 20 ? '#52c41a' : '#ff4d4f' }} />
+                <Statistic title="30日 (D30)" value={d30} suffix="%" valueStyle={{ fontSize: 18, color: Number(d30) >= 20 ? '#52c41a' : '#ff4d4f' }} />
                 <Progress percent={Number(d30)} size="small" status={Number(d30) < 20 ? 'exception' : undefined} />
               </Col>
             </Row>

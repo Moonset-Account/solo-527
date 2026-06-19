@@ -12,7 +12,7 @@ import {
   HistoryOutlined, MessageOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { reportApi, todoApi, memberApi } from '../services/api';
+import { reportApi, todoApi, memberApi } from '../../services/api';
 import dayjs from 'dayjs';
 import {
   memberLevelColor, memberLevelLabel, memberStatusColor, memberStatusLabel,
@@ -581,7 +581,6 @@ export default function Handover() {
                           <div>
                             <Divider orientation="left" style={{ margin: '8px 0' }} plain>掉队跟进记录</Divider>
                             <Timeline
-                              size="small"
                               items={memberDetail.laggingRecords.map((lr: any) => ({
                                 color: lr.followUpStatus === 'RESOLVED' ? 'green' : lr.followUpStatus === 'FOLLOWING' ? 'blue' : 'red',
                                 children: (
@@ -611,7 +610,6 @@ export default function Handover() {
                   label: <span><HistoryOutlined /> 操作历史</span>,
                   children: (
                     <Timeline
-                      size="small"
                       items={memberDetail.operationLogs?.slice(0, 20).map((log: any) => ({
                         color: log.action === 'CHECK_IN' ? 'green' : log.action === 'DELETE' ? 'gray' : 'blue',
                         label: <span style={{ fontSize: 11, color: '#999' }}>{dayjs(log.createdAt).format('MM-DD HH:mm')}</span>,

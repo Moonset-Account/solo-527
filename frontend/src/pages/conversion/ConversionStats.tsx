@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import {
   Card, Row, Col, Statistic, Tag, Table, Button, Space, Select,
   Input, DatePicker, Tabs, Empty, Descriptions, Drawer, Divider,
-  List, Progress, Tooltip, Radio, Segmented, Badge, Timeline
+  List, Progress, Tooltip, Radio, Segmented, Badge, Timeline, Alert
 } from 'antd';
 import {
   UserOutlined, TeamOutlined, CrownOutlined, SwapOutlined,
-  TrendingUpOutlined, SearchOutlined, FilterOutlined,
+  RiseOutlined, SearchOutlined, FilterOutlined,
   LinkOutlined, EyeOutlined, HistoryOutlined, MessageOutlined,
-  ArrowUpOutlined, ArrowDownOutlined, ExportOutlined, ShoppingCartOutlined
+  ArrowUpOutlined, ArrowDownOutlined, ExportOutlined, ShoppingCartOutlined,
+  PhoneOutlined
 } from '@ant-design/icons';
 import { conversionApi } from '../../services/api';
 import dayjs from 'dayjs';
@@ -44,8 +45,8 @@ export default function ConversionStats() {
       const end = filters.dateRange[1].endOf('day').toDate();
       const [src, st, fn] = await Promise.all([
         conversionApi.sources(),
-        conversionApi.stats({ start, end }),
-        conversionApi.funnel({ start, end })
+        conversionApi.statsSummary({ start, end }),
+        conversionApi.statsFunnel({ start, end })
       ]);
       setSources(src);
       setStats(st);
@@ -234,7 +235,7 @@ export default function ConversionStats() {
             bg="linear-gradient(135deg, #f6ffed, #b7eb8f)" />
         </Col>
         <Col xs={24} sm={12} md={4}>
-          <StatBox icon={<TrendingUpOutlined />} label="总体转化率" value={`${stats?.conversionRate || 0}%`} color="#eb2f96"
+          <StatBox icon={<RiseOutlined />} label="总体转化率" value={`${stats?.conversionRate || 0}%`} color="#eb2f96"
             bg="linear-gradient(135deg, #fff0f6, #ffadd2)" />
         </Col>
         <Col xs={24} sm={12} md={4}>
@@ -469,7 +470,6 @@ export default function ConversionStats() {
           <div>
             <Alert type="info" showIcon message={`共 ${sourceLogs.length} 条相关操作记录`} style={{ marginBottom: 16 }} />
             <Timeline
-              size="small"
               items={sourceLogs.map((log: any) => ({
                 color: log.stage === 'CONVERTED' ? 'green' : log.stage === 'TRIAL' ? 'blue' : log.stage === 'CONTACTED' ? 'orange' : 'gray',
                 label: <span style={{ fontSize: 11, color: '#999' }}>{dayjs(log.createdAt).format('MM-DD HH:mm')}</span>,

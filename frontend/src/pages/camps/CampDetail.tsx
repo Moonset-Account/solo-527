@@ -336,7 +336,7 @@ export default function CampDetail() {
         }
       >
         <Tabs
-          activeKey={(() => null as any)!}
+          defaultActiveKey="courses"
           items={[
             {
               key: 'courses',

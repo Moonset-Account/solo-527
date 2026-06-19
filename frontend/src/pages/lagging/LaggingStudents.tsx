@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Card, Row, Col, Statistic, Tag, Table, Button, Space, Select, Modal,
   Form, Input, message, Drawer, Descriptions, Avatar, List, Empty,
-  Divider, Alert, Checkbox, Popconfirm, Badge, Timeline, Tooltip
+  Divider, Alert, Checkbox, Popconfirm, Badge, Timeline, Tooltip, DatePicker
 } from 'antd';
 import {
   WarningOutlined, UserOutlined, PhoneOutlined, CalendarOutlined,
@@ -276,7 +276,7 @@ export default function LaggingStudents() {
         </div>
         <Space>
           {selectedRows.length > 0 && (
-            <Button type="primary" icon={<TeamOutlined />} onClick={() => batchForm.resetFields(); setBatchOpen(true)}>
+            <Button type="primary" icon={<TeamOutlined />} onClick={() => { batchForm.resetFields(); setBatchOpen(true); }}>
               批量跟进 {selectedRows.length} 人
             </Button>
           )}
@@ -491,7 +491,7 @@ export default function LaggingStudents() {
               </Col>
               <Col span={12}>
                 <Form.Item name="dueDate" label="截止时间">
-                  <Input />
+                  <DatePicker showTime style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
             </Row>
@@ -505,5 +505,3 @@ export default function LaggingStudents() {
     </div>
   );
 }
-
-import { DatePicker } from 'antd';

@@ -248,18 +248,18 @@ export default function MainLayout() {
                       <List.Item.Meta
                         title={
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <Tag color={todoPriorityColor[item.priority as any]} style={{ margin: 0 }}>
-                              {todoPriorityLabel[item.priority as any]}
+                            <Tag color={todoPriorityColor[item.priority as keyof typeof todoPriorityColor]} style={{ margin: 0 }}>
+                              {todoPriorityLabel[item.priority as keyof typeof todoPriorityLabel]}
                             </Tag>
-                            <Tag color={todoStatusLabel[item.status as any] === '待处理' ? 'warning' : 'processing'} style={{ margin: 0 }}>
-                              {todoStatusLabel[item.status as any]}
+                            <Tag color={todoStatusLabel[item.status as keyof typeof todoStatusLabel] === '待处理' ? 'warning' : 'processing'} style={{ margin: 0 }}>
+                              {todoStatusLabel[item.status as keyof typeof todoStatusLabel]}
                             </Tag>
                             <Text strong style={{ fontSize: 13 }}>{item.title}</Text>
                           </div>
                         }
                         description={
                           <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                            <span>{todoTypeLabel[item.type as any]}</span>
+                            <span>{todoTypeLabel[item.type as keyof typeof todoTypeLabel]}</span>
                             {item.dueDate && (
                               <>
                                 <span style={{ margin: '0 6px' }}>·</span>
