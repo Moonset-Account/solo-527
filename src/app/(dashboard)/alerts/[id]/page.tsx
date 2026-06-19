@@ -23,7 +23,7 @@ export default function AlertDetailPage() {
   const setResolution = api.alert.setResolution.useMutation();
   const confirmBusiness = api.alert.confirmBusiness.useMutation();
   const meQuery = api.user.me.useQuery();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
   const canAssign =
     meQuery.data?.role === "ADMIN" || meQuery.data?.role === "IT_MANAGER";
   const assignMutation = api.alert.assign.useMutation();

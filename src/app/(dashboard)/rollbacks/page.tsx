@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { X, Check } from "lucide-react";
 import { api } from "@/lib/trpc/client";
@@ -18,7 +19,7 @@ type Row = RollbackPlan & {
 
 export default function RollbackPage() {
   const router = useRouter();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
   const assetsQuery = api.asset.list.useQuery({ page: 1, pageSize: 100 });
   const meQuery = api.user.me.useQuery();
   const canWrite =
@@ -126,7 +127,7 @@ export default function RollbackPage() {
           { key: "riskAssessment", label: "风险评估" },
         ]}
         onRowClick={(r) => router.push(`/assets/${r.assetId}`)}
-        query={(input) => api.rollback.list.useQuery(input, { keepPreviousData: true })}
+        query={(input) => api.rollback.list.useQuery(input, { placeholderData: keepPreviousData })}
         exportMutation={api.rollback.export.useMutation as unknown as {
           mutateAsync: (input: Omit<Record<string, unknown>, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">) => Promise<Row[]>;
           isPending: boolean;

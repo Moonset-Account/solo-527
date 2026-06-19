@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { api } from "@/lib/trpc/client";
 import { ASSET_STATUS_LABELS, ASSET_TYPE_LABELS, enumOptions } from "@/lib/label-maps";
-import type { Asset, AssetStatus, AssetType } from "@prisma/client";
+import { AssetStatus, AssetType } from "@prisma/client";
+import type { Asset } from "@prisma/client";
 
 export interface AssetModalProps {
   open: boolean;
@@ -16,7 +17,7 @@ export function AssetModal({ open, onClose, initial }: AssetModalProps) {
   const create = api.asset.create.useMutation();
   const update = api.asset.update.useMutation();
   const utils = api.useUtils();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
 
   const [form, setForm] = useState({
     name: "",

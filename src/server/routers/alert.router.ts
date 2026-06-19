@@ -18,6 +18,8 @@ const filterSchema = z.object({
   groupByAssignee: z.boolean().default(false),
 });
 
+const exportFilterSchema = filterSchema.omit({ page: true, pageSize: true, groupByAssignee: true });
+
 export const alertRouter = createTRPCRouter({
   list: protectedProcedure
     .input(filterSchema)
@@ -277,7 +279,7 @@ export const alertRouter = createTRPCRouter({
     }),
 
   export: protectedProcedure
-    .input(filterSchema.omit({ page: true, pageSize: true, groupByOwner: true, groupByAssignee: true }).extend({ pageSize: z.literal(10000).optional() }))
+    .input(exportFilterSchema)
     .mutation(async ({ input, ctx }) => {
       const { keyword, severity, status, assetId, assigneeId, businessConfirmed, dateFrom, dateTo } = input;
       const where: Record<string, unknown> = {};

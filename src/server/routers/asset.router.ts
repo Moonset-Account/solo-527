@@ -191,7 +191,10 @@ export const assetRouter = createTRPCRouter({
 
       const items = await prisma.asset.findMany({
         where,
-        include: { owner: { select: { id: true, name: true, email: true } } },
+        include: {
+          owner: { select: { id: true, name: true, email: true, role: true } },
+          _count: { select: { alerts: true, vulnerabilities: true, inspections: true, rollbackPlans: true, configItems: true } },
+        },
         orderBy: { name: "asc" },
       });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/trpc/client";
 import { ListPageTemplate } from "@/components/lists/ListPageTemplate";
@@ -10,11 +11,11 @@ import {
   enumOptions,
 } from "@/lib/label-maps";
 import { formatDateTime } from "@/lib/utils";
+import { VulnerabilitySeverity } from "@prisma/client";
 import type {
   Asset,
   User,
   Vulnerability,
-  VulnerabilitySeverity,
   VulnerabilityStatus,
 } from "@prisma/client";
 import { X } from "lucide-react";
@@ -26,7 +27,7 @@ type Row = Vulnerability & {
 
 export default function VulnPage() {
   const router = useRouter();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
   const assetsQuery = api.asset.list.useQuery({ page: 1, pageSize: 100 });
   const meQuery = api.user.me.useQuery();
   const canWrite =
@@ -129,7 +130,7 @@ export default function VulnPage() {
           { key: "patchReference", label: "补丁参考" },
         ]}
         onRowClick={(r) => router.push(`/assets/${r.assetId}`)}
-        query={(input) => api.vulnerability.list.useQuery(input, { keepPreviousData: true })}
+        query={(input) => api.vulnerability.list.useQuery(input, { placeholderData: keepPreviousData })}
         exportMutation={api.vulnerability.export.useMutation as unknown as {
           mutateAsync: (input: Omit<Record<string, unknown>, "page" | "pageSize" | "groupByOwner" | "groupByAssignee">) => Promise<Row[]>;
           isPending: boolean;

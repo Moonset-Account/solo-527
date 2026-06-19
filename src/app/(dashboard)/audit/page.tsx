@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Search, Download, ListFilter, X, FileText } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
 import { SelectEnum } from "@/components/ui/SelectEnum";
@@ -16,7 +17,7 @@ type Row = AuditLog & {
 
 export default function AuditPage() {
   const meQuery = api.user.me.useQuery();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
   const canExport = meQuery.data?.role === "ADMIN";
   const utils = api.useUtils();
 
@@ -49,7 +50,7 @@ export default function AuditPage() {
       dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
       dateTo: filters.dateTo ? new Date(filters.dateTo + "T23:59:59") : undefined,
     },
-    { keepPreviousData: true }
+    { placeholderData: keepPreviousData }
   );
 
   const exportMutation = api.audit.export.useMutation();

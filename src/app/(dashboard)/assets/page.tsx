@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/trpc/client";
 import { ListPageTemplate } from "@/components/lists/ListPageTemplate";
@@ -21,7 +22,7 @@ type Row = Asset & {
 
 export default function AssetsPage() {
   const router = useRouter();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
   const meQuery = api.user.me.useQuery();
@@ -161,7 +162,7 @@ export default function AssetsPage() {
         ]}
         onRowClick={(r) => router.push(`/assets/${r.id}`)}
         query={(input) =>
-          api.asset.list.useQuery(input, { keepPreviousData: true })
+          api.asset.list.useQuery(input, { placeholderData: keepPreviousData })
         }
         exportMutation={api.asset.export.useMutation()}
       />

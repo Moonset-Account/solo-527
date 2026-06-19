@@ -16,7 +16,7 @@ type Row = User & {
 
 export default function UsersPage() {
   const utils = api.useUtils();
-  const listQuery = api.user.list.useQuery();
+  const listQuery = api.user.list.useQuery({});
   const updateMutation = api.user.update.useMutation();
   const [keyword, setKeyword] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | null>(null);

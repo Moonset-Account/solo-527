@@ -95,7 +95,7 @@ export function ListPageTemplate<
         groupByOwner: groupBy,
         groupByAssignee: groupBy,
         ...filterState,
-      }) as F,
+      }) as unknown as F,
     [page, pageSize, groupBy, filterState]
   );
 

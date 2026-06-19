@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import type { User } from "@prisma/client";
 import { AuditAction, AuditEntity } from "@prisma/client";
@@ -37,8 +38,8 @@ export async function createAuditLog(input: AuditInput) {
       entity,
       entityId: entityId ?? undefined,
       assetId: assetId ?? undefined,
-      oldValue: oldValue as Record<string, unknown> | undefined,
-      newValue: newValue as Record<string, unknown> | undefined,
+      oldValue: oldValue as unknown as Prisma.InputJsonValue | undefined,
+      newValue: newValue as unknown as Prisma.InputJsonValue | undefined,
       changedFields: changedFieldsSet,
       userId: user?.id,
       userEmail: user?.email,

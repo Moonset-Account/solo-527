@@ -77,20 +77,27 @@ enum RollbackStatus {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  clerkId        String   @unique
-  email          String
-  name           String?
-  role           UserRole @default(USER)
-  department     String?
-  phone          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                      String         @id @default(cuid())
+  clerkId                 String         @unique
+  email                   String
+  name                    String?
+  role                    UserRole       @default(USER)
+  department              String?
+  phone                   String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
 
-  assetsOwned    Asset[]  @relation("AssetOwner")
-  alertsAssigned Alert[]  @relation("AlertAssignee")
-  alertsCreated  Alert[]  @relation("AlertCreator")
-  audits         AuditLog[]
+  assetsOwned             Asset[]        @relation("AssetOwner")
+  alertsAssigned          Alert[]        @relation("AlertAssignee")
+  alertsCreated           Alert[]        @relation("AlertCreator")
+  alertHistories          AlertHistory[] @relation("AlertHistoryActor")
+  vulnerabilities         Vulnerability[] @relation("VulnerabilityOwner")
+  inspections             Inspection[]   @relation("InspectionOwner")
+  inspectionsAsInspector  Inspection[]   @relation("InspectionInspector")
+  rollbackPlans           RollbackPlan[] @relation("RollbackOwner")
+  rollbackPlansAsApprover RollbackPlan[] @relation("RollbackApprover")
+  rollbackPlansAsExecutor RollbackPlan[] @relation("RollbackExecutor")
+  audits                  AuditLog[]
 }
 
 model Asset {
@@ -127,8 +134,6 @@ model ConfigItem {
   lastModifiedAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  audits         AuditLog[]
 }
 
 model Alert {
@@ -155,7 +160,6 @@ model Alert {
   updatedAt      DateTime @updatedAt
 
   histories      AlertHistory[]
-  audits         AuditLog[]
 }
 
 model AlertHistory {
@@ -166,66 +170,73 @@ model AlertHistory {
   toStatus       AlertStatus
   note           String?
   actorId        String?
+  actor          User?    @relation("AlertHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
   createdAt      DateTime @default(now())
 }
 
 model Vulnerability {
-  id             String   @id @default(cuid())
-  cveId          String?
-  title          String
-  description    String?
-  severity       VulnerabilitySeverity
-  status         VulnerabilityStatus @default(IDENTIFIED)
-  assetId        String
-  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  discoveredBy   String?
-  discoveredAt   DateTime
-  dueDate        DateTime?
-  fixedAt        DateTime?
-  fixVersion     String?
-  patchReference String?
+  id                String              @id @default(cuid())
+  cveId             String?
+  title             String
+  description       String?
+  severity          VulnerabilitySeverity
+  status            VulnerabilityStatus @default(IDENTIFIED)
+  assetId           String
+  asset             Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  discoveredBy      String?
+  discoveredAt      DateTime
+  dueDate           DateTime?
+  fixedAt           DateTime?
+  fixVersion        String?
+  patchReference    String?
   responsibleUserId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  responsible       User?               @relation("VulnerabilityOwner", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 }
 
 model Inspection {
-  id             String   @id @default(cuid())
-  title          String
-  description    String?
-  status         InspectionStatus @default(PENDING)
-  assetId        String
-  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  scheduledAt    DateTime
-  startedAt      DateTime?
-  completedAt    DateTime?
-  inspectorUserId String?
+  id                String           @id @default(cuid())
+  title             String
+  description       String?
+  status            InspectionStatus @default(PENDING)
+  assetId           String
+  asset             Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scheduledAt       DateTime
+  startedAt         DateTime?
+  completedAt       DateTime?
+  inspectorUserId   String?
+  inspector         User?            @relation("InspectionInspector", fields: [inspectorUserId], references: [id], onDelete: SetNull)
   responsibleUserId String?
-  checklist      Json?
-  result         String?
-  issuesFound    String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  responsible       User?            @relation("InspectionOwner", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  checklist         Json?
+  result            String?
+  issuesFound       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 }
 
 model RollbackPlan {
-  id             String   @id @default(cuid())
-  title          String
-  description    String?
-  status         RollbackStatus @default(PLANNED)
-  assetId        String
-  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  changeReason   String?
-  rollbackSteps  Json?
-  riskAssessment String?
-  approverUserId String?
-  executedByUserId String?
+  id                String         @id @default(cuid())
+  title             String
+  description       String?
+  status            RollbackStatus @default(PLANNED)
+  assetId           String
+  asset             Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  changeReason      String?
+  rollbackSteps     Json?
+  riskAssessment    String?
+  approverUserId    String?
+  approver          User?          @relation("RollbackApprover", fields: [approverUserId], references: [id], onDelete: SetNull)
+  executedByUserId  String?
+  executedBy        User?          @relation("RollbackExecutor", fields: [executedByUserId], references: [id], onDelete: SetNull)
   responsibleUserId String?
-  approvedAt     DateTime?
-  executedAt     DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  responsible       User?          @relation("RollbackOwner", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  approvedAt        DateTime?
+  executedAt        DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 enum AuditAction {

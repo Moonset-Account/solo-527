@@ -100,9 +100,9 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntity, string> = {
   USER: "用户",
 };
 
-export function enumOptions<T extends Record<string, string>>(map: T) {
+export function enumOptions<T extends Record<string, string | { label: string; cls?: string }>>(map: T) {
   return Object.entries(map).map(([value, label]) => ({
     value,
-    label: typeof label === "string" ? label : (label as { label: string }).label,
+    label: typeof label === "string" ? label : label.label,
   }));
 }

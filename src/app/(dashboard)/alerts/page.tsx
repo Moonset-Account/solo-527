@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/trpc/client";
 import { ListPageTemplate } from "@/components/lists/ListPageTemplate";
@@ -10,9 +11,9 @@ import {
   enumOptions,
 } from "@/lib/label-maps";
 import { formatDateTime } from "@/lib/utils";
+import { AlertSeverity } from "@prisma/client";
 import type {
   Alert,
-  AlertSeverity,
   AlertStatus,
   Asset,
   User,
@@ -26,7 +27,7 @@ type Row = Alert & {
 
 export default function AlertsPage() {
   const router = useRouter();
-  const usersQuery = api.user.list.useQuery();
+  const usersQuery = api.user.list.useQuery({});
   const assetsQuery = api.asset.list.useQuery({ page: 1, pageSize: 100 });
   const meQuery = api.user.me.useQuery();
   const canAssign =
@@ -203,7 +204,7 @@ export default function AlertsPage() {
                   ? false
                   : null,
             },
-            { keepPreviousData: true }
+            { placeholderData: keepPreviousData }
           )
         }
         exportMutation={
