@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum AlertStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  ABNORMAL_CLOSED
+}
+
+enum AlertLevel {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum StrategyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  ANALYST
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  name      String
+  role      UserRole @default(OPERATOR)
+  createdAt DateTime @default(now())
+  alerts    DeviceAlert[]
+  strategies Strategy[]
+  logs      ProcessingLog[]
+}
+
+model Device {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  type      String
+  zoneId    String
+  status    String
+  createdAt DateTime @default(now())
+  zone      MeterZone @relation(fields: [zoneId], references: [id])
+  alerts    DeviceAlert[]
+  revenueRecords RevenueRecord[]
+}
+
+model MeterZone {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  location      String
+  deviceCount   Int      @default(0)
+  onlineCount   Int      @default(0)
+  totalCapacity Decimal  @default(0) @db.Decimal(10, 2)
+  status        String   @default("NORMAL")
+  createdAt     DateTime @default(now())
+  devices       Device[]
+  revenueRecords RevenueRecord[]
+  subsidies     SubsidyRecord[]
+}
+
+model DeviceAlert {
+  id                  String          @id @default(cuid())
+  deviceId            String
+  deviceName          String
+  alertLevel          AlertLevel
+  alertType           String
+  title               String
+  description         String
+  status              AlertStatus     @default(PENDING)
+  handlerId           String?
+  responseDurationSeconds Int?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  handler             User?           @relation(fields: [handlerId], references: [id])
+  processingLogs      ProcessingLog[]
+}
+
+model ProcessingLog {
+  id           String   @id @default(cuid())
+  alertId      String
+  operatorId   String
+  operatorName String
+  action       String
+  remark       String
+  timestamp    DateTime @default(now())
+  alert        DeviceAlert @relation(fields: [alertId], references: [id])
+  operator     User     @relation(fields: [operatorId], references: [id])
+}
+
+model Strategy {
+  id               String         @id @default(cuid())
+  name             String
+  description      String
+  triggerCondition Json
+  action           Json
+  status           StrategyStatus @default(ACTIVE)
+  version          Int            @default(1)
+  createdById      String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  createdBy        User           @relation(fields: [createdById], references: [id])
+}
+
+model RevenueRecord {
+  id                   String   @id @default(cuid())
+  date                 DateTime
+  zoneId               String
+  deviceId             String?
+  chargeEnergy         Decimal  @db.Decimal(10, 4)
+  dischargeEnergy      Decimal  @db.Decimal(10, 4)
+  revenue              Decimal  @db.Decimal(10, 2)
+  subsidy              Decimal  @default(0) @db.Decimal(10, 2)
+  hasGap               Boolean  @default(false)
+  gapReason            String?
+  gapDurationSeconds   Int?
+  responsiblePerson    String?
+  createdAt            DateTime @default(now())
+  zone                 MeterZone @relation(fields: [zoneId], references: [id])
+  device               Device?  @relation(fields: [deviceId], references: [id])
+}
+
+model SubsidyRecord {
+  id          String   @id @default(cuid())
+  period      String
+  type        String
+  amount      Decimal  @db.Decimal(10, 2)
+  status      String   @default("PENDING")
+  zoneId      String
+  description String
+  createdAt   DateTime @default(now())
+  zone        MeterZone @relation(fields: [zoneId], references: [id])
+}
