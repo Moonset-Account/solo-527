@@ -1,6 +1,8 @@
 import type { DeviceAlert, AlertStatus, AlertLevel, ProcessingLog, PaginatedResponse } from '../../shared/types';
 import { mockAlerts, mockProcessingLogs, getAlertById as getMockAlertById, mockUsers } from '../mockData';
 import { getPrismaClient } from '../prisma';
+import { executeStrategyAction, matchStrategyForAlert, createPushLog } from './notification';
+import { getStrategies } from './strategies';
 
 interface AlertQuery {
   page?: number;
@@ -116,7 +118,10 @@ export async function updateAlertStatus(
   const prisma = await getPrismaClient();
   
   const operator = mockUsers.find(u => u.id === operatorId) || mockUsers[0];
+  const isAbnormalClose = status === 'ABNORMAL_CLOSED';
   
+  let updatedAlert: DeviceAlert | null = null;
+
   if (prisma) {
     const alert = await prisma.deviceAlert.findUnique({ where: { id } });
     if (!alert) return null;
@@ -147,7 +152,7 @@ export async function updateAlertStatus(
       },
     });
 
-    return {
+    updatedAlert = {
       ...updated,
       handlerName: updated.handler?.name,
       createdAt: updated.createdAt.toISOString(),
@@ -157,34 +162,52 @@ export async function updateAlertStatus(
         timestamp: log.timestamp.toISOString(),
       })),
     };
+  } else {
+    const alertIndex = mockAlerts.findIndex(a => a.id === id);
+    if (alertIndex === -1) return null;
+
+    const log: ProcessingLog = {
+      id: `log${Date.now()}`,
+      alertId: id,
+      operatorId,
+      operatorName: operator.name,
+      action: getActionByStatus(status),
+      remark,
+      timestamp: new Date().toISOString(),
+    };
+
+    mockProcessingLogs.push(log);
+    
+    const alert = mockAlerts[alertIndex];
+    mockAlerts[alertIndex] = {
+      ...alert,
+      status,
+      handlerId: operatorId,
+      handlerName: operator.name,
+      responseDurationSeconds: alert.responseDurationSeconds || Math.floor((Date.now() - new Date(alert.createdAt).getTime()) / 1000),
+      updatedAt: new Date().toISOString(),
+    };
+
+    updatedAlert = getMockAlertById(id) || null;
   }
 
-  const alertIndex = mockAlerts.findIndex(a => a.id === id);
-  if (alertIndex === -1) return null;
+  if (isAbnormalClose && updatedAlert) {
+    try {
+      const strategiesResult = await getStrategies({ page: 1, pageSize: 100 });
+      const matchedStrategy = matchStrategyForAlert(updatedAlert, strategiesResult.data);
+      
+      if (matchedStrategy) {
+        const pushResults = await executeStrategyAction(updatedAlert, matchedStrategy);
+        await createPushLog(updatedAlert.id, operatorId, pushResults);
+        
+        updatedAlert = await getAlertById(id);
+      }
+    } catch (error) {
+      console.error('执行告警推送失败:', error);
+    }
+  }
 
-  const log: ProcessingLog = {
-    id: `log${Date.now()}`,
-    alertId: id,
-    operatorId,
-    operatorName: operator.name,
-    action: getActionByStatus(status),
-    remark,
-    timestamp: new Date().toISOString(),
-  };
-
-  mockProcessingLogs.push(log);
-  
-  const alert = mockAlerts[alertIndex];
-  mockAlerts[alertIndex] = {
-    ...alert,
-    status,
-    handlerId: operatorId,
-    handlerName: operator.name,
-    responseDurationSeconds: alert.responseDurationSeconds || Math.floor((Date.now() - new Date(alert.createdAt).getTime()) / 1000),
-    updatedAt: new Date().toISOString(),
-  };
-
-  return getMockAlertById(id) || null;
+  return updatedAlert;
 }
 
 function getActionByStatus(status: AlertStatus): string {

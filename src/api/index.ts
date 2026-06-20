@@ -120,9 +120,15 @@ export const subsidiesApi = {
     type?: string;
     zoneId?: string;
     period?: string;
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
   }) => apiClient.get<never, PaginatedResponse<SubsidyRecord>>('/subsidies', { params }),
 };
 
 export const metersApi = {
-  getZones: () => apiClient.get<never, MeterZone[]>('/meters'),
+  getZones: (params?: {
+    status?: string;
+    keyword?: string;
+  }) => apiClient.get<never, MeterZone[]>('/meters', { params }),
 };

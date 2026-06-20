@@ -64,7 +64,11 @@ const MeterList: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const result = await metersApi.getZones();
+      const values = form.getFieldsValue();
+      const result = await metersApi.getZones({
+        status: values.status,
+        keyword: values.keyword,
+      });
       setData(result);
       calculateStats(result);
     } catch (error) {

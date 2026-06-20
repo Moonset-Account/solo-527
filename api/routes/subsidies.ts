@@ -12,6 +12,9 @@ router.get('/', async (req, res) => {
       type: req.query.type as string | undefined,
       zoneId: req.query.zoneId as string | undefined,
       period: req.query.period as string | undefined,
+      keyword: req.query.keyword as string | undefined,
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
     };
     const result = await getSubsidies(query);
     res.json(result);

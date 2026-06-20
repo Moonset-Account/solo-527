@@ -9,6 +9,9 @@ interface SubsidyQuery {
   type?: string;
   zoneId?: string;
   period?: string;
+  keyword?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function getSubsidies(query: SubsidyQuery): Promise<PaginatedResponse<SubsidyRecord>> {
@@ -23,6 +26,15 @@ export async function getSubsidies(query: SubsidyQuery): Promise<PaginatedRespon
     if (query.type) where.type = query.type;
     if (query.zoneId) where.zoneId = query.zoneId;
     if (query.period) where.period = query.period;
+    if (query.keyword) {
+      where.OR = [
+        { period: { contains: query.keyword } },
+        { type: { contains: query.keyword } },
+        { description: { contains: query.keyword } },
+      ];
+    }
+    if (query.startDate) where.createdAt = { ...where.createdAt, gte: new Date(query.startDate) };
+    if (query.endDate) where.createdAt = { ...where.createdAt, lte: new Date(query.endDate) };
 
     const [data, total] = await Promise.all([
       prisma.subsidyRecord.findMany({
@@ -53,6 +65,22 @@ export async function getSubsidies(query: SubsidyQuery): Promise<PaginatedRespon
   if (query.type) filtered = filtered.filter(s => s.type === query.type);
   if (query.zoneId) filtered = filtered.filter(s => s.zoneId === query.zoneId);
   if (query.period) filtered = filtered.filter(s => s.period === query.period);
+  if (query.keyword) {
+    const kw = query.keyword.toLowerCase();
+    filtered = filtered.filter(s =>
+      s.period.toLowerCase().includes(kw) ||
+      s.type.toLowerCase().includes(kw) ||
+      s.description.toLowerCase().includes(kw)
+    );
+  }
+  if (query.startDate) {
+    const start = new Date(query.startDate).getTime();
+    filtered = filtered.filter(s => new Date(s.createdAt).getTime() >= start);
+  }
+  if (query.endDate) {
+    const end = new Date(query.endDate).getTime();
+    filtered = filtered.filter(s => new Date(s.createdAt).getTime() <= end);
+  }
 
   filtered.sort((a, b) => b.period.localeCompare(a.period));
 

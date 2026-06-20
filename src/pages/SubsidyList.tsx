@@ -84,12 +84,21 @@ const SubsidyList: React.FC = () => {
     setLoading(true);
     try {
       const values = form.getFieldsValue();
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      if (values.dateRange && values.dateRange.length === 2) {
+        startDate = values.dateRange[0].format('YYYY-MM-DD');
+        endDate = values.dateRange[1].format('YYYY-MM-DD');
+      }
       const result = await subsidiesApi.getList({
         page,
         pageSize,
         status: values.status,
         type: values.type,
         zoneId: values.zoneId,
+        keyword: values.keyword,
+        startDate,
+        endDate,
       });
       setData(result.data);
       setTotal(result.total);
