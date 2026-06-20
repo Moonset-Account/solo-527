@@ -41,15 +41,27 @@
 
     <div id="panel-invoices" class="hidden">
       <div class="p-4 border-b border-gray-200">
+        <div class="flex items-center gap-3">
+          <div class="flex-1">
+            <select id="invoices-view-select" onchange="loadInvoices()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">请选择租户查询发票抬头</option>
+            </select>
+          </div>
+          <button onclick="loadInvoices()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">查询</button>
+        </div>
+      </div>
+
+      <div class="p-4 border-b border-gray-200 bg-gray-50/50">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">新增发票抬头</h3>
         <form id="invoice-create-form"
           hx-post="/billing/htmx/invoices/"
           hx-target="#invoices-table-body"
           hx-swap="afterbegin"
-          hx-on::after-request="if(event.detail.successful) this.reset(); loadInvoices();"
+          hx-on::after-request="if(event.detail.successful) { this.reset(); syncCreateTenantToView(); loadInvoices(); }"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label class="block text-xs text-gray-500 mb-1">租户</label>
-            <select name="tenant_id" id="invoice-tenant-select" required
+            <select name="tenant_id" id="invoices-create-select" required
               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option value="">请选择租户</option>
             </select>
@@ -150,11 +162,19 @@
     }
   }
 
+  function syncCreateTenantToView() {
+    var createSel = document.getElementById('invoices-create-select');
+    var viewSel = document.getElementById('invoices-view-select');
+    if (createSel && viewSel && createSel.value) {
+      viewSel.value = createSel.value;
+    }
+  }
+
   async function loadTenants() {
     try {
       var resp = await fetch('/tenants/api/');
       var tenants = await resp.json();
-      ['bills-tenant-select', 'invoice-tenant-select'].forEach(function(selId) {
+      ['bills-tenant-select', 'invoices-view-select', 'invoices-create-select'].forEach(function(selId) {
         var sel = document.getElementById(selId);
         if (!sel) return;
         tenants.forEach(function(t) {
@@ -196,14 +216,19 @@
   }
 
   async function loadInvoices() {
-    var tenantId = document.getElementById('invoices-tenant-select').value;
+    var tenantId = document.getElementById('invoices-view-select').value;
     if (!tenantId) return;
     try {
       var resp = await fetch('/billing/api/invoices/' + tenantId);
       var invoices = await resp.json();
       var tbody = document.getElementById('invoices-table-body');
       var empty = document.getElementById('invoices-empty');
-      if (invoices.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      if (invoices.length === 0) {
+        empty.classList.remove('hidden');
+        empty.textContent = '该租户暂无发票抬头，可在上方新增';
+        tbody.innerHTML = '';
+        return;
+      }
       empty.classList.add('hidden');
       tbody.innerHTML = invoices.map(function(inv, i) {
         var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
@@ -220,32 +245,14 @@
           '<td class="px-4 py-3">' + activeBadge + '</td>' +
           '<td class="px-4 py-3">' +
             '<div class="flex items-center gap-2">' +
-              (!inv.is_default ? '<button onclick="setDefaultInvoice(\'' + inv.id + '\')" class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">设为默认</button>' : '') +
-              '<button onclick="toggleInvoice(\'' + inv.id + '\')" class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">' + (inv.is_active ? '停用' : '启用') + '</button>' +
+              (!inv.is_default ? '<button hx-post="/billing/htmx/invoices/' + inv.id + '/default" hx-target="closest tr" hx-swap="outerHTML" class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">设为默认</button>' : '') +
+              '<button hx-post="/billing/htmx/invoices/' + inv.id + '/toggle" hx-target="closest tr" hx-swap="outerHTML" class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">' + (inv.is_active ? '停用' : '启用') + '</button>' +
             '</div>' +
           '</td>' +
         '</tr>';
       }).join('');
     } catch (e) {
       console.error('加载发票抬头失败', e);
-    }
-  }
-
-  async function setDefaultInvoice(id) {
-    try {
-      await fetch('/billing/api/invoices/' + id + '/default', { method: 'POST' });
-      loadInvoices();
-    } catch (e) {
-      console.error('设置默认发票失败', e);
-    }
-  }
-
-  async function toggleInvoice(id) {
-    try {
-      await fetch('/billing/api/invoices/' + id + '/toggle', { method: 'POST' });
-      loadInvoices();
-    } catch (e) {
-      console.error('切换发票状态失败', e);
     }
   }
 
