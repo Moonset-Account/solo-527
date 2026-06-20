@@ -1,16 +1,29 @@
 <script lang="ts">
   import { cn } from '$utils/format';
 
-  export let label: string;
-  export let name: string;
-  export let type = 'text';
-  export let placeholder = '';
-  export let value = '';
-  export let error = '';
-  export let required = false;
-  export let disabled = false;
-  export let options: { value: string; label: string }[] = [];
-  export let helpText = '';
+  let {
+    label,
+    name,
+    type = 'text',
+    placeholder = '',
+    value = $bindable(''),
+    error = '',
+    required = false,
+    disabled = false,
+    options = [],
+    helpText = ''
+  } = $props<{
+    label: string;
+    name: string;
+    type?: string;
+    placeholder?: string;
+    value?: string;
+    error?: string;
+    required?: boolean;
+    disabled?: boolean;
+    options?: { value: string; label: string }[];
+    helpText?: string;
+  }>();
 </script>
 
 <div class="space-y-1.5">
@@ -34,7 +47,7 @@
         error ? 'border-danger-300 bg-danger-50' : 'border-gray-300',
         disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'
       )}
-    />
+    ></textarea>
   {:else if type === 'select'}
     <select
       {name}

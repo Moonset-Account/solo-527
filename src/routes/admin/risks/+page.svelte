@@ -54,24 +54,53 @@
 		showDetailModal = true;
 	}
 
-	function handleProcess(id: string) {
-		const idx = risks.findIndex((r) => r.id === id);
-		if (idx >= 0) {
-			risks[idx].status = 'processing';
-			risks = [...risks];
+	async function handleProcess(id: string) {
+		try {
+			const res = await fetch(`/api/risks?id=${id}&action=process`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userId: user.id,
+					userName: user.name
+				})
+			});
+			if (!res.ok) throw new Error('处理失败');
+			const idx = risks.findIndex((r) => r.id === id);
+			if (idx >= 0) {
+				risks[idx].status = 'processing';
+				risks = [...risks];
+			}
 			riskStats = getRiskStats();
+		} catch (e) {
+			console.error('Failed to process risk:', e);
+			alert('处理失败，请重试');
 		}
 	}
 
-	function handleResolve(id: string, resolution: string) {
-		const idx = risks.findIndex((r) => r.id === id);
-		if (idx >= 0) {
-			risks[idx].status = 'resolved';
-			risks[idx].resolution = resolution;
-			risks[idx].resolvedAt = new Date();
-			risks = [...risks];
+	async function handleResolve(id: string, resolution: string) {
+		try {
+			const res = await fetch(`/api/risks?id=${id}&action=resolve`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					resolution,
+					userId: user.id,
+					userName: user.name
+				})
+			});
+			if (!res.ok) throw new Error('解决失败');
+			const idx = risks.findIndex((r) => r.id === id);
+			if (idx >= 0) {
+				risks[idx].status = 'resolved';
+				risks[idx].resolution = resolution;
+				risks[idx].resolvedAt = new Date();
+				risks = [...risks];
+			}
 			riskStats = getRiskStats();
 			showDetailModal = false;
+		} catch (e) {
+			console.error('Failed to resolve risk:', e);
+			alert('解决失败，请重试');
 		}
 	}
 
@@ -134,11 +163,11 @@
 			<p class="text-gray-500">管理和处理所有危化品风险提醒</p>
 		</div>
 		<button
-			on:click={refreshData}
+			onclick={refreshData}
 			disabled={loading}
 			class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
 		>
-			<RefreshCw class="w-4 h-4" class:animate-spin={loading} />
+			<RefreshCw class={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
 			刷新
 		</button>
 	</div>
@@ -164,7 +193,7 @@
 			title="处理中"
 			value={riskStats.processing}
 			icon={AlertTriangle}
-			color="yellow"
+			color="purple"
 			trend="neutral"
 			trendValue="进行中"
 		/>
@@ -238,27 +267,30 @@
 			</div>
 		{:else}
 			<DataTable
-				data={filteredRisks}
-				{columns}
-				emptyText="暂无风险提醒"
-				actions={({ item }: { item: RiskAlertType }) => (
+				data={filteredRisks as unknown as Record<string, unknown>[]}
+				columns={columns as unknown as Column<Record<string, unknown>>[]}
+				emptyMessage="暂无风险提醒"
+			>
+				{#snippet actions(item: Record<string, unknown>)}
+					{@const risk = item as unknown as RiskAlertType}
 					<div class="flex items-center gap-2">
 						<button
-							onclick={() => viewDetail(item)}
+							onclick={() => viewDetail(risk)}
 							class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
 							title="查看详情"
 						>
 							<Eye class="w-4 h-4" />
 						</button>
 					</div>
-				)}
-			/>
+				{/snippet}
+			</DataTable>
 		{/if}
 	</div>
 </div>
 
 {#if showDetailModal && selectedRisk}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click|self={() => showDetailModal = false}>
+	{@const risk = selectedRisk}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={(e) => { if (e.target === e.currentTarget) showDetailModal = false; }}>
 		<div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
 			<div class="p-6 border-b border-gray-100">
 				<div class="flex items-start justify-between">
@@ -267,11 +299,11 @@
 							风险详情
 						</h3>
 						<p class="text-sm text-gray-500">
-							创建时间：{formatDate(selectedRisk.createdAt)}
+							创建时间：{formatDate(risk.createdAt)}
 						</p>
 					</div>
 					<button
-						on:click={() => showDetailModal = false}
+						onclick={() => showDetailModal = false}
 						class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +314,7 @@
 			</div>
 			<div class="p-6 overflow-y-auto max-h-[70vh]">
 				<RiskAlert
-					risk={selectedRisk}
+					risk={risk}
 					onProcess={handleProcess}
 					onResolve={handleResolve}
 				/>

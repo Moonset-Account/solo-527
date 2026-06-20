@@ -22,9 +22,19 @@
 
   let user = $derived(get(currentUser));
 
+  async function loadExperiments() {
+    try {
+      const res = await fetch(`/api/experiments?userId=${user.id}`);
+      const result = await res.json();
+      experiments = result.data || [];
+    } catch (e) {
+      console.error('Failed to load experiments:', e);
+    }
+  }
+
   onMount(async () => {
     try {
-      experiments = [...mockExperiments];
+      await loadExperiments();
     } catch (e) {
       console.error('Failed to load data:', e);
     } finally {
@@ -39,22 +49,31 @@
     return Object.keys(formErrors).length === 0;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!validateForm()) return;
 
-    const newExperiment: Experiment = {
-      id: `exp-${Date.now()}`,
-      userId: user.id,
-      title: form.title,
-      data: form.data,
-      archivedAt: new Date()
-    };
+    try {
+      const res = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          title: form.title,
+          data: form.data
+        })
+      });
 
-    experiments = [newExperiment, ...experiments];
-    form = { title: '', data: '' };
-    showForm = false;
-    submitSuccess = true;
-    setTimeout(() => (submitSuccess = false), 3000);
+      if (!res.ok) throw new Error('提交失败');
+
+      await loadExperiments();
+      form = { title: '', data: '' };
+      showForm = false;
+      submitSuccess = true;
+      setTimeout(() => (submitSuccess = false), 3000);
+    } catch (e) {
+      console.error('Failed to submit experiment:', e);
+      alert('归档失败，请重试');
+    }
   }
 
   const columns: Column<Record<string, unknown>>[] = [

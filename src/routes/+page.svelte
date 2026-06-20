@@ -34,6 +34,12 @@
 
   let myRisks = $derived(risks.filter((r) => r.userId === user?.id && r.status !== 'resolved'));
 
+  async function refreshStats() {
+    todoStats = getTodoStats(user.id);
+    riskStats = getRiskStats(user.id);
+    complianceStats = getComplianceStats();
+  }
+
   onMount(async () => {
     try {
       todos = [...mockTodos];
@@ -47,43 +53,94 @@
     }
   });
 
-  function handleProcessTodo(id: string) {
-    const idx = todos.findIndex((t) => t.id === id);
-    if (idx >= 0) {
-      todos[idx].status = 'processing';
-      todos = [...todos];
-      todoStats = getTodoStats(user.id);
+  async function handleProcessTodo(id: string) {
+    try {
+      const res = await fetch(`/api/todos?id=${id}&action=process`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          userName: user.name
+        })
+      });
+      if (!res.ok) throw new Error('处理失败');
+      const idx = todos.findIndex((t) => t.id === id);
+      if (idx >= 0) {
+        todos[idx].status = 'processing';
+        todos = [...todos];
+      }
+      await refreshStats();
+    } catch (e) {
+      console.error('Failed to process todo:', e);
     }
   }
 
-  function handleCompleteTodo(id: string) {
-    const idx = todos.findIndex((t) => t.id === id);
-    if (idx >= 0) {
-      todos[idx].status = 'completed';
-      todos = [...todos];
-      todoStats = getTodoStats(user.id);
-      complianceStats = getComplianceStats();
+  async function handleCompleteTodo(id: string) {
+    try {
+      const res = await fetch(`/api/todos?id=${id}&action=complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          userName: user.name
+        })
+      });
+      if (!res.ok) throw new Error('完成失败');
+      const idx = todos.findIndex((t) => t.id === id);
+      if (idx >= 0) {
+        todos[idx].status = 'completed';
+        todos = [...todos];
+      }
+      await refreshStats();
+    } catch (e) {
+      console.error('Failed to complete todo:', e);
     }
   }
 
-  function handleProcessRisk(id: string) {
-    const idx = risks.findIndex((r) => r.id === id);
-    if (idx >= 0) {
-      risks[idx].status = 'processing';
-      risks = [...risks];
-      riskStats = getRiskStats(user.id);
+  async function handleProcessRisk(id: string) {
+    try {
+      const res = await fetch(`/api/risks?id=${id}&action=process`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          userName: user.name
+        })
+      });
+      if (!res.ok) throw new Error('处理失败');
+      const idx = risks.findIndex((r) => r.id === id);
+      if (idx >= 0) {
+        risks[idx].status = 'processing';
+        risks = [...risks];
+      }
+      await refreshStats();
+    } catch (e) {
+      console.error('Failed to process risk:', e);
     }
   }
 
-  function handleResolveRisk(id: string, resolution: string) {
-    const idx = risks.findIndex((r) => r.id === id);
-    if (idx >= 0) {
-      risks[idx].status = 'resolved';
-      risks[idx].resolution = resolution;
-      risks[idx].resolvedAt = new Date();
-      risks = [...risks];
-      riskStats = getRiskStats(user.id);
-      complianceStats = getComplianceStats();
+  async function handleResolveRisk(id: string, resolution: string) {
+    try {
+      const res = await fetch(`/api/risks?id=${id}&action=resolve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resolution,
+          userId: user.id,
+          userName: user.name
+        })
+      });
+      if (!res.ok) throw new Error('解决失败');
+      const idx = risks.findIndex((r) => r.id === id);
+      if (idx >= 0) {
+        risks[idx].status = 'resolved';
+        risks[idx].resolution = resolution;
+        risks[idx].resolvedAt = new Date();
+        risks = [...risks];
+      }
+      await refreshStats();
+    } catch (e) {
+      console.error('Failed to resolve risk:', e);
     }
   }
 
@@ -102,7 +159,7 @@
       欢迎回来，{user.name}
       </h1>
       <p class="text-gray-500">
-        {user.role === 'admin' ? '实验室管理员' : '研究生'} · {new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        {user.role === 'admin' ? '实验室管理员' : '研究生'} · {new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
     </div>
 

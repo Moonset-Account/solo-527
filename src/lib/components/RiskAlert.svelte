@@ -4,14 +4,20 @@
   import type { RiskAlert } from '$types';
   import { hazardLevelMap, formatDateShort } from '$utils/format';
 
-  export let risk: RiskAlert;
-  export let onResolve: ((id: string, resolution: string) => void) | undefined = undefined;
-  export let onProcess: ((id: string) => void) | undefined = undefined;
+  const {
+    risk,
+    onResolve,
+    onProcess
+  } = $props<{
+    risk: RiskAlert;
+    onResolve?: ((id: string, resolution: string) => void);
+    onProcess?: ((id: string) => void);
+  }>();
 
   let showResolution = $state(false);
   let resolutionText = $state('');
 
-  let levelConfig = $derived(hazardLevelMap[risk.riskLevel]);
+  let levelConfig = $derived(hazardLevelMap[risk.riskLevel as keyof typeof hazardLevelMap]);
   let isResolved = $derived(risk.status === 'resolved');
   let isProcessing = $derived(risk.status === 'processing');
   let isCritical = $derived(risk.riskLevel === 'critical');
@@ -27,26 +33,18 @@
 </script>
 
 <div
-  class="relative overflow-hidden rounded-xl border transition-all duration-300 animate-fade-in"
-  class:border-warning-300={!isResolved && isHigh}
-  class:border-gray-200={isResolved || !isHigh}
-  class:bg-warning-50/50={!isResolved && isHigh}
-  class:bg-white={isResolved || !isHigh}
+  class="relative overflow-hidden rounded-xl border transition-all duration-300 animate-fade-in {(!isResolved && isHigh) ? 'border-warning-300 bg-warning-50/50' : 'border-gray-200 bg-white'}"
 >
   {#if isCritical && !isResolved}
-    <div class="absolute inset-0 bg-gradient-to-r from-warning-500/10 via-transparent to-warning-500/10 animate-pulse-slow pointer-events-none" />
+    <div class="absolute inset-0 bg-gradient-to-r from-warning-500/10 via-transparent to-warning-500/10 animate-pulse-slow pointer-events-none"></div>
   {/if}
 
   <div class="relative p-5">
     <div class="flex items-start gap-4">
       <div
-        class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-        class:bg-warning-100={!isResolved}
-        class:bg-gray-100={isResolved}
-        class:text-warning-600={!isResolved}
-        class:text-gray-500={isResolved}
+        class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center {!isResolved ? 'bg-warning-100 text-warning-600' : 'bg-gray-100 text-gray-500'}"
       >
-        <AlertTriangle class="w-6 h-6" class:animate-pulse={isCritical && !isResolved} />
+        <AlertTriangle class="w-6 h-6 {(isCritical && !isResolved) ? 'animate-pulse' : ''}" />
       </div>
 
       <div class="flex-1 min-w-0">

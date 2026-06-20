@@ -25,7 +25,7 @@
 			const lower = searchQuery.toLowerCase();
 			return (
 				r.name.toLowerCase().includes(lower) ||
-				r.casNumber.toLowerCase().includes(lower)
+				(r.casNumber || '').toLowerCase().includes(lower)
 			);
 		}
 		return true;
@@ -204,10 +204,12 @@
 			</div>
 		{:else}
 			<DataTable
-				data={filteredReagents}
-				{columns}
-				emptyText="暂无试剂"
-				actions={({ item }: { item: Reagent }) => (
+				data={filteredReagents as unknown as Record<string, unknown>[]}
+				columns={columns as unknown as Column<Record<string, unknown>>[]}
+				emptyMessage="暂无试剂"
+			>
+				{#snippet actions(item: Record<string, unknown>)}
+					{@const reagent = item as unknown as Reagent}
 					<div class="flex items-center gap-2">
 						{#if isAdmin}
 							<button
@@ -217,7 +219,7 @@
 								<Edit2 class="w-4 h-4" />
 							</button>
 							<button
-								onclick={() => handleDelete(item.id)}
+								onclick={() => handleDelete(reagent.id)}
 								class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
 								title="删除"
 							>
@@ -225,8 +227,8 @@
 							</button>
 						{/if}
 					</div>
-				)}
-			/>
+				{/snippet}
+			</DataTable>
 		{/if}
 	</div>
 </div>

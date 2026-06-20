@@ -10,6 +10,8 @@
 	import { mockExperiments, mockUsers } from '$server/mockData';
 	import type { Experiment, Column } from '$types';
 
+	type ItemType = Record<string, unknown>;
+
 	let experiments = $state<Experiment[]>([]);
 	let loading = $state(true);
 	let searchQuery = $state('');
@@ -152,13 +154,15 @@
 			</div>
 		{:else}
 			<DataTable
-				data={filteredExperiments}
-				{columns}
-				emptyText="暂无实验数据"
-				actions={({ item }: { item: Experiment }) => (
+				data={filteredExperiments as unknown as ItemType[]}
+				columns={columns as unknown as Column<ItemType>[]}
+				emptyMessage="暂无实验数据"
+			>
+				{#snippet actions(item: ItemType)}
+					{@const exp = item as unknown as Experiment}
 					<div class="flex items-center gap-2">
 						<button
-							onclick={() => viewDetail(item)}
+							onclick={() => viewDetail(exp)}
 							class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
 							title="查看详情"
 						>
@@ -166,7 +170,7 @@
 						</button>
 						{#if isAdmin}
 							<button
-								onclick={() => handleDelete(item.id)}
+								onclick={() => handleDelete(exp.id)}
 								class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
 								title="删除"
 							>
@@ -174,14 +178,14 @@
 							</button>
 						{/if}
 					</div>
-				)}
-			/>
+				{/snippet}
+			</DataTable>
 		{/if}
 	</div>
 </div>
 
 {#if showDetailModal && selectedExperiment}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click|self={() => showDetailModal = false}>
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={(e) => { if (e.target === e.currentTarget) showDetailModal = false; }}>
 		<div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-scale-in">
 			<div class="p-6 border-b border-gray-100">
 				<div class="flex items-start justify-between">
@@ -194,7 +198,7 @@
 						</p>
 					</div>
 					<button
-						on:click={() => showDetailModal = false}
+						onclick={() => showDetailModal = false}
 						class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +216,7 @@
 			</div>
 			<div class="p-4 border-t border-gray-100 flex justify-end gap-3">
 				<button
-					on:click={() => showDetailModal = false}
+					onclick={() => showDetailModal = false}
 					class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
 				>
 					关闭

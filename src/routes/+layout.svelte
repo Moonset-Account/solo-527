@@ -1,9 +1,12 @@
 <script lang="ts">
   import '../app.css';
   import Navbar from '$components/Navbar.svelte';
+  import { get } from 'svelte/store';
   import { page } from '$app/stores';
+  import type { Snippet } from 'svelte';
 
-  let path = $derived($page.url.pathname);
+  let { children } = $props<{ children: Snippet }>();
+  let path = $derived(get(page).url.pathname);
   let showNavbar = $derived(!path.startsWith('/api/'));
 </script>
 
@@ -18,7 +21,7 @@
 {/if}
 
 <main class="min-h-[calc(100vh-4rem)]">
-  <slot />
+  {@render children?.()}
 </main>
 
 {#if showNavbar}

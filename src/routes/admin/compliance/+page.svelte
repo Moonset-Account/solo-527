@@ -160,15 +160,15 @@
 		</div>
 		<div class="flex items-center gap-2">
 			<button
-				on:click={refreshData}
+				onclick={refreshData}
 				disabled={loading}
 				class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
 			>
-				<RefreshCw class="w-4 h-4" class:animate-spin={loading} />
+				<RefreshCw class="w-4 h-4 {loading ? 'animate-spin' : ''}" />
 				刷新
 			</button>
 			<button
-				on:click={handleExport}
+				onclick={handleExport}
 				class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
 			>
 				<Download class="w-4 h-4" />
@@ -272,9 +272,9 @@
 			</div>
 		{:else}
 			<DataTable
-				data={filteredRecords}
-				{columns}
-				emptyText="暂无合规记录"
+				data={filteredRecords as unknown as Record<string, unknown>[]}
+				columns={columns as unknown as Column<Record<string, unknown>>[]}
+				emptyMessage="暂无合规记录"
 			/>
 		{/if}
 	</div>

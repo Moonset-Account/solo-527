@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
+	import type { Snippet } from 'svelte';
 	import { currentUser } from '$stores/user';
 	import {
 		Archive,
@@ -12,7 +13,8 @@
 		ChevronRight
 	} from 'lucide-svelte';
 
-	let path = $derived($page.url.pathname);
+	let { children } = $props<{ children: Snippet }>();
+	let path = $derived(get(page).url.pathname);
 	let user = $derived(get(currentUser));
 	let isAdmin = $derived(user?.role === 'admin');
 
@@ -66,20 +68,14 @@
 						{#each navItems as item}
 							<a
 								href={item.href}
-								class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
-								class:bg-primary-50={path.startsWith(item.href)}
-								class:text-primary-700={path.startsWith(item.href)}
-								class:text-gray-600={!path.startsWith(item.href)}
-								class:hover:bg-gray-100={!path.startsWith(item.href)}
+								class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all {path.startsWith(item.href) ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-100'}"
 							>
 								<span class="flex items-center gap-3">
 									<item.icon class="w-4 h-4" />
 									{item.label}
 								</span>
 								<ChevronRight
-									class="w-4 h-4"
-									class:opacity-100={path.startsWith(item.href)}
-									class:opacity-0={!path.startsWith(item.href)}
+									class="w-4 h-4 {path.startsWith(item.href) ? 'opacity-100' : 'opacity-0'}"
 								/>
 							</a>
 						{/each}
@@ -104,7 +100,7 @@
 			</aside>
 
 			<main class="flex-1 min-w-0">
-				<slot />
+				{@render children?.()}
 			</main>
 		</div>
 	</div>

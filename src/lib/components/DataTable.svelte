@@ -3,19 +3,22 @@
   import StatusBadge from './StatusBadge.svelte';
   import type { Column, CellRenderData, ActionConfig, Status, HazardLevel } from '$types';
   import { cn, reagentCategoryMap, hazardLevelMap, complianceTypeMap } from '$utils/format';
+  import type { Snippet } from 'svelte';
+
+  type ItemType = Record<string, unknown>;
 
   const {
     data = [],
     columns = [],
     emptyMessage = '暂无数据',
     loading = false,
-    actions
+    actions = undefined
   } = $props<{
-    data?: Record<string, unknown>[];
-    columns?: Column<Record<string, unknown>>[];
+    data?: ItemType[];
+    columns?: Column<ItemType>[];
     emptyMessage?: string;
     loading?: boolean;
-    actions?: (args: { item: Record<string, unknown> }) => any;
+    actions?: Snippet<[{ item: ItemType }]>;
   }>();
 
   let isMobile = $state(false);
@@ -161,7 +164,7 @@
   {#if loading}
     <div class="animate-pulse space-y-3">
       {#each Array(5) as _}
-        <div class="h-12 bg-gray-100 rounded-md" />
+        <div class="h-12 bg-gray-100 rounded-md"></div>
       {/each}
     </div>
   {:else if data.length === 0}
@@ -218,7 +221,7 @@
                       {getCellDisplayValue(item, column)}
                     </span>
                   {:else if isActionsColumn(item, column) && actions}
-                    {@render actions({ item })}
+                    {@render actions?.({ item })}
                   {:else}
                     <span class={getCellClassName(item, column)}>
                       {getCellDisplayValue(item, column)}
@@ -304,7 +307,7 @@
 
           {#if columns.some((c: Column<Record<string, unknown>>) => c.key === 'actions') && actions}
             <div class="pt-3 mt-3 border-t border-gray-100">
-              {@render actions({ item })}
+              {@render actions?.({ item })}
             </div>
           {/if}
         </div>

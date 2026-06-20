@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { get } from 'svelte/store';
   import { currentUser, isAdmin, toggleUserRole } from '$stores/user';
   import {
     Home,
@@ -18,9 +19,9 @@
 
   let mobileMenuOpen = $state(false);
 
-  let user = $derived($currentUser);
-  let admin = $derived($isAdmin);
-  let path = $derived($page.url.pathname);
+  let user = $derived(get(currentUser));
+  let admin = $derived(get(isAdmin));
+  let path = $derived(get(page).url.pathname);
 
   const navItems = [
     { href: '/', label: '首页', icon: Home },
@@ -58,10 +59,7 @@
           {#each navItems as item}
             <a
               href={item.href}
-              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors"
-              class:bg-primary-50={isActive(item.href)}
-              class:text-primary-700={isActive(item.href)}
-              class:text-gray-600 hover:text-primary-600 hover:bg-gray-50={!isActive(item.href)}
+              class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors {isActive(item.href) ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'}"
             >
               <item.icon class="w-4 h-4" />
               {item.label}
@@ -69,14 +67,11 @@
           {/each}
 
           {#if admin}
-            <div class="w-px h-6 bg-gray-200 mx-2" />
+            <div class="w-px h-6 bg-gray-200 mx-2"></div>
             {#each adminItems as item}
               <a
                 href={item.href}
-                class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors"
-                class:bg-primary-50={isActive(item.href)}
-                class:text-primary-700={isActive(item.href)}
-                class:text-gray-600 hover:text-primary-600 hover:bg-gray-50={!isActive(item.href)}
+                class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors {isActive(item.href) ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'}"
               >
                 <item.icon class="w-4 h-4" />
                 {item.label}
@@ -88,7 +83,7 @@
 
       <div class="flex items-center gap-3">
         <button
-          on:click={toggleUserRole}
+          onclick={toggleUserRole}
           class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           title="切换角色"
         >
@@ -107,7 +102,7 @@
         </div>
 
         <button
-          on:click={() => mobileMenuOpen = !mobileMenuOpen}
+          onclick={() => mobileMenuOpen = !mobileMenuOpen}
           class="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
         >
           {#if mobileMenuOpen}
@@ -126,10 +121,8 @@
         {#each navItems as item}
           <a
             href={item.href}
-            on:click={() => mobileMenuOpen = false}
-            class="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors"
-            class:bg-primary-50 text-primary-700={isActive(item.href)}
-            class:text-gray-700 hover:bg-gray-50={!isActive(item.href)}
+            onclick={() => mobileMenuOpen = false}
+            class="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {isActive(item.href) ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}"
           >
             <item.icon class="w-4 h-4" />
             {item.label}
@@ -142,10 +135,8 @@
             {#each adminItems as item}
               <a
                 href={item.href}
-                on:click={() => mobileMenuOpen = false}
-                class="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors"
-                class:bg-primary-50 text-primary-700={isActive(item.href)}
-                class:text-gray-700 hover:bg-gray-50={!isActive(item.href)}
+                onclick={() => mobileMenuOpen = false}
+                class="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors {isActive(item.href) ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}"
               >
                 <item.icon class="w-4 h-4" />
                 {item.label}
@@ -156,7 +147,7 @@
 
         <div class="border-t border-gray-100 pt-3">
           <button
-            on:click={toggleUserRole}
+            onclick={toggleUserRole}
             class="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
           >
             <Settings class="w-4 h-4" />

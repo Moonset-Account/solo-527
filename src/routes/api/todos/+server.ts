@@ -10,6 +10,7 @@ import {
 } from '$server/services/todo';
 import {
 	mockTodos,
+	mockCompliance,
 	getTodoStats,
 	getTodosByType,
 	getTodosByStatus
@@ -130,6 +131,20 @@ export const PATCH: RequestHandler = async ({ request, url }) => {
 
 			if (action === 'complete') {
 				mockTodos[idx].status = 'completed';
+				const now = new Date();
+				const operatorName = body.userName || mockTodos[idx].assignee;
+				const operatorId = body.userId || mockTodos[idx].assigneeId;
+				mockCompliance.push({
+					id: `comp-${Date.now()}`,
+					type: 'todo',
+					referenceId: mockTodos[idx].id,
+					status: 'completed',
+					operator: operatorName,
+					operatorId: operatorId,
+					details: `完成待办事项: ${mockTodos[idx].title}`,
+					createdAt: now,
+					processedAt: now
+				});
 				return json(mockTodos[idx]);
 			}
 

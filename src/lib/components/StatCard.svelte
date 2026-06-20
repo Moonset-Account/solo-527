@@ -1,10 +1,19 @@
 <script lang="ts">
-  export let title: string;
-  export let value: string | number;
-  export let icon: any;
-  export let trend: 'up' | 'down' | 'neutral' | undefined = undefined;
-  export let trendValue: string | undefined = undefined;
-  export let color: 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'indigo' = 'blue';
+  const {
+    title,
+    value,
+    icon,
+    trend,
+    trendValue,
+    color = 'blue'
+  } = $props<{
+    title: string;
+    value: string | number;
+    icon: any;
+    trend?: 'up' | 'down' | 'neutral';
+    trendValue?: string;
+    color?: 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'indigo';
+  }>();
 
   const colorClasses = {
     blue: {
@@ -39,7 +48,7 @@
     }
   };
 
-  let classes = $derived(colorClasses[color]);
+  let classes = $derived(colorClasses[color as keyof typeof colorClasses]);
 </script>
 
 <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow duration-300 animate-fade-in">
@@ -54,7 +63,10 @@
       {/if}
     </div>
     <div class="w-12 h-12 rounded-xl flex items-center justify-center {classes.icon}">
-      <svelte:component this={icon} class="w-6 h-6" />
+      {#if icon}
+        {@const Icon = icon}
+        <Icon class="w-6 h-6" />
+      {/if}
     </div>
   </div>
 </div>

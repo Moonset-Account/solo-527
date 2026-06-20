@@ -68,6 +68,15 @@
 		if (!confirm('确定要批准这个领用申请吗？')) return;
 
 		try {
+			const res = await fetch(`/api/requisitions?id=${id}&action=approve`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userId: user.id,
+					userName: user.name
+				})
+			});
+			if (!res.ok) throw new Error('批准失败');
 			const idx = requisitions.findIndex((r) => r.id === id);
 			if (idx >= 0) {
 				requisitions[idx].status = 'approved';
@@ -86,7 +95,18 @@
 		}
 
 		try {
-			const idx = requisitions.findIndex((r) => r.id === selectedRequisition.id);
+			const req = selectedRequisition!;
+			const res = await fetch(`/api/requisitions?id=${req.id}&action=reject`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userId: user.id,
+					userName: user.name,
+					rejectionReason: rejectReason
+				})
+			});
+			if (!res.ok) throw new Error('拒绝失败');
+			const idx = requisitions.findIndex((r) => r.id === req.id);
 			if (idx >= 0) {
 				requisitions[idx].status = 'rejected';
 				requisitions[idx].rejectionReason = rejectReason;
@@ -155,11 +175,11 @@
 			<p class="text-gray-500">审批和管理所有试剂领用申请</p>
 		</div>
 		<button
-			on:click={refreshData}
+			onclick={refreshData}
 			disabled={loading}
 			class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
 		>
-			<RefreshCw class="w-4 h-4" class:animate-spin={loading} />
+			<RefreshCw class={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
 			刷新
 		</button>
 	</div>
@@ -177,7 +197,7 @@
 			title="待审批"
 			value={stats.pending}
 			icon={FileText}
-			color="yellow"
+			color="orange"
 			trend="neutral"
 			trendValue="待处理"
 		/>
@@ -232,28 +252,30 @@
 			</div>
 		{:else}
 			<DataTable
-				data={filteredRequisitions}
-				{columns}
-				emptyText="暂无领用申请"
-				actions={({ item }: { item: Requisition }) => (
+				data={filteredRequisitions as unknown as Record<string, unknown>[]}
+				columns={columns as unknown as Column<Record<string, unknown>>[]}
+				emptyMessage="暂无领用申请"
+			>
+				{#snippet actions(item: Record<string, unknown>)}
+					{@const req = item as unknown as Requisition}
 					<div class="flex items-center gap-2">
 						<button
-							onclick={() => viewDetail(item)}
+							onclick={() => viewDetail(req)}
 							class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
 							title="查看详情"
 						>
 							<Eye class="w-4 h-4" />
 						</button>
-						{#if isAdmin && item.status === 'pending'}
+						{#if isAdmin && req.status === 'pending'}
 							<button
-								onclick={() => handleApprove(item.id)}
+								onclick={() => handleApprove(req.id)}
 								class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
 								title="批准"
 							>
 								<Check class="w-4 h-4" />
 							</button>
 							<button
-								onclick={() => openRejectModal(item)}
+								onclick={() => openRejectModal(req)}
 								class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
 								title="拒绝"
 							>
@@ -261,14 +283,15 @@
 							</button>
 						{/if}
 					</div>
-				)}
-			/>
+				{/snippet}
+			</DataTable>
 		{/if}
 	</div>
 </div>
 
 {#if showDetailModal && selectedRequisition}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click|self={() => showDetailModal = false}>
+	{@const req = selectedRequisition}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={(e) => { if (e.target === e.currentTarget) showDetailModal = false; }}>
 		<div class="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden animate-scale-in">
 			<div class="p-6 border-b border-gray-100">
 				<div class="flex items-start justify-between">
@@ -277,11 +300,11 @@
 							领用申请详情
 						</h3>
 						<p class="text-sm text-gray-500">
-							申请时间：{formatDate(selectedRequisition.createdAt)}
+							申请时间：{formatDate(req.createdAt)}
 						</p>
 					</div>
 					<button
-						on:click={() => showDetailModal = false}
+						onclick={() => showDetailModal = false}
 						class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -295,61 +318,61 @@
 					<div class="grid grid-cols-2 gap-4">
 						<div class="bg-gray-50 rounded-lg p-3">
 							<p class="text-xs text-gray-500 mb-1">试剂名称</p>
-							<p class="font-medium text-gray-900">{selectedRequisition.reagent?.name}</p>
+							<p class="font-medium text-gray-900">{req.reagent?.name}</p>
 						</div>
 						<div class="bg-gray-50 rounded-lg p-3">
 							<p class="text-xs text-gray-500 mb-1">CAS号</p>
-							<p class="font-medium text-gray-900 font-mono text-sm">{selectedRequisition.reagent?.casNumber}</p>
+							<p class="font-medium text-gray-900 font-mono text-sm">{req.reagent?.casNumber}</p>
 						</div>
 						<div class="bg-gray-50 rounded-lg p-3">
 							<p class="text-xs text-gray-500 mb-1">申请数量</p>
-							<p class="font-medium text-gray-900">{selectedRequisition.quantity} {selectedRequisition.reagent?.unit}</p>
+							<p class="font-medium text-gray-900">{req.quantity} {req.reagent?.unit}</p>
 						</div>
 						<div class="bg-gray-50 rounded-lg p-3">
 							<p class="text-xs text-gray-500 mb-1">当前库存</p>
-							<p class="font-medium text-gray-900">{selectedRequisition.reagent?.stock} {selectedRequisition.reagent?.unit}</p>
+							<p class="font-medium text-gray-900">{req.reagent?.stock} {req.reagent?.unit}</p>
 						</div>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<p class="text-xs text-gray-500 mb-1">申请人</p>
-						<p class="font-medium text-gray-900">{selectedRequisition.userName}</p>
+						<p class="font-medium text-gray-900">{req.userName}</p>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<p class="text-xs text-gray-500 mb-1">用途</p>
-						<p class="font-medium text-gray-900">{selectedRequisition.purpose}</p>
+						<p class="font-medium text-gray-900">{req.purpose}</p>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-3">
 						<p class="text-xs text-gray-500 mb-1">状态</p>
 						<span class={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-							selectedRequisition.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-							selectedRequisition.status === 'approved' ? 'bg-green-100 text-green-700' :
-							selectedRequisition.status === 'rejected' ? 'bg-red-100 text-red-700' :
+							req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+							req.status === 'approved' ? 'bg-green-100 text-green-700' :
+							req.status === 'rejected' ? 'bg-red-100 text-red-700' :
 							'bg-green-100 text-green-700'
 						}`}>
-							{selectedRequisition.status === 'pending' ? '待审批' :
-							 selectedRequisition.status === 'approved' ? '已批准' :
-							 selectedRequisition.status === 'rejected' ? '已拒绝' : '已完成'}
+							{req.status === 'pending' ? '待审批' :
+							 req.status === 'approved' ? '已批准' :
+							 req.status === 'rejected' ? '已拒绝' : '已完成'}
 						</span>
 					</div>
-					{#if selectedRequisition.rejectionReason}
+					{#if req.rejectionReason}
 						<div class="bg-red-50 rounded-lg p-3">
 							<p class="text-xs text-red-500 mb-1">拒绝原因</p>
-							<p class="font-medium text-red-700">{selectedRequisition.rejectionReason}</p>
+							<p class="font-medium text-red-700">{req.rejectionReason}</p>
 						</div>
 					{/if}
 				</div>
 			</div>
 			<div class="p-4 border-t border-gray-100 flex justify-end gap-3">
-				{#if isAdmin && selectedRequisition.status === 'pending'}
+				{#if isAdmin && req.status === 'pending'}
 					<button
-						on:click={() => { handleApprove(selectedRequisition.id); showDetailModal = false; }}
+						onclick={() => { handleApprove(req.id); showDetailModal = false; }}
 						class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
 					>
 						<Check class="w-4 h-4" />
 						批准
 					</button>
 					<button
-						on:click={() => { showDetailModal = false; openRejectModal(selectedRequisition); }}
+						onclick={() => { showDetailModal = false; openRejectModal(req); }}
 						class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
 					>
 						<X class="w-4 h-4" />
@@ -357,7 +380,7 @@
 					</button>
 				{/if}
 				<button
-					on:click={() => showDetailModal = false}
+					onclick={() => showDetailModal = false}
 					class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
 				>
 					关闭
@@ -368,7 +391,7 @@
 {/if}
 
 {#if showRejectModal && selectedRequisition}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click|self={() => showRejectModal = false}>
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={(e) => { if (e.target === e.currentTarget) showRejectModal = false; }}>
 		<div class="bg-white rounded-2xl shadow-xl max-w-md w-full animate-scale-in">
 			<div class="p-6 border-b border-gray-100">
 				<h3 class="text-xl font-bold text-gray-900 mb-1">拒绝申请</h3>
@@ -382,17 +405,17 @@
 					placeholder="请输入拒绝原因..."
 					rows={4}
 					class="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-				/>
+				></textarea>
 			</div>
 			<div class="p-4 border-t border-gray-100 flex justify-end gap-3">
 				<button
-					on:click={() => showRejectModal = false}
+					onclick={() => showRejectModal = false}
 					class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
 				>
 					取消
 				</button>
 				<button
-					on:click={handleReject}
+					onclick={handleReject}
 					class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
 				>
 					确认拒绝

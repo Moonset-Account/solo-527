@@ -9,6 +9,7 @@ import {
 } from '$server/services/risk';
 import {
 	mockRisks,
+	mockCompliance,
 	getRiskStats,
 	getRisksByLevel,
 	getPendingRisks
@@ -131,7 +132,21 @@ export const PATCH: RequestHandler = async ({ request, url }) => {
 			if (action === 'resolve') {
 				mockRisks[idx].status = 'resolved';
 				mockRisks[idx].resolution = body.resolution;
-				mockRisks[idx].resolvedAt = new Date();
+				const now = new Date();
+				mockRisks[idx].resolvedAt = now;
+				const operatorName = body.userName || mockRisks[idx].userName;
+				const operatorId = body.userId || mockRisks[idx].userId;
+				mockCompliance.push({
+					id: `comp-${Date.now()}`,
+					type: 'risk',
+					referenceId: mockRisks[idx].id,
+					status: 'completed',
+					operator: operatorName,
+					operatorId: operatorId,
+					details: `风险处理完成 - ${mockRisks[idx].riskType}: ${mockRisks[idx].description}。处理措施: ${body.resolution}`,
+					createdAt: now,
+					processedAt: now
+				});
 				return json(mockRisks[idx]);
 			}
 

@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getExperiments, getExperimentById, createExperiment, deleteExperiment } from '$server/services/experiment';
-import { mockExperiments } from '$server/mockData';
+import { mockExperiments, mockCompliance, mockUsers } from '$server/mockData';
 import type { Experiment } from '$types';
 
 let useMock = true;
@@ -67,6 +67,19 @@ export const POST: RequestHandler = async ({ request }) => {
 				archivedAt: new Date()
 			};
 			mockExperiments.push(newExperiment);
+			const user = mockUsers.find((u) => u.id === body.userId);
+			const now = new Date();
+			mockCompliance.push({
+				id: `comp-${Date.now()}`,
+				type: 'experiment',
+				referenceId: newExperiment.id,
+				status: 'completed',
+				operator: user?.name || '未知用户',
+				operatorId: body.userId,
+				details: `归档实验数据: ${body.title}`,
+				createdAt: now,
+				processedAt: now
+			});
 			return json(newExperiment, { status: 201 });
 		}
 

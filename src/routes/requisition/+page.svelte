@@ -30,10 +30,20 @@
   ));
   let selectedReagent = $derived(reagents.find((r) => r.id === form.reagentId));
 
+  async function loadRequisitions() {
+    try {
+      const res = await fetch(`/api/requisitions?userId=${user.id}`);
+      const result = await res.json();
+      requisitions = result.data || [];
+    } catch (e) {
+      console.error('Failed to load requisitions:', e);
+    }
+  }
+
   onMount(async () => {
     try {
       reagents = [...mockReagents];
-      requisitions = [...mockRequisitions];
+      await loadRequisitions();
     } catch (e) {
       console.error('Failed to load data:', e);
     } finally {
@@ -52,35 +62,33 @@
     return Object.keys(formErrors).length === 0;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!validateForm()) return;
 
-    const newRequisition: Requisition = {
-      id: `req-${Date.now()}`,
-      reagentId: form.reagentId,
-      reagent: selectedReagent,
-      userId: user.id,
-      userName: user.name,
-      quantity: parseInt(form.quantity),
-      purpose: form.purpose,
-      status: 'pending',
-      createdAt: new Date()
-    };
+    try {
+      const res = await fetch('/api/requisitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reagentId: form.reagentId,
+          userId: user.id,
+          userName: user.name,
+          quantity: parseInt(form.quantity),
+          purpose: form.purpose
+        })
+      });
 
-    requisitions = [newRequisition, ...requisitions];
+      if (!res.ok) throw new Error('提交失败');
 
-    if (selectedReagent) {
-      const idx = reagents.findIndex((r) => r.id === form.reagentId);
-      if (idx >= 0) {
-        reagents[idx].stock -= parseInt(form.quantity);
-        reagents = [...reagents];
-      }
+      await loadRequisitions();
+      form = { reagentId: '', quantity: '', purpose: '' };
+      showForm = false;
+      submitSuccess = true;
+      setTimeout(() => (submitSuccess = false), 3000);
+    } catch (e) {
+      console.error('Failed to submit requisition:', e);
+      alert('提交申请失败，请重试');
     }
-
-    form = { reagentId: '', quantity: '', purpose: '' };
-    showForm = false;
-    submitSuccess = true;
-    setTimeout(() => (submitSuccess = false), 3000);
   }
 
   const columns: Column<Record<string, unknown>>[] = [

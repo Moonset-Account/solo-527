@@ -4,9 +4,15 @@
   import type { TodoItem, TodoType } from '$types';
   import { todoTypeMap, formatDateShort, getPriorityBadge } from '$utils/format';
 
-  export let todo: TodoItem;
-  export let onComplete: ((id: string) => void) | undefined = undefined;
-  export let onProcess: ((id: string) => void) | undefined = undefined;
+  const {
+    todo,
+    onComplete,
+    onProcess
+  } = $props<{
+    todo: TodoItem;
+    onComplete?: ((id: string) => void);
+    onProcess?: ((id: string) => void);
+  }>();
 
   const iconComponents: Record<string, typeof FileText> = {
     FileText,
@@ -22,14 +28,16 @@
 </script>
 
 <div
-  class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300 cursor-pointer animate-fade-in"
-  class:opacity-60={isCompleted}
+  class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300 cursor-pointer animate-fade-in {isCompleted ? 'opacity-60' : ''}"
 >
   <div class="flex items-start gap-4">
     <div
       class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center {typeConfig?.color} group-hover:scale-110 transition-transform duration-300"
     >
-      <svelte:component this={IconComponent} class="w-6 h-6" />
+      {#if IconComponent}
+        {@const Icon = IconComponent}
+        <Icon class="w-6 h-6" />
+      {/if}
     </div>
 
     <div class="flex-1 min-w-0">
@@ -67,7 +75,7 @@
         <div class="flex items-center gap-2">
           {#if !isCompleted && !isProcessing && onProcess}
             <button
-              on:click|stopPropagation={() => onProcess?.(todo.id)}
+              onclick={(e) => { e.stopPropagation(); onProcess?.(todo.id); }}
               class="px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
             >
               开始处理
@@ -75,7 +83,7 @@
           {/if}
           {#if isProcessing && onComplete}
             <button
-              on:click|stopPropagation={() => onComplete?.(todo.id)}
+              onclick={(e) => { e.stopPropagation(); onComplete?.(todo.id); }}
               class="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
             >
               完成

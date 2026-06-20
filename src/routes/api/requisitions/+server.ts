@@ -8,7 +8,7 @@ import {
 	approveRequisition,
 	rejectRequisition
 } from '$server/services/requisition';
-import { mockRequisitions, mockReagents } from '$server/mockData';
+import { mockRequisitions, mockReagents, mockCompliance } from '$server/mockData';
 import type { Requisition, Status } from '$types';
 
 let useMock = true;
@@ -79,6 +79,16 @@ export const POST: RequestHandler = async ({ request }) => {
 				createdAt: new Date()
 			};
 			mockRequisitions.push(newRequisition);
+			mockCompliance.push({
+				id: `comp-${Date.now()}`,
+				type: 'requisition',
+				referenceId: newRequisition.id,
+				status: 'pending',
+				operator: body.userName,
+				operatorId: body.userId,
+				details: `提交试剂领用申请 - 数量: ${body.quantity}, 用途: ${body.purpose}`,
+				createdAt: new Date()
+			});
 			return json(newRequisition, { status: 201 });
 		}
 
