@@ -1,0 +1,75 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">我的场地预约</h1>
+    <div class="flex items-center space-x-4">
+      <%= search_form_for @q, url: venue_bookings_path, method: :get, class: "flex items-center space-x-2" do |f| %>
+        <%= f.select :status_eq, [["待确认", "pending"], ["已确认", "confirmed"], ["已取消", "cancelled"], ["已完成", "completed"]], { include_blank: "全部状态" }, class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.submit "搜索", class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" %>
+      <% end %>
+      <%= link_to "预约场地", new_venue_booking_path, class: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium" %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">场地名称</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预约时间</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用途</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">来源</th>
+          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% @bookings.each do |booking| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4">
+              <div class="font-medium text-gray-900"><%= booking.venue.name %></div>
+              <div class="text-sm text-gray-500"><%= booking.venue.location || "-" %></div>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-900">
+              <div><%= booking.start_time.strftime("%Y-%m-%d") %></div>
+              <div class="text-gray-500"><%= booking.start_time.strftime("%H:%M") %> - <%= booking.end_time.strftime("%H:%M") %></div>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-900">
+              <%= booking.purpose || "-" %>
+            </td>
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 text-xs rounded-full <%= status_class(booking.status) %>">
+                <%= status_text(booking.status) %>
+              </span>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+              <%= source_text(booking.source) %>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex items-center justify-end space-x-2">
+                <%= link_to "查看详情", venue_booking_path(booking), class: "text-blue-600 hover:text-blue-900 text-sm font-medium" %>
+                <% if booking.status.in?(%w[pending confirmed]) %>
+                  <%= button_to "取消", cancel_venue_booking_path(booking), method: :post, class: "text-red-600 hover:text-red-900 text-sm", data: { confirm: "确认取消预约？" } %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <% if @bookings.empty? %>
+      <div class="p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">暂无场地预约</h3>
+        <p class="mt-1 text-sm text-gray-500">您还没有预约过场地</p>
+        <%= link_to "浏览场地", venues_path, class: "mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="flex justify-center">
+    <%= paginate @bookings %>
+  </div>
+</div>

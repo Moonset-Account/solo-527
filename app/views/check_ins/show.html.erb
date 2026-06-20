@@ -1,0 +1,89 @@
+<% content_for :page_title, "签到详情" %>
+
+<div class="space-y-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="h-40 bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center relative">
+      <svg class="w-16 h-16 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span class="absolute top-4 right-4 px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-sm rounded-full">
+        <%= status_text(@check_in.status) %>
+      </span>
+    </div>
+
+    <div class="p-8">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">签到详情</h1>
+          <p class="text-gray-500 mt-2">签到编号 #<%= @check_in.id %></p>
+        </div>
+        <span class="px-3 py-1 text-sm rounded-full <%= status_class(@check_in.status) %> font-medium">
+          <%= status_text(@check_in.status) %>
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-sm text-gray-500">签到状态</p>
+          <p class="mt-1"><span class="px-2 py-1 text-xs rounded-full <%= status_class(@check_in.status) %>"><%= status_text(@check_in.status) %></span></p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-sm text-gray-500">签到方式</p>
+          <p class="font-semibold text-gray-900 mt-1"><%= @check_in.check_in_method&.humanize || "-" %></p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-sm text-gray-500">签到时间</p>
+          <p class="font-semibold text-gray-900 mt-1"><%= @check_in.checked_in_at&.strftime("%Y-%m-%d %H:%M") || "-" %></p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-sm text-gray-500">数据来源</p>
+          <p class="font-semibold text-gray-900 mt-1"><%= source_text(@check_in.source) %></p>
+        </div>
+      </div>
+
+      <% if @check_in.remark.present? %>
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+          <p class="text-sm text-gray-500">备注</p>
+          <p class="text-gray-900 mt-1"><%= @check_in.remark %></p>
+        </div>
+      <% end %>
+
+      <div class="flex space-x-4">
+        <%= link_to "返回列表", check_ins_path, class: "px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-medium text-gray-900">关联项目</h3>
+    </div>
+    <div class="px-6 py-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-500">关联类型</span>
+        <span class="font-medium text-gray-900"><%= @check_in.source_description %></span>
+      </div>
+      <% if @check_in.checkinable_type == "CourseEnrollment" %>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-500">课程名称</span>
+          <span class="font-medium text-gray-900"><%= @check_in.checkinable.course.name %></span>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 mt-3 -mx-6">
+          <%= link_to "查看课程报名", course_enrollment_path(@check_in.checkinable), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      <% elsif @check_in.checkinable_type == "EventRegistration" %>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-500">赛事名称</span>
+          <span class="font-medium text-gray-900"><%= @check_in.checkinable.event.name %></span>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 mt-3 -mx-6">
+          <%= link_to "查看赛事报名", event_registration_path(@check_in.checkinable), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <%= render "shared/version_history", versions: @versions %>
+
+  <%= link_to "← 返回签到列表", check_ins_path, class: "text-gray-600 hover:text-gray-900" %>
+</div>

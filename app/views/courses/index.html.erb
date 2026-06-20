@@ -1,0 +1,90 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">课程列表</h1>
+    <div class="flex items-center space-x-4">
+      <%= search_form_for @q, url: courses_path, method: :get, class: "flex items-center space-x-2" do |f| %>
+        <%= f.search_field :name_cont, placeholder: "搜索课程...", class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.select :level_eq, Course.pluck(:level).uniq.compact, { include_blank: "全部级别" }, class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.submit "搜索", class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% @courses.each do |course| %>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+        <div class="h-40 bg-gradient-to-r from-blue-400 to-cyan-400 flex items-center justify-center">
+          <svg class="w-16 h-16 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M2 15c1.5 0 2 1 3.5 1s2-1 3.5-1 2 1 3.5 1 2-1 3.5-1 2 1 3.5 1 2-1 3.5-1v2c-1.5 0-2 1-3.5 1s-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1v-2zm0-4c1.5 0 2 1 3.5 1s2-1 3.5-1 2 1 3.5 1 2-1 3.5-1 2 1 3.5 1 2-1 3.5-1v2c-1.5 0-2 1-3.5 1s-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1v-2zm0-4c1.5 0 2 1 3.5 1s2-1 3.5-1 2 1 3.5 1 2-1 3.5-1 2 1 3.5 1 2-1 3.5-1v2c-1.5 0-2 1-3.5 1s-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1v-2z"/>
+          </svg>
+        </div>
+        <div class="p-6">
+          <div class="flex items-start justify-between mb-2">
+            <h3 class="text-lg font-semibold text-gray-900"><%= course.name %></h3>
+            <span class="px-2 py-1 text-xs rounded-full <%= status_class(course.status) %>">
+              <%= status_text(course.status) %>
+            </span>
+          </div>
+          <p class="text-sm text-gray-500 mb-4 line-clamp-2"><%= course.description %></p>
+          
+          <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-center justify-between">
+              <span>级别</span>
+              <span class="font-medium"><%= course.level || "未设置" %></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>教练</span>
+              <span class="font-medium"><%= course.coach || "未设置" %></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>费用</span>
+              <span class="font-medium text-orange-600">¥<%= "%.2f" % course.price %></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>名额</span>
+              <span class="font-medium">
+                <% if course.full? %>
+                  <span class="text-red-600">已满员</span>
+                <% else %>
+                  <%= course.enrolled_count %>/<%= course.capacity %> 人
+                <% end %>
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-gray-100">
+            <div class="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+              <div class="h-full <%= course.fill_rate >= 100 ? 'bg-red-500' : course.fill_rate >= 80 ? 'bg-orange-500' : 'bg-green-500' %>" 
+                   style="width: <%= [course.fill_rate, 100].min %>%"></div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-gray-500">
+              <span>满班率 <%= course.fill_rate %>%</span>
+              <span>剩余 <%= [course.capacity - course.enrolled_count, 0].max %> 个名额</span>
+            </div>
+          </div>
+
+          <div class="mt-4 flex space-x-2">
+            <%= link_to "查看详情", course_path(course), class: "flex-1 px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 text-sm font-medium" %>
+            <% if course.has_available_spots? && !current_user.courses.exists?(course.id) %>
+              <%= button_to "立即报名", enroll_course_path(course), method: :post, class: "flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @courses.empty? %>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">暂无课程</h3>
+      <p class="mt-1 text-sm text-gray-500">请稍后再来查看</p>
+    </div>
+  <% end %>
+
+  <div class="flex justify-center">
+    <%= paginate @courses %>
+  </div>
+</div>

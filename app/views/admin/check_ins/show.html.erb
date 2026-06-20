@@ -1,0 +1,162 @@
+<% content_for :page_title, "签到详情 ##{@check_in.id}" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">签到详情 ##{@check_in.id}</h1>
+      <p class="text-gray-500 mt-1">签到管理</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_check_ins_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">签到信息</h3>
+          <span class="px-3 py-1 text-sm rounded-full <%= status_class(@check_in.status) %> font-medium">
+            <%= status_text(@check_in.status) %>
+          </span>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">签到状态</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@check_in.status) %>">
+                  <%= status_text(@check_in.status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">签到方式</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @check_in.check_in_method&.humanize || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">签到时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @check_in.checked_in_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">操作人</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @check_in.operator&.name || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">数据来源</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= source_text(@check_in.source) %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">创建时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @check_in.created_at.strftime("%Y-%m-%d %H:%M:%S") %></dd>
+            </div>
+          </dl>
+
+          <% if @check_in.remark.present? %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <dt class="text-sm text-gray-500">备注</dt>
+              <dd class="mt-1 text-gray-900"><%= @check_in.remark %></dd>
+            </div>
+          <% end %>
+        </div>
+        <% if @check_in.status == "pending" %>
+          <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <%= button_to "手动签到", check_in_admin_check_in_path(@check_in), method: :post,
+                          class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" %>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">来源追溯</h3>
+          <p class="text-sm text-gray-500 mt-1">签到来源信息</p>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">来源类型</dt>
+              <dd class="mt-1 font-medium text-gray-900">
+                <%= case @check_in.checkinable_type
+                    when "CourseEnrollment" then "课程报名"
+                    when "EventRegistration" then "赛事报名"
+                    else @check_in.checkinable_type
+                    end %>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">来源ID</dt>
+              <dd class="mt-1 font-medium text-gray-900">#<%= @check_in.checkinable_id %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">来源描述</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @check_in.source_description %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">签到方式</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @check_in.check_in_method&.humanize || "-" %></dd>
+            </div>
+          </dl>
+
+          <% if @check_in.checkinable_type == "CourseEnrollment" %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <p class="text-sm text-gray-500">关联课程报名</p>
+              <div class="mt-2 flex items-center space-x-2">
+                <span class="text-sm font-medium text-gray-900"><%= @check_in.checkinable.course.name %></span>
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@check_in.checkinable.status) %>">
+                  <%= status_text(@check_in.checkinable.status) %>
+                </span>
+              </div>
+              <%= link_to "查看报名详情", admin_course_enrollment_path(@check_in.checkinable), class: "text-blue-600 hover:text-blue-900 text-sm mt-2 inline-block" %>
+            </div>
+          <% elsif @check_in.checkinable_type == "EventRegistration" %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <p class="text-sm text-gray-500">关联赛事报名</p>
+              <div class="mt-2 flex items-center space-x-2">
+                <span class="text-sm font-medium text-gray-900"><%= @check_in.checkinable.event.name %></span>
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@check_in.checkinable.status) %>">
+                  <%= status_text(@check_in.checkinable.status) %>
+                </span>
+              </div>
+              <%= link_to "查看报名详情", admin_event_registration_path(@check_in.checkinable), class: "text-blue-600 hover:text-blue-900 text-sm mt-2 inline-block" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <%= render "shared/version_history", versions: @versions %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">签到用户</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-600 font-semibold"><%= @check_in.user.name[0] %></span>
+            </div>
+            <div class="ml-4">
+              <p class="font-medium text-gray-900"><%= @check_in.user.name %></p>
+              <p class="text-sm text-gray-500"><%= @check_in.user.email %></p>
+              <p class="text-sm text-gray-500"><%= @check_in.user.phone %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">操作信息</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <p class="text-sm text-gray-500">操作人</p>
+          <p class="font-medium text-gray-900"><%= @check_in.operator&.name || "系统" %></p>
+          <p class="text-sm text-gray-500">数据来源</p>
+          <p class="font-medium text-gray-900"><%= source_text(@check_in.source) %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

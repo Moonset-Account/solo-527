@@ -1,0 +1,158 @@
+<% content_for :page_title, "预约详情" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">预约详情 #<%= @booking.id %></h1>
+      <p class="text-gray-500 mt-1">场地预约</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_venue_bookings_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">预约信息</h3>
+          <span class="px-3 py-1 text-sm rounded-full <%= status_class(@booking.status) %> font-medium">
+            <%= status_text(@booking.status) %>
+          </span>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">场地</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.venue.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">预约用户</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.user.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">开始时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.start_time.strftime("%Y-%m-%d %H:%M") %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">结束时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.end_time.strftime("%Y-%m-%d %H:%M") %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">用途</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.purpose || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">数据来源</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= source_text(@booking.source) %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">创建时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.created_at.strftime("%Y-%m-%d %H:%M:%S") %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">更新时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @booking.updated_at.strftime("%Y-%m-%d %H:%M:%S") %></dd>
+            </div>
+          </dl>
+        </div>
+
+        <% if @booking.remark.present? %>
+          <div class="px-6 py-4 border-t border-gray-100">
+            <dt class="text-sm text-gray-500">备注</dt>
+            <dd class="mt-1 text-gray-900"><%= @booking.remark %></dd>
+          </div>
+        <% end %>
+
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex space-x-3">
+          <%= link_to "编辑预约", edit_admin_venue_booking_path(@booking), class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" %>
+          <% if @booking.status != "cancelled" %>
+            <%= button_to "取消预约", cancel_admin_venue_booking_path(@booking), method: :post, class: "px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm", data: { confirm: "确认取消该预约？" } %>
+          <% end %>
+          <%= button_to "删除预约", admin_venue_booking_path(@booking), method: :delete, class: "px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm", data: { confirm: "确认删除该预约？此操作不可恢复。" } %>
+        </div>
+      </div>
+
+      <% if @booking.bookable.present? %>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">来源追溯</h3>
+            <p class="text-sm text-gray-500 mt-1">该预约关联的上游记录</p>
+          </div>
+          <div class="px-6 py-4">
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <dt class="text-sm text-gray-500">关联类型</dt>
+                <dd class="mt-1 font-medium text-gray-900"><%= @booking.bookable_type %></dd>
+              </div>
+              <div>
+                <dt class="text-sm text-gray-500">关联ID</dt>
+                <dd class="mt-1 font-medium text-gray-900">#<%= @booking.bookable_id %></dd>
+              </div>
+              <% if @booking.bookable.respond_to?(:name) %>
+                <div>
+                  <dt class="text-sm text-gray-500">关联名称</dt>
+                  <dd class="mt-1 font-medium text-gray-900"><%= @booking.bookable.name %></dd>
+                </div>
+              <% end %>
+            </dl>
+            <% if @booking.bookable_type == "Course" %>
+              <div class="mt-4">
+                <%= link_to "查看课程", admin_course_path(@booking.bookable), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+              </div>
+            <% elsif @booking.bookable_type == "Event" %>
+              <div class="mt-4">
+                <%= link_to "查看赛事", admin_event_path(@booking.bookable), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <%= render "shared/version_history", versions: @versions %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">预约用户</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-600 font-semibold"><%= @booking.user.name[0] %></span>
+            </div>
+            <div class="ml-4">
+              <p class="font-medium text-gray-900"><%= @booking.user.name %></p>
+              <p class="text-sm text-gray-500"><%= @booking.user.email %></p>
+              <p class="text-sm text-gray-500"><%= @booking.user.phone %></p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <%= link_to "查看用户", admin_user_path(@booking.user), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">预约场地</h3>
+        </div>
+        <div class="px-6 py-4">
+          <p class="font-medium text-gray-900"><%= @booking.venue.name %></p>
+          <%= link_to "查看场地", admin_venue_path(@booking.venue), class: "block mt-3 px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">快捷操作</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <%= link_to "编辑预约", edit_admin_venue_booking_path(@booking), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+          <%= link_to "返回列表", admin_venue_bookings_path, class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,81 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">我的赛事报名</h1>
+    <div class="flex items-center space-x-4">
+      <%= search_form_for @q, url: event_registrations_path, method: :get, class: "flex items-center space-x-2" do |f| %>
+        <%= f.search_field :event_name_cont, placeholder: "搜索赛事名称...", class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.select :status_eq, [["待处理", "pending"], ["已确认", "confirmed"], ["已取消", "cancelled"], ["取消资格", "disqualified"]], { include_blank: "全部状态" }, class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.select :payment_status_eq, [["未支付", "unpaid"], ["已支付", "paid"], ["支付失败", "failed"], ["已退款", "refunded"]], { include_blank: "全部支付状态" }, class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.submit "搜索", class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">赛事名称</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">组别</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">报名状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">报名时间</th>
+          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% @registrations.each do |reg| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4">
+              <div class="font-medium text-gray-900"><%= reg.event.name %></div>
+              <div class="text-sm text-gray-500"><%= reg.event.event_type || "-" %></div>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-900">
+              <%= reg.category || "-" %>
+            </td>
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 text-xs rounded-full <%= status_class(reg.status) %>">
+                <%= status_text(reg.status) %>
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 text-xs rounded-full <%= status_class(reg.payment_status) %>">
+                <%= status_text(reg.payment_status) %>
+              </span>
+            </td>
+            <td class="px-6 py-4 text-sm text-orange-600 font-medium">
+              ¥<%= "%.2f" % reg.registration_fee %>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+              <%= reg.registered_at&.strftime("%Y-%m-%d %H:%M") || reg.created_at.strftime("%Y-%m-%d %H:%M") %>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex items-center justify-end space-x-2">
+                <%= link_to "查看详情", event_registration_path(reg), class: "text-blue-600 hover:text-blue-900 text-sm font-medium" %>
+                <% if reg.pending? %>
+                  <%= button_to "取消", cancel_event_registration_path(reg), method: :post, class: "text-red-600 hover:text-red-900 text-sm", data: { confirm: "确认取消赛事报名？" } %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <% if @registrations.empty? %>
+      <div class="p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">暂无赛事报名</h3>
+        <p class="mt-1 text-sm text-gray-500">您还没有报名任何赛事</p>
+        <%= link_to "浏览赛事", events_path, class: "mt-4 inline-block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="flex justify-center">
+    <%= paginate @registrations %>
+  </div>
+</div>

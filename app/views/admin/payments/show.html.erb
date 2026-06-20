@@ -1,0 +1,157 @@
+<% content_for :page_title, "支付详情" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">支付详情 #<%= @payment.id %></h1>
+    <%= link_to "返回列表", admin_payments_path, class: "text-gray-600 hover:text-gray-900" %>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">支付信息</h3>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">支付金额</dt>
+              <dd class="mt-1 text-xl font-bold text-gray-900">¥<%= "%.2f" % @payment.amount %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">支付状态</dt>
+              <dd class="mt-1">
+                <span class="px-3 py-1 text-sm rounded-full <%= status_class(@payment.status) %> font-medium">
+                  <%= status_text(@payment.status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">支付方式</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @payment.payment_method&.humanize %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">交易流水号</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @payment.transaction_id || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">重试次数</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @payment.retry_count %> / 3</dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">数据来源</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= source_text(@payment.source) %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">创建时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @payment.created_at.strftime("%Y-%m-%d %H:%M:%S") %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">更新时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @payment.updated_at.strftime("%Y-%m-%d %H:%M:%S") %></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <% if @payment.failed? && @payment.failure_reason.present? %>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div class="flex items-start">
+            <svg class="w-6 h-6 text-red-600 mt-0.5 mr-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+              <h3 class="text-lg font-medium text-red-800">支付失败原因</h3>
+              <p class="mt-2 text-red-700"><%= @payment.failure_reason %></p>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">操作记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200 max-h-64 overflow-y-auto">
+          <% @payment.versions.order(created_at: :desc).each do |version| %>
+            <div class="px-6 py-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-900">
+                  <%= case version.event
+                      when "create" then "创建支付"
+                      when "update" then "更新支付状态"
+                      else version.event
+                      end %>
+                </span>
+                <span class="text-xs text-gray-500"><%= version.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+              </div>
+              <% if version.object_changes.present? %>
+                <p class="text-sm text-gray-500 mt-1">
+                  操作人: <%= version.whodunnit ? User.find_by(id: version.whodunnit)&.name || "系统" : "系统" %>
+                </p>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <%= render "shared/version_history", versions: @payment.versions.order(created_at: :desc).limit(10) %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">支付用户</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-600 font-semibold"><%= @payment.user.name[0] %></span>
+            </div>
+            <div class="ml-4">
+              <p class="font-medium text-gray-900"><%= @payment.user.name %></p>
+              <p class="text-sm text-gray-500"><%= @payment.user.email %></p>
+              <p class="text-sm text-gray-500"><%= @payment.user.phone %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">关联订单</h3>
+        </div>
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-500">类型: <%= @payment.payable_type %></p>
+          <p class="text-sm text-gray-500">ID: #<%= @payment.payable_id %></p>
+          <% if @payment.payable.respond_to?(:name) %>
+            <p class="text-sm font-medium text-gray-900 mt-2"><%= @payment.payable.name %></p>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">操作</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <% if @payment.failed? && @payment.retry_count < 3 %>
+            <%= button_to "重试支付", retry_admin_payment_path(@payment), method: :post,
+                          class: "w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700",
+                          data: { confirm: "确认重试支付？" } %>
+          <% end %>
+          <% if @payment.pending? || @payment.failed? %>
+            <%= button_to "标记为已支付", mark_paid_admin_payment_path(@payment), method: :post,
+                          class: "w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700",
+                          data: { confirm: "确认标记为已支付？这将更新课程满班率报表。" } %>
+          <% end %>
+          <% if @payment.paid? %>
+            <%= button_to "退款", refund_admin_payment_path(@payment), method: :post,
+                          class: "w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50",
+                          data: { confirm: "确认退款？" } %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

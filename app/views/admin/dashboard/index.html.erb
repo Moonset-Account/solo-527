@@ -1,0 +1,196 @@
+<% content_for :page_title, "仪表盘" %>
+
+<div class="space-y-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">课程总数</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1"><%= @total_courses %></p>
+        </div>
+        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">报名人数</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1"><%= @total_enrollments %></p>
+        </div>
+        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">赛事数量</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1"><%= @total_events %></p>
+        </div>
+        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">今日签到</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1"><%= @today_check_ins %></p>
+        </div>
+        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900">待处理事项</h3>
+      </div>
+      <div class="divide-y divide-gray-200">
+        <div class="px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+              <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <p class="font-medium text-gray-900">待支付订单</p>
+              <p class="text-sm text-gray-500"><%= @pending_payments %> 笔</p>
+            </div>
+          </div>
+          <%= link_to "查看", admin_payments_path(q: { status_eq: "pending" }), class: "text-blue-600 hover:text-blue-700 text-sm" %>
+        </div>
+
+        <div class="px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <div>
+              <p class="font-medium text-gray-900">支付失败</p>
+              <p class="text-sm text-gray-500"><%= @failed_payments %> 笔</p>
+            </div>
+          </div>
+          <%= link_to "处理", admin_payments_path(q: { status_eq: "failed" }), class: "text-red-600 hover:text-red-700 text-sm" %>
+        </div>
+
+        <div class="px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+              <p class="font-medium text-gray-900">请假待审批</p>
+              <p class="text-sm text-gray-500"><%= @pending_leaves %> 条</p>
+            </div>
+          </div>
+          <%= link_to "审批", admin_leave_requests_path(q: { status_eq: "pending" }), class: "text-blue-600 hover:text-blue-700 text-sm" %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900">最近批量任务</h3>
+        <%= link_to "全部", admin_batch_jobs_path, class: "text-sm text-blue-600 hover:text-blue-700" %>
+      </div>
+      <div class="divide-y divide-gray-200">
+        <% @recent_batch_jobs.each do |job| %>
+          <div class="px-6 py-4">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <p class="font-medium text-gray-900"><%= job.job_type_text %></p>
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(job.status) %>"><%= job.status_text %></span>
+                </div>
+                <div class="mt-2">
+                  <div class="flex items-center justify-between text-sm text-gray-500">
+                    <span>进度: <%= job.progress_percent %>% (<%= job.success_count + job.failure_count %>/<%= job.total_count %>)</span>
+                    <span><%= time_ago_in_words(job.created_at) %>前</span>
+                  </div>
+                  <div class="mt-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-full <%= progress_color_class(job.status) %> transition-all" style="width: <%= job.progress_percent %>%"></div>
+                  </div>
+                </div>
+                <% if job.failed? && job.error_message.present? %>
+                  <p class="mt-2 text-sm text-red-600">失败原因: <%= job.error_message %></p>
+                <% end %>
+                <% if job.failure_count > 0 && job.failure_details.present? %>
+                  <details class="mt-2">
+                    <summary class="text-sm text-red-600 cursor-pointer">查看 <%= job.failure_count %> 个失败详情</summary>
+                    <div class="mt-2 p-2 bg-red-50 rounded text-sm text-red-700 max-h-32 overflow-y-auto">
+                      <% job.failure_details_list.each do |detail| %>
+                        <p class="mb-1"><%= detail %></p>
+                      <% end %>
+                    </div>
+                  </details>
+                <% end %>
+              </div>
+              <%= link_to "查看", admin_batch_job_path(job), class: "ml-4 text-blue-600 hover:text-blue-700 text-sm" %>
+            </div>
+          </div>
+        <% end %>
+        <% if @recent_batch_jobs.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无批量任务
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900">最近报名</h3>
+        <%= link_to "全部", admin_course_enrollments_path, class: "text-sm text-blue-600 hover:text-blue-700" %>
+      </div>
+      <div class="divide-y divide-gray-200">
+        <% @recent_enrollments.each do |enrollment| %>
+          <div class="px-6 py-3 flex items-center justify-between">
+            <div>
+              <p class="font-medium text-gray-900"><%= enrollment.user.name %></p>
+              <p class="text-sm text-gray-500"><%= enrollment.course.name %></p>
+            </div>
+            <span class="px-2 py-1 text-xs rounded-full <%= status_class(enrollment.status) %>"><%= enrollment.status %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900">低满班率课程</h3>
+        <%= link_to "满班率报表", fill_rate_admin_reports_path, class: "text-sm text-blue-600 hover:text-blue-700" %>
+      </div>
+      <div class="divide-y divide-gray-200">
+        <% @courses_with_low_fill.each do |course| %>
+          <div class="px-6 py-3">
+            <div class="flex items-center justify-between mb-1">
+              <%= link_to course.name, admin_course_path(course), class: "font-medium text-gray-900 hover:text-blue-600" %>
+              <span class="text-sm text-gray-500"><%= course.fill_rate %>%</span>
+            </div>
+            <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div class="h-full <%= course.fill_rate < 30 ? 'bg-red-500' : 'bg-yellow-500' %>" style="width: <%= course.fill_rate %>%"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1"><%= course.enrolled_count %>/<%= course.capacity %> 人</p>
+          </div>
+        <% end %>
+        <% if @courses_with_low_fill.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            所有课程满班率正常
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

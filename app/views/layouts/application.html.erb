@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "游泳馆赛事报名系统" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="游泳馆赛事报名系统">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
+  </head>
+
+  <body class="bg-gray-50 text-gray-900">
+    <% if user_signed_in? %>
+      <nav class="bg-white border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between h-16">
+            <div class="flex items-center">
+              <%= link_to root_path, class: "flex items-center text-xl font-bold text-blue-600" do %>
+                <svg class="w-8 h-8 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M2 15c1.5 0 2 1 3.5 1s2-1 3.5-1 2 1 3.5 1 2-1 3.5-1 2 1 3.5 1 2-1 3.5-1v2c-1.5 0-2 1-3.5 1s-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1v-2zm0-4c1.5 0 2 1 3.5 1s2-1 3.5-1 2 1 3.5 1 2-1 3.5-1 2 1 3.5 1 2-1 3.5-1v2c-1.5 0-2 1-3.5 1s-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1v-2zm0-4c1.5 0 2 1 3.5 1s2-1 3.5-1 2 1 3.5 1 2-1 3.5-1 2 1 3.5 1 2-1 3.5-1v2c-1.5 0-2 1-3.5 1s-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1-2 1-3.5 1-2-1-3.5-1v-2z"/></svg>
+                <span>游泳馆赛事系统</span>
+              <% end %>
+              <div class="ml-10 flex items-baseline space-x-4">
+                <%= link_to "首页", root_path, class: "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50" %>
+                <%= link_to "课程", courses_path, class: "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50" %>
+                <%= link_to "赛事", events_path, class: "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50" %>
+                <%= link_to "场地", venues_path, class: "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50" %>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4">
+              <% if current_user.can_access_admin? %>
+                <%= link_to "管理后台", admin_dashboard_path, class: "px-3 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700" %>
+              <% end %>
+              <div class="relative">
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm text-gray-700"><%= current_user.name.to_s %></span>
+                  <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span class="text-blue-600 font-semibold text-sm"><%= current_user.name.to_s.first %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-2 text-sm">
+                <%= link_to "我的报名", course_enrollments_path, class: "text-gray-600 hover:text-blue-600" %>
+                <%= link_to "我的赛事", event_registrations_path, class: "text-gray-600 hover:text-blue-600" %>
+                <%= link_to "签到记录", check_ins_path, class: "text-gray-600 hover:text-blue-600" %>
+                <%= link_to "支付记录", payments_path, class: "text-gray-600 hover:text-blue-600" %>
+                <%= link_to "退出", destroy_user_session_path, data: { turbo_method: :delete }, class: "text-gray-600 hover:text-red-600" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    <% end %>
+
+    <main class="py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <% if notice %>
+          <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+            <%= notice %>
+          </div>
+        <% end %>
+        <% if alert %>
+          <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            <%= alert %>
+          </div>
+        <% end %>
+
+        <%= yield %>
+      </div>
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 mt-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="text-center text-sm text-gray-500">
+          <p>游泳馆赛事报名系统 &copy; <%= Time.current.year %></p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

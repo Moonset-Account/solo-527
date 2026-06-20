@@ -1,0 +1,185 @@
+<div class="space-y-8">
+  <% if current_user.present? %>
+    <div class="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-8 text-white">
+      <h1 class="text-3xl font-bold mb-2">欢迎回来，<%= current_user&.name.to_s %>！</h1>
+      <p class="text-blue-100">今天是 <%= Date.today.strftime("%Y年%m月%d日") %></p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">我的课程</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1"><%= @my_courses.size %></p>
+          </div>
+          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          </div>
+        </div>
+        <%= link_to "查看全部", course_enrollments_path, class: "text-sm text-blue-600 hover:text-blue-700 mt-4 inline-block" %>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">我的赛事</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1"><%= @my_events.size %></p>
+          </div>
+          <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+        </div>
+        <%= link_to "查看全部", event_registrations_path, class: "text-sm text-blue-600 hover:text-blue-700 mt-4 inline-block" %>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">待支付</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1"><%= current_user.payments.pending.size %></p>
+          </div>
+          <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <%= link_to "去支付", payments_path, class: "text-sm text-blue-600 hover:text-blue-700 mt-4 inline-block" %>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">签到记录</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1"><%= @recent_check_ins.size %></p>
+          </div>
+          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <%= link_to "查看全部", check_ins_path, class: "text-sm text-blue-600 hover:text-blue-700 mt-4 inline-block" %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <h2 class="text-lg font-semibold text-gray-900">我的课程</h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <% @my_courses.each do |course| %>
+            <div class="px-6 py-4 hover:bg-gray-50">
+              <div class="flex items-center justify-between">
+                <div>
+                  <%= link_to course.name, course_path(course), class: "font-medium text-gray-900 hover:text-blue-600" %>
+                  <p class="text-sm text-gray-500 mt-1"><%= course.level %> · <%= course.coach %></p>
+                </div>
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(course.status) %>"><%= status_text(course.status) %></span>
+              </div>
+            </div>
+          <% end %>
+          <% if @my_courses.empty? %>
+            <div class="px-6 py-8 text-center text-gray-500">
+              还没有报名任何课程
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <h2 class="text-lg font-semibold text-gray-900">我的赛事</h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <% @my_events.each do |event| %>
+            <div class="px-6 py-4 hover:bg-gray-50">
+              <div class="flex items-center justify-between">
+                <div>
+                  <%= link_to event.name, event_path(event), class: "font-medium text-gray-900 hover:text-blue-600" %>
+                  <p class="text-sm text-gray-500 mt-1"><%= event.start_date&.strftime("%Y-%m-%d") %></p>
+                </div>
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(event.status) %>"><%= status_text(event.status) %></span>
+              </div>
+            </div>
+          <% end %>
+          <% if @my_events.empty? %>
+            <div class="px-6 py-8 text-center text-gray-500">
+              还没有报名任何赛事
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% else %>
+    <div class="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-12 text-white text-center">
+      <h1 class="text-4xl font-bold mb-4">游泳馆赛事报名系统</h1>
+      <p class="text-blue-100 text-lg mb-8">专业的游泳课程与赛事管理平台</p>
+      <div class="space-x-4">
+        <%= link_to "立即登录", new_user_session_path, class: "inline-block px-6 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50" %>
+        <%= link_to "注册账号", new_user_registration_path, class: "inline-block px-6 py-3 border border-white text-white rounded-lg font-medium hover:bg-white/10" %>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">优质课程</h3>
+        <p class="text-gray-500">专业教练团队，系统化课程体系</p>
+      </div>
+      <div class="text-center">
+        <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">精彩赛事</h3>
+        <p class="text-gray-500">丰富的赛事活动，展示你的实力</p>
+      </div>
+      <div class="text-center">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">便捷管理</h3>
+        <p class="text-gray-500">在线报名、签到、成绩查询一站式服务</p>
+      </div>
+    </div>
+
+    <% if @featured_courses.present? %>
+      <div class="mt-12">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">热门课程</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <% @featured_courses.each do |course| %>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+              <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2"><%= course.name %></h3>
+                <p class="text-sm text-gray-500 mb-4"><%= course.level %> · <%= course.coach %></p>
+                <div class="flex items-center justify-between">
+                  <span class="text-2xl font-bold text-blue-600">¥<%= course.price.to_i %></span>
+                  <%= link_to "查看详情", course_path(course), class: "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @upcoming_events.present? %>
+      <div class="mt-12">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">近期赛事</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <% @upcoming_events.each do |event| %>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+              <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2"><%= event.name %></h3>
+                <p class="text-sm text-gray-500 mb-4"><%= event.start_date&.strftime("%Y年%m月%d日") %></p>
+                <div class="flex items-center justify-between">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(event.status) %>"><%= status_text(event.status) %></span>
+                  <%= link_to "查看详情", event_path(event), class: "px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>

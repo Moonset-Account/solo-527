@@ -1,0 +1,157 @@
+<% content_for :page_title, @course.name %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900"><%= @course.name %></h1>
+      <p class="text-gray-500 mt-1">课程管理</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_courses_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">课程信息</h3>
+          <span class="px-3 py-1 text-sm rounded-full <%= status_class(@course.status) %> font-medium">
+            <%= status_text(@course.status) %>
+          </span>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">课程名称</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @course.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">课程级别</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @course.level || "未设置" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">授课教练</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @course.coach || "未设置" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">课程费用</dt>
+              <dd class="mt-1 font-medium text-gray-900">¥<%= "%.2f" % @course.price %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">课程容量</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @course.capacity %> 人</dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">已报名人数</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @course.enrolled_count %> 人</dd>
+            </div>
+          </dl>
+          
+          <% if @course.description.present? %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <dt class="text-sm text-gray-500">课程描述</dt>
+              <dd class="mt-1 text-gray-900"><%= @course.description %></dd>
+            </div>
+          <% end %>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex space-x-3">
+          <%= link_to "编辑课程", edit_admin_course_path(@course), class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" %>
+          <% if @course.active? %>
+            <%= button_to "下架课程", deactivate_admin_course_path(@course), method: :post, class: "px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm" %>
+          <% else %>
+            <%= button_to "上架课程", activate_admin_course_path(@course), method: :post, class: "px-4 py-2 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 text-sm" %>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">报名管理</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @course_enrollments.each do |enrollment| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span class="text-blue-600 font-medium"><%= enrollment.user.name[0] %></span>
+                  </div>
+                  <div class="ml-3">
+                    <p class="font-medium text-gray-900"><%= enrollment.user.name %></p>
+                    <p class="text-sm text-gray-500"><%= enrollment.user.email %></p>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                  <div class="text-right">
+                    <p class="text-sm">
+                      <span class="px-2 py-1 text-xs rounded-full <%= status_class(enrollment.status) %>">
+                        <%= status_text(enrollment.status) %>
+                      </span>
+                      <span class="px-2 py-1 text-xs rounded-full <%= status_class(enrollment.payment_status) %> ml-2">
+                        支付: <%= status_text(enrollment.payment_status) %>
+                      </span>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">来源: <%= source_text(enrollment.source) %></p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3 flex items-center space-x-2">
+                <% if enrollment.pending? %>
+                  <%= button_to "确认报名", confirm_admin_course_enrollment_path(enrollment), method: :post, class: "text-green-600 hover:text-green-900 text-sm" %>
+                  <%= button_to "取消报名", cancel_admin_course_enrollment_path(enrollment), method: :post, class: "text-red-600 hover:text-red-900 text-sm" %>
+                <% end %>
+                <%= link_to "查看详情", admin_course_enrollment_path(enrollment), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <% if @course_enrollments.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无报名记录
+          </div>
+        <% end %>
+      </div>
+
+      <%= render "shared/version_history", versions: @course.versions.order(created_at: :desc).limit(10) %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">满班率</h3>
+        </div>
+        <div class="px-6 py-6">
+          <div class="text-center">
+            <p class="text-4xl font-bold <%= @course.fill_rate >= 100 ? 'text-red-600' : @course.fill_rate >= 80 ? 'text-green-600' : 'text-yellow-600' %>">
+              <%= @course.fill_rate %>%
+            </p>
+            <div class="h-3 bg-gray-200 rounded-full overflow-hidden mt-4">
+              <div class="h-full <%= @course.fill_rate >= 100 ? 'bg-red-500' : @course.fill_rate >= 80 ? 'bg-green-500' : 'bg-yellow-500' %>" 
+                   style="width: <%= [@course.fill_rate, 100].min %>%"></div>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">
+              <%= @course.enrolled_count %> / <%= @course.capacity %> 人
+            </p>
+            <p class="text-sm text-gray-500">
+              剩余 <%= [@course.capacity - @course.enrolled_count, 0].max %> 个名额
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">快捷操作</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <%= link_to "查看全部报名", admin_course_enrollments_path(q: { course_id_eq: @course.id }), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+          <%= link_to "导出报名名单", export_admin_course_path(@course, format: :csv), method: :post, class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+          <%= link_to "满班率报表", fill_rate_admin_reports_path, class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

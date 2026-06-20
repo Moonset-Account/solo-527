@@ -1,0 +1,116 @@
+<% content_for :page_title, "请假详情 ##{@leave_request.id}" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">请假详情 ##{@leave_request.id}</h1>
+      <p class="text-gray-500 mt-1">请假管理</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_leave_requests_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">请假信息</h3>
+          <span class="px-3 py-1 text-sm rounded-full <%= status_class(@leave_request.status) %> font-medium">
+            <%= status_text(@leave_request.status) %>
+          </span>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">请假日期</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @leave_request.leave_date.strftime("%Y-%m-%d") %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">请假状态</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@leave_request.status) %>">
+                  <%= status_text(@leave_request.status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">请假原因</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @leave_request.reason %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">审批人</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @leave_request.approved_by&.name || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">审批时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @leave_request.approved_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">审批备注</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @leave_request.approve_note || "-" %></dd>
+            </div>
+          </dl>
+
+          <% if @leave_request.remark.present? %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <dt class="text-sm text-gray-500">备注</dt>
+              <dd class="mt-1 text-gray-900"><%= @leave_request.remark %></dd>
+            </div>
+          <% end %>
+        </div>
+        <% if @leave_request.pending? %>
+          <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex space-x-3">
+            <%= button_to "批准请假", approve_admin_leave_request_path(@leave_request), method: :post,
+                          class: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm",
+                          data: { confirm: "确认批准此请假申请？" } %>
+            <%= button_to "驳回请假", reject_admin_leave_request_path(@leave_request), method: :post,
+                          class: "px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm",
+                          data: { confirm: "确认驳回此请假申请？" } %>
+          </div>
+        <% end %>
+      </div>
+
+      <%= render "shared/version_history", versions: @versions %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">请假用户</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-600 font-semibold"><%= @leave_request.user.name[0] %></span>
+            </div>
+            <div class="ml-4">
+              <p class="font-medium text-gray-900"><%= @leave_request.user.name %></p>
+              <p class="text-sm text-gray-500"><%= @leave_request.user.email %></p>
+              <p class="text-sm text-gray-500"><%= @leave_request.user.phone %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">关联课程报名</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <p class="text-sm text-gray-500">课程名称</p>
+          <p class="font-medium text-gray-900"><%= @leave_request.course_enrollment.course.name %></p>
+          <p class="text-sm text-gray-500">报名状态</p>
+          <p class="font-medium text-gray-900">
+            <span class="px-2 py-1 text-xs rounded-full <%= status_class(@leave_request.course_enrollment.status) %>">
+              <%= status_text(@leave_request.course_enrollment.status) %>
+            </span>
+          </p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200">
+          <%= link_to "查看报名", admin_course_enrollment_path(@leave_request.course_enrollment), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

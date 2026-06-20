@@ -1,0 +1,226 @@
+<% content_for :page_title, "报名详情 ##{@enrollment.id}" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">报名详情 ##{@enrollment.id}</h1>
+      <p class="text-gray-500 mt-1">课程报名管理</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_course_enrollments_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">报名信息</h3>
+          <div class="flex items-center space-x-2">
+            <span class="px-3 py-1 text-sm rounded-full <%= status_class(@enrollment.status) %> font-medium">
+              <%= status_text(@enrollment.status) %>
+            </span>
+            <span class="px-3 py-1 text-sm rounded-full <%= status_class(@enrollment.payment_status) %> font-medium">
+              支付: <%= status_text(@enrollment.payment_status) %>
+            </span>
+          </div>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">课程名称</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @enrollment.course.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">课程费用</dt>
+              <dd class="mt-1 font-medium text-gray-900">¥<%= "%.2f" % @enrollment.price %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">报名状态</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@enrollment.status) %>">
+                  <%= status_text(@enrollment.status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">支付状态</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@enrollment.payment_status) %>">
+                  <%= status_text(@enrollment.payment_status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">数据来源</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= source_text(@enrollment.source) %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">报名时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @enrollment.enrolled_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">支付来源ID</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @enrollment.source_payment_id || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">支付来源类型</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @enrollment.source_payment_type || "-" %></dd>
+            </div>
+          </dl>
+
+          <% if @enrollment.remark.present? %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <dt class="text-sm text-gray-500">备注</dt>
+              <dd class="mt-1 text-gray-900"><%= @enrollment.remark %></dd>
+            </div>
+          <% end %>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex space-x-3">
+          <% if @enrollment.pending? %>
+            <%= button_to "确认报名", confirm_admin_course_enrollment_path(@enrollment), method: :post, class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" %>
+            <%= button_to "取消报名", cancel_admin_course_enrollment_path(@enrollment), method: :post, class: "px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm" %>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">请假记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @leave_requests.each do |lr| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900">请假日期: <%= lr.leave_date.strftime("%Y-%m-%d") %></p>
+                  <p class="text-sm text-gray-500 mt-1"><%= lr.reason %></p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(lr.status) %>">
+                    <%= status_text(lr.status) %>
+                  </span>
+                  <%= link_to "查看", admin_leave_request_path(lr), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @leave_requests.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无请假记录
+          </div>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">支付记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @payments.each do |payment| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900">¥<%= "%.2f" % payment.amount %></p>
+                  <p class="text-xs text-gray-500 mt-1"><%= payment.payment_method&.humanize %> · <%= source_text(payment.source) %></p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(payment.status) %>">
+                    <%= status_text(payment.status) %>
+                  </span>
+                  <%= link_to "查看", admin_payment_path(payment), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @payments.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无支付记录
+          </div>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">签到记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @check_ins.each do |ci| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900"><%= ci.check_in_method&.humanize || "-" %></p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <%= ci.checked_in_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %> · 来源: <%= source_text(ci.source) %>
+                  </p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(ci.status) %>">
+                    <%= status_text(ci.status) %>
+                  </span>
+                  <%= link_to "查看", admin_check_in_path(ci), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @check_ins.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无签到记录
+          </div>
+        <% end %>
+      </div>
+
+      <%= render "shared/version_history", versions: @versions %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">报名用户</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-600 font-semibold"><%= @enrollment.user.name[0] %></span>
+            </div>
+            <div class="ml-4">
+              <p class="font-medium text-gray-900"><%= @enrollment.user.name %></p>
+              <p class="text-sm text-gray-500"><%= @enrollment.user.email %></p>
+              <p class="text-sm text-gray-500"><%= @enrollment.user.phone %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">课程信息</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <p class="text-sm text-gray-500">课程名称</p>
+          <p class="font-medium text-gray-900"><%= @enrollment.course.name %></p>
+          <p class="text-sm text-gray-500">授课教练</p>
+          <p class="font-medium text-gray-900"><%= @enrollment.course.coach || "-" %></p>
+          <p class="text-sm text-gray-500">课程费用</p>
+          <p class="font-medium text-gray-900">¥<%= "%.2f" % @enrollment.course.price %></p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200">
+          <%= link_to "查看课程", admin_course_path(@enrollment.course), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">快捷操作</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <%= link_to "查看请假记录", admin_leave_requests_path(q: { course_enrollment_id_eq: @enrollment.id }), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+          <%= link_to "查看签到记录", admin_check_ins_path(q: { checkinable_type_eq: "CourseEnrollment", checkinable_id_eq: @enrollment.id }), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

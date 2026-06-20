@@ -1,0 +1,94 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">赛事列表</h1>
+    <div class="flex items-center space-x-4">
+      <%= search_form_for @q, url: events_path, method: :get, class: "flex items-center space-x-2" do |f| %>
+        <%= f.search_field :name_cont, placeholder: "搜索赛事...", class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.select :event_type_eq, Event.pluck(:event_type).uniq.compact, { include_blank: "全部类型" }, class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.submit "搜索", class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% @events.each do |event| %>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+        <div class="h-40 bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center relative">
+          <svg class="w-16 h-16 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          <span class="absolute top-4 right-4 px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-sm rounded-full">
+            <%= event.event_type %>
+          </span>
+        </div>
+        <div class="p-6">
+          <div class="flex items-start justify-between mb-2">
+            <h3 class="text-lg font-semibold text-gray-900"><%= event.name %></h3>
+          </div>
+          <p class="text-sm text-gray-500 mb-4 line-clamp-2"><%= event.description %></p>
+          
+          <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-center justify-between">
+              <span>报名时间</span>
+              <span class="font-medium"><%= event.registration_start&.strftime("%m/%d") %> - <%= event.registration_end&.strftime("%m/%d") %></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>比赛时间</span>
+              <span class="font-medium"><%= event.event_date&.strftime("%Y-%m-%d") || "待定" %></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>参赛名额</span>
+              <span class="font-medium">
+                <% if event.full? %>
+                  <span class="text-red-600">已满</span>
+                <% else %>
+                  <%= event.registered_count %>/<%= event.max_participants %> 人
+                <% end %>
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>报名费用</span>
+              <span class="font-medium text-orange-600">¥<%= "%.2f" % event.price %></span>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-gray-100">
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-1 text-xs rounded-full <%= status_class(event.status) %>">
+                <%= status_text(event.status) %>
+              </span>
+              <% if event.registration_open? %>
+                <span class="text-xs text-green-600 font-medium">报名进行中</span>
+              <% elsif event.registration_not_started? %>
+                <span class="text-xs text-yellow-600 font-medium">报名未开始</span>
+              <% else %>
+                <span class="text-xs text-gray-500">报名已结束</span>
+              <% end %>
+            </div>
+          </div>
+
+          <div class="mt-4 flex space-x-2">
+            <%= link_to "查看详情", event_path(event), class: "flex-1 px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 text-sm font-medium" %>
+            <% if event.registration_open? && event.has_available_spots? && !current_user.events.exists?(event.id) %>
+              <%= button_to "立即报名", register_event_path(event), method: :post, class: "flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @events.empty? %>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">暂无赛事</h3>
+      <p class="mt-1 text-sm text-gray-500">敬请期待更多精彩赛事</p>
+    </div>
+  <% end %>
+
+  <div class="flex justify-center">
+    <%= paginate @events %>
+  </div>
+</div>

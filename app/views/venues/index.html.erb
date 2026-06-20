@@ -1,0 +1,67 @@
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">场地列表</h1>
+    <div class="flex items-center space-x-4">
+      <%= search_form_for @q, url: venues_path, method: :get, class: "flex items-center space-x-2" do |f| %>
+        <%= f.search_field :name_cont, placeholder: "搜索场地名称...", class: "px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" %>
+        <%= f.submit "搜索", class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% @venues.each do |venue| %>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+        <div class="h-32 bg-gradient-to-r from-cyan-400 to-blue-400 flex items-center justify-center">
+          <svg class="w-12 h-12 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+        </div>
+        <div class="p-6">
+          <div class="flex items-start justify-between mb-2">
+            <h3 class="text-lg font-semibold text-gray-900"><%= venue.name %></h3>
+            <span class="px-2 py-1 text-xs rounded-full <%= status_class(venue.status) %>">
+              <%= status_text(venue.status) %>
+            </span>
+          </div>
+
+          <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-center justify-between">
+              <span>位置</span>
+              <span class="font-medium"><%= venue.location || "未设置" %></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>容纳人数</span>
+              <span class="font-medium"><%= venue.capacity || "不限" %></span>
+            </div>
+          </div>
+
+          <% if venue.description.present? %>
+            <p class="text-sm text-gray-500 mt-3 line-clamp-2"><%= venue.description %></p>
+          <% end %>
+
+          <div class="mt-4 flex space-x-2">
+            <%= link_to "查看详情", venue_path(venue), class: "flex-1 px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 text-sm font-medium" %>
+            <% if user_signed_in? %>
+              <%= link_to "预约", new_venue_booking_path(venue_id: venue.id), class: "flex-1 px-4 py-2 bg-green-600 text-white text-center rounded-lg hover:bg-green-700 text-sm font-medium" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @venues.empty? %>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">暂无场地</h3>
+      <p class="mt-1 text-sm text-gray-500">请稍后再来查看</p>
+    </div>
+  <% end %>
+
+  <div class="flex justify-center">
+    <%= paginate @venues %>
+  </div>
+</div>

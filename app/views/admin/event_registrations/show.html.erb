@@ -1,0 +1,228 @@
+<% content_for :page_title, "赛事报名详情 ##{@registration.id}" %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">赛事报名详情 ##{@registration.id}</h1>
+      <p class="text-gray-500 mt-1">赛事报名管理</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_event_registrations_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">报名信息</h3>
+          <div class="flex items-center space-x-2">
+            <span class="px-3 py-1 text-sm rounded-full <%= status_class(@registration.status) %> font-medium">
+              <%= status_text(@registration.status) %>
+            </span>
+            <span class="px-3 py-1 text-sm rounded-full <%= status_class(@registration.payment_status) %> font-medium">
+              支付: <%= status_text(@registration.payment_status) %>
+            </span>
+          </div>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">赛事名称</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @registration.event.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">参赛组别</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @registration.category || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">队伍名称</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @registration.team_name || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">报名费用</dt>
+              <dd class="mt-1 font-medium text-gray-900">¥<%= "%.2f" % @registration.registration_fee %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">报名状态</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@registration.status) %>">
+                  <%= status_text(@registration.status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">支付状态</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs rounded-full <%= status_class(@registration.payment_status) %>">
+                  <%= status_text(@registration.payment_status) %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">数据来源</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= source_text(@registration.source) %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">报名时间</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @registration.registered_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %></dd>
+            </div>
+          </dl>
+
+          <% if @registration.remark.present? %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <dt class="text-sm text-gray-500">备注</dt>
+              <dd class="mt-1 text-gray-900"><%= @registration.remark %></dd>
+            </div>
+          <% end %>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex space-x-3">
+          <% if @registration.pending? %>
+            <%= button_to "确认报名", confirm_admin_event_registration_path(@registration), method: :post, class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" %>
+            <%= button_to "取消报名", cancel_admin_event_registration_path(@registration), method: :post, class: "px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm" %>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">支付记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @registration.payments.order(created_at: :desc).each do |payment| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900">¥<%= "%.2f" % payment.amount %></p>
+                  <p class="text-xs text-gray-500 mt-1"><%= payment.payment_method&.humanize %> · <%= source_text(payment.source) %></p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(payment.status) %>">
+                    <%= status_text(payment.status) %>
+                  </span>
+                  <%= link_to "查看", admin_payment_path(payment), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @registration.payments.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无支付记录
+          </div>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">比赛成绩</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @results.each do |result| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900">
+                    <%= result.schedule&.name || "赛程##{result.schedule_id}" %>
+                  </p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    排名: <%= result.rank || "-" %> · 成绩: <%= result.score || "-" %>
+                  </p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(result.status) %>">
+                    <%= status_text(result.status) %>
+                  </span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @results.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无成绩记录
+          </div>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">签到记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @registration.check_ins.order(created_at: :desc).each do |ci| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900"><%= ci.check_in_method&.humanize || "-" %></p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <%= ci.checked_in_at&.strftime("%Y-%m-%d %H:%M:%S") || "-" %> · 来源: <%= source_text(ci.source) %>
+                  </p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(ci.status) %>">
+                    <%= status_text(ci.status) %>
+                  </span>
+                  <%= link_to "查看", admin_check_in_path(ci), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @registration.check_ins.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无签到记录
+          </div>
+        <% end %>
+      </div>
+
+      <%= render "shared/version_history", versions: @versions %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">报名用户</h3>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-blue-600 font-semibold"><%= @registration.user.name[0] %></span>
+            </div>
+            <div class="ml-4">
+              <p class="font-medium text-gray-900"><%= @registration.user.name %></p>
+              <p class="text-sm text-gray-500"><%= @registration.user.email %></p>
+              <p class="text-sm text-gray-500"><%= @registration.user.phone %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">赛事信息</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <p class="text-sm text-gray-500">赛事名称</p>
+          <p class="font-medium text-gray-900"><%= @registration.event.name %></p>
+          <p class="text-sm text-gray-500">赛事时间</p>
+          <p class="font-medium text-gray-900"><%= @registration.event.start_date&.strftime("%Y-%m-%d") || "-" %></p>
+          <p class="text-sm text-gray-500">赛事地点</p>
+          <p class="font-medium text-gray-900"><%= @registration.event.venue&.name || "-" %></p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200">
+          <%= link_to "查看赛事", admin_event_path(@registration.event), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">快捷操作</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <%= link_to "查看签到记录", admin_check_ins_path(q: { checkinable_type_eq: "EventRegistration", checkinable_id_eq: @registration.id }), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

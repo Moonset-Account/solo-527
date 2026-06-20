@@ -1,0 +1,120 @@
+<% content_for :page_title, @venue.name %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900"><%= @venue.name %></h1>
+      <p class="text-gray-500 mt-1">场地管理</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <%= link_to "返回列表", admin_venues_path, class: "text-gray-600 hover:text-gray-900" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">场地信息</h3>
+          <span class="px-3 py-1 text-sm rounded-full <%= status_class(@venue.status) %> font-medium">
+            <%= status_text(@venue.status) %>
+          </span>
+        </div>
+        <div class="px-6 py-4">
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+              <dt class="text-sm text-gray-500">场地名称</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @venue.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">场地地址</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @venue.location || "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">场地容量</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @venue.capacity ? "#{@venue.capacity} 人" : "-" %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-gray-500">设施信息</dt>
+              <dd class="mt-1 font-medium text-gray-900"><%= @venue.facilities || "-" %></dd>
+            </div>
+          </dl>
+
+          <% if @venue.description.present? %>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <dt class="text-sm text-gray-500">场地描述</dt>
+              <dd class="mt-1 text-gray-900"><%= @venue.description %></dd>
+            </div>
+          <% end %>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex space-x-3">
+          <%= link_to "编辑场地", edit_admin_venue_path(@venue), class: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" %>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">预约记录</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+          <% @bookings.each do |booking| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900"><%= booking.user.name %></p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <%= booking.start_time.strftime("%Y-%m-%d %H:%M") %> - <%= booking.end_time.strftime("%H:%M") %>
+                  </p>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="px-2 py-1 text-xs rounded-full <%= status_class(booking.status) %>">
+                    <%= status_text(booking.status) %>
+                  </span>
+                  <%= link_to "查看", admin_venue_booking_path(booking), class: "text-blue-600 hover:text-blue-900 text-sm" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @bookings.empty? %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            暂无预约记录
+          </div>
+        <% end %>
+      </div>
+
+      <%= render "shared/version_history", versions: @versions %>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">场地统计</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-gray-500">总预约数</p>
+            <p class="font-medium text-gray-900"><%= @venue.venue_bookings.count %></p>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-gray-500">已确认预约</p>
+            <p class="font-medium text-green-600"><%= @venue.venue_bookings.confirmed.count %></p>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="text-sm text-gray-500">即将开始</p>
+            <p class="font-medium text-blue-600"><%= @venue.venue_bookings.upcoming.count %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">快捷操作</h3>
+        </div>
+        <div class="px-6 py-4 space-y-3">
+          <%= link_to "查看全部预约", admin_venue_bookings_path(q: { venue_id_eq: @venue.id }), class: "block px-4 py-2 bg-gray-50 rounded-lg text-center text-gray-700 hover:bg-gray-100 text-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

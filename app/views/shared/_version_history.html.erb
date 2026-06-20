@@ -1,0 +1,59 @@
+<div class="bg-white rounded-lg shadow-sm border border-gray-200">
+  <div class="px-6 py-4 border-b border-gray-200">
+    <h3 class="text-lg font-medium text-gray-900">变更历史</h3>
+    <p class="text-sm text-gray-500 mt-1">数据溯源：查看此记录的所有修改历史</p>
+  </div>
+
+  <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+    <% if versions.present? %>
+      <% versions.each do |version| %>
+        <div class="px-6 py-4">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                <span class="text-blue-600 text-xs font-medium"><%= version.event %></span>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-900">
+                  <%= case version.event
+                      when "create" then "创建记录"
+                      when "update" then "更新记录"
+                      when "destroy" then "删除记录"
+                      else version.event
+                      end %>
+                </p>
+                <p class="text-xs text-gray-500">
+                  操作人: <%= version.whodunnit ? User.find_by(id: version.whodunnit)&.name || "用户##{version.whodunnit}" : "系统" %>
+                </p>
+              </div>
+            </div>
+            <span class="text-xs text-gray-400"><%= version.created_at.strftime("%Y-%m-%d %H:%M:%S") %></span>
+          </div>
+
+          <% if version.object_changes.present? %>
+            <div class="mt-3 ml-11 p-3 bg-gray-50 rounded-lg">
+              <p class="text-xs font-medium text-gray-500 mb-2">变更内容：</p>
+              <div class="space-y-1 text-sm">
+                <% changes = YAML.safe_load(version.object_changes) rescue {} %>
+                <% changes.each do |field, values| %>
+                  <% next if %w[updated_at created_at].include?(field) %>
+                  <% old_val, new_val = values %>
+                  <div class="flex items-start">
+                    <span class="text-gray-600 w-24 flex-shrink-0"><%= field.humanize %>:</span>
+                    <span class="text-red-600 line-through mr-2"><%= old_val.inspect %></span>
+                    <span class="text-gray-400">→</span>
+                    <span class="text-green-600 ml-2"><%= new_val.inspect %></span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="px-6 py-8 text-center text-gray-500 text-sm">
+        暂无变更记录
+      </div>
+    <% end %>
+  </div>
+</div>
