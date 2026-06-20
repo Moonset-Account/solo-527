@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: legal-archive-pg
+    environment:
+      POSTGRES_DB: legal_archive
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: legal-archive-backend
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+      DB_DATABASE: legal_archive
+      NODE_ENV: production
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend/uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  pgdata:
