@@ -1,0 +1,254 @@
+<%= content_for(:title, "审核视图 - ##{@ticket.id}") %>
+
+<div class="mb-6">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center space-x-4">
+      <%= link_to ticket_path(@ticket), class: "p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+      <% end %>
+      <div>
+        <div class="flex items-center space-x-3">
+          <h1 class="text-2xl font-bold text-gray-900">审核视图</h1>
+          <%= status_badge(@ticket.status) %>
+        </div>
+        <p class="mt-1 text-gray-500"><%= @ticket.title %> · 需求 #<%= @ticket.id %></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+  <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+      <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+      </svg>
+      关键信息变更痕迹对比
+    </h2>
+    <p class="mt-1 text-sm text-gray-500">追踪责任部门、流程节点、复盘结论等关键字段的完整变更历史</p>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">版本</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">时间</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">操作人</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">责任部门</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">流程节点</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">负责人</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">优先级</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        <% versions_with_current = ([OpenStruct.new(index: '当前', event: 'current', created_at: Time.current, whodunnit: PaperTrail.request.whodunnit, object: nil, changeset: {})] + @versions.to_a.reverse) %>
+        <% prev_data = nil %>
+        <% versions_with_current.each_with_index do |v, idx| %>
+          <%
+            if v.event == 'current'
+              data = {
+                department_id: @ticket.department_id,
+                department_name: @ticket.department&.name,
+                process_node: @ticket.process_node,
+                assignee_id: @ticket.assignee_id,
+                assignee_name: @ticket.assignee&.name,
+                status: @ticket.status,
+                priority: @ticket.priority
+              }
+            else
+              reified = v.reify
+              if reified
+                data = {
+                  department_id: reified.department_id,
+                  department_name: Department.find_by(id: reified.department_id)&.name,
+                  process_node: reified.process_node,
+                  assignee_id: reified.assignee_id,
+                  assignee_name: User.find_by(id: reified.assignee_id)&.name,
+                  status: Ticket.statuses.key(reified.status),
+                  priority: Ticket.priorities.key(reified.priority)
+                }
+              else
+                data = { department_name: '-', process_node: '-', assignee_name: '-', status: '-', priority: '-' }
+              end
+            end
+
+            prev = prev_data || data
+            who = v.whodunnit.present? ? User.find_by(id: v.whodunnit)&.name : '系统'
+          %>
+          <tr class="<%= idx == 0 ? 'bg-indigo-50' : 'hover:bg-gray-50' %>">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= idx == 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800' %>">
+                <%= idx == 0 ? '最新' : "v#{v.index}" %>
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <%= format_datetime(v.created_at) %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <%= who %>
+            </td>
+            <td class="px-6 py-4 text-sm <%= diff_class(prev[:department_name], data[:department_name]) %> rounded-lg px-2 py-1">
+              <%= data[:department_name] %>
+            </td>
+            <td class="px-6 py-4 text-sm <%= diff_class(prev[:process_node], data[:process_node]) %> rounded-lg px-2 py-1">
+              <%= data[:process_node] %>
+            </td>
+            <td class="px-6 py-4 text-sm <%= diff_class(prev[:assignee_name], data[:assignee_name]) %> rounded-lg px-2 py-1">
+              <%= data[:assignee_name] %>
+            </td>
+            <td class="px-6 py-4 text-sm">
+              <% if prev[:status] != data[:status] %>
+                <span class="inline-flex px-2 py-0.5 rounded bg-red-100 text-red-700"><%= I18n.t("activerecord.attributes.ticket.statuses.#{data[:status]}", default: data[:status]) %></span>
+              <% else %>
+                <span class="text-gray-600"><%= I18n.t("activerecord.attributes.ticket.statuses.#{data[:status]}", default: data[:status]) %></span>
+              <% end %>
+            </td>
+            <td class="px-6 py-4 text-sm">
+              <% if prev[:priority] != data[:priority] %>
+                <span class="inline-flex px-2 py-0.5 rounded bg-red-100 text-red-700"><%= I18n.t("activerecord.attributes.ticket.priorities.#{data[:priority]}", default: data[:priority]) %></span>
+              <% else %>
+                <span class="text-gray-600"><%= I18n.t("activerecord.attributes.ticket.priorities.#{data[:priority]}", default: data[:priority]) %></span>
+              <% end %>
+            </td>
+          </tr>
+          <% prev_data = data %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if @ticket.review_conclusion.present? %>
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        复盘结论变更历史
+      </h2>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">版本</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">时间</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">操作人</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">效率前</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">效率后</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">复盘结论摘要</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          <% r_versions_with_current = ([OpenStruct.new(index: '当前', created_at: Time.current, whodunnit: nil)] + @review_versions.to_a.reverse) %>
+          <% r_versions_with_current.each_with_index do |v, idx| %>
+            <%
+              if v.index == '当前'
+                rc = @ticket.review_conclusion
+                data = { eff_before: rc.efficiency_before, eff_after: rc.efficiency_after, content: rc.content, who: rc.reviewer&.name }
+              else
+                reified = v.reify
+                if reified
+                  data = {
+                    eff_before: reified.efficiency_before,
+                    eff_after: reified.efficiency_after,
+                    content: reified.content,
+                    who: v.whodunnit.present? ? User.find_by(id: v.whodunnit)&.name : '系统'
+                  }
+                else
+                  data = { eff_before: '-', eff_after: '-', content: '-', who: '-' }
+                end
+              end
+            %>
+            <tr class="<%= idx == 0 ? 'bg-green-50' : 'hover:bg-gray-50' %>">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= idx == 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
+                  <%= idx == 0 ? '最新' : "v#{v.index}" %>
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= format_datetime(v.created_at) %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <%= data[:who] %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                <%= data[:eff_before].is_a?(Integer) ? "#{data[:eff_before]}%" : data[:eff_before] %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                <%= data[:eff_after].is_a?(Integer) ? "#{data[:eff_after]}%" : data[:eff_after] %>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-700 max-w-md truncate">
+                <%= truncate(data[:content].to_s, length: 100) %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% end %>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+  <div class="px-6 py-4 border-b border-gray-200">
+    <h2 class="text-lg font-semibold text-gray-900">完整审计日志</h2>
+  </div>
+  <div class="p-6">
+    <% if @audit_logs.any? %>
+      <div class="relative">
+        <div class="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-200 via-indigo-200 to-green-200"></div>
+        <div class="space-y-4">
+          <% @audit_logs.each do |log| %>
+            <div class="relative pl-12">
+              <div class="absolute left-3.5 w-4 h-4 rounded-full border-4 border-white <%= log.action_type.include?('create') ? 'bg-green-500' : (log.action_type.include?('review') ? 'bg-purple-500' : 'bg-indigo-500') %> shadow"></div>
+              <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center space-x-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <%= log.action_name %>
+                    </span>
+                    <% if log.field_name.present? %>
+                      <span class="text-xs text-gray-500">字段: <%= log.display_field_name %></span>
+                    <% end %>
+                  </div>
+                  <span class="text-xs text-gray-400"><%= format_datetime(log.created_at) %></span>
+                </div>
+                <p class="text-sm text-gray-600 mb-2">
+                  操作人: <span class="font-medium text-gray-900"><%= log.user&.name %></span>
+                </p>
+                <% if log.old_value.present? || log.new_value.present? %>
+                  <div class="flex flex-wrap items-center gap-2 p-2 bg-gray-50 rounded text-sm">
+                    <% if log.old_value.present? %>
+                      <span class="px-2 py-1 bg-red-50 text-red-700 rounded line-through text-xs"><%= truncate(log.old_value.to_s, length: 50) %></span>
+                      <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                      </svg>
+                    <% end %>
+                    <% if log.new_value.present? %>
+                      <span class="px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium"><%= truncate(log.new_value.to_s, length: 50) %></span>
+                    <% end %>
+                  </div>
+                <% end %>
+                <% if log.remark.present? %>
+                  <p class="mt-2 text-xs text-gray-500 italic bg-yellow-50 p-2 rounded border-l-2 border-yellow-400">
+                    💡 <%= log.remark %>
+                  </p>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% else %>
+      <div class="text-center py-8">
+        <p class="text-gray-500">暂无审计日志</p>
+      </div>
+    <% end %>
+  </div>
+</div>

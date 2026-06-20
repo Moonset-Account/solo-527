@@ -1,0 +1,132 @@
+<%= content_for(:title, "复盘详情") %>
+
+<div class="mb-6">
+  <div class="flex items-center space-x-4">
+    <%= link_to review_conclusions_path, class: "p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+      </svg>
+    <% end %>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">复盘结论详情</h1>
+      <p class="mt-1 text-gray-500">
+        关联需求: <%= link_to @review_conclusion.ticket.title, ticket_path(@review_conclusion.ticket), class: "text-indigo-600 hover:underline" %>
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200">
+      <div class="p-6 space-y-6">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="p-4 bg-indigo-50 rounded-xl">
+            <p class="text-sm text-indigo-600 font-medium">改进前协作效率</p>
+            <p class="mt-1 text-3xl font-bold text-indigo-700"><%= @review_conclusion.efficiency_before %>%</p>
+          </div>
+          <div class="p-4 bg-green-50 rounded-xl">
+            <p class="text-sm text-green-600 font-medium">改进后协作效率</p>
+            <div class="flex items-baseline space-x-2">
+              <p class="text-3xl font-bold text-green-700"><%= @review_conclusion.efficiency_after %>%</p>
+              <span class="text-lg font-semibold <%= @review_conclusion.efficiency_delta_color %>">
+                <% delta = @review_conclusion.efficiency_delta %>
+                <% if delta&.positive? %>+<% end %><%= delta %>%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">复盘结论</h3>
+          <div class="p-4 bg-gray-50 rounded-lg whitespace-pre-wrap text-gray-700"><%= @review_conclusion.content.presence || "暂无内容" %></div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">根本原因分析</h3>
+          <div class="p-4 bg-red-50 rounded-lg whitespace-pre-wrap text-gray-700 border-l-4 border-red-400"><%= @review_conclusion.root_cause.presence || "暂无内容" %></div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">改进措施</h3>
+          <div class="p-4 bg-orange-50 rounded-lg whitespace-pre-wrap text-gray-700 border-l-4 border-orange-400"><%= @review_conclusion.improvement.presence || "暂无内容" %></div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">最终结果</h3>
+          <div class="p-4 bg-green-50 rounded-lg whitespace-pre-wrap text-gray-700 border-l-4 border-green-400"><%= @review_conclusion.result.presence || "暂无内容" %></div>
+        </div>
+      </div>
+
+      <div class="px-6 py-4 bg-gray-50 flex items-center justify-between text-sm text-gray-500">
+        <span>审核人: <%= @review_conclusion.reviewer&.name %></span>
+        <span>审核时间: <%= format_datetime(@review_conclusion.reviewed_at || @review_conclusion.created_at) %></span>
+        <span>创建时间: <%= format_datetime(@review_conclusion.created_at) %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">关联需求信息</h2>
+      </div>
+      <div class="p-6 space-y-3 text-sm">
+        <div>
+          <span class="text-gray-500">标题:</span>
+          <span class="ml-2 font-medium text-gray-900"><%= @review_conclusion.ticket.title %></span>
+        </div>
+        <div>
+          <span class="text-gray-500">状态:</span>
+          <span class="ml-2"><%= status_badge(@review_conclusion.ticket.status) %></span>
+        </div>
+        <div>
+          <span class="text-gray-500">部门:</span>
+          <span class="ml-2 font-medium"><%= @review_conclusion.ticket.department&.name %></span>
+        </div>
+        <div>
+          <span class="text-gray-500">负责人:</span>
+          <span class="ml-2 font-medium"><%= @review_conclusion.ticket.assignee&.name %></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">复盘变更历史</h2>
+      </div>
+      <div class="p-6 max-h-96 overflow-y-auto">
+        <% if @versions.any? %>
+          <div class="space-y-3">
+            <% @versions.each do |v| %>
+              <div class="p-3 bg-gray-50 rounded-lg text-sm">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-medium text-gray-700">v<%= v.index %></span>
+                  <span class="text-xs text-gray-400"><%= format_datetime(v.created_at) %></span>
+                </div>
+                <p class="text-xs text-gray-500 space-x-1">
+                  <% v.changeset.each do |field, (old, new_val)| %>
+                    <span class="inline-block">
+                      <strong><%= field %>:</strong>
+                      <span class="line-through text-red-500"><%= truncate(old.to_s, length: 10) %></span>→<span class="text-green-600"><%= truncate(new_val.to_s, length: 10) %></span>
+                    </span>
+                  <% end %>
+                </p>
+                <p class="text-xs text-gray-400 mt-1">操作人: <%= v.whodunnit.present? ? User.find_by(id: v.whodunnit)&.name || '未知' : '系统' %></p>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="text-center py-8 text-gray-500">暂无变更记录</div>
+        <% end %>
+      </div>
+    </div>
+
+    <% if policy(@review_conclusion).edit? %>
+      <div class="flex gap-3">
+        <%= link_to "编辑复盘", edit_review_conclusion_path(@review_conclusion), class: "flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-center" %>
+        <%= link_to "删除", review_conclusion_path(@review_conclusion), method: :delete, data: { confirm: "确认删除?" }, class: "px-4 py-2 bg-white hover:bg-red-50 border border-red-200 text-red-600 font-medium rounded-lg" %>
+      </div>
+    <% end %>
+  </div>
+</div>

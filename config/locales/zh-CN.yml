@@ -1,0 +1,203 @@
+zh-CN:
+  activerecord:
+    models:
+      user: '用户'
+      department: '部门'
+      ticket: '需求单据'
+      review_conclusion: '复盘结论'
+      audit_log: '审计日志'
+    attributes:
+      user:
+        email: '邮箱'
+        name: '姓名'
+        role: '角色'
+        department: '所属部门'
+        created_at: '创建时间'
+        roles:
+          user: '普通用户'
+          admin: '管理员'
+          executive: '总经办'
+      department:
+        name: '部门名称'
+        description: '部门描述'
+        created_at: '创建时间'
+      ticket:
+        title: '需求标题'
+        description: '需求描述'
+        status: '状态'
+        priority: '优先级'
+        submitter: '提交人'
+        assignee: '负责人'
+        department: '责任部门'
+        process_node: '流程节点'
+        deadline: '截止日期'
+        completed_at: '完成时间'
+        created_at: '创建时间'
+        updated_at: '更新时间'
+        statuses:
+          pending: '待办'
+          in_progress: '处理中'
+          completed: '已完成'
+          exception: '异常'
+        priorities:
+          low: '低'
+          normal: '中'
+          high: '高'
+          urgent: '紧急'
+      review_conclusion:
+        ticket: '关联需求'
+        content: '复盘结论'
+        root_cause: '根本原因'
+        improvement: '改进措施'
+        result: '最终结果'
+        efficiency_before: '改进前效率'
+        efficiency_after: '改进后效率'
+        reviewer: '审核人'
+        reviewed_at: '审核时间'
+        created_at: '创建时间'
+      audit_log:
+        ticket: '关联需求'
+        user: '操作人'
+        action_type: '操作类型'
+        field_name: '变更字段'
+        old_value: '变更前'
+        new_value: '变更后'
+        remark: '备注'
+        created_at: '操作时间'
+        actions:
+          create_ticket: '创建需求'
+          update_status: '变更状态'
+          update_assignee: '变更负责人'
+          update_department: '变更责任部门'
+          update_process_node: '变更流程节点'
+          update_priority: '变更优先级'
+          update_deadline: '变更截止日期'
+          update_title: '变更标题'
+          update_description: '变更描述'
+          create_review: '创建复盘'
+          update_review: '更新复盘'
+          add_remark: '添加备注'
+
+  layouts:
+    application:
+      title: '事项闭环台'
+  navigation:
+    dashboard: '工作台'
+    tickets: '需求管理'
+    new_ticket: '提交需求'
+    reviews: '复盘管理'
+    audits: '审核中心'
+    departments: '部门管理'
+    users: '用户管理'
+    profile: '个人设置'
+    logout: '退出登录'
+    login: '登录'
+    back: '返回'
+    search: '搜索'
+    submit: '提交'
+    cancel: '取消'
+    edit: '编辑'
+    delete: '删除'
+    confirm: '确认'
+  dashboard:
+    index:
+      welcome: '欢迎回来，%{name}'
+      my_tickets: '我的需求'
+      pending_count: '待办数量'
+      in_progress_count: '处理中数量'
+      completed_count: '已完成数量'
+      exception_count: '异常数量'
+      recent_tickets: '最近的需求'
+      no_tickets: '暂无需求'
+  tickets:
+    index:
+      title: '需求列表'
+      new: '提交新需求'
+      no_tickets: '暂无需求'
+    show:
+      title: '需求详情'
+      edit: '编辑需求'
+      back: '返回列表'
+      status_history: '变更历史'
+      audit_logs: '操作日志'
+      review_conclusion: '复盘结论'
+      add_review: '添加复盘结论'
+      edit_review: '编辑复盘结论'
+      audit_view: '审核视图'
+    new:
+      title: '提交新需求'
+    edit:
+      title: '编辑需求'
+    form:
+      title_placeholder: '请输入需求标题'
+      description_placeholder: '请详细描述需求内容...'
+      select_priority: '请选择优先级'
+      select_assignee: '请选择负责人'
+      select_department: '请选择责任部门'
+      select_process_node: '请选择流程节点'
+      select_status: '请选择状态'
+  reviews:
+    index:
+      title: '复盘结论库'
+      no_reviews: '暂无复盘结论'
+      efficiency_trend: '效率变化趋势'
+    show:
+      title: '复盘详情'
+      back: '返回列表'
+      history: '变更历史'
+    new:
+      title: '新建复盘结论'
+    edit:
+      title: '编辑复盘结论'
+  audits:
+    index:
+      title: '审核中心'
+      ticket_audit: '需求审核'
+      change_history: '变更历史对比'
+      view_versions: '查看版本'
+      compare_versions: '对比版本'
+      version_from: '从版本'
+      version_to: '到版本'
+  departments:
+    index:
+      title: '部门管理'
+      new: '新增部门'
+      no_departments: '暂无部门'
+    show:
+      title: '部门详情'
+      users: '部门成员'
+      tickets: '部门需求'
+    new:
+      title: '新增部门'
+    edit:
+      title: '编辑部门'
+  users:
+    index:
+      title: '用户管理'
+      new: '新增用户'
+      no_users: '暂无用户'
+    show:
+      title: '用户详情'
+      submitted_tickets: '提交的需求'
+      assigned_tickets: '负责的需求'
+    edit:
+      title: '编辑用户'
+  pundit:
+    not_authorized: '您没有权限执行此操作。'
+  devise:
+    sessions:
+      new:
+        title: '登录事项闭环台'
+        submit: '登录'
+        forgot_password: '忘记密码？'
+    registrations:
+      new:
+        title: '注册账号'
+    passwords:
+      new:
+        title: '重置密码'
+        submit: '发送重置邮件'
+  helpers:
+    submit:
+      create: '创建%{model}'
+      update: '更新%{model}'

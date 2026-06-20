@@ -1,0 +1,118 @@
+<%= content_for(:title, "复盘结论库") %>
+
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">复盘管理</h1>
+  <p class="mt-1 text-gray-500">查看所有复盘结论和协作效率变化</p>
+</div>
+
+<% avg_delta = @review_conclusions.filter_map(&:efficiency_delta).then { |arr| arr.empty? ? nil : (arr.sum.to_f / arr.size).round(1) } %>
+<% if avg_delta %>
+  <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <p class="text-sm font-medium text-gray-500">复盘总数</p>
+      <p class="mt-2 text-3xl font-bold text-indigo-600"><%= @review_conclusions.total_count %></p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <p class="text-sm font-medium text-gray-500">平均效率变化</p>
+      <p class="mt-2 text-3xl font-bold <%= avg_delta.positive? ? 'text-green-600' : (avg_delta.negative? ? 'text-red-600' : 'text-gray-600') %>">
+        <%= avg_delta.positive? ? '+' : '' %><%= avg_delta %>%
+      </p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <p class="text-sm font-medium text-gray-500">正向改进占比</p>
+      <p class="mt-2 text-3xl font-bold text-green-600">
+        <% positives = @review_conclusions.filter_map { |r| r.efficiency_delta&.positive? } %>
+        <% positives.empty? ? 0 : ((positives.count(true).to_f / positives.size) * 100).round %>%
+      </p>
+    </div>
+  </div>
+<% end %>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+  <%= search_form_for @q, url: review_conclusions_path, method: :get, html: { class: "px-6 py-4 border-b border-gray-200" } do |f| %>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div>
+        <%= f.label :content_cont, "搜索复盘内容", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.search_field :content_or_result_or_root_cause_or_improvement_cont, class: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500", placeholder: "搜索复盘关键词..." %>
+      </div>
+      <div>
+        <%= f.label :ticket_department_id_eq, "责任部门", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.select :ticket_department_id_eq, Department.ordered.pluck(:name, :id), { include_blank: "全部部门" }, class: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" %>
+      </div>
+      <div class="flex items-end space-x-2">
+        <%= f.submit "搜索", class: "flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-lg transition-colors" %>
+        <%= link_to "重置", review_conclusions_path, class: "px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg transition-colors" %>
+      </div>
+    </div>
+  <% end %>
+
+  <% if @review_conclusions.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">关联需求</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">部门</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">效率变化</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">复盘摘要</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">审核人</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <% @review_conclusions.each do |rc| %>
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="px-6 py-4">
+                <%= link_to ticket_path(rc.ticket), class: "text-indigo-600 hover:text-indigo-900" do %>
+                  <p class="text-sm font-medium"><%= truncate(rc.ticket.title, length: 30) %></p>
+                  <p class="text-xs text-gray-500">##{rc.ticket.id}</p>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                <%= rc.ticket.department&.name %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm text-gray-500"><%= rc.efficiency_before %>% →</span>
+                  <span class="text-sm font-bold <%= rc.efficiency_delta_color %>">
+                    <% if rc.efficiency_delta&.positive? %>+<% end %><%= rc.efficiency_delta %>%
+                  </span>
+                  <span class="text-sm font-medium text-gray-900"><%= rc.efficiency_after %>%</span>
+                </div>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-700 max-w-xs">
+                <%= truncate(rc.content, length: 60) %>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
+                <%= rc.reviewer&.name %>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                <%= format_datetime(rc.created_at) %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="flex items-center justify-end space-x-2">
+                  <%= link_to "详情", review_conclusion_path(rc), class: "text-indigo-600 hover:text-indigo-900" %>
+                  <% if policy(rc).edit? %>
+                    <%= link_to "编辑", edit_review_conclusion_path(rc), class: "text-gray-600 hover:text-gray-900" %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="px-6 py-4 border-t border-gray-200">
+      <%= paginate @review_conclusions %>
+    </div>
+  <% else %>
+    <div class="px-6 py-16 text-center">
+      <svg class="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+      <p class="mt-4 text-gray-500">暂无复盘结论数据</p>
+    </div>
+  <% end %>
+</div>

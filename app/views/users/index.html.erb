@@ -1,0 +1,102 @@
+<%= content_for(:title, "用户管理") %>
+
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">用户管理</h1>
+    <p class="mt-1 text-gray-500">管理系统用户和权限</p>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+  <%= search_form_for @q, url: users_path, method: :get, html: { class: "px-6 py-4 border-b border-gray-200" } do |f| %>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div>
+        <%= f.label :name_or_email_cont, "搜索用户", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.search_field :name_or_email_cont, class: "w-full px-3 py-2 border border-gray-300 rounded-lg", placeholder: "姓名或邮箱..." %>
+      </div>
+      <div>
+        <%= f.label :department_id_eq, "所属部门", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.select :department_id_eq, Department.ordered.pluck(:name, :id), { include_blank: "全部部门" }, class: "w-full px-3 py-2 border border-gray-300 rounded-lg" %>
+      </div>
+      <div class="flex items-end space-x-2">
+        <%= f.submit "搜索", class: "flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-lg" %>
+        <%= link_to "重置", users_path, class: "px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg" %>
+      </div>
+    </div>
+  <% end %>
+
+  <% if @users.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">部门</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">提交需求</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">负责需求</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <% @users.each do |user| %>
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <%= link_to user_path(user), class: "flex items-center" do %>
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-medium">
+                    <%= user.name.first %>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-900"><%= user.name %></p>
+                    <p class="text-xs text-gray-500"><%= user.email %></p>
+                  </div>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <% if user.executive? %>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">总经办</span>
+                <% elsif user.admin? %>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">管理员</span>
+                <% else %>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">普通用户</span>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                <%= user.department&.name || "未分配" %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <%= user.submitted_tickets.count %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <%= user.assigned_tickets.count %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= format_date(user.created_at) %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="flex items-center justify-end space-x-2">
+                  <%= link_to "详情", user_path(user), class: "text-indigo-600 hover:text-indigo-900" %>
+                  <% if policy(user).edit? %>
+                    <%= link_to "编辑", edit_user_path(user), class: "text-gray-600 hover:text-gray-900" %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="px-6 py-4 border-t border-gray-200">
+      <%= paginate @users %>
+    </div>
+  <% else %>
+    <div class="px-6 py-16 text-center">
+      <svg class="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+      </svg>
+      <p class="mt-4 text-gray-500">暂无用户数据</p>
+    </div>
+  <% end %>
+</div>

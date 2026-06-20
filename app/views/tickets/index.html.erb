@@ -1,0 +1,125 @@
+<%= content_for(:title, "需求列表") %>
+
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">需求管理</h1>
+    <p class="mt-1 text-gray-500">查看和管理所有跨部门需求单据</p>
+  </div>
+  <%= link_to new_ticket_path, class: "inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm transition-colors" do %>
+    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+    </svg>
+    提交新需求
+  <% end %>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+  <%= search_form_for @q, url: tickets_path, method: :get, html: { class: "px-6 py-4 border-b border-gray-200" } do |f| %>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div>
+        <%= f.label :title_cont, "关键词搜索", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.search_field :title_or_description_cont, class: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500", placeholder: "搜索标题或描述..." %>
+      </div>
+      <div>
+        <%= f.label :status_eq, "状态", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.select :status_eq, Ticket.statuses.map { |k, v| [I18n.t("activerecord.attributes.ticket.statuses.#{k}"), v] }, { include_blank: "全部状态" }, class: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" %>
+      </div>
+      <div>
+        <%= f.label :department_id_eq, "责任部门", class: "block text-sm font-medium text-gray-700 mb-1" %>
+        <%= f.select :department_id_eq, Department.ordered.pluck(:name, :id), { include_blank: "全部部门" }, class: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" %>
+      </div>
+      <div class="flex items-end space-x-2">
+        <%= f.submit "搜索", class: "flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-lg transition-colors" %>
+        <%= link_to "重置", tickets_path, class: "px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg transition-colors" %>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+  <% if @tickets.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">需求</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">优先级</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">流程节点</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">负责人</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">部门</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">截止日期</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <% @tickets.each do |ticket| %>
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="px-6 py-4">
+                <%= link_to ticket_path(ticket), class: "block hover:text-indigo-600" do %>
+                  <p class="text-sm font-medium text-gray-900"><%= truncate(ticket.title, length: 40) %></p>
+                  <p class="text-xs text-gray-500 mt-0.5">##{ticket.id} · <%= ticket.submitter&.name %> 提交</p>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <%= status_badge(ticket.status) %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <%= priority_badge(ticket.priority) %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                <%= ticket.process_node %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-medium">
+                    <%= ticket.assignee&.name&.first %>
+                  </div>
+                  <span class="ml-2 text-sm text-gray-900"><%= ticket.assignee&.name %></span>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= ticket.department&.name %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <% if ticket.deadline %>
+                  <span class="<%= 'text-red-600 font-semibold' if ticket.overdue? %>">
+                    <%= format_date(ticket.deadline) %>
+                  </span>
+                <% else %>
+                  <span class="text-gray-400">-</span>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <%= format_datetime(ticket.created_at) %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="flex items-center justify-end space-x-2">
+                  <%= link_to "详情", ticket_path(ticket), class: "text-indigo-600 hover:text-indigo-900" %>
+                  <% if policy(ticket).edit? %>
+                    <%= link_to "编辑", edit_ticket_path(ticket), class: "text-gray-600 hover:text-gray-900" %>
+                  <% end %>
+                  <% if policy(ticket).audit? %>
+                    <%= link_to "审核", audit_ticket_path(ticket), class: "text-purple-600 hover:text-purple-900" %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="px-6 py-4 border-t border-gray-200">
+      <%= paginate @tickets %>
+    </div>
+  <% else %>
+    <div class="px-6 py-16 text-center">
+      <svg class="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+      </svg>
+      <p class="mt-4 text-gray-500">暂无需求数据</p>
+    </div>
+  <% end %>
+</div>

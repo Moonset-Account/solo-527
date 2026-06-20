@@ -1,0 +1,274 @@
+<%= content_for(:title, "需求详情") %>
+
+<div class="mb-6 flex items-center justify-between">
+  <div class="flex items-center space-x-4">
+    <%= link_to tickets_path, class: "p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+      </svg>
+    <% end %>
+    <div>
+      <div class="flex items-center space-x-3">
+        <h1 class="text-2xl font-bold text-gray-900"><%= @ticket.title %></h1>
+        <%= status_badge(@ticket.status) %>
+        <%= priority_badge(@ticket.priority) %>
+      </div>
+      <p class="mt-1 text-gray-500">需求 #<%= @ticket.id %> · 创建于 <%= format_datetime(@ticket.created_at) %></p>
+    </div>
+  </div>
+  <div class="flex items-center space-x-2">
+    <% if policy(@ticket).edit? %>
+      <%= link_to "编辑", edit_ticket_path(@ticket), class: "px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-medium rounded-lg transition-colors" %>
+    <% end %>
+    <% if policy(@ticket).audit? %>
+      <%= link_to "审核视图", audit_ticket_path(@ticket), class: "px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg shadow-sm transition-colors" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">需求信息</h2>
+      </div>
+      <div class="p-6">
+        <div class="space-y-4">
+          <div>
+            <h3 class="text-sm font-medium text-gray-500 mb-2">需求描述</h3>
+            <div class="p-4 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap"><%= @ticket.description.presence || "暂无描述" %></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if policy(@ticket).update_status? %>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">快速更新状态</h2>
+        </div>
+        <div class="p-6">
+          <div class="flex flex-wrap gap-2">
+            <% Ticket.statuses.each do |key, val| %>
+              <% next if @ticket.status == key %>
+              <%= button_to update_status_ticket_path(@ticket, status: key), method: :patch, class: "px-4 py-2 border rounded-lg font-medium transition-colors #{@ticket.status_color} hover:opacity-80" do %>
+                <%= I18n.t("activerecord.attributes.ticket.statuses.#{key}") %>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">复盘结论</h2>
+        <div>
+          <% if @ticket.review_conclusion %>
+            <% if policy(@ticket.review_conclusion).edit? %>
+              <%= link_to "编辑复盘", edit_review_conclusion_path(@ticket.review_conclusion), class: "text-sm text-indigo-600 hover:text-indigo-700 font-medium" %>
+            <% end %>
+          <% else %>
+            <% if policy(ReviewConclusion).create? %>
+              <%= link_to "添加复盘", new_ticket_review_conclusion_path(@ticket), class: "text-sm text-indigo-600 hover:text-indigo-700 font-medium" %>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+      <div class="p-6">
+        <% if @ticket.review_conclusion %>
+          <% conclusion = @ticket.review_conclusion %>
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div class="p-4 bg-indigo-50 rounded-lg">
+                <p class="text-sm text-indigo-600 font-medium">改进前协作效率</p>
+                <p class="mt-1 text-2xl font-bold text-indigo-700"><%= conclusion.efficiency_before %>%</p>
+              </div>
+              <div class="p-4 bg-green-50 rounded-lg">
+                <p class="text-sm text-green-600 font-medium">改进后协作效率</p>
+                <div class="flex items-baseline space-x-2">
+                  <p class="text-2xl font-bold text-green-700"><%= conclusion.efficiency_after %>%</p>
+                  <span class="text-sm <%= conclusion.efficiency_delta_color %> font-semibold">
+                    <% if conclusion.efficiency_delta&.positive? %>+<% end %><%= conclusion.efficiency_delta %>%
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-gray-500 mb-2">复盘结论</h4>
+              <div class="p-4 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap"><%= conclusion.content.presence || "暂无内容" %></div>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-gray-500 mb-2">根本原因</h4>
+              <div class="p-4 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap"><%= conclusion.root_cause.presence || "暂无内容" %></div>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-gray-500 mb-2">改进措施</h4>
+              <div class="p-4 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap"><%= conclusion.improvement.presence || "暂无内容" %></div>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-gray-500 mb-2">最终结果</h4>
+              <div class="p-4 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap"><%= conclusion.result.presence || "暂无内容" %></div>
+            </div>
+            <p class="text-xs text-gray-400">审核人：<%= conclusion.reviewer&.name %> · 审核时间：<%= format_datetime(conclusion.reviewed_at || conclusion.created_at) %></p>
+          </div>
+        <% else %>
+          <div class="text-center py-8">
+            <svg class="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <p class="mt-4 text-gray-500">暂无复盘结论</p>
+            <% if policy(ReviewConclusion).create? %>
+              <%= link_to "立即添加", new_ticket_review_conclusion_path(@ticket), class: "mt-2 inline-block text-indigo-600 hover:text-indigo-700 font-medium" %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">操作日志</h2>
+      </div>
+      <div class="p-6">
+        <% if @audit_logs.any? %>
+          <div class="relative">
+            <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+            <div class="space-y-6">
+              <% @audit_logs.each do |log| %>
+                <div class="relative pl-12">
+                  <div class="absolute left-2 w-5 h-5 rounded-full border-4 border-white bg-indigo-500 shadow"></div>
+                  <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-semibold text-gray-900"><%= log.action_name %></span>
+                      <span class="text-xs text-gray-400"><%= format_datetime(log.created_at) %></span>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                      <span class="font-medium"><%= log.user&.name %></span> 执行此操作
+                    </p>
+                    <% if log.field_name.present? && (log.old_value.present? || log.new_value.present?) %>
+                      <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                        <span class="text-gray-500"><%= log.display_field_name %>:</span>
+                        <% if log.old_value.present? %>
+                          <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded line-through"><%= truncate(log.old_value.to_s, length: 30) %></span>
+                          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                          </svg>
+                        <% end %>
+                        <% if log.new_value.present? %>
+                          <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded"><%= truncate(log.new_value.to_s, length: 30) %></span>
+                        <% end %>
+                      </div>
+                    <% end %>
+                    <% if log.remark.present? %>
+                      <p class="mt-2 text-sm text-gray-500 italic">备注：<%= log.remark %></p>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <div class="text-center py-8">
+            <p class="text-gray-500">暂无操作日志</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">基本信息</h2>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <p class="text-sm text-gray-500">责任部门</p>
+          <p class="mt-1 font-medium text-gray-900"><%= @ticket.department&.name %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">流程节点</p>
+          <p class="mt-1">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+              <%= @ticket.process_node %>
+            </span>
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">提交人</p>
+          <div class="mt-1 flex items-center space-x-2">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white text-xs">
+              <%= @ticket.submitter&.name&.first %>
+            </div>
+            <span class="font-medium text-gray-900"><%= @ticket.submitter&.name %></span>
+          </div>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">负责人</p>
+          <div class="mt-1 flex items-center space-x-2">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs">
+              <%= @ticket.assignee&.name&.first %>
+            </div>
+            <span class="font-medium text-gray-900"><%= @ticket.assignee&.name %></span>
+          </div>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">截止日期</p>
+          <p class="mt-1 font-medium <%= 'text-red-600' if @ticket.overdue? %>">
+            <%= @ticket.deadline ? format_date(@ticket.deadline) : "未设置" %>
+            <% if @ticket.overdue? %><span class="ml-1 text-xs">(已超期)</span><% end %>
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">完成时间</p>
+          <p class="mt-1 font-medium text-gray-900">
+            <%= @ticket.completed_at ? format_datetime(@ticket.completed_at) : "未完成" %>
+          </p>
+        </div>
+        <% if @ticket.efficiency_change %>
+          <div class="pt-4 border-t border-gray-200">
+            <p class="text-sm text-gray-500">效率变化</p>
+            <p class="mt-1 text-xl font-bold <%= @ticket.efficiency_change.positive? ? 'text-green-600' : (@ticket.efficiency_change.negative? ? 'text-red-600' : 'text-gray-600') %>">
+              <%= @ticket.efficiency_change.positive? ? '+' : '' %><%= @ticket.efficiency_change %>%
+            </p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">变更记录 (PaperTrail)</h2>
+      </div>
+      <div class="p-6 max-h-96 overflow-y-auto">
+        <% if @versions.any? %>
+          <div class="space-y-3">
+            <% @versions.each do |v| %>
+              <div class="p-3 bg-gray-50 rounded-lg text-sm">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-medium text-gray-700">v<%= v.index %></span>
+                  <span class="text-xs text-gray-400"><%= format_datetime(v.created_at) %></span>
+                </div>
+                <p class="text-xs text-gray-500">
+                  <% v.changeset.each do |field, (old, new_val)| %>
+                    <span class="inline-block mr-2">
+                      <strong><%= field %>:</strong>
+                      <span class="line-through text-red-500"><%= truncate(old.to_s, length: 15) %></span> →
+                      <span class="text-green-600"><%= truncate(new_val.to_s, length: 15) %></span>
+                    </span>
+                  <% end %>
+                </p>
+                <p class="text-xs text-gray-400 mt-1">操作人: <%= v.whodunnit.present? ? User.find_by(id: v.whodunnit)&.name || '未知' : '系统' %></p>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="text-center py-8">
+            <p class="text-gray-500">暂无变更记录</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
