@@ -5,7 +5,9 @@ import {
   createReport,
   updateReport,
   type Report,
-  type ReportListParams
+  type ReportListParams,
+  type CreateReportData,
+  type UpdateReportData
 } from '../api/report'
 
 export const useReportStore = defineStore('report', () => {
@@ -17,21 +19,21 @@ export const useReportStore = defineStore('report', () => {
     loading.value = true
     try {
       const res: any = await getReports(params)
-      list.value = res.data?.items || res.items || []
-      total.value = res.data?.total || res.total || 0
+      list.value = res.data || []
+      total.value = res.total || 0
     } finally {
       loading.value = false
     }
   }
 
-  const create = async (data: Partial<Report>) => {
+  const create = async (data: CreateReportData) => {
     const res: any = await createReport(data)
-    return res.data || res
+    return res
   }
 
-  const update = async (id: string, data: Partial<Report>) => {
+  const update = async (id: string, data: UpdateReportData) => {
     const res: any = await updateReport(id, data)
-    return res.data || res
+    return res
   }
 
   return {

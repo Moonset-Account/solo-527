@@ -15,47 +15,43 @@
       </div>
 
       <el-table :data="downloadStore.list" v-loading="downloadStore.loading" stripe style="width: 100%">
-        <el-table-column prop="transactionId" label="交易编号" width="180" />
-        <el-table-column prop="activityTitle" label="活动名称" min-width="160" />
-        <el-table-column prop="userName" label="用户" width="120" />
-        <el-table-column label="金额" width="120" align="right">
-          <template #default="{ row }">
-            <span class="amount-text">¥{{ row.amount }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="transactionSecurity" label="交易保障" width="120" align="center">
+        <el-table-column label="交易安全" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="row.transactionSecurity === '已保障' ? 'success' : 'warning'" size="small">
               {{ row.transactionSecurity }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="repairTimeout" label="修复超时" width="120" align="center">
+        <el-table-column label="报修超时" width="120" align="center">
           <template #default="{ row }">
             <span :class="{ 'timeout-warn': row.repairTimeout === '超时' }">
               {{ row.repairTimeout }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="lastOperation" label="最后操作" min-width="160" show-overflow-tooltip />
+        <el-table-column label="最近操作人" width="120">
+          <template #default="{ row }">
+            {{ row.lastOperation?.operator || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="最近操作时间" width="180">
+          <template #default="{ row }">
+            {{ formatDate(row.lastOperation?.operatedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="环境" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.environment === 'production' ? 'success' : 'info'" size="small">
+              {{ row.environment === 'production' ? '生产' : '沙箱' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
       </el-table>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50]"
-          :total="downloadStore.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchData"
-          @current-change="fetchData"
-        />
-      </div>
 
       <div class="note-bar">
         <el-icon color="#e6a23c"><WarningFilled /></el-icon>
@@ -66,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, WarningFilled } from '@element-plus/icons-vue'
 import { useDownloadStore } from '../stores/download'
@@ -74,7 +70,6 @@ import { useDownloadStore } from '../stores/download'
 const downloadStore = useDownloadStore()
 
 const environment = ref<'sandbox' | 'production'>('sandbox')
-const pagination = reactive({ page: 1, pageSize: 10 })
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
@@ -83,14 +78,11 @@ const formatDate = (dateStr: string) => {
 
 const fetchData = () => {
   downloadStore.fetchList({
-    environment: environment.value,
-    page: pagination.page,
-    pageSize: pagination.pageSize
+    environment: environment.value
   })
 }
 
 const handleEnvChange = () => {
-  pagination.page = 1
   fetchData()
 }
 
@@ -142,17 +134,6 @@ onMounted(() => {
   font-size: 14px;
   color: #606266;
   margin-right: 12px;
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.amount-text {
-  color: #e6a23c;
-  font-weight: 600;
 }
 
 .timeout-warn {

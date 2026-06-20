@@ -5,7 +5,9 @@ import {
   createRefund,
   updateRefund,
   type Refund,
-  type RefundListParams
+  type RefundListParams,
+  type CreateRefundData,
+  type UpdateRefundData
 } from '../api/refund'
 
 export const useRefundStore = defineStore('refund', () => {
@@ -17,21 +19,21 @@ export const useRefundStore = defineStore('refund', () => {
     loading.value = true
     try {
       const res: any = await getRefunds(params)
-      list.value = res.data?.items || res.items || []
-      total.value = res.data?.total || res.total || 0
+      list.value = res.data || []
+      total.value = res.total || 0
     } finally {
       loading.value = false
     }
   }
 
-  const create = async (data: Partial<Refund>) => {
+  const create = async (data: CreateRefundData) => {
     const res: any = await createRefund(data)
-    return res.data || res
+    return res
   }
 
-  const update = async (id: string, data: Partial<Refund>) => {
+  const update = async (id: string, data: UpdateRefundData) => {
     const res: any = await updateRefund(id, data)
-    return res.data || res
+    return res
   }
 
   return {

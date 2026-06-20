@@ -7,7 +7,7 @@
         <el-descriptions-item label="活动名称" :span="2">
           {{ activityStore.current.title }}
         </el-descriptions-item>
-        <el-descriptions-item label="组织者">{{ activityStore.current.organizer }}</el-descriptions-item>
+        <el-descriptions-item label="组织者">{{ activityStore.current.organizer?.organizerName }}</el-descriptions-item>
         <el-descriptions-item label="地点">{{ activityStore.current.location }}</el-descriptions-item>
         <el-descriptions-item label="开始时间">{{ formatDate(activityStore.current.startTime) }}</el-descriptions-item>
         <el-descriptions-item label="结束时间">{{ formatDate(activityStore.current.endTime) }}</el-descriptions-item>
@@ -37,7 +37,7 @@
 
       <div class="action-bar">
         <el-button
-          v-if="!activityStore.current.isRegistered && activityStore.current.status === 'open'"
+          v-if="!activityStore.current.isRegistered && activityStore.current.status === 'published'"
           type="primary"
           size="large"
           @click="handleRegister"
@@ -63,21 +63,21 @@
       </div>
     </el-card>
 
-    <el-card shadow="never" class="participants-card" v-if="activityStore.current">
+    <el-card shadow="never" class="participants-card" v-if="participants.length > 0">
       <template #header>
         <span>参与人员列表</span>
       </template>
       <el-table :data="participants" stripe style="width: 100%">
         <el-table-column prop="userName" label="姓名" />
-        <el-table-column prop="registeredAt" label="报名时间">
+        <el-table-column prop="createdAt" label="报名时间">
           <template #default="{ row }">
-            {{ formatDate(row.registeredAt) }}
+            {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
-              {{ row.status === 'active' ? '有效' : '已取消' }}
+            <el-tag :type="row.status === 'registered' ? 'success' : 'info'" size="small">
+              {{ row.status === 'registered' ? '已报名' : '已取消' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -85,12 +85,12 @@
     </el-card>
 
     <el-dialog v-model="reportDialogVisible" title="举报活动" width="500">
-      <el-form :model="reportForm" label-width="80px">
+      <el-form :model="reportForm" label-width="100px">
+        <el-form-item label="被举报人">
+          <el-input v-model="reportForm.targetName" placeholder="请输入被举报人姓名" />
+        </el-form-item>
         <el-form-item label="举报原因">
           <el-input v-model="reportForm.reason" placeholder="请输入举报原因" />
-        </el-form-item>
-        <el-form-item label="详细描述">
-          <el-input v-model="reportForm.description" type="textarea" :rows="4" placeholder="请详细描述举报内容" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -116,24 +116,23 @@ const reportStore = useReportStore()
 const participants = ref<any[]>([])
 const reportDialogVisible = ref(false)
 const reportForm = reactive({
-  reason: '',
-  description: ''
+  targetId: '',
+  targetName: '',
+  reason: ''
 })
 
 const statusMap: Record<string, string> = {
   draft: '草稿',
-  open: '报名中',
-  ongoing: '进行中',
-  closed: '已结束',
-  cancelled: '已取消'
+  published: '报名中',
+  closed: '已截止',
+  completed: '已完成'
 }
 
 const statusTagTypeMap: Record<string, 'info' | 'success' | 'warning' | 'danger' | ''> = {
   draft: 'info',
-  open: 'success',
-  ongoing: 'warning',
-  closed: '',
-  cancelled: 'danger'
+  published: 'success',
+  closed: 'warning',
+  completed: ''
 }
 
 const statusLabel = (status: string) => statusMap[status] || status
@@ -163,8 +162,9 @@ const handleCancel = async () => {
 }
 
 const handleReport = () => {
+  reportForm.targetId = activityStore.current?.organizer?.organizerId || ''
+  reportForm.targetName = activityStore.current?.organizer?.organizerName || ''
   reportForm.reason = ''
-  reportForm.description = ''
   reportDialogVisible.value = true
 }
 
@@ -173,12 +173,18 @@ const submitReport = async () => {
     ElMessage.warning('请输入举报原因')
     return
   }
+  if (!reportForm.targetName) {
+    ElMessage.warning('请输入被举报人')
+    return
+  }
   try {
     await reportStore.create({
       activityId: route.params.id as string,
-      activityTitle: activityStore.current?.title || '',
-      reason: reportForm.reason,
-      description: reportForm.description
+      reporterId: activityStore.currentUserId,
+      reporterName: activityStore.currentUserName,
+      targetId: reportForm.targetId || reportForm.targetName,
+      targetName: reportForm.targetName,
+      reason: reportForm.reason
     })
     ElMessage.success('举报已提交')
     reportDialogVisible.value = false
@@ -208,5 +214,9 @@ onMounted(() => {
   margin-top: 24px;
   display: flex;
   gap: 12px;
+}
+
+.participants-card {
+  margin-top: 8px;
 }
 </style>

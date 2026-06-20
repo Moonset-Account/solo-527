@@ -16,8 +16,8 @@ export const useDownloadStore = defineStore('download', () => {
     loading.value = true
     try {
       const res: any = await getDownloadDetails(params)
-      list.value = res.data?.items || res.items || []
-      total.value = res.data?.total || res.total || 0
+      list.value = res.data || []
+      total.value = res.total || 0
     } finally {
       loading.value = false
     }

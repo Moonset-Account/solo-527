@@ -22,11 +22,11 @@ export class ActivityService {
     return saved;
   }
 
-  async findAll(query: QueryActivityDto): Promise<{ data: Activity[]; total: number; page: number; limit: number }> {
-    const { status, keyword, page = 1, limit = 10 } = query;
-    const cacheKey = `activities:${status || ''}:${keyword || ''}:${page}:${limit}`;
+  async findAll(query: QueryActivityDto): Promise<{ data: any[]; total: number; page: number; limit: number }> {
+    const { status, keyword, page = 1, limit = 10, userId } = query;
+    const cacheKey = `activities:${status || ''}:${keyword || ''}:${page}:${limit}:${userId || ''}`;
 
-    const cached = await this.cacheManager.get<{ data: Activity[]; total: number; page: number; limit: number }>(cacheKey);
+    const cached = await this.cacheManager.get<{ data: any[]; total: number; page: number; limit: number }>(cacheKey);
     if (cached) return cached;
 
     const filter: any = {};
@@ -38,15 +38,34 @@ export class ActivityService {
       this.activityModel.countDocuments(filter).exec(),
     ]);
 
-    const result = { data, total, page, limit };
+    let resultData: any[] = data.map((a) => a.toObject());
+
+    if (userId) {
+      const activityIds = data.map((a) => a._id);
+      const registrations = await this.registrationModel
+        .find({ activityId: { $in: activityIds }, userId, status: 'registered' })
+        .exec();
+      const registeredMap = new Set(registrations.map((r) => r.activityId));
+      resultData = resultData.map((a) => ({ ...a, isRegistered: registeredMap.has(a._id.toString()) }));
+    }
+
+    const result = { data: resultData, total, page, limit };
     await this.cacheManager.set(cacheKey, result);
     return result;
   }
 
-  async findOne(id: string): Promise<Activity> {
+  async findOne(id: string, userId?: string): Promise<any> {
     const activity = await this.activityModel.findById(id).exec();
     if (!activity) throw new NotFoundException('Activity not found');
-    return activity;
+
+    const result: any = activity.toObject();
+    if (userId) {
+      const registration = await this.registrationModel
+        .findOne({ activityId: id, userId, status: 'registered' })
+        .exec();
+      result.isRegistered = !!registration;
+    }
+    return result;
   }
 
   async update(id: string, dto: UpdateActivityDto): Promise<Activity> {

@@ -1,30 +1,31 @@
 import request from './request'
 
+export interface LastOperation {
+  operator: string
+  operatedAt: string
+}
+
 export interface DownloadDetail {
   _id: string
-  transactionId: string
-  activityTitle: string
-  userName: string
-  amount: number
   transactionSecurity: string
   repairTimeout: string
-  lastOperation: string
+  lastOperation: LastOperation
   environment: 'sandbox' | 'production'
+  data?: Record<string, any>
   createdAt: string
+  updatedAt: string
 }
 
 export interface DownloadListParams {
   environment?: 'sandbox' | 'production'
-  page?: number
-  pageSize?: number
 }
 
 export const getDownloadDetails = (params?: DownloadListParams) => {
-  return request.get('/download-details', { params })
+  return request.get('/download/details', { params })
 }
 
 export const exportDownload = (params?: DownloadListParams) => {
-  return request.get('/download-details/export', {
+  return request.get('/download/export', {
     params,
     responseType: 'blob'
   })

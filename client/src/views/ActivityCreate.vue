@@ -17,6 +17,9 @@
         <el-form-item label="活动描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入活动描述" />
         </el-form-item>
+        <el-form-item label="组织者姓名" prop="organizerName">
+          <el-input v-model="form.organizerName" placeholder="请输入组织者姓名" />
+        </el-form-item>
         <el-form-item label="活动地点" prop="location">
           <el-input v-model="form.location" placeholder="请输入活动地点" />
         </el-form-item>
@@ -62,6 +65,7 @@ const submitting = ref(false)
 const form = reactive({
   title: '',
   description: '',
+  organizerName: '',
   location: '',
   startTime: '',
   endTime: '',
@@ -73,6 +77,7 @@ const form = reactive({
 const rules = reactive<FormRules>({
   title: [{ required: true, message: '请输入活动名称', trigger: 'blur' }],
   description: [{ required: true, message: '请输入活动描述', trigger: 'blur' }],
+  organizerName: [{ required: true, message: '请输入组织者姓名', trigger: 'blur' }],
   location: [{ required: true, message: '请输入活动地点', trigger: 'blur' }],
   startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
   endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }],
@@ -86,9 +91,19 @@ const handleSubmit = async () => {
     submitting.value = true
     try {
       await activityStore.create({
-        ...form,
+        title: form.title,
+        description: form.description,
+        organizer: {
+          organizerId: activityStore.currentUserId,
+          organizerName: form.organizerName
+        },
         startTime: form.startTime ? new Date(form.startTime).toISOString() : '',
-        endTime: form.endTime ? new Date(form.endTime).toISOString() : ''
+        endTime: form.endTime ? new Date(form.endTime).toISOString() : '',
+        location: form.location,
+        maxParticipants: form.maxParticipants,
+        fee: form.fee,
+        guaranteeEnabled: form.guaranteeEnabled,
+        status: 'published'
       })
       ElMessage.success('活动发布成功')
       router.push('/')

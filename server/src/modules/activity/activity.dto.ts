@@ -121,4 +121,8 @@ export class QueryActivityDto {
   @Type(() => Number)
   @IsOptional()
   limit?: number;
+
+  @IsString()
+  @IsOptional()
+  userId?: string;
 }

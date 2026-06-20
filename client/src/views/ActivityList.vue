@@ -8,10 +8,9 @@
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部状态" clearable>
             <el-option label="草稿" value="draft" />
-            <el-option label="报名中" value="open" />
-            <el-option label="进行中" value="ongoing" />
-            <el-option label="已结束" value="closed" />
-            <el-option label="已取消" value="cancelled" />
+            <el-option label="报名中" value="published" />
+            <el-option label="已截止" value="closed" />
+            <el-option label="已完成" value="completed" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -33,7 +32,11 @@
         class="activity-table"
       >
         <el-table-column prop="title" label="活动名称" min-width="180" />
-        <el-table-column prop="organizer" label="组织者" width="120" />
+        <el-table-column label="组织者" width="120">
+          <template #default="{ row }">
+            {{ row.organizer?.organizerName || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="活动时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.startTime) }}
@@ -74,7 +77,7 @@
       <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
+          v-model:page-size="pagination.limit"
           :page-sizes="[10, 20, 50]"
           :total="activityStore.total"
           layout="total, sizes, prev, pager, next, jumper"
@@ -102,23 +105,21 @@ const searchForm = reactive({
 
 const pagination = reactive({
   page: 1,
-  pageSize: 10
+  limit: 10
 })
 
 const statusMap: Record<string, string> = {
   draft: '草稿',
-  open: '报名中',
-  ongoing: '进行中',
-  closed: '已结束',
-  cancelled: '已取消'
+  published: '报名中',
+  closed: '已截止',
+  completed: '已完成'
 }
 
 const statusTagTypeMap: Record<string, 'info' | 'success' | 'warning' | 'danger' | ''> = {
   draft: 'info',
-  open: 'success',
-  ongoing: 'warning',
-  closed: '',
-  cancelled: 'danger'
+  published: 'success',
+  closed: 'warning',
+  completed: ''
 }
 
 const statusLabel = (status: string) => statusMap[status] || status
@@ -134,7 +135,7 @@ const handleSearch = () => {
     keyword: searchForm.keyword || undefined,
     status: searchForm.status || undefined,
     page: pagination.page,
-    pageSize: pagination.pageSize
+    limit: pagination.limit
   })
 }
 

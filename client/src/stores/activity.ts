@@ -8,7 +8,11 @@ import {
   registerActivity,
   cancelRegistration,
   type Activity,
-  type ActivityListParams
+  type ActivityListParams,
+  type CreateActivityData,
+  type UpdateActivityData,
+  type RegisterData,
+  type CancelRegistrationData
 } from '../api/activity'
 
 export const useActivityStore = defineStore('activity', () => {
@@ -17,12 +21,18 @@ export const useActivityStore = defineStore('activity', () => {
   const total = ref(0)
   const loading = ref(false)
 
+  const currentUserId = 'demo-user-001'
+  const currentUserName = '演示用户'
+
   const fetchList = async (params?: ActivityListParams) => {
     loading.value = true
     try {
-      const res: any = await getActivities(params)
-      list.value = res.data?.items || res.items || []
-      total.value = res.data?.total || res.total || 0
+      const res: any = await getActivities({
+        userId: currentUserId,
+        ...params
+      })
+      list.value = res.data || []
+      total.value = res.total || 0
     } finally {
       loading.value = false
     }
@@ -31,31 +41,38 @@ export const useActivityStore = defineStore('activity', () => {
   const fetchDetail = async (id: string) => {
     loading.value = true
     try {
-      const res: any = await getActivity(id)
-      current.value = res.data || res
+      const res: any = await getActivity(id, currentUserId)
+      current.value = res
     } finally {
       loading.value = false
     }
   }
 
-  const create = async (data: Partial<Activity>) => {
+  const create = async (data: CreateActivityData) => {
     const res: any = await createActivity(data)
-    return res.data || res
+    return res
   }
 
-  const update = async (id: string, data: Partial<Activity>) => {
+  const update = async (id: string, data: UpdateActivityData) => {
     const res: any = await updateActivity(id, data)
-    return res.data || res
+    return res
   }
 
   const register = async (id: string) => {
-    const res: any = await registerActivity(id)
-    return res.data || res
+    const data: RegisterData = {
+      userId: currentUserId,
+      userName: currentUserName
+    }
+    const res: any = await registerActivity(id, data)
+    return res
   }
 
   const cancelRegister = async (id: string) => {
-    const res: any = await cancelRegistration(id)
-    return res.data || res
+    const data: CancelRegistrationData = {
+      userId: currentUserId
+    }
+    const res: any = await cancelRegistration(id, data)
+    return res
   }
 
   return {
@@ -63,6 +80,8 @@ export const useActivityStore = defineStore('activity', () => {
     current,
     total,
     loading,
+    currentUserId,
+    currentUserName,
     fetchList,
     fetchDetail,
     create,

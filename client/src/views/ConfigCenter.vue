@@ -2,9 +2,9 @@
   <div class="config-center">
     <el-card shadow="never">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="通知回执" name="通知回执" />
-        <el-tab-pane label="社团活动" name="社团活动" />
-        <el-tab-pane label="二手交易" name="二手交易" />
+        <el-tab-pane label="通知回执" name="notification_receipt" />
+        <el-tab-pane label="社团活动" name="club_activity" />
+        <el-tab-pane label="二手交易" name="secondhand_trade" />
       </el-tabs>
 
       <div class="tab-actions">
@@ -17,7 +17,11 @@
         <el-table-column prop="key" label="配置键" min-width="160" />
         <el-table-column prop="value" label="配置值" min-width="200" show-overflow-tooltip />
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="updatedBy" label="最后修改人" width="140" />
+        <el-table-column label="最后修改人" width="140">
+          <template #default="{ row }">
+            {{ row.updatedBy?.userName || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="更新时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.updatedAt) }}
@@ -29,39 +33,6 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50]"
-          :total="configStore.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchData"
-          @current-change="fetchData"
-        />
-      </div>
-    </el-card>
-
-    <el-card shadow="never" class="log-card">
-      <template #header>
-        <span>操作日志</span>
-      </template>
-      <el-timeline>
-        <el-timeline-item
-          v-for="log in operationLogs"
-          :key="log._id"
-          :timestamp="formatDate(log.createdAt)"
-          placement="top"
-        >
-          <el-card shadow="never" class="log-item">
-            <p class="log-operator">操作人：{{ log.operator }}</p>
-            <p class="log-action">{{ log.action }}</p>
-            <p class="log-detail">{{ log.detail }}</p>
-          </el-card>
-        </el-timeline-item>
-      </el-timeline>
-      <el-empty v-if="operationLogs.length === 0" description="暂无操作日志" />
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑配置' : '新增配置'" width="520">
@@ -92,9 +63,7 @@ import { useConfigStore } from '../stores/config'
 
 const configStore = useConfigStore()
 
-const activeTab = ref('通知回执')
-const pagination = reactive({ page: 1, pageSize: 10 })
-
+const activeTab = ref('notification_receipt')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref('')
@@ -104,8 +73,6 @@ const dialogForm = reactive({
   description: ''
 })
 
-const operationLogs = ref<any[]>([])
-
 const formatDate = (dateStr: string) => {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleString('zh-CN')
@@ -113,14 +80,11 @@ const formatDate = (dateStr: string) => {
 
 const fetchData = () => {
   configStore.fetchList({
-    category: activeTab.value,
-    page: pagination.page,
-    pageSize: pagination.pageSize
+    type: activeTab.value
   })
 }
 
 const handleTabChange = () => {
-  pagination.page = 1
   fetchData()
 }
 
@@ -138,7 +102,7 @@ const openEditDialog = (row: any) => {
   editId.value = row._id
   dialogForm.key = row.key
   dialogForm.value = row.value
-  dialogForm.description = row.description
+  dialogForm.description = row.description || ''
   dialogVisible.value = true
 }
 
@@ -150,14 +114,13 @@ const submitDialog = async () => {
   try {
     if (isEdit.value) {
       await configStore.update(editId.value, {
-        key: dialogForm.key,
         value: dialogForm.value,
         description: dialogForm.description
       })
       ElMessage.success('配置已更新')
     } else {
       await configStore.create({
-        category: activeTab.value as any,
+        type: activeTab.value,
         key: dialogForm.key,
         value: dialogForm.value,
         description: dialogForm.description
@@ -185,41 +148,5 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 16px;
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.log-card {
-  margin-top: 8px;
-}
-
-.log-item {
-  padding: 0;
-}
-
-.log-item :deep(.el-card__body) {
-  padding: 12px 16px;
-}
-
-.log-operator {
-  font-weight: 600;
-  margin: 0 0 4px 0;
-  font-size: 14px;
-}
-
-.log-action {
-  margin: 0 0 4px 0;
-  color: #409eff;
-  font-size: 13px;
-}
-
-.log-detail {
-  margin: 0;
-  color: #606266;
-  font-size: 13px;
 }
 </style>

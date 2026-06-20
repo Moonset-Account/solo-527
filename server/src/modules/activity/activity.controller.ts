@@ -17,8 +17,8 @@ export class ActivityController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.activityService.findOne(id);
+  findOne(@Param('id') id: string, @Query('userId') userId?: string) {
+    return this.activityService.findOne(id, userId);
   }
 
   @Patch(':id')

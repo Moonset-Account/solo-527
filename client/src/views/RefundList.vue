@@ -26,7 +26,7 @@
 
     <el-card shadow="never" class="table-card">
       <el-table :data="refundStore.list" v-loading="refundStore.loading" stripe style="width: 100%">
-        <el-table-column prop="activityTitle" label="活动名称" min-width="160" />
+        <el-table-column prop="activityId" label="活动ID" width="180" show-overflow-tooltip />
         <el-table-column prop="userName" label="申请人" width="120" />
         <el-table-column label="退款金额" width="120" align="right">
           <template #default="{ row }">
@@ -41,7 +41,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="处理说明" prop="processNote" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="reviewedBy" label="审核人" width="120">
+          <template #default="{ row }">
+            {{ row.reviewedBy || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
@@ -64,7 +68,7 @@
       <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
+          v-model:page-size="pagination.limit"
           :page-sizes="[10, 20, 50]"
           :total="refundStore.total"
           layout="total, sizes, prev, pager, next, jumper"
@@ -75,9 +79,15 @@
     </el-card>
 
     <el-dialog v-model="createDialogVisible" title="申请退款" width="520">
-      <el-form :model="createForm" label-width="80px">
-        <el-form-item label="活动名称">
-          <el-input v-model="createForm.activityTitle" placeholder="请输入活动名称" />
+      <el-form :model="createForm" label-width="100px">
+        <el-form-item label="报名ID">
+          <el-input v-model="createForm.registrationId" placeholder="请输入报名记录ID" />
+        </el-form-item>
+        <el-form-item label="活动ID">
+          <el-input v-model="createForm.activityId" placeholder="请输入活动ID" />
+        </el-form-item>
+        <el-form-item label="申请人姓名">
+          <el-input v-model="createForm.userName" placeholder="请输入申请人姓名" />
         </el-form-item>
         <el-form-item label="退款金额">
           <el-input-number v-model="createForm.amount" :min="0" :precision="2" />
@@ -92,18 +102,6 @@
         <el-button type="primary" @click="submitCreate">提交</el-button>
       </template>
     </el-dialog>
-
-    <el-dialog v-model="processDialogVisible" :title="processTitle" width="480">
-      <el-form :model="processForm" label-width="80px">
-        <el-form-item label="处理说明">
-          <el-input v-model="processForm.processNote" type="textarea" :rows="3" placeholder="请输入处理说明" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="processDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitProcess">确认</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -112,24 +110,22 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { useRefundStore } from '../stores/refund'
+import { useActivityStore } from '../stores/activity'
 
 const refundStore = useRefundStore()
+const activityStore = useActivityStore()
 
 const searchForm = reactive({ status: '' })
-const pagination = reactive({ page: 1, pageSize: 10 })
+const pagination = reactive({ page: 1, limit: 10 })
 
 const createDialogVisible = ref(false)
 const createForm = reactive({
-  activityTitle: '',
+  registrationId: '',
+  activityId: '',
+  userName: '',
   amount: 0,
   reason: ''
 })
-
-const processDialogVisible = ref(false)
-const processTitle = ref('')
-const processAction = ref<'approved' | 'rejected' | 'processed'>('approved')
-const processForm = reactive({ processNote: '' })
-const currentRefundId = ref('')
 
 const statusMap: Record<string, string> = {
   pending: '待审核',
@@ -163,7 +159,7 @@ const handleSearch = () => {
   refundStore.fetchList({
     status: searchForm.status || undefined,
     page: pagination.page,
-    pageSize: pagination.pageSize
+    limit: pagination.limit
   })
 }
 
@@ -174,19 +170,40 @@ const handleReset = () => {
 }
 
 const openCreateDialog = () => {
-  createForm.activityTitle = ''
+  createForm.registrationId = ''
+  createForm.activityId = ''
+  createForm.userName = ''
   createForm.amount = 0
   createForm.reason = ''
   createDialogVisible.value = true
 }
 
 const submitCreate = async () => {
+  if (!createForm.registrationId) {
+    ElMessage.warning('请输入报名记录ID')
+    return
+  }
+  if (!createForm.activityId) {
+    ElMessage.warning('请输入活动ID')
+    return
+  }
+  if (!createForm.userName) {
+    ElMessage.warning('请输入申请人姓名')
+    return
+  }
   if (!createForm.reason) {
     ElMessage.warning('请输入退款原因')
     return
   }
   try {
-    await refundStore.create(createForm)
+    await refundStore.create({
+      registrationId: createForm.registrationId,
+      activityId: createForm.activityId,
+      userId: activityStore.currentUserId,
+      userName: createForm.userName,
+      amount: createForm.amount,
+      reason: createForm.reason
+    })
     ElMessage.success('退款申请已提交')
     createDialogVisible.value = false
     handleSearch()
@@ -194,21 +211,16 @@ const submitCreate = async () => {
 }
 
 const handleAction = (row: any, action: 'approved' | 'rejected' | 'processed') => {
-  currentRefundId.value = row._id
-  processAction.value = action
-  processTitle.value = actionTitleMap[action]
-  processForm.processNote = ''
-  processDialogVisible.value = true
+  submitUpdate(row._id, action)
 }
 
-const submitProcess = async () => {
+const submitUpdate = async (id: string, status: string) => {
   try {
-    await refundStore.update(currentRefundId.value, {
-      status: processAction.value,
-      processNote: processForm.processNote
+    await refundStore.update(id, {
+      status,
+      reviewedBy: activityStore.currentUserName
     })
     ElMessage.success('处理成功')
-    processDialogVisible.value = false
     handleSearch()
   } catch {}
 }

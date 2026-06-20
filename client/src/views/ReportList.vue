@@ -5,6 +5,7 @@
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部状态" clearable>
             <el-option label="待处理" value="pending" />
+            <el-option label="处理中" value="reviewing" />
             <el-option label="已解决" value="resolved" />
             <el-option label="已驳回" value="rejected" />
           </el-select>
@@ -25,10 +26,10 @@
 
     <el-card shadow="never" class="table-card">
       <el-table :data="reportStore.list" v-loading="reportStore.loading" stripe style="width: 100%">
-        <el-table-column prop="activityTitle" label="活动名称" min-width="160" />
+        <el-table-column prop="activityId" label="活动ID" width="180" show-overflow-tooltip />
         <el-table-column prop="reporterName" label="举报人" width="120" />
-        <el-table-column prop="reason" label="举报原因" min-width="150" />
-        <el-table-column prop="description" label="详细描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="targetName" label="被举报人" width="120" />
+        <el-table-column prop="reason" label="举报原因" min-width="200" show-overflow-tooltip />
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="reportStatusTagType(row.status)" size="small">
@@ -36,7 +37,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="处理说明" prop="resolveNote" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="resolvedBy" label="处理人" width="120">
+          <template #default="{ row }">
+            {{ row.resolvedBy || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
@@ -44,7 +49,7 @@
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <template v-if="row.status === 'pending'">
+            <template v-if="row.status === 'pending' || row.status === 'reviewing'">
               <el-button type="success" size="small" @click="handleResolve(row)">解决</el-button>
               <el-button type="danger" size="small" @click="handleReject(row)">驳回</el-button>
             </template>
@@ -56,7 +61,7 @@
       <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
+          v-model:page-size="pagination.limit"
           :page-sizes="[10, 20, 50]"
           :total="reportStore.total"
           layout="total, sizes, prev, pager, next, jumper"
@@ -67,32 +72,23 @@
     </el-card>
 
     <el-dialog v-model="createDialogVisible" title="新建举报" width="520">
-      <el-form :model="createForm" label-width="80px">
-        <el-form-item label="活动名称">
-          <el-input v-model="createForm.activityTitle" placeholder="请输入活动名称" />
+      <el-form :model="createForm" label-width="100px">
+        <el-form-item label="活动ID">
+          <el-input v-model="createForm.activityId" placeholder="请输入活动ID" />
+        </el-form-item>
+        <el-form-item label="被举报人ID">
+          <el-input v-model="createForm.targetId" placeholder="请输入被举报人ID" />
+        </el-form-item>
+        <el-form-item label="被举报人姓名">
+          <el-input v-model="createForm.targetName" placeholder="请输入被举报人姓名" />
         </el-form-item>
         <el-form-item label="举报原因">
-          <el-input v-model="createForm.reason" placeholder="请输入举报原因" />
-        </el-form-item>
-        <el-form-item label="详细描述">
-          <el-input v-model="createForm.description" type="textarea" :rows="4" placeholder="请详细描述举报内容" />
+          <el-input v-model="createForm.reason" type="textarea" :rows="4" placeholder="请输入举报原因" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitCreate">提交</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="processDialogVisible" :title="processTitle" width="480">
-      <el-form :model="processForm" label-width="80px">
-        <el-form-item label="处理说明">
-          <el-input v-model="processForm.resolveNote" type="textarea" :rows="3" placeholder="请输入处理说明" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="processDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitProcess">确认</el-button>
       </template>
     </el-dialog>
   </div>
@@ -103,33 +99,32 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { useReportStore } from '../stores/report'
+import { useActivityStore } from '../stores/activity'
 
 const reportStore = useReportStore()
+const activityStore = useActivityStore()
 
 const searchForm = reactive({ status: '' })
-const pagination = reactive({ page: 1, pageSize: 10 })
+const pagination = reactive({ page: 1, limit: 10 })
 
 const createDialogVisible = ref(false)
 const createForm = reactive({
-  activityTitle: '',
-  reason: '',
-  description: ''
+  activityId: '',
+  targetId: '',
+  targetName: '',
+  reason: ''
 })
-
-const processDialogVisible = ref(false)
-const processTitle = ref('')
-const processAction = ref<'resolved' | 'rejected'>('resolved')
-const processForm = reactive({ resolveNote: '' })
-const currentReportId = ref('')
 
 const statusMap: Record<string, string> = {
   pending: '待处理',
+  reviewing: '处理中',
   resolved: '已解决',
   rejected: '已驳回'
 }
 
-const tagTypeMap: Record<string, 'warning' | 'success' | 'danger'> = {
+const tagTypeMap: Record<string, 'warning' | 'primary' | 'success' | 'danger'> = {
   pending: 'warning',
+  reviewing: 'primary',
   resolved: 'success',
   rejected: 'danger'
 }
@@ -146,7 +141,7 @@ const handleSearch = () => {
   reportStore.fetchList({
     status: searchForm.status || undefined,
     page: pagination.page,
-    pageSize: pagination.pageSize
+    limit: pagination.limit
   })
 }
 
@@ -157,19 +152,35 @@ const handleReset = () => {
 }
 
 const openCreateDialog = () => {
-  createForm.activityTitle = ''
+  createForm.activityId = ''
+  createForm.targetId = ''
+  createForm.targetName = ''
   createForm.reason = ''
-  createForm.description = ''
   createDialogVisible.value = true
 }
 
 const submitCreate = async () => {
+  if (!createForm.activityId) {
+    ElMessage.warning('请输入活动ID')
+    return
+  }
+  if (!createForm.targetName) {
+    ElMessage.warning('请输入被举报人姓名')
+    return
+  }
   if (!createForm.reason) {
     ElMessage.warning('请输入举报原因')
     return
   }
   try {
-    await reportStore.create(createForm)
+    await reportStore.create({
+      activityId: createForm.activityId,
+      reporterId: activityStore.currentUserId,
+      reporterName: activityStore.currentUserName,
+      targetId: createForm.targetId || createForm.targetName,
+      targetName: createForm.targetName,
+      reason: createForm.reason
+    })
     ElMessage.success('举报已提交')
     createDialogVisible.value = false
     handleSearch()
@@ -177,29 +188,20 @@ const submitCreate = async () => {
 }
 
 const handleResolve = (row: any) => {
-  currentReportId.value = row._id
-  processTitle.value = '解决举报'
-  processAction.value = 'resolved'
-  processForm.resolveNote = ''
-  processDialogVisible.value = true
+  submitUpdate(row._id, 'resolved')
 }
 
 const handleReject = (row: any) => {
-  currentReportId.value = row._id
-  processTitle.value = '驳回举报'
-  processAction.value = 'rejected'
-  processForm.resolveNote = ''
-  processDialogVisible.value = true
+  submitUpdate(row._id, 'rejected')
 }
 
-const submitProcess = async () => {
+const submitUpdate = async (id: string, status: string) => {
   try {
-    await reportStore.update(currentReportId.value, {
-      status: processAction.value,
-      resolveNote: processForm.resolveNote
+    await reportStore.update(id, {
+      status,
+      resolvedBy: activityStore.currentUserName
     })
     ElMessage.success('处理成功')
-    processDialogVisible.value = false
     handleSearch()
   } catch {}
 }
