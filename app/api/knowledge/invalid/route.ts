@@ -9,12 +9,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = invalidKnowledgeSchema.parse(body);
 
+    const defaultUserId = '00000000-0000-0000-0000-000000000001';
+
     const updated = await prisma.knowledge.update({
       where: { id: data.knowledgeId },
       data: {
         status: 'INVALID',
         invalidNote: data.invalidNote,
         invalidResult: data.invalidResult,
+        processedBy: defaultUserId,
+        processedAt: new Date(),
       },
     });
 

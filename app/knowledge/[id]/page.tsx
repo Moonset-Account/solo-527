@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, BookOpen, FileText, Tag, Eye, ThumbsUp, ThumbsDown, Clock, User, AlertTriangle, CheckCircle, Star, MessageSquare, TrendingUp, Share2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, BookOpen, FileText, Tag, Eye, ThumbsUp, Clock, User, AlertTriangle, CheckCircle, Star, MessageSquare, Share2, Loader2, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,107 +23,154 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-const mockKnowledgeDetail = {
-  id: '1',
-  title: '如何处理7天无理由退换货申请',
-  content: `当客户提交7天无理由退换货申请时，请按以下流程处理：
+interface KnowledgeDetail {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  type: string;
+  status: string;
+  viewCount: number;
+  usefulCount: number;
+  version: number;
+  invalidNote: string | null;
+  invalidResult: string | null;
+  processedBy: string | null;
+  processedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  creator?: { id: string; name: string; email: string };
+  satisfactions?: {
+    id: string;
+    score: number;
+    feedback: string | null;
+    keywords: string[];
+    createdAt: string;
+  }[];
+  hits?: { id: string; matchScore: number; ticketId: string; createdAt: string }[];
+}
 
-## 一、申请审核阶段
+interface SatisfactionStats {
+  stats: {
+    avgScore: number;
+    totalCount: number;
+    distribution: { score: number; count: number }[];
+  };
+  list: {
+    id: string;
+    score: number;
+    feedback: string | null;
+    keywords: string[];
+    createdAt: string;
+    knowledge?: { id: string; title: string };
+  }[];
+}
 
-1. **核实有效期**：首先确认客户签收时间是否在7天内。计算方式：从物流签收次日零时开始计算，168小时（7×24小时）内。
-2. **检查商品状态**：
-   - 商品是否完好，是否影响二次销售
-   - 包装是否完整（包括原包装、吊牌、配件等）
-   - 是否有使用痕迹、污渍、损坏
-3. **确认退款金额**：
-   - 全额退款：商品完好，不影响二次销售
-   - 部分退款：商品有轻微使用痕迹但不影响价值，按比例退款
-   - 不予退款：商品严重损坏，影响二次销售
+interface RelatedKnowledge {
+  id: string;
+  title: string;
+  category: string;
+  type: string;
+  status: string;
+}
 
-## 二、运费承担规则
+async function fetchKnowledgeDetail(id: string): Promise<KnowledgeDetail> {
+  const response = await fetch(`/api/knowledge/${id}`);
+  if (!response.ok) {
+    throw new Error('获取知识详情失败');
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || '获取知识详情失败');
+  }
+  return result.data;
+}
 
-| 责任方 | 运费承担 | 备注 |
-|--------|----------|------|
-| 客户原因（不喜欢、尺码不合适等） | 客户承担 | 建议购买运费险 |
-| 商家原因（发错货、质量问题等） | 商家承担 | 客户先行垫付后凭票报销 |
-| 商品质量问题 | 商家承担 | 需提供质量问题照片 |
+async function fetchSatisfactionStats(knowledgeId: string): Promise<SatisfactionStats> {
+  const response = await fetch(`/api/satisfaction?knowledgeId=${knowledgeId}`);
+  if (!response.ok) {
+    throw new Error('获取满意度统计失败');
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || '获取满意度统计失败');
+  }
+  return result.data;
+}
 
-## 三、退换货流程
-
-1. 客服审核通过后，发送退换货地址给客户
-2. 提醒客户在包裹内放置订单号纸条
-3. 客户寄出后，索要快递单号并录入系统
-4. 仓库收到退货后48小时内完成验收
-5. 验收通过后，财务在24小时内完成退款
-
-## 四、特殊商品说明
-
-以下商品不支持7天无理由退换货：
-- 定制类商品（刻字、个性化设计等）
-- 贴身衣物（内衣、袜子、泳衣等）
-- 虚拟商品（充值卡、电子券等）
-- 一经激活或者试用后价值贬损较大的商品
-
-## 五、常见问题处理
-
-**Q：客户坚持要求退不支持的商品怎么办？**
-A：先耐心解释规则，如客户仍不满意，可升级主管处理，特殊情况可酌情考虑。
-
-**Q：超过7天但只差几小时怎么办？**
-A：原则上按规则执行，但可根据客户情况酌情放宽，最多不超过24小时。
-
-**Q：退款多久到账？**
-A：支付宝1-2个工作日，微信3-5个工作日，银行卡5-7个工作日。`,
-  category: '退换货',
-  tags: ['7天无理由', '退款流程', '运费', '售后政策'],
-  type: 'ANSWER',
-  status: 'ACTIVE',
-  viewCount: 2341,
-  usefulCount: 189,
-  notUsefulCount: 23,
-  version: 3,
-  createdBy: '张三',
-  createdAt: '2024-01-15T10:30:00Z',
-  updatedAt: '2024-03-20T14:15:00Z',
-  changeLog: [
-    { version: 3, date: '2024-03-20', content: '新增特殊商品说明章节，更新退款到账时间' },
-    { version: 2, date: '2024-02-15', content: '补充运费承担规则表格，优化常见问题解答' },
-    { version: 1, date: '2024-01-15', content: '初始版本创建' },
-  ],
-};
-
-const satisfactionData = [
-  { name: '非常满意', count: 156, color: '#10b981' },
-  { name: '满意', count: 87, color: '#6366f1' },
-  { name: '一般', count: 34, color: '#f59e0b' },
-  { name: '不满意', count: 12, color: '#ef4444' },
-  { name: '非常不满意', count: 5, color: '#991b1b' },
-];
-
-const relatedKnowledge = [
-  { id: '2', title: '商品质量问题处理完整教程', type: 'TUTORIAL', matchScore: 92 },
-  { id: '3', title: '物流异常处理指南', type: 'ANSWER', matchScore: 78 },
-  { id: '4', title: '客户投诉处理标准化流程', type: 'TUTORIAL', matchScore: 65 },
-];
-
-const feedbackList = [
-  { id: 1, user: '客服小明', score: 5, comment: '步骤很清晰，按照这个处理了一个客户的退款，很顺利！', date: '2024-03-20' },
-  { id: 2, user: '客服小红', score: 4, comment: '内容很详细，希望能增加更多特殊情况的案例。', date: '2024-03-18' },
-  { id: 3, user: '客服小李', score: 5, comment: '表格整理得很好，查运费规则很方便。', date: '2024-03-15' },
-];
+async function fetchRelatedKnowledge(category: string, currentId: string): Promise<RelatedKnowledge[]> {
+  const response = await fetch(`/api/knowledge/search?category=${category}&pageSize=5`);
+  if (!response.ok) {
+    return [];
+  }
+  const result = await response.json();
+  if (!result.success) {
+    return [];
+  }
+  return (result.data.list || []).filter((item: RelatedKnowledge) => item.id !== currentId).slice(0, 3);
+}
 
 export default function KnowledgeDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState('');
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const knowledgeId = params.id as string;
 
-  const knowledge = mockKnowledgeDetail;
-  const avgScore = 4.7;
-  const totalFeedbacks = 294;
+  const { data: knowledge, isLoading: knowledgeLoading, error: knowledgeError } = useQuery({
+    queryKey: ['knowledge-detail', knowledgeId],
+    queryFn: () => fetchKnowledgeDetail(knowledgeId),
+  });
+
+  const { data: satisfactionData, isLoading: satisfactionLoading } = useQuery({
+    queryKey: ['satisfaction-knowledge', knowledgeId],
+    queryFn: () => fetchSatisfactionStats(knowledgeId),
+    enabled: !!knowledgeId,
+  });
+
+  const { data: relatedKnowledge } = useQuery({
+    queryKey: ['related-knowledge', knowledge?.category, knowledgeId],
+    queryFn: () => fetchRelatedKnowledge(knowledge?.category || '', knowledgeId),
+    enabled: !!knowledge?.category,
+  });
+
+  const satisfactionDistribution = useMemo(() => {
+    if (!satisfactionData?.stats?.distribution) return [];
+    const labels: Record<number, string> = {
+      1: '非常不满意',
+      2: '不满意',
+      3: '一般',
+      4: '满意',
+      5: '非常满意',
+    };
+    return satisfactionData.stats.distribution
+      .sort((a, b) => a.score - b.score)
+      .map(d => ({
+        name: labels[d.score] || `${d.score}星`,
+        count: d.count,
+      }));
+  }, [satisfactionData]);
+
+  const feedbackList = useMemo(() => {
+    if (!satisfactionData?.list) return [];
+    return satisfactionData.list.slice(0, 5).map(item => ({
+      id: item.id,
+      user: '用户评价',
+      score: item.score,
+      comment: item.feedback || '（无文字评价）',
+      date: item.createdAt,
+    }));
+  }, [satisfactionData]);
+
+  const avgScore = satisfactionData?.stats?.avgScore ? satisfactionData.stats.avgScore.toFixed(1) : '0.0';
+  const totalFeedbacks = satisfactionData?.stats?.totalCount || 0;
+  const creatorName = knowledge?.creator?.name || knowledge?.createdBy || '未知';
 
   const submitFeedbackMutation = useMutation({
     mutationFn: async () => {
@@ -139,7 +186,7 @@ export default function KnowledgeDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          knowledgeId: params.id as string,
+          knowledgeId,
           ticketId: 'TK000000',
           score: userRating,
           feedback: feedback || undefined,
@@ -158,6 +205,8 @@ export default function KnowledgeDetailPage() {
         type: 'success',
         message: '感谢您的评价！您的反馈将帮助我们不断改进知识库质量。',
       });
+      queryClient.invalidateQueries({ queryKey: ['satisfaction-knowledge', knowledgeId] });
+      queryClient.invalidateQueries({ queryKey: ['satisfaction-stats'] });
       setTimeout(() => {
         setIsFeedbackSubmitted(false);
         setFeedback('');
@@ -177,6 +226,37 @@ export default function KnowledgeDetailPage() {
   const handleSubmitFeedback = () => {
     submitFeedbackMutation.mutate();
   };
+
+  if (knowledgeLoading) {
+    return (
+      <PageWrapper title="知识详情" description="查看知识内容并提交满意度评价">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <span className="ml-3 text-slate-600">加载中...</span>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  if (knowledgeError || !knowledge) {
+    return (
+      <PageWrapper title="知识详情" description="查看知识内容并提交满意度评价">
+        <Card className="text-center py-12">
+          <CardContent>
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-slate-700 font-medium">加载失败</p>
+            <p className="text-sm text-slate-500 mt-1">
+              {(knowledgeError as Error)?.message || '知识不存在或已被删除'}
+            </p>
+            <Button variant="outline" className="mt-4 gap-2" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4" />
+              返回列表
+            </Button>
+          </CardContent>
+        </Card>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper title="知识详情" description="查看知识内容并提交满意度评价">
@@ -236,7 +316,7 @@ export default function KnowledgeDetailPage() {
                 <CardDescription className="flex items-center gap-4 flex-wrap">
                   <span className="flex items-center gap-1">
                     <User className="h-4 w-4" />
-                    {knowledge.createdBy}
+                    {creatorName}
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
@@ -293,10 +373,6 @@ export default function KnowledgeDetailPage() {
                       <ThumbsUp className="h-4 w-4" />
                       有帮助 ({knowledge.usefulCount})
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <ThumbsDown className="h-4 w-4" />
-                      没帮助 ({knowledge.notUsefulCount})
-                    </Button>
                   </div>
                 </div>
               </CardFooter>
@@ -313,12 +389,17 @@ export default function KnowledgeDetailPage() {
                 <CardContent className="space-y-3">
                   <div>
                     <Label className="text-sm font-medium text-slate-700">失效备注</Label>
-                    <p className="text-slate-600 mt-1">会员体系已全面升级，此文档已不适用</p>
+                    <p className="text-slate-600 mt-1">{knowledge.invalidNote || '暂无'}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-slate-700">处理结果</Label>
-                    <p className="text-slate-600 mt-1">已创建新版会员体系文档，建议参考新版内容</p>
+                    <p className="text-slate-600 mt-1">{knowledge.invalidResult || '暂无'}</p>
                   </div>
+                  {(knowledge.processedBy || knowledge.processedAt) && (
+                    <div className="text-sm text-slate-500 pt-2 border-t border-red-200">
+                      由 {knowledge.processedBy || '未知'} 于 {formatDate(knowledge.processedAt)} 处理
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -334,33 +415,40 @@ export default function KnowledgeDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between gap-8">
-                  <div className="flex-1">
-                    <div className="h-48">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={satisfactionData} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                          <XAxis type="number" />
-                          <YAxis dataKey="name" type="category" width={80} fontSize={12} />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                {satisfactionLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                    <span className="ml-2 text-slate-600 text-sm">加载中...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-8">
+                    <div className="flex-1">
+                      <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={satisfactionDistribution} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                            <XAxis type="number" />
+                            <YAxis dataKey="name" type="category" width={80} fontSize={12} />
+                            <Tooltip />
+                            <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-slate-900">{avgScore}</div>
+                      <div className="flex items-center justify-center mt-2">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star
+                            key={star}
+                            className={`h-5 w-5 ${star <= Math.round(parseFloat(avgScore)) ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-slate-500 mt-2">{totalFeedbacks} 条评价</p>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-slate-900">{avgScore}</div>
-                    <div className="flex items-center justify-center mt-2">
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <Star
-                          key={star}
-                          className={`h-5 w-5 ${star <= Math.round(avgScore) ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-sm text-slate-500 mt-2">{totalFeedbacks} 条评价</p>
-                  </div>
-                </div>
+                )}
 
                 <Separator />
 
@@ -422,63 +510,37 @@ export default function KnowledgeDetailPage() {
 
                 <div className="space-y-4">
                   <h4 className="font-medium text-slate-700">用户评价</h4>
-                  {feedbackList.map(item => (
-                    <div key={item.id} className="bg-slate-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-medium text-sm">
-                            {item.user.charAt(0)}
-                          </div>
-                          <span className="font-medium text-slate-700">{item.user}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map(star => (
-                              <Star
-                                key={star}
-                                className={`h-4 w-4 ${star <= item.score ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-xs text-slate-400">{item.date}</span>
-                        </div>
-                      </div>
-                      <p className="text-slate-600 text-sm">{item.comment}</p>
+                  {feedbackList.length === 0 ? (
+                    <div className="py-6 text-center">
+                      <MessageSquare className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-500 text-sm">暂无评价，快来第一个评价吧！</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-indigo-600" />
-                  版本历史
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {knowledge.changeLog.map((log, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-indigo-600' : 'bg-slate-300'}`} />
-                        {index < knowledge.changeLog.length - 1 && (
-                          <div className="w-0.5 flex-1 bg-slate-200 mt-1" />
-                        )}
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-slate-800">v{log.version}</span>
-                          <span className="text-sm text-slate-500">{log.date}</span>
-                          {index === 0 && (
-                            <Badge variant="info" className="text-xs">当前版本</Badge>
-                          )}
+                  ) : (
+                    feedbackList.map(item => (
+                      <div key={item.id} className="bg-slate-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-medium text-sm">
+                              {item.user.charAt(0)}
+                            </div>
+                            <span className="font-medium text-slate-700">{item.user}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <Star
+                                  key={star}
+                                  className={`h-4 w-4 ${star <= item.score ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs text-slate-400">{formatDate(item.date)}</span>
+                          </div>
                         </div>
-                        <p className="text-sm text-slate-600">{log.content}</p>
+                        <p className="text-slate-600 text-sm">{item.comment}</p>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -490,27 +552,33 @@ export default function KnowledgeDetailPage() {
                 <CardTitle className="text-base">相关知识推荐</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {relatedKnowledge.map(item => (
-                  <Link key={item.id} href={`/knowledge/${item.id}`}>
-                    <div className="p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer group">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {item.type === 'ANSWER' ? (
-                              <FileText className="h-3 w-3 text-blue-500" />
-                            ) : (
-                              <BookOpen className="h-3 w-3 text-amber-500" />
-                            )}
-                            <span className="text-xs text-slate-400">{item.matchScore}% 匹配</span>
+                {!relatedKnowledge || relatedKnowledge.length === 0 ? (
+                  <div className="py-4 text-center">
+                    <BookOpen className="h-6 w-6 text-slate-300 mx-auto mb-1" />
+                    <p className="text-slate-500 text-xs">暂无相关知识</p>
+                  </div>
+                ) : (
+                  relatedKnowledge.map(item => (
+                    <Link key={item.id} href={`/knowledge/${item.id}`}>
+                      <div className="p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {item.type === 'ANSWER' ? (
+                                <FileText className="h-3 w-3 text-blue-500" />
+                              ) : (
+                                <BookOpen className="h-3 w-3 text-amber-500" />
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-700 group-hover:text-indigo-600 transition-colors">
+                              {truncateText(item.title, 40)}
+                            </p>
                           </div>
-                          <p className="text-sm text-slate-700 group-hover:text-indigo-600 transition-colors">
-                            {truncateText(item.title, 40)}
-                          </p>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))
+                )}
               </CardContent>
             </Card>
 
@@ -530,20 +598,18 @@ export default function KnowledgeDetailPage() {
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">没帮助</span>
-                  <span className="font-semibold text-red-600">{knowledge.notUsefulCount}</span>
+                  <span className="text-slate-600">用户评价</span>
+                  <span className="font-semibold text-indigo-600">{totalFeedbacks} 条</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">有用率</span>
-                  <span className="font-semibold text-indigo-600">
-                    {Math.round((knowledge.usefulCount / (knowledge.usefulCount + knowledge.notUsefulCount)) * 100)}%
-                  </span>
+                  <span className="text-slate-600">平均评分</span>
+                  <span className="font-semibold text-amber-600">{avgScore}</span>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600">关联工单</span>
-                  <span className="font-semibold text-slate-900">156 单</span>
+                  <span className="text-slate-600">当前版本</span>
+                  <span className="font-semibold text-slate-900">v{knowledge.version}</span>
                 </div>
               </CardContent>
             </Card>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Clock, User, Eye, CheckCircle, XCircle, Star, TrendingUp, MessageSquare, Search, Filter, Download, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,156 +30,6 @@ import {
   Cell,
 } from 'recharts';
 
-const mockInvalidKnowledge = [
-  {
-    id: '5',
-    title: '优惠券使用规则说明',
-    category: '促销活动',
-    type: 'ANSWER',
-    status: 'PENDING_INVALID',
-    viewCount: 987,
-    usefulCount: 45,
-    version: 1,
-    createdBy: '钱七',
-    createdAt: '2024-02-15T16:30:00Z',
-    updatedAt: '2024-03-05T11:00:00Z',
-    invalidNote: null,
-    invalidResult: null,
-    suggestedBy: '系统自动检测',
-    suggestedReason: '近30天浏览量下降70%，且有用率低于30%',
-    suggestedAt: '2024-03-20T10:00:00Z',
-    satisfactionStats: {
-      avgScore: 3.2,
-      totalFeedbacks: 23,
-      trend: 'down',
-    },
-  },
-  {
-    id: '7',
-    title: '旧版会员体系说明（已失效）',
-    category: '会员',
-    type: 'ANSWER',
-    status: 'INVALID',
-    viewCount: 456,
-    usefulCount: 12,
-    version: 1,
-    createdBy: '周九',
-    createdAt: '2023-12-01T10:00:00Z',
-    updatedAt: '2024-02-28T17:00:00Z',
-    invalidNote: '会员体系已全面升级，此文档已不适用。2024年1月起新会员体系上线，旧版规则仅作历史查询。',
-    invalidResult: '已创建新版会员体系文档，链接：/knowledge/8。已在文档顶部添加失效提醒，并将搜索权重调整为0。',
-    processedBy: '管理员',
-    processedAt: '2024-02-28T17:00:00Z',
-    satisfactionStats: {
-      avgScore: 2.1,
-      totalFeedbacks: 45,
-      trend: 'down',
-    },
-  },
-  {
-    id: '8',
-    title: '2023年双11活动规则',
-    category: '促销活动',
-    type: 'ANSWER',
-    status: 'PENDING_INVALID',
-    viewCount: 2341,
-    usefulCount: 156,
-    version: 2,
-    createdBy: '吴十',
-    createdAt: '2023-10-25T09:00:00Z',
-    updatedAt: '2023-11-10T16:00:00Z',
-    invalidNote: null,
-    invalidResult: null,
-    suggestedBy: '系统自动检测',
-    suggestedReason: '活动已结束超过90天，且为时效性较强的活动规则',
-    suggestedAt: '2024-03-18T08:00:00Z',
-    satisfactionStats: {
-      avgScore: 4.5,
-      totalFeedbacks: 123,
-      trend: 'stable',
-    },
-  },
-];
-
-const satisfactionTrendData = [
-  { date: '3/14', score: 4.3, count: 45 },
-  { date: '3/15', score: 4.5, count: 52 },
-  { date: '3/16', score: 4.2, count: 38 },
-  { date: '3/17', score: 4.6, count: 61 },
-  { date: '3/18', score: 4.4, count: 55 },
-  { date: '3/19', score: 4.7, count: 67 },
-  { date: '3/20', score: 4.6, count: 58 },
-];
-
-const satisfactionDistribution = [
-  { name: '非常满意', value: 156, color: '#10b981' },
-  { name: '满意', value: 87, color: '#6366f1' },
-  { name: '一般', value: 34, color: '#f59e0b' },
-  { name: '不满意', value: 12, color: '#ef4444' },
-  { name: '非常不满意', value: 5, color: '#991b1b' },
-];
-
-const categorySatisfaction = [
-  { name: '退换货', score: 4.6, count: 89 },
-  { name: '质量问题', score: 4.3, count: 112 },
-  { name: '物流', score: 4.1, count: 67 },
-  { name: '客户服务', score: 4.7, count: 95 },
-  { name: '促销活动', score: 4.4, count: 45 },
-];
-
-const recentFeedbacks = [
-  {
-    id: 1,
-    knowledgeTitle: '如何处理7天无理由退换货申请',
-    knowledgeId: '1',
-    user: '客服小明',
-    score: 5,
-    comment: '步骤很清晰，按照这个处理了一个客户的退款，很顺利！建议增加更多特殊情况的案例。',
-    date: '2024-03-20T10:30:00Z',
-    keywords: ['清晰', '实用', '建议补充'],
-  },
-  {
-    id: 2,
-    knowledgeTitle: '商品质量问题处理完整教程',
-    knowledgeId: '2',
-    user: '客服小红',
-    score: 4,
-    comment: '内容很详细，希望能增加更多图片说明。',
-    date: '2024-03-20T09:15:00Z',
-    keywords: ['详细', '需要图片'],
-  },
-  {
-    id: 3,
-    knowledgeTitle: '物流异常处理指南',
-    knowledgeId: '3',
-    user: '客服小李',
-    score: 5,
-    comment: '表格整理得很好，查运费规则很方便。',
-    date: '2024-03-20T08:45:00Z',
-    keywords: ['表格清晰', '方便'],
-  },
-  {
-    id: 4,
-    knowledgeTitle: '客户投诉处理标准化流程',
-    knowledgeId: '4',
-    user: '客服小张',
-    score: 3,
-    comment: '有些话术不够灵活，需要根据实际情况调整。',
-    date: '2024-03-19T16:20:00Z',
-    keywords: ['不够灵活'],
-  },
-  {
-    id: 5,
-    knowledgeTitle: '优惠券使用规则说明',
-    knowledgeId: '5',
-    user: '客服小王',
-    score: 2,
-    comment: '规则已经过时了，很多客户问的问题这里面没有。',
-    date: '2024-03-19T14:10:00Z',
-    keywords: ['过时', '需要更新'],
-  },
-];
-
 const categories = ['全部分类', '退换货', '质量问题', '物流', '客户服务', '促销活动', '会员'];
 const statuses = [
   { value: 'all', label: '全部状态' },
@@ -187,31 +37,175 @@ const statuses = [
   { value: 'INVALID', label: '已失效' },
 ];
 
+interface KnowledgeItem {
+  id: string;
+  title: string;
+  category: string;
+  type: string;
+  status: string;
+  viewCount: number;
+  usefulCount: number;
+  version: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  invalidNote: string | null;
+  invalidResult: string | null;
+  processedBy: string | null;
+  processedAt: string | null;
+  creator?: { name: string };
+  satisfactions?: { score: number; feedback: string | null; createdAt: string }[];
+}
+
+interface KnowledgeSearchResponse {
+  list: KnowledgeItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+interface SatisfactionStats {
+  stats: {
+    avgScore: number;
+    totalCount: number;
+    distribution: { score: number; count: number }[];
+  };
+  list: {
+    id: string;
+    score: number;
+    feedback: string | null;
+    keywords: string[];
+    createdAt: string;
+    knowledge?: { id: string; title: string };
+  }[];
+}
+
+async function fetchInvalidKnowledge(status: string, searchQuery: string, page: number, pageSize: number): Promise<KnowledgeSearchResponse> {
+  const params = new URLSearchParams();
+  if (status !== 'all') params.set('status', status);
+  if (searchQuery) params.set('q', searchQuery);
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+
+  const response = await fetch(`/api/knowledge/search?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error('获取知识列表失败');
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || '获取知识列表失败');
+  }
+  return result.data;
+}
+
+async function fetchSatisfactionStats(): Promise<SatisfactionStats> {
+  const response = await fetch('/api/satisfaction');
+  if (!response.ok) {
+    throw new Error('获取满意度统计失败');
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || '获取满意度统计失败');
+  }
+  return result.data;
+}
+
 export default function InvalidKnowledgePage() {
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('全部分类');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [activeTab, setActiveTab] = useState('invalid');
-  const [selectedKnowledge, setSelectedKnowledge] = useState<typeof mockInvalidKnowledge[0] | null>(null);
+  const [selectedKnowledge, setSelectedKnowledge] = useState<KnowledgeItem | null>(null);
   const [invalidNote, setInvalidNote] = useState('');
   const [invalidResult, setInvalidResult] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const page = 1;
+  const pageSize = 50;
+
+  const { data: knowledgeData, isLoading: knowledgeLoading, error: knowledgeError } = useQuery({
+    queryKey: ['knowledge-invalid', selectedStatus, searchQuery, page, pageSize],
+    queryFn: () => fetchInvalidKnowledge(selectedStatus, searchQuery, page, pageSize),
+  });
+
+  const { data: satisfactionData, isLoading: satisfactionLoading, error: satisfactionError } = useQuery({
+    queryKey: ['satisfaction-stats'],
+    queryFn: fetchSatisfactionStats,
+  });
 
   const filteredKnowledge = useMemo(() => {
-    return mockInvalidKnowledge.filter(item => {
-      const matchesSearch = !searchQuery ||
-        item.title.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!knowledgeData?.list) return [];
+    return knowledgeData.list.filter(item => {
       const matchesCategory = selectedCategory === '全部分类' || item.category === selectedCategory;
-      const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesCategory;
     });
-  }, [searchQuery, selectedCategory, selectedStatus]);
+  }, [knowledgeData, selectedCategory]);
 
-  const pendingCount = mockInvalidKnowledge.filter(k => k.status === 'PENDING_INVALID').length;
-  const invalidCount = mockInvalidKnowledge.filter(k => k.status === 'INVALID').length;
+  const pendingCount = filteredKnowledge.filter(k => k.status === 'PENDING_INVALID').length;
+  const invalidCount = filteredKnowledge.filter(k => k.status === 'INVALID').length;
 
-  const avgSatisfaction = 4.5;
-  const totalFeedbacks = 294;
+  const avgSatisfaction = satisfactionData?.stats?.avgScore ? satisfactionData.stats.avgScore.toFixed(1) : '0.0';
+  const totalFeedbacks = satisfactionData?.stats?.totalCount || 0;
+
+  const satisfactionDistribution = useMemo(() => {
+    if (!satisfactionData?.stats?.distribution) return [];
+    const labels: Record<number, string> = {
+      1: '非常不满意',
+      2: '不满意',
+      3: '一般',
+      4: '满意',
+      5: '非常满意',
+    };
+    const colors: Record<number, string> = {
+      1: '#991b1b',
+      2: '#ef4444',
+      3: '#f59e0b',
+      4: '#6366f1',
+      5: '#10b981',
+    };
+    return satisfactionData.stats.distribution.map(d => ({
+      name: labels[d.score] || `${d.score}星`,
+      value: d.count,
+      color: colors[d.score] || '#6b7280',
+    }));
+  }, [satisfactionData]);
+
+  const satisfactionTrendData = useMemo(() => {
+    if (!satisfactionData?.list) return [];
+    const dayMap = new Map<string, { totalScore: number; count: number }>();
+    satisfactionData.list.forEach(item => {
+      const date = new Date(item.createdAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+      if (!dayMap.has(date)) {
+        dayMap.set(date, { totalScore: 0, count: 0 });
+      }
+      const d = dayMap.get(date)!;
+      d.totalScore += item.score;
+      d.count += 1;
+    });
+    return Array.from(dayMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, data]) => ({
+        date,
+        score: parseFloat((data.totalScore / data.count).toFixed(1)),
+        count: data.count,
+      }))
+      .slice(-7);
+  }, [satisfactionData]);
+
+  const recentFeedbacks = useMemo(() => {
+    if (!satisfactionData?.list) return [];
+    return satisfactionData.list.slice(0, 5).map(item => ({
+      id: item.id,
+      knowledgeTitle: item.knowledge?.title || '未知知识',
+      knowledgeId: item.knowledge?.id || '',
+      user: '用户评价',
+      score: item.score,
+      comment: item.feedback || '（无文字评价）',
+      date: item.createdAt,
+      keywords: item.keywords,
+    }));
+  }, [satisfactionData]);
 
   const confirmInvalidMutation = useMutation({
     mutationFn: async () => {
@@ -241,6 +235,7 @@ export default function InvalidKnowledgePage() {
       setSelectedKnowledge(null);
       setInvalidNote('');
       setInvalidResult('');
+      queryClient.invalidateQueries({ queryKey: ['knowledge-invalid'] });
       setTimeout(() => setToast(null), 3000);
     },
     onError: (error: Error) => {
@@ -274,6 +269,7 @@ export default function InvalidKnowledgePage() {
         message: `已保留：${selectedKnowledge?.title}`,
       });
       setSelectedKnowledge(null);
+      queryClient.invalidateQueries({ queryKey: ['knowledge-invalid'] });
       setTimeout(() => setToast(null), 3000);
     },
     onError: (error: Error) => {
@@ -292,6 +288,17 @@ export default function InvalidKnowledgePage() {
   const handleKeepActive = () => {
     keepActiveMutation.mutate();
   };
+
+  if (knowledgeLoading && activeTab === 'invalid') {
+    return (
+      <PageWrapper title="知识失效管理" description="管理失效知识，分析客户满意度">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <span className="ml-3 text-slate-600">加载中...</span>
+        </div>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper title="知识失效管理" description="管理失效知识，分析客户满意度">
@@ -430,76 +437,70 @@ export default function InvalidKnowledgePage() {
                     </CardContent>
                   </Card>
                 ) : (
-                  filteredKnowledge.map(item => (
-                    <Card
-                      key={item.id}
-                      className={`cursor-pointer transition-all ${
-                        selectedKnowledge?.id === item.id
-                          ? 'border-indigo-500 ring-2 ring-indigo-200'
-                          : 'border-slate-200 hover:border-indigo-200'
-                      }`}
-                      onClick={() => setSelectedKnowledge(item)}
-                    >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge className={getStatusColor(item.status)}>
-                                {getStatusText(item.status)}
-                              </Badge>
-                              <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                                {item.category}
-                              </Badge>
-                              <Badge variant="outline" className="bg-slate-100 text-slate-600">
-                                v{item.version}
-                              </Badge>
+                  filteredKnowledge.map(item => {
+                    const creatorName = item.creator?.name || item.createdBy || '未知';
+                    const feedbackCount = item.satisfactions?.length || 0;
+                    const avgScore = feedbackCount > 0
+                      ? (item.satisfactions!.reduce((sum, s) => sum + s.score, 0) / feedbackCount).toFixed(1)
+                      : '0.0';
+
+                    return (
+                      <Card
+                        key={item.id}
+                        className={`cursor-pointer transition-all ${
+                          selectedKnowledge?.id === item.id
+                            ? 'border-indigo-500 ring-2 ring-indigo-200'
+                            : 'border-slate-200 hover:border-indigo-200'
+                        }`}
+                        onClick={() => setSelectedKnowledge(item)}
+                      >
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge className={getStatusColor(item.status)}>
+                                  {getStatusText(item.status)}
+                                </Badge>
+                                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                  {item.category}
+                                </Badge>
+                                <Badge variant="outline" className="bg-slate-100 text-slate-600">
+                                  v{item.version}
+                                </Badge>
+                              </div>
+                              <CardTitle className="text-base">{item.title}</CardTitle>
                             </div>
-                            <CardTitle className="text-base">{item.title}</CardTitle>
+                            <div className="flex items-center gap-2">
+                              <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                              <span className="text-sm font-medium">{avgScore}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                            <span className="text-sm font-medium">{item.satisfactionStats.avgScore}</span>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {item.status === 'PENDING_INVALID' && item.suggestedReason && (
-                          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 mb-3">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-sm font-medium text-amber-800">失效建议原因</p>
-                                <p className="text-sm text-amber-700">{item.suggestedReason}</p>
-                                <p className="text-xs text-amber-600 mt-1">
-                                  由 {item.suggestedBy} 于 {formatDate(item.suggestedAt)} 提出
-                                </p>
+                        </CardHeader>
+                        <CardContent>
+                          {item.status === 'INVALID' && item.invalidNote && (
+                            <div className="p-3 bg-red-50 rounded-lg border border-red-200 mb-3">
+                              <div className="flex items-start gap-2">
+                                <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-sm font-medium text-red-800">失效备注</p>
+                                  <p className="text-sm text-red-700">{item.invalidNote}</p>
+                                </div>
                               </div>
                             </div>
+                          )}
+                          <div className="flex items-center gap-4 text-sm text-slate-500">
+                            <span>浏览 {item.viewCount.toLocaleString()}</span>
+                            <span>有用 {item.usefulCount}</span>
+                            <span>评价 {feedbackCount} 条</span>
                           </div>
-                        )}
-                        {item.status === 'INVALID' && item.invalidNote && (
-                          <div className="p-3 bg-red-50 rounded-lg border border-red-200 mb-3">
-                            <div className="flex items-start gap-2">
-                              <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-sm font-medium text-red-800">失效备注</p>
-                                <p className="text-sm text-red-700">{item.invalidNote}</p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-4 text-sm text-slate-500">
-                          <span>浏览 {item.viewCount.toLocaleString()}</span>
-                          <span>有用 {item.usefulCount}</span>
-                          <span>评价 {item.satisfactionStats.totalFeedbacks} 条</span>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t pt-4 flex items-center justify-between text-sm text-slate-500">
-                        <span>更新于 {formatDate(item.updatedAt)}</span>
-                        <span>由 {item.createdBy} 创建</span>
-                      </CardFooter>
-                    </Card>
-                  ))
+                        </CardContent>
+                        <CardFooter className="border-t pt-4 flex items-center justify-between text-sm text-slate-500">
+                          <span>更新于 {formatDate(item.updatedAt)}</span>
+                          <span>由 {creatorName} 创建</span>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })
                 )}
               </div>
 
@@ -522,7 +523,9 @@ export default function InvalidKnowledgePage() {
                             {getStatusText(selectedKnowledge.status)}
                           </Badge>
                           <Badge variant="outline">
-                            满意度 {selectedKnowledge.satisfactionStats.avgScore}
+                            满意度 {selectedKnowledge.satisfactions && selectedKnowledge.satisfactions.length > 0
+                              ? (selectedKnowledge.satisfactions.reduce((sum, s) => sum + s.score, 0) / selectedKnowledge.satisfactions.length).toFixed(1)
+                              : '0.0'}
                           </Badge>
                         </div>
                       </div>
@@ -591,18 +594,20 @@ export default function InvalidKnowledgePage() {
                           <div>
                             <Label className="text-sm font-medium text-slate-700 mb-1 block">失效备注</Label>
                             <p className="text-sm text-slate-600 bg-white p-3 rounded-lg border">
-                              {selectedKnowledge.invalidNote}
+                              {selectedKnowledge.invalidNote || '暂无'}
                             </p>
                           </div>
                           <div>
                             <Label className="text-sm font-medium text-slate-700 mb-1 block">处理结果</Label>
                             <p className="text-sm text-slate-600 bg-white p-3 rounded-lg border">
-                              {selectedKnowledge.invalidResult}
+                              {selectedKnowledge.invalidResult || '暂无'}
                             </p>
                           </div>
-                          <div className="text-sm text-slate-500">
-                            由 {selectedKnowledge.processedBy} 于 {formatDate(selectedKnowledge.processedAt || null)} 处理
-                          </div>
+                          {(selectedKnowledge.processedBy || selectedKnowledge.processedAt) && (
+                            <div className="text-sm text-slate-500">
+                              由 {selectedKnowledge.processedBy || '未知'} 于 {formatDate(selectedKnowledge.processedAt || null)} 处理
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -628,144 +633,147 @@ export default function InvalidKnowledgePage() {
           </TabsContent>
 
           <TabsContent value="satisfaction" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border-slate-200">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-indigo-600" />
-                    满意度趋势
-                  </CardTitle>
-                  <CardDescription>近7天平均满意度变化</CardDescription>
-                </CardHeader>
+            {satisfactionLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                <span className="ml-3 text-slate-600">加载中...</span>
+              </div>
+            ) : satisfactionError ? (
+              <Card className="text-center py-12">
                 <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={satisfactionTrendData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" fontSize={12} />
-                        <YAxis domain={[0, 5]} fontSize={12} />
-                        <Tooltip />
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#6366f1"
-                          strokeWidth={2}
-                          dot={{ fill: '#6366f1', strokeWidth: 2 }}
-                          activeDot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <p className="text-slate-700 font-medium">加载失败</p>
+                  <p className="text-sm text-slate-500 mt-1">{(satisfactionError as Error).message}</p>
                 </CardContent>
               </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="border-slate-200">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-indigo-600" />
+                        满意度趋势
+                      </CardTitle>
+                      <CardDescription>近期平均满意度变化</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={satisfactionTrendData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" fontSize={12} />
+                            <YAxis domain={[0, 5]} fontSize={12} />
+                            <Tooltip />
+                            <Line
+                              type="monotone"
+                              dataKey="score"
+                              stroke="#6366f1"
+                              strokeWidth={2}
+                              dot={{ fill: '#6366f1', strokeWidth: 2 }}
+                              activeDot={{ r: 6 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              <Card className="border-slate-200">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Star className="h-5 w-5 text-amber-500" />
-                    满意度分布
-                  </CardTitle>
-                  <CardDescription>各评分等级的评价数量</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center">
-                    <ResponsiveContainer width="80%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={satisfactionDistribution}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={90}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {satisfactionDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Card className="border-slate-200">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Star className="h-5 w-5 text-amber-500" />
+                        满意度分布
+                      </CardTitle>
+                      <CardDescription>各评分等级的评价数量</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-64 flex items-center justify-center">
+                        <ResponsiveContainer width="80%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={satisfactionDistribution}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={90}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {satisfactionDistribution.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="space-y-1 ml-4">
+                          {satisfactionDistribution.map((item, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                              <span className="text-sm text-slate-600">{item.name}</span>
+                              <span className="text-sm font-medium">{item.value}</span>
+                            </div>
                           ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="space-y-1 ml-4">
-                      {satisfactionDistribution.map((item, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="text-sm text-slate-600">{item.name}</span>
-                          <span className="text-sm font-medium">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-indigo-600" />
-                  各分类满意度对比
-                </CardTitle>
-                <CardDescription>按知识分类统计的平均满意度</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={categorySatisfaction}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" fontSize={12} />
-                      <YAxis domain={[0, 5]} fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="score" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-indigo-600" />
-                  最新用户评价
-                </CardTitle>
-                <CardDescription>用户对知识库内容的反馈</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recentFeedbacks.map(feedback => (
-                  <div key={feedback.id} className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <Link href={`/knowledge/${feedback.knowledgeId}`} className="text-sm font-medium text-indigo-600 hover:underline">
-                          {feedback.knowledgeTitle}
-                        </Link>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-sm text-slate-600">{feedback.user}</span>
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map(star => (
-                              <Star
-                                key={star}
-                                className={`h-3 w-3 ${star <= feedback.score ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`}
-                              />
-                            ))}
-                          </div>
                         </div>
                       </div>
-                      <span className="text-xs text-slate-400">{formatDate(feedback.date)}</span>
-                    </div>
-                    <p className="text-sm text-slate-700 mb-2">{feedback.comment}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {feedback.keywords.map(kw => (
-                        <Badge key={kw} variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                          {kw}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="border-slate-200">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-indigo-600" />
+                      最新用户评价
+                    </CardTitle>
+                    <CardDescription>用户对知识库内容的反馈</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {recentFeedbacks.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <MessageSquare className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                        <p className="text-slate-500 text-sm">暂无评价数据</p>
+                      </div>
+                    ) : (
+                      recentFeedbacks.map(feedback => (
+                        <div key={feedback.id} className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <Link href={`/knowledge/${feedback.knowledgeId}`} className="text-sm font-medium text-indigo-600 hover:underline">
+                                {feedback.knowledgeTitle}
+                              </Link>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-sm text-slate-600">{feedback.user}</span>
+                                <div className="flex">
+                                  {[1, 2, 3, 4, 5].map(star => (
+                                    <Star
+                                      key={star}
+                                      className={`h-3 w-3 ${star <= feedback.score ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs text-slate-400">{formatDate(feedback.date)}</span>
+                          </div>
+                          <p className="text-sm text-slate-700 mb-2">{feedback.comment}</p>
+                          {feedback.keywords && feedback.keywords.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {feedback.keywords.map(kw => (
+                                <Badge key={kw} variant="secondary" className="text-xs bg-slate-200 text-slate-700">
+                                  {kw}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>
