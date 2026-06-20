@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { requisitions, reagents } from '../schema';
+import { requisitions, reagents, complianceRecords } from '../schema';
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
 import type { Requisition, Reagent, Status } from '$types';
 import { createComplianceRecord } from './compliance';
@@ -111,12 +111,32 @@ export async function approveRequisition(
     .returning();
 
   if (requisition.complianceRecordId) {
+    const [existingRecord] = await db
+      .select({ details: complianceRecords.details })
+      .from(complianceRecords)
+      .where(eq(complianceRecords.id, requisition.complianceRecordId));
+    const newDetails = (existingRecord?.details || '') + ' → 已批准';
     await db
-      .update(requisitions)
+      .update(complianceRecords)
       .set({
         status: 'approved',
-        complianceRecordId: requisition.complianceRecordId
+        processedAt: new Date(),
+        details: newDetails
       })
+      .where(eq(complianceRecords.id, requisition.complianceRecordId));
+  } else {
+    const complianceRecord = await createComplianceRecord({
+      type: 'requisition',
+      referenceId: id,
+      status: 'approved',
+      operator: operatorName,
+      operatorId,
+      details: `批准试剂领用申请 - 数量: ${requisition.quantity}`,
+      processedAt: new Date()
+    });
+    await db
+      .update(requisitions)
+      .set({ complianceRecordId: complianceRecord.id })
       .where(eq(requisitions.id, id));
   }
 
@@ -129,11 +149,46 @@ export async function rejectRequisition(
   operatorName: string,
   reason: string
 ): Promise<Requisition | null> {
+  const requisition = await getRequisitionById(id);
+  if (!requisition) return null;
+
   const [updated] = await db
     .update(requisitions)
     .set({ status: 'rejected' })
     .where(eq(requisitions.id, id))
     .returning();
+
+  if (requisition.complianceRecordId) {
+    const [existingRecord] = await db
+      .select({ details: complianceRecords.details })
+      .from(complianceRecords)
+      .where(eq(complianceRecords.id, requisition.complianceRecordId));
+    const reasonText = reason ? `，原因: ${reason}` : '';
+    const newDetails = (existingRecord?.details || '') + ` → 已拒绝${reasonText}`;
+    await db
+      .update(complianceRecords)
+      .set({
+        status: 'rejected',
+        processedAt: new Date(),
+        details: newDetails
+      })
+      .where(eq(complianceRecords.id, requisition.complianceRecordId));
+  } else {
+    const reasonText = reason ? `，原因: ${reason}` : '';
+    const complianceRecord = await createComplianceRecord({
+      type: 'requisition',
+      referenceId: id,
+      status: 'rejected',
+      operator: operatorName,
+      operatorId,
+      details: `拒绝试剂领用申请${reasonText}`,
+      processedAt: new Date()
+    });
+    await db
+      .update(requisitions)
+      .set({ complianceRecordId: complianceRecord.id })
+      .where(eq(requisitions.id, id));
+  }
 
   return updated as Requisition;
 }
