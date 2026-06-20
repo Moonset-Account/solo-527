@@ -2,17 +2,21 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 import os
 
 from app.config import settings
 from app.database import engine, Base, SessionLocal, get_db
 from app.models import *
 from app.auth import get_current_user_from_cookie
+from app.middleware import TimingMiddleware, ApiStatusMiddleware
 
 from app.routers import auth, treatments, verification, works, messages, customers, monitor
 
 app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION, debug=settings.DEBUG)
 
+app.add_middleware(TimingMiddleware)
+app.add_middleware(ApiStatusMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,6 +42,7 @@ app.include_router(monitor.router)
 @app.on_event("startup")
 async def startup_event():
     Base.metadata.create_all(bind=engine)
+    _migrate_columns()
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     from app.routers.auth import init_default_users
     db = SessionLocal()
@@ -46,6 +51,18 @@ async def startup_event():
         _init_demo_data(db)
     finally:
         db.close()
+
+
+def _migrate_columns():
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("""
+                ALTER TABLE treatment_cards ADD COLUMN IF NOT EXISTS creator_id INTEGER REFERENCES users(id)
+            """))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            pass
 
 
 def _init_demo_data(db):

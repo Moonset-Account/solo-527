@@ -132,12 +132,14 @@ class TreatmentCard(Base):
     status = Column(Enum(TreatmentCardStatus), default=TreatmentCardStatus.ACTIVE)
     price_paid = Column(Numeric(10, 2))
     note = Column(Text)
+    creator_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     customer = relationship("Customer", back_populates="treatment_cards")
     treatment = relationship("Treatment", back_populates="treatment_cards")
     verifications = relationship("Verification", back_populates="treatment_card")
+    creator = relationship("User", foreign_keys=[creator_id])
 
 
 class Verification(Base):

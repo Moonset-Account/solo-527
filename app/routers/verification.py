@@ -10,7 +10,7 @@ from app.auth import get_current_user, allow_all, allow_admin, allow_manager
 from app.models import (
     Verification, TreatmentCard, Customer, Treatment, User,
     VerificationStatus, TreatmentCardStatus, PaymentRecord, PaymentStatus,
-    Message, MessageType, Todo, TodoStatus
+    Message, MessageType, Todo, TodoStatus, ReminderRule
 )
 from app.config import settings
 
@@ -243,25 +243,34 @@ def create_payment(
     db.commit()
     db.refresh(payment)
 
-    if abs(diff_amount) >= settings.CASH_DIFF_ALERT_THRESHOLD:
-        todo = Todo(
-            title=f"收银差异告警: {payment_no}",
-            description=f"收银单号 {payment_no} 差异金额 {diff_amount} 元，超过告警阈值 {settings.CASH_DIFF_ALERT_THRESHOLD} 元，请立即核查。",
-            priority="high",
-            status=TodoStatus.PENDING,
-            related_type="payment",
-            related_id=payment.id
-        )
-        db.add(todo)
-    elif abs(diff_amount) >= settings.CASH_DIFF_WARNING_THRESHOLD:
-        msg = Message(
-            title=f"收银差异提醒: {payment_no}",
-            content=f"收银单号 {payment_no} 差异金额 {diff_amount} 元，请注意核查。",
-            type=MessageType.WARNING,
-            related_type="payment",
-            related_id=payment.id
-        )
-        db.add(msg)
+    rules = db.query(ReminderRule).filter(
+        ReminderRule.rule_type == "cash_diff",
+        ReminderRule.is_active == True
+    ).order_by(ReminderRule.threshold_value.desc()).all()
+
+    abs_diff = abs(diff_amount)
+    for rule in rules:
+        if abs_diff >= float(rule.threshold_value):
+            if rule.is_alert:
+                todo = Todo(
+                    title=f"收银差异告警: {payment_no}",
+                    description=f"收银单号 {payment_no} 差异金额 {diff_amount} 元，超过告警阈值 {rule.threshold_value} 元，请立即核查。规则：{rule.name}",
+                    priority="high",
+                    status=TodoStatus.PENDING,
+                    related_type="payment",
+                    related_id=payment.id
+                )
+                db.add(todo)
+            else:
+                msg = Message(
+                    title=f"收银差异提醒: {payment_no}",
+                    content=f"收银单号 {payment_no} 差异金额 {diff_amount} 元，请注意核查。规则：{rule.name}",
+                    type=MessageType.WARNING,
+                    related_type="payment",
+                    related_id=payment.id
+                )
+                db.add(msg)
+            break
 
     db.commit()
 
@@ -288,8 +297,16 @@ def payment_stats(
     count = query.count()
 
     diff_count = query.filter(PaymentRecord.diff_amount != 0).count()
+
+    alert_rule = db.query(ReminderRule).filter(
+        ReminderRule.rule_type == "cash_diff",
+        ReminderRule.is_alert == True,
+        ReminderRule.is_active == True
+    ).order_by(ReminderRule.threshold_value.asc()).first()
+    alert_threshold = float(alert_rule.threshold_value) if alert_rule else 200.0
+
     alert_count = query.filter(
-        func.abs(PaymentRecord.diff_amount) >= settings.CASH_DIFF_ALERT_THRESHOLD
+        func.abs(PaymentRecord.diff_amount) >= alert_threshold
     ).count()
 
     return {

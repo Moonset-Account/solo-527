@@ -11,10 +11,14 @@
         <option value="expired">已过期</option>
         <option value="used_up">已用完</option>
     </select>
+    <select id="tc-creator">
+        <option value="">全部负责人</option>
+    </select>
     <input type="date" id="start_date" placeholder="开始日期">
     <input type="date" id="end_date" placeholder="结束日期">
-    <button class="btn btn-primary" onclick="loadCards()">搜索</button>
     <div class="actions">
+        <button class="btn btn-sm btn-default" onclick="resetCardFilters()">重置</button>
+        <button class="btn btn-sm btn-primary" onclick="currentPage=1;loadCards()">搜索</button>
         <button class="btn btn-success" onclick="showAddModal()">+ 新开卡</button>
     </div>
 </div>
@@ -34,12 +38,13 @@
             <th>剩余次数</th>
             <th>购买日期</th>
             <th>有效期</th>
+            <th>开卡人</th>
             <th>状态</th>
             <th>操作</th>
         </tr>
         </thead>
         <tbody id="cards-table">
-        <tr><td colspan="9" class="empty-state">加载中...</td></tr>
+        <tr><td colspan="10" class="empty-state">加载中...</td></tr>
         </tbody>
     </table>
     <div class="pagination" id="pagination"></div>
@@ -102,15 +107,17 @@ const pageSize = 10;
 function loadCards() {
     const keyword = document.getElementById('keyword').value;
     const status = document.getElementById('status').value;
+    const creator_id = document.getElementById('tc-creator').value;
     const start_date = document.getElementById('start_date').value;
     const end_date = document.getElementById('end_date').value;
     let url = `/api/treatment-cards?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
-    if (keyword) url += `&customer_keyword=${encodeURIComponent(keyword)}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
     if (status) url += `&status=${status}`;
+    if (creator_id) url += `&creator_id=${creator_id}`;
     if (start_date) url += `&start_date=${start_date}`;
     if (end_date) url += `&end_date=${end_date}`;
 
-    fetch(url)
+    apiFetch(url)
         .then(res => res.json())
         .then(data => {
             document.getElementById('total-count').textContent = `共 ${data.total} 条`;
@@ -119,10 +126,30 @@ function loadCards() {
         });
 }
 
+function loadCreators() {
+    apiFetch('/api/auth/users')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('tc-creator');
+            select.innerHTML = '<option value="">全部负责人</option>' +
+                data.items.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+        });
+}
+
+function resetCardFilters() {
+    document.getElementById('keyword').value = '';
+    document.getElementById('status').value = '';
+    document.getElementById('tc-creator').value = '';
+    document.getElementById('start_date').value = '';
+    document.getElementById('end_date').value = '';
+    currentPage = 1;
+    loadCards();
+}
+
 function renderTable(items) {
     const tbody = document.getElementById('cards-table');
     if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-state">暂无数据</td></tr>';
         return;
     }
     tbody.innerHTML = items.map(c => `
@@ -138,6 +165,7 @@ function renderTable(items) {
             </td>
             <td>${formatDateShort(c.purchase_date)}</td>
             <td>${formatDateShort(c.expiry_date)}</td>
+            <td>${c.creator_name || '-'}</td>
             <td>
                 <span class="badge ${c.status === 'active' ? 'badge-success' : c.status === 'expired' ? 'badge-default' : 'badge-warning'}">
                     ${c.status === 'active' ? '有效' : c.status === 'expired' ? '已过期' : '已用完'}
@@ -230,6 +258,7 @@ function viewCard(id) {
     window.location.href = `/treatment-cards/${id}`;
 }
 
+loadCreators();
 loadCards();
 </script>
 {% endblock %}

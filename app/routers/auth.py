@@ -5,7 +5,7 @@ from datetime import timedelta
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.auth import verify_password, create_access_token, get_current_user, hash_password
+from app.auth import verify_password, create_access_token, get_current_user, hash_password, allow_all
 from app.models import User, UserRole
 from app.config import settings
 
@@ -83,6 +83,26 @@ def get_me(current_user: User = Depends(get_current_user)):
         "role": current_user.role.value,
         "phone": current_user.phone,
         "email": current_user.email
+    }
+
+
+@router.get("/users")
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(allow_all)
+):
+    users = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+    return {
+        "items": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "full_name": u.full_name,
+                "role": u.role.value,
+                "phone": u.phone
+            }
+            for u in users
+        ]
     }
 
 

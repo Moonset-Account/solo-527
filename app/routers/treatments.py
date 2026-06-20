@@ -161,6 +161,8 @@ class TreatmentCardUpdate(BaseModel):
 @router.get("/treatment-cards")
 def list_treatment_cards(
     status: Optional[TreatmentCardStatus] = None,
+    keyword: Optional[str] = None,
+    creator_id: Optional[int] = None,
     customer_keyword: Optional[str] = None,
     card_no: Optional[str] = None,
     treatment_id: Optional[int] = None,
@@ -174,6 +176,16 @@ def list_treatment_cards(
     query = db.query(TreatmentCard).join(Customer).join(Treatment)
     if status:
         query = query.filter(TreatmentCard.status == status)
+    if keyword:
+        query = query.filter(
+            or_(
+                TreatmentCard.card_no.contains(keyword),
+                Customer.name.contains(keyword),
+                Customer.phone.contains(keyword)
+            )
+        )
+    if creator_id:
+        query = query.filter(TreatmentCard.creator_id == creator_id)
     if customer_keyword:
         query = query.filter(
             or_(
@@ -209,6 +221,8 @@ def list_treatment_cards(
             "status": card.status.value,
             "price_paid": card.price_paid,
             "note": card.note,
+            "creator_id": card.creator_id,
+            "creator_name": card.creator.full_name if card.creator else None,
             "created_at": card.created_at
         })
     return {"total": total, "items": items}
@@ -255,7 +269,8 @@ def create_treatment_card(
     card = TreatmentCard(
         **data.model_dump(),
         remaining_sessions=data.total_sessions,
-        status=TreatmentCardStatus.ACTIVE
+        status=TreatmentCardStatus.ACTIVE,
+        creator_id=current_user.id
     )
     db.add(card)
     db.commit()

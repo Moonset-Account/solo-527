@@ -24,6 +24,16 @@
 
 <div class="filter-bar">
     <input type="text" id="keyword" placeholder="搜索单号/顾客/手机号..." style="flex: 1; min-width: 200px;">
+    <select id="p-status">
+        <option value="">全部状态</option>
+        <option value="paid">已支付</option>
+        <option value="pending">待支付</option>
+        <option value="refunded">已退款</option>
+        <option value="partial">部分支付</option>
+    </select>
+    <select id="p-cashier">
+        <option value="">全部负责人</option>
+    </select>
     <select id="has_diff">
         <option value="">全部</option>
         <option value="true">有差异</option>
@@ -38,8 +48,9 @@
     </select>
     <input type="date" id="start_date">
     <input type="date" id="end_date">
-    <button class="btn btn-primary" onclick="loadPayments()">搜索</button>
     <div class="actions">
+        <button class="btn btn-sm btn-default" onclick="resetPaymentFilters()">重置</button>
+        <button class="btn btn-sm btn-primary" onclick="currentPage=1;loadPayments();loadStats()">搜索</button>
         <button class="btn btn-success" onclick="showAddModal()">+ 新增收银</button>
     </div>
 </div>
@@ -162,6 +173,29 @@ function loadCustomers() {
         });
 }
 
+function loadCashiers() {
+    apiFetch('/api/auth/users')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('p-cashier');
+            select.innerHTML = '<option value="">全部负责人</option>' +
+                data.items.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+        });
+}
+
+function resetPaymentFilters() {
+    document.getElementById('keyword').value = '';
+    document.getElementById('p-status').value = '';
+    document.getElementById('p-cashier').value = '';
+    document.getElementById('has_diff').value = '';
+    document.getElementById('payment_method').value = '';
+    document.getElementById('start_date').value = '';
+    document.getElementById('end_date').value = '';
+    currentPage = 1;
+    loadPayments();
+    loadStats();
+}
+
 document.getElementById('payment-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const customerId = document.getElementById('customer_id').value;
@@ -192,18 +226,23 @@ document.getElementById('payment-form').addEventListener('submit', function(e) {
 
 function loadPayments() {
     const keyword = document.getElementById('keyword').value;
+    const status = document.getElementById('p-status').value;
+    const cashier_id = document.getElementById('p-cashier').value;
     const has_diff = document.getElementById('has_diff').value;
     const payment_method = document.getElementById('payment_method').value;
     const start_date = document.getElementById('start_date').value;
     const end_date = document.getElementById('end_date').value;
+
     let url = `/api/payments?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
     if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (status) url += `&status=${status}`;
+    if (cashier_id) url += `&cashier_id=${cashier_id}`;
     if (has_diff) url += `&has_diff=${has_diff}`;
     if (payment_method) url += `&payment_method=${payment_method}`;
     if (start_date) url += `&start_date=${start_date}`;
     if (end_date) url += `&end_date=${end_date}`;
 
-    fetch(url)
+    apiFetch(url)
         .then(res => res.json())
         .then(data => {
             document.getElementById('total-count').textContent = `共 ${data.total} 条`;
@@ -278,6 +317,7 @@ function loadStats() {
         });
 }
 
+loadCashiers();
 loadPayments();
 loadStats();
 </script>

@@ -51,9 +51,23 @@
 <div class="card" style="margin-top: 20px;">
     <div class="card-header">
         <h3>核销记录</h3>
-        <div>
-            <input type="text" id="keyword" placeholder="搜索顾客/手机号/单号..." style="width: 200px; padding: 6px 10px;" onkeyup="if(event.key==='Enter')loadVerifications()">
-            <button class="btn btn-sm btn-primary" onclick="loadVerifications()">搜索</button>
+    </div>
+    <div class="filter-bar">
+        <select id="v-status">
+            <option value="">全部状态</option>
+            <option value="verified">已核销</option>
+            <option value="pending">待核销</option>
+            <option value="cancelled">已取消</option>
+        </select>
+        <select id="v-operator">
+            <option value="">全部负责人</option>
+        </select>
+        <input type="date" id="v-start_date">
+        <input type="date" id="v-end_date">
+        <input type="text" id="keyword" placeholder="关键词（顾客/手机号/单号..." style="flex: 1; min-width: 200px;">
+        <div class="actions">
+            <button class="btn btn-sm btn-default" onclick="resetVerificationFilters()">重置</button>
+            <button class="btn btn-sm btn-primary" onclick="currentPage=1;loadVerifications()">搜索</button>
         </div>
     </div>
     <table>
@@ -90,6 +104,26 @@ function loadCustomers() {
             select.innerHTML = '<option value="">请选择顾客</option>' +
                 data.items.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
         });
+}
+
+function loadOperators() {
+    apiFetch('/api/auth/users')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('v-operator');
+            select.innerHTML = '<option value="">全部负责人</option>' +
+                data.items.map(u => `<option value="${u.id}">${u.full_name} (${u.role === 'manager' ? '店长' : u.role === 'admin' ? '管理员' : '一线员工'})</option>`).join('');
+        });
+}
+
+function resetVerificationFilters() {
+    document.getElementById('v-status').value = '';
+    document.getElementById('v-operator').value = '';
+    document.getElementById('v-start_date').value = '';
+    document.getElementById('v-end_date').value = '';
+    document.getElementById('keyword').value = '';
+    currentPage = 1;
+    loadVerifications();
 }
 
 function loadCustomerCards() {
@@ -143,10 +177,19 @@ document.getElementById('verify-form').addEventListener('submit', function(e) {
 
 function loadVerifications() {
     const keyword = document.getElementById('keyword').value;
+    const status = document.getElementById('v-status').value;
+    const operator_id = document.getElementById('v-operator').value;
+    const start_date = document.getElementById('v-start_date').value;
+    const end_date = document.getElementById('v-end_date').value;
+
     let url = `/api/verifications?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
     if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (status) url += `&status=${status}`;
+    if (operator_id) url += `&operator_id=${operator_id}`;
+    if (start_date) url += `&start_date=${start_date}`;
+    if (end_date) url += `&end_date=${end_date}`;
 
-    fetch(url)
+    apiFetch(url)
         .then(res => res.json())
         .then(data => {
             renderTable(data.items);
@@ -203,6 +246,7 @@ function loadStats() {
 }
 
 loadCustomers();
+loadOperators();
 loadVerifications();
 loadStats();
 </script>
