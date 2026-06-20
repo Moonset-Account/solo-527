@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Resident {
+  id           Int       @id @default(autoincrement())
+  phone        String    @unique @db.VarChar(32)
+  name         String    @db.VarChar(64)
+  address      String?   @db.VarChar(255)
+  community    String?   @db.VarChar(64)
+  createdAt    DateTime  @default(now())
+  votes        Vote[]
+  issues       Issue[]   @relation("Reporter")
+  operationLogs OperationLog[]
+}
+
+model Issue {
+  id             Int            @id @default(autoincrement())
+  code           String         @unique @db.VarChar(32)
+  title          String         @db.VarChar(200)
+  description    String         @db.Text
+  category       String         @db.VarChar(64)
+  priority       String         @default("NORMAL") @db.VarChar(32)
+  status         String         @default("PENDING") @db.VarChar(32)
+  community      String?        @db.VarChar(64)
+  gridNo         String?        @db.VarChar(32)
+  location       String?        @db.VarChar(255)
+  reporterId     Int?
+  reporter       Resident?      @relation("Reporter", fields: [reporterId], references: [id])
+  handler        String?        @db.VarChar(64)
+  voteEndAt      DateTime?
+  rectifyDeadline DateTime?
+  published      Boolean        @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  votes          Vote[]
+  rectifications Rectification[]
+  reviews        Review[]
+  photos         Photo[]
+  gridEvents     GridEvent[]
+  operationLogs  OperationLog[]
+  todos          Todo[]
+
+  @@index([status, priority])
+  @@index([createdAt])
+}
+
+model Vote {
+  id         Int      @id @default(autoincrement())
+  issueId    Int
+  issue      Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  residentId Int
+  resident   Resident @relation(fields: [residentId], references: [id])
+  option     String   @db.VarChar(32)
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  @@unique([issueId, residentId])
+  @@index([issueId])
+}
+
+model Rectification {
+  id          Int      @id @default(autoincrement())
+  issueId     Int
+  issue       Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  action      String   @db.Text
+  handler     String?  @db.VarChar(64)
+  deadline    DateTime?
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  note        String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  photos      Photo[]
+  operationLogs OperationLog[]
+}
+
+model Review {
+  id          Int      @id @default(autoincrement())
+  issueId     Int
+  issue       Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  reviewer    String   @db.VarChar(64)
+  result      String   @db.VarChar(32)
+  comment     String?  @db.Text
+  rated       Int?
+  reviewedAt  DateTime @default(now())
+  photos      Photo[]
+}
+
+model Photo {
+  id         Int       @id @default(autoincrement())
+  url        String    @db.VarChar(512)
+  type       String    @db.VarChar(32)
+  issueId    Int?
+  issue      Issue?    @relation(fields: [issueId], references: [id])
+  rectificationId Int?
+  rectification Rectification? @relation(fields: [rectificationId], references: [id])
+  reviewId   Int?
+  review     Review?   @relation(fields: [reviewId], references: [id])
+  createdAt  DateTime  @default(now())
+}
+
+model GridEvent {
+  id             Int       @id @default(autoincrement())
+  issueId        Int
+  issue          Issue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  eventType      String    @db.VarChar(64)
+  description    String    @db.Text
+  gridNo         String    @db.VarChar(32)
+  handler        String?   @db.VarChar(64)
+  occurredAt     DateTime
+  handled        Boolean   @default(false)
+  handledAt      DateTime?
+  patrolCovered  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+}
+
+model Todo {
+  id             Int       @id @default(autoincrement())
+  issueId        Int
+  issue          Issue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  type           String    @db.VarChar(32)
+  title          String    @db.VarChar(200)
+  description    String?   @db.Text
+  assignee       String?   @db.VarChar(64)
+  deadline       DateTime?
+  done           Boolean   @default(false)
+  fromTimeout    Boolean   @default(false)
+  patrolSynced   Boolean   @default(false)
+  doneAt         DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model PatrolStat {
+  id             Int       @id @default(autoincrement())
+  date           DateTime  @db.Date
+  gridNo         String    @db.VarChar(32)
+  patrolCount    Int       @default(0)
+  coveredCount   Int       @default(0)
+  timeoutTodoCount Int    @default(0)
+  handledEventCount Int   @default(0)
+  note           String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([date, gridNo])
+}
+
+model OperationLog {
+  id             Int       @id @default(autoincrement())
+  issueId        Int?
+  issue          Issue?    @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  rectificationId Int?
+  rectification  Rectification? @relation(fields: [rectificationId], references: [id], onDelete: SetNull)
+  operator       String    @db.VarChar(64)
+  action         String    @db.VarChar(64)
+  detail         String?   @db.Text
+  createdAt      DateTime  @default(now())
+
+  @@index([issueId, createdAt])
+  @@index([createdAt])
+}
+
+model ApiException {
+  id             Int       @id @default(autoincrement())
+  traceId        String    @db.VarChar(64)
+  method         String    @db.VarChar(16)
+  path           String    @db.VarChar(255)
+  issueCode      String?   @db.VarChar(32)
+  status         Int
+  errorCode      String?   @db.VarChar(64)
+  message        String    @db.Text
+  stack          String?   @db.Text
+  requestBody    String?   @db.Text
+  happenedAt     DateTime  @default(now())
+
+  @@index([traceId])
+  @@index([issueCode, happenedAt])
+  @@index([happenedAt])
+}
