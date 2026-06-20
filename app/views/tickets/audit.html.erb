@@ -45,11 +45,14 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-200">
-        <% versions_with_current = ([OpenStruct.new(index: '当前', event: 'current', created_at: Time.current, whodunnit: PaperTrail.request.whodunnit, object: nil, changeset: {})] + @versions.to_a.reverse) %>
+        <% sorted_versions = @versions.to_a.reverse %>
+        <% current_row = OpenStruct.new(event: 'current', created_at: Time.current, whodunnit: PaperTrail.request.whodunnit) %>
+        <% rows = [current_row] + sorted_versions %>
         <% prev_data = nil %>
-        <% versions_with_current.each_with_index do |v, idx| %>
+        <% rows.each_with_index do |row, idx| %>
           <%
-            if v.event == 'current'
+            if row.event == 'current'
+              v_label = '最新'
               data = {
                 department_id: @ticket.department_id,
                 department_name: @ticket.department&.name,
@@ -60,7 +63,8 @@
                 priority: @ticket.priority
               }
             else
-              reified = v.reify
+              v_label = "v#{idx}"
+              reified = row.reify
               if reified
                 data = {
                   department_id: reified.department_id,
@@ -77,19 +81,19 @@
             end
 
             prev = prev_data || data
-            who = v.whodunnit.present? ? User.find_by(id: v.whodunnit)&.name : '系统'
+            who = whodunnit_name(row.whodunnit)
           %>
           <tr class="<%= idx == 0 ? 'bg-indigo-50' : 'hover:bg-gray-50' %>">
             <td class="px-6 py-4 whitespace-nowrap">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= idx == 0 ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800' %>">
-                <%= idx == 0 ? '最新' : "v#{v.index}" %>
+                <%= v_label %>
               </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <%= format_datetime(v.created_at) %>
+              <%= row.event == 'current' ? format_datetime(Time.current) : format_datetime(row.created_at) %>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              <%= who %>
+              <%= row.event == 'current' ? '当前' : who %>
             </td>
             <td class="px-6 py-4 text-sm <%= diff_class(prev[:department_name], data[:department_name]) %> rounded-lg px-2 py-1">
               <%= data[:department_name] %>
@@ -146,20 +150,29 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
-          <% r_versions_with_current = ([OpenStruct.new(index: '当前', created_at: Time.current, whodunnit: nil)] + @review_versions.to_a.reverse) %>
-          <% r_versions_with_current.each_with_index do |v, idx| %>
+          <% r_sorted = @review_versions.to_a.reverse %>
+          <% r_current = OpenStruct.new(event: 'current', created_at: Time.current, whodunnit: nil) %>
+          <% r_rows = [r_current] + r_sorted %>
+          <% r_rows.each_with_index do |row, idx| %>
             <%
-              if v.index == '当前'
+              if row.event == 'current'
+                v_label = '最新'
                 rc = @ticket.review_conclusion
-                data = { eff_before: rc.efficiency_before, eff_after: rc.efficiency_after, content: rc.content, who: rc.reviewer&.name }
+                data = {
+                  eff_before: rc.efficiency_before,
+                  eff_after: rc.efficiency_after,
+                  content: rc.content,
+                  who: rc.reviewer&.name
+                }
               else
-                reified = v.reify
+                v_label = "v#{idx}"
+                reified = row.reify
                 if reified
                   data = {
                     eff_before: reified.efficiency_before,
                     eff_after: reified.efficiency_after,
                     content: reified.content,
-                    who: v.whodunnit.present? ? User.find_by(id: v.whodunnit)&.name : '系统'
+                    who: whodunnit_name(row.whodunnit)
                   }
                 else
                   data = { eff_before: '-', eff_after: '-', content: '-', who: '-' }
@@ -169,14 +182,14 @@
             <tr class="<%= idx == 0 ? 'bg-green-50' : 'hover:bg-gray-50' %>">
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= idx == 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
-                  <%= idx == 0 ? '最新' : "v#{v.index}" %>
+                  <%= v_label %>
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <%= format_datetime(v.created_at) %>
+                <%= row.event == 'current' ? format_datetime(Time.current) : format_datetime(row.created_at) %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <%= data[:who] %>
+                <%= row.event == 'current' ? '当前' : data[:who] %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
                 <%= data[:eff_before].is_a?(Integer) ? "#{data[:eff_before]}%" : data[:eff_before] %>

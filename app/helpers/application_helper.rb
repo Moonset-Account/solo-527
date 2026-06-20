@@ -69,4 +69,38 @@ module ApplicationHelper
       'text-green-600 bg-green-50'
     end
   end
+
+  def translate_field(model_class, field)
+    I18n.t("activerecord.attributes.#{model_class.model_name.i18n_key}.#{field}", default: field.to_s.humanize)
+  end
+
+  def whodunnit_name(whodunnit)
+    return '系统' if whodunnit.blank?
+    Rails.cache.fetch(["user_name", whodunnit.to_s], expires_in: 5.minutes) do
+      User.find_by(id: whodunnit.to_i)&.name || '未知用户'
+    end
+  end
+
+  def format_version_field(field, value)
+    return '-' if value.nil?
+    case field.to_s
+    when 'assignee_id', 'submitter_id', 'reviewer_id', 'user_id'
+      u = User.find_by(id: value.to_i)
+      u ? u.name : "用户##{value}"
+    when 'department_id'
+      d = Department.find_by(id: value.to_i)
+      d ? d.name : "部门##{value}"
+    when 'status'
+      I18n.t("activerecord.attributes.ticket.statuses.#{value}", default: value.to_s)
+    when 'priority'
+      I18n.t("activerecord.attributes.ticket.priorities.#{value}", default: value.to_s)
+    when 'deadline', 'completed_at', 'reviewed_at'
+      return '-' unless value.present?
+      value.is_a?(String) ? value : format_date(value)
+    when 'created_at'
+      value.is_a?(String) ? value : format_datetime(value)
+    else
+      value.is_a?(String) ? value : value.to_s
+    end
+  end
 end
