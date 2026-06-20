@@ -1,54 +1,107 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from '@remix-run/react';
-import api from '~/utils/api';
 
 export default function BookAppointment() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     applianceType: '',
     applianceBrand: '',
     applianceModel: '',
     faultDescription: '',
-    faultPhotos: [],
     customerName: '',
     customerPhone: '',
     customerAddress: '',
     appointmentTime: '',
-    urgencyLevel: 'normal'
+    urgencyLevel: 'normal',
+    store: ''
   });
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [error, setError] = useState('');
   
   const applianceTypes = ['空调', '冰箱', '洗衣机', '电视', '热水器', '燃气灶', '油烟机', '其他'];
   
+  const handlePhotoSelect = (e) => {
+    setError('');
+    const files = Array.from(e.target.files);
+    
+    if (selectedPhotos.length + files.length > 5) {
+      setError('最多只能上传 5 张照片');
+      return;
+    }
+    
+    const newPhotos = files.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      name: file.name
+    }));
+    
+    setSelectedPhotos(prev => [...prev, ...newPhotos]);
+  };
+  
+  const removePhoto = (index) => {
+    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+  
   const handleSubmit = async () => {
     setLoading(true);
+    setError('');
+    
     try {
-      const result = await api.post('/orders', formData);
+      const formDataObj = new FormData();
+      
+      Object.keys(formData).forEach((key) => {
+        if (formData[key]) {
+          formDataObj.append(key, formData[key]);
+        }
+      });
+      
+      selectedPhotos.forEach((photo) => {
+        formDataObj.append('faultPhotos', photo.file);
+      });
+      
+      const response = await fetch('/api/orders/public', {
+        method: 'POST',
+        body: formDataObj
+      });
+      
+      const result = await response.json();
+      
       if (result.success) {
+        setCreatedOrder(result.data);
         setSuccess(true);
+      } else {
+        setError(result.message || '提交失败，请稍后重试');
       }
-    } catch (error) {
-      alert('提交失败：' + error.message);
+    } catch (err) {
+      setError('网络错误，请稍后重试：' + err.message);
     } finally {
       setLoading(false);
     }
   };
   
   const nextStep = () => {
+    setError('');
     if (step === 1) {
       if (!formData.applianceType || !formData.faultDescription) {
-        alert('请填写家电类型和故障描述');
+        setError('请填写家电类型和故障描述');
         return;
       }
     } else if (step === 2) {
       if (!formData.customerName || !formData.customerPhone || !formData.customerAddress) {
-        alert('请填写完整的联系信息');
+        setError('请填写完整的联系信息');
+        return;
+      }
+      if (!/^1[3-9]\d{9}$/.test(formData.customerPhone)) {
+        setError('请输入正确的手机号');
         return;
       }
       if (!formData.appointmentTime) {
-        alert('请选择预约时间');
+        setError('请选择预约时间');
         return;
       }
     }
@@ -56,6 +109,7 @@ export default function BookAppointment() {
   };
   
   const prevStep = () => {
+    setError('');
     setStep(step - 1);
   };
   
@@ -68,12 +122,16 @@ export default function BookAppointment() {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">预约成功！</h2>
           <p className="text-gray-500 mb-6">我们的客服会尽快与您联系确认订单</p>
-          <div className="bg-gray-50 rounded-lg p-4 text-left mb-6">
-            <div className="flex justify-between text-sm mb-2">
+          <div className="bg-gray-50 rounded-lg p-4 text-left mb-6 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">订单编号</span>
+              <span className="font-medium text-blue-600">{createdOrder?.orderNo}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-gray-500">家电类型</span>
               <span className="font-medium">{formData.applianceType}</span>
             </div>
-            <div className="flex justify-between text-sm mb-2">
+            <div className="flex justify-between text-sm">
               <span className="text-gray-500">预约时间</span>
               <span className="font-medium">{formData.appointmentTime}</span>
             </div>
@@ -81,13 +139,40 @@ export default function BookAppointment() {
               <span className="text-gray-500">联系人</span>
               <span className="font-medium">{formData.customerName}</span>
             </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">故障照片</span>
+              <span className="font-medium">{selectedPhotos.length} 张已上传</span>
+            </div>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            返回首页
-          </button>
+          {createdOrder?.faultPhotos?.length > 0 && (
+            <div className="mb-6">
+              <p className="text-sm text-gray-500 mb-2 text-left">已上传的照片：</p>
+              <div className="flex flex-wrap gap-2">
+                {createdOrder.faultPhotos.map((url, idx) => (
+                  <img 
+                    key={idx} 
+                    src={url} 
+                    alt={`故障照片${idx + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="space-y-3">
+            <button
+              onClick={() => setStep(1)}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              继续预约
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              返回首页
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -119,6 +204,12 @@ export default function BookAppointment() {
         </div>
         
         <div className="bg-white rounded-2xl shadow-xl p-6">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+          
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">故障信息</h2>
@@ -182,13 +273,46 @@ export default function BookAppointment() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  故障照片（可选）
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  故障照片 <span className="text-gray-400 text-xs">（可选，最多5张）</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <p className="text-gray-400">点击上传故障照片</p>
-                  <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG 格式，最多 5 张</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap gap-3 mb-3">
+                  {selectedPhotos.map((photo, idx) => (
+                    <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
+                      <img 
+                        src={photo.url} 
+                        alt={photo.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {selectedPhotos.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+                    >
+                      <span className="text-2xl mb-1">+</span>
+                      <span className="text-xs">上传照片</span>
+                    </button>
+                  )}
                 </div>
+                <p className="text-xs text-gray-400">支持 JPG、PNG、GIF、WebP 格式，每张不超过 10MB</p>
               </div>
               
               <div>
@@ -265,6 +389,23 @@ export default function BookAppointment() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  服务门店 <span className="text-gray-400 text-xs">（可选）</span>
+                </label>
+                <select
+                  value={formData.store}
+                  onChange={(e) => setFormData(prev => ({ ...prev, store: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                >
+                  <option value="">系统自动分配</option>
+                  <option value="朝阳门店">朝阳门店</option>
+                  <option value="海淀门店">海淀门店</option>
+                  <option value="西城门店">西城门店</option>
+                  <option value="东城门店">东城门店</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   详细地址 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -320,6 +461,10 @@ export default function BookAppointment() {
                   <span className="font-medium text-right max-w-xs">{formData.faultDescription}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-500">故障照片</span>
+                  <span className="font-medium">{selectedPhotos.length} 张</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-500">紧急程度</span>
                   <span className={`font-medium ${
                     formData.urgencyLevel === 'normal' ? 'text-gray-600' :
@@ -346,6 +491,12 @@ export default function BookAppointment() {
                     <span className="text-gray-500">预约时间</span>
                     <span className="font-medium">{formData.appointmentTime}</span>
                   </div>
+                  {formData.store && (
+                    <div className="flex justify-between mt-1">
+                      <span className="text-gray-500">服务门店</span>
+                      <span className="font-medium">{formData.store}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -380,8 +531,11 @@ export default function BookAppointment() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
+                {loading && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                )}
                 {loading ? '提交中...' : '确认提交'}
               </button>
             )}

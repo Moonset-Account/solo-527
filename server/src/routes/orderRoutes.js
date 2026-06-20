@@ -4,6 +4,17 @@ const { body } = require('express-validator');
 const orderController = require('../controllers/orderController');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { validateRequest } = require('../middleware/validator');
+const { upload } = require('../config/upload');
+
+router.post('/public', upload.array('faultPhotos', 5), [
+  body('customerName').notEmpty().withMessage('客户姓名不能为空'),
+  body('customerPhone').notEmpty().withMessage('客户电话不能为空').isMobilePhone('zh-CN').withMessage('手机号格式不正确'),
+  body('customerAddress').notEmpty().withMessage('客户地址不能为空'),
+  body('applianceType').notEmpty().withMessage('家电类型不能为空'),
+  body('faultDescription').notEmpty().withMessage('故障描述不能为空'),
+  body('appointmentTime').notEmpty().withMessage('预约时间不能为空'),
+  validateRequest
+], orderController.publicCreateOrder);
 
 router.get('/', authMiddleware, orderController.getOrders);
 

@@ -11,4 +11,8 @@ router.get('/entity/:entityType/:entityId', authMiddleware, auditLogController.g
 
 router.get('/compare/:logId', authMiddleware, requireRole('super_admin', 'store_manager'), auditLogController.compareVersions);
 
+router.post('/restore/:logId', authMiddleware, requireRole('super_admin', 'store_manager'), auditLogController.restoreEntity);
+
+router.get('/timeline/:entityType/:entityId', authMiddleware, requireRole('super_admin', 'store_manager'), auditLogController.getEntityVersionTimeline);
+
 module.exports = router;

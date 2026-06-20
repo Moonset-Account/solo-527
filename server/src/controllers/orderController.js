@@ -795,6 +795,80 @@ async function addOrderParts(req, res) {
   }
 }
 
+async function publicCreateOrder(req, res) {
+  try {
+    const orderData = { ...req.body };
+    const requiredFields = ['customerName', 'customerPhone', 'customerAddress', 
+                           'applianceType', 'faultDescription', 'appointmentTime'];
+    
+    for (const field of requiredFields) {
+      if (!orderData[field]) {
+        return res.status(400).json({
+          success: false,
+          message: `缺少必填字段: ${field}`
+        });
+      }
+    }
+    
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    if (!phoneRegex.test(orderData.customerPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: '手机号码格式不正确'
+      });
+    }
+    
+    const faultPhotos = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const photoUrl = `/uploads/fault-photos/${file.filename}`;
+        faultPhotos.push(photoUrl);
+      }
+    }
+    
+    orderData.faultPhotos = faultPhotos;
+    orderData.status = 'pending';
+    
+    if (orderData.appointmentTime && typeof orderData.appointmentTime === 'string') {
+      orderData.appointmentTime = new Date(orderData.appointmentTime);
+    }
+    
+    const order = new Order(orderData);
+    await order.save();
+    
+    await createAuditLog({
+      action: 'create',
+      entityType: 'order',
+      entityId: order._id,
+      entityName: order.orderNo,
+      afterData: order.toObject(),
+      operatorName: '用户端预约',
+      ipAddress: req.ip,
+      remark: `用户公开预约: ${order.orderNo}, 来源: 官网`
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: '预约提交成功，我们的客服会尽快与您联系',
+      data: {
+        orderNo: order.orderNo,
+        _id: order._id,
+        status: order.status,
+        customerName: order.customerName,
+        appointmentTime: order.appointmentTime,
+        faultPhotos: order.faultPhotos || []
+      }
+    });
+  } catch (error) {
+    console.error('公开预约创建错误:', error);
+    res.status(500).json({
+      success: false,
+      message: '预约提交失败',
+      error: error.message
+    });
+  }
+}
+
 function buildPricingBreakdown(order) {
   const breakdown = [];
   
@@ -839,5 +913,6 @@ module.exports = {
   createRefund,
   processRefund,
   getRefunds,
-  addOrderParts
+  addOrderParts,
+  publicCreateOrder
 };
