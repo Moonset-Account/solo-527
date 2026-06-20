@@ -42,7 +42,7 @@ import {
   markLost,
 } from '../api/lead'
 import { getRemarksByLead, createRemark, deleteRemark } from '../api/remark'
-import { getAttachmentsByLead, createAttachment, deleteAttachment } from '../api/attachment'
+import { getAttachmentsByLead, uploadAttachment, deleteAttachment } from '../api/attachment'
 import { getChangeLogsByLead } from '../api/changeLog'
 import { getFollowUpsByLead, createFollowUp } from '../api/followUp'
 import { getQuotationsByLead } from '../api/quotation'
@@ -255,15 +255,7 @@ const LeadDetail = () => {
   const handleAttachmentUpload = async (file) => {
     setUploading(true)
     try {
-      const attachmentData = {
-        leadId: parseInt(id),
-        fileName: file.name,
-        filePath: `/uploads/${Date.now()}_${file.name}`,
-        fileSize: file.size,
-        fileType: file.type || 'application/octet-stream',
-        category: '其他',
-      }
-      const res = await createAttachment(attachmentData)
+      const res = await uploadAttachment(file, id)
       if (res) {
         message.success(`附件「${file.name}」上传成功`)
         const list = await getAttachmentsByLead(id)
@@ -439,6 +431,7 @@ const LeadDetail = () => {
               renderItem={(item) => (
                 <List.Item
                   actions={[
+                    <a key="download" href={`/api/attachments/download/${item.id}`} target="_blank" rel="noreferrer">下载</a>,
                     <Popconfirm title="确定删除?" onConfirm={() => handleDeleteAttachment(item.id)}>
                       <a key="delete">删除</a>
                     </Popconfirm>,
@@ -453,20 +446,29 @@ const LeadDetail = () => {
                     }
                     description={
                       <div>
-                        {item.category && <Tag>{item.category}</Tag>}
-                        {item.fileType && (
-                          <Tag color="blue">{item.fileType.split('/')[0] || item.fileType}</Tag>
-                        )}
-                        {item.fileSize && (
-                          <span style={{ color: '#999', fontSize: 12, marginRight: 8 }}>
-                            {item.fileSize > 1024 * 1024
-                              ? `${(item.fileSize / 1024 / 1024).toFixed(2)} MB`
-                              : `${(item.fileSize / 1024).toFixed(2)} KB`}
+                        <div style={{ marginBottom: 4 }}>
+                          {item.category && <Tag>{item.category}</Tag>}
+                          {item.fileType && (
+                            <Tag color="blue">{item.fileType}</Tag>
+                          )}
+                          {item.fileSize && (
+                            <span style={{ color: '#999', fontSize: 12, marginRight: 8 }}>
+                              {item.fileSize > 1024 * 1024
+                                ? `${(item.fileSize / 1024 / 1024).toFixed(2)} MB`
+                                : `${(item.fileSize / 1024).toFixed(2)} KB`}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ color: '#999', fontSize: 12 }}>
+                          {item.filePath && (
+                            <span style={{ marginRight: 8 }}>
+                              路径: {item.filePath}
+                            </span>
+                          )}
+                          <span>
+                            上传人: {item.uploaderName || user?.realName || '未知'} · {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
                           </span>
-                        )}
-                        <span style={{ color: '#999', fontSize: 12 }}>
-                          上传人: {item.uploaderName || user?.realName || '未知'} · {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
-                        </span>
+                        </div>
                       </div>
                     }
                   />

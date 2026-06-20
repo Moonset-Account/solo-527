@@ -4,6 +4,9 @@ echo "=========================================="
 echo "  装修线索客户画像库系统 - 快速启动脚本"
 echo "=========================================="
 
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo "/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home")
+echo "使用 JAVA_HOME: $JAVA_HOME"
+
 echo ""
 echo "步骤 1: 启动 PostgreSQL 和 Redis..."
 docker-compose up -d

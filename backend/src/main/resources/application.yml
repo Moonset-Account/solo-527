@@ -36,6 +36,15 @@ spring:
     time-zone: GMT+8
     default-property-inclusion: non_null
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+app:
+  upload:
+    dir: ./uploads
+
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.decoration.crm.entity

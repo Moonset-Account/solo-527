@@ -7,11 +7,16 @@ export const getAttachmentsByLead = (leadId) => {
   })
 }
 
-export const createAttachment = (data) => {
+export const uploadAttachment = (file, leadId, category = '其他') => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('leadId', leadId)
+  formData.append('category', category)
   return request({
-    url: '/attachments',
+    url: '/attachments/upload',
     method: 'post',
-    data,
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
 
