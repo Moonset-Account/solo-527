@@ -29,6 +29,12 @@ export default defineNuxtConfig({
   },
   nitro: {
     preset: 'node-server',
-    experimental: { openAPI: true }
+    experimental: { openAPI: true },
+    externals: {
+      external: ['@prisma/client', '.prisma/client', 'prisma', 'ioredis']
+    },
+    rollupConfig: {
+      external: ['@prisma/client', '.prisma/client']
+    }
   }
 })
