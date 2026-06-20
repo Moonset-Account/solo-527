@@ -6,7 +6,9 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.property.workorder.common.PageResult;
+import com.property.workorder.entity.CallbackCompensationLog;
 import com.property.workorder.entity.CallbackRecord;
+import com.property.workorder.mapper.CallbackCompensationLogMapper;
 import com.property.workorder.mapper.CallbackRecordMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class CallbackService {
 
     private final CallbackRecordMapper callbackMapper;
+    private final CallbackCompensationLogMapper compensationLogMapper;
 
     @Value("${callback.retry.max-attempts:5}")
     private int maxAttempts;
@@ -52,6 +55,32 @@ public class CallbackService {
         return PageResult.of(callbackMapper.selectPage(page, wrapper));
     }
 
+    public List<CallbackCompensationLog> getCompensationLogs(String callbackId) {
+        LambdaQueryWrapper<CallbackCompensationLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CallbackCompensationLog::getCallbackId, callbackId);
+        wrapper.orderByDesc(CallbackCompensationLog::getCreatedAt);
+        return compensationLogMapper.selectList(wrapper);
+    }
+
+    private void writeCompensationLog(String callbackId, String action, String note,
+                                       String beforeData, String afterData,
+                                       Long operatorId, String operatorName) {
+        try {
+            CallbackCompensationLog clog = new CallbackCompensationLog();
+            clog.setCallbackId(callbackId);
+            clog.setAction(action);
+            clog.setNote(note);
+            clog.setBeforeData(beforeData);
+            clog.setAfterData(afterData);
+            clog.setOperatorId(operatorId);
+            clog.setOperatorName(operatorName);
+            clog.setCreatedAt(LocalDateTime.now());
+            compensationLogMapper.insert(clog);
+        } catch (Exception ex) {
+            log.error("写入补偿日志异常 callbackId={}", callbackId, ex);
+        }
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public CallbackRecord createCallback(String callbackType, String businessId, String businessType,
                                           String url, String requestBody) {
@@ -69,11 +98,19 @@ public class CallbackService {
         record.setCreatedAt(LocalDateTime.now());
         record.setUpdatedAt(LocalDateTime.now());
         callbackMapper.insert(record);
+
+        writeCompensationLog(record.getCallbackId(), "CREATE",
+                "创建回调任务",
+                null, JSONUtil.toJsonStr(record), null, "SYSTEM");
         return record;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public boolean executeCallback(CallbackRecord record) {
+        String before = JSONUtil.toJsonStr(record);
+        record.setLastAttemptAt(LocalDateTime.now());
+        record.setRetryCount(record.getRetryCount() + 1);
+
         try {
             HttpResponse response = HttpRequest.post(record.getUrl())
                     .header("Content-Type", "application/json")
@@ -81,40 +118,54 @@ public class CallbackService {
                     .timeout(30000)
                     .execute();
 
-            record.setLastAttemptAt(LocalDateTime.now());
-            record.setRetryCount(record.getRetryCount() + 1);
-
             if (response.isOk()) {
                 record.setStatus("SUCCESS");
                 record.setResponseBody(response.body());
                 record.setNextRetryAt(null);
                 record.setFailureReason(null);
+                record.setUpdatedAt(LocalDateTime.now());
                 callbackMapper.updateById(record);
+
+                writeCompensationLog(record.getCallbackId(), "SUCCESS",
+                        "回调成功, HTTP 200",
+                        before, JSONUtil.toJsonStr(record), null, "SYSTEM");
                 log.info("回调成功 callbackId={}", record.getCallbackId());
                 return true;
             } else {
-                handleFailure(record, "HTTP状态码: " + response.getStatus() + ", 响应: " + response.body());
+                String reason = "HTTP状态码: " + response.getStatus() + ", 响应: " + response.body();
+                handleFailure(record, reason, before);
                 return false;
             }
         } catch (Exception e) {
             log.error("回调执行异常 callbackId={}", record.getCallbackId(), e);
-            handleFailure(record, e.getMessage());
+            handleFailure(record, "异常: " + e.getClass().getSimpleName() + " - " + e.getMessage(), before);
             return false;
         }
     }
 
-    private void handleFailure(CallbackRecord record, String reason) {
+    private void handleFailure(CallbackRecord record, String reason, String beforeData) {
         record.setFailureReason(reason);
+        if (record.getRetryCount() == null) {
+            record.setRetryCount(1);
+        }
+        if (record.getLastAttemptAt() == null) {
+            record.setLastAttemptAt(LocalDateTime.now());
+        }
         if (record.getRetryCount() >= record.getMaxRetries()) {
             record.setStatus("FAILED");
             record.setNextRetryAt(null);
         } else {
             record.setStatus("RETRYING");
-            long delay = (long) (initialInterval * Math.pow(multiplier, record.getRetryCount() - 1));
+            long delay = (long) (initialInterval * Math.pow(multiplier, Math.max(record.getRetryCount() - 1, 0)));
             record.setNextRetryAt(LocalDateTime.now().plusSeconds(delay / 1000));
         }
         record.setUpdatedAt(LocalDateTime.now());
         callbackMapper.updateById(record);
+
+        String action = record.getStatus().equals("FAILED") ? "FAILED_MAX_RETRY" : "RETRY_" + record.getRetryCount();
+        writeCompensationLog(record.getCallbackId(), action,
+                reason,
+                beforeData, JSONUtil.toJsonStr(record), null, "SYSTEM");
     }
 
     @Scheduled(fixedDelay = 60000)
@@ -139,12 +190,17 @@ public class CallbackService {
         if (record == null) {
             throw new RuntimeException("回调记录不存在");
         }
+        String before = JSONUtil.toJsonStr(record);
         record.setStatus("RETRYING");
         record.setRetryCount(0);
         record.setNextRetryAt(LocalDateTime.now());
         record.setFailureReason(null);
         record.setUpdatedAt(LocalDateTime.now());
         callbackMapper.updateById(record);
+
+        writeCompensationLog(record.getCallbackId(), "MANUAL_RETRY",
+                "手动触发重试, 已重置重试次数",
+                before, JSONUtil.toJsonStr(record), 1L, "ADMIN");
         executeCallback(record);
         return record;
     }

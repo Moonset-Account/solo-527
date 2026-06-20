@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Tag, Button, Modal, Form, Input, Select, Rate, message, Spin, Space, Descriptions, Drawer, TextArea } from 'antd'
+import { Table, Tag, Button, Modal, Form, Input, Select, Rate, message, Spin, Space, Descriptions, Drawer } from 'antd'
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons'
 import { getResidentWorkOrders, createWorkOrder, getWorkOrderDetail, getVisitRecord, getReview, createReview } from '../api'
 import dayjs from 'dayjs'

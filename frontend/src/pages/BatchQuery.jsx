@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Tabs, Card, Table, Tag, Button, Form, Input, Select, Space, message, Spin, DatePicker, DownloadOutlined, SearchOutlined } from 'antd'
+import { Tabs, Card, Table, Tag, Button, Form, Input, Select, Space, message, Spin, DatePicker } from 'antd'
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { queryBills, queryVisitors, queryInspections, exportBills, exportVisitors, exportInspections } from '../api'
 import dayjs from 'dayjs'
 

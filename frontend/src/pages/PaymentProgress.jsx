@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Tag, Form, Input, Select, Button, Space, message, Spin, Card, Statistic, Row, Col, Progress } from 'antd'
+import { Table, Tag, Form, Input, Select, Button, Space, message, Spin, Card, Statistic, Row, Col, Progress, DatePicker } from 'antd'
 import { SearchOutlined, DownloadOutlined, DollarOutlined } from '@ant-design/icons'
 import { getPaymentProgress, exportBills } from '../api'
+import dayjs from 'dayjs'
 
 export default function PaymentProgress() {
   const [loading, setLoading] = useState(true)
@@ -30,7 +31,9 @@ export default function PaymentProgress() {
     const params = {}
     if (values.buildingNo) params.buildingNo = values.buildingNo
     if (values.feeType) params.feeType = values.feeType
-    if (values.billPeriod) params.billPeriod = values.billPeriod.format('YYYY-MM')
+    if (values.billPeriod) {
+      params.billPeriod = dayjs(values.billPeriod).format('YYYY-MM')
+    }
     setFilters(params)
   }
 
@@ -126,11 +129,7 @@ export default function PaymentProgress() {
             ]} />
           </Form.Item>
           <Form.Item name="billPeriod" label="账期">
-            <Select placeholder="全部" allowClear style={{ width: 140 }} options={[
-              { value: '2024-06', label: '2024年6月' },
-              { value: '2024-05', label: '2024年5月' },
-              { value: '2024-04', label: '2024年4月' }
-            ]} />
+            <DatePicker picker="month" placeholder="全部" allowClear style={{ width: 140 }} format="YYYY-MM" />
           </Form.Item>
           <Form.Item>
             <Space>

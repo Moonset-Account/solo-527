@@ -2,10 +2,13 @@ package com.property.workorder.controller;
 
 import com.property.workorder.common.PageResult;
 import com.property.workorder.common.Result;
+import com.property.workorder.entity.CallbackCompensationLog;
 import com.property.workorder.entity.CallbackRecord;
 import com.property.workorder.service.CallbackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/callbacks")
@@ -22,6 +25,11 @@ public class CallbackController {
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size) {
         return Result.success(callbackService.queryCallbacks(callbackType, businessId, status, current, size));
+    }
+
+    @GetMapping("/{callbackId}/logs")
+    public Result<List<CallbackCompensationLog>> getCompensationLogs(@PathVariable String callbackId) {
+        return Result.success(callbackService.getCompensationLogs(callbackId));
     }
 
     @GetMapping("/{id}")

@@ -114,5 +114,8 @@ export const queryCallbacks = (params) =>
 export const getCallbackDetail = (id) =>
   request.get(`/callbacks/${id}`)
 
+export const getCallbackCompensationLogs = (callbackId) =>
+  request.get(`/callbacks/${callbackId}/logs`)
+
 export const retryCallback = (id) =>
   request.post(`/callbacks/${id}/retry`)
