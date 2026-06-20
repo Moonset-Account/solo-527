@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CloseRiskRequest;
 use App\Models\ContractRisk;
 use App\Services\OperationLogService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -12,7 +14,7 @@ class ContractRiskController extends Controller
 {
     public function __construct(private OperationLogService $logService) {}
 
-    public function index(): Response
+    public function index(): Response|JsonResponse
     {
         $query = ContractRisk::with(['contract.property', 'assignedTo', 'resolvedBy']);
 
@@ -32,13 +34,26 @@ class ContractRiskController extends Controller
 
         $risks = $query->orderByDesc('id')->paginate(request()->input('per_page', 15));
 
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return response()->json([
+                'data' => $risks->items(),
+                'meta' => [
+                    'total' => $risks->total(),
+                    'per_page' => $risks->perPage(),
+                    'current_page' => $risks->currentPage(),
+                    'last_page' => $risks->lastPage(),
+                    'open_count' => ContractRisk::where('status', 'open')->count(),
+                ],
+            ]);
+        }
+
         return Inertia::render('Risks/Index', [
             'risks' => $risks,
             'filters' => request()->only(['status', 'severity', 'risk_type']),
         ]);
     }
 
-    public function store()
+    public function store(): RedirectResponse|JsonResponse
     {
         $data = request()->validate([
             'contract_id' => 'required|exists:contracts,id',
@@ -57,11 +72,18 @@ class ContractRiskController extends Controller
             $data
         );
 
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return response()->json([
+                'message' => '风险记录已创建',
+                'risk' => $risk->load(['contract.property', 'assignedTo', 'resolvedBy']),
+            ], 201);
+        }
+
         return redirect()->route('risks.index')
             ->with('success', '风险记录已创建');
     }
 
-    public function assign(ContractRisk $risk)
+    public function assign(ContractRisk $risk): RedirectResponse|JsonResponse
     {
         $data = request()->validate([
             'assigned_to' => 'required|exists:users,id',
@@ -77,13 +99,23 @@ class ContractRiskController extends Controller
             $data
         );
 
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return response()->json([
+                'message' => '风险已分配',
+                'risk' => $risk->load(['contract.property', 'assignedTo', 'resolvedBy']),
+            ]);
+        }
+
         return redirect()->route('risks.index')
             ->with('success', '风险已分配');
     }
 
-    public function close(CloseRiskRequest $request, ContractRisk $risk)
+    public function close(CloseRiskRequest $request, ContractRisk $risk): RedirectResponse|JsonResponse
     {
         if (!$request->user()->isConsultant()) {
+            if (request()->expectsJson() || request()->is('api/*')) {
+                return response()->json(['message' => '仅招商顾问可关闭风险'], 403);
+            }
             abort(403, '仅招商顾问可关闭风险');
         }
 
@@ -101,6 +133,13 @@ class ContractRiskController extends Controller
             $risk->id,
             ['close_remark' => $request->input('close_remark')]
         );
+
+        if (request()->expectsJson() || request()->is('api/*')) {
+            return response()->json([
+                'message' => '风险已关闭',
+                'risk' => $risk->load(['contract.property', 'assignedTo', 'resolvedBy']),
+            ]);
+        }
 
         return redirect()->route('risks.index')
             ->with('success', '风险已关闭');

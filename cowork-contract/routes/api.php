@@ -30,8 +30,8 @@ Route::middleware(['auth', 'log.ops'])->prefix('v1')->group(function () {
 
     Route::get('risks', [ContractRiskController::class, 'index']);
     Route::post('risks', [ContractRiskController::class, 'store']);
-    Route::put('risks/{contractRisk}/assign', [ContractRiskController::class, 'assign']);
-    Route::put('risks/{contractRisk}/close', [ContractRiskController::class, 'close'])->middleware('role:consultant');
+    Route::put('risks/{risk}/assign', [ContractRiskController::class, 'assign']);
+    Route::put('risks/{risk}/close', [ContractRiskController::class, 'close'])->middleware('role:consultant');
 
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::put('notifications/{notification}/read', [NotificationController::class, 'markAsRead']);

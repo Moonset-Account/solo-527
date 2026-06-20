@@ -36,8 +36,8 @@ Route::middleware(['auth', 'log.ops'])->group(function () {
 
     Route::get('risks', [ContractRiskController::class, 'index'])->name('risks.index');
     Route::post('risks', [ContractRiskController::class, 'store'])->name('risks.store');
-    Route::put('risks/{contractRisk}/assign', [ContractRiskController::class, 'assign'])->name('risks.assign');
-    Route::put('risks/{contractRisk}/close', [ContractRiskController::class, 'close'])->name('risks.close')->middleware('role:consultant');
+    Route::put('risks/{risk}/assign', [ContractRiskController::class, 'assign'])->name('risks.assign');
+    Route::put('risks/{risk}/close', [ContractRiskController::class, 'close'])->name('risks.close')->middleware('role:consultant');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::put('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
