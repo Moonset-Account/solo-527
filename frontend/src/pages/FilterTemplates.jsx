@@ -17,6 +17,35 @@ import dayjs from 'dayjs'
 const { Option } = Select
 const { TextArea } = Input
 
+const ROLE_OPTIONS = [
+  { value: 'ADMIN', label: '系统管理员' },
+  { value: 'OPERATION_LEADER', label: '运营负责人' },
+  { value: 'DATA_ANALYST', label: '业务分析师' },
+  { value: 'OPERATION_STAFF', label: '运营人员' },
+]
+
+const getRoleName = (code) => {
+  const found = ROLE_OPTIONS.find(o => o.value === code)
+  return found ? found.label : code
+}
+
+const getFilterConditions = (record) => {
+  if (record && typeof record.filterConditionsMap === 'object' && record.filterConditionsMap !== null) {
+    return record.filterConditionsMap
+  }
+  if (record && typeof record.filterConditions === 'object' && record.filterConditions !== null) {
+    return record.filterConditions
+  }
+  if (typeof record?.filterConditions === 'string') {
+    try {
+      return JSON.parse(record.filterConditions)
+    } catch (_) {
+      return {}
+    }
+  }
+  return {}
+}
+
 export default function FilterTemplates() {
   const [data, setData] = useState([])
   const [total, setTotal] = useState(0)
@@ -83,9 +112,10 @@ export default function FilterTemplates() {
 
   const handleEdit = (record) => {
     setEditingRecord(record)
+    const cond = getFilterConditions(record)
     form.setFieldsValue({
       ...record,
-      filterConditions: JSON.stringify(record.filterConditions, null, 2),
+      filterConditions: JSON.stringify(cond, null, 2),
     })
     setModalVisible(true)
   }
@@ -119,7 +149,7 @@ export default function FilterTemplates() {
     setCurrentRecord(record)
     shareForm.resetFields()
     shareForm.setFieldsValue({
-      roleCodes: record.sharedRoles || [],
+      roleCodes: Array.isArray(record.sharedRoles) ? record.sharedRoles : [],
     })
     setShareVisible(true)
   }
@@ -147,9 +177,20 @@ export default function FilterTemplates() {
 
   const handleSubmit = async (values) => {
     try {
+      const condStr = values.filterConditions || '{}'
+      let condObj
+      try {
+        condObj = JSON.parse(condStr)
+      } catch (_) {
+        condObj = {}
+      }
       const submitData = {
-        ...values,
-        filterConditions: JSON.parse(values.filterConditions || '{}'),
+        templateName: values.templateName,
+        pageCode: values.pageCode,
+        description: values.description,
+        isPublic: values.isPublic,
+        filterConditions: condObj,
+        filterConditionsMap: condObj,
       }
       if (editingRecord) {
         await filterApi.update(editingRecord.id, submitData)
@@ -179,19 +220,35 @@ export default function FilterTemplates() {
 
   const handleCopy = async (record) => {
     try {
+      const cond = getFilterConditions(record)
       const newTemplate = {
-        ...record,
         templateName: `${record.templateName} - 副本`,
+        pageCode: record.pageCode,
+        pageName: record.pageName,
+        description: record.description,
+        isPublic: false,
+        sharedRoles: [],
+        filterConditions: cond,
+        filterConditionsMap: cond,
       }
-      delete newTemplate.id
-      delete newTemplate.createdAt
-      delete newTemplate.updatedAt
       await filterApi.create(newTemplate)
       message.success('复制成功')
       loadData()
     } catch (error) {
       console.error('复制失败', error)
     }
+  }
+
+  const renderSharedRoles = (roles) => {
+    if (!Array.isArray(roles) || roles.length === 0) return '-'
+    return (
+      <Space wrap>
+        {roles.slice(0, 3).map((role, i) => (
+          <Tag key={i} color="geekblue">{getRoleName(role)}</Tag>
+        ))}
+        {roles.length > 3 && <Tag>+{roles.length - 3}</Tag>}
+      </Space>
+    )
   }
 
   const columns = [
@@ -222,9 +279,9 @@ export default function FilterTemplates() {
     },
     {
       title: '创建人',
-      dataIndex: 'userName',
-      key: 'userName',
-      render: (text) => text || '-',
+      dataIndex: 'username',
+      key: 'username',
+      render: (text, record) => text || record.userName || record.createdBy || '-',
     },
     {
       title: '是否公开',
@@ -240,29 +297,19 @@ export default function FilterTemplates() {
       title: '共享角色',
       dataIndex: 'sharedRoles',
       key: 'sharedRoles',
-      render: (text) => {
-        if (!text || text.length === 0) return '-'
-        return (
-          <Space wrap>
-            {text.slice(0, 3).map((role, i) => (
-              <Tag key={i} color="geekblue">{role}</Tag>
-            ))}
-            {text.length > 3 && <Tag>+{text.length - 3}</Tag>}
-          </Space>
-        )
-      },
+      render: renderSharedRoles,
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (text) => dayjs(text).format('YYYY-MM-DD HH:mm'),
+      render: (text) => text ? dayjs(text).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      render: (text) => dayjs(text).format('YYYY-MM-DD HH:mm'),
+      render: (text) => text ? dayjs(text).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
       title: '操作',
@@ -403,27 +450,29 @@ export default function FilterTemplates() {
             <Descriptions.Item label="所属页面">
               <Tag color="blue">{getPageText(currentRecord.pageCode)}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="创建人">{currentRecord.userName || '-'}</Descriptions.Item>
+            <Descriptions.Item label="创建人">
+              {currentRecord.username || currentRecord.userName || currentRecord.createdBy || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="是否公开">
               <Tag color={currentRecord.isPublic ? 'green' : 'default'}>
                 {currentRecord.isPublic ? '公开' : '私有'}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="共享角色">
-              {currentRecord.sharedRoles?.length > 0
-                ? currentRecord.sharedRoles.join(', ')
+              {Array.isArray(currentRecord.sharedRoles) && currentRecord.sharedRoles.length > 0
+                ? currentRecord.sharedRoles.map(getRoleName).join(', ')
                 : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="筛选条件">
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                {JSON.stringify(currentRecord.filterConditions, null, 2)}
+                {JSON.stringify(getFilterConditions(currentRecord), null, 2)}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="创建时间">
-              {dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+              {currentRecord.createdAt ? dayjs(currentRecord.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="更新时间">
-              {dayjs(currentRecord.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+              {currentRecord.updatedAt ? dayjs(currentRecord.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -492,9 +541,7 @@ export default function FilterTemplates() {
         footer={null}
       >
         <Form form={shareForm} layout="vertical" onFinish={handleShareSubmit}>
-          <Form.Item
-            label="模板名称"
-          >
+          <Form.Item label="模板名称">
             <Input value={currentRecord?.templateName} disabled />
           </Form.Item>
           <Form.Item
@@ -506,10 +553,9 @@ export default function FilterTemplates() {
               placeholder="请选择要共享的角色"
               style={{ width: '100%' }}
             >
-              <Option value="ROLE_ADMIN">系统管理员</Option>
-              <Option value="ROLE_OPERATIONS_HEAD">运营负责人</Option>
-              <Option value="ROLE_DATA_ANALYST">数据分析师</Option>
-              <Option value="ROLE_OPERATIONS">运营专员</Option>
+              {ROLE_OPTIONS.map(o => (
+                <Option key={o.value} value={o.value}>{o.label}</Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item>

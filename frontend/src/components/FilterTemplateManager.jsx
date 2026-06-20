@@ -48,9 +48,11 @@ export default function FilterTemplateManager({ pageCode, pageName, filters, cur
         templateName: values.templateName,
         pageCode: pageCode,
         pageName: realPageName,
-        filterConditions: JSON.stringify(realFilters),
+        filterConditions: realFilters,
+        filterConditionsMap: realFilters,
         description: values.description,
         isPublic: values.isPublic || false,
+        sharedRoles: [],
       })
       message.success('筛选条件已保存')
       setSaveModalOpen(false)
@@ -64,19 +66,45 @@ export default function FilterTemplateManager({ pageCode, pageName, filters, cur
     }
   }
 
+  const getTemplateConditions = (data) => {
+    if (data && typeof data.filterConditionsMap === 'object' && data.filterConditionsMap !== null) {
+      return data.filterConditionsMap
+    }
+    if (data && typeof data.filterConditions === 'object' && data.filterConditions !== null) {
+      return data.filterConditions
+    }
+    if (typeof data?.filterConditions === 'string') {
+      try {
+        return JSON.parse(data.filterConditions)
+      } catch (_) {
+        return null
+      }
+    }
+    if (data && typeof data === 'object') {
+      const hasNonMeta = Object.keys(data).some(k =>
+        !['id', 'templateName', 'pageCode', 'pageName', 'userId', 'username', 'userName',
+          'isPublic', 'sharedRoles', 'description', 'useCount', 'createdBy', 'updatedBy',
+          'createdAt', 'updatedAt'].includes(k)
+      )
+      if (hasNonMeta) {
+        return data
+      }
+    }
+    return null
+  }
+
   const handleApply = async (templateId) => {
     try {
       const data = await filterApi.useTemplate(templateId)
-      if (data?.filterConditions) {
-        try {
-          const conditions = JSON.parse(data.filterConditions)
-          if (onApplyTemplate) {
-            onApplyTemplate(conditions)
-            message.success(`已应用模板: ${data.templateName}`)
-          }
-        } catch (e) {
-          message.error('模板数据解析失败')
+      const conditions = getTemplateConditions(data)
+      if (conditions) {
+        if (onApplyTemplate) {
+          onApplyTemplate(conditions)
+          const tplInfo = Array.isArray(templates) ? templates.find(t => String(t.id) === String(templateId)) : null
+          message.success(`已应用模板: ${tplInfo?.templateName || '筛选模板'}`)
         }
+      } else {
+        message.error('模板数据为空或解析失败')
       }
     } catch (error) {
       console.error('应用模板失败', error)
