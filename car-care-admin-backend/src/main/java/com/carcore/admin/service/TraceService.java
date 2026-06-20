@@ -24,8 +24,9 @@ public class TraceService {
     private final TechnicianRepository technicianRepository;
     private final MemberRepository memberRepository;
     private final PackageBenefitRepository packageBenefitRepository;
+    private final DetectionRecordItemRepository detectionRecordItemRepository;
 
-    public TraceService(RepairOrderRepository repairOrderRepository, MemberPackageOrderRepository packageOrderRepository, MemberPackageRepository memberPackageRepository, DetectionRecordRepository detectionRecordRepository, TestDriveRecordRepository testDriveRecordRepository, WorkstationRepository workstationRepository, TechnicianRepository technicianRepository, MemberRepository memberRepository, PackageBenefitRepository packageBenefitRepository) {
+    public TraceService(RepairOrderRepository repairOrderRepository, MemberPackageOrderRepository packageOrderRepository, MemberPackageRepository memberPackageRepository, DetectionRecordRepository detectionRecordRepository, TestDriveRecordRepository testDriveRecordRepository, WorkstationRepository workstationRepository, TechnicianRepository technicianRepository, MemberRepository memberRepository, PackageBenefitRepository packageBenefitRepository, DetectionRecordItemRepository detectionRecordItemRepository) {
         this.repairOrderRepository = repairOrderRepository;
         this.packageOrderRepository = packageOrderRepository;
         this.memberPackageRepository = memberPackageRepository;
@@ -35,6 +36,7 @@ public class TraceService {
         this.technicianRepository = technicianRepository;
         this.memberRepository = memberRepository;
         this.packageBenefitRepository = packageBenefitRepository;
+        this.detectionRecordItemRepository = detectionRecordItemRepository;
     }
 
     @Cacheable(value = "trace", key = "'packageOrder:' + #packageOrderId", unless = "#result == null")
@@ -165,7 +167,15 @@ public class TraceService {
                 .orElseThrow(() -> new BusinessException("维修单不存在"));
         
         Map<String, Object> result = new HashMap<>();
-        List<Map<String, Object>> traceChain = new ArrayList<>();
+        
+        Map<String, Object> sourceInfo = new HashMap<>();
+        sourceInfo.put("packageOrderId", order.getPackageOrderId());
+        sourceInfo.put("detectionRecordId", order.getDetectionRecordId());
+        sourceInfo.put("technicianId", order.getTechnicianId());
+        sourceInfo.put("workstationId", order.getWorkstationId());
+        result.put("sourceInfo", sourceInfo);
+        
+        result.put("repairOrder", order);
         
         if (order.getPackageOrderId() != null) {
             Map<String, Object> packageTrace = tracePackageOrder(order.getPackageOrderId());
@@ -173,14 +183,27 @@ public class TraceService {
         }
         
         if (order.getDetectionRecordId() != null) {
-            detectionRecordRepository.findById(order.getDetectionRecordId())
-                    .ifPresent(dr -> result.put("detectionRecord", dr));
+            DetectionRecord detectionRecord = detectionRecordRepository.findById(order.getDetectionRecordId()).orElse(null);
+            if (detectionRecord != null) {
+                result.put("detectionRecord", detectionRecord);
+                result.put("detectionRecordItems", detectionRecordItemRepository.findByRecordId(detectionRecord.getId()));
+            }
         }
         
         Map<String, Object> techWorkstationTrace = traceTechnicianAndWorkstation(repairOrderId);
         result.put("techWorkstationTrace", techWorkstationTrace);
         
         List<TestDriveRecord> testDrives = testDriveRecordRepository.findByRepairOrderId(repairOrderId);
+        for (TestDriveRecord tdr : testDrives) {
+            if (tdr.getTechnicianId() != null) {
+                technicianRepository.findById(tdr.getTechnicianId())
+                        .ifPresent(t -> tdr.setTechnicianName(t.getName()));
+            }
+            if (tdr.getWorkstationId() != null) {
+                workstationRepository.findById(tdr.getWorkstationId())
+                        .ifPresent(w -> tdr.setWorkstationName(w.getStationName()));
+            }
+        }
         result.put("testDriveRecords", testDrives);
         
         return result;

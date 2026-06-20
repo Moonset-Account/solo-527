@@ -10,6 +10,7 @@
       <el-form :inline="true" class="search-form">
         <el-form-item label="溯源类型">
           <el-radio-group v-model="traceType">
+            <el-radio-button value="REPAIR_ORDER_SOURCES">维修工单来源</el-radio-button>
             <el-radio-button value="PACKAGE_ORDER">会员套餐</el-radio-button>
             <el-radio-button value="TECHNICIAN_WORKSTATION">技师工位</el-radio-button>
             <el-radio-button value="TEST_DRIVE">试驾记录</el-radio-button>
@@ -29,6 +30,172 @@
       </el-form>
 
       <el-divider v-if="traceData">溯源结果</el-divider>
+
+      <div v-if="traceData && traceType === 'REPAIR_ORDER_SOURCES'" class="trace-result">
+        <el-card class="trace-card" v-if="traceData.repairOrder">
+          <template #header>
+            <div class="card-title">
+              <el-tag type="primary">维修工单</el-tag>
+              <span class="trace-no">{{ traceData.repairOrder.orderNo }}</span>
+            </div>
+          </template>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="工单类型">{{ orderTypeText(traceData.repairOrder.orderType) }}</el-descriptions-item>
+            <el-descriptions-item label="车主">{{ traceData.repairOrder.memberName }}</el-descriptions-item>
+            <el-descriptions-item label="工单状态">
+              <el-tag :type="getRepairStatusType(traceData.repairOrder.status)">{{ getRepairStatusText(traceData.repairOrder.status) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="质量状态">
+              <el-tag :type="getQualityTagType(traceData.repairOrder.qualityStatus)">{{ getQualityStatusText(traceData.repairOrder.qualityStatus) }}</el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
+        <el-card class="trace-card" style="margin-top: 20px" v-if="traceData.sourceInfo">
+          <template #header>
+            <div class="card-title">
+              <el-tag type="warning">来源ID信息</el-tag>
+            </div>
+          </template>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="packageOrderId">
+              <el-tag v-if="traceData.sourceInfo.packageOrderId" type="success" effect="plain">{{ traceData.sourceInfo.packageOrderId }}</el-tag>
+              <span v-else style="color: #909399">无</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="detectionRecordId">
+              <el-tag v-if="traceData.sourceInfo.detectionRecordId" type="success" effect="plain">{{ traceData.sourceInfo.detectionRecordId }}</el-tag>
+              <span v-else style="color: #909399">无</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="technicianId">
+              <el-tag v-if="traceData.sourceInfo.technicianId" type="primary" effect="plain">{{ traceData.sourceInfo.technicianId }}</el-tag>
+              <span v-else style="color: #909399">无</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="workstationId">
+              <el-tag v-if="traceData.sourceInfo.workstationId" type="primary" effect="plain">{{ traceData.sourceInfo.workstationId }}</el-tag>
+              <span v-else style="color: #909399">无</span>
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
+        <el-steps :active="4" finish-status="success" class="trace-steps">
+          <el-step title="检测记录" description="车辆检测" />
+          <el-step title="套餐订单" description="会员购买" />
+          <el-step title="技师工位" description="分配资源" />
+          <el-step title="试驾记录" description="路试验证" />
+        </el-steps>
+
+        <el-card class="trace-card" style="margin-top: 20px" v-if="traceData.packageTrace && traceData.packageTrace.packageOrder">
+          <template #header>
+            <div class="card-title">
+              <el-tag type="success">关联套餐单</el-tag>
+              <span class="trace-no">{{ traceData.packageTrace.packageOrder.orderNo }}</span>
+            </div>
+          </template>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="套餐名称">{{ traceData.packageTrace.packageOrder.packageName }}</el-descriptions-item>
+            <el-descriptions-item label="购买价格">¥{{ traceData.packageTrace.packageOrder.packagePrice?.toFixed(2) }}</el-descriptions-item>
+            <el-descriptions-item label="购买日期">{{ formatDate(traceData.packageTrace.packageOrder.purchaseDate) }}</el-descriptions-item>
+            <el-descriptions-item label="使用情况">剩余 {{ traceData.packageTrace.packageOrder.remainingUsage }} / {{ traceData.packageTrace.packageOrder.totalUsage }} 次</el-descriptions-item>
+          </el-descriptions>
+          <el-divider v-if="traceData.packageTrace.memberPackage">套餐配置</el-divider>
+          <el-descriptions :column="2" border size="small" v-if="traceData.packageTrace.memberPackage">
+            <el-descriptions-item label="套餐名称">{{ traceData.packageTrace.memberPackage.packageName }}</el-descriptions-item>
+            <el-descriptions-item label="套餐类型">{{ getPackageTypeText(traceData.packageTrace.memberPackage.packageType) }}</el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
+        <el-card class="trace-card" style="margin-top: 20px" v-if="traceData.detectionRecord">
+          <template #header>
+            <div class="card-title">
+              <el-tag type="info">关联检测单</el-tag>
+              <span class="trace-no">{{ traceData.detectionRecord.recordNo }}</span>
+            </div>
+          </template>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="检测日期">{{ formatDate(traceData.detectionRecord.checkDate) }}</el-descriptions-item>
+            <el-descriptions-item label="总费用">¥{{ traceData.detectionRecord.totalAmount?.toFixed(2) }}</el-descriptions-item>
+            <el-descriptions-item label="检测结果" :span="2">{{ traceData.detectionRecord.resultSummary }}</el-descriptions-item>
+          </el-descriptions>
+          <el-divider>检测项目明细</el-divider>
+          <el-table :data="traceData.detectionRecordItems || []" border size="small">
+            <el-table-column type="index" label="序号" width="60" />
+            <el-table-column prop="itemName" label="检测项目" />
+            <el-table-column prop="itemResult" label="检测结果" width="100">
+              <template #default="scope">
+                <el-tag size="small" :type="scope.row.itemResult === '正常' ? 'success' : scope.row.itemResult === '异常' ? 'danger' : 'warning'">
+                  {{ scope.row.itemResult }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="suggestion" label="处理建议" />
+          </el-table>
+        </el-card>
+
+        <el-card class="trace-card" style="margin-top: 20px" v-if="traceData.techWorkstationTrace">
+          <template #header>
+            <div class="card-title">
+              <el-tag type="warning">技师工位</el-tag>
+            </div>
+          </template>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-descriptions :column="1" border size="small" v-if="traceData.techWorkstationTrace.technician">
+                <el-descriptions-item label="技师姓名">{{ traceData.techWorkstationTrace.technician.name }}</el-descriptions-item>
+                <el-descriptions-item label="技师编号">{{ traceData.techWorkstationTrace.technician.techNo }}</el-descriptions-item>
+                <el-descriptions-item label="技能等级">{{ traceData.techWorkstationTrace.technician.skillLevel }}</el-descriptions-item>
+                <el-descriptions-item label="专长">{{ traceData.techWorkstationTrace.technician.specialty }}</el-descriptions-item>
+              </el-descriptions>
+            </el-col>
+            <el-col :span="12">
+              <el-descriptions :column="1" border size="small" v-if="traceData.techWorkstationTrace.workstation">
+                <el-descriptions-item label="工位名称">{{ traceData.techWorkstationTrace.workstation.stationName }}</el-descriptions-item>
+                <el-descriptions-item label="工位编号">{{ traceData.techWorkstationTrace.workstation.stationNo }}</el-descriptions-item>
+                <el-descriptions-item label="工位类型">{{ traceData.techWorkstationTrace.workstation.stationType }}</el-descriptions-item>
+                <el-descriptions-item label="配备设备">{{ traceData.techWorkstationTrace.workstation.equipment }}</el-descriptions-item>
+              </el-descriptions>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <el-card class="trace-card" style="margin-top: 20px" v-if="traceData.testDriveRecords && traceData.testDriveRecords.length > 0">
+          <template #header>
+            <div class="card-title">
+              <el-tag type="danger">试驾记录</el-tag>
+              <span>共 {{ traceData.testDriveRecords.length }} 条</span>
+            </div>
+          </template>
+          <el-table :data="traceData.testDriveRecords" border size="small">
+            <el-table-column prop="driveNo" label="试驾单号" width="160" />
+            <el-table-column prop="technicianName" label="试驾技师" width="100" />
+            <el-table-column prop="workstationName" label="来源工位" width="120" />
+            <el-table-column prop="driveStartTime" label="开始时间" width="160">
+              <template #default="scope">{{ formatDateTime(scope.row.driveStartTime) }}</template>
+            </el-table-column>
+            <el-table-column prop="driveEndTime" label="结束时间" width="160">
+              <template #default="scope">{{ formatDateTime(scope.row.driveEndTime) || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="driveDistance" label="里程(km)" width="100" />
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="scope">
+                <el-tag size="small" :type="getTestDriveStatusType(scope.row.status)">{{ getTestDriveStatusText(scope.row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="100">
+              <template #default="scope">
+                <el-button size="small" type="primary" link @click="traceTestDrive(scope.row.id)">溯源</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+
+        <el-alert
+          v-if="!traceData.packageTrace && !traceData.detectionRecord && !traceData.testDriveRecords && traceData.testDriveRecords?.length === 0"
+          title="该工单暂无关联来源数据"
+          type="info"
+          :closable="false"
+          style="margin-top: 20px"
+        />
+      </div>
 
       <div v-if="traceData && traceType === 'PACKAGE_ORDER'" class="trace-result">
         <el-steps :active="4" finish-status="success" class="trace-steps">
@@ -368,7 +535,7 @@ import {
   handleAPIError
 } from '@/utils'
 
-const traceType = ref('PACKAGE_ORDER')
+const traceType = ref('REPAIR_ORDER_SOURCES')
 const sourceId = ref(null)
 const traceData = ref(null)
 const hasSearched = ref(false)
@@ -379,7 +546,13 @@ const loadOptions = async () => {
   loading.value = true
   try {
     let res
-    if (traceType.value === 'PACKAGE_ORDER') {
+    if (traceType.value === 'REPAIR_ORDER_SOURCES') {
+      res = await repairOrderAPI.getPage({ pageNum: 1, pageSize: 100 })
+      optionList.value = res.data.list.map(item => ({
+        id: item.id,
+        label: `${item.orderNo} - ${item.memberName}`
+      }))
+    } else if (traceType.value === 'PACKAGE_ORDER') {
       res = await repairOrderAPI.getPage({ pageNum: 1, pageSize: 100 })
       optionList.value = res.data.list
         .filter(item => item.packageOrderId)
@@ -412,10 +585,15 @@ const doTrace = async () => {
   hasSearched.value = true
   loading.value = true
   try {
-    const res = await traceAPI.trace({
-      traceType: traceType.value,
-      sourceId: sourceId.value
-    })
+    let res
+    if (traceType.value === 'REPAIR_ORDER_SOURCES') {
+      res = await traceAPI.getRepairOrderSources(sourceId.value)
+    } else {
+      res = await traceAPI.trace({
+        traceType: traceType.value,
+        sourceId: sourceId.value
+      })
+    }
     traceData.value = res.data
   } catch (error) {
     handleAPIError(error)
