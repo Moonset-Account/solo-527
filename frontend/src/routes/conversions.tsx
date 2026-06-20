@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, type ReadingConversion, type PublishSchedule } from '../lib/api';
+import { api, type PublishSchedule } from '../lib/api';
 import { formatDate, formatNumber } from '../lib/utils';
 import { Plus, X, Eye, BookOpen, Share2, MessageSquare, TrendingUp, BarChart3 } from 'lucide-react';
 

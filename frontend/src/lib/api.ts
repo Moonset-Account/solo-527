@@ -70,6 +70,14 @@ export interface ReadingConversion {
   platform?: string;
 }
 
+export interface ConversionSummary {
+  totalViews: number;
+  totalReads: number;
+  totalShares: number;
+  totalComments: number;
+  avgConversionRate?: string;
+}
+
 export interface Exception {
   id: string;
   scheduleId: string;
@@ -101,12 +109,7 @@ export interface DashboardOverview {
   scheduleCount: number;
   openExceptions: number;
   publishedCount: number;
-  conversions: {
-    totalViews: number;
-    totalReads: number;
-    totalShares: number;
-    totalComments: number;
-  };
+  conversions: ConversionSummary;
 }
 
 export const api = {
@@ -156,7 +159,7 @@ export const api = {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
       return request<{ data: ReadingConversion[] }>(`/conversions${qs}`);
     },
-    summary: () => request<{ data: ReadingConversion }>('/conversions/summary'),
+    summary: () => request<{ data: ConversionSummary }>('/conversions/summary'),
     create: (data: Partial<ReadingConversion>) =>
       request<{ data: ReadingConversion }>('/conversions', { method: 'POST', body: JSON.stringify(data) }),
     batch: (data: Partial<ReadingConversion>[]) =>
