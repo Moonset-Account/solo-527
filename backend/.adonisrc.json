@@ -1,0 +1,77 @@
+{
+  "typescript": false,
+  "exceptionHandlerNamespace": "App/Exceptions/Handler",
+  "preloads": [
+    "./start/routes",
+    "./start/kernel"
+  ],
+  "providers": [
+    "./providers/AppProvider",
+    "@adonisjs/core/providers/AppProvider",
+    "@adonisjs/core/providers/HttpProvider",
+    "@adonisjs/core/providers/EventProvider",
+    "@adonisjs/core/providers/HashProvider",
+    "@adonisjs/core/providers/BodyParserProvider",
+    "@adonisjs/core/providers/CorsProvider",
+    "@adonisjs/core/providers/LoggerProvider",
+    "@adonisjs/core/providers/ProfilerProvider",
+    "@adonisjs/lucid/providers/LucidProvider",
+    "@adonisjs/auth/providers/AuthProvider",
+    "@adonisjs/redis/providers/RedisProvider",
+    "@adonisjs/repl/providers/ReplProvider"
+  ],
+  "aceProviders": [
+    "@adonisjs/assembler/build/commands",
+    "@adonisjs/lucid/build/commands",
+    "@adonisjs/repl/build/commands"
+  ],
+  "tests": {
+    "suites": [
+      {
+        "name": "functional",
+        "files": [
+          "tests/functional/**/*.spec(.js|.ts)"
+        ]
+      },
+      {
+        "name": "unit",
+        "files": [
+          "tests/unit/**/*.spec(.js|.ts)"
+        ]
+      }
+    ]
+  },
+  "directories": {
+    "config": "config",
+    "public": "public",
+    "contracts": "contracts",
+    "providers": "providers",
+    "database": "database",
+    "migrations": "database/migrations",
+    "seeds": "database/seeders",
+    "resources": "resources",
+    "views": "resources/views",
+    "start": "start",
+    "tmp": "tmp",
+    "tests": "tests",
+    "app": "app"
+  },
+  "namespaces": {
+    "controllers": "App/Controllers/Http",
+    "exceptions": "App/Exceptions",
+    "middleware": "App/Middleware",
+    "models": "App/Models",
+    "validators": "App/Validators",
+    "listeners": "App/Listeners",
+    "exceptionHandler": "App/Exceptions/Handler"
+  },
+  "aliases": {
+    "App": "app",
+    "Config": "config",
+    "Database": "database",
+    "Contracts": "contracts"
+  },
+  "commands": [
+    "./commands"
+  ]
+}
