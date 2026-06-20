@@ -39,14 +39,6 @@ const SUBSIDY_STATUS_OPTIONS = [
   { value: 'PAID', label: '已发放' },
 ];
 
-const SUBSIDY_TYPE_OPTIONS = [
-  { value: '国家补贴', label: '国家补贴' },
-  { value: '省级补贴', label: '省级补贴' },
-  { value: '市级补贴', label: '市级补贴' },
-  { value: '区级补贴', label: '区级补贴' },
-  { value: '其他补贴', label: '其他补贴' },
-];
-
 const SubsidyList: React.FC = () => {
   const [form] = Form.useForm();
 
@@ -56,6 +48,7 @@ const SubsidyList: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [zones, setZones] = useState<MeterZone[]>([]);
+  const [subsidyTypes, setSubsidyTypes] = useState<string[]>([]);
   const [stats, setStats] = useState({
     totalAmount: 0,
     pendingAmount: 0,
@@ -65,6 +58,7 @@ const SubsidyList: React.FC = () => {
 
   useEffect(() => {
     loadZones();
+    loadTypes();
   }, []);
 
   useEffect(() => {
@@ -80,6 +74,15 @@ const SubsidyList: React.FC = () => {
     }
   };
 
+  const loadTypes = async () => {
+    try {
+      const types = await subsidiesApi.getTypes();
+      setSubsidyTypes(types);
+    } catch (error) {
+      message.error('加载补贴类型失败');
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -87,8 +90,8 @@ const SubsidyList: React.FC = () => {
       let startDate: string | undefined;
       let endDate: string | undefined;
       if (values.dateRange && values.dateRange.length === 2) {
-        startDate = values.dateRange[0].format('YYYY-MM-DD');
-        endDate = values.dateRange[1].format('YYYY-MM-DD');
+        startDate = values.dateRange[0].startOf('day').format('YYYY-MM-DDTHH:mm:ss');
+        endDate = values.dateRange[1].endOf('day').format('YYYY-MM-DDTHH:mm:ss');
       }
       const result = await subsidiesApi.getList({
         page,
@@ -261,9 +264,9 @@ const SubsidyList: React.FC = () => {
           </Form.Item>
           <Form.Item name="type" label="类型">
             <Select placeholder="全部类型" allowClear style={{ width: 140 }}>
-              {SUBSIDY_TYPE_OPTIONS.map((option) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
+              {subsidyTypes.map((type) => (
+                <Option key={type} value={type}>
+                  {type}
                 </Option>
               ))}
             </Select>

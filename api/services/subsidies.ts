@@ -34,7 +34,11 @@ export async function getSubsidies(query: SubsidyQuery): Promise<PaginatedRespon
       ];
     }
     if (query.startDate) where.createdAt = { ...where.createdAt, gte: new Date(query.startDate) };
-    if (query.endDate) where.createdAt = { ...where.createdAt, lte: new Date(query.endDate) };
+    if (query.endDate) {
+      const endOfDay = new Date(query.endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      where.createdAt = { ...where.createdAt, lte: endOfDay };
+    }
 
     const [data, total] = await Promise.all([
       prisma.subsidyRecord.findMany({
@@ -78,8 +82,9 @@ export async function getSubsidies(query: SubsidyQuery): Promise<PaginatedRespon
     filtered = filtered.filter(s => new Date(s.createdAt).getTime() >= start);
   }
   if (query.endDate) {
-    const end = new Date(query.endDate).getTime();
-    filtered = filtered.filter(s => new Date(s.createdAt).getTime() <= end);
+    const end = new Date(query.endDate);
+    end.setHours(23, 59, 59, 999);
+    filtered = filtered.filter(s => new Date(s.createdAt).getTime() <= end.getTime());
   }
 
   filtered.sort((a, b) => b.period.localeCompare(a.period));
@@ -88,4 +93,21 @@ export async function getSubsidies(query: SubsidyQuery): Promise<PaginatedRespon
   const data = filtered.slice(skip, skip + pageSize);
 
   return { data, total, page, pageSize };
+}
+
+export async function getSubsidyTypes(): Promise<string[]> {
+  const prisma = await getPrismaClient();
+
+  if (prisma) {
+    const result = await prisma.subsidyRecord.findMany({
+      select: { type: true },
+      distinct: ['type'],
+      orderBy: { type: 'asc' },
+    });
+    return result.map(r => r.type);
+  }
+
+  const types = [...new Set(mockSubsidies.map(s => s.type))];
+  types.sort();
+  return types;
 }

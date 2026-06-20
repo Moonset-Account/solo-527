@@ -129,7 +129,9 @@ async function sendWebhook(
       success = false;
       message = 'Webhook 请求超时';
     } else {
-      console.warn('Webhook 发送失败（mock模式下视为成功）:', error.message);
+      success = false;
+      message = `Webhook 发送失败: ${error.message || '未知错误'}`;
+      console.error(`Webhook 发送失败 [${url}]:`, error.message);
     }
   }
 

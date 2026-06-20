@@ -1,7 +1,16 @@
 import { Router } from 'express';
-import { getSubsidies } from '../services/subsidies';
+import { getSubsidies, getSubsidyTypes } from '../services/subsidies';
 
 const router = Router();
+
+router.get('/types', async (_req, res) => {
+  try {
+    const types = await getSubsidyTypes();
+    res.json(types);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {

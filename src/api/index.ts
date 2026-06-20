@@ -124,6 +124,7 @@ export const subsidiesApi = {
     startDate?: string;
     endDate?: string;
   }) => apiClient.get<never, PaginatedResponse<SubsidyRecord>>('/subsidies', { params }),
+  getTypes: () => apiClient.get<never, string[]>('/subsidies/types'),
 };
 
 export const metersApi = {
