@@ -3,97 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-enum Role {
-  ADMIN
-  TEACHER
-  OPERATOR
-}
-
-enum MemberLevel {
-  TRIAL
-  BASIC
-  PREMIUM
-  VIP
-}
-
-enum MemberStatus {
-  ACTIVE
-  EXPIRED
-  FROZEN
-  CANCELLED
-}
-
-enum CampStatus {
-  UPCOMING
-  ONGOING
-  COMPLETED
-  CANCELLED
-}
-
-enum CourseType {
-  VIDEO
-  AUDIO
-  PDF
-  LIVE
-  HOMEWORK
-}
-
-enum CheckInStatus {
-  PENDING
-  COMPLETED
-  LATE
-  MISSED
-}
-
-enum TodoStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum TodoPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum TodoType {
-  FOLLOW_UP
-  COURSE_EXPIRE
-  MEMBER_WARNING
-  LAGGING_STUDENT
-  CUSTOM
-}
-
-enum ConversionChannel {
-  WECHAT_GROUP
-  MOMENTS
-  FRIEND_REFERRAL
-  OFFLINE_EVENT
-  LIVE_STREAM
-  ADVERTISEMENT
-  ORGANIC
-  OTHER
-}
-
-enum OperationAction {
-  CREATE
-  UPDATE
-  DELETE
-  CHECK_IN
-  ASSIGN
-  COMPLETE
-  TRANSFER
-  REMIND
-  EXPORT
-  LOGIN
-  LOGOUT
 }
 
 model User {
@@ -101,7 +12,7 @@ model User {
   username      String          @unique
   password      String
   name          String
-  role          Role            @default(OPERATOR)
+  role          String          @default("OPERATOR")
   phone         String?
   email         String?
   avatar        String?
@@ -114,6 +25,7 @@ model User {
   assignedTodos Todo[]          @relation("AssignedTodos")
   createdTodos  Todo[]          @relation("CreatedTodos")
   campTeachers  MemberCamp[]
+  camps         Camp[]
 
   @@index([username])
   @@index([role])
@@ -127,8 +39,8 @@ model Member {
   childAge          Int?
   avatar            String?
   wechatId          String?
-  level             MemberLevel      @default(TRIAL)
-  status            MemberStatus     @default(ACTIVE)
+  level             String           @default("TRIAL")
+  status            String           @default("ACTIVE")
   conversionSource  ConversionSource? @relation(fields: [conversionSourceId], references: [id])
   conversionSourceId Int?
   sourceDetail      String?
@@ -179,7 +91,7 @@ model MemberBenefit {
 model ConversionSource {
   id           Int             @id @default(autoincrement())
   name         String
-  channel      ConversionChannel
+  channel      String
   description  String?
   isActive     Boolean         @default(true)
   createdAt    DateTime        @default(now())
@@ -207,13 +119,14 @@ model Camp {
   id            Int          @id @default(autoincrement())
   name          String
   description   String?
-  status        CampStatus   @default(UPCOMING)
+  status        String       @default("UPCOMING")
   startDate     DateTime
   endDate       DateTime
   totalDays     Int
   checkInRule   String?
   maxMembers    Int?
   teacherId     Int?
+  teacher       User?        @relation(fields: [teacherId], references: [id])
   coverImage    String?
   tags          String?
   createdAt     DateTime     @default(now())
@@ -231,7 +144,7 @@ model Course {
   campId        Int
   camp          Camp       @relation(fields: [campId], references: [id], onDelete: Cascade)
   title         String
-  type          CourseType
+  type          String
   description   String?
   dayIndex      Int
   duration      Int?
@@ -283,7 +196,7 @@ model CheckIn {
   course          Course?        @relation(fields: [courseId], references: [id])
   dayIndex        Int
   checkInDate     DateTime
-  status          CheckInStatus  @default(PENDING)
+  status          String         @default("PENDING")
   completedAt     DateTime?
   remark          String?
   homeworkUrl     String?
@@ -328,11 +241,11 @@ model FallingBehind {
 
 model Todo {
   id             Int          @id @default(autoincrement())
-  type           TodoType     @default(CUSTOM)
+  type           String       @default("CUSTOM")
   title          String
   description    String?
-  status         TodoStatus   @default(PENDING)
-  priority       TodoPriority @default(MEDIUM)
+  status         String       @default("PENDING")
+  priority       String       @default("MEDIUM")
   dueDate        DateTime?
   assigneeId     Int?
   assignee       User?        @relation("AssignedTodos", fields: [assigneeId], references: [id])
@@ -362,7 +275,7 @@ model OperationLog {
   operator    User?            @relation(fields: [operatorId], references: [id])
   memberId    Int?
   member      Member?          @relation(fields: [memberId], references: [id])
-  action      OperationAction
+  action      String
   targetType  String
   targetId    Int?
   targetName  String?

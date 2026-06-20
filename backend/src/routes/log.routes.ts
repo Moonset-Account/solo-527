@@ -64,7 +64,7 @@ router.get(
 
       const operatorStats = await prisma.operationLog.groupBy({
         by: ['operatorId'],
-        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
         _count: true,
       });
 

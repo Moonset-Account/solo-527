@@ -49,31 +49,11 @@ export default function RetentionReport() {
       setOverview(overviewRes);
       setRetention(retentionRes.data || []);
       setCamps(campRes);
-      setCheckInTrend(trendRes.data || []);
+      setCheckInTrend(trendRes.data || trendRes.daily || []);
       setDailyRetention(retentionRes.daily || []);
+      setExpiringData(retentionRes.expiringForecast || []);
     } finally { setLoading(false); }
   };
-
-  // 计算到期学员
-  useEffect(() => {
-    const calcExpiring = () => {
-      const result: any[] = [];
-      for (let i = 0; i < 30; i++) {
-        const date = dayjs().add(i, 'day').format('YYYY-MM-DD');
-        const count = Math.max(0, Math.round(Math.random() * 8) + (i < 7 ? 3 : i < 14 ? 2 : 1));
-        if (count > 0 || i < 14) {
-          result.push({
-            date, label: dayjs(date).format(`MM-DD (${['日', '一', '二', '三', '四', '五', '六'][dayjs(date).day()]})`),
-            expiringCount: count,
-            estimatedRenew: Math.round(count * (0.4 + Math.random() * 0.2)),
-            estimatedLoss: Math.round(count * (0.3 + Math.random() * 0.2))
-          });
-        }
-      }
-      setExpiringData(result);
-    };
-    calcExpiring();
-  }, [period]);
 
   const latestRetention = retention[0] || {};
   const d1 = latestRetention.day1 ? (latestRetention.day1.retentionRate * 100).toFixed(1) : '0';

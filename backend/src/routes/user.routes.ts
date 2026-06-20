@@ -6,9 +6,8 @@ import { validateRequest } from '../middlewares/validate';
 import { success } from '../utils/response';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../utils/errors';
 import { roleMiddleware } from '../middlewares/auth';
-import { Role } from '@prisma/client';
+import { Role, OperationAction } from '../types/enums';
 import { createOperationLog } from '../middlewares/operationLogger';
-import { OperationAction } from '@prisma/client';
 
 const router = Router();
 

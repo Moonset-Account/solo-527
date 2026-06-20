@@ -6,9 +6,8 @@ import { validateRequest } from '../middlewares/validate';
 import { success } from '../utils/response';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import { roleMiddleware } from '../middlewares/auth';
-import { Role, CampStatus } from '@prisma/client';
+import { Role, CampStatus, OperationAction } from '../types/enums';
 import { createOperationLog } from '../middlewares/operationLogger';
-import { OperationAction } from '@prisma/client';
 
 const router = Router();
 
@@ -24,15 +23,11 @@ router.get(
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 20;
       const keyword = (req.query.keyword as string) || '';
-      const status = req.query.status as CampStatus | undefined;
+      const status = req.query.status as typeof CampStatus[keyof typeof CampStatus] | undefined;
 
       const where: any = {};
-      if (keyword) {
-        where.name = { contains: keyword };
-      }
-      if (status) {
-        where.status = status;
-      }
+      if (keyword) where.name = { contains: keyword };
+      if (status) where.status = status;
 
       const [camps, total] = await Promise.all([
         prisma.camp.findMany({
@@ -92,28 +87,13 @@ router.get('/:id', async (req, res, next) => {
         courses: {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
-          select: {
-            id: true,
-            title: true,
-            type: true,
-            dayIndex: true,
-            duration: true,
-            hasTrial: true,
-            sortOrder: true,
-          },
+          select: { id: true, title: true, type: true, dayIndex: true, duration: true, hasTrial: true, sortOrder: true },
         },
-        _count: {
-          select: {
-            memberCamps: { where: { isActive: true } },
-            courses: { where: { isActive: true } },
-          },
-        },
+        _count: { select: { memberCamps: { where: { isActive: true } }, courses: { where: { isActive: true } } } },
       },
     });
 
-    if (!camp) {
-      throw new NotFoundError('营期不存在');
-    }
+    if (!camp) throw new NotFoundError('营期不存在');
 
     const result = {
       ...camp,
@@ -143,28 +123,9 @@ router.get('/:id/members', async (req, res, next) => {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
-          member: {
-            select: {
-              id: true,
-              name: true,
-              phone: true,
-              childName: true,
-              childAge: true,
-              level: true,
-              status: true,
-              totalCheckInDays: true,
-              continuousDays: true,
-              isLagging: true,
-              laggingDays: true,
-              lastCheckInAt: true,
-            },
-          },
+          member: { select: { id: true, name: true, phone: true, childName: true, childAge: true, level: true, status: true, totalCheckInDays: true, continuousDays: true, isLagging: true, laggingDays: true, lastCheckInAt: true } },
           teacher: { select: { id: true, name: true } },
-          _count: {
-            select: {
-              checkIns: { where: { status: 'COMPLETED' } },
-            },
-          },
+          _count: { select: { checkIns: { where: { status: 'COMPLETED' } } } },
         },
         orderBy: { joinedAt: 'desc' },
       }),
@@ -199,24 +160,10 @@ router.post(
   async (req, res, next) => {
     try {
       const { name, description, startDate, endDate, totalDays, checkInRule, maxMembers, teacherId, coverImage, tags } = req.body;
-
-      if (dayjs(endDate).isBefore(startDate)) {
-        throw new BadRequestError('结束日期不能早于开始日期');
-      }
+      if (dayjs(endDate).isBefore(startDate)) throw new BadRequestError('结束日期不能早于开始日期');
 
       const camp = await prisma.camp.create({
-        data: {
-          name,
-          description,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
-          totalDays,
-          checkInRule,
-          maxMembers,
-          teacherId,
-          coverImage,
-          tags,
-        },
+        data: { name, description, startDate: new Date(startDate), endDate: new Date(endDate), totalDays, checkInRule, maxMembers, teacherId, coverImage, tags },
       });
 
       await createOperationLog(req, {
@@ -241,27 +188,18 @@ router.patch(
     try {
       const id = parseInt(req.params.id);
       const existing = await prisma.camp.findUnique({ where: { id } });
-      if (!existing) {
-        throw new NotFoundError('营期不存在');
-      }
+      if (!existing) throw new NotFoundError('营期不存在');
 
       const data: any = {};
-      const fields = ['name', 'description', 'status', 'startDate', 'endDate', 'totalDays', 'checkInRule', 'maxMembers', 'teacherId', 'coverImage', 'tags'];
-      fields.forEach((f) => {
+      ['name', 'description', 'status', 'startDate', 'endDate', 'totalDays', 'checkInRule', 'maxMembers', 'teacherId', 'coverImage', 'tags'].forEach((f) => {
         if (req.body[f] !== undefined) data[f] = req.body[f];
       });
       if (data.startDate) data.startDate = new Date(data.startDate);
       if (data.endDate) data.endDate = new Date(data.endDate);
 
       const camp = await prisma.camp.update({ where: { id }, data });
-
       await createOperationLog(req, {
-        action: OperationAction.UPDATE,
-        targetType: 'Camp',
-        targetId: camp.id,
-        targetName: camp.name,
-        oldValue: existing,
-        newValue: data,
+        action: OperationAction.UPDATE, targetType: 'Camp', targetId: camp.id, targetName: camp.name, oldValue: existing, newValue: data,
       });
 
       res.json(success(null, '更新成功'));
@@ -275,34 +213,20 @@ router.post('/:id/members', async (req, res, next) => {
   try {
     const campId = parseInt(req.params.id);
     const { memberIds } = req.body;
-
-    if (!Array.isArray(memberIds) || memberIds.length === 0) {
-      throw new BadRequestError('请选择要添加的学员');
-    }
+    if (!Array.isArray(memberIds) || memberIds.length === 0) throw new BadRequestError('请选择要添加的学员');
 
     const camp = await prisma.camp.findUnique({ where: { id: campId } });
-    if (!camp) {
-      throw new NotFoundError('营期不存在');
-    }
+    if (!camp) throw new NotFoundError('营期不存在');
 
     let added = 0;
     for (const memberId of memberIds) {
-      const existing = await prisma.memberCamp.findUnique({
-        where: { memberId_campId: { memberId, campId } },
-      });
+      const existing = await prisma.memberCamp.findUnique({ where: { memberId_campId: { memberId, campId } } });
       if (!existing) {
-        await prisma.memberCamp.create({
-          data: { memberId, campId, teacherId: camp.teacherId },
-        });
+        await prisma.memberCamp.create({ data: { memberId, campId, teacherId: camp.teacherId } });
         added++;
-
         const member = await prisma.member.findUnique({ where: { id: memberId } });
         await createOperationLog(req, {
-          action: OperationAction.CREATE,
-          targetType: 'MemberCamp',
-          targetId: memberId,
-          targetName: `${member?.name || ''}加入${camp.name}`,
-          memberId,
+          action: OperationAction.CREATE, targetType: 'MemberCamp', targetId: memberId, targetName: `${member?.name || ''}加入${camp.name}`, memberId,
         });
       }
     }
@@ -311,7 +235,7 @@ router.post('/:id/members', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-);
+});
 
 router.delete('/:id/members/:memberId', async (req, res, next) => {
   try {
@@ -322,20 +246,11 @@ router.delete('/:id/members/:memberId', async (req, res, next) => {
       where: { memberId_campId: { memberId, campId } },
       include: { member: true, camp: true },
     });
-    if (!mc) {
-      throw new NotFoundError('学员不在此营期中');
-    }
+    if (!mc) throw new NotFoundError('学员不在此营期中');
 
-    await prisma.memberCamp.delete({
-      where: { memberId_campId: { memberId, campId } },
-    });
-
+    await prisma.memberCamp.delete({ where: { memberId_campId: { memberId, campId } } });
     await createOperationLog(req, {
-      action: OperationAction.DELETE,
-      targetType: 'MemberCamp',
-      targetId: mc.id,
-      targetName: `${mc.member.name}移出${mc.camp.name}`,
-      memberId,
+      action: OperationAction.DELETE, targetType: 'MemberCamp', targetId: mc.id, targetName: `${mc.member.name}移出${mc.camp.name}`, memberId,
     });
 
     res.json(success(null, '移除成功'));

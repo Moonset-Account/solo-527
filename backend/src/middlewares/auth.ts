@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors';
 import prisma from '../lib/prisma';
-import { Role } from '@prisma/client';
+import { Role } from '../types/enums';
 
 export interface AuthUser {
   id: number;

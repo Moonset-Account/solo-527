@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
-import { OperationAction } from '@prisma/client';
+import { OperationAction } from '../types/enums';
 
 interface LogOptions {
   action: OperationAction;

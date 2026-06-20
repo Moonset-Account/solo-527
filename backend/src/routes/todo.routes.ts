@@ -5,7 +5,7 @@ import { validateRequest } from '../middlewares/validate';
 import { success } from '../utils/response';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../utils/errors';
 import { createOperationLog } from '../middlewares/operationLogger';
-import { OperationAction, TodoStatus, TodoPriority, Role } from '@prisma/client';
+import { OperationAction, TodoStatus, TodoPriority, Role } from '../types/enums';
 
 const router = Router();
 

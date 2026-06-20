@@ -1,4 +1,5 @@
-import { PrismaClient, Role, MemberLevel, MemberStatus, CampStatus, CourseType, CheckInStatus, TodoStatus, TodoPriority, TodoType, ConversionChannel, OperationAction } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { Role, MemberLevel, MemberStatus, CampStatus, CourseType, CheckInStatus, TodoStatus, TodoPriority, TodoType, ConversionChannel, OperationAction } from '../src/types/enums';
 import bcrypt from 'bcryptjs';
 import dayjs from 'dayjs';
 
@@ -246,7 +247,7 @@ async function main() {
       let status: CheckInStatus;
       if (d >= missStartDay) {
         status = CheckInStatus.MISSED;
-      } else if (d > member.completedDays) {
+      } else if (d > memberCamp.completedDays) {
         status = CheckInStatus.PENDING;
       } else if (d % 7 === 0) {
         status = CheckInStatus.LATE;
