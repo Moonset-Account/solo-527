@@ -5,9 +5,16 @@ export interface AuditLogData {
   operationType: string
   sourceType: string
   sourceId: number
+  sourceNo?: string
   oldValue?: any
   newValue?: any
   changeReason?: string
+  patientId?: number
+  medicalRecordId?: number
+  courseId?: number
+  followUpId?: number
+  billingId?: number
+  archiveId?: number
 }
 
 export const createAuditLog = async (
@@ -16,10 +23,20 @@ export const createAuditLog = async (
 ) => {
   await prisma.auditLog.create({
     data: {
-      ...logData,
-      oldValue: logData.oldValue ? JSON.stringify(logData.oldValue) : null,
-      newValue: logData.newValue ? JSON.stringify(logData.newValue) : null,
-      operatorId: user.id
+      operationType: logData.operationType,
+      sourceType: logData.sourceType,
+      sourceId: logData.sourceId,
+      sourceNo: logData.sourceNo || null,
+      oldValue: logData.oldValue || null,
+      newValue: logData.newValue || null,
+      changeReason: logData.changeReason || null,
+      operatorId: user.id,
+      patientId: logData.patientId || null,
+      medicalRecordId: logData.medicalRecordId || null,
+      courseId: logData.courseId || null,
+      followUpId: logData.followUpId || null,
+      billingId: logData.billingId || null,
+      archiveId: logData.archiveId || null
     }
   })
 }

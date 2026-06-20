@@ -195,7 +195,7 @@
             <h4 class="font-semibold mb-3">数据来源追溯</h4>
             <div class="space-y-2">
               <div
-                v-for="source in selectedRecord.dataSources"
+                v-for="source in (selectedRecord.dataSources || [])"
                 :key="source.id"
                 class="p-3 border rounded"
               >
@@ -203,7 +203,7 @@
                   <span class="text-sm text-gray-600">{{ source.relation }}</span>
                   <span class="text-xs text-gray-400">{{ formatDate(source.createdAt) }}</span>
                 </div>
-                <p class="text-sm">{{ source.remark }}</p>
+                <p class="text-sm">{{ source.remark || '-' }}</p>
                 <p class="text-xs text-blue-600 mt-1">
                   来源：{{ source.sourceType }} #{{ source.sourceNo }}
                 </p>
@@ -215,7 +215,7 @@
             <h4 class="font-semibold mb-3">操作历史</h4>
             <div class="space-y-2">
               <div
-                v-for="log in selectedRecord.auditLogs"
+                v-for="log in (selectedRecord.auditLogs || [])"
                 :key="log.id"
                 class="p-3 border rounded"
               >
@@ -223,8 +223,8 @@
                   <span class="text-sm font-medium">{{ log.operationType }}</span>
                   <span class="text-xs text-gray-400">{{ formatDate(log.createdAt) }}</span>
                 </div>
-                <p class="text-sm text-gray-600">{{ log.changeReason }}</p>
-                <p class="text-xs text-gray-500 mt-1">操作人：{{ log.operator.name }}</p>
+                <p class="text-sm text-gray-600">{{ log.changeReason || '无说明' }}</p>
+                <p class="text-xs text-gray-500 mt-1">操作人：{{ log.operator?.name || '-' }}</p>
               </div>
             </div>
           </div>

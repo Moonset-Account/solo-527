@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
   const startDate = dayjs(date).startOf('day').toDate()
   const endDate = dayjs(date).endOf('day').toDate()
 
+  const toNum = (v: any) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v || 0))
+
   const billingRecords = await prisma.billingRecord.findMany({
     where: {
       createdAt: {
@@ -40,12 +42,12 @@ export default defineEventHandler(async (event) => {
   })
 
   const summary = {
-    totalAmount: billingRecords.reduce((sum, b) => sum + b.amount.toNumber(), 0),
-    paidAmount: billingRecords.reduce((sum, b) => sum + b.paidAmount.toNumber(), 0),
-    unpaidAmount: billingRecords.reduce((sum, b) => sum + (b.amount.toNumber() - b.paidAmount.toNumber()), 0),
+    totalAmount: billingRecords.reduce((sum, b) => sum + toNum(b.amount), 0),
+    paidAmount: billingRecords.reduce((sum, b) => sum + toNum(b.paidAmount), 0),
+    unpaidAmount: billingRecords.reduce((sum, b) => sum + (toNum(b.amount) - toNum(b.paidAmount)), 0),
     count: billingRecords.length,
     paidCount: billingRecords.filter(b => b.status === 'PAID').length,
-    unpaidCount: billingRecords.filter(b => b.status === 'UNPAID').length,
+    unpaidCount: billingRecords.filter(b => b.status !== 'PAID').length,
     patientCount: new Set(billingRecords.map(b => b.patientId)).size
   }
 

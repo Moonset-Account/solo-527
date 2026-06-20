@@ -10,13 +10,6 @@
         >
           批量修改状态
         </button>
-        <button
-          v-if="hasRole(['ADMIN', 'OPERATOR'])"
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          @click="showCreateModal = true"
-        >
-          新增随访
-        </button>
       </div>
     </div>
 
@@ -113,8 +106,8 @@
             </td>
             <td class="px-4 py-3 text-sm font-mono">{{ task.taskNo }}</td>
             <td class="px-4 py-3 text-sm">
-              <div>{{ task.patient.name }}</div>
-              <div class="text-xs text-gray-500">{{ task.patient.phone }}</div>
+              <div>{{ task.patient?.name || '-' }}</div>
+              <div class="text-xs text-gray-500">{{ task.patient?.phone || '-' }}</div>
             </td>
             <td class="px-4 py-3 text-sm">
               <span :class="typeClass(task.type)" class="px-2 py-1 rounded text-xs">
@@ -124,7 +117,7 @@
             <td class="px-4 py-3 text-sm">{{ formatDate(task.scheduledDate) }}</td>
             <td class="px-4 py-3 text-sm">
               <span
-                v-for="i in task.priority"
+                v-for="i in (task.priority || 0)"
                 :key="i"
                 class="text-yellow-500"
               >★</span>
@@ -135,9 +128,9 @@
               </span>
             </td>
             <td class="px-4 py-3 text-sm">
-              <span class="text-blue-600">{{ task._count.followUpRecords }} 次</span>
+              <span class="text-blue-600">{{ task._count?.followUpRecords ?? 0 }} 次</span>
             </td>
-            <td class="px-4 py-3 text-sm">{{ task.assignee.name }}</td>
+            <td class="px-4 py-3 text-sm">{{ task.assignee?.name || '-' }}</td>
             <td class="px-4 py-3 text-sm space-x-2">
               <button
                 class="text-blue-600 hover:underline"
@@ -246,12 +239,12 @@
             <h4 class="font-semibold mb-3">随访历史记录（可回看）</h4>
             <div class="space-y-3">
               <div
-                v-for="record in selectedTask.followUpRecords"
+                v-for="record in (selectedTask.followUpRecords || [])"
                 :key="record.id"
                 class="p-4 border rounded bg-gray-50"
               >
                 <div class="flex justify-between items-start mb-2">
-                  <span class="text-sm font-medium">{{ record.operator.name }}</span>
+                  <span class="text-sm font-medium">{{ record.operator?.name || '-' }}</span>
                   <span class="text-xs text-gray-500">{{ formatDate(record.recordDate) }}</span>
                 </div>
                 <div class="space-y-2">
@@ -279,7 +272,7 @@
             <h4 class="font-semibold mb-3">数据来源追溯</h4>
             <div class="space-y-2">
               <div
-                v-for="source in selectedTask.dataSources"
+                v-for="source in (selectedTask.dataSources || [])"
                 :key="source.id"
                 class="p-3 border rounded"
               >
@@ -475,7 +468,6 @@ const tasks = ref<any[]>([])
 const selectedIds = ref<number[]>([])
 const showDetailModal = ref(false)
 const showRecordModal = ref(false)
-const showCreateModal = ref(false)
 const showBatchModal = ref(false)
 const selectedTask = ref<any>(null)
 const submitting = ref(false)

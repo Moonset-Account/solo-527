@@ -85,8 +85,8 @@
             </td>
             <td class="px-4 py-3 text-sm font-mono">{{ course.courseNo }}</td>
             <td class="px-4 py-3 text-sm">
-              <div>{{ course.patient.name }}</div>
-              <div class="text-xs text-gray-500">{{ course.patient.phone }}</div>
+              <div>{{ course.patient?.name || '-' }}</div>
+              <div class="text-xs text-gray-500">{{ course.patient?.phone || '-' }}</div>
             </td>
             <td class="px-4 py-3 text-sm font-medium">{{ course.name }}</td>
             <td class="px-4 py-3 text-sm">
@@ -99,11 +99,11 @@
                 <div
                   class="h-2 rounded-full"
                   :class="course.completedSessions >= course.totalSessions ? 'bg-green-500' : 'bg-blue-500'"
-                  :style="{ width: `${(course.completedSessions / course.totalSessions) * 100}%` }"
+                  :style="{ width: `${course.totalSessions > 0 ? (course.completedSessions / course.totalSessions) * 100 : 0}%` }"
                 ></div>
               </div>
               <span class="text-xs text-gray-500">
-                {{ course.completedSessions }}/{{ course.totalSessions }} 次
+                {{ course.completedSessions || 0 }}/{{ course.totalSessions || 0 }} 次
               </span>
             </td>
             <td class="px-4 py-3 text-sm">
@@ -176,7 +176,7 @@
               即将标记 <strong>{{ selectedCourse.name }}</strong> 为流失
             </p>
             <p class="text-sm text-yellow-600 mt-1">
-              患者：{{ selectedCourse.patient?.name }}
+              患者：{{ selectedCourse.patient?.name || '-' }}
             </p>
           </div>
           <div class="mb-6">

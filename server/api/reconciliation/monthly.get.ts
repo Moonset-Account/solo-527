@@ -111,14 +111,16 @@ export default defineEventHandler(async (event) => {
     })
   ])
 
+  const toNum = (v: any) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v || 0))
+
   const summary = {
     medicalRecordCount: medicalRecords.length,
     followUpTaskCount: followUpTasks.length,
     completedFollowUpCount: followUpTasks.filter(f => f.status === 'COMPLETED').length,
     billingRecordCount: billingRecords.length,
-    totalAmount: billingRecords.reduce((sum, b) => sum + b.amount.toNumber(), 0),
-    paidAmount: billingRecords.reduce((sum, b) => sum + b.paidAmount.toNumber(), 0),
-    unpaidAmount: billingRecords.reduce((sum, b) => sum + (b.amount.toNumber() - b.paidAmount.toNumber()), 0),
+    totalAmount: billingRecords.reduce((sum, b) => sum + toNum(b.amount), 0),
+    paidAmount: billingRecords.reduce((sum, b) => sum + toNum(b.paidAmount), 0),
+    unpaidAmount: billingRecords.reduce((sum, b) => sum + (toNum(b.amount) - toNum(b.paidAmount)), 0),
     patientArchiveCount: patientArchives.length
   }
 

@@ -62,7 +62,7 @@
             <td class="px-4 py-3 text-sm font-medium text-green-600">
               ¥{{ Number(plan.price).toFixed(2) }}
             </td>
-            <td class="px-4 py-3 text-sm">{{ plan._count.treatmentCourses }} 次</td>
+            <td class="px-4 py-3 text-sm">{{ plan._count?.treatmentCourses ?? 0 }} 次</td>
             <td class="px-4 py-3 text-sm">
               <span :class="statusClass(plan.status)" class="px-2 py-1 rounded text-xs">
                 {{ statusText(plan.status) }}
@@ -346,7 +346,6 @@
 
 <script setup lang="ts">
 const { get, post, put } = useApi()
-const { hasRole } = useAuth()
 
 const pagination = usePagination(10)
 const filters = ref({

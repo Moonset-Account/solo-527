@@ -8,38 +8,35 @@ export default defineEventHandler(async (event) => {
 
   const id = parseInt(getRouterParam(event, 'id') || '0')
 
-  const patient = await prisma.patient.findUnique({
+  const course = await prisma.treatmentCourse.findUnique({
     where: { id },
     include: {
-      medicalRecords: {
-        orderBy: { visitDate: 'desc' },
-        take: 10
+      patient: {
+        select: { id: true, patientNo: true, name: true, phone: true }
       },
-      treatmentCourses: {
-        orderBy: { startDate: 'desc' },
-        include: {
-          plan: true
-        }
+      medicalRecord: {
+        select: { id: true, recordNo: true, diagnosis: true }
+      },
+      plan: {
+        select: { id: true, planNo: true, name: true }
+      },
+      lostHandler: {
+        select: { id: true, name: true }
       },
       followUpTasks: {
         orderBy: { scheduledDate: 'desc' },
-        take: 10,
         include: {
-          followUpRecords: {
-            orderBy: { recordDate: 'desc' }
-          }
+          assignee: { select: { id: true, name: true } }
         }
       },
       billingRecords: {
         orderBy: { createdAt: 'desc' },
-        take: 10
-      },
-      patientArchives: {
-        orderBy: { createdAt: 'desc' }
+        include: {
+          creator: { select: { id: true, name: true } }
+        }
       },
       auditLogs: {
         orderBy: { createdAt: 'desc' },
-        take: 20,
         include: {
           operator: { select: { id: true, name: true } }
         }
@@ -47,17 +44,17 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  if (!patient) {
+  if (!course) {
     throw createError({
       statusCode: 404,
-      statusMessage: '患者不存在'
+      statusMessage: '疗程不存在'
     })
   }
 
-  const dataSources = await getDataSource('PATIENT', id)
+  const dataSources = await getDataSource('TREATMENT_COURSE', id)
 
   return successResponse({
-    ...patient,
+    ...course,
     dataSources
   }, '获取成功')
 })

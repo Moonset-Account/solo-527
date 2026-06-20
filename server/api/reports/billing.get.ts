@@ -11,6 +11,8 @@ export default defineEventHandler(async (event) => {
   const endDate = query.endDate ? dayjs(query.endDate as string).toDate() : dayjs().endOf('month').toDate()
   const groupBy = query.groupBy as string || 'day'
 
+  const toNum = (v: any) => (typeof v?.toNumber === 'function' ? v.toNumber() : Number(v || 0))
+
   const billingRecords = await prisma.billingRecord.findMany({
     where: {
       createdAt: {
@@ -20,13 +22,13 @@ export default defineEventHandler(async (event) => {
     },
     include: {
       patient: {
-        select: { id: true, patientNo: true, name: true, status: true }
+        select: { id: true, patientNo: true, name: true, status: true, firstVisitDate: true }
       },
       medicalRecord: {
         select: { id: true, recordNo: true, diagnosis: true }
       },
       course: {
-        select: { id: true, courseNo: true, name: true, isLost: true }
+        select: { id: true, courseNo: true, name: true, isLost: true, lostReason: true }
       },
       creator: {
         select: { id: true, name: true }
@@ -55,9 +57,9 @@ export default defineEventHandler(async (event) => {
         })
       }
       const data = dayMap.get(day)
-      data.totalAmount += record.amount.toNumber()
-      data.paidAmount += record.paidAmount.toNumber()
-      data.unpaidAmount += (record.amount.toNumber() - record.paidAmount.toNumber())
+      data.totalAmount += toNum(record.amount)
+      data.paidAmount += toNum(record.paidAmount)
+      data.unpaidAmount += (toNum(record.amount) - toNum(record.paidAmount))
       data.count++
       data.patientCount.add(record.patientId)
     })
@@ -69,16 +71,16 @@ export default defineEventHandler(async (event) => {
   }
 
   const summary = {
-    totalAmount: billingRecords.reduce((sum, b) => sum + b.amount.toNumber(), 0),
-    paidAmount: billingRecords.reduce((sum, b) => sum + b.paidAmount.toNumber(), 0),
-    unpaidAmount: billingRecords.reduce((sum, b) => sum + (b.amount.toNumber() - b.paidAmount.toNumber()), 0),
+    totalAmount: billingRecords.reduce((sum, b) => sum + toNum(b.amount), 0),
+    paidAmount: billingRecords.reduce((sum, b) => sum + toNum(b.paidAmount), 0),
+    unpaidAmount: billingRecords.reduce((sum, b) => sum + (toNum(b.amount) - toNum(b.paidAmount)), 0),
     totalCount: billingRecords.length,
     paidCount: billingRecords.filter(b => b.status === 'PAID').length,
-    unpaidCount: billingRecords.filter(b => b.status === 'UNPAID').length,
+    unpaidCount: billingRecords.filter(b => b.status !== 'PAID').length,
     patientCount: new Set(billingRecords.map(b => b.patientId)).size,
-    newPatientCount: billingRecords.filter(b => dayjs(b.patient.firstVisitDate).isAfter(dayjs(startDate).subtract(1, 'day'))).length,
+    newPatientCount: billingRecords.filter(b => b.patient?.firstVisitDate && dayjs(b.patient.firstVisitDate).isAfter(dayjs(startDate).subtract(1, 'day'))).length,
     lostPatientCount: lostPatientIds.length,
-    lostAmount: lostCourses.reduce((sum, b) => sum + b.amount.toNumber(), 0)
+    lostAmount: lostCourses.reduce((sum, b) => sum + toNum(b.amount), 0)
   }
 
   return successResponse({

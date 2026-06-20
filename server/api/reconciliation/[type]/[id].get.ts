@@ -56,6 +56,31 @@ export default defineEventHandler(async (event) => {
       })
       break
 
+    case 'treatment-course':
+      sourceType = 'TREATMENT_COURSE'
+      data = await prisma.treatmentCourse.findUnique({
+        where: { id },
+        include: {
+          patient: true,
+          medicalRecord: true,
+          plan: true,
+          lostHandler: { select: { id: true, name: true } },
+          followUpTasks: {
+            orderBy: { scheduledDate: 'desc' }
+          },
+          billingRecords: {
+            orderBy: { createdAt: 'desc' }
+          },
+          auditLogs: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              operator: { select: { id: true, name: true } }
+            }
+          }
+        }
+      })
+      break
+
     case 'billing':
       sourceType = 'BILLING_RECORD'
       data = await prisma.billingRecord.findUnique({

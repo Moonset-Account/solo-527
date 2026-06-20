@@ -269,12 +269,12 @@
 
           <div class="space-y-4">
             <div
-              v-for="record in selectedFollowUp.followUpRecords"
+              v-for="record in (selectedFollowUp.followUpRecords || [])"
               :key="record.id"
               class="p-4 border rounded"
             >
               <div class="flex justify-between items-start mb-2">
-                <span class="text-sm font-medium">{{ record.operator?.name }}</span>
+                <span class="text-sm font-medium">{{ record.operator?.name || '-' }}</span>
                 <span class="text-xs text-gray-400">{{ formatDate(record.recordDate) }}</span>
               </div>
               <div class="space-y-2">
