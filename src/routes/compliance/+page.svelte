@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DataTable from '$components/DataTable.svelte';
-  import StatusBadge from '$components/StatusBadge.svelte';
   import StatCard from '$components/StatCard.svelte';
-  import { Shield, Download, Filter, FileSpreadsheet, CheckCircle, Clock, AlertCircle } from 'lucide-svelte';
+  import { Shield, Download, Filter, CheckCircle, Clock, AlertCircle } from 'lucide-svelte';
   import { formatDate, complianceTypeMap } from '$utils/format';
-  import { mockCompliance, getComplianceStats } from '$server/mockData';
   import type { ComplianceRecord, Column, Status, ComplianceType } from '$types';
 
   let records = $state<ComplianceRecord[]>([]);
@@ -16,7 +14,7 @@
   let filterStatus = $state<Status | 'all'>('all');
   let filterType = $state<ComplianceType | 'all'>('all');
 
-  let stats = $state(getComplianceStats());
+  let stats = $state({ total: 0, pending: 0, completed: 0, byType: { requisition: 0, experiment: 0, todo: 0, risk: 0 } as Record<ComplianceType, number> });
 
   let filteredRecords = $derived(records.filter((r) => {
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
@@ -24,9 +22,25 @@
     return true;
   }));
 
+  async function loadStats() {
+    try {
+      const res = await fetch('/api/compliance?stats=true');
+      if (res.ok) stats = await res.json();
+    } catch (e) {
+      console.error('Failed to load stats:', e);
+    }
+  }
+
   onMount(async () => {
     try {
-      records = [...mockCompliance];
+      const [recordsRes] = await Promise.all([
+        fetch('/api/compliance'),
+        loadStats()
+      ]);
+      if (recordsRes.ok) {
+        const result = await recordsRes.json();
+        records = result.data ?? [];
+      }
     } catch (e) {
       console.error('Failed to load data:', e);
     } finally {
@@ -37,44 +51,15 @@
   async function handleExport() {
     exporting = true;
     try {
-      const headers = ['ID', '类型', '关联ID', '状态', '操作人', '操作人ID', '详情', '创建时间', '处理时间'];
-      const typeMap: Record<ComplianceType, string> = {
-        requisition: '领用申请',
-        experiment: '实验数据',
-        todo: '待办事项',
-        risk: '风险处理'
-      };
-      const statusMap: Record<Status, string> = {
-        pending: '待处理',
-        approved: '已批准',
-        rejected: '已拒绝',
-        completed: '已完成',
-        processing: '处理中',
-        resolved: '已解决',
-        failed: '已失败'
-      };
-
-      const rows = filteredRecords.map((r) => [
-        r.id,
-        typeMap[r.type] || r.type,
-        r.referenceId,
-        statusMap[r.status] || r.status,
-        r.operator,
-        r.operatorId,
-        `"${r.details.replace(/"/g, '""')}"`,
-        formatDate(r.createdAt),
-        r.processedAt ? formatDate(r.processedAt) : ''
-      ]);
-
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const res = await fetch('/api/compliance?export=csv');
+      if (!res.ok) throw new Error('导出失败');
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `安全合规记录_${formatDate(new Date()).replace(/[/:]/g, '-')}.csv`;
       link.click();
       URL.revokeObjectURL(url);
-
       exportSuccess = true;
       setTimeout(() => (exportSuccess = false), 3000);
     } catch (e) {
@@ -94,7 +79,7 @@
 
   let tableData = $derived(filteredRecords.map((r) => ({
     id: r.id,
-    type: `<span class="${complianceTypeMap[r.type].color} font-medium text-sm">${complianceTypeMap[r.type].label}</span>`,
+    type: r.type,
     details: r.details.length > 50 ? r.details.slice(0, 50) + '...' : r.details,
     operator: r.operator,
     status: r.status,

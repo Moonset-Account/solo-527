@@ -38,18 +38,9 @@ export async function getReagents(
 
   const total = countResult?.count || 0;
 
-  let query = db
-    .select()
-    .from(reagents)
-    .where(whereClause)
-    .orderBy(desc(reagents.name));
-
-  if (pagination) {
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    query = query.limit(pagination.pageSize).offset(offset);
-  }
-
-  const data = await query;
+  const data = pagination
+    ? await db.select().from(reagents).where(whereClause).orderBy(desc(reagents.name)).limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize)
+    : await db.select().from(reagents).where(whereClause).orderBy(desc(reagents.name));
   return { data: data as Reagent[], total };
 }
 
@@ -94,5 +85,5 @@ export async function updateStock(
 
 export async function deleteReagent(id: string): Promise<boolean> {
   const result = await db.delete(reagents).where(eq(reagents.id, id));
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }

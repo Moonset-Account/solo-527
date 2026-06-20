@@ -33,18 +33,9 @@ export async function getRiskAlerts(
 
   const total = countResult?.count || 0;
 
-  let query = db
-    .select()
-    .from(riskAlerts)
-    .where(whereClause)
-    .orderBy(desc(riskAlerts.createdAt));
-
-  if (pagination) {
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    query = query.limit(pagination.pageSize).offset(offset);
-  }
-
-  const data = await query;
+  const data = pagination
+    ? await db.select().from(riskAlerts).where(whereClause).orderBy(desc(riskAlerts.createdAt)).limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize)
+    : await db.select().from(riskAlerts).where(whereClause).orderBy(desc(riskAlerts.createdAt));
   return { data: data as RiskAlert[], total };
 }
 

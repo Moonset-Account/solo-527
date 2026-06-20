@@ -3,18 +3,16 @@
 	import { get } from 'svelte/store';
 	import { currentUser } from '$stores/user';
 	import DataTable from '$components/DataTable.svelte';
-	import StatusBadge from '$components/StatusBadge.svelte';
 	import StatCard from '$components/StatCard.svelte';
 	import { Shield, Download, Filter, RefreshCw } from 'lucide-svelte';
 	import { formatDate } from '$utils/format';
-	import { mockCompliance, getComplianceStats } from '$server/mockData';
 	import type { ComplianceRecord, Column, Status, ComplianceType } from '$types';
 
 	let records = $state<ComplianceRecord[]>([]);
 	let loading = $state(true);
 	let statusFilter = $state<Status | 'all'>('all');
 	let typeFilter = $state<ComplianceType | 'all'>('all');
-	let complianceStats = $state(getComplianceStats());
+	let complianceStats = $state({ total: 0, pending: 0, completed: 0, byType: { requisition: 0, experiment: 0, todo: 0, risk: 0 } as Record<ComplianceType, number> });
 
 	let user = $derived(get(currentUser));
 
@@ -26,7 +24,17 @@
 
 	onMount(async () => {
 		try {
-			records = [...mockCompliance];
+			const [recordsRes, statsRes] = await Promise.all([
+				fetch('/api/compliance'),
+				fetch('/api/compliance?stats=true')
+			]);
+			if (recordsRes.ok) {
+				const result = await recordsRes.json();
+				records = result.data ?? [];
+			}
+			if (statsRes.ok) {
+				complianceStats = await statsRes.json();
+			}
 		} catch (e) {
 			console.error('Failed to load compliance records:', e);
 		} finally {
@@ -37,8 +45,17 @@
 	async function refreshData() {
 		loading = true;
 		try {
-			records = [...mockCompliance];
-			complianceStats = getComplianceStats();
+			const [recordsRes, statsRes] = await Promise.all([
+				fetch('/api/compliance'),
+				fetch('/api/compliance?stats=true')
+			]);
+			if (recordsRes.ok) {
+				const result = await recordsRes.json();
+				records = result.data ?? [];
+			}
+			if (statsRes.ok) {
+				complianceStats = await statsRes.json();
+			}
 		} catch (e) {
 			console.error('Failed to refresh data:', e);
 		} finally {
@@ -48,46 +65,9 @@
 
 	async function handleExport() {
 		try {
-			const typeMap: Record<ComplianceType, string> = {
-				requisition: '领用申请',
-				experiment: '实验数据',
-				todo: '待办事项',
-				risk: '风险处理'
-			};
-
-			const statusMap: Record<Status, string> = {
-				pending: '待处理',
-				approved: '已批准',
-				rejected: '已拒绝',
-				completed: '已完成',
-				processing: '处理中',
-				resolved: '已解决',
-				failed: '已失败'
-			};
-
-			const headers = [
-				'ID',
-				'类型',
-				'状态',
-				'操作人',
-				'详情',
-				'创建时间',
-				'处理时间'
-			];
-
-			const rows = filteredRecords.map((record) => [
-				record.id,
-				typeMap[record.type] || record.type,
-				statusMap[record.status] || record.status,
-				record.operator,
-				`"${record.details.replace(/"/g, '""')}"`,
-				formatDate(record.createdAt),
-				record.processedAt ? formatDate(record.processedAt) : ''
-			]);
-
-			const csvContent =
-				'\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-			const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+			const res = await fetch('/api/compliance?export=csv');
+			if (!res.ok) throw new Error('导出失败');
+			const blob = await res.blob();
 			const url = URL.createObjectURL(blob);
 			const link = document.createElement('a');
 			link.href = url;

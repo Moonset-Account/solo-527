@@ -26,18 +26,9 @@ export async function getExperiments(
 
   const total = countResult?.count || 0;
 
-  let query = db
-    .select()
-    .from(experiments)
-    .where(whereClause)
-    .orderBy(desc(experiments.archivedAt));
-
-  if (pagination) {
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    query = query.limit(pagination.pageSize).offset(offset);
-  }
-
-  const data = await query;
+  const data = pagination
+    ? await db.select().from(experiments).where(whereClause).orderBy(desc(experiments.archivedAt)).limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize)
+    : await db.select().from(experiments).where(whereClause).orderBy(desc(experiments.archivedAt));
   return { data: data as Experiment[], total };
 }
 
@@ -79,5 +70,5 @@ export async function createExperiment(
 
 export async function deleteExperiment(id: string): Promise<boolean> {
   const result = await db.delete(experiments).where(eq(experiments.id, id));
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }

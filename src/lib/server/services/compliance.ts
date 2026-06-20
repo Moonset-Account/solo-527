@@ -51,18 +51,9 @@ export async function getComplianceRecords(
 
   const total = countResult?.count || 0;
 
-  let query = db
-    .select()
-    .from(complianceRecords)
-    .where(whereClause)
-    .orderBy(desc(complianceRecords.createdAt));
-
-  if (pagination) {
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    query = query.limit(pagination.pageSize).offset(offset);
-  }
-
-  const data = await query;
+  const data = pagination
+    ? await db.select().from(complianceRecords).where(whereClause).orderBy(desc(complianceRecords.createdAt)).limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize)
+    : await db.select().from(complianceRecords).where(whereClause).orderBy(desc(complianceRecords.createdAt));
   return { data: data as ComplianceRecord[], total };
 }
 

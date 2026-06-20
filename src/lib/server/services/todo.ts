@@ -33,18 +33,9 @@ export async function getTodoItems(
 
   const total = countResult?.count || 0;
 
-  let query = db
-    .select()
-    .from(todoItems)
-    .where(whereClause)
-    .orderBy(desc(todoItems.dueDate));
-
-  if (pagination) {
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    query = query.limit(pagination.pageSize).offset(offset);
-  }
-
-  const data = await query;
+  const data = pagination
+    ? await db.select().from(todoItems).where(whereClause).orderBy(desc(todoItems.dueDate)).limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize)
+    : await db.select().from(todoItems).where(whereClause).orderBy(desc(todoItems.dueDate));
   return { data: data as TodoItem[], total };
 }
 

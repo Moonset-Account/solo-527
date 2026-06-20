@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { requisitions, reagents } from '../schema';
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
-import type { Requisition, Status } from '$types';
+import type { Requisition, Reagent, Status } from '$types';
 import { createComplianceRecord } from './compliance';
 
 export async function getRequisitions(
@@ -33,22 +33,12 @@ export async function getRequisitions(
 
   const total = countResult?.count || 0;
 
-  let query = db
-    .select()
-    .from(requisitions)
-    .leftJoin(reagents, eq(requisitions.reagentId, reagents.id))
-    .where(whereClause)
-    .orderBy(desc(requisitions.createdAt));
-
-  if (pagination) {
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    query = query.limit(pagination.pageSize).offset(offset);
-  }
-
-  const results = await query;
+  const results = pagination
+    ? await db.select().from(requisitions).leftJoin(reagents, eq(requisitions.reagentId, reagents.id)).where(whereClause).orderBy(desc(requisitions.createdAt)).limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize)
+    : await db.select().from(requisitions).leftJoin(reagents, eq(requisitions.reagentId, reagents.id)).where(whereClause).orderBy(desc(requisitions.createdAt));
   const data = results.map((r) => ({
     ...(r.requisitions as Requisition),
-    reagent: r.reagents
+    reagent: r.reagents as unknown as Reagent | null
   }));
 
   return { data, total };
@@ -65,14 +55,14 @@ export async function getRequisitionById(id: string): Promise<Requisition | null
 
   return {
     ...(result.requisitions as Requisition),
-    reagent: result.reagents
+    reagent: result.reagents as unknown as Reagent | null
   };
 }
 
 export async function createRequisition(
   data: Omit<Requisition, 'id' | 'status' | 'createdAt' | 'complianceRecordId'>
 ): Promise<Requisition> {
-  const [requisition] = await db
+  const [inserted] = await db
     .insert(requisitions)
     .values({
       reagentId: data.reagentId,
@@ -86,7 +76,7 @@ export async function createRequisition(
 
   const complianceRecord = await createComplianceRecord({
     type: 'requisition',
-    referenceId: requisition.id,
+    referenceId: inserted.id,
     status: 'pending',
     operator: data.userName,
     operatorId: data.userId,
@@ -96,9 +86,9 @@ export async function createRequisition(
   await db
     .update(requisitions)
     .set({ complianceRecordId: complianceRecord.id })
-    .where(eq(requisitions.id, requisition.id));
+    .where(eq(requisitions.id, inserted.id));
 
-  return { ...(requisition as Requisition), complianceRecordId: complianceRecord.id };
+  return { ...(inserted as Requisition), complianceRecordId: complianceRecord.id };
 }
 
 export async function approveRequisition(
