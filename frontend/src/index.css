@@ -1,0 +1,136 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.anomaly-critical {
+  background-color: #fff1f0 !important;
+  border-left: 4px solid #ff4d4f;
+}
+
+.anomaly-high {
+  background-color: #fff7e6 !important;
+  border-left: 4px solid #fa8c16;
+}
+
+.anomaly-medium {
+  background-color: #fffbe6 !important;
+  border-left: 4px solid #faad14;
+}
+
+.anomaly-low {
+  background-color: #f6ffed !important;
+  border-left: 4px solid #52c41a;
+}
+
+.status-pending {
+  color: #fa8c16;
+}
+
+.status-handling {
+  color: #1890ff;
+}
+
+.status-resolved {
+  color: #52c41a;
+}
+
+.delay-delayed {
+  color: #ff4d4f;
+  font-weight: bold;
+}
+
+.delay-normal {
+  color: #52c41a;
+}
+
+.page-container {
+  padding: 24px;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-card .ant-statistic-title {
+  font-size: 14px;
+  color: #666;
+}
+
+.stat-card .ant-statistic-content {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.filter-bar {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.table-container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 16px;
+}
+
+.detail-drawer .ant-descriptions-item-label {
+  font-weight: bold;
+  color: #666;
+}
+
+.reason-content {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  background: #f5f5f5;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+.suggestion-content {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  background: #e6f7ff;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 8px 0;
+  border-left: 4px solid #1890ff;
+}
+
+.notification-badge {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  z-index: 1000;
+}
+
+.efficiency-trend {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}

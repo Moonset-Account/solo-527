@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: data-portal
+  datasource:
+    url: jdbc:postgresql://localhost:5432/data_portal
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+jwt:
+  secret: your-256-bit-secret-key-here-must-be-at-least-32-characters
+  expiration: 86400000
+
+logging:
+  level:
+    com.datagrowth: DEBUG
+    org.springframework.security: INFO
+
+data:
+  desensitization:
+    enabled: true
+  delay:
+    threshold-minutes: 30
+    check-interval-seconds: 60
