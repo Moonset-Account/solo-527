@@ -5,6 +5,12 @@ from .permissions import OrganizationScopedPermission
 
 class OrganizationScopedViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, OrganizationScopedPermission]
+    action_permission_classes = {}
+
+    def get_permissions(self):
+        if self.action in self.action_permission_classes:
+            return [perm() for perm in self.action_permission_classes[self.action]]
+        return super().get_permissions()
 
     def get_queryset(self):
         qs = super().get_queryset()

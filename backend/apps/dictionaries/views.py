@@ -1,5 +1,6 @@
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count
 from .models import DictionaryCategory, DictionaryItem
 from .serializers import (
@@ -7,6 +8,7 @@ from .serializers import (
     DictionaryItemSerializer, DictionaryItemSimpleSerializer
 )
 from apps.viewsets import OrganizationScopedViewSet
+from apps.permissions import IsAdmin
 
 
 class DictionaryCategoryViewSet(OrganizationScopedViewSet):
@@ -14,6 +16,12 @@ class DictionaryCategoryViewSet(OrganizationScopedViewSet):
     filterset_fields = ['code', 'is_active', 'is_enabled']
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['code', 'name', 'created_at']
+    action_permission_classes = {
+        'create': [IsAuthenticated, IsAdmin],
+        'update': [IsAuthenticated, IsAdmin],
+        'partial_update': [IsAuthenticated, IsAdmin],
+        'destroy': [IsAuthenticated, IsAdmin],
+    }
 
     def get_queryset(self):
         qs = super().get_queryset().annotate(item_count=Count('items'), items_count=Count('items'))
@@ -60,3 +68,9 @@ class DictionaryItemViewSet(OrganizationScopedViewSet):
     filterset_fields = ['category', 'is_active', 'is_default']
     search_fields = ['name', 'code', 'value']
     ordering_fields = ['code', 'name', 'sort_order', 'created_at']
+    action_permission_classes = {
+        'create': [IsAuthenticated, IsAdmin],
+        'update': [IsAuthenticated, IsAdmin],
+        'partial_update': [IsAuthenticated, IsAdmin],
+        'destroy': [IsAuthenticated, IsAdmin],
+    }

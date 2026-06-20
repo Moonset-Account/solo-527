@@ -2,17 +2,25 @@ from django.db.models import Count
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .models import NotificationRule, Notification
 from .serializers import NotificationRuleSerializer, NotificationSerializer
 from apps.viewsets import OrganizationScopedViewSet
+from apps.permissions import IsAdmin
 
 
 class NotificationRuleViewSet(OrganizationScopedViewSet):
     queryset = NotificationRule.objects.all()
     serializer_class = NotificationRuleSerializer
-    filterset_fields = ['trigger', 'event_type', 'method', 'is_active', 'is_enabled']
+    filterset_fields = ['trigger', 'method', 'is_active', 'is_enabled']
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_at']
+    action_permission_classes = {
+        'create': [IsAuthenticated, IsAdmin],
+        'update': [IsAuthenticated, IsAdmin],
+        'partial_update': [IsAuthenticated, IsAdmin],
+        'destroy': [IsAuthenticated, IsAdmin],
+    }
 
     def get_queryset(self):
         qs = super().get_queryset().annotate(recipient_count=Count('recipients'))

@@ -92,4 +92,63 @@ for name, cls, actions_expected in [
             print(f'[WARN] {name}: action "{exp}" not registered')
 print('[OK] Custom actions registered.')
 
+from apps.permissions import IsAdmin, IsAdminOrSecurityOwner
+from apps.inspections.views import InspectionItemViewSet
+from apps.dictionaries.views import DictionaryItemViewSet
+
+checks = [
+    ('Alert.acknowledge', AlertViewSet, 'acknowledge', 'IsAdminOrSecurityOwner'),
+    ('Alert.start_process', AlertViewSet, 'start_process', 'IsAdminOrSecurityOwner'),
+    ('Alert.close', AlertViewSet, 'close', 'IsAdminOrSecurityOwner'),
+    ('Template.create', InspectionTemplateViewSet, 'create', 'IsAdminOrSecurityOwner'),
+    ('Template.destroy', InspectionTemplateViewSet, 'destroy', 'IsAdminOrSecurityOwner'),
+    ('Template.run', InspectionTemplateViewSet, 'run', 'IsAdminOrSecurityOwner'),
+    ('Item.create', InspectionItemViewSet, 'create', 'IsAdminOrSecurityOwner'),
+    ('Task.rerun', InspectionTaskViewSet, 'rerun', 'IsAdminOrSecurityOwner'),
+    ('Change.approve', ChangeWindowViewSet, 'approve', 'IsAdminOrSecurityOwner'),
+    ('Change.reject', ChangeWindowViewSet, 'reject', 'IsAdminOrSecurityOwner'),
+    ('Change.start', ChangeWindowViewSet, 'start', 'IsAdminOrSecurityOwner'),
+    ('Change.complete', ChangeWindowViewSet, 'complete', 'IsAdminOrSecurityOwner'),
+    ('Change.cancel', ChangeWindowViewSet, 'cancel', 'IsAdminOrSecurityOwner'),
+    ('DictCat.create', DictionaryCategoryViewSet, 'create', 'IsAdmin'),
+    ('DictCat.destroy', DictionaryCategoryViewSet, 'destroy', 'IsAdmin'),
+    ('DictItem.create', DictionaryItemViewSet, 'create', 'IsAdmin'),
+    ('DictItem.destroy', DictionaryItemViewSet, 'destroy', 'IsAdmin'),
+    ('NotifRule.create', NotificationRuleViewSet, 'create', 'IsAdmin'),
+    ('NotifRule.destroy', NotificationRuleViewSet, 'destroy', 'IsAdmin'),
+]
+
+for label, vs, action, expected_perm in checks:
+    perms = vs.action_permission_classes.get(action, [])
+    perm_names = [p.__name__ for p in perms]
+    if expected_perm not in perm_names:
+        print(f'[FAIL] {label}: expected {expected_perm}, got {perm_names}')
+        sys.exit(1)
+print('[OK] All action_permission_classes verified.')
+
+from apps.notifications.models import NotificationRule
+db_fields = [f.name for f in NotificationRule._meta.get_fields()]
+if 'event_type' in db_fields:
+    print(f'[FAIL] event_type is still a DB field in NotificationRule')
+    sys.exit(1)
+if not hasattr(NotificationRule, 'event_type'):
+    print(f'[FAIL] event_type property missing on NotificationRule')
+    sys.exit(1)
+assert NotificationRule.event_type.fget is not None
+print('[OK] NotificationRule: event_type is @property -> trigger (not DB column)')
+
+from apps.notifications.serializers import NotificationRuleSerializer
+s = NotificationRuleSerializer()
+assert s.fields['event_type'].source == 'trigger'
+assert 'event_type_display' in s.fields
+print('[OK] NotificationRuleSerializer: event_type maps to trigger')
+
+from django.apps import apps as dj_apps2
+nr_model = dj_apps2.get_model('notifications', 'NotificationRule')
+ut = nr_model._meta.unique_together
+if ('organization', 'name') not in ut:
+    print(f'[FAIL] NotificationRule unique_together missing organization, got: {ut}')
+    sys.exit(1)
+print('[OK] NotificationRule: organization isolation (unique_together)')
+
 print('\n=== ALL CHECKS PASSED ===')

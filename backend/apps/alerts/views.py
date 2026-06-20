@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Alert, AlertRecord, AlertAttachment, AlertHistory
 from .serializers import (
@@ -11,6 +12,7 @@ from .serializers import (
 )
 from .filters import AlertFilter
 from apps.viewsets import OrganizationScopedViewSet
+from apps.permissions import IsAdminOrSecurityOwner
 
 
 class AlertViewSet(OrganizationScopedViewSet):
@@ -18,6 +20,11 @@ class AlertViewSet(OrganizationScopedViewSet):
     filterset_class = AlertFilter
     search_fields = ['code', 'title', 'content', 'metric']
     ordering_fields = ['occurred_at', 'created_at', 'level', 'status']
+    action_permission_classes = {
+        'acknowledge': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'start_process': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'close': [IsAuthenticated, IsAdminOrSecurityOwner],
+    }
 
     def get_serializer_class(self):
         if self.action == 'list':

@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from .models import ChangeWindow, ChangeLog
 from .serializers import (
     ChangeWindowListSerializer, ChangeWindowDetailSerializer,
@@ -11,6 +12,7 @@ from .serializers import (
 )
 from .filters import ChangeWindowFilter
 from apps.viewsets import OrganizationScopedViewSet
+from apps.permissions import IsAdminOrSecurityOwner
 
 
 class ChangeWindowViewSet(OrganizationScopedViewSet):
@@ -18,6 +20,13 @@ class ChangeWindowViewSet(OrganizationScopedViewSet):
     filterset_class = ChangeWindowFilter
     search_fields = ['code', 'name', 'title', 'description']
     ordering_fields = ['start_time', 'created_at', 'status', 'priority']
+    action_permission_classes = {
+        'approve': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'reject': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'start': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'complete': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'cancel': [IsAuthenticated, IsAdminOrSecurityOwner],
+    }
 
     def get_queryset(self):
         qs = super().get_queryset().annotate(

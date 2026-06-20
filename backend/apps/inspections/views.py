@@ -2,6 +2,7 @@ from django.db.models import Count
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .models import InspectionTemplate, InspectionItem, InspectionTask, InspectionResult
 from .serializers import (
     InspectionTemplateListSerializer, InspectionTemplateDetailSerializer,
@@ -10,6 +11,7 @@ from .serializers import (
     InspectionResultSerializer
 )
 from apps.viewsets import OrganizationScopedViewSet
+from apps.permissions import IsAdminOrSecurityOwner
 
 
 class InspectionTemplateViewSet(OrganizationScopedViewSet):
@@ -17,6 +19,13 @@ class InspectionTemplateViewSet(OrganizationScopedViewSet):
     filterset_fields = ['is_active', 'is_enabled', 'template_type']
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['name', 'created_at', 'template_type']
+    action_permission_classes = {
+        'create': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'update': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'partial_update': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'destroy': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'run': [IsAuthenticated, IsAdminOrSecurityOwner],
+    }
 
     def get_queryset(self):
         qs = super().get_queryset().annotate(
@@ -57,6 +66,12 @@ class InspectionItemViewSet(OrganizationScopedViewSet):
     filterset_fields = ['template', 'item_type']
     search_fields = ['name', 'metric']
     ordering_fields = ['sort_order', 'created_at']
+    action_permission_classes = {
+        'create': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'update': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'partial_update': [IsAuthenticated, IsAdminOrSecurityOwner],
+        'destroy': [IsAuthenticated, IsAdminOrSecurityOwner],
+    }
 
 
 class InspectionTaskViewSet(OrganizationScopedViewSet):
@@ -64,6 +79,9 @@ class InspectionTaskViewSet(OrganizationScopedViewSet):
     filterset_fields = ['template', 'status', 'trigger_type']
     search_fields = ['code', 'name']
     ordering_fields = ['created_at', 'started_at', 'finished_at']
+    action_permission_classes = {
+        'rerun': [IsAuthenticated, IsAdminOrSecurityOwner],
+    }
 
     def get_serializer_class(self):
         if self.action == 'retrieve':

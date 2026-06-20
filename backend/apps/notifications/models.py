@@ -56,7 +56,6 @@ class NotificationRule(BaseModel):
 
     name = models.CharField(max_length=100, verbose_name='规则名称')
     trigger = models.CharField(max_length=50, choices=TRIGGER_CHOICES, verbose_name='触发事件')
-    event_type = models.CharField(max_length=50, choices=TRIGGER_CHOICES, verbose_name='事件类型(别名)')
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default=METHOD_IN_APP, verbose_name='通知方式')
     channels = models.JSONField(default=list, verbose_name='通知渠道列表')
     alert_levels = models.CharField(max_length=100, blank=True, verbose_name='告警级别(逗号分隔)')
@@ -86,11 +85,15 @@ class NotificationRule(BaseModel):
     def alert_level_list(self):
         return [l.strip() for l in self.alert_levels.split(',') if l.strip()]
 
+    @property
+    def event_type(self):
+        return self.trigger
+
+    @property
+    def event_type_display(self):
+        return self.get_trigger_display()
+
     def save(self, *args, **kwargs):
-        if self.trigger and not self.event_type:
-            self.event_type = self.trigger
-        if self.event_type and not self.trigger:
-            self.trigger = self.event_type
         if self.is_active != self.is_enabled:
             self.is_enabled = self.is_active
         if not self.channels and self.method:

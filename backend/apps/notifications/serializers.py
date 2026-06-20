@@ -6,7 +6,8 @@ from apps.serializers import BaseModelSerializer
 class NotificationRuleSerializer(BaseModelSerializer):
     trigger_display = serializers.CharField(source='get_trigger_display', read_only=True)
     method_display = serializers.CharField(source='get_method_display', read_only=True)
-    event_type_display = serializers.CharField(source='get_event_type_display', read_only=True)
+    event_type = serializers.CharField(source='trigger', read_only=True)
+    event_type_display = serializers.CharField(source='get_trigger_display', read_only=True)
     recipient_count = serializers.IntegerField(read_only=True)
 
     class Meta(BaseModelSerializer.Meta):
@@ -19,6 +20,22 @@ class NotificationRuleSerializer(BaseModelSerializer):
             'recipients', 'recipient_count', 'recipient_emails',
             'template', 'is_active', 'is_enabled', 'description'
         ]
+
+    def validate_event_type(self, value):
+        valid = [c[0] for c in NotificationRule.TRIGGER_CHOICES]
+        if value not in valid:
+            raise serializers.ValidationError(f'无效的事件类型: {value}')
+        return value
+
+    def create(self, validated_data):
+        if 'event_type' in self.initial_data and 'trigger' not in validated_data:
+            validated_data['trigger'] = self.initial_data['event_type']
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'event_type' in self.initial_data and 'trigger' not in validated_data:
+            validated_data['trigger'] = self.initial_data['event_type']
+        return super().update(instance, validated_data)
 
 
 class NotificationSerializer(BaseModelSerializer):
