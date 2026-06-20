@@ -37,6 +37,18 @@ class Ticket < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
   scope :overdue, -> { where('deadline < ? AND status != ?', Time.current, statuses[:completed]) }
 
+  def self.ransackable_attributes(auth_object = nil)
+    %w[title description status priority department_id assignee_id submitter_id process_node deadline created_at completed_at]
+  end
+
+  def self.ransackable_associations(auth_object = nil)
+    %w[department assignee submitter review_conclusion audit_logs]
+  end
+
+  def self.ransackable_scopes(auth_object = nil)
+    [:by_status, :by_priority, :by_department, :by_assignee, :by_submitter]
+  end
+
   def paper_trail_user_id
     PaperTrail.request.whodunnit
   end

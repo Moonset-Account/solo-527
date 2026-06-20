@@ -2,6 +2,7 @@ class DepartmentsController < ApplicationController
   before_action :set_department, only: [:show, :edit, :update, :destroy]
 
   def index
+    authorize Department
     @departments = policy_scope(Department).ordered.page(params[:page]).per(20)
   end
 

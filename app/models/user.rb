@@ -20,6 +20,14 @@ class User < ApplicationRecord
   scope :ordered, -> { order(name: :asc) }
   scope :by_department, ->(dept_id) { where(department_id: dept_id) if dept_id.present? }
 
+  def self.ransackable_attributes(auth_object = nil)
+    %w[name email role department_id created_at]
+  end
+
+  def self.ransackable_associations(auth_object = nil)
+    %w[department]
+  end
+
   def role_name
     I18n.t("activerecord.attributes.user.roles.#{role}", default: role.humanize)
   end

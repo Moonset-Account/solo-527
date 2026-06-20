@@ -26,4 +26,14 @@ class UserPolicy < ApplicationPolicy
   def destroy?
     user.executive?
   end
+
+  class Scope < Scope
+    def resolve
+      if user.executive_or_admin?
+        scope.all
+      else
+        scope.where(id: user.id)
+      end
+    end
+  end
 end

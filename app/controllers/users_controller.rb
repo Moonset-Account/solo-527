@@ -2,6 +2,7 @@ class UsersController < ApplicationController
   before_action :set_user, only: [:show, :edit, :update, :destroy]
 
   def index
+    authorize User
     @q = policy_scope(User).ransack(params[:q])
     @users = @q.result.includes(:department).ordered.page(params[:page]).per(20)
   end

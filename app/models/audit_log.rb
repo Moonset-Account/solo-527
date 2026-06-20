@@ -29,7 +29,7 @@ class AuditLog < ApplicationRecord
   }
 
   def action_type_name
-    I18n.t("activerecord.attributes.audit_log.action_types.#{action_type}", default: action_type.humanize)
+    I18n.t("activerecord.attributes.audit_log.actions.#{action_type}", default: action_type.humanize)
   end
 
   def display_field_name
@@ -44,5 +44,13 @@ class AuditLog < ApplicationRecord
     when 'add_remark' then 'bg-gray-100 text-gray-800 border-gray-200'
     else 'bg-blue-100 text-blue-800 border-blue-200'
     end
+  end
+
+  def self.ransackable_attributes(auth_object = nil)
+    %w[ticket_id user_id action_type field_name created_at]
+  end
+
+  def self.ransackable_associations(auth_object = nil)
+    %w[ticket user]
   end
 end

@@ -10,6 +10,14 @@ class ReviewConclusion < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
   scope :by_department, ->(dept_id) { joins(:ticket).where(tickets: { department_id: dept_id }) if dept_id.present? }
 
+  def self.ransackable_attributes(auth_object = nil)
+    %w[ticket_id reviewer_id efficiency_before efficiency_after content root_cause improvement result created_at reviewed_at]
+  end
+
+  def self.ransackable_associations(auth_object = nil)
+    %w[ticket reviewer]
+  end
+
   def efficiency_delta
     return nil if efficiency_before.nil? || efficiency_after.nil?
     efficiency_after - efficiency_before

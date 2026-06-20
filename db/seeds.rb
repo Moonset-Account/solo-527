@@ -26,7 +26,7 @@ users_data = [
   { email: 'ceo@company.com', name: '张明远', role: :executive, department: departments['总经办'], password: 'Password123!' },
   { email: 'cto@company.com', name: '李思强', role: :executive, department: departments['技术研发部'], password: 'Password123!' },
   { email: 'admin@company.com', name: '王雪琴', role: :admin, department: departments['总经办'], password: 'Password123!' },
-  { email: 'pm@company.com', name: '赵子轩', role: :admin, department: departments['产品设计部'], password: 'Password123!' },
+  { email: 'pm@company.com', name: '赵子轩', role: :user, department: departments['产品设计部'], password: 'Password123!' },
   { email: 'tech1@company.com', name: '陈建华', role: :user, department: departments['技术研发部'], password: 'Password123!' },
   { email: 'tech2@company.com', name: '刘婷婷', role: :user, department: departments['技术研发部'], password: 'Password123!' },
   { email: 'tech3@company.com', name: '周俊杰', role: :user, department: departments['技术研发部'], password: 'Password123!' },

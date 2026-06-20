@@ -77,6 +77,7 @@ zh-CN:
           create_review: '创建复盘'
           update_review: '更新复盘'
           add_remark: '添加备注'
+          update_efficiency: '变更协作效率'
 
   layouts:
     application:
