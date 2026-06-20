@@ -1,16 +1,14 @@
-export { isSupabaseConfigured } from './in-memory';
-
-import { isSupabaseConfigured } from './in-memory';
+import { isSupabaseConfigured as _isConfigured } from './in-memory';
 import * as mem from './in-memory';
 import * as sb from './supabase';
 
-type AnyFn = (...args: any[]) => any;
+export const isSupabaseConfigured = _isConfigured;
 
-function pick<T extends AnyFn>(memFn: T, sbFn: T): T {
-  return ((...args: Parameters<T>): ReturnType<T> => {
-    const impl = isSupabaseConfigured() ? sbFn : memFn;
-    return impl(...args) as ReturnType<T>;
-  }) as T;
+function pick<T extends (...args: any[]) => any>(memFn: T, sbFn: T): T {
+  return function (this: any, ...args: any[]): any {
+    const fn = _isConfigured() ? sbFn : memFn;
+    return fn.apply(this, args);
+  } as T;
 }
 
 export const listUsers = pick(mem.listUsers, sb.listUsers);

@@ -1,4 +1,5 @@
 import { createClient } from '../supabase/server';
+import { isSupabaseConfigured } from './in-memory';
 import type {
   Vehicle,
   Part,
@@ -32,6 +33,14 @@ interface DateRangeOptions extends ListOptions {
 }
 
 type SupabaseQueryBuilder = ReturnType<ReturnType<typeof createClient>['from']>;
+
+function assertConfigured() {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to enable Supabase backend.'
+    );
+  }
+}
 
 function applyFilters(
   qb: any,
@@ -70,6 +79,7 @@ function throwIfError(result: { error: any }) {
 
 /* =============== USERS/PROFILES =============== */
 export async function listUsers(opts: ListOptions = {}): Promise<UserProfile[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('profiles').select('*');
   q = applyFilters(q, opts);
@@ -79,6 +89,7 @@ export async function listUsers(opts: ListOptions = {}): Promise<UserProfile[]> 
 }
 
 export async function getUserById(id: string): Promise<UserProfile | null> {
+  assertConfigured();
   const supabase = createClient();
   const { data, error } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
   throwIfError({ error });
@@ -87,6 +98,7 @@ export async function getUserById(id: string): Promise<UserProfile | null> {
 
 /* =============== VEHICLES =============== */
 export async function listVehicles(opts: ListOptions = {}): Promise<Vehicle[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('vehicles').select('*');
   q = applyFilters(q, opts);
@@ -96,6 +108,7 @@ export async function listVehicles(opts: ListOptions = {}): Promise<Vehicle[]> {
 }
 
 export async function getVehicleById(id: string): Promise<Vehicle | null> {
+  assertConfigured();
   const supabase = createClient();
   const { data, error } = await supabase.from('vehicles').select('*').eq('id', id).maybeSingle();
   throwIfError({ error });
@@ -105,6 +118,7 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
 export async function createVehicle(
   data: Omit<Vehicle, 'id' | 'created_at' | 'created_by'> & { created_by?: string },
 ): Promise<Vehicle> {
+  assertConfigured();
   const supabase = createClient();
   const { error: insError } = await supabase.from('vehicles').insert(data);
   throwIfError({ error: insError });
@@ -119,6 +133,7 @@ export async function createVehicle(
 
 /* =============== PARTS =============== */
 export async function listParts(opts: ListOptions = {}): Promise<Part[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('parts').select('*');
   q = applyFilters(q, opts);
@@ -128,6 +143,7 @@ export async function listParts(opts: ListOptions = {}): Promise<Part[]> {
 }
 
 export async function getPartById(id: string): Promise<Part | null> {
+  assertConfigured();
   const supabase = createClient();
   const { data, error } = await supabase.from('parts').select('*').eq('id', id).maybeSingle();
   throwIfError({ error });
@@ -135,6 +151,7 @@ export async function getPartById(id: string): Promise<Part | null> {
 }
 
 export async function createPart(data: Omit<Part, 'id' | 'created_at'>): Promise<Part> {
+  assertConfigured();
   const supabase = createClient();
   const { error: insError } = await supabase.from('parts').insert(data);
   throwIfError({ error: insError });
@@ -151,6 +168,7 @@ export async function createPart(data: Omit<Part, 'id' | 'created_at'>): Promise
 export async function listPartTurnovers(
   opts: DateRangeOptions = {},
 ): Promise<PartTurnover[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('part_turnovers').select(
     '*, parts(name), work_orders(title), profiles!operator_id(full_name)',
@@ -183,6 +201,7 @@ export async function createPartTurnover(
     operator_name?: string;
   },
 ): Promise<PartTurnover> {
+  assertConfigured();
   const supabase = createClient();
   const insertData: any = {
     part_id: data.part_id,
@@ -241,6 +260,7 @@ function mapWorkOrder(r: any): WorkOrder {
 }
 
 export async function listWorkOrders(opts: ListOptions = {}): Promise<WorkOrder[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('work_orders').select(
     '*, vehicles(plate_number, brand, model), team_profiles:profiles!work_orders_team_id_fkey(full_name), assignee_profiles:profiles!work_orders_assignee_id_fkey(full_name)',
@@ -253,6 +273,7 @@ export async function listWorkOrders(opts: ListOptions = {}): Promise<WorkOrder[
 }
 
 export async function getWorkOrderById(id: string): Promise<WorkOrder | null> {
+  assertConfigured();
   const supabase = createClient();
   const { data, error } = await supabase
     .from('work_orders')
@@ -268,6 +289,7 @@ export async function getWorkOrderById(id: string): Promise<WorkOrder | null> {
 export async function createWorkOrder(
   data: Omit<WorkOrder, 'id' | 'created_at' | 'status'> & { status?: WorkOrderStatus },
 ): Promise<WorkOrder> {
+  assertConfigured();
   const supabase = createClient();
   const insertData: any = {
     vehicle_id: data.vehicle_id,
@@ -290,6 +312,7 @@ export async function updateWorkOrderStatus(
   id: string,
   status: WorkOrderStatus,
 ): Promise<void> {
+  assertConfigured();
   const supabase = createClient();
   const patch: any = { status };
   if (status === 'completed') {
@@ -318,6 +341,7 @@ function mapProductionNode(r: any): ProductionNode {
 export async function listProductionNodes(
   opts: ListOptions = {},
 ): Promise<ProductionNode[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('production_nodes').select(
     '*, work_orders(title), profiles!operator_id(full_name)',
@@ -332,6 +356,7 @@ export async function listProductionNodes(
 export async function createProductionNodes(
   items: Omit<ProductionNode, 'id' | 'workorder_title' | 'operator_name'>[],
 ): Promise<ProductionNode[]> {
+  assertConfigured();
   const supabase = createClient();
   const insertData = items.map((n) => ({
     workorder_id: n.workorder_id,
@@ -360,6 +385,7 @@ export async function updateProductionNode(
   id: string,
   patch: Partial<ProductionNode>,
 ): Promise<void> {
+  assertConfigured();
   const supabase = createClient();
   const updateData: any = {};
   if ('workorder_id' in patch) updateData.workorder_id = patch.workorder_id;
@@ -377,6 +403,7 @@ export async function bulkUpdateProductionNodes(
   ids: string[],
   patch: Partial<ProductionNode>,
 ): Promise<void> {
+  assertConfigured();
   const supabase = createClient();
   const updateData: any = {};
   if ('workorder_id' in patch) updateData.workorder_id = patch.workorder_id;
@@ -409,6 +436,7 @@ function mapTeamSchedule(r: any): TeamSchedule {
 export async function listTeamSchedules(
   opts: DateRangeOptions = {},
 ): Promise<TeamSchedule[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('team_schedules').select(
     '*, team_profile:profiles!team_schedules_team_id_fkey(full_name), work_orders(title), assignee_profiles:profiles(full_name)',
@@ -426,6 +454,7 @@ export async function createTeamSchedule(
     'id' | 'created_at' | 'team_name' | 'workorder_title' | 'assignee_names'
   >,
 ): Promise<TeamSchedule> {
+  assertConfigured();
   const supabase = createClient();
   const insertData: any = {
     team_id: data.team_id,
@@ -469,6 +498,7 @@ function mapQualityInspection(r: any): QualityInspection {
 export async function listQualityInspections(
   opts: ListOptions = {},
 ): Promise<QualityInspection[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('quality_inspections').select(
     '*, work_orders(title), profiles!inspector_id(full_name)',
@@ -486,6 +516,7 @@ export async function createQualityInspection(
     'id' | 'created_at' | 'inspector_name' | 'workorder_title'
   >,
 ): Promise<QualityInspection> {
+  assertConfigured();
   const supabase = createClient();
   const insertData: any = {
     workorder_id: data.workorder_id,
@@ -535,6 +566,7 @@ function mapOrderChange(r: any): OrderChange {
 }
 
 export async function listOrderChanges(opts: ListOptions = {}): Promise<OrderChange[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('order_changes').select(
     '*, work_orders(title), responsible_profile:profiles!order_changes_responsible_id_fkey(full_name), creator_profile:profiles!order_changes_created_by_fkey(full_name)',
@@ -555,6 +587,7 @@ export async function createOrderChange(
     status?: ChangeStatus;
   },
 ): Promise<OrderChange> {
+  assertConfigured();
   const supabase = createClient();
   const insertData: any = {
     workorder_id: data.workorder_id ?? null,
@@ -587,6 +620,7 @@ export async function updateOrderChangeStatus(
   status: ChangeStatus,
   close_note?: string,
 ): Promise<void> {
+  assertConfigured();
   const supabase = createClient();
   const patch: any = { status };
   if (close_note !== undefined) {
@@ -631,6 +665,7 @@ function mapCallbackRecord(r: any): CallbackRecord {
 export async function listCallbacks(
   opts: DateRangeOptions = {},
 ): Promise<CallbackRecord[]> {
+  assertConfigured();
   const supabase = createClient();
   let q = supabase.from('callback_records').select(
     '*, compensation_records(*, profiles(full_name))',
@@ -643,6 +678,7 @@ export async function listCallbacks(
 }
 
 export async function retryCallback(id: string, success: boolean): Promise<void> {
+  assertConfigured();
   const supabase = createClient();
   const { data: existing, error: selError } = await supabase
     .from('callback_records')
@@ -672,6 +708,7 @@ export async function addCompensation(
     executed_by_name?: string;
   },
 ): Promise<void> {
+  assertConfigured();
   const supabase = createClient();
   const insertData: any = {
     callback_record_id: callbackId,
