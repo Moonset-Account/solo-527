@@ -16,7 +16,6 @@ model Resident {
   createdAt    DateTime  @default(now())
   votes        Vote[]
   issues       Issue[]   @relation("Reporter")
-  operationLogs OperationLog[]
 }
 
 model Issue {
