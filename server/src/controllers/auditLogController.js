@@ -361,9 +361,18 @@ async function getEntityVersionTimeline(req, res) {
   try {
     const { entityType, entityId } = req.params;
     
-    const logs = await AuditLog.find({ entityType, entityId })
+    const normalizedType = entityType.toLowerCase().replace(/-/g, '_');
+    const typeVariants = [entityType, normalizedType];
+    if (normalizedType.includes('_')) {
+      typeVariants.push(normalizedType.replace(/_/g, '-'));
+    }
+    
+    const logs = await AuditLog.find({ 
+      entityType: { $in: typeVariants }, 
+      entityId 
+    })
       .sort({ createdAt: -1 })
-      .select('_id action entityType entityId beforeData afterData createdAt operatorName remark');
+      .select('_id action entityType entityId entityName beforeData afterData createdAt operatorName remark');
     
     res.json({
       success: true,
