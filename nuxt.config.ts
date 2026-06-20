@@ -28,6 +28,7 @@ export default defineNuxtConfig({
     cssPath: '~/assets/css/main.css'
   },
   nitro: {
+    preset: 'node-server',
     experimental: { openAPI: true }
   }
 })

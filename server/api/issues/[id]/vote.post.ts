@@ -1,5 +1,5 @@
-import { prisma } from '../../utils/prisma'
-import { ok, fail } from '../../utils/response'
+import { prisma } from '../../../utils/prisma'
+import { ok, fail } from '../../../utils/response'
 import { z } from 'zod'
 
 const schema = z.object({
