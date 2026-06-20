@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <h2 class="text-xl font-semibold text-gray-800">API用量</h2>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="flex-1">
+        <label class="block text-sm font-medium text-gray-700 mb-1">选择租户</label>
+        <select id="tenant-selector" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">请选择租户</option>
+        </select>
+      </div>
+      <div class="flex items-end gap-2">
+        <button onclick="loadTrend(7)" id="btn-7" class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">近7天</button>
+        <button onclick="loadTrend(30)" id="btn-30" class="px-4 py-2 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">近30天</button>
+      </div>
+    </div>
+
+    <div class="relative" style="height:320px;">
+      <canvas id="usage-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-200">
+      <h3 class="text-sm font-semibold text-gray-800">用量明细</h3>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 text-left text-gray-600">
+          <th class="px-4 py-3 font-medium">API路径</th>
+          <th class="px-4 py-3 font-medium">方法</th>
+          <th class="px-4 py-3 font-medium">状态码</th>
+          <th class="px-4 py-3 font-medium">响应时间(ms)</th>
+          <th class="px-4 py-3 font-medium">调用次数</th>
+          <th class="px-4 py-3 font-medium">统计时段</th>
+        </tr>
+      </thead>
+      <tbody id="usage-table-body" class="divide-y divide-gray-100">
+      </tbody>
+    </table>
+    <div id="usage-empty" class="py-12 text-center text-gray-400">请选择租户查看用量</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var trendChart = null;
+  var currentDays = 7;
+
+  async function loadTenants() {
+    try {
+      var resp = await fetch('/tenants/api/');
+      var tenants = await resp.json();
+      var sel = document.getElementById('tenant-selector');
+      tenants.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name + ' (' + t.code + ')';
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.error('加载租户列表失败', e);
+    }
+  }
+
+  async function loadTrend(days) {
+    currentDays = days;
+    var tenantId = document.getElementById('tenant-selector').value;
+    if (!tenantId) return;
+
+    document.getElementById('btn-7').className = days === 7
+      ? 'px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors'
+      : 'px-4 py-2 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors';
+    document.getElementById('btn-30').className = days === 30
+      ? 'px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors'
+      : 'px-4 py-2 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors';
+
+    try {
+      var resp = await fetch('/usage/api/trend/' + tenantId + '?days=' + days);
+      var data = await resp.json();
+      renderChart(data.trend);
+    } catch (e) {
+      console.error('加载趋势数据失败', e);
+    }
+
+    try {
+      var resp2 = await fetch('/usage/api/list/' + tenantId);
+      var records = await resp2.json();
+      renderUsageTable(records);
+    } catch (e) {
+      console.error('加载用量明细失败', e);
+    }
+  }
+
+  function renderChart(trend) {
+    var ctx = document.getElementById('usage-chart').getContext('2d');
+    if (trendChart) trendChart.destroy();
+
+    var labels = trend.map(function(t) { return t.date || t.period_start; });
+    var counts = trend.map(function(t) { return t.call_count || 0; });
+
+    trendChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'API调用次数',
+          data: counts,
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(ctx) { return '调用次数: ' + ctx.parsed.y; }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 11 } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { font: { size: 11 } }
+          }
+        },
+        interaction: {
+          mode: 'nearest',
+          axis: 'x',
+          intersect: false
+        }
+      }
+    });
+  }
+
+  function renderUsageTable(records) {
+    var tbody = document.getElementById('usage-table-body');
+    var empty = document.getElementById('usage-empty');
+    if (records.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+    empty.classList.add('hidden');
+    tbody.innerHTML = records.map(function(r, i) {
+      var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+      return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+        '<td class="px-4 py-3 font-medium text-gray-900">' + (r.api_path || '-') + '</td>' +
+        '<td class="px-4 py-3 text-gray-600">' + (r.method || '-') + '</td>' +
+        '<td class="px-4 py-3 text-gray-600">' + (r.status_code || '-') + '</td>' +
+        '<td class="px-4 py-3 text-gray-600">' + (r.response_ms != null ? r.response_ms : '-') + '</td>' +
+        '<td class="px-4 py-3 text-gray-600">' + (r.call_count || '0') + '</td>' +
+        '<td class="px-4 py-3 text-gray-500 text-xs">' + (r.period_start || '-') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('tenant-selector').addEventListener('change', function() {
+    loadTrend(currentDays);
+  });
+
+  loadTenants();
+</script>
+{% endblock %}

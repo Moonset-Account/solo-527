@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <h2 class="text-xl font-semibold text-gray-800">账单流水</h2>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="flex border-b border-gray-200">
+      <button onclick="switchTab('bills')" id="tab-bills" class="px-6 py-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600">账单流水</button>
+      <button onclick="switchTab('invoices')" id="tab-invoices" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">发票抬头</button>
+    </div>
+
+    <div id="panel-bills">
+      <div class="p-4">
+        <div class="flex items-center gap-3">
+          <div class="flex-1">
+            <select id="bills-tenant-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">请选择租户</option>
+            </select>
+          </div>
+          <button onclick="loadBills()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">查询</button>
+        </div>
+      </div>
+
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-gray-600">
+            <th class="px-4 py-3 font-medium">租户</th>
+            <th class="px-4 py-3 font-medium">账期</th>
+            <th class="px-4 py-3 font-medium">金额</th>
+            <th class="px-4 py-3 font-medium">调用次数</th>
+            <th class="px-4 py-3 font-medium">状态</th>
+            <th class="px-4 py-3 font-medium">备注</th>
+          </tr>
+        </thead>
+        <tbody id="bills-table-body" class="divide-y divide-gray-100">
+        </tbody>
+      </table>
+      <div id="bills-empty" class="py-12 text-center text-gray-400">请选择租户查询账单</div>
+    </div>
+
+    <div id="panel-invoices" class="hidden">
+      <div class="p-4">
+        <div class="flex items-center gap-3">
+          <div class="flex-1">
+            <select id="invoices-tenant-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">请选择租户</option>
+            </select>
+          </div>
+          <button onclick="loadInvoices()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">查询</button>
+        </div>
+      </div>
+
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-gray-600">
+            <th class="px-4 py-3 font-medium">公司名称</th>
+            <th class="px-4 py-3 font-medium">税号</th>
+            <th class="px-4 py-3 font-medium">默认</th>
+            <th class="px-4 py-3 font-medium">状态</th>
+            <th class="px-4 py-3 font-medium">操作</th>
+          </tr>
+        </thead>
+        <tbody id="invoices-table-body" class="divide-y divide-gray-100">
+        </tbody>
+      </table>
+      <div id="invoices-empty" class="py-12 text-center text-gray-400">请选择租户查询发票抬头</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function billStatusBadge(status) {
+    var map = {
+      'pending': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">待支付</span>',
+      'paid': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">已支付</span>',
+      'overdue': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">逾期</span>',
+      'cancelled': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">已取消</span>'
+    };
+    return map[status] || map['pending'];
+  }
+
+  function switchTab(tab) {
+    if (tab === 'bills') {
+      document.getElementById('panel-bills').classList.remove('hidden');
+      document.getElementById('panel-invoices').classList.add('hidden');
+      document.getElementById('tab-bills').className = 'px-6 py-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600';
+      document.getElementById('tab-invoices').className = 'px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700';
+    } else {
+      document.getElementById('panel-bills').classList.add('hidden');
+      document.getElementById('panel-invoices').classList.remove('hidden');
+      document.getElementById('tab-invoices').className = 'px-6 py-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600';
+      document.getElementById('tab-bills').className = 'px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700';
+    }
+  }
+
+  async function loadTenants() {
+    try {
+      var resp = await fetch('/tenants/api/');
+      var tenants = await resp.json();
+      ['bills-tenant-select', 'invoices-tenant-select'].forEach(function(selId) {
+        var sel = document.getElementById(selId);
+        tenants.forEach(function(t) {
+          var opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name;
+          sel.appendChild(opt);
+        });
+      });
+    } catch (e) {
+      console.error('加载租户列表失败', e);
+    }
+  }
+
+  async function loadBills() {
+    var tenantId = document.getElementById('bills-tenant-select').value;
+    if (!tenantId) return;
+    try {
+      var resp = await fetch('/billing/api/bills?tenant_id=' + tenantId);
+      var bills = await resp.json();
+      var tbody = document.getElementById('bills-table-body');
+      var empty = document.getElementById('bills-empty');
+      if (bills.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = bills.map(function(b, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + (b.tenant_id || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 text-xs">' + (b.period_start || '-') + ' ~ ' + (b.period_end || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">¥' + (b.amount || '0.00') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + (b.call_count || '0') + '</td>' +
+          '<td class="px-4 py-3">' + billStatusBadge(b.status) + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs">' + (b.notes || '-') + '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载账单失败', e);
+    }
+  }
+
+  async function loadInvoices() {
+    var tenantId = document.getElementById('invoices-tenant-select').value;
+    if (!tenantId) return;
+    try {
+      var resp = await fetch('/billing/api/invoices/' + tenantId);
+      var invoices = await resp.json();
+      var tbody = document.getElementById('invoices-table-body');
+      var empty = document.getElementById('invoices-empty');
+      if (invoices.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = invoices.map(function(inv, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        var defaultBadge = inv.is_default
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">默认</span>'
+          : '<span class="text-gray-400 text-xs">否</span>';
+        var activeBadge = inv.is_active
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>'
+          : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + inv.company_name + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 font-mono text-xs">' + (inv.tax_id || '-') + '</td>' +
+          '<td class="px-4 py-3">' + defaultBadge + '</td>' +
+          '<td class="px-4 py-3">' + activeBadge + '</td>' +
+          '<td class="px-4 py-3">' +
+            '<div class="flex items-center gap-2">' +
+              (!inv.is_default ? '<button onclick="setDefaultInvoice(\'' + inv.id + '\')" class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">设为默认</button>' : '') +
+              '<button onclick="toggleInvoice(\'' + inv.id + '\')" class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">' + (inv.is_active ? '停用' : '启用') + '</button>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载发票抬头失败', e);
+    }
+  }
+
+  async function setDefaultInvoice(id) {
+    try {
+      await fetch('/billing/api/invoices/' + id + '/default', { method: 'POST' });
+      loadInvoices();
+    } catch (e) {
+      console.error('设置默认发票失败', e);
+    }
+  }
+
+  async function toggleInvoice(id) {
+    try {
+      await fetch('/billing/api/invoices/' + id + '/toggle', { method: 'POST' });
+      loadInvoices();
+    } catch (e) {
+      console.error('切换发票状态失败', e);
+    }
+  }
+
+  loadTenants();
+</script>
+{% endblock %}

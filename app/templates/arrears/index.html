@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <h2 class="text-xl font-semibold text-gray-800">欠费处理</h2>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div class="flex items-center gap-2">
+      <button onclick="filterArrears('')" id="filter-all" class="px-4 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">全部</button>
+      <button onclick="filterArrears('unpaid')" id="filter-unpaid" class="px-4 py-1.5 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">未处理</button>
+      <button onclick="filterArrears('processing')" id="filter-processing" class="px-4 py-1.5 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">处理中</button>
+      <button onclick="filterArrears('resolved')" id="filter-resolved" class="px-4 py-1.5 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">已处理</button>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 text-left text-gray-600">
+          <th class="px-4 py-3 font-medium">租户</th>
+          <th class="px-4 py-3 font-medium">金额</th>
+          <th class="px-4 py-3 font-medium">逾期天数</th>
+          <th class="px-4 py-3 font-medium">状态</th>
+          <th class="px-4 py-3 font-medium">处理人</th>
+          <th class="px-4 py-3 font-medium">处理结果</th>
+          <th class="px-4 py-3 font-medium">备注</th>
+          <th class="px-4 py-3 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody id="arrears-table-body" class="divide-y divide-gray-100">
+      </tbody>
+    </table>
+    <div id="arrears-empty" class="py-12 text-center text-gray-400">暂无欠费记录</div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">健康度概览</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="p-4 bg-gray-50 rounded-lg">
+        <p class="text-sm text-gray-500">平均健康评分</p>
+        <p id="health-avg" class="text-xl font-bold text-gray-900 mt-1">-</p>
+      </div>
+      <div class="p-4 bg-gray-50 rounded-lg">
+        <p class="text-sm text-gray-500">低健康租户数</p>
+        <p id="health-low" class="text-xl font-bold text-yellow-600 mt-1">-</p>
+      </div>
+      <div class="p-4 bg-gray-50 rounded-lg">
+        <p class="text-sm text-gray-500">欠费总额</p>
+        <p id="health-total" class="text-xl font-bold text-red-600 mt-1">-</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var currentFilter = '';
+
+  function arrearsStatusBadge(status) {
+    var map = {
+      'unpaid': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">未处理</span>',
+      'processing': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">处理中</span>',
+      'resolved': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">已处理</span>'
+    };
+    return map[status] || map['unpaid'];
+  }
+
+  function updateFilterButtons(active) {
+    ['all', 'unpaid', 'processing', 'resolved'].forEach(function(key) {
+      var id = 'filter-' + key;
+      var el = document.getElementById(id);
+      if ((key === 'all' && active === '') || key === active) {
+        el.className = 'px-4 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors';
+      } else {
+        el.className = 'px-4 py-1.5 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors';
+      }
+    });
+  }
+
+  function filterArrears(status) {
+    currentFilter = status;
+    updateFilterButtons(status);
+    loadArrears();
+  }
+
+  async function loadArrears() {
+    var params = new URLSearchParams();
+    if (currentFilter) params.set('status', currentFilter);
+    try {
+      var resp = await fetch('/arrears/api/?' + params.toString());
+      var arrears = await resp.json();
+      var tbody = document.getElementById('arrears-table-body');
+      var empty = document.getElementById('arrears-empty');
+      if (arrears.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = arrears.map(function(a, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        var handleBtn = a.status !== 'resolved'
+          ? '<button onclick="showHandleForm(\'' + a.id + '\')" class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">处理</button>'
+          : '';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + (a.tenant_id || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">¥' + (a.amount || '0.00') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + (a.overdue_days || '0') + '天</td>' +
+          '<td class="px-4 py-3">' + arrearsStatusBadge(a.status) + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + (a.handler || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs">' + (a.handle_result || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs">' + (a.notes || '-') + '</td>' +
+          '<td class="px-4 py-3">' + handleBtn + '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载欠费记录失败', e);
+    }
+  }
+
+  async function loadHealthSummary() {
+    try {
+      var resp = await fetch('/arrears/api/health-summary');
+      var data = await resp.json();
+      document.getElementById('health-avg').textContent = data.avg_health_score ?? '-';
+      document.getElementById('health-low').textContent = data.low_health_count ?? '-';
+      document.getElementById('health-total').textContent = data.total_arrears_amount ? ('¥' + data.total_arrears_amount) : '-';
+    } catch (e) {
+      console.error('加载健康度摘要失败', e);
+    }
+  }
+
+  function showHandleForm(id) {
+    var result = prompt('请输入处理结果:');
+    if (!result) return;
+    var handler = prompt('请输入处理人:');
+    if (!handler) return;
+    handleArrear(id, result, handler);
+  }
+
+  async function handleArrear(id, result, handler) {
+    try {
+      await fetch('/arrears/api/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'resolved', handle_result: result, handler: handler })
+      });
+      loadArrears();
+    } catch (e) {
+      console.error('处理欠费失败', e);
+    }
+  }
+
+  loadArrears();
+  loadHealthSummary();
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <div class="flex items-center justify-between">
+    <h2 class="text-xl font-semibold text-gray-800">租户管理</h2>
+    <button onclick="document.getElementById('add-tenant-modal').classList.remove('hidden')"
+      class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+      + 新增租户
+    </button>
+  </div>
+
+  <div id="add-tenant-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">新增租户</h3>
+        <button onclick="document.getElementById('add-tenant-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form hx-post="/tenants/api/" hx-target="#tenant-table-body" hx-swap="beforeend" hx-on::after-request="document.getElementById('add-tenant-modal').classList.add('hidden')">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">名称</label>
+            <input type="text" name="name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入租户名称">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">编码</label>
+            <input type="text" name="code" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入租户编码">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">联系邮箱</label>
+            <input type="email" name="contact_email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入联系邮箱">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">套餐ID</label>
+            <input type="text" name="plan_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入套餐ID">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+            <textarea name="notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="可选备注"></textarea>
+          </div>
+        </div>
+        <div class="mt-5 flex justify-end gap-3">
+          <button type="button" onclick="document.getElementById('add-tenant-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">取消</button>
+          <button type="submit" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700">确认添加</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 text-left text-gray-600">
+          <th class="px-4 py-3 font-medium">名称</th>
+          <th class="px-4 py-3 font-medium">编码</th>
+          <th class="px-4 py-3 font-medium">联系邮箱</th>
+          <th class="px-4 py-3 font-medium">套餐</th>
+          <th class="px-4 py-3 font-medium">状态</th>
+          <th class="px-4 py-3 font-medium">健康度</th>
+          <th class="px-4 py-3 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tenant-table-body" class="divide-y divide-gray-100">
+      </tbody>
+    </table>
+    <div id="tenant-empty" class="py-12 text-center text-gray-400">暂无数据</div>
+  </div>
+
+  <div id="feature-flags-panel"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function healthBadge(score) {
+    if (score >= 80) return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">' + score + '</span>';
+    if (score >= 50) return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">' + score + '</span>';
+    return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">' + score + '</span>';
+  }
+
+  function statusBadge(isActive) {
+    if (isActive) return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>';
+    return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>';
+  }
+
+  async function loadTenants() {
+    try {
+      const resp = await fetch('/tenants/api/');
+      const tenants = await resp.json();
+      const tbody = document.getElementById('tenant-table-body');
+      const empty = document.getElementById('tenant-empty');
+      if (tenants.length === 0) { empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = tenants.map(function(t, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + t.name + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + t.code + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + (t.contact_email || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + (t.plan_id || '-') + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge(t.is_active) + '</td>' +
+          '<td class="px-4 py-3">' + healthBadge(t.health_score) + '</td>' +
+          '<td class="px-4 py-3">' +
+            '<div class="flex items-center gap-2">' +
+              '<button onclick="toggleTenant(\'' + t.id + '\')" class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">' + (t.is_active ? '停用' : '启用') + '</button>' +
+              '<button onclick="loadFeatureFlags(\'' + t.id + '\')" class="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">功能开关</button>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载租户列表失败', e);
+    }
+  }
+
+  async function toggleTenant(id) {
+    try {
+      await fetch('/tenants/api/' + id + '/toggle', { method: 'POST' });
+      loadTenants();
+    } catch (e) {
+      console.error('切换租户状态失败', e);
+    }
+  }
+
+  function loadFeatureFlags(tenantId) {
+    htmx.ajax('GET', '/tenants/' + tenantId + '/feature-flags', '#feature-flags-panel');
+  }
+
+  loadTenants();
+</script>
+{% endblock %}

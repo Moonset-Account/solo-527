@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <h2 class="text-xl font-semibold text-gray-800">字典管理</h2>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 space-y-5">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center gap-4">
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-gray-500 mb-1">字典类型</label>
+            <select id="dict-type-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">请选择字典类型</option>
+              <option value="anomaly_type">异常类型</option>
+              <option value="severity">严重程度</option>
+              <option value="bill_status">账单状态</option>
+              <option value="arrear_status">欠费状态</option>
+              <option value="reminder_type">提醒类型</option>
+              <option value="api_method">API方法</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadDictionaries()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">查询</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-gray-800">字典列表</h3>
+          <button onclick="document.getElementById('add-dict-form').classList.toggle('hidden')"
+            class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">+ 新增</button>
+        </div>
+
+        <div id="add-dict-form" class="hidden p-4 bg-gray-50 border-b border-gray-200">
+          <form hx-post="/dictionaries/api/"
+            hx-target="#dict-table-body"
+            hx-swap="beforeend"
+            hx-on::after-request="document.getElementById('add-dict-form').classList.add('hidden')">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">类型</label>
+                <input type="text" name="dict_type" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="字典类型">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">键</label>
+                <input type="text" name="dict_key" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="键">
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">值</label>
+                <input type="text" name="dict_value" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="值">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">排序</label>
+                <input type="number" name="sort_order" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0" value="0">
+              </div>
+            </div>
+            <div class="mt-3 flex justify-end gap-2">
+              <button type="button" onclick="document.getElementById('add-dict-form').classList.add('hidden')" class="px-3 py-1.5 text-xs text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
+              <button type="submit" class="px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700">确认</button>
+            </div>
+          </form>
+        </div>
+
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-left text-gray-600">
+              <th class="px-4 py-3 font-medium">类型</th>
+              <th class="px-4 py-3 font-medium">键</th>
+              <th class="px-4 py-3 font-medium">值</th>
+              <th class="px-4 py-3 font-medium">排序</th>
+              <th class="px-4 py-3 font-medium">状态</th>
+              <th class="px-4 py-3 font-medium">操作</th>
+            </tr>
+          </thead>
+          <tbody id="dict-table-body" class="divide-y divide-gray-100">
+          </tbody>
+        </table>
+        <div id="dict-empty" class="py-12 text-center text-gray-400">请选择字典类型查看</div>
+      </div>
+    </div>
+
+    <div class="space-y-5">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3">版本历史</h3>
+        <div id="version-history" class="space-y-3">
+          <p class="text-sm text-gray-400">选择字典项查看版本历史</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var selectedDictId = null;
+
+  async function loadDictionaries() {
+    var dictType = document.getElementById('dict-type-select').value;
+    if (!dictType) return;
+    try {
+      var resp = await fetch('/dictionaries/api/?dict_type=' + dictType);
+      var entries = await resp.json();
+      var tbody = document.getElementById('dict-table-body');
+      var empty = document.getElementById('dict-empty');
+      if (entries.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = entries.map(function(d, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        var statusHtml = d.is_active
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>'
+          : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 text-gray-600">' + d.dict_type + '</td>' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + d.dict_key + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + d.dict_value + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + d.sort_order + '</td>' +
+          '<td class="px-4 py-3">' + statusHtml + '</td>' +
+          '<td class="px-4 py-3">' +
+            '<div class="flex items-center gap-2">' +
+              '<button onclick="toggleDict(\'' + d.id + '\')" class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">' + (d.is_active ? '停用' : '启用') + '</button>' +
+              '<button onclick="loadVersions(\'' + d.id + '\')" class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">历史</button>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载字典列表失败', e);
+    }
+  }
+
+  async function toggleDict(id) {
+    try {
+      await fetch('/dictionaries/api/' + id + '/toggle', { method: 'POST' });
+      loadDictionaries();
+    } catch (e) {
+      console.error('切换字典状态失败', e);
+    }
+  }
+
+  async function loadVersions(dictId) {
+    selectedDictId = dictId;
+    try {
+      var resp = await fetch('/dictionaries/api/' + dictId + '/versions');
+      var versions = await resp.json();
+      var container = document.getElementById('version-history');
+      if (versions.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400">暂无版本记录</p>';
+        return;
+      }
+      container.innerHTML = versions.map(function(v) {
+        return '<div class="p-3 bg-gray-50 rounded-lg">' +
+          '<div class="flex items-center justify-between mb-1">' +
+            '<span class="text-xs font-medium text-gray-700">版本 ' + v.version + '</span>' +
+            '<span class="text-xs text-gray-400">' + (v.operated_by || '-') + '</span>' +
+          '</div>' +
+          '<p class="text-xs text-gray-600 mb-1">' + v.dict_key + ' = ' + v.dict_value + '</p>' +
+          '<p class="text-xs text-gray-400">' + (v.created_at || '') + '</p>' +
+          '<button onclick="rollbackDict(\'' + dictId + '\', \'' + v.id + '\')" class="mt-2 text-xs px-2 py-1 rounded border border-orange-300 text-orange-600 hover:bg-orange-50">回滚到此版本</button>' +
+        '</div>';
+      }).join('');
+    } catch (e) {
+      console.error('加载版本历史失败', e);
+    }
+  }
+
+  async function rollbackDict(dictId, versionId) {
+    if (!confirm('确定回滚到此版本？')) return;
+    try {
+      await fetch('/dictionaries/api/' + dictId + '/rollback/' + versionId, { method: 'POST' });
+      loadDictionaries();
+      loadVersions(dictId);
+    } catch (e) {
+      console.error('回滚字典失败', e);
+    }
+  }
+</script>
+{% endblock %}

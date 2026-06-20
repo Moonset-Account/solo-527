@@ -1,0 +1,74 @@
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mt-5">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-base font-semibold text-gray-800">套餐规则 <span class="text-gray-400 font-normal text-sm">(套餐: {{ plan_id }})</span></h3>
+    <button onclick="document.getElementById('add-rule-form').classList.toggle('hidden')"
+      class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">
+      + 新增规则
+    </button>
+  </div>
+
+  <div id="add-rule-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg">
+    <form hx-post="/plans/api/{{ plan_id }}/rules"
+      hx-target="#rules-table-body"
+      hx-swap="beforeend"
+      hx-on::after-request="document.getElementById('add-rule-form').classList.add('hidden')">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">规则键</label>
+          <input type="text" name="rule_key" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="rule_key">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">规则名称</label>
+          <input type="text" name="rule_name" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="规则名称">
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="block text-xs font-medium text-gray-600 mb-1">规则值</label>
+        <input type="text" name="rule_value" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="规则值">
+      </div>
+      <div class="mt-3 flex justify-end gap-2">
+        <button type="button" onclick="document.getElementById('add-rule-form').classList.add('hidden')" class="px-3 py-1.5 text-xs text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
+        <button type="submit" class="px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700">确认</button>
+      </div>
+    </form>
+  </div>
+
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="bg-gray-50 text-left text-gray-600">
+        <th class="px-4 py-2.5 font-medium">规则键</th>
+        <th class="px-4 py-2.5 font-medium">规则名称</th>
+        <th class="px-4 py-2.5 font-medium">规则值</th>
+        <th class="px-4 py-2.5 font-medium">状态</th>
+        <th class="px-4 py-2.5 font-medium">操作</th>
+      </tr>
+    </thead>
+    <tbody id="rules-table-body" class="divide-y divide-gray-100">
+      {% for rule in rules %}
+      <tr class="hover:bg-blue-50/40 {% if loop.index is even %}bg-gray-50/50{% endif %}">
+        <td class="px-4 py-2.5 font-medium text-gray-900">{{ rule.rule_key }}</td>
+        <td class="px-4 py-2.5 text-gray-600">{{ rule.rule_name }}</td>
+        <td class="px-4 py-2.5 text-gray-600">{{ rule.rule_value }}</td>
+        <td class="px-4 py-2.5">
+          {% if rule.is_active %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>
+          {% else %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-2.5">
+          <button hx-post="/plans/api/rules/{{ rule.id }}/toggle"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">
+            {{ '停用' if rule.is_active else '启用' }}
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not rules %}
+  <div class="py-8 text-center text-gray-400 text-sm">暂无规则</div>
+  {% endif %}
+</div>

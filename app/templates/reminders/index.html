@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <h2 class="text-xl font-semibold text-gray-800">提醒管理</h2>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 space-y-5">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center gap-4">
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-gray-500 mb-1">提醒类型</label>
+            <select id="reminder-type-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">全部类型</option>
+              <option value="anomaly">异常提醒</option>
+              <option value="billing">账单提醒</option>
+              <option value="arrear">欠费提醒</option>
+              <option value="usage">用量提醒</option>
+              <option value="system">系统提醒</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadReminders()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">筛选</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-gray-800">提醒列表</h3>
+          <button onclick="document.getElementById('add-reminder-form').classList.toggle('hidden')"
+            class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">+ 新增</button>
+        </div>
+
+        <div id="add-reminder-form" class="hidden p-4 bg-gray-50 border-b border-gray-200">
+          <form hx-post="/reminders/api/"
+            hx-target="#reminder-table-body"
+            hx-swap="beforeend"
+            hx-on::after-request="document.getElementById('add-reminder-form').classList.add('hidden')">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">类型</label>
+                <select name="reminder_type" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <option value="anomaly">异常提醒</option>
+                  <option value="billing">账单提醒</option>
+                  <option value="arrear">欠费提醒</option>
+                  <option value="usage">用量提醒</option>
+                  <option value="system">系统提醒</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">标题</label>
+                <input type="text" name="title" required class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="提醒标题">
+              </div>
+            </div>
+            <div class="mt-3">
+              <label class="block text-xs font-medium text-gray-600 mb-1">内容</label>
+              <textarea name="content" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="提醒内容"></textarea>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">租户ID</label>
+                <input type="text" name="tenant_id" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="可选">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">触发时间</label>
+                <input type="datetime-local" name="trigger_at" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              </div>
+            </div>
+            <div class="mt-3 flex justify-end gap-2">
+              <button type="button" onclick="document.getElementById('add-reminder-form').classList.add('hidden')" class="px-3 py-1.5 text-xs text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">取消</button>
+              <button type="submit" class="px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700">确认</button>
+            </div>
+          </form>
+        </div>
+
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-left text-gray-600">
+              <th class="px-4 py-3 font-medium">类型</th>
+              <th class="px-4 py-3 font-medium">标题</th>
+              <th class="px-4 py-3 font-medium">内容</th>
+              <th class="px-4 py-3 font-medium">触发时间</th>
+              <th class="px-4 py-3 font-medium">是否发送</th>
+              <th class="px-4 py-3 font-medium">状态</th>
+              <th class="px-4 py-3 font-medium">操作</th>
+            </tr>
+          </thead>
+          <tbody id="reminder-table-body" class="divide-y divide-gray-100">
+          </tbody>
+        </table>
+        <div id="reminder-empty" class="py-12 text-center text-gray-400">暂无提醒记录</div>
+      </div>
+    </div>
+
+    <div class="space-y-5">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3">版本历史</h3>
+        <div id="reminder-version-history" class="space-y-3">
+          <p class="text-sm text-gray-400">选择提醒项查看版本历史</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var selectedReminderId = null;
+
+  var typeLabels = {
+    'anomaly': '异常提醒',
+    'billing': '账单提醒',
+    'arrear': '欠费提醒',
+    'usage': '用量提醒',
+    'system': '系统提醒'
+  };
+
+  async function loadReminders() {
+    var reminderType = document.getElementById('reminder-type-select').value;
+    var params = new URLSearchParams();
+    if (reminderType) params.set('reminder_type', reminderType);
+    try {
+      var resp = await fetch('/reminders/api/?' + params.toString());
+      var reminders = await resp.json();
+      var tbody = document.getElementById('reminder-table-body');
+      var empty = document.getElementById('reminder-empty');
+      if (reminders.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = reminders.map(function(r, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        var sentBadge = r.is_sent
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">已发送</span>'
+          : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">未发送</span>';
+        var activeBadge = r.is_active
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>'
+          : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">停用</span>';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 text-gray-600">' + (typeLabels[r.reminder_type] || r.reminder_type) + '</td>' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + r.title + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs max-w-[200px] truncate">' + (r.content || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs">' + (r.trigger_at || '-') + '</td>' +
+          '<td class="px-4 py-3">' + sentBadge + '</td>' +
+          '<td class="px-4 py-3">' + activeBadge + '</td>' +
+          '<td class="px-4 py-3">' +
+            '<div class="flex items-center gap-2">' +
+              '<button onclick="toggleReminder(\'' + r.id + '\')" class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">' + (r.is_active ? '停用' : '启用') + '</button>' +
+              '<button onclick="loadReminderVersions(\'' + r.id + '\')" class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">历史</button>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载提醒列表失败', e);
+    }
+  }
+
+  async function toggleReminder(id) {
+    try {
+      await fetch('/reminders/api/' + id + '/toggle', { method: 'POST' });
+      loadReminders();
+    } catch (e) {
+      console.error('切换提醒状态失败', e);
+    }
+  }
+
+  async function loadReminderVersions(reminderId) {
+    selectedReminderId = reminderId;
+    try {
+      var resp = await fetch('/reminders/api/' + reminderId + '/versions');
+      var versions = await resp.json();
+      var container = document.getElementById('reminder-version-history');
+      if (versions.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400">暂无版本记录</p>';
+        return;
+      }
+      container.innerHTML = versions.map(function(v) {
+        return '<div class="p-3 bg-gray-50 rounded-lg">' +
+          '<div class="flex items-center justify-between mb-1">' +
+            '<span class="text-xs font-medium text-gray-700">版本 ' + v.version + '</span>' +
+            '<span class="text-xs text-gray-400">' + (v.operated_by || '-') + '</span>' +
+          '</div>' +
+          '<p class="text-xs text-gray-600 font-medium mb-1">' + v.title + '</p>' +
+          '<p class="text-xs text-gray-500">' + (v.content || '-') + '</p>' +
+          '<p class="text-xs text-gray-400 mt-1">' + (v.created_at || '') + '</p>' +
+          '<button onclick="rollbackReminder(\'' + reminderId + '\', \'' + v.id + '\')" class="mt-2 text-xs px-2 py-1 rounded border border-orange-300 text-orange-600 hover:bg-orange-50">回滚到此版本</button>' +
+        '</div>';
+      }).join('');
+    } catch (e) {
+      console.error('加载版本历史失败', e);
+    }
+  }
+
+  async function rollbackReminder(reminderId, versionId) {
+    if (!confirm('确定回滚到此版本？')) return;
+    try {
+      await fetch('/reminders/api/' + reminderId + '/rollback/' + versionId, { method: 'POST' });
+      loadReminders();
+      loadReminderVersions(reminderId);
+    } catch (e) {
+      console.error('回滚提醒失败', e);
+    }
+  }
+
+  loadReminders();
+</script>
+{% endblock %}

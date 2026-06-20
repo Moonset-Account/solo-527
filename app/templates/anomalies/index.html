@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-5">
+  <h2 class="text-xl font-semibold text-gray-800">异常记录</h2>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div class="flex items-center gap-4">
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1">租户</label>
+        <select id="filter-tenant" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">全部租户</option>
+        </select>
+      </div>
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1">状态</label>
+        <select id="filter-status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="">全部状态</option>
+          <option value="open">待处理</option>
+          <option value="investigating">调查中</option>
+          <option value="resolved">已解决</option>
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button onclick="loadAnomalies()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">筛选</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 text-left text-gray-600">
+          <th class="px-4 py-3 font-medium">租户</th>
+          <th class="px-4 py-3 font-medium">类型</th>
+          <th class="px-4 py-3 font-medium">API路径</th>
+          <th class="px-4 py-3 font-medium">严重程度</th>
+          <th class="px-4 py-3 font-medium">状态</th>
+          <th class="px-4 py-3 font-medium">创建时间</th>
+          <th class="px-4 py-3 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody id="anomaly-table-body" class="divide-y divide-gray-100">
+      </tbody>
+    </table>
+    <div id="anomaly-empty" class="py-12 text-center text-gray-400">暂无异常记录</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function severityBadge(severity) {
+    var map = {
+      'critical': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">严重</span>',
+      'warning': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">警告</span>',
+      'info': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">信息</span>'
+    };
+    return map[severity] || map['info'];
+  }
+
+  function statusBadge(status) {
+    var map = {
+      'open': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">待处理</span>',
+      'investigating': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">调查中</span>',
+      'resolved': '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">已解决</span>'
+    };
+    return map[status] || map['open'];
+  }
+
+  async function loadTenants() {
+    try {
+      var resp = await fetch('/tenants/api/');
+      var tenants = await resp.json();
+      var sel = document.getElementById('filter-tenant');
+      tenants.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.error('加载租户列表失败', e);
+    }
+  }
+
+  async function loadAnomalies() {
+    var tenantId = document.getElementById('filter-tenant').value;
+    var status = document.getElementById('filter-status').value;
+    var params = new URLSearchParams();
+    if (tenantId) params.set('tenant_id', tenantId);
+    if (status) params.set('status', status);
+
+    try {
+      var resp = await fetch('/anomalies/api/?' + params.toString());
+      var anomalies = await resp.json();
+      var tbody = document.getElementById('anomaly-table-body');
+      var empty = document.getElementById('anomaly-empty');
+      if (anomalies.length === 0) { empty.classList.remove('hidden'); tbody.innerHTML = ''; return; }
+      empty.classList.add('hidden');
+      tbody.innerHTML = anomalies.map(function(a, i) {
+        var bg = i % 2 === 1 ? 'bg-gray-50/50' : '';
+        var resolveBtn = a.status !== 'resolved'
+          ? '<button onclick="resolveAnomaly(\'' + a.id + '\')" class="text-xs px-2 py-1 rounded border border-green-300 text-green-600 hover:bg-green-50">解决</button>'
+          : '';
+        return '<tr class="hover:bg-blue-50/40 ' + bg + '">' +
+          '<td class="px-4 py-3 font-medium text-gray-900">' + (a.tenant_id || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600">' + (a.anomaly_type || '-') + '</td>' +
+          '<td class="px-4 py-3 text-gray-600 font-mono text-xs">' + (a.api_path || '-') + '</td>' +
+          '<td class="px-4 py-3">' + severityBadge(a.severity) + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge(a.status) + '</td>' +
+          '<td class="px-4 py-3 text-gray-500 text-xs">' + (a.created_at || '-') + '</td>' +
+          '<td class="px-4 py-3">' + resolveBtn + '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (e) {
+      console.error('加载异常记录失败', e);
+    }
+  }
+
+  async function resolveAnomaly(id) {
+    try {
+      await fetch('/anomalies/api/' + id + '/resolve', { method: 'POST' });
+      loadAnomalies();
+    } catch (e) {
+      console.error('解决异常失败', e);
+    }
+  }
+
+  loadTenants();
+  loadAnomalies();
+</script>
+{% endblock %}
