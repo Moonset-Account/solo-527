@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}我的复购券{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gradient-to-b from-pink-50 to-white">
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <h1 class="text-xl font-bold text-gray-800">🎟️ 我的复购券</h1>
+            <a href="/mall" class="text-sm text-gray-500">← 返回商城</a>
+        </div>
+        <div class="max-w-4xl mx-auto px-4 pb-3">
+            <div class="flex space-x-8">
+                <a href="/mall" class="pb-2 text-gray-500 hover:text-gray-800">积分商城</a>
+                <a href="/my-coupons" class="pb-2 tab-active">复购券</a>
+                <a href="/my-benefits" class="pb-2 text-gray-500 hover:text-gray-800">积分权益</a>
+                <a href="/my-redemptions" class="pb-2 text-gray-500 hover:text-gray-800">兑换记录</a>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <div class="flex gap-3 mb-6">
+            <button onclick="loadCoupons('')" class="coupon-tab px-4 py-2 bg-pink-500 text-white rounded-full text-sm">全部</button>
+            <button onclick="loadCoupons('unused')" class="coupon-tab px-4 py-2 bg-white text-gray-600 rounded-full text-sm border">未使用</button>
+            <button onclick="loadCoupons('used')" class="coupon-tab px-4 py-2 bg-white text-gray-600 rounded-full text-sm border">已使用</button>
+            <button onclick="loadCoupons('expired')" class="coupon-tab px-4 py-2 bg-white text-gray-600 rounded-full text-sm border">已过期</button>
+        </div>
+        <div id="coupon-list" class="space-y-4">
+            <div class="text-center py-12 text-gray-400">加载中...</div>
+        </div>
+    </main>
+</div>
+<script>
+function formatDate(d){return d?d.substring(0,10):'';}
+function getStatusBadge(s){
+    const map={unused:['未使用','bg-green-100 text-green-600'],used:['已使用','bg-gray-100 text-gray-500'],expired:['已过期','bg-red-100 text-red-500']};
+    const [label,cls]=map[s]||[s,'bg-gray-100 text-gray-500'];
+    return `<span class="text-xs px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
+}
+async function loadCoupons(status=''){
+    document.querySelectorAll('.coupon-tab').forEach(b=>{b.classList.remove('bg-pink-500','text-white');b.classList.add('bg-white','text-gray-600','border');});
+    event&&event.target.classList.add('bg-pink-500','text-white'),event&&event.target.classList.remove('bg-white','text-gray-600','border');
+    let url='/api/points/my-coupons';if(status)url+=`?status=${status}`;
+    const r=await fetch(url,{credentials:'include'});
+    if(!r.ok){if(r.status===401)window.location.href='/login';return;}
+    const coupons=await r.json();
+    const html=coupons.map(c=>{const t=c.template||{};return`
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden flex ${c.status==='unused'?'':'opacity-70'}">
+            <div class="w-36 bg-gradient-to-br from-pink-500 to-rose-500 text-white flex flex-col items-center justify-center p-4">
+                <div class="text-3xl font-bold">${t.discount_value?t.discount_value%1===0?t.discount_value:t.discount_value.toFixed(1):''}</div>
+                <div class="text-xs opacity-90">${t.coupon_type==='percent'?'折':'元'}</div>
+                <div class="text-xs mt-1 opacity-80">满${t.min_order_amount||0}可用</div>
+            </div>
+            <div class="flex-1 p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-semibold">${t.name||'复购券'}</h3>
+                    ${getStatusBadge(c.status)}
+                </div>
+                <div class="text-xs text-gray-400 mb-2">券码：${c.coupon_code}</div>
+                <div class="text-xs text-gray-500 mb-3">有效期：${formatDate(c.valid_from)} 至 ${formatDate(c.valid_to)}</div>
+                ${c.status==='unused'?`<button class="text-sm text-pink-500 font-medium">去使用 →</button>`:''}
+            </div>
+        </div>`;}).join('');
+    document.getElementById('coupon-list').innerHTML=html||'<div class="text-center py-12 text-gray-400">暂无券</div>';
+}
+loadCoupons();
+</script>
+{% endblock %}

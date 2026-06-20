@@ -1,0 +1,81 @@
+{% extends "admin_base.html" %}
+{% block title %}概览 - 运营后台{% endblock %}
+{% block page_title %}📊 运营概览{% endblock %}
+{% block admin_content %}
+<div id="stats-area" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white p-5 rounded-xl shadow-sm"><div class="text-sm text-gray-500 mb-1">会员总数</div><div id="s-member" class="text-3xl font-bold text-blue-600">-</div></div>
+    <div class="bg-white p-5 rounded-xl shadow-sm"><div class="text-sm text-gray-500 mb-1">今日积分成本</div><div id="s-points" class="text-3xl font-bold text-orange-600">-</div></div>
+    <div class="bg-white p-5 rounded-xl shadow-sm"><div class="text-sm text-gray-500 mb-1">今日兑换订单</div><div id="s-redemption" class="text-3xl font-bold text-green-600">-</div></div>
+    <div class="bg-white p-5 rounded-xl shadow-sm"><div class="text-sm text-gray-500 mb-1">待处理任务</div><div id="s-task" class="text-3xl font-bold text-purple-600">-</div></div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
+        <h3 class="font-semibold mb-4">📣 进行中的触达任务</h3>
+        <div id="running-tasks" class="space-y-3 text-sm">加载中...</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+        <h3 class="font-semibold mb-4">🔔 最新通知</h3>
+        <div id="latest-notifications" class="space-y-3 text-sm">加载中...</div>
+    </div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6 mt-6">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+        <h3 class="font-semibold mb-4">🎁 热门积分商品 TOP5</h3>
+        <div id="top-products" class="space-y-2 text-sm">加载中...</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+        <h3 class="font-semibold mb-4">⚠️ 冲突操作日志</h3>
+        <div id="conflict-logs" class="space-y-2 text-sm">加载中...</div>
+    </div>
+</div>
+
+<script>
+async function loadDashboard(){
+    const s=await fetch('/api/dashboard/stats',{credentials:'include'});
+    if(!s.ok)return;const d=await s.json();
+    document.getElementById('s-member').textContent=d.member_count;
+    document.getElementById('s-points').textContent='¥'+(d.today_points_cost||0).toFixed(2);
+    document.getElementById('s-redemption').textContent=d.today_redemptions;
+    document.getElementById('s-task').textContent=d.pending_tasks+' / '+d.running_tasks+' 进行中';
+
+    const tr=await fetch('/api/reach-tasks?status=running&limit=5',{credentials:'include'});
+    if(tr.ok){const tl=await tr.json();
+        document.getElementById('running-tasks').innerHTML=tl.length?tl.map(t=>`
+            <div class="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                <div><div class="font-medium">${t.name}</div><div class="text-xs text-gray-400 mt-0.5">发送 ${t.sent_count}/${t.target_count} · 转化 ${t.converted_count}</div></div>
+                <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">${(t.conversion_rate*100).toFixed(1)}%</span>
+            </div>`).join(''):'<div class="text-gray-400 text-center py-4">暂无进行中任务</div>';
+    }
+
+    const nr=await fetch('/api/notifications?limit=5',{credentials:'include'});
+    if(nr.ok){const nl=await nr.json();
+        document.getElementById('latest-notifications').innerHTML=nl.length?nl.map(n=>`
+            <div class="p-3 bg-gray-50 rounded-lg ${n.is_read?'opacity-60':''}">
+                <div class="flex justify-between"><div class="font-medium">${n.title}</div><span class="text-xs text-gray-400">${fmt(n.created_at)}</span></div>
+                <div class="text-xs text-gray-500 mt-1">${n.content}</div>
+            </div>`).join(''):'<div class="text-gray-400 text-center py-4">暂无通知</div>';
+    }
+
+    const pr=await fetch('/api/products?limit=5',{credentials:'include'});
+    if(pr.ok){const pl=await pr.json();
+        document.getElementById('top-products').innerHTML=pl.slice(0,5).map((p,i)=>`
+            <div class="flex items-center justify-between py-2 border-b last:border-0">
+                <div class="flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold">${i+1}</span><span>${p.name}</span></div>
+                <div class="text-gray-500">${p.total_exchanged||0}次兑换 · ${p.points_required}积分</div>
+            </div>`).join('');
+    }
+
+    const lr=await fetch('/api/operation-logs?is_conflict=true&limit=5',{credentials:'include'});
+    if(lr.ok){const ll=await lr.json();
+        document.getElementById('conflict-logs').innerHTML=ll.length?ll.map(l=>`
+            <div class="p-2 bg-red-50 rounded text-xs">
+                <div class="flex justify-between"><span class="text-red-600 font-medium">${l.action}</span><span class="text-gray-400">${fmt(l.created_at)}</span></div>
+                <div class="text-gray-500 mt-0.5">${l.change_summary||(l.entity_type||'')+(l.entity_name?' · '+l.entity_name:'')}</div>
+            </div>`).join(''):'<div class="text-gray-400 text-center py-4">暂无冲突操作</div>';
+    }
+}
+loadDashboard();
+</script>
+{% endblock %}

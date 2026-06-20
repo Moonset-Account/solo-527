@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}积分商城 - 母婴会员中心{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gradient-to-b from-orange-50 to-white">
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h1 class="text-xl font-bold text-gray-800">积分商城</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="user-points" class="bg-orange-50 px-4 py-2 rounded-full">
+                    <span class="text-sm text-gray-600">可用积分：</span>
+                    <span class="font-bold text-orange-600">加载中...</span>
+                </div>
+                <button onclick="logout()" class="text-sm text-gray-500 hover:text-gray-700">退出</button>
+            </div>
+        </div>
+        <div class="max-w-6xl mx-auto px-4 pb-3">
+            <div class="flex space-x-8">
+                <a href="/mall" class="pb-2 tab-active">积分商城</a>
+                <a href="/my-coupons" class="pb-2 text-gray-500 hover:text-gray-800">复购券</a>
+                <a href="/my-benefits" class="pb-2 text-gray-500 hover:text-gray-800">积分权益</a>
+                <a href="/my-redemptions" class="pb-2 text-gray-500 hover:text-gray-800">兑换记录</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <div class="mb-8">
+            <div class="bg-gradient-to-r from-orange-400 via-pink-400 to-rose-400 rounded-2xl p-6 text-white shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-1">我的积分</h2>
+                        <div id="member-points-display" class="text-5xl font-bold">-</div>
+                        <p class="mt-2 opacity-90 text-sm">积分可兑换精选母婴好物、专属权益及复购券</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm opacity-90 mb-1">会员等级</div>
+                        <div id="member-level" class="text-xl font-bold">加载中</div>
+                        <div id="member-no" class="text-sm mt-2 opacity-80"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-4 mb-6 overflow-x-auto pb-2" id="quick-tabs">
+            <button onclick="filterProducts('hot')" class="quick-btn px-5 py-2 bg-orange-500 text-white rounded-full whitespace-nowrap text-sm font-medium">🔥 热门兑换</button>
+            <button onclick="filterProducts('new')" class="quick-btn px-5 py-2 bg-white text-gray-700 rounded-full whitespace-nowrap text-sm font-medium border">✨ 新品上架</button>
+            <button onclick="filterProducts('coupon')" class="quick-btn px-5 py-2 bg-white text-gray-700 rounded-full whitespace-nowrap text-sm font-medium border">🎟️ 复购券专区</button>
+            <button onclick="filterProducts('')" class="quick-btn px-5 py-2 bg-white text-gray-700 rounded-full whitespace-nowrap text-sm font-medium border">全部商品</button>
+        </div>
+
+        <div id="product-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div class="col-span-full text-center py-12 text-gray-400">加载商品中...</div>
+        </div>
+    </main>
+</div>
+
+<div id="redeem-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold mb-4">确认兑换</h3>
+        <div id="redeem-product-info" class="mb-4"></div>
+        <div class="mb-4">
+            <label class="block text-sm text-gray-600 mb-1">收货人</label>
+            <input id="receiver_name" type="text" class="w-full px-3 py-2 border rounded-lg" placeholder="请输入姓名">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm text-gray-600 mb-1">手机号</label>
+            <input id="receiver_phone" type="text" class="w-full px-3 py-2 border rounded-lg" placeholder="请输入手机号">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm text-gray-600 mb-1">收货地址</label>
+            <textarea id="receiver_address" rows="2" class="w-full px-3 py-2 border rounded-lg" placeholder="请输入详细地址"></textarea>
+        </div>
+        <div class="flex space-x-3">
+            <button onclick="closeModal()" class="flex-1 py-2 border rounded-lg text-gray-600">取消</button>
+            <button id="confirm-redeem-btn" class="flex-1 py-2 bg-orange-500 text-white rounded-lg font-medium">确认兑换</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentProduct=null;
+async function loadMemberInfo(){
+    const r=await fetch('/api/members/me/profile',{credentials:'include'});
+    if(r.ok){const d=await r.json();document.getElementById('member-points-display').textContent=d.available_points.toLocaleString();
+        document.querySelectorAll('#user-points .font-bold')[0].textContent=d.available_points.toLocaleString();
+        document.getElementById('member-level').textContent=d.level||'普通会员';
+        document.getElementById('member-no').textContent='会员号：'+(d.member_no||'');
+    }else if(r.status===401){window.location.href='/login';}
+}
+async function loadProducts(filter=''){
+    let url='/api/products?limit=50';
+    if(filter==='hot')url+='&is_hot=true';
+    if(filter==='new')url+='&is_new=true';
+    const r=await fetch(url,{credentials:'include'});
+    if(!r.ok){if(r.status===401)window.location.href='/login';return;}
+    const products=await r.json();
+    const html=products.map(p=>`
+        <div class="bg-white rounded-2xl overflow-hidden shadow hover:shadow-lg transition">
+            <div class="aspect-square bg-gray-100 flex items-center justify-center text-6xl">
+                ${p.images&&p.images[0]?`<img src="${p.images[0]}" class="w-full h-full object-cover">`:'🎁'}
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-1">
+                    <h3 class="font-semibold text-gray-800 line-clamp-1">${p.name}</h3>
+                    ${p.is_hot?'<span class="text-xs bg-red-100 text-red-500 px-2 py-0.5 rounded-full">热</span>':''}
+                    ${p.is_new?'<span class="text-xs bg-blue-100 text-blue-500 px-2 py-0.5 rounded-full">新</span>':''}
+                </div>
+                <div class="text-xs text-gray-400 mb-2">库存 ${p.stock}</div>
+                <div class="flex items-end justify-between">
+                    <div><span class="text-orange-500 font-bold text-xl">${p.points_required}</span><span class="text-xs text-gray-400"> 积分</span></div>
+                    <button onclick="openRedeem(${p.id},'${p.name.replace(/'/g,"'")}',${p.points_required},${p.stock})"
+                        class="px-3 py-1.5 bg-gradient-to-r from-orange-400 to-pink-500 text-white text-sm rounded-full ${p.stock<=0?'opacity-50 cursor-not-allowed':''}"
+                        ${p.stock<=0?'disabled':''}>立即兑换</button>
+                </div>
+            </div>
+        </div>`).join('');
+    document.getElementById('product-list').innerHTML=html||'<div class="col-span-full text-center py-12 text-gray-400">暂无商品</div>';
+}
+function filterProducts(f){document.querySelectorAll('.quick-btn').forEach(b=>{b.classList.remove('bg-orange-500','text-white');b.classList.add('bg-white','text-gray-700','border');});event.target.classList.add('bg-orange-500','text-white');event.target.classList.remove('bg-white','text-gray-700','border');loadProducts(f);}
+function openRedeem(id,name,points,stock){
+    if(stock<=0)return;currentProduct={id,name,points};
+    document.getElementById('redeem-product-info').innerHTML=`<div class="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg"><div class="text-3xl">🎁</div><div><div class="font-medium">${name}</div><div class="text-orange-500 font-bold">${points} 积分</div></div></div>`;
+    document.getElementById('redeem-modal').classList.remove('hidden');document.getElementById('redeem-modal').classList.add('flex');
+    document.getElementById('confirm-redeem-btn').onclick=confirmRedeem;
+}
+function closeModal(){document.getElementById('redeem-modal').classList.add('hidden');document.getElementById('redeem-modal').classList.remove('flex');}
+async function confirmRedeem(){
+    const btn=document.getElementById('confirm-redeem-btn');btn.disabled=true;
+    const body={product_id:currentProduct.id,quantity:1,receiver_name:document.getElementById('receiver_name').value,receiver_phone:document.getElementById('receiver_phone').value,receiver_address:document.getElementById('receiver_address').value};
+    const r=await fetch('/api/redemptions',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
+    if(r.ok){showToast('兑换成功！','success');closeModal();loadProducts();loadMemberInfo();
+        setTimeout(()=>window.location.href='/my-redemptions',800);
+    }else{const d=await r.json().catch(()=>({}));showToast(d.detail||'兑换失败','error');}
+    btn.disabled=false;
+}
+async function logout(){await fetch('/api/auth/logout',{method:'POST',credentials:'include'});window.location.href='/login';}
+loadMemberInfo();loadProducts();
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "admin_base.html" %}
+{% block title %}会员管理{% endblock %}
+{% block page_title %}👥 会员管理{% endblock %}
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+    <div class="flex gap-3 flex-wrap">
+        <input id="f-keyword" placeholder="搜索昵称/会员号/手机号" class="px-3 py-2 border rounded-lg text-sm w-64">
+        <select id="f-level" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部等级</option><option>普通会员</option><option>银卡会员</option><option>金卡会员</option><option>钻石会员</option></select>
+        <select id="f-vip" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部</option><option value="true">VIP</option><option value="false">非VIP</option></select>
+        <button onclick="loadMembers()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">查询</button>
+    </div>
+</div>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b"><tr>
+            <th class="px-4 py-3 text-left">会员号</th><th class="px-4 py-3 text-left">昵称</th>
+            <th class="px-4 py-3 text-left">等级</th><th class="px-4 py-3 text-right">可用积分</th>
+            <th class="px-4 py-3 text-right">累计消费</th><th class="px-4 py-3 text-center">VIP</th>
+            <th class="px-4 py-3 text-left">最近购买</th><th class="px-4 py-3 text-center">操作</th>
+        </tr></thead>
+        <tbody id="member-tbody"><tr><td colspan="8" class="text-center py-12 text-gray-400">加载中...</td></tr></tbody>
+    </table>
+</div>
+<script>
+async function loadMembers(){
+    const kw=document.getElementById('f-keyword').value;
+    const lv=document.getElementById('f-level').value;
+    const vip=document.getElementById('f-vip').value;
+    let url='/api/members?limit=100';
+    if(kw)url+=`&keyword=${encodeURIComponent(kw)}`;if(lv)url+=`&level=${encodeURIComponent(lv)}`;if(vip)url+=`&is_vip=${vip}`;
+    const r=await fetch(url,{credentials:'include'});if(!r.ok)return;
+    const list=await r.json();
+    document.getElementById('member-tbody').innerHTML=list.length?list.map(m=>`
+        <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3 font-mono">${m.member_no}</td>
+            <td class="px-4 py-3">${m.nickname||'-'}</td>
+            <td class="px-4 py-3"><span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">${m.level||'普通会员'}</span></td>
+            <td class="px-4 py-3 text-right font-medium text-orange-600">${(m.available_points||0).toLocaleString()}</td>
+            <td class="px-4 py-3 text-right">¥${(m.total_spent||0).toFixed(2)}</td>
+            <td class="px-4 py-3 text-center">${m.is_vip?'<span class="text-yellow-500">⭐</span>':'-'}</td>
+            <td class="px-4 py-3 text-gray-500">${m.last_purchase_date||'-'}</td>
+            <td class="px-4 py-3 text-center">
+                <button onclick="adjustPoints(${m.id},'${m.nickname||m.member_no}')" class="text-blue-500 hover:underline mr-2">积分调整</button>
+                <a href="/admin/members/${m.id}" class="text-gray-500 hover:underline">详情</a>
+            </td>
+        </tr>`).join(''):'<tr><td colspan="8" class="text-center py-12 text-gray-400">暂无数据</td></tr>';
+}
+function adjustPoints(mid,name){
+    openModal('积分调整 - '+name,`
+        <div class="space-y-4">
+            <div><label class="block text-sm text-gray-600 mb-1">变动类型</label>
+                <select id="ap-type" class="w-full px-3 py-2 border rounded-lg"><option value="earn">增加积分</option><option value="spend">扣减积分</option><option value="adjust">积分调整</option></select></div>
+            <div><label class="block text-sm text-gray-600 mb-1">积分数量（正数增加/负数扣减）</label>
+                <input id="ap-points" type="number" class="w-full px-3 py-2 border rounded-lg" placeholder="请输入积分"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">成本金额(元)</label>
+                <input id="ap-cost" type="number" step="0.01" class="w-full px-3 py-2 border rounded-lg" value="0"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">说明</label>
+                <textarea id="ap-desc" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea></div>
+            <button onclick="submitAdjustPoints(${mid})" class="w-full py-2 bg-blue-600 text-white rounded-lg">确认调整</button>
+        </div>`);
+}
+async function submitAdjustPoints(mid){
+    const t=document.getElementById('ap-type').value;let p=parseInt(document.getElementById('ap-points').value)||0;
+    if(t==='spend')p=-Math.abs(p);
+    const body={member_id:mid,change_type:t,points:p,cost_amount:parseFloat(document.getElementById('ap-cost').value)||0,description:document.getElementById('ap-desc').value};
+    const r=await fetch('/api/points/adjust',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
+    if(r.ok){showToast('调整成功','success');closeModal();loadMembers();}else{const d=await r.json().catch(()=>({}));showToast(d.detail||'失败','error');}
+}
+loadMembers();
+</script>
+{% endblock %}

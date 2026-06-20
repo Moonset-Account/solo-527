@@ -1,0 +1,83 @@
+{% extends "admin_base.html" %}
+{% block title %}字典配置{% endblock %}
+{% block page_title %}📚 字典配置管理{% endblock %}
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex justify-between items-center">
+    <div class="flex gap-3">
+        <select id="f-type" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部类型</option></select>
+        <button onclick="load()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">查询</button>
+    </div>
+    <button onclick="showForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">+ 新建字典</button>
+</div>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b"><tr>
+            <th class="px-4 py-3 text-left">类型</th><th class="px-4 py-3 text-left">编码</th>
+            <th class="px-4 py-3 text-left">标签</th><th class="px-4 py-3 text-left">值</th>
+            <th class="px-4 py-3 text-center">排序</th><th class="px-4 py-3 text-center">版本</th>
+            <th class="px-4 py-3 text-center">状态</th><th class="px-4 py-3 text-center">操作</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="8" class="text-center py-12 text-gray-400">加载中...</td></tr></tbody>
+    </table>
+</div>
+<script>
+async function loadTypes(){const r=await fetch('/api/dicts/types',{credentials:'include'});if(!r.ok)return;const tl=await r.json();
+    const sel=document.getElementById('f-type');tl.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});}
+async function load(){
+    const t=document.getElementById('f-type').value;let url='/api/dicts';if(t)url+=`?dict_type=${encodeURIComponent(t)}`;
+    const r=await fetch(url,{credentials:'include'});if(!r.ok)return;const list=await r.json();
+    document.getElementById('tbody').innerHTML=list.length?list.map(d=>`
+        <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3"><span class="text-xs bg-gray-100 px-2 py-0.5 rounded">${d.dict_type}</span></td>
+            <td class="px-4 py-3 font-mono">${d.dict_code}</td>
+            <td class="px-4 py-3">${d.dict_label}</td>
+            <td class="px-4 py-3 text-gray-500">${typeof d.dict_value==='object'?JSON.stringify(d.dict_value):(d.dict_value||'-')}</td>
+            <td class="px-4 py-3 text-center">${d.sort_order}</td>
+            <td class="px-4 py-3 text-center text-gray-400 text-xs">v${d.version}</td>
+            <td class="px-4 py-3 text-center">${d.is_active?'<span class="text-green-500 text-xs">启用</span>':'<span class="text-gray-400 text-xs">停用</span>'}</td>
+            <td class="px-4 py-3 text-center whitespace-nowrap">
+                <button onclick="showVersions(${d.id})" class="text-blue-500 hover:underline mr-2">历史</button>
+                <button onclick="showForm(${d.id})" class="text-gray-500 hover:underline">编辑</button>
+            </td>
+        </tr>`).join(''):'<tr><td colspan="8" class="text-center py-12 text-gray-400">暂无数据</td></tr>';
+}
+function showForm(id){
+    if(id){fetch(`/api/dicts`,{credentials:'include'}).then(r=>r.json()).then(list=>{const d=list.find(x=>x.id===id);if(d)openModal('编辑字典',formHtml(d));});}
+    else{openModal('新建字典',formHtml({}));}
+}
+function formHtml(d={}){return`
+    <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-sm text-gray-600">类型*</label><input id="d-type" class="w-full px-3 py-2 border rounded text-sm" value="${d.dict_type||''}"></div>
+            <div><label class="text-sm text-gray-600">编码*</label><input id="d-code" class="w-full px-3 py-2 border rounded text-sm" value="${d.dict_code||''}"></div>
+        </div>
+        <div><label class="text-sm text-gray-600">标签*</label><input id="d-label" class="w-full px-3 py-2 border rounded text-sm" value="${d.dict_label||''}"></div>
+        <div><label class="text-sm text-gray-600">值(JSON或文本)</label><textarea id="d-value" rows="2" class="w-full px-3 py-2 border rounded text-sm">${typeof d.dict_value==='object'?JSON.stringify(d.dict_value):(d.dict_value||'')}</textarea></div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-sm text-gray-600">排序</label><input id="d-sort" type="number" class="w-full px-3 py-2 border rounded text-sm" value="${d.sort_order||0}"></div>
+            <div class="flex items-center"><label class="flex items-center gap-2 text-sm mt-5"><input id="d-active" type="checkbox" ${d.is_active!==false?'checked':''}>启用</label></div>
+        </div>
+        <div><label class="text-sm text-gray-600">描述</label><textarea id="d-desc" rows="2" class="w-full px-3 py-2 border rounded text-sm">${d.description||''}</textarea></div>
+        <div><label class="text-sm text-gray-600">变更说明</label><input id="d-summary" class="w-full px-3 py-2 border rounded text-sm"></div>
+        <button onclick="submitForm(${d.id||0})" class="w-full py-2 bg-blue-600 text-white rounded-lg">保存</button>
+    </div>`;}
+async function submitForm(id){
+    let val=document.getElementById('d-value').value;try{val=JSON.parse(val);}catch(_){}
+    const body={dict_type:document.getElementById('d-type').value,dict_code:document.getElementById('d-code').value,
+        dict_label:document.getElementById('d-label').value,dict_value:val,
+        sort_order:parseInt(document.getElementById('d-sort').value)||0,description:document.getElementById('d-desc').value,
+        is_active:document.getElementById('d-active').checked,change_summary:document.getElementById('d-summary').value};
+    const url=id?`/api/dicts/${id}`:'/api/dicts';const method=id?'PUT':'POST';
+    const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
+    if(r.ok){showToast(id?'修改成功':'创建成功','success');closeModal();load();loadTypes();}else{const d=await r.json().catch(()=>({}));showToast(d.detail||'失败','error');}
+}
+async function showVersions(id){const r=await fetch(`/api/dicts/versions/${id}`,{credentials:'include'});if(!r.ok)return;const v=await r.json();
+    openModal('历史版本',`<div class="space-y-3 max-h-96 overflow-y-auto">${v.map(x=>`
+        <div class="p-3 bg-gray-50 rounded border-l-4 border-blue-400">
+            <div class="flex justify-between text-sm"><span class="font-medium">v${x.version} - ${x.dict_label||''}</span><span class="text-gray-400">${fmt(x.created_at)}</span></div>
+            <div class="text-xs text-gray-500 mt-1">${x.change_summary||''}</div>
+            <pre class="text-xs mt-2 bg-white p-2 rounded overflow-x-auto">${JSON.stringify(x.data,null,2)}</pre>
+        </div>`).join('')||'<div class="text-gray-400 text-center py-6">暂无版本</div>'}</div>`);}
+loadTypes();load();
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "admin_base.html" %}
+{% block title %}成本报表{% endblock %}
+{% block page_title %}📈 积分成本报表{% endblock %}
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex justify-between items-center">
+    <div class="flex gap-3">
+        <select id="f-type" class="px-3 py-2 border rounded-lg text-sm">
+            <option value="daily">日报</option><option value="weekly">周报</option><option value="monthly">月报</option>
+        </select>
+        <input id="f-date" type="date" class="px-3 py-2 border rounded-lg text-sm" value="{{ today }}">
+        <button onclick="load()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">查询</button>
+    </div>
+    <button onclick="generateReport()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">+ 生成报表</button>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div class="bg-gradient-to-br from-orange-500 to-red-500 p-5 rounded-xl text-white">
+        <div class="text-sm opacity-90">总成本</div>
+        <div id="r-total" class="text-2xl font-bold mt-1">-</div>
+    </div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border"><div class="text-sm text-gray-500">积分成本</div><div id="r-points" class="text-xl font-bold text-orange-600 mt-1">-</div></div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border"><div class="text-sm text-gray-500">券成本</div><div id="r-coupon" class="text-xl font-bold text-pink-600 mt-1">-</div></div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border"><div class="text-sm text-gray-500">触达成本</div><div id="r-reach" class="text-xl font-bold text-blue-600 mt-1">-</div></div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border"><div class="text-sm text-gray-500">兑换订单</div><div id="r-red" class="text-xl font-bold text-green-600 mt-1">-</div></div>
+</div>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b"><tr>
+            <th class="px-4 py-3 text-left">报表日期</th><th class="px-4 py-3 text-center">类型</th>
+            <th class="px-4 py-3 text-right">积分成本</th><th class="px-4 py-3 text-right">券成本</th>
+            <th class="px-4 py-3 text-right">触达成本</th><th class="px-4 py-3 text-right">总成本</th>
+            <th class="px-4 py-3 text-center">发放积分</th><th class="px-4 py-3 text-center">发券/用券</th>
+            <th class="px-4 py-3 text-center">兑换数</th><th class="px-4 py-3 text-left">生成时间</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="10" class="text-center py-12 text-gray-400">加载中...</td></tr></tbody>
+    </table>
+</div>
+<script>
+const today=new Date().toISOString().substring(0,10);
+async function load(){
+    const t=document.getElementById('f-type').value;const d=document.getElementById('f-date').value||today;
+    const r=await fetch(`/api/cost-reports?report_type=${t}&start_date=${d}&limit=50`,{credentials:'include'});
+    if(!r.ok)return;const list=await r.json();
+    if(list.length){const f=list[0];document.getElementById('r-total').textContent='¥'+(f.total_cost||0).toFixed(2);
+        document.getElementById('r-points').textContent='¥'+(f.total_points_cost||0).toFixed(2);
+        document.getElementById('r-coupon').textContent='¥'+(f.total_coupon_cost||0).toFixed(2);
+        document.getElementById('r-reach').textContent='¥'+(f.total_reach_cost||0).toFixed(2);
+        document.getElementById('r-red').textContent=f.redemptions_count||0;}
+    const tm={daily:'日报',weekly:'周报',monthly:'月报'};
+    document.getElementById('tbody').innerHTML=list.length?list.map(x=>`
+        <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium">${x.report_date}</td>
+            <td class="px-4 py-3 text-center"><span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">${tm[x.report_type]||x.report_type}</span></td>
+            <td class="px-4 py-3 text-right">¥${(x.total_points_cost||0).toFixed(2)}</td>
+            <td class="px-4 py-3 text-right">¥${(x.total_coupon_cost||0).toFixed(2)}</td>
+            <td class="px-4 py-3 text-right">¥${(x.total_reach_cost||0).toFixed(2)}</td>
+            <td class="px-4 py-3 text-right font-bold text-orange-600">¥${(x.total_cost||0).toFixed(2)}</td>
+            <td class="px-4 py-3 text-center">${x.points_issued||0}</td>
+            <td class="px-4 py-3 text-center">${x.coupons_issued||0} / ${x.coupons_used||0}</td>
+            <td class="px-4 py-3 text-center">${x.redemptions_count||0}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs">${fmt(x.created_at)}</td>
+        </tr>`).join(''):'<tr><td colspan="10" class="text-center py-12 text-gray-400">暂无数据，请生成报表</td></tr>';
+}
+async function generateReport(){
+    const t=document.getElementById('f-type').value;const d=document.getElementById('f-date').value||today;
+    const fd=new FormData();fd.append('report_type',t);fd.append('report_date',d);
+    const r=await fetch('/api/cost-reports/generate',{method:'POST',credentials:'include',body:fd});
+    if(r.ok){showToast('报表生成成功，并已发送通知','success');load();}else{const d=await r.json().catch(()=>({}));showToast(d.detail||'失败','error');}
+}
+document.getElementById('f-date').value=today;
+load();
+</script>
+{% endblock %}

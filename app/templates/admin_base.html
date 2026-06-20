@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}会员触达运营后台{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .sidebar-active{background:#1e40af;color:#fff}
+        .fade-in{animation:fadeIn .2s ease-in}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        .modal{display:none}
+        .modal.show{display:flex}
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+    <aside class="w-60 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0">
+        <div class="p-5 border-b border-slate-700">
+            <div class="text-lg font-bold text-white">🎯 会员触达台</div>
+            <div class="text-xs text-slate-400 mt-1">母婴复购营销系统</div>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-3">
+            {% set items = [
+                ('/admin/dashboard','📊','概览'),
+                ('/admin/members','👥','会员管理'),
+                ('/admin/coupons','🎟️','复购券'),
+                ('/admin/products','🎁','积分商品'),
+                ('/admin/benefits','⭐','积分权益'),
+                ('/admin/crowds','👨‍👩‍👧','人群管理'),
+                ('/admin/reach-tasks','📣','触达任务'),
+                ('/admin/redemptions','📦','兑换订单'),
+                ('/admin/cost-reports','📈','成本报表'),
+                ('/admin/dicts','📚','字典配置'),
+                ('/admin/notifications','🔔','通知中心'),
+                ('/admin/logs','📝','操作日志'),
+            ] %}
+            {% for path,icon,name in items %}
+            <a href="{{path}}" class="flex items-center px-5 py-2.5 text-sm hover:bg-slate-800 hover:text-white transition {% if request.url.path == path %}sidebar-active{% endif %}">
+                <span class="mr-3">{{icon}}</span>{{name}}
+            </a>
+            {% endfor %}
+        </nav>
+        <div class="p-4 border-t border-slate-700 text-xs text-slate-400">
+            <div id="current-user-info">加载中...</div>
+            <button onclick="logout()" class="mt-2 text-red-400 hover:text-red-300">退出登录</button>
+        </div>
+    </aside>
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white border-b px-6 py-3 flex items-center justify-between flex-shrink-0">
+            <h2 class="text-lg font-semibold text-gray-800">{% block page_title %}{% endblock %}</h2>
+            <div class="flex items-center gap-3">
+                <a href="/admin/notifications" class="relative p-2 hover:bg-gray-100 rounded-lg">
+                    🔔<span id="unread-badge" class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden"></span>
+                </a>
+            </div>
+        </header>
+        <main class="flex-1 overflow-y-auto p-6">
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<div id="toast" class="fixed top-4 right-4 z-50 hidden"></div>
+<div id="global-modal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="p-5 border-b flex justify-between items-center">
+            <h3 id="modal-title" class="text-lg font-semibold">标题</h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <div id="modal-body" class="p-5"></div>
+    </div>
+</div>
+
+<script>
+async function loadUserInfo(){
+    const r=await fetch('/api/auth/me',{credentials:'include'});
+    if(!r.ok){window.location.href='/admin/login';return;}
+    const d=await r.json();
+    document.getElementById('current-user-info').innerHTML=`<div>${d.full_name||d.username}</div><div class="text-slate-500">${d.role==='admin'?'管理员':'品牌运营'}</div>`;
+    const nr=await fetch('/api/notifications?is_read=false&limit=1',{credentials:'include'});
+    if(nr.ok){const nl=await nr.json();if(nl.length){const b=document.getElementById('unread-badge');b.classList.remove('hidden');b.textContent=nl.length>9?'9+':nl.length;}}
+}
+function showToast(msg,type='info'){
+    const c={success:'bg-green-500',error:'bg-red-500',info:'bg-blue-500',warning:'bg-yellow-500'};
+    const t=document.getElementById('toast');
+    t.className=`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white shadow-lg ${c[type]} fade-in`;
+    t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3000);
+}
+function openModal(title,bodyHtml){document.getElementById('modal-title').textContent=title;document.getElementById('modal-body').innerHTML=bodyHtml;document.getElementById('global-modal').classList.add('show');}
+function closeModal(){document.getElementById('global-modal').classList.remove('show');}
+async function logout(){await fetch('/api/auth/logout',{method:'POST',credentials:'include'});window.location.href='/admin/login';}
+function fmt(d){if(!d)return'-';try{return new Date(d).toLocaleString('zh-CN',{hour12:false});}catch(e){return d;}}
+document.body.addEventListener('htmx:afterRequest',e=>{if(!e.detail.successful&&e.detail.xhr){try{const d=JSON.parse(e.detail.xhr.responseText);if(d&&d.detail)showToast(d.detail,'error');}catch(_){}}});
+loadUserInfo();
+</script>
+</body>
+</html>

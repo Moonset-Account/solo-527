@@ -1,0 +1,47 @@
+{% extends "admin_base.html" %}
+{% block title %}操作日志{% endblock %}
+{% block page_title %}📝 操作日志与审计{% endblock %}
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex gap-3 flex-wrap">
+    <select id="f-action" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部操作</option>
+        <option value="adjust_points">积分调整</option><option value="issue_coupon">发放券</option>
+        <option value="create_reach_task">创建触达任务</option><option value="approve_reach_task">审批触达任务</option>
+        <option value="update_redemption_order">更新兑换单</option><option value="create_coupon_template">创建券</option>
+        <option value="generate_cost_report">生成报表</option>
+    </select>
+    <select id="f-conflict" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部</option><option value="true">仅冲突操作</option><option value="false">非冲突操作</option></select>
+    <input id="f-start" type="date" class="px-3 py-2 border rounded-lg text-sm">
+    <input id="f-end" type="date" class="px-3 py-2 border rounded-lg text-sm">
+    <button onclick="load()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">查询</button>
+</div>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b"><tr>
+            <th class="px-4 py-3 text-left">时间</th><th class="px-4 py-3 text-left">操作人</th>
+            <th class="px-4 py-3 text-left">动作</th><th class="px-4 py-3 text-left">对象</th>
+            <th class="px-4 py-3 text-left">变更摘要</th><th class="px-4 py-3 text-center">冲突</th>
+            <th class="px-4 py-3 text-left">IP</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="7" class="text-center py-12 text-gray-400">加载中...</td></tr></tbody>
+    </table>
+</div>
+<script>
+async function load(){
+    const a=document.getElementById('f-action').value;const c=document.getElementById('f-conflict').value;
+    const s=document.getElementById('f-start').value;const e=document.getElementById('f-end').value;
+    let url='/api/operation-logs?limit=200';if(a)url+=`&action=${encodeURIComponent(a)}`;if(c)url+=`&is_conflict=${c}`;if(s)url+=`&start_date=${s}`;if(e)url+=`&end_date=${e}`;
+    const r=await fetch(url,{credentials:'include'});if(!r.ok)return;const list=await r.json();
+    document.getElementById('tbody').innerHTML=list.length?list.map(l=>`
+        <tr class="border-b hover:bg-gray-50 ${l.is_conflict_action?'bg-red-50':''}">
+            <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">${fmt(l.created_at)}</td>
+            <td class="px-4 py-3">用户#${l.operator_id}</td>
+            <td class="px-4 py-3"><code class="text-xs bg-gray-100 px-2 py-0.5 rounded">${l.action}</code></td>
+            <td class="px-4 py-3">${l.entity_type||'-'} ${l.entity_name?`· ${l.entity_name}`:''}${l.entity_id?`#${l.entity_id}`:''}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">${l.change_summary||'-'}</td>
+            <td class="px-4 py-3 text-center">${l.is_conflict_action?'<span class="text-red-500 text-xs bg-red-100 px-2 py-0.5 rounded">冲突</span>':'-'}</td>
+            <td class="px-4 py-3 text-xs text-gray-400">${l.ip_address||'-'}</td>
+        </tr>`).join(''):'<tr><td colspan="7" class="text-center py-12 text-gray-400">暂无数据</td></tr>';
+}
+load();
+</script>
+{% endblock %}

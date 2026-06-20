@@ -1,0 +1,108 @@
+{% extends "admin_base.html" %}
+{% block title %}复购券管理{% endblock %}
+{% block page_title %}🎟️ 复购券管理{% endblock %}
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex justify-between items-center">
+    <div class="flex gap-3">
+        <input id="f-kw" placeholder="搜索券名/编码" class="px-3 py-2 border rounded-lg text-sm w-64">
+        <select id="f-type" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部类型</option><option value="fixed">满减券</option><option value="percent">折扣券</option><option value="cash">现金券</option></select>
+        <select id="f-repurchase" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部</option><option value="true">复购券</option><option value="false">普通券</option></select>
+        <button onclick="loadCoupons()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">查询</button>
+    </div>
+    <button onclick="showCreateCoupon()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">+ 新建券模板</button>
+</div>
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b"><tr>
+            <th class="px-4 py-3 text-left">编码</th><th class="px-4 py-3 text-left">名称</th>
+            <th class="px-4 py-3 text-center">类型</th><th class="px-4 py-3 text-right">面值</th>
+            <th class="px-4 py-3 text-right">使用门槛</th><th class="px-4 py-3 text-center">发/用/总量</th>
+            <th class="px-4 py-3 text-center">单成本</th><th class="px-4 py-3 text-center">复购券</th>
+            <th class="px-4 py-3 text-center">状态</th><th class="px-4 py-3 text-center">操作</th>
+        </tr></thead>
+        <tbody id="coupon-tbody"><tr><td colspan="10" class="text-center py-12 text-gray-400">加载中...</td></tr></tbody>
+    </table>
+</div>
+<script>
+const typeMap={fixed:'满减',percent:'折扣',cash:'现金'};
+async function loadCoupons(){
+    const kw=document.getElementById('f-kw').value;const tp=document.getElementById('f-type').value;const rp=document.getElementById('f-repurchase').value;
+    let url='/api/coupons?limit=100';if(kw)url+=`&keyword=${encodeURIComponent(kw)}`;if(tp)url+=`&coupon_type=${tp}`;if(rp)url+=`&is_repurchase=${rp}`;
+    const r=await fetch(url,{credentials:'include'});if(!r.ok)return;const list=await r.json();
+    document.getElementById('coupon-tbody').innerHTML=list.length?list.map(c=>`
+        <tr class="border-b hover:bg-gray-50">
+            <td class="px-4 py-3 font-mono">${c.code}</td>
+            <td class="px-4 py-3 font-medium">${c.name}</td>
+            <td class="px-4 py-3 text-center">${typeMap[c.coupon_type]||c.coupon_type}</td>
+            <td class="px-4 py-3 text-right font-bold text-orange-600">${c.coupon_type==='percent'?c.discount_value+'折':'¥'+c.discount_value}</td>
+            <td class="px-4 py-3 text-right">满¥${c.min_order_amount||0}</td>
+            <td class="px-4 py-3 text-center"><span class="text-green-600">${c.issued_quantity||0}</span> / <span class="text-blue-600">${c.used_quantity||0}</span> / ${c.total_quantity||'∞'}</td>
+            <td class="px-4 py-3 text-center text-gray-500">¥${(c.cost_per_unit||0).toFixed(2)}</td>
+            <td class="px-4 py-3 text-center">${c.is_repurchase?'<span class="text-pink-500">✓</span>':'-'}</td>
+            <td class="px-4 py-3 text-center">${c.is_active?'<span class="text-green-500 text-xs bg-green-50 px-2 py-0.5 rounded">启用</span>':'<span class="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded">停用</span>'}</td>
+            <td class="px-4 py-3 text-center whitespace-nowrap">
+                <button onclick="issueCoupon(${c.id},'${c.name}')" class="text-green-500 hover:underline mr-2">发放</button>
+                <button onclick="showVersions(${c.id})" class="text-blue-500 hover:underline mr-2">历史</button>
+                <button onclick="editCoupon(${c.id})" class="text-gray-500 hover:underline">编辑</button>
+            </td>
+        </tr>`).join(''):'<tr><td colspan="10" class="text-center py-12 text-gray-400">暂无数据</td></tr>';
+}
+function showCreateCoupon(){openModal('新建券模板',createCouponForm());}
+function createCouponForm(data={}){return`
+    <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-sm text-gray-600">编码*</label><input id="c-code" class="w-full px-3 py-2 border rounded text-sm" value="${data.code||''}"></div>
+            <div><label class="text-sm text-gray-600">名称*</label><input id="c-name" class="w-full px-3 py-2 border rounded text-sm" value="${data.name||''}"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-sm text-gray-600">类型*</label><select id="c-type" class="w-full px-3 py-2 border rounded text-sm"><option value="fixed">满减券</option><option value="percent">折扣券</option><option value="cash">现金券</option></select></div>
+            <div><label class="text-sm text-gray-600">面值*</label><input id="c-value" type="number" step="0.01" class="w-full px-3 py-2 border rounded text-sm" value="${data.discount_value||''}"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+            <div><label class="text-sm text-gray-600">门槛</label><input id="c-min" type="number" step="0.01" class="w-full px-3 py-2 border rounded text-sm" value="${data.min_order_amount||0}"></div>
+            <div><label class="text-sm text-gray-600">总量</label><input id="c-total" type="number" class="w-full px-3 py-2 border rounded text-sm" value="${data.total_quantity||0}"></div>
+            <div><label class="text-sm text-gray-600">每人限领</label><input id="c-limit" type="number" class="w-full px-3 py-2 border rounded text-sm" value="${data.per_user_limit||1}"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-sm text-gray-600">有效期(天)</label><input id="c-days" type="number" class="w-full px-3 py-2 border rounded text-sm" value="${data.valid_days||30}"></div>
+            <div><label class="text-sm text-gray-600">单张成本(元)</label><input id="c-cost" type="number" step="0.01" class="w-full px-3 py-2 border rounded text-sm" value="${data.cost_per_unit||0}"></div>
+        </div>
+        <div><label class="text-sm text-gray-600">描述</label><textarea id="c-desc" rows="2" class="w-full px-3 py-2 border rounded text-sm">${data.description||''}</textarea></div>
+        <label class="flex items-center gap-2 text-sm"><input id="c-repurchase" type="checkbox" ${data.is_repurchase?'checked':''}> 标记为复购券</label>
+        <div><label class="text-sm text-gray-600">变更说明</label><input id="c-summary" class="w-full px-3 py-2 border rounded text-sm" placeholder="可填写本次修改原因"></div>
+        <button onclick="submitCoupon(${data.id||0})" class="w-full py-2 bg-blue-600 text-white rounded-lg">保存</button>
+    </div>`;}
+async function editCoupon(id){const r=await fetch(`/api/coupons/${id}`,{credentials:'include'});if(!r.ok)return;const c=await r.json();openModal('编辑券模板 - '+c.name,createCouponForm(c));document.getElementById('c-code').disabled=true;}
+async function submitCoupon(id){
+    const body={code:document.getElementById('c-code').value,name:document.getElementById('c-name').value,coupon_type:document.getElementById('c-type').value,
+        discount_value:parseFloat(document.getElementById('c-value').value),min_order_amount:parseFloat(document.getElementById('c-min').value)||0,
+        total_quantity:parseInt(document.getElementById('c-total').value)||0,per_user_limit:parseInt(document.getElementById('c-limit').value)||1,
+        valid_days:parseInt(document.getElementById('c-days').value)||30,cost_per_unit:parseFloat(document.getElementById('c-cost').value)||0,
+        description:document.getElementById('c-desc').value,is_repurchase:document.getElementById('c-repurchase').checked,
+        change_summary:document.getElementById('c-summary').value};
+    const url=id?`/api/coupons/${id}`:'/api/coupons';const method=id?'PUT':'POST';
+    const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
+    if(r.ok){showToast(id?'修改成功':'创建成功','success');closeModal();loadCoupons();}else{const d=await r.json().catch(()=>({}));showToast(d.detail||'失败','error');}
+}
+function issueCoupon(id,name){openModal('发放券 - '+name,`
+    <div class="space-y-3">
+        <div><label class="text-sm text-gray-600">会员ID列表(逗号分隔)</label><textarea id="iss-members" rows="3" class="w-full px-3 py-2 border rounded text-sm" placeholder="例如:1,2,3"></textarea></div>
+        <div><label class="text-sm text-gray-600">来源</label><input id="iss-src" class="w-full px-3 py-2 border rounded text-sm" value="manual"></div>
+        <button onclick="submitIssue(${id})" class="w-full py-2 bg-green-600 text-white rounded-lg">确认发放</button>
+    </div>`);}
+async function submitIssue(id){
+    const ids=document.getElementById('iss-members').value.split(/[,，\s]+/).filter(Boolean).map(Number);
+    const r=await fetch('/api/coupons/issue',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({member_ids:ids,template_id:id,source:document.getElementById('iss-src').value})});
+    if(r.ok){const d=await r.json();showToast(`成功${d.success}张，冲突${d.conflict_count||0}张`,'success');closeModal();loadCoupons();}
+}
+async function showVersions(id){const r=await fetch(`/api/coupons/versions/${id}`,{credentials:'include'});if(!r.ok)return;const v=await r.json();
+    openModal('历史版本',`<div class="space-y-3 max-h-96 overflow-y-auto">${v.map(x=>`
+        <div class="p-3 bg-gray-50 rounded border-l-4 border-blue-400">
+            <div class="flex justify-between text-sm"><span class="font-medium">v${x.version} - ${x.name||''}</span><span class="text-gray-400">${fmt(x.created_at)}</span></div>
+            <div class="text-xs text-gray-500 mt-1">${x.change_summary||''}</div>
+            <pre class="text-xs mt-2 bg-white p-2 rounded overflow-x-auto">${JSON.stringify(x.data,null,2)}</pre>
+        </div>`).join('')||'<div class="text-gray-400 text-center py-6">暂无版本记录</div>'}</div>`);}
+loadCoupons();
+</script>
+{% endblock %}

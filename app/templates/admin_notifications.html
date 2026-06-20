@@ -1,0 +1,54 @@
+{% extends "admin_base.html" %}
+{% block title %}通知中心{% endblock %}
+{% block page_title %}🔔 通知中心{% endblock %}
+{% block admin_content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex justify-between items-center">
+    <div class="flex gap-3">
+        <select id="f-read" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部</option><option value="false">未读</option><option value="true">已读</option></select>
+        <select id="f-type" class="px-3 py-2 border rounded-lg text-sm"><option value="">全部类型</option><option value="coupon_issued">发券通知</option><option value="task_approved">任务审批</option><option value="cost_report">成本报表</option><option value="system">系统通知</option></select>
+        <button onclick="load()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">查询</button>
+    </div>
+    <button onclick="showForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">+ 发送通知</button>
+</div>
+<div class="space-y-3" id="list">
+    <div class="text-center py-12 text-gray-400">加载中...</div>
+</div>
+<script>
+async function load(){
+    const r=document.getElementById('f-read').value;const t=document.getElementById('f-type').value;
+    let url='/api/notifications?limit=100';if(r)url+=`&is_read=${r}`;if(t)url+=`&notification_type=${t}`;
+    const rr=await fetch(url,{credentials:'include'});if(!rr.ok)return;const list=await rr.json();
+    const tm={coupon_issued:'🎟️ 发券',task_approved:'✅ 审批',cost_report:'📈 报表',system:'📢 系统'};
+    document.getElementById('list').innerHTML=list.length?list.map(n=>`
+        <div class="bg-white rounded-xl shadow-sm p-4 flex gap-4 ${n.is_read?'opacity-70':'border-l-4 border-orange-500'}">
+            <div class="text-2xl">${(tm[n.notification_type]||'🔔').split(' ')[0]}</div>
+            <div class="flex-1">
+                <div class="flex justify-between items-start"><h3 class="font-semibold">${n.title}</h3><span class="text-xs text-gray-400">${fmt(n.created_at)}</span></div>
+                <p class="text-sm text-gray-600 mt-1">${n.content}</p>
+                <div class="flex gap-2 mt-2 text-xs"><span class="text-gray-400">${(tm[n.notification_type]||n.notification_type).split(' ')[1]||n.notification_type}</span>
+                    ${n.is_read?'<span class="text-gray-400">已读</span>':`<button onclick="markRead(${n.id})" class="text-blue-500 hover:underline">标记已读</button>`}
+                </div>
+            </div>
+        </div>`).join(''):'<div class="text-center py-12 text-gray-400">暂无通知</div>';
+}
+async function markRead(id){await fetch(`/api/notifications/${id}/read`,{method:'POST',credentials:'include'});load();}
+function showForm(){openModal('发送通知',`
+    <div class="space-y-3">
+        <div><label class="text-sm text-gray-600">通知类型</label>
+            <select id="n-type" class="w-full px-3 py-2 border rounded text-sm"><option value="system">系统通知</option><option value="coupon_issued">发券通知</option><option value="cost_report">成本报表</option></select></div>
+        <div><label class="text-sm text-gray-600">目标角色</label>
+            <select id="n-role" class="w-full px-3 py-2 border rounded text-sm"><option value="">全部运营</option><option value="admin">管理员</option><option value="brand_operator">品牌运营</option><option value="member">会员</option></select></div>
+        <div><label class="text-sm text-gray-600">标题*</label><input id="n-title" class="w-full px-3 py-2 border rounded text-sm"></div>
+        <div><label class="text-sm text-gray-600">内容*</label><textarea id="n-content" rows="3" class="w-full px-3 py-2 border rounded text-sm"></textarea></div>
+        <button onclick="submitForm()" class="w-full py-2 bg-blue-600 text-white rounded-lg">发送</button>
+    </div>`);}
+async function submitForm(){
+    const fd=new FormData();fd.append('notification_type',document.getElementById('n-type').value);
+    fd.append('target_role',document.getElementById('n-role').value);
+    fd.append('title',document.getElementById('n-title').value);fd.append('content',document.getElementById('n-content').value);
+    const r=await fetch('/api/notifications/create',{method:'POST',credentials:'include',body:fd});
+    if(r.ok){showToast('发送成功','success');closeModal();load();}else{const d=await r.json().catch(()=>({}));showToast(d.detail||'失败','error');}
+}
+load();
+</script>
+{% endblock %}
