@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Param, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { DeliveriesService } from './deliveries.service';
 import { CreateDeliveryDto, ReviewDeliveryDto, QueryDeliveriesDto } from './dto/delivery.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -14,13 +15,15 @@ export class DeliveriesController {
 
   @Post()
   @Roles(UserRole.PHOTOGRAPHER, UserRole.ADMIN)
+  @UseInterceptors(FilesInterceptor('files', 50))
   create(
+    @UploadedFiles() files: Express.Multer.File[],
     @Body() createDeliveryDto: CreateDeliveryDto,
     @GetCurrentUser('id') userId: string,
     @GetCurrentUser('name') userName: string,
     @GetCurrentUser('role') userRole: string,
   ) {
-    return this.deliveriesService.create(createDeliveryDto, userId, userName, userRole);
+    return this.deliveriesService.create(createDeliveryDto, files, userId, userName, userRole);
   }
 
   @Get()

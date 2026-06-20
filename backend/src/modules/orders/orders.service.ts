@@ -7,9 +7,10 @@ import { CreateOrderDto, ConfirmSelectionDto, RecordDownloadDto, SubmitSatisfact
 import { OrderStatus, PaymentMethod } from '../../common/enums/order.enum';
 import { LicenseType } from '../../common/enums/material.enum';
 import { UserRole } from '../../common/enums/user.enum';
+import { TimelineEventType } from '../../common/enums/timeline.enum';
 import { MaterialsService } from '../materials/materials.service';
 import { User } from '../users/entities/user.entity';
-import { TimelineEventType } from '../../common/enums/timeline.enum';
+import { TimelinesService } from '../timelines/timelines.service';
 
 @Injectable()
 export class OrdersService {
@@ -21,6 +22,7 @@ export class OrdersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private materialsService: MaterialsService,
+    private timelinesService: TimelinesService,
     private dataSource: DataSource,
   ) {}
 
@@ -138,7 +140,7 @@ export class OrdersService {
   async findOne(id: string) {
     const order = await this.ordersRepository.findOne({
       where: { id },
-      relations: ['client', 'photographer', 'items', 'deliveries', 'settlements', 'exceptions', 'timelines'],
+      relations: ['client', 'photographer', 'items', 'deliveries', 'deliveries.attachments', 'settlements', 'exceptions', 'timelines', 'timelines.operator'],
     });
     if (!order) throw new NotFoundException('订单不存在');
     return order;
@@ -172,10 +174,33 @@ export class OrdersService {
     order.paidAt = new Date();
     order.updatedBy = userId;
 
+    const payer = await this.usersRepository.findOne({ where: { id: userId } });
+
     await this.ordersRepository.save(order);
 
     const materialIds = order.items.map((item) => item.materialId);
     await this.materialsService.incrementSale(materialIds);
+
+    await this.timelinesService.create(
+      {
+        orderId: order.id,
+        eventType: TimelineEventType.PAYMENT_CONFIRMED,
+        title: '订单已支付',
+        description: paymentDto.paymentMethod ? `支付方式: ${paymentDto.paymentMethod}` : '',
+        operatorId: userId,
+        operatorName: payer?.name || '客户',
+        operatorRole: payer?.role || userRole,
+        relatedEntityId: order.id,
+        relatedEntityType: 'order',
+        metadata: {
+          paymentMethod: paymentDto.paymentMethod,
+          paidAt: order.paidAt,
+          finalAmount: order.finalAmount,
+          remark: paymentDto.paymentMethod ? `支付方式: ${paymentDto.paymentMethod}` : '',
+        },
+      },
+      userId,
+    );
 
     return this.findOne(id);
   }
@@ -204,6 +229,31 @@ export class OrdersService {
     order.updatedBy = userId;
     await this.ordersRepository.save(order);
 
+    const operator = await this.usersRepository.findOne({ where: { id: userId } });
+    const selectedItems = order.items.filter((i) => dto.selectedItemIds.includes(i.id));
+
+    await this.timelinesService.create(
+      {
+        orderId: order.id,
+        eventType: TimelineEventType.SELECTION_CONFIRMED,
+        title: '选片已确认',
+        description: `已确认 ${validIds.length} 张照片`,
+        operatorId: userId,
+        operatorName: operator?.name || '客户',
+        operatorRole: operator?.role || userRole,
+        relatedEntityId: order.id,
+        relatedEntityType: 'order',
+        metadata: {
+          selectedCount: validIds.length,
+          totalCount: order.items.length,
+          selectedItemIds: validIds,
+          selectedItems: selectedItems.map((i) => ({ id: i.id, materialTitle: i.materialTitle })),
+          remark: `已确认 ${validIds.length} 张照片`,
+        },
+      },
+      userId,
+    );
+
     return this.findOne(id);
   }
 
@@ -218,6 +268,46 @@ export class OrdersService {
 
     const items = order.items.filter((i) => dto.itemIds.includes(i.id) && i.isSelected);
     const ids = items.map((i) => i.id);
+
+    const allAttachments: any[] = [];
+    order.deliveries.forEach((delivery) => {
+      if (delivery.status === 'accepted' || delivery.status === 'submitted') {
+        delivery.attachments.forEach((att: any) => {
+          allAttachments.push({
+            id: att.id,
+            originalName: att.originalName,
+            fileUrl: att.fileUrl,
+            mimetype: att.mimetype,
+            size: att.size,
+            deliveryId: delivery.id,
+            deliveryRound: delivery.revisionRound,
+            isKey: att.isKey,
+          });
+        });
+      }
+    });
+
+    const downloadItems = items.map((item) => {
+      const matchingAttachments = allAttachments.filter((att) => {
+        const lowerName = att.originalName.toLowerCase();
+        const itemTitle = item.materialTitle.toLowerCase();
+        return lowerName.includes(itemTitle.substring(0, 5)) || lowerName.includes(item.id.substring(0, 8)) || true;
+      });
+
+      return {
+        id: item.id,
+        materialId: item.materialId,
+        materialTitle: item.materialTitle,
+        materialCoverUrl: item.materialCoverUrl,
+        licenseType: item.licenseType,
+        unitPrice: item.unitPrice,
+        attachments: matchingAttachments,
+        downloadUrl: matchingAttachments.length > 0 ? matchingAttachments[0].fileUrl : null,
+        downloaded: item.downloaded,
+        downloadedAt: item.downloadedAt,
+      };
+    });
+
     if (ids.length > 0) {
       await this.orderItemsRepository.update(
         { id: In(ids) },
@@ -225,7 +315,35 @@ export class OrdersService {
       );
     }
 
-    return { success: true, downloadedCount: ids.length, items };
+    const operator = await this.usersRepository.findOne({ where: { id: userId } });
+
+    await this.timelinesService.create(
+      {
+        orderId: order.id,
+        eventType: TimelineEventType.DOWNLOAD_RECORDED,
+        title: '成片已下载',
+        description: `已下载 ${ids.length} 个文件`,
+        operatorId: userId,
+        operatorName: operator?.name || '客户',
+        operatorRole: operator?.role || userRole,
+        relatedEntityId: order.id,
+        relatedEntityType: 'order',
+        metadata: {
+          downloadedCount: ids.length,
+          downloadedItemIds: ids,
+          attachments: allAttachments,
+          remark: `已下载 ${ids.length} 个文件`,
+        },
+      },
+      userId,
+    );
+
+    return {
+      success: true,
+      downloadedCount: ids.length,
+      items: downloadItems,
+      allAttachments,
+    };
   }
 
   async submitSatisfaction(id: string, dto: SubmitSatisfactionDto, userId: string, userRole: string) {
@@ -242,15 +360,63 @@ export class OrdersService {
     order.updatedBy = userId;
     await this.ordersRepository.save(order);
 
+    const operator = await this.usersRepository.findOne({ where: { id: userId } });
+
+    await this.timelinesService.create(
+      {
+        orderId: order.id,
+        eventType: TimelineEventType.SATISFACTION_SUBMITTED,
+        title: '满意度已提交',
+        description: dto.satisfactionFeedback || '',
+        operatorId: userId,
+        operatorName: operator?.name || '客户',
+        operatorRole: operator?.role || userRole,
+        relatedEntityId: order.id,
+        relatedEntityType: 'order',
+        metadata: {
+          satisfactionLevel: dto.satisfactionLevel,
+          satisfactionFeedback: dto.satisfactionFeedback,
+          stars: dto.satisfactionLevel,
+          remark: dto.satisfactionFeedback || '',
+        },
+      },
+      userId,
+    );
+
     return this.findOne(id);
   }
 
   async updateStatus(id: string, status: OrderStatus, operatorId: string) {
     const order = await this.findOne(id);
+    const oldStatus = order.status;
     order.status = status;
     order.updatedBy = operatorId;
     if (status === OrderStatus.COMPLETED) order.completedAt = new Date();
     await this.ordersRepository.save(order);
+
+    const operator = await this.usersRepository.findOne({ where: { id: operatorId } });
+
+    await this.timelinesService.create(
+      {
+        orderId: order.id,
+        eventType: TimelineEventType.STATUS_CHANGED,
+        title: `订单状态更新`,
+        description: `从 ${oldStatus} 变更为 ${status}`,
+        operatorId,
+        operatorName: operator?.name || '管理员',
+        operatorRole: operator?.role || UserRole.ADMIN,
+        relatedEntityId: order.id,
+        relatedEntityType: 'order',
+        metadata: {
+          oldStatus,
+          newStatus: status,
+          completedAt: order.completedAt,
+          remark: `从 ${oldStatus} 变更为 ${status}`,
+        },
+      },
+      operatorId,
+    );
+
     return this.findOne(id);
   }
 

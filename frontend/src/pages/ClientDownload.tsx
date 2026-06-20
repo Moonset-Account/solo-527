@@ -36,13 +36,28 @@ export default function ClientDownload() {
     if (ids.length === 0) { alert('所有照片已下载'); return; }
     setDownloading(true);
     try {
-      await api.put(`/orders/${id}/download`, { itemIds: ids });
+      const res: any = await api.put(`/orders/${id}/download`, { itemIds: ids });
       const newDownloaded = new Set(downloadedIds);
       ids.forEach((iid: string) => newDownloaded.add(iid));
       setDownloadedIds(newDownloaded);
-      selectedItems.forEach((x: any) => {
-        if (ids.includes(x.id) && x.material?.fileUrl) window.open(x.material.fileUrl, '_blank');
+      (res.items || []).forEach((item: any) => {
+        if (item.attachments && item.attachments.length > 0) {
+          item.attachments.forEach((att: any) => {
+            const link = document.createElement('a');
+            link.href = att.fileUrl;
+            link.download = att.originalName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          });
+        } else if (item.downloadUrl) {
+          window.open(item.downloadUrl, '_blank');
+        }
       });
+      if (res.allAttachments) {
+        setData({ ...data, _downloadAttachments: res.allAttachments });
+      }
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -52,11 +67,24 @@ export default function ClientDownload() {
 
   const handleDownloadOne = async (item: any) => {
     try {
-      await api.put(`/orders/${id}/download`, { itemIds: [item.id] });
+      const res: any = await api.put(`/orders/${id}/download`, { itemIds: [item.id] });
       const newDownloaded = new Set(downloadedIds);
       newDownloaded.add(item.id);
       setDownloadedIds(newDownloaded);
-      if (item.material?.fileUrl) window.open(item.material.fileUrl, '_blank');
+      const downloaded = res.items?.find((x: any) => x.id === item.id);
+      if (downloaded?.attachments && downloaded.attachments.length > 0) {
+        downloaded.attachments.forEach((att: any) => {
+          const link = document.createElement('a');
+          link.href = att.fileUrl;
+          link.download = att.originalName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+      } else if (downloaded?.downloadUrl) {
+        window.open(downloaded.downloadUrl, '_blank');
+      }
     } catch (e: any) {
       alert(e.message);
     }

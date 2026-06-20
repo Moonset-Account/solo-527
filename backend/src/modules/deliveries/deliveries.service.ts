@@ -6,8 +6,10 @@ import { CreateDeliveryDto, ReviewDeliveryDto, QueryDeliveriesDto } from './dto/
 import { DeliveryStatus, DeliveryType } from '../../common/enums/delivery.enum';
 import { OrderStatus } from '../../common/enums/order.enum';
 import { UserRole } from '../../common/enums/user.enum';
+import { AttachmentType } from '../../common/enums/attachment.enum';
 import { OrdersService } from '../orders/orders.service';
 import { TimelinesService } from '../timelines/timelines.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { TimelineEventType } from '../../common/enums/timeline.enum';
 
 @Injectable()
@@ -17,9 +19,10 @@ export class DeliveriesService {
     private deliveriesRepository: Repository<Delivery>,
     private ordersService: OrdersService,
     private timelinesService: TimelinesService,
+    private attachmentsService: AttachmentsService,
   ) {}
 
-  async create(createDeliveryDto: CreateDeliveryDto, submitterId: string, submitterName: string, submitterRole: string) {
+  async create(createDeliveryDto: CreateDeliveryDto, files: Express.Multer.File[], submitterId: string, submitterName: string, submitterRole: string) {
     const order = await this.ordersService.findOne(createDeliveryDto.orderId);
 
     if (submitterRole !== UserRole.ADMIN && order.photographerId !== submitterId) {
@@ -66,18 +69,44 @@ export class DeliveriesService {
 
     const saved = await this.deliveriesRepository.save(delivery);
 
+    const savedAttachments: any[] = [];
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const att = await this.attachmentsService.saveFile(file, AttachmentType.DELIVERY_FILE, submitterId, {
+          deliveryId: saved.id,
+          remark: createDeliveryDto.deliveryNote,
+        });
+        savedAttachments.push({
+          id: att.id,
+          originalName: att.originalName,
+          fileUrl: att.fileUrl,
+          mimetype: att.mimetype,
+          size: att.size,
+          isKey: att.isKey,
+        });
+      }
+    }
+
     await this.ordersService.updateStatus(order.id, OrderStatus.DELIVERING, submitterId);
     await this.timelinesService.create(
       {
         orderId: order.id,
         eventType: TimelineEventType.DELIVERY_SUBMITTED,
         title: '交付作品提交',
-        description: `第${revisionRound}轮作品交付已提交: ${createDeliveryDto.deliveryNote}`,
+        description: createDeliveryDto.deliveryNote,
         operatorId: submitterId,
         operatorName: submitterName,
         operatorRole: submitterRole,
         relatedEntityId: saved.id,
         relatedEntityType: 'delivery',
+        metadata: {
+          revisionRound,
+          deliveryType: type,
+          deliveryNote: createDeliveryDto.deliveryNote,
+          attachments: savedAttachments,
+          attachmentCount: savedAttachments.length,
+          remark: createDeliveryDto.deliveryNote,
+        },
       },
       submitterId,
     );
@@ -170,6 +199,15 @@ export class DeliveriesService {
       await this.ordersService.updateStatus(order.id, newOrderStatus, reviewerId);
     }
 
+    const attachmentsInfo = (delivery.attachments || []).map((att: any) => ({
+      id: att.id,
+      originalName: att.originalName,
+      fileUrl: att.fileUrl,
+      mimetype: att.mimetype,
+      size: att.size,
+      isKey: att.isKey,
+    }));
+
     await this.timelinesService.create(
       {
         orderId: order.id,
@@ -181,6 +219,17 @@ export class DeliveriesService {
         operatorRole: reviewerRole,
         relatedEntityId: delivery.id,
         relatedEntityType: 'delivery',
+        metadata: {
+          revisionRound: delivery.revisionRound,
+          deliveryType: delivery.type,
+          deliveryStatus: dto.status,
+          clientFeedback: dto.clientFeedback,
+          revisionRequests: dto.revisionRequests,
+          attachments: attachmentsInfo,
+          attachmentCount: attachmentsInfo.length,
+          reviewerName,
+          remark: dto.clientFeedback,
+        },
       },
       reviewerId,
     );

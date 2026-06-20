@@ -4,8 +4,10 @@ import { Repository, Between, Like } from 'typeorm';
 import { ExceptionRecord } from './entities/exception-record.entity';
 import { CreateExceptionDto, AssignExceptionDto, UpdateExceptionStatusDto, SubmitConclusionDto, CloseExceptionDto, UpdateRefundDto, QueryExceptionsDto } from './dto/exception.dto';
 import { ExceptionType, ExceptionStatus, ExceptionPriority, RefundStatus } from '../../common/enums/exception.enum';
+import { AttachmentType } from '../../common/enums/attachment.enum';
 import { UserRole } from '../../common/enums/user.enum';
 import { User } from '../users/entities/user.entity';
+import { AttachmentsService } from '../attachments/attachments.service';
 
 @Injectable()
 export class ExceptionsService {
@@ -14,6 +16,7 @@ export class ExceptionsService {
     private exceptionsRepository: Repository<ExceptionRecord>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private attachmentsService: AttachmentsService,
   ) {}
 
   private generateExceptionNo(): string {
@@ -26,7 +29,7 @@ export class ExceptionsService {
     return `EXP${dateStr}${random}`;
   }
 
-  async create(dto: CreateExceptionDto, reporterId: string, reporterName: string) {
+  async create(dto: CreateExceptionDto, files: Express.Multer.File[], reporterId: string, reporterName: string) {
     const record = this.exceptionsRepository.create({
       ...dto,
       exceptionNo: this.generateExceptionNo(),
@@ -41,6 +44,15 @@ export class ExceptionsService {
     });
 
     const saved = await this.exceptionsRepository.save(record);
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        await this.attachmentsService.saveFile(file, AttachmentType.EXCEPTION_EVIDENCE, reporterId, {
+          exceptionId: saved.id,
+          remark: dto.description?.substring(0, 100),
+        });
+      }
+    }
 
     if (saved.type === ExceptionType.REFUND) {
       await this.updateRefund(saved.id, {
@@ -205,6 +217,41 @@ export class ExceptionsService {
     record.followUpCount = record.followUpCount + 1;
     record.updatedBy = operatorId;
     return this.exceptionsRepository.save(record);
+  }
+
+  async uploadAttachments(id: string, files: Express.Multer.File[], options: { isKey?: boolean; remark?: string }, operatorId: string) {
+    const record = await this.findOne(id);
+    if (record.handlerId !== operatorId && record.reporterId !== operatorId) {
+      const user = await this.usersRepository.findOne({ where: { id: operatorId } });
+      if (user?.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('只有处理人、报告人或管理员可以上传附件');
+      }
+    }
+
+    const savedAttachments: any[] = [];
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const att = await this.attachmentsService.saveFile(file, AttachmentType.EXCEPTION_EVIDENCE, operatorId, {
+          exceptionId: id,
+          isKey: options.isKey,
+          remark: options.remark,
+        });
+        savedAttachments.push({
+          id: att.id,
+          originalName: att.originalName,
+          fileUrl: att.fileUrl,
+          mimetype: att.mimetype,
+          size: att.size,
+          isKey: att.isKey,
+        });
+      }
+    }
+
+    record.followUpCount = record.followUpCount + 1;
+    record.updatedBy = operatorId;
+    await this.exceptionsRepository.save(record);
+
+    return { success: true, attachments: savedAttachments, count: savedAttachments.length };
   }
 
   async getStatistics() {

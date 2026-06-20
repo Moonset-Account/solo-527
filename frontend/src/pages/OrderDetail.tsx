@@ -63,8 +63,22 @@ export default function OrderDetail() {
     const ids = items.filter((x) => x.isSelected).map((x) => x.id);
     if (ids.length === 0) { alert('没有可下载的项目'); return; }
     try {
-      await api.put(`/orders/${id}/download`, { itemIds: ids });
-      items.forEach((x) => { if (x.isSelected && x.material) window.open(x.material.coverImageUrl, '_blank'); });
+      const res: any = await api.put(`/orders/${id}/download`, { itemIds: ids });
+      (res.items || []).forEach((item: any) => {
+        if (item.attachments && item.attachments.length > 0) {
+          item.attachments.forEach((att: any) => {
+            const link = document.createElement('a');
+            link.href = att.fileUrl;
+            link.download = att.originalName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          });
+        } else if (item.downloadUrl) {
+          window.open(item.downloadUrl, '_blank');
+        }
+      });
       load();
     } catch (e: any) { alert(e.message); }
   };
@@ -334,7 +348,16 @@ export default function OrderDetail() {
                   operatorName: d.submitter?.name || '-',
                   operatorRole: d.submitter?.role || 'photographer',
                   createdAt: d.submittedAt || d.createdAt,
-                  metadata: { revisionRound: d.revisionRound, deliveryType: d.type, deliveryStatus: d.status, clientFeedback: d.clientFeedback, reviewerName: d.reviewer?.name },
+                  metadata: {
+                    revisionRound: d.revisionRound,
+                    deliveryType: d.type,
+                    deliveryStatus: d.status,
+                    clientFeedback: d.clientFeedback,
+                    reviewerName: d.reviewer?.name,
+                    attachments: d.attachments,
+                    attachmentCount: d.attachments?.length || 0,
+                    remark: d.deliveryNote,
+                  },
                   relatedEntityType: 'delivery',
                   relatedEntityId: d.id,
                 })),
@@ -379,6 +402,11 @@ export default function OrderDetail() {
                               </span>
                             </div>
                             {item.description && <p className="text-sm text-slate-600 mb-2">{item.description}</p>}
+                            {item.metadata?.remark && item.metadata.remark !== item.description && (
+                              <div className="text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded mb-2">
+                                📝 备注: {item.metadata.remark}
+                              </div>
+                            )}
                             {isDelivery && item.metadata?.clientFeedback && (
                               <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1.5 rounded mb-2">
                                 客户反馈: {item.metadata.clientFeedback} — {item.metadata.reviewerName || ''}
@@ -387,6 +415,22 @@ export default function OrderDetail() {
                             {isSettlement && item.metadata && (
                               <div className="text-sm text-amber-700 bg-amber-50 px-3 py-1.5 rounded mb-2">
                                 净收入: ¥{formatMoney(item.metadata.netAmount)} · 状态: {SettlementStatusText[item.metadata.status]}
+                              </div>
+                            )}
+                            {item.metadata?.attachments && item.metadata.attachments.length > 0 && (
+                              <div className="mb-2">
+                                <div className="text-xs text-slate-500 mb-1">📎 附件 ({item.metadata.attachments.length})</div>
+                                <div className="space-y-1">
+                                  {item.metadata.attachments.map((att: any, idx: number) => (
+                                    <div key={att.id || idx} className="flex items-center gap-2 text-xs">
+                                      <a href={att.fileUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-primary-600 hover:underline truncate">
+                                        {att.originalName || `附件${idx + 1}`}
+                                      </a>
+                                      {att.size && <span className="text-slate-400">{(att.size / 1024).toFixed(1)} KB</span>}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
                             <div className="flex items-center gap-3 text-xs text-slate-400">

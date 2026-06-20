@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Param, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ExceptionsService } from './exceptions.service';
 import { CreateExceptionDto, AssignExceptionDto, UpdateExceptionStatusDto, SubmitConclusionDto, CloseExceptionDto, UpdateRefundDto, QueryExceptionsDto } from './dto/exception.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -13,12 +14,14 @@ export class ExceptionsController {
   constructor(private readonly exceptionsService: ExceptionsService) {}
 
   @Post()
+  @UseInterceptors(FilesInterceptor('files', 20))
   create(
+    @UploadedFiles() files: Express.Multer.File[],
     @Body() dto: CreateExceptionDto,
     @GetCurrentUser('id') userId: string,
     @GetCurrentUser('name') userName: string,
   ) {
-    return this.exceptionsService.create(dto, userId, userName);
+    return this.exceptionsService.create(dto, files, userId, userName);
   }
 
   @Get()
@@ -101,5 +104,20 @@ export class ExceptionsController {
     @GetCurrentUser('id') operatorId: string,
   ) {
     return this.exceptionsService.addFollowUp(id, note, operatorId);
+  }
+
+  @Post(':id/upload')
+  @UseInterceptors(FilesInterceptor('files', 20))
+  uploadAttachments(
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('isKey') isKey: string,
+    @Body('remark') remark: string,
+    @GetCurrentUser('id') operatorId: string,
+  ) {
+    return this.exceptionsService.uploadAttachments(id, files, {
+      isKey: isKey === 'true',
+      remark,
+    }, operatorId);
   }
 }
