@@ -7,7 +7,6 @@ import {
   Space,
   Tabs,
   List,
-  Comment,
   Avatar,
   Input,
   Form,
@@ -29,6 +28,8 @@ import {
   PlusOutlined,
   UserOutlined,
   DeleteOutlined,
+  UploadOutlined,
+  InboxOutlined,
 } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -48,10 +49,12 @@ import { getQuotationsByLead } from '../api/quotation'
 import { getAllTags } from '../api/tag'
 import { getEnabledLostReasons } from '../api/lostReason'
 import { getUsersByRole } from '../api/user'
+import { useUserStore } from '../store/userStore'
 import dayjs from 'dayjs'
 
 const { TextArea } = Input
 const { Option } = Select
+const { Dragger } = Upload
 
 const statusMap = {
   NEW: { text: '新线索', color: 'blue' },
@@ -71,9 +74,32 @@ const levelMap = {
   D: { text: 'D级', color: 'default' },
 }
 
+const RemarkItem = ({ item, onDelete }) => (
+  <div style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+    <Avatar icon={<UserOutlined />} size="default" />
+    <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ fontWeight: 500, marginRight: 8 }}>{item.creatorName}</span>
+          <span style={{ color: '#999', fontSize: 12 }}>
+            {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
+          </span>
+        </div>
+        {onDelete && (
+          <Popconfirm title="确定删除?" onConfirm={() => onDelete(item.id)}>
+            <a style={{ color: '#ff4d4f' }}>删除</a>
+          </Popconfirm>
+        )}
+      </div>
+      <div style={{ marginTop: 6, color: '#333' }}>{item.content}</div>
+    </div>
+  </div>
+)
+
 const LeadDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useUserStore()
   const [lead, setLead] = useState(null)
   const [tags, setTags] = useState([])
   const [allTags, setAllTags] = useState([])
@@ -85,6 +111,7 @@ const LeadDetail = () => {
   const [lostReasons, setLostReasons] = useState([])
   const [designers, setDesigners] = useState([])
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [remarkInput, setRemarkInput] = useState('')
   const [tagModalVisible, setTagModalVisible] = useState(false)
   const [statusModalVisible, setStatusModalVisible] = useState(false)
@@ -167,8 +194,8 @@ const LeadDetail = () => {
   const handleSaveTags = async () => {
     try {
       const currentTagIds = tags.map((t) => t.id)
-      const toAdd = selectedTagIds.filter((id) => !currentTagIds.includes(id))
-      const toRemove = currentTagIds.filter((id) => !selectedTagIds.includes(id))
+      const toAdd = selectedTagIds.filter((tid) => !currentTagIds.includes(tid))
+      const toRemove = currentTagIds.filter((tid) => !selectedTagIds.includes(tid))
       
       if (toAdd.length > 0) {
         await addLeadTags(id, toAdd)
@@ -225,6 +252,39 @@ const LeadDetail = () => {
     } catch (e) {}
   }
 
+  const handleAttachmentUpload = async (file) => {
+    setUploading(true)
+    try {
+      const attachmentData = {
+        leadId: parseInt(id),
+        fileName: file.name,
+        filePath: `/uploads/${Date.now()}_${file.name}`,
+        fileSize: file.size,
+        fileType: file.type || 'application/octet-stream',
+        category: '其他',
+      }
+      const res = await createAttachment(attachmentData)
+      if (res) {
+        message.success(`附件「${file.name}」上传成功`)
+        const list = await getAttachmentsByLead(id)
+        setAttachments(list || [])
+      }
+    } catch (e) {
+      message.error('附件上传失败')
+    } finally {
+      setUploading(false)
+    }
+    return false
+  }
+
+  const handleDeleteAttachment = async (attachmentId) => {
+    try {
+      await deleteAttachment(attachmentId)
+      message.success('删除成功')
+      setAttachments(attachments.filter((a) => a.id !== attachmentId))
+    } catch (e) {}
+  }
+
   const infoItems = lead ? [
     { key: '1', label: '客户姓名', children: lead.customerName },
     { key: '2', label: '电话', children: lead.phone },
@@ -267,25 +327,11 @@ const LeadDetail = () => {
             </Button>
           </div>
           {remarks.length > 0 ? (
-            <List
-              dataSource={remarks}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Popconfirm title="确定删除?" onConfirm={() => handleDeleteRemark(item.id)}>
-                      <a key="delete">删除</a>
-                    </Popconfirm>,
-                  ]}
-                >
-                  <Comment
-                    author={item.creatorName}
-                    content={item.content}
-                    datetime={dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
-                    avatar={<Avatar icon={<UserOutlined />} />}
-                  />
-                </List.Item>
-              )}
-            />
+            <div>
+              {remarks.map((item) => (
+                <RemarkItem key={item.id} item={item} onDelete={handleDeleteRemark} />
+              ))}
+            </div>
           ) : (
             <Empty description="暂无备注" />
           )}
@@ -372,15 +418,20 @@ const LeadDetail = () => {
       children: (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <Upload
-              action="/api/upload"
-              beforeUpload={() => {
-                message.info('示例项目，上传功能需要后端文件服务支持')
-                return false
-              }}
+            <Dragger
+              name="file"
+              multiple
+              beforeUpload={handleAttachmentUpload}
+              showUploadList={false}
             >
-              <Button icon={<PlusOutlined />}>上传附件</Button>
-            </Upload>
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              <p className="ant-upload-text">点击或拖拽文件到此处上传</p>
+              <p className="ant-upload-hint">
+                支持单文件或多文件上传
+              </p>
+            </Dragger>
           </div>
           {attachments.length > 0 ? (
             <List
@@ -388,23 +439,33 @@ const LeadDetail = () => {
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <a key="download">下载</a>,
-                    <Popconfirm title="确定删除?" onConfirm={async () => {
-                      await deleteAttachment(item.id)
-                      message.success('删除成功')
-                      setAttachments(attachments.filter((a) => a.id !== item.id))
-                    }}>
+                    <Popconfirm title="确定删除?" onConfirm={() => handleDeleteAttachment(item.id)}>
                       <a key="delete">删除</a>
                     </Popconfirm>,
                   ]}
                 >
                   <List.Item.Meta
-                    title={item.fileName}
+                    title={
+                      <Space>
+                        <UploadOutlined />
+                        <span>{item.fileName}</span>
+                      </Space>
+                    }
                     description={
                       <div>
                         {item.category && <Tag>{item.category}</Tag>}
+                        {item.fileType && (
+                          <Tag color="blue">{item.fileType.split('/')[0] || item.fileType}</Tag>
+                        )}
+                        {item.fileSize && (
+                          <span style={{ color: '#999', fontSize: 12, marginRight: 8 }}>
+                            {item.fileSize > 1024 * 1024
+                              ? `${(item.fileSize / 1024 / 1024).toFixed(2)} MB`
+                              : `${(item.fileSize / 1024).toFixed(2)} KB`}
+                          </span>
+                        )}
                         <span style={{ color: '#999', fontSize: 12 }}>
-                          上传人: {item.uploaderName} · {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
+                          上传人: {item.uploaderName || user?.realName || '未知'} · {dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')}
                         </span>
                       </div>
                     }

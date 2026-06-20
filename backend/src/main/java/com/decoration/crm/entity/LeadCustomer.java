@@ -1,13 +1,14 @@
 package com.decoration.crm.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.decoration.crm.handler.PostgreSqlEnumTypeHandler;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("lead_customer")
+@TableName(value = "lead_customer", autoResultMap = true)
 public class LeadCustomer {
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -25,9 +26,12 @@ public class LeadCustomer {
     private String decorationType;
     private LocalDate moveInDate;
     private String source;
+    @TableField(typeHandler = PostgreSqlEnumTypeHandler.class)
     private String status;
+    @TableField(typeHandler = PostgreSqlEnumTypeHandler.class)
     private String level;
     private Long ownerId;
+    @TableField(typeHandler = PostgreSqlEnumTypeHandler.class)
     private String publicSeaStatus;
     private LocalDateTime publicSeaInTime;
     private Long lostReasonId;
