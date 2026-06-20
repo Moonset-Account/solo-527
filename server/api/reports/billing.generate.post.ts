@@ -23,15 +23,18 @@ export default defineEventHandler(async (event) => {
 
     const billingRecords = await prisma.billingRecord.findMany({
       where: {
-        createdAt: {
+        paymentDate: {
           gte: startDate,
           lte: endDate
         }
       },
       include: {
-        patient: { select: { id: true, firstVisitDate: true } },
-        course: { select: { isLost: true } }
-      }
+        patient: { select: { id: true, patientNo: true, name: true, firstVisitDate: true } },
+        medicalRecord: { select: { id: true, recordNo: true, diagnosis: true } },
+        course: { select: { id: true, courseNo: true, name: true, isLost: true, lostReason: true } },
+        creator: { select: { id: true, name: true } }
+      },
+      orderBy: { paymentDate: 'desc' }
     })
 
     if (billingRecords.length === 0) {
@@ -139,7 +142,9 @@ export default defineEventHandler(async (event) => {
     return successResponse({
       report,
       recordCount: billingRecords.length,
-      summary
+      summary,
+      period,
+      billingRecords
     }, '收费报表生成成功，已关联所有明细单据')
   } catch (error: any) {
     if (error instanceof z.ZodError) {

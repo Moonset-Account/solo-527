@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
   const billingRecords = await prisma.billingRecord.findMany({
     where: {
-      createdAt: {
+      paymentDate: {
         gte: startDate,
         lte: endDate
       }

@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const billingRecords = await prisma.billingRecord.findMany({
     where: {
-      createdAt: {
+      paymentDate: {
         gte: startDate,
         lte: endDate
       }
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
   if (groupBy === 'day') {
     const dayMap = new Map()
     billingRecords.forEach(record => {
-      const day = dayjs(record.createdAt).format('YYYY-MM-DD')
+      const day = dayjs(record.paymentDate).format('YYYY-MM-DD')
       if (!dayMap.has(day)) {
         dayMap.set(day, {
           date: day,

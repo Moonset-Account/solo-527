@@ -7,7 +7,10 @@ import { createAuditLog, createDataSource } from '~/server/utils/audit'
 const recordSchema = z.object({
   content: z.string().min(1, '随访内容不能为空'),
   contactResult: z.string().min(1, '联系结果不能为空'),
-  nextFollowUp: z.coerce.date().optional()
+  nextFollowUp: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.coerce.date().optional()
+  )
 })
 
 export default defineEventHandler(async (event) => {

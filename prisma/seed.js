@@ -460,7 +460,7 @@ async function main() {
 
   await prisma.billingRecord.updateMany({
     where: {
-      createdAt: {
+      paymentDate: {
         gte: new Date(2025, 5, 1),
         lt: new Date(2025, 6, 1)
       }
