@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Arrear, HealthStat
+from app.models import Arrear, HealthStat, Tenant
 
 
 class ArrearService:
@@ -59,12 +59,24 @@ class ArrearService:
         avg_overdue_stmt = select(func.avg(Arrear.overdue_days))
         avg_overdue = (await self.session.execute(avg_overdue_stmt)).scalar() or 0
 
+        total_arrears_stmt = select(func.coalesce(func.sum(Arrear.amount), 0)).where(Arrear.status == "unpaid")
+        total_arrears_amount = (await self.session.execute(total_arrears_stmt)).scalar() or 0
+
+        avg_health_stmt = select(func.avg(Tenant.health_score))
+        avg_health_score = (await self.session.execute(avg_health_stmt)).scalar() or 0
+
+        low_health_stmt = select(func.count(Tenant.id)).where(Tenant.health_score < 60)
+        low_health_count = (await self.session.execute(low_health_stmt)).scalar() or 0
+
         return {
             "total": total,
             "unpaid": unpaid,
             "paid": paid,
             "resolved": resolved,
             "avg_overdue_days": round(float(avg_overdue), 2),
+            "avg_health_score": round(float(avg_health_score), 2),
+            "low_health_count": int(low_health_count),
+            "total_arrears_amount": round(float(total_arrears_amount), 2),
         }
 
 

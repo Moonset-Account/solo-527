@@ -40,15 +40,69 @@
     </div>
 
     <div id="panel-invoices" class="hidden">
-      <div class="p-4">
-        <div class="flex items-center gap-3">
-          <div class="flex-1">
-            <select id="invoices-tenant-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      <div class="p-4 border-b border-gray-200">
+        <form id="invoice-create-form"
+          hx-post="/billing/htmx/invoices/"
+          hx-target="#invoices-table-body"
+          hx-swap="afterbegin"
+          hx-on::after-request="if(event.detail.successful) this.reset(); loadInvoices();"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">租户</label>
+            <select name="tenant_id" id="invoice-tenant-select" required
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option value="">请选择租户</option>
             </select>
           </div>
-          <button onclick="loadInvoices()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">查询</button>
-        </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">公司名称</label>
+            <input type="text" name="company_name" required placeholder="公司全称"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">税号</label>
+            <input type="text" name="tax_id" placeholder="纳税人识别号"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">默认抬头</label>
+            <div class="flex items-center h-10">
+              <input type="checkbox" name="is_default" class="w-4 h-4 text-blue-600 rounded">
+              <span class="ml-2 text-sm text-gray-600">设为默认</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">地址</label>
+            <input type="text" name="address" placeholder="公司地址"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">电话</label>
+            <input type="text" name="phone" placeholder="联系电话"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">开户银行</label>
+            <input type="text" name="bank_name" placeholder="银行名称"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">银行账号</label>
+            <input type="text" name="bank_account" placeholder="银行账号"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          </div>
+          <div class="lg:col-span-4 flex items-end gap-3">
+            <div class="flex-1">
+              <label class="block text-xs text-gray-500 mb-1">备注</label>
+              <input type="text" name="notes" placeholder="备注信息"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <button type="submit"
+              class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+              新增发票抬头
+            </button>
+          </div>
+        </form>
       </div>
 
       <table class="w-full text-sm">
@@ -100,8 +154,9 @@
     try {
       var resp = await fetch('/tenants/api/');
       var tenants = await resp.json();
-      ['bills-tenant-select', 'invoices-tenant-select'].forEach(function(selId) {
+      ['bills-tenant-select', 'invoice-tenant-select'].forEach(function(selId) {
         var sel = document.getElementById(selId);
+        if (!sel) return;
         tenants.forEach(function(t) {
           var opt = document.createElement('option');
           opt.value = t.id;

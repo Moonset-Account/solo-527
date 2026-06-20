@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -81,3 +81,70 @@ async def toggle_invoice(invoice_id: str, db: AsyncSession = Depends(get_db)):
     invoice = await svc.toggle_active(invoice_id)
     await db.commit()
     return invoice
+
+
+@router.post("/htmx/invoices/")
+async def htmx_create_invoice(
+    request: Request,
+    tenant_id: str = Form(...),
+    company_name: str = Form(...),
+    tax_id: str | None = Form(default=None),
+    address: str | None = Form(default=None),
+    phone: str | None = Form(default=None),
+    bank_name: str | None = Form(default=None),
+    bank_account: str | None = Form(default=None),
+    is_default: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    default_val = True if is_default in ("on", "true", "1", True) else False
+    svc = InvoiceHeaderService(db)
+    invoice = await svc.create(
+        tenant_id=tenant_id,
+        company_name=company_name,
+        tax_id=tax_id,
+        address=address,
+        phone=phone,
+        bank_name=bank_name,
+        bank_account=bank_account,
+        is_default=default_val,
+        notes=notes,
+    )
+    await db.commit()
+    await db.refresh(invoice)
+    response = templates.TemplateResponse(
+        "billing/_invoice_row.html",
+        {"request": request, "inv": invoice, "loop": {"index": 1}},
+    )
+    response.status_code = 201
+    return response
+
+
+@router.post("/htmx/invoices/{invoice_id}/toggle")
+async def htmx_toggle_invoice(
+    request: Request,
+    invoice_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = InvoiceHeaderService(db)
+    invoice = await svc.toggle_active(invoice_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "billing/_invoice_row.html",
+        {"request": request, "inv": invoice, "loop": {"index": 1}},
+    )
+
+
+@router.post("/htmx/invoices/{invoice_id}/default")
+async def htmx_set_default_invoice(
+    request: Request,
+    invoice_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    svc = InvoiceHeaderService(db)
+    invoice = await svc.set_default(invoice_id)
+    await db.commit()
+    return templates.TemplateResponse(
+        "billing/_invoice_row.html",
+        {"request": request, "inv": invoice, "loop": {"index": 1}},
+    )
