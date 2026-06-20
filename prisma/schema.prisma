@@ -1,0 +1,347 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+  OPERATOR
+  FINANCE
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  LOST
+  FOLLOWING
+}
+
+enum TreatmentPlanStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum TreatmentCourseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SUSPENDED
+  LOST
+}
+
+enum FollowUpStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum FollowUpType {
+  PHONE
+  WECHAT
+  VISIT
+  OTHER
+}
+
+enum BillingStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  PARTIAL
+}
+
+enum BatchOperationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  name      String
+  role      UserRole @default(OPERATOR)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdMedicalRecords  MedicalRecord[]  @relation("RecordCreator")
+  updatedMedicalRecords  MedicalRecord[]  @relation("RecordUpdater")
+  createdFollowUps       FollowUpTask[]   @relation("FollowUpCreator")
+  assignedFollowUps      FollowUpTask[]   @relation("FollowUpAssignee")
+  followUpRecords        FollowUpRecord[]
+  createdBillingRecords  BillingRecord[]  @relation("BillingCreator")
+  auditLogs              AuditLog[]
+  batchOperations        BatchOperation[]
+
+  @@map("users")
+}
+
+model Patient {
+  id              Int           @id @default(autoincrement())
+  patientNo       String        @unique
+  name            String
+  gender          String
+  age             Int?
+  phone           String
+  idCard          String?
+  address         String?
+  status          PatientStatus @default(ACTIVE)
+  source          String?
+  firstVisitDate  DateTime?
+  lastVisitDate   DateTime?
+  remark          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  medicalRecords   MedicalRecord[]
+  treatmentCourses TreatmentCourse[]
+  followUpTasks    FollowUpTask[]
+  billingRecords   BillingRecord[]
+  patientArchives  PatientArchive[]
+
+  @@map("patients")
+}
+
+model MedicalRecord {
+  id             Int      @id @default(autoincrement())
+  recordNo       String   @unique
+  patientId      Int
+  visitDate      DateTime
+  chiefComplaint String
+  presentIllness String
+  pastHistory    String?
+  diagnosis      String
+  prescription   String?
+  treatment      String?
+  summary        String?
+  remark         String?
+  createdBy      Int
+  updatedBy      Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  creator         User              @relation("RecordCreator", fields: [createdBy], references: [id])
+  updater         User              @relation("RecordUpdater", fields: [updatedBy], references: [id])
+  treatmentCourses TreatmentCourse[]
+  billingRecords  BillingRecord[]
+  auditLogs       AuditLog[]
+
+  @@map("medical_records")
+}
+
+model TreatmentPlan {
+  id          Int                @id @default(autoincrement())
+  planNo      String             @unique
+  name        String
+  description String?
+  type        String
+  duration    Int
+  frequency   String
+  items       Json
+  price       Decimal            @db.Decimal(10, 2)
+  status      TreatmentPlanStatus @default(ACTIVE)
+  remark      String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  treatmentCourses TreatmentCourse[]
+
+  @@map("treatment_plans")
+}
+
+model TreatmentCourse {
+  id              Int                   @id @default(autoincrement())
+  courseNo        String                @unique
+  patientId       Int
+  planId          Int?
+  medicalRecordId Int?
+  name            String
+  startDate       DateTime
+  endDate         DateTime?
+  totalSessions   Int
+  completedSessions Int                @default(0)
+  status          TreatmentCourseStatus @default(NOT_STARTED)
+  isLost          Boolean               @default(false)
+  lostReason      String?
+  lostDate        DateTime?
+  lostHandlerId   Int?
+  remark          String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  patient         Patient         @relation(fields: [patientId], references: [id])
+  plan            TreatmentPlan?  @relation(fields: [planId], references: [id])
+  medicalRecord   MedicalRecord?  @relation(fields: [medicalRecordId], references: [id])
+  lostHandler     User?           @relation(fields: [lostHandlerId], references: [id])
+  followUpTasks   FollowUpTask[]
+  billingRecords  BillingRecord[]
+  auditLogs       AuditLog[]
+
+  @@map("treatment_courses")
+}
+
+model FollowUpTask {
+  id             Int            @id @default(autoincrement())
+  taskNo         String         @unique
+  patientId      Int
+  courseId       Int?
+  type           FollowUpType
+  scheduledDate  DateTime
+  status         FollowUpStatus @default(PENDING)
+  priority       Int            @default(1)
+  content        String?
+  createdBy      Int
+  assignedTo     Int
+  completedDate  DateTime?
+  result         String?
+  remark         String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  course          TreatmentCourse? @relation(fields: [courseId], references: [id])
+  creator         User             @relation("FollowUpCreator", fields: [createdBy], references: [id])
+  assignee        User             @relation("FollowUpAssignee", fields: [assignedTo], references: [id])
+  followUpRecords FollowUpRecord[]
+  auditLogs       AuditLog[]
+
+  @@map("follow_up_tasks")
+}
+
+model FollowUpRecord {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  recordDate  DateTime
+  content     String
+  contactResult String
+  nextFollowUp DateTime?
+  operatorId  Int
+  createdAt   DateTime @default(now())
+
+  task     FollowUpTask @relation(fields: [taskId], references: [id])
+  operator User         @relation(fields: [operatorId], references: [id])
+
+  @@map("follow_up_records")
+}
+
+model BillingRecord {
+  id            Int           @id @default(autoincrement())
+  billNo        String        @unique
+  patientId     Int
+  medicalRecordId Int?
+  courseId      Int?
+  amount        Decimal       @db.Decimal(10, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(10, 2)
+  status        BillingStatus @default(UNPAID)
+  paymentMethod String?
+  paymentDate   DateTime?
+  createdBy     Int
+  remark        String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  medicalRecord MedicalRecord? @relation(fields: [medicalRecordId], references: [id])
+  course        TreatmentCourse? @relation(fields: [courseId], references: [id])
+  creator       User           @relation("BillingCreator", fields: [createdBy], references: [id])
+  billingReport BillingReport?
+
+  @@map("billing_records")
+}
+
+model BillingReport {
+  id              Int      @id @default(autoincrement())
+  reportNo        String   @unique
+  reportDate      DateTime
+  period          String
+  totalAmount     Decimal  @db.Decimal(12, 2)
+  paidAmount      Decimal  @db.Decimal(12, 2)
+  unpaidAmount    Decimal  @db.Decimal(12, 2)
+  patientCount    Int
+  newPatientCount Int
+  lostPatientCount Int
+  remark          String?
+  createdAt       DateTime @default(now())
+
+  billingRecords BillingRecord[]
+
+  @@map("billing_reports")
+}
+
+model PatientArchive {
+  id             Int      @id @default(autoincrement())
+  patientId      Int
+  archiveType    String
+  sourceType     String
+  sourceId       Int
+  summary        String
+  content        Json?
+  remark         String?
+  createdAt      DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("patient_archives")
+}
+
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  operationType String
+  sourceType    String
+  sourceId      Int
+  oldValue      Json?
+  newValue      Json?
+  changeReason  String?
+  operatorId    Int
+  createdAt     DateTime @default(now())
+
+  operator User @relation(fields: [operatorId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model BatchOperation {
+  id             Int                  @id @default(autoincrement())
+  batchNo        String               @unique
+  operationType  String
+  totalCount     Int
+  successCount   Int                  @default(0)
+  failCount      Int                  @default(0)
+  status         BatchOperationStatus @default(PENDING)
+  operatorId     Int
+  parameters     Json?
+  failedItems    Json?
+  completedAt    DateTime?
+  createdAt      DateTime             @default(now())
+
+  operator User @relation(fields: [operatorId], references: [id])
+
+  @@map("batch_operations")
+}
+
+model DataSource {
+  id          Int      @id @default(autoincrement())
+  sourceType  String
+  sourceId    Int
+  sourceNo    String
+  targetType  String
+  targetId    Int
+  targetNo    String
+  relation    String
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  @@map("data_sources")
+  @@unique([sourceType, sourceId, targetType, targetId, relation])
+}
