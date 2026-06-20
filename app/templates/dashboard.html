@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% set active_page = 'dashboard' %}
+{% set page_title = '首页概览' %}
+{% block main_content %}
+
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-value" id="stat-today-payments">0</div>
+        <div class="stat-label">今日收银笔数</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-value" id="stat-today-verifications">0</div>
+        <div class="stat-label">今日核销次数</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value" id="stat-active-cards">0</div>
+        <div class="stat-label">活跃疗程卡</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-value" id="stat-pending-todos">0</div>
+        <div class="stat-label">待处理事项</div>
+    </div>
+</div>
+
+<div class="two-columns">
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 待办事项</h3>
+            <a href="/todos" class="btn btn-sm btn-default">查看全部</a>
+        </div>
+        <div id="todos-list">
+            <div class="empty-state">加载中...</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>⚠️ 收银异常明细</h3>
+            <a href="/payments" class="btn btn-sm btn-default">查看全部</a>
+        </div>
+        <div id="abnormal-payments">
+            <div class="empty-state">加载中...</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3>📊 快捷操作</h3>
+    </div>
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+        <a href="/verification" style="text-decoration: none; color: inherit;">
+            <div class="stat-card">
+                <div class="stat-value">✅</div>
+                <div class="stat-label">快速核销</div>
+            </div>
+        </a>
+        <a href="/payments" style="text-decoration: none; color: inherit;">
+            <div class="stat-card">
+                <div class="stat-value">💰</div>
+                <div class="stat-label">收银记账</div>
+            </div>
+        </a>
+        <a href="/treatment-cards" style="text-decoration: none; color: inherit;">
+            <div class="stat-card">
+                <div class="stat-value">💳</div>
+                <div class="stat-label">疗程卡查询</div>
+            </div>
+        </a>
+        <a href="/renewal-board" style="text-decoration: none; color: inherit;">
+            <div class="stat-card">
+                <div class="stat-value">📈</div>
+                <div class="stat-label">续费看板</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+function loadDashboard() {
+    fetch('/api/dashboard/overview')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-today-payments').textContent = data.today_payments;
+            document.getElementById('stat-today-verifications').textContent = data.today_verifications;
+            document.getElementById('stat-active-cards').textContent = data.active_cards;
+            document.getElementById('stat-pending-todos').textContent = data.pending_todos;
+
+            const todosHtml = data.recent_todos.length > 0
+                ? data.recent_todos.map(t => `
+                    <div class="todo-item ${t.priority}">
+                        <div class="todo-content">
+                            <div class="todo-title">${t.title}</div>
+                            <div class="todo-desc">
+                                <span class="badge ${t.priority === 'high' ? 'badge-danger' : t.priority === 'medium' ? 'badge-warning' : 'badge-success'}">
+                                    ${t.priority === 'high' ? '高优' : t.priority === 'medium' ? '中优' : '低优'}
+                                </span>
+                                · 创建于 ${formatDateShort(t.created_at)}
+                            </div>
+                        </div>
+                        <div class="todo-actions">
+                            <button class="btn btn-sm btn-success" onclick="completeTodo(${t.id})">完成</button>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="empty-state">暂无待办事项</div>';
+            document.getElementById('todos-list').innerHTML = todosHtml;
+
+            const paymentsHtml = data.abnormal_payments.length > 0
+                ? data.abnormal_payments.map(p => `
+                    <div class="detail-row">
+                        <div class="detail-label">${p.payment_no}</div>
+                        <div class="detail-value" style="display: flex; justify-content: space-between;">
+                            <span>¥${p.amount} → ¥${p.actual_amount}</span>
+                            <span class="badge ${parseFloat(p.diff_amount) > 0 ? 'badge-danger' : 'badge-warning'}">
+                                差异 ¥${p.diff_amount}
+                            </span>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="empty-state">暂无异常收银记录</div>';
+            document.getElementById('abnormal-payments').innerHTML = paymentsHtml;
+        });
+}
+
+function completeTodo(id) {
+    fetch(`/api/todos/${id}/complete`, {method: 'POST'})
+        .then(res => res.json())
+        .then(() => {
+            showToast('已完成待办', 'success');
+            loadDashboard();
+        });
+}
+
+loadDashboard();
+setInterval(loadDashboard, 30000);
+</script>
+{% endblock %}

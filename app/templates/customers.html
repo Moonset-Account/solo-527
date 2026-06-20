@@ -1,0 +1,195 @@
+{% extends "layout.html" %}
+{% set active_page = 'customers' %}
+{% set page_title = '顾客管理' %}
+{% block main_content %}
+
+<div class="filter-bar">
+    <input type="text" id="keyword" placeholder="搜索姓名/手机号..." style="flex: 1; min-width: 200px;" onkeyup="if(event.key==='Enter')loadCustomers()">
+    <button class="btn btn-primary" onclick="loadCustomers()">搜索</button>
+    <div class="actions">
+        <button class="btn btn-success" onclick="showAddModal()">+ 新增顾客</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>顾客列表</h3>
+        <span id="total-count">共 0 条</span>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>姓名</th>
+            <th>手机号</th>
+            <th>性别</th>
+            <th>生日</th>
+            <th>注册时间</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="customers-table">
+        <tr><td colspan="7" class="empty-state">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新增顾客</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="customer-form">
+            <input type="hidden" id="customer-id">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" id="phone" required>
+            </div>
+            <div class="form-group">
+                <label>性别</label>
+                <select id="gender">
+                    <option value="">请选择</option>
+                    <option value="女">女</option>
+                    <option value="男">男</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>生日</label>
+                <input type="date" id="birthday">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="note" rows="2"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 10;
+
+function loadCustomers() {
+    const keyword = document.getElementById('keyword').value;
+    let url = `/api/customers?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
+            renderTable(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderTable(items) {
+    const tbody = document.getElementById('customers-table');
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = items.map(c => `
+        <tr>
+            <td>${c.id}</td>
+            <td>${c.name}</td>
+            <td>${c.phone}</td>
+            <td>${c.gender || '-'}</td>
+            <td>${formatDateShort(c.birthday)}</td>
+            <td>${formatDateShort(c.created_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editCustomer(${c.id})">编辑</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadCustomers();
+}
+
+function showAddModal() {
+    document.getElementById('modal-title').textContent = '新增顾客';
+    document.getElementById('customer-form').reset();
+    document.getElementById('customer-id').value = '';
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function editCustomer(id) {
+    fetch(`/api/customers/${id}`)
+        .then(res => res.json())
+        .then(c => {
+            document.getElementById('modal-title').textContent = '编辑顾客';
+            document.getElementById('customer-id').value = c.id;
+            document.getElementById('name').value = c.name;
+            document.getElementById('phone').value = c.phone;
+            document.getElementById('gender').value = c.gender || '';
+            document.getElementById('birthday').value = c.birthday || '';
+            document.getElementById('note').value = c.note || '';
+            document.getElementById('modal').style.display = 'flex';
+        });
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('customer-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('customer-id').value;
+    const birthday = document.getElementById('birthday').value;
+    const data = {
+        name: document.getElementById('name').value,
+        phone: document.getElementById('phone').value,
+        gender: document.getElementById('gender').value || null,
+        birthday: birthday || null,
+        note: document.getElementById('note').value
+    };
+
+    const url = id ? `/api/customers/${id}` : '/api/customers';
+    const method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('保存成功', 'success');
+            closeModal();
+            loadCustomers();
+        } else {
+            res.json().then(d => showToast(d.detail || '保存失败', 'error'));
+        }
+    });
+});
+
+loadCustomers();
+</script>
+{% endblock %}

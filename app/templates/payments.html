@@ -1,0 +1,284 @@
+{% extends "layout.html" %}
+{% set active_page = 'payments' %}
+{% set page_title = '收银记录' %}
+{% block main_content %}
+
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-value" id="stat-total-amount">¥0</div>
+        <div class="stat-label">总金额</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-value" id="stat-count">0</div>
+        <div class="stat-label">收银笔数</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value" id="stat-diff-count">0</div>
+        <div class="stat-label">差异笔数</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-value" id="stat-alert-count">0</div>
+        <div class="stat-label">告警笔数</div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <input type="text" id="keyword" placeholder="搜索单号/顾客/手机号..." style="flex: 1; min-width: 200px;">
+    <select id="has_diff">
+        <option value="">全部</option>
+        <option value="true">有差异</option>
+        <option value="false">无差异</option>
+    </select>
+    <select id="payment_method">
+        <option value="">全部支付方式</option>
+        <option value="cash">现金</option>
+        <option value="wechat">微信</option>
+        <option value="alipay">支付宝</option>
+        <option value="card">刷卡</option>
+    </select>
+    <input type="date" id="start_date">
+    <input type="date" id="end_date">
+    <button class="btn btn-primary" onclick="loadPayments()">搜索</button>
+    <div class="actions">
+        <button class="btn btn-success" onclick="showAddModal()">+ 新增收银</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>收银记录</h3>
+        <span id="total-count">共 0 条</span>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>单号</th>
+            <th>顾客</th>
+            <th>应收金额</th>
+            <th>实收金额</th>
+            <th>差异</th>
+            <th>支付方式</th>
+            <th>收银员</th>
+            <th>时间</th>
+            <th>状态</th>
+        </tr>
+        </thead>
+        <tbody id="payments-table">
+        <tr><td colspan="9" class="empty-state">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>新增收银</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="payment-form">
+            <div class="form-group">
+                <label>顾客 (可选)</label>
+                <select id="customer_id">
+                    <option value="">散客</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>应收金额 (元)</label>
+                <input type="number" id="amount" step="0.01" required onchange="updateDiff()">
+            </div>
+            <div class="form-group">
+                <label>实收金额 (元)</label>
+                <input type="number" id="actual_amount" step="0.01" required onchange="updateDiff()">
+            </div>
+            <div class="form-group">
+                <label>差异金额</label>
+                <input type="text" id="diff_amount_display" readonly style="background: #f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label>支付方式</label>
+                <select id="payment_method_select">
+                    <option value="cash">现金</option>
+                    <option value="wechat">微信</option>
+                    <option value="alipay">支付宝</option>
+                    <option value="card">刷卡</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>收银类型</label>
+                <select id="payment_type">
+                    <option value="card_purchase">购卡</option>
+                    <option value="single_service">单次服务</option>
+                    <option value="product">产品销售</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="note" rows="2"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">确认收银</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 10;
+
+function updateDiff() {
+    const amount = parseFloat(document.getElementById('amount').value) || 0;
+    const actual = parseFloat(document.getElementById('actual_amount').value) || 0;
+    const diff = actual - amount;
+    const display = document.getElementById('diff_amount_display');
+    display.value = diff.toFixed(2);
+    display.style.color = diff > 0 ? '#52c41a' : diff < 0 ? '#ff4d4f' : '#333';
+}
+
+function showAddModal() {
+    document.getElementById('payment-form').reset();
+    document.getElementById('diff_amount_display').value = '0.00';
+    loadCustomers();
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+function loadCustomers() {
+    fetch('/api/customers?limit=100')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('customer_id');
+            select.innerHTML = '<option value="">散客</option>' +
+                data.items.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+        });
+}
+
+document.getElementById('payment-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const customerId = document.getElementById('customer_id').value;
+    const data = {
+        customer_id: customerId ? parseInt(customerId) : null,
+        amount: parseFloat(document.getElementById('amount').value),
+        actual_amount: parseFloat(document.getElementById('actual_amount').value),
+        payment_method: document.getElementById('payment_method_select').value,
+        payment_type: document.getElementById('payment_type').value,
+        note: document.getElementById('note').value
+    };
+
+    fetch('/api/payments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('收银成功', 'success');
+            closeModal();
+            loadPayments();
+            loadStats();
+        } else {
+            res.json().then(d => showToast(d.detail || '操作失败', 'error'));
+        }
+    });
+});
+
+function loadPayments() {
+    const keyword = document.getElementById('keyword').value;
+    const has_diff = document.getElementById('has_diff').value;
+    const payment_method = document.getElementById('payment_method').value;
+    const start_date = document.getElementById('start_date').value;
+    const end_date = document.getElementById('end_date').value;
+    let url = `/api/payments?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (has_diff) url += `&has_diff=${has_diff}`;
+    if (payment_method) url += `&payment_method=${payment_method}`;
+    if (start_date) url += `&start_date=${start_date}`;
+    if (end_date) url += `&end_date=${end_date}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
+            renderTable(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderTable(items) {
+    const tbody = document.getElementById('payments-table');
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">暂无数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = items.map(p => `
+        <tr>
+            <td>${p.payment_no}</td>
+            <td>${p.customer_name || '散客'}${p.customer_phone ? '<br><small style="color:#999">' + p.customer_phone + '</small>' : ''}</td>
+            <td>¥${p.amount}</td>
+            <td>¥${p.actual_amount}</td>
+            <td>
+                <span class="badge ${parseFloat(p.diff_amount) > 0 ? 'badge-success' : parseFloat(p.diff_amount) < 0 ? 'badge-danger' : 'badge-default'}">
+                    ${parseFloat(p.diff_amount) > 0 ? '+' : ''}${p.diff_amount}
+                </span>
+            </td>
+            <td>${p.payment_method === 'cash' ? '现金' : p.payment_method === 'wechat' ? '微信' : p.payment_method === 'alipay' ? '支付宝' : '刷卡'}</td>
+            <td>${p.cashier_name}</td>
+            <td>${formatDate(p.payment_time)}</td>
+            <td>
+                <span class="badge ${p.status === 'paid' ? 'badge-success' : p.status === 'refunded' ? 'badge-danger' : 'badge-warning'}">
+                    ${p.status === 'paid' ? '已支付' : p.status === 'refunded' ? '已退款' : '待支付'}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadPayments();
+}
+
+function loadStats() {
+    const start_date = document.getElementById('start_date').value;
+    const end_date = document.getElementById('end_date').value;
+    let url = '/api/payments/stats';
+    if (start_date || end_date) {
+        const params = new URLSearchParams();
+        if (start_date) params.set('start_date', start_date);
+        if (end_date) params.set('end_date', end_date);
+        url += '?' + params.toString();
+    }
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-total-amount').textContent = '¥' + data.total_actual;
+            document.getElementById('stat-count').textContent = data.count;
+            document.getElementById('stat-diff-count').textContent = data.diff_count;
+            document.getElementById('stat-alert-count').textContent = data.alert_count;
+        });
+}
+
+loadPayments();
+loadStats();
+</script>
+{% endblock %}

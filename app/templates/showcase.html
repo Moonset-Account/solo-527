@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美容院作品展示</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+        }
+        .showcase-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .showcase-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .showcase-header h1 {
+            font-size: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .showcase-header p {
+            color: #999;
+            font-size: 16px;
+        }
+        .showcase-filter {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .showcase-filter button {
+            padding: 10px 24px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .showcase-filter button:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .showcase-filter button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .work-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        .work-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        .work-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .work-card img {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+            background: #f0f0f0;
+        }
+        .work-card .work-info {
+            padding: 20px;
+        }
+        .work-card .work-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .work-card .work-desc {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .work-card .work-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #666;
+        }
+        .work-card .work-category {
+            display: inline-block;
+            padding: 2px 10px;
+            background: #eef2ff;
+            color: #667eea;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .nav-bar {
+            background: white;
+            padding: 16px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-bar .logo {
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .nav-bar a {
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+            margin-left: 20px;
+        }
+        .nav-bar a:hover {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+<div class="nav-bar">
+    <div class="logo">💆 美容院作品展示</div>
+    <div>
+        <a href="/showcase">作品展示</a>
+        <a href="/login">管理后台</a>
+    </div>
+</div>
+
+<div class="showcase-container">
+    <div class="showcase-header">
+        <h1>精选作品展示</h1>
+        <p>专业美容护理 · 效果看得见</p>
+    </div>
+
+    <div class="showcase-filter">
+        <button class="active" onclick="filterByTreatment('all', this)">全部</button>
+    </div>
+
+    <div class="work-grid" id="works-grid">
+        <div class="empty-state" style="grid-column: 1/-1;">加载中...</div>
+    </div>
+
+    <div class="pagination" id="pagination" style="margin-top: 30px;"></div>
+</div>
+
+<script>
+let currentPage = 1;
+const pageSize = 12;
+
+function loadTreatments() {
+    fetch('/api/treatments/public?limit=50')
+        .then(res => res.json())
+        .then(data => {
+            const filterBar = document.querySelector('.showcase-filter');
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(t => {
+                    const btn = document.createElement('button');
+                    btn.textContent = t.name;
+                    btn.onclick = () => filterByTreatment(t.id, btn);
+                    filterBar.appendChild(btn);
+                });
+            }
+        })
+        .catch(err => console.error('Failed to load treatments:', err));
+}
+
+function filterByTreatment(id, btn) {
+    document.querySelectorAll('.showcase-filter button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTreatment = id;
+    currentPage = 1;
+    loadWorks();
+}
+
+let currentTreatment = 'all';
+
+function loadWorks() {
+    let url = `/api/works/public?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (currentTreatment !== 'all') {
+        url += `&treatment_id=${currentTreatment}`;
+    }
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            renderGrid(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderGrid(items) {
+    const grid = document.getElementById('works-grid');
+    if (items.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">暂无作品</div>';
+        return;
+    }
+    grid.innerHTML = items.map(w => `
+        <div class="work-card">
+            <img src="${w.image_url || '/static/images/placeholder.svg'}" alt="${w.title}" onerror="this.src='/static/images/placeholder.svg'">
+            <div class="work-info">
+                <div style="margin-bottom: 8px;">
+                    ${w.treatment_name ? `<span class="work-category">${w.treatment_name}</span>` : ''}
+                </div>
+                <div class="work-title">${w.title}</div>
+                <div class="work-desc">${w.description || ''}</div>
+                <div class="work-stats">
+                    <span>👁 ${w.view_count} 浏览</span>
+                    <span>❤️ ${w.like_count} 喜欢</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadWorks();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+loadTreatments();
+loadWorks();
+</script>
+</body>
+</html>

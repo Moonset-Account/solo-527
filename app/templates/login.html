@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}登录 - 美容院作品展示管理系统{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h1>美容院管理系统</h1>
+        <p class="subtitle">作品展示 · 疗程管理 · 收银核销</p>
+        <form id="login-form">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" placeholder="请输入用户名" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="btn btn-primary">登 录</button>
+        </form>
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
+            <p style="font-size: 12px; color: #999; text-align: center;">
+                测试账号：admin/admin123 或 manager/manager123 或 frontline/front123
+            </p>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        params.append(key, value);
+    }
+    fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+        credentials: 'same-origin'
+    }).then(res => {
+        if (res.ok) {
+            return res.json();
+        } else {
+            return res.json().then(data => { throw new Error(data.detail || '登录失败'); });
+        }
+    }).then(data => {
+        showToast('登录成功', 'success');
+        window.location.href = '/dashboard';
+    }).catch(err => {
+        showToast(err.message || '登录失败', 'error');
+    });
+});
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}

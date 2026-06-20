@@ -1,0 +1,217 @@
+{% extends "layout.html" %}
+{% set active_page = 'todos' %}
+{% set page_title = '待办事项' %}
+{% block main_content %}
+
+<div class="stats-grid">
+    <div class="stat-card warning">
+        <div class="stat-value" id="stat-pending">0</div>
+        <div class="stat-label">待处理</div>
+    </div>
+    <div class="stat-card primary">
+        <div class="stat-value" id="stat-in-progress">0</div>
+        <div class="stat-label">处理中</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-value" id="stat-completed">0</div>
+        <div class="stat-label">已完成</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-value" id="stat-high">0</div>
+        <div class="stat-label">高优先级</div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <select id="status" onchange="loadTodos()">
+        <option value="">全部状态</option>
+        <option value="pending">待处理</option>
+        <option value="in_progress">处理中</option>
+        <option value="completed">已完成</option>
+    </select>
+    <select id="priority" onchange="loadTodos()">
+        <option value="">全部优先级</option>
+        <option value="high">高</option>
+        <option value="medium">中</option>
+        <option value="low">低</option>
+    </select>
+    <input type="text" id="keyword" placeholder="搜索待办..." style="flex: 1;" onkeyup="if(event.key==='Enter')loadTodos()">
+    <button class="btn btn-primary" onclick="loadTodos()">搜索</button>
+    <div class="actions">
+        <button class="btn btn-success" onclick="showAddModal()">+ 新建待办</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>待办列表</h3>
+        <span id="total-count">共 0 条</span>
+    </div>
+    <div id="todos-list">
+        <div class="empty-state">加载中...</div>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新建待办</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="todo-form">
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" id="title" required>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>优先级</label>
+                <select id="priority_select">
+                    <option value="high">高</option>
+                    <option value="medium" selected>中</option>
+                    <option value="low">低</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>截止日期</label>
+                <input type="date" id="due_date">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 10;
+
+function loadStats() {
+    fetch('/api/todos/statistics')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-pending').textContent = data.pending;
+            document.getElementById('stat-in-progress').textContent = data.in_progress;
+            document.getElementById('stat-completed').textContent = data.completed;
+            document.getElementById('stat-high').textContent = data.high_priority;
+        });
+}
+
+function loadTodos() {
+    const status = document.getElementById('status').value;
+    const priority = document.getElementById('priority').value;
+    const keyword = document.getElementById('keyword').value;
+    let url = `/api/todos?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (status) url += `&status=${status}`;
+    if (priority) url += `&priority=${priority}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
+            renderList(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderList(items) {
+    const list = document.getElementById('todos-list');
+    if (items.length === 0) {
+        list.innerHTML = '<div class="empty-state">暂无待办</div>';
+        return;
+    }
+    list.innerHTML = items.map(t => `
+        <div class="todo-item ${t.priority} ${t.status === 'completed' ? 'completed' : ''}">
+            <div class="todo-content">
+                <div class="todo-title">${t.title}</div>
+                <div class="todo-desc">
+                    <span class="badge ${t.priority === 'high' ? 'badge-danger' : t.priority === 'medium' ? 'badge-warning' : 'badge-success'}">
+                        ${t.priority === 'high' ? '高优' : t.priority === 'medium' ? '中优' : '低优'}
+                    </span>
+                    ${t.assignee_name ? `· 负责人：${t.assignee_name}` : ''}
+                    ${t.due_date ? `· 截止：${formatDateShort(t.due_date)}` : ''}
+                    · 创建于 ${formatDateShort(t.created_at)}
+                </div>
+                ${t.description ? `<div class="todo-desc" style="margin-top: 4px;">${t.description}</div>` : ''}
+            </div>
+            <div class="todo-actions">
+                ${t.status !== 'completed' ? `<button class="btn btn-sm btn-success" onclick="completeTodo(${t.id})">完成</button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadTodos();
+}
+
+function showAddModal() {
+    document.getElementById('todo-form').reset();
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('todo-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const due_date = document.getElementById('due_date').value;
+    const data = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        priority: document.getElementById('priority_select').value,
+        due_date: due_date || null
+    };
+    fetch('/api/todos', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('创建成功', 'success');
+            closeModal();
+            loadTodos();
+            loadStats();
+        }
+    });
+});
+
+function completeTodo(id) {
+    fetch(`/api/todos/${id}/complete`, {method: 'POST'})
+        .then(res => {
+            if (res.ok) {
+                showToast('已完成', 'success');
+                loadTodos();
+                loadStats();
+            }
+        });
+}
+
+loadStats();
+loadTodos();
+</script>
+{% endblock %}

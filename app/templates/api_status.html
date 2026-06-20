@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+{% set active_page = 'api_status' %}
+{% set page_title = '接口状态' %}
+{% block main_content %}
+
+<div class="stats-grid">
+    <div class="stat-card success">
+        <div class="stat-value" id="db-status">检查中</div>
+        <div class="stat-label">数据库状态</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-value" id="redis-status">检查中</div>
+        <div class="stat-label">Redis状态</div>
+    </div>
+    <div class="stat-card primary">
+        <div class="stat-value" id="api-count">0</div>
+        <div class="stat-label">接口总数</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-value" id="error-count">0</div>
+        <div class="stat-label">异常接口</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>系统整体状态</h3>
+        <span id="overall-status" class="badge badge-success">健康</span>
+    </div>
+    <div id="health-detail">
+        加载中...
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>接口列表</h3>
+        <button class="btn btn-sm btn-primary" onclick="loadStatus()">刷新</button>
+    </div>
+    <div id="api-status-list">
+        <div class="empty-state">加载中...</div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+function loadHealth() {
+    fetch('/api/api-status/health')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('db-status').textContent = data.database === 'healthy' ? '正常' : '异常';
+            document.getElementById('redis-status').textContent = data.redis === 'healthy' ? '正常' : '异常';
+            document.getElementById('api-count').textContent = data.total_apis;
+            document.getElementById('error-count').textContent = data.error_apis;
+
+            const overallBadge = document.getElementById('overall-status');
+            overallBadge.textContent = data.overall === 'healthy' ? '健康' : '降级';
+            overallBadge.className = `badge ${data.overall === 'healthy' ? 'badge-success' : 'badge-warning'}`;
+
+            document.getElementById('health-detail').innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">数据库</div>
+                    <div class="detail-value">
+                        <span class="badge ${data.database === 'healthy' ? 'badge-success' : 'badge-danger'}">
+                            ${data.database === 'healthy' ? '运行正常' : '连接异常'}
+                        </span>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Redis</div>
+                    <div class="detail-value">
+                        <span class="badge ${data.redis === 'healthy' ? 'badge-success' : 'badge-danger'}">
+                            ${data.redis === 'healthy' ? '运行正常' : '连接异常'}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+}
+
+function loadStatus() {
+    fetch('/api/api-status')
+        .then(res => res.json())
+        .then(data => {
+            if (data.items.length === 0) {
+                document.getElementById('api-status-list').innerHTML = '<div class="empty-state">暂无接口监控数据</div>';
+                return;
+            }
+            document.getElementById('api-status-list').innerHTML = data.items.map(s => `
+                <div class="api-status-item ${s.status}">
+                    <div>
+                        <strong>${s.method} ${s.endpoint}</strong>
+                        <div style="color: #999; font-size: 12px; margin-top: 4px;">
+                            调用次数：${s.call_count} 次 · 平均响应：${s.avg_response_time.toFixed(2)}ms</div>
+                    </div>
+                    <div>
+                        <span class="badge ${s.status === 'healthy' ? 'badge-success' : s.status === 'degraded' ? 'badge-warning' : 'badge-danger'}">
+                            ${s.status === 'healthy' ? '正常' : s.status === 'degraded' ? '降级' : '异常'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        });
+}
+
+loadHealth();
+loadStatus();
+setInterval(loadHealth, 30000);
+</script>
+{% endblock %}

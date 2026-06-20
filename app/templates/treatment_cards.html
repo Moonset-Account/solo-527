@@ -1,0 +1,235 @@
+{% extends "layout.html" %}
+{% set active_page = 'treatment_cards' %}
+{% set page_title = '疗程卡管理' %}
+{% block main_content %}
+
+<div class="filter-bar">
+    <input type="text" id="keyword" placeholder="搜索卡号/顾客/手机号..." style="flex: 1; min-width: 200px;">
+    <select id="status">
+        <option value="">全部状态</option>
+        <option value="active">有效</option>
+        <option value="expired">已过期</option>
+        <option value="used_up">已用完</option>
+    </select>
+    <input type="date" id="start_date" placeholder="开始日期">
+    <input type="date" id="end_date" placeholder="结束日期">
+    <button class="btn btn-primary" onclick="loadCards()">搜索</button>
+    <div class="actions">
+        <button class="btn btn-success" onclick="showAddModal()">+ 新开卡</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>疗程卡列表</h3>
+        <span id="total-count">共 0 条</span>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>卡号</th>
+            <th>顾客</th>
+            <th>疗程</th>
+            <th>总次数</th>
+            <th>剩余次数</th>
+            <th>购买日期</th>
+            <th>有效期</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="cards-table">
+        <tr><td colspan="9" class="empty-state">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新开卡</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="card-form">
+            <div class="form-group">
+                <label>卡号</label>
+                <input type="text" id="card_no" required>
+            </div>
+            <div class="form-group">
+                <label>顾客</label>
+                <select id="customer_id" required></select>
+            </div>
+            <div class="form-group">
+                <label>疗程</label>
+                <select id="treatment_id" required></select>
+            </div>
+            <div class="form-group">
+                <label>总次数</label>
+                <input type="number" id="total_sessions" value="10" required>
+            </div>
+            <div class="form-group">
+                <label>购买日期</label>
+                <input type="date" id="purchase_date" required>
+            </div>
+            <div class="form-group">
+                <label>有效期至</label>
+                <input type="date" id="expiry_date">
+            </div>
+            <div class="form-group">
+                <label>实付金额</label>
+                <input type="number" id="price_paid" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="note" rows="2"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 10;
+
+function loadCards() {
+    const keyword = document.getElementById('keyword').value;
+    const status = document.getElementById('status').value;
+    const start_date = document.getElementById('start_date').value;
+    const end_date = document.getElementById('end_date').value;
+    let url = `/api/treatment-cards?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (keyword) url += `&customer_keyword=${encodeURIComponent(keyword)}`;
+    if (status) url += `&status=${status}`;
+    if (start_date) url += `&start_date=${start_date}`;
+    if (end_date) url += `&end_date=${end_date}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
+            renderTable(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderTable(items) {
+    const tbody = document.getElementById('cards-table');
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">暂无数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = items.map(c => `
+        <tr>
+            <td>${c.card_no}</td>
+            <td>${c.customer_name}<br><small style="color:#999">${c.customer_phone}</small></td>
+            <td>${c.treatment_name}</td>
+            <td>${c.total_sessions}次</td>
+            <td>
+                <span class="badge ${c.remaining_sessions <= 3 ? 'badge-danger' : c.remaining_sessions <= 5 ? 'badge-warning' : 'badge-success'}">
+                    ${c.remaining_sessions}次
+                </span>
+            </td>
+            <td>${formatDateShort(c.purchase_date)}</td>
+            <td>${formatDateShort(c.expiry_date)}</td>
+            <td>
+                <span class="badge ${c.status === 'active' ? 'badge-success' : c.status === 'expired' ? 'badge-default' : 'badge-warning'}">
+                    ${c.status === 'active' ? '有效' : c.status === 'expired' ? '已过期' : '已用完'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="viewCard(${c.id})">详情</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadCards();
+}
+
+function showAddModal() {
+    document.getElementById('modal-title').textContent = '新开卡';
+    document.getElementById('card-form').reset();
+    document.getElementById('purchase_date').value = new Date().toISOString().split('T')[0];
+    loadCustomers();
+    loadTreatments();
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function loadCustomers() {
+    fetch('/api/customers?limit=100')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('customer_id');
+            select.innerHTML = data.items.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+        });
+}
+
+function loadTreatments() {
+    fetch('/api/treatments?status=active&limit=100')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('treatment_id');
+            select.innerHTML = data.items.map(t => `<option value="${t.id}">${t.name} - ¥${t.price}</option>`).join('');
+        });
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('card-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const data = {
+        card_no: document.getElementById('card_no').value,
+        customer_id: parseInt(document.getElementById('customer_id').value),
+        treatment_id: parseInt(document.getElementById('treatment_id').value),
+        total_sessions: parseInt(document.getElementById('total_sessions').value),
+        purchase_date: document.getElementById('purchase_date').value,
+        expiry_date: document.getElementById('expiry_date').value || null,
+        price_paid: document.getElementById('price_paid').value ? parseFloat(document.getElementById('price_paid').value) : null,
+        note: document.getElementById('note').value
+    };
+
+    fetch('/api/treatment-cards', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('开卡成功', 'success');
+            closeModal();
+            loadCards();
+        } else {
+            res.json().then(d => showToast(d.detail || '开卡失败', 'error'));
+        }
+    });
+});
+
+function viewCard(id) {
+    window.location.href = `/treatment-cards/${id}`;
+}
+
+loadCards();
+</script>
+{% endblock %}

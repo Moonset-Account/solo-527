@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title|default('仪表盘') }} - 美容院作品展示管理系统{% endblock %}
+{% block body_class %}{% endblock %}
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>美容院管理系统</h2>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">📊 首页概览</a>
+            <a href="/treatments" class="{% if active_page == 'treatments' %}active{% endif %}">💆 疗程管理</a>
+            <a href="/treatment-cards" class="{% if active_page == 'treatment_cards' %}active{% endif %}">💳 疗程卡</a>
+            <a href="/verification" class="{% if active_page == 'verification' %}active{% endif %}">✅ 到店核销</a>
+            <a href="/payments" class="{% if active_page == 'payments' %}active{% endif %}">💰 收银记录</a>
+            <a href="/works" class="{% if active_page == 'works' %}active{% endif %}">🖼️ 作品管理</a>
+            <a href="/comments" class="{% if active_page == 'comments' %}active{% endif %}">💬 评论审核</a>
+            <a href="/customers" class="{% if active_page == 'customers' %}active{% endif %}">👥 顾客管理</a>
+            <a href="/todos" class="{% if active_page == 'todos' %}active{% endif %}">📋 待办事项</a>
+            <a href="/messages" class="{% if active_page == 'messages' %}active{% endif %}">🔔 消息中心</a>
+            <a href="/renewal-board" class="{% if active_page == 'renewal_board' %}active{% endif %}">📈 续费看板</a>
+            <a href="/api-status" class="{% if active_page == 'api_status' %}active{% endif %}">🖥️ 接口状态</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <header class="topbar">
+            <h1>{{ page_title|default('首页概览') }}</h1>
+            <div class="user-info">
+                <span class="username">{{ user.full_name }}</span>
+                <span class="role-badge">
+                    {% if user.role.value == 'admin' %}管理员
+                    {% elif user.role.value == 'manager' %}店长
+                    {% else %}一线员工{% endif %}
+                </span>
+                <button class="btn btn-sm btn-default" onclick="logout()">退出</button>
+            </div>
+        </header>
+        <div class="content-area">
+            {% block main_content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+<script>
+function logout() {
+    if (confirm('确定要退出登录吗？')) {
+        fetch('/api/auth/logout', {method: 'POST', credentials: 'include'})
+            .then(() => window.location.href = '/login');
+    }
+}
+
+function apiFetch(url, options = {}) {
+    return fetch(url, {
+        ...options,
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        }
+    }).then(res => {
+        if (res.status === 401) {
+            window.location.href = '/login';
+            throw new Error('未登录');
+        }
+        return res;
+    });
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleString('zh-CN');
+}
+
+function formatDateShort(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('zh-CN');
+}
+</script>
+{% block page_scripts %}{% endblock %}
+{% endblock %}

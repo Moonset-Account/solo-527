@@ -1,0 +1,261 @@
+{% extends "layout.html" %}
+{% set active_page = 'works' %}
+{% set page_title = '作品管理' %}
+{% block main_content %}
+
+<div class="filter-bar">
+    <input type="text" id="keyword" placeholder="搜索作品..." style="flex: 1; min-width: 200px;">
+    <select id="status">
+        <option value="">全部状态</option>
+        <option value="draft">草稿</option>
+        <option value="published">已发布</option>
+        <option value="hidden">已隐藏</option>
+    </select>
+    <select id="treatment_id">
+        <option value="">全部分类</option>
+    </select>
+    <button class="btn btn-primary" onclick="loadWorks()">搜索</button>
+    <div class="actions">
+        <button class="btn btn-success" onclick="showAddModal()">+ 上传作品</button>
+    </div>
+</div>
+
+<div class="work-grid" id="works-grid">
+    <div class="empty-state">加载中...</div>
+</div>
+
+<div class="pagination" id="pagination" style="margin-top: 20px;"></div>
+
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">上传作品</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="work-form">
+            <input type="hidden" id="work-id">
+            <div class="form-group">
+                <label>作品标题</label>
+                <input type="text" id="title" required>
+            </div>
+            <div class="form-group">
+                <label>关联疗程</label>
+                <select id="treatment_select">
+                    <option value="">无</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>封面图</label>
+                <div>
+                    <input type="file" id="image-upload" accept="image/*" onchange="uploadImage()">
+                    <input type="hidden" id="image_url">
+                </div>
+                <div id="image-preview" style="margin-top: 10px;">
+                    <img id="preview-img" src="" style="max-width: 200px; max-height: 200px; display: none; border-radius: 8px;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>状态</label>
+                <select id="status_select">
+                    <option value="draft">草稿</option>
+                    <option value="published">发布</option>
+                    <option value="hidden">隐藏</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>排序</label>
+                <input type="number" id="sort_order" value="0">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 12;
+
+function loadTreatments() {
+    fetch('/api/treatments?status=active&limit=100')
+        .then(res => res.json())
+        .then(data => {
+            const options = data.items.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            document.getElementById('treatment_id').innerHTML = '<option value="">全部分类</option>' + options;
+            document.getElementById('treatment_select').innerHTML = '<option value="">无</option>' + options;
+        });
+}
+
+function loadWorks() {
+    const keyword = document.getElementById('keyword').value;
+    const status = document.getElementById('status').value;
+    const treatment_id = document.getElementById('treatment_id').value;
+    let url = `/api/works?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (status) url += `&status=${status}`;
+    if (treatment_id) url += `&treatment_id=${treatment_id}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            renderGrid(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderGrid(items) {
+    const grid = document.getElementById('works-grid');
+    if (items.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">暂无作品</div>';
+        return;
+    }
+    grid.innerHTML = items.map(w => `
+        <div class="work-card">
+            <img src="${w.image_url || '/static/images/placeholder.svg'}" alt="${w.title}" onerror="this.src='/static/images/placeholder.svg'">
+            <div class="work-info">
+                <div class="work-title">${w.title}</div>
+                <div class="work-desc">${w.description || ''}</div>
+                <div class="work-stats">
+                    <span>👁 ${w.view_count}</span>
+                    <span>❤️ ${w.like_count}</span>
+                    <span class="badge ${w.status === 'published' ? 'badge-success' : w.status === 'draft' ? 'badge-default' : 'badge-warning'}">
+                        ${w.status === 'published' ? '已发布' : w.status === 'draft' ? '草稿' : '隐藏'}
+                    </span>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-sm btn-primary" onclick="editWork(${w.id})">编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteWork(${w.id})">删除</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadWorks();
+}
+
+function showAddModal() {
+    document.getElementById('modal-title').textContent = '上传作品';
+    document.getElementById('work-form').reset();
+    document.getElementById('work-id').value = '';
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function editWork(id) {
+    fetch(`/api/works/${id}`)
+        .then(res => res.json())
+        .then(w => {
+            document.getElementById('modal-title').textContent = '编辑作品';
+            document.getElementById('work-id').value = w.id;
+            document.getElementById('title').value = w.title;
+            document.getElementById('description').value = w.description || '';
+            document.getElementById('treatment_select').value = w.treatment_id || '';
+            document.getElementById('status_select').value = w.status;
+            document.getElementById('sort_order').value = w.sort_order;
+            document.getElementById('image_url').value = w.image_url || '';
+            if (w.image_url) {
+                document.getElementById('preview-img').src = w.image_url;
+                document.getElementById('preview-img').style.display = 'block';
+            } else {
+                document.getElementById('preview-img').style.display = 'none';
+            }
+            document.getElementById('modal').style.display = 'flex';
+        });
+}
+
+function uploadImage() {
+    const fileInput = document.getElementById('image-upload');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/api/works/upload', {
+        method: 'POST',
+        body: formData
+    }).then(res => res.json())
+      .then(data => {
+          document.getElementById('image_url').value = data.url;
+          document.getElementById('preview-img').src = data.url;
+          document.getElementById('preview-img').style.display = 'block';
+          showToast('图片上传成功', 'success');
+      })
+      .catch(() => showToast('图片上传失败', 'error'));
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('work-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('work-id').value;
+    const treatment_id = document.getElementById('treatment_select').value;
+    const data = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        treatment_id: treatment_id ? parseInt(treatment_id) : null,
+        status: document.getElementById('status_select').value,
+        sort_order: parseInt(document.getElementById('sort_order').value),
+        image_url: document.getElementById('image_url').value || null
+    };
+
+    const url = id ? `/api/works/${id}` : '/api/works';
+    const method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('保存成功', 'success');
+            closeModal();
+            loadWorks();
+        } else {
+            res.json().then(d => showToast(d.detail || '保存失败', 'error'));
+        }
+    });
+});
+
+function deleteWork(id) {
+    if (confirm('确定要删除这个作品吗？')) {
+        fetch(`/api/works/${id}`, {method: 'DELETE'})
+            .then(res => {
+                if (res.ok) {
+                    showToast('删除成功', 'success');
+                    loadWorks();
+                }
+            });
+    }
+}
+
+loadTreatments();
+loadWorks();
+</script>
+{% endblock %}

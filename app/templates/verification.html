@@ -1,0 +1,209 @@
+{% extends "layout.html" %}
+{% set active_page = 'verification' %}
+{% set page_title = '到店核销' %}
+{% block main_content %}
+
+<div class="two-columns">
+    <div class="card">
+        <div class="card-header">
+            <h3>快速核销</h3>
+        </div>
+        <form id="verify-form">
+            <div class="form-group">
+                <label>选择顾客</label>
+                <select id="customer_id" onchange="loadCustomerCards()">
+                    <option value="">请选择顾客</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>选择疗程卡</label>
+                <select id="treatment_card_id">
+                    <option value="">请先选择顾客</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>核销次数</label>
+                <input type="number" id="sessions_used" value="1" min="1">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="note" rows="2" placeholder="可选：服务备注"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">确认核销</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>今日核销统计</h3>
+        </div>
+        <div class="stat-card primary" style="margin-bottom: 12px;">
+            <div class="stat-value" id="today-count">0</div>
+            <div class="stat-label">今日核销次数</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-value" id="this-month">0</div>
+            <div class="stat-label">本月核销次数</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3>核销记录</h3>
+        <div>
+            <input type="text" id="keyword" placeholder="搜索顾客/手机号/单号..." style="width: 200px; padding: 6px 10px;" onkeyup="if(event.key==='Enter')loadVerifications()">
+            <button class="btn btn-sm btn-primary" onclick="loadVerifications()">搜索</button>
+        </div>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>核销单号</th>
+            <th>顾客</th>
+            <th>疗程</th>
+            <th>次数</th>
+            <th>操作人</th>
+            <th>时间</th>
+            <th>状态</th>
+        </tr>
+        </thead>
+        <tbody id="verifications-table">
+        <tr><td colspan="7" class="empty-state">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 10;
+
+function loadCustomers() {
+    fetch('/api/customers?limit=100')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('customer_id');
+            select.innerHTML = '<option value="">请选择顾客</option>' +
+                data.items.map(c => `<option value="${c.id}">${c.name} - ${c.phone}</option>`).join('');
+        });
+}
+
+function loadCustomerCards() {
+    const customerId = document.getElementById('customer_id').value;
+    const select = document.getElementById('treatment_card_id');
+    if (!customerId) {
+        select.innerHTML = '<option value="">请先选择顾客</option>';
+        return;
+    }
+    fetch(`/api/customer/${customerId}/treatment-cards?status=active`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.length === 0) {
+                select.innerHTML = '<option value="">该顾客暂无有效疗程卡</option>';
+            } else {
+                select.innerHTML = '<option value="">请选择疗程卡</option>' +
+                    data.map(c => `<option value="${c.id}">${c.treatment_name} (剩余${c.remaining_sessions}次)</option>`).join('');
+            }
+        });
+}
+
+document.getElementById('verify-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const customerId = document.getElementById('customer_id').value;
+    const cardId = document.getElementById('treatment_card_id').value;
+    if (!customerId || !cardId) {
+        showToast('请选择顾客和疗程卡', 'warning');
+        return;
+    }
+    const data = {
+        customer_id: parseInt(customerId),
+        treatment_card_id: parseInt(cardId),
+        sessions_used: parseInt(document.getElementById('sessions_used').value),
+        note: document.getElementById('note').value
+    };
+    fetch('/api/verifications', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('核销成功', 'success');
+            document.getElementById('verify-form').reset();
+            loadVerifications();
+            loadStats();
+        } else {
+            res.json().then(d => showToast(d.detail || '核销失败', 'error'));
+        }
+    });
+});
+
+function loadVerifications() {
+    const keyword = document.getElementById('keyword').value;
+    let url = `/api/verifications?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            renderTable(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderTable(items) {
+    const tbody = document.getElementById('verifications-table');
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = items.map(v => `
+        <tr>
+            <td>${v.verification_no}</td>
+            <td>${v.customer_name}<br><small style="color:#999">${v.customer_phone}</small></td>
+            <td>${v.treatment_name}</td>
+            <td>${v.sessions_used}次</td>
+            <td>${v.operator_name}</td>
+            <td>${formatDate(v.verification_time)}</td>
+            <td>
+                <span class="badge ${v.status === 'verified' ? 'badge-success' : v.status === 'cancelled' ? 'badge-danger' : 'badge-warning'}">
+                    ${v.status === 'verified' ? '已核销' : v.status === 'cancelled' ? '已取消' : '待核销'}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadVerifications();
+}
+
+function loadStats() {
+    fetch('/api/dashboard/overview')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('today-count').textContent = data.today_verifications;
+        });
+}
+
+loadCustomers();
+loadVerifications();
+loadStats();
+</script>
+{% endblock %}

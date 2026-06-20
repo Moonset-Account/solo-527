@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+{% set active_page = 'renewal_board' %}
+{% set page_title = '续费看板' %}
+{% block main_content %}
+
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-value" id="stat-active">0</div>
+        <div class="stat-label">活跃疗程卡</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value" id="stat-expiring">0</div>
+        <div class="stat-label">即将到期</div>
+    </div>
+    <div class="stat-card danger">
+        <div class="stat-value" id="stat-low">0</div>
+        <div class="stat-label">次数不足</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-value" id="stat-used">0</div>
+        <div class="stat-label">已用完</div>
+    </div>
+</div>
+
+<div class="two-columns">
+    <div class="card">
+        <div class="card-header">
+            <h3>⏰ 即将到期 (30天内)</h3>
+        </div>
+        <div id="expiring-list">
+            <div class="empty-state">加载中...</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>📉 次数不足 (≤3次)</h3>
+        </div>
+        <div id="low-sessions-list">
+            <div class="empty-state">加载中...</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3>✅ 最近用完的疗程卡</h3>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>卡号</th>
+            <th>顾客</th>
+            <th>疗程</th>
+            <th>总次数</th>
+            <th>联系方式</th>
+            <th>更新时间</th>
+        </tr>
+        </thead>
+        <tbody id="used-up-table">
+        <tr><td colspan="6" class="empty-state">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+function loadBoard() {
+    fetch('/api/renewal-board?days=30')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('stat-active').textContent = data.stats.active_count;
+            document.getElementById('stat-expiring').textContent = data.stats.expiring_soon_count;
+            document.getElementById('stat-low').textContent = data.stats.low_sessions_count;
+            document.getElementById('stat-used').textContent = data.stats.used_up_count;
+
+            const expiringHtml = data.expiring_soon.length > 0
+                ? data.expiring_soon.map(c => `
+                    <div class="detail-row">
+                        <div class="detail-label">${c.card_no}</div>
+                        <div class="detail-value">
+                            <div><strong>${c.customer_name}</strong> · ${c.treatment_name}</div>
+                            <div style="color: #999; font-size: 12px;">
+                                剩余 ${c.remaining_sessions} 次 · 还剩 <span style="color: #faad14;">${c.days_left}</span> 天到期
+                            </div>
+                            <div style="color: #999; font-size: 12px;">${c.customer_phone}</div>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="empty-state">暂无即将到期的疗程卡</div>';
+            document.getElementById('expiring-list').innerHTML = expiringHtml;
+
+            const lowHtml = data.low_sessions.length > 0
+                ? data.low_sessions.map(c => `
+                    <div class="detail-row">
+                        <div class="detail-label">${c.card_no}</div>
+                        <div class="detail-value">
+                            <div><strong>${c.customer_name}</strong> · ${c.treatment_name}</div>
+                            <div style="color: #999; font-size: 12px;">
+                                剩余 <span style="color: #ff4d4f;">${c.remaining_sessions}</span> / ${c.total_sessions} 次
+                            </div>
+                            <div style="color: #999; font-size: 12px;">${c.customer_phone}</div>
+                        </div>
+                    </div>
+                `).join('')
+                : '<div class="empty-state">暂无次数不足的疗程卡</div>';
+            document.getElementById('low-sessions-list').innerHTML = lowHtml;
+
+            const usedUpHtml = data.used_up_recent.length > 0
+                ? data.used_up_recent.map(c => `
+                    <tr>
+                        <td>${c.card_no}</td>
+                        <td>${c.customer_name}</td>
+                        <td>${c.treatment_name}</td>
+                        <td>${c.total_sessions}次</td>
+                        <td>${c.customer_phone}</td>
+                        <td>${formatDate(c.updated_at)}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="6" class="empty-state">暂无数据</td></tr>';
+            document.getElementById('used-up-table').innerHTML = usedUpHtml;
+        });
+}
+
+loadBoard();
+setInterval(loadBoard, 60000);
+</script>
+{% endblock %}

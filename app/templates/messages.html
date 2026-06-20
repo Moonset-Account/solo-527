@@ -1,0 +1,126 @@
+{% extends "layout.html" %}
+{% set active_page = 'messages' %}
+{% set page_title = '消息中心' %}
+{% block main_content %}
+
+<div class="filter-bar">
+    <select id="type" onchange="loadMessages()">
+        <option value="">全部类型</option>
+        <option value="info">通知</option>
+        <option value="warning">警告</option>
+        <option value="alert">告警</option>
+    </select>
+    <select id="is_read" onchange="loadMessages()">
+        <option value="">全部状态</option>
+        <option value="false">未读</option>
+        <option value="true">已读</option>
+    </select>
+    <div style="margin-left: auto;">
+        <button class="btn btn-default" onclick="markAllRead()">全部标记已读</button>
+        <span class="badge badge-warning" style="margin-left: 8px;" id="unread-count">0 条未读</span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>消息列表</h3>
+        <span id="total-count">共 0 条</span>
+    </div>
+    <div id="messages-list">
+        <div class="empty-state">加载中...</div>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 20;
+
+function loadUnreadCount() {
+    fetch('/api/messages/unread-count')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('unread-count').textContent = data.count + ' 条未读';
+        });
+}
+
+function loadMessages() {
+    const type = document.getElementById('type').value;
+    const is_read = document.getElementById('is_read').value;
+    let url = `/api/messages?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (type) url += `&type=${type}`;
+    if (is_read) url += `&is_read=${is_read}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
+            renderList(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderList(items) {
+    const list = document.getElementById('messages-list');
+    if (items.length === 0) {
+        list.innerHTML = '<div class="empty-state">暂无消息</div>';
+        return;
+    }
+    list.innerHTML = items.map(m => `
+        <div class="detail-row" style="padding: 16px 0; border-bottom: 1px solid #f0f0f0; ${!m.is_read ? 'background: #f0f9ff;' : ''}" onclick="readMessage(${m.id})">
+            <div style="flex: 1; cursor: pointer;">
+                <div style="margin-bottom: 6px;">
+                    ${!m.is_read ? '<span style="display:inline-block;width:8px;height:8px;background:#ff4d4f;border-radius:50%;margin-right:8px;"></span>' : ''}
+                    <strong>${m.title}</strong>
+                    <span class="badge ${m.type === 'alert' ? 'badge-danger' : m.type === 'warning' ? 'badge-warning' : 'badge-info'}" style="margin-left: 8px;">
+                        ${m.type === 'alert' ? '告警' : m.type === 'warning' ? '警告' : '通知'}
+                    </span>
+                    <span style="color: #999; font-size: 12px; margin-left: 8px;">${formatDate(m.created_at)}</span>
+                </div>
+                <div style="color: #666; font-size: 14px;">${m.content || ''}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadMessages();
+}
+
+function readMessage(id) {
+    fetch(`/api/messages/${id}/read`, {method: 'POST'})
+        .then(() => {
+            loadMessages();
+            loadUnreadCount();
+        });
+}
+
+function markAllRead() {
+    fetch('/api/messages/read-all', {method: 'POST'})
+        .then(() => {
+            showToast('已全部标记为已读', 'success');
+            loadMessages();
+            loadUnreadCount();
+        });
+}
+
+loadMessages();
+loadUnreadCount();
+</script>
+{% endblock %}

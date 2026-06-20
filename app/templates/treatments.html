@@ -1,0 +1,245 @@
+{% extends "layout.html" %}
+{% set active_page = 'treatments' %}
+{% set page_title = '疗程管理' %}
+{% block main_content %}
+
+<div class="filter-bar">
+    <input type="text" id="keyword" placeholder="搜索疗程名称..." class="form-control" style="flex: 1; min-width: 200px;">
+    <select id="status">
+        <option value="">全部状态</option>
+        <option value="active">上架中</option>
+        <option value="inactive">已下架</option>
+    </select>
+    <button class="btn btn-primary" onclick="loadTreatments()">搜索</button>
+    <div class="actions">
+        <button class="btn btn-success" onclick="showAddModal()">+ 新增疗程</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>疗程列表</h3>
+        <span id="total-count">共 0 条</span>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>疗程名称</th>
+            <th>分类</th>
+            <th>价格</th>
+            <th>时长</th>
+            <th>次数</th>
+            <th>状态</th>
+            <th>排序</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="treatments-table">
+        <tr>
+            <td colspan="9" class="empty-state">加载中...</td>
+        </tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新增疗程</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="treatment-form">
+            <input type="hidden" id="treatment-id">
+            <div class="form-group">
+                <label>疗程名称</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="form-group">
+                <label>分类</label>
+                <input type="text" id="category">
+            </div>
+            <div class="form-group">
+                <label>价格 (元)</label>
+                <input type="number" id="price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>时长 (分钟)</label>
+                <input type="number" id="duration_minutes" value="60">
+            </div>
+            <div class="form-group">
+                <label>总次数</label>
+                <input type="number" id="total_sessions" value="1">
+            </div>
+            <div class="form-group">
+                <label>状态</label>
+                <select id="status-select">
+                    <option value="active">上架中</option>
+                    <option value="inactive">已下架</option>
+                    <option value="sold_out">已售罄</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>排序</label>
+                <input type="number" id="sort_order" value="0">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="description" rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentPage = 1;
+const pageSize = 10;
+
+function loadTreatments() {
+    const keyword = document.getElementById('keyword').value;
+    const status = document.getElementById('status').value;
+    let url = `/api/treatments?skip=${(currentPage-1)*pageSize}&limit=${pageSize}`;
+    if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+    if (status) url += `&status=${status}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-count').textContent = `共 ${data.total} 条`;
+            renderTable(data.items);
+            renderPagination(data.total);
+        });
+}
+
+function renderTable(items) {
+    const tbody = document.getElementById('treatments-table');
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">暂无数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = items.map(t => `
+        <tr>
+            <td>${t.id}</td>
+            <td>${t.name}</td>
+            <td>${t.category || '-'}</td>
+            <td>¥${t.price}</td>
+            <td>${t.duration_minutes}分钟</td>
+            <td>${t.total_sessions}次</td>
+            <td>
+                <span class="badge ${t.status === 'active' ? 'badge-success' : t.status === 'inactive' ? 'badge-default' : 'badge-warning'}">
+                    ${t.status === 'active' ? '上架中' : t.status === 'inactive' ? '已下架' : '已售罄'}
+                </span>
+            </td>
+            <td>${t.sort_order}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editTreatment(${t.id})">编辑</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteTreatment(${t.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    let html = `<button onclick="changePage(${currentPage-1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    html += `<button onclick="changePage(${currentPage+1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadTreatments();
+}
+
+function showAddModal() {
+    document.getElementById('modal-title').textContent = '新增疗程';
+    document.getElementById('treatment-form').reset();
+    document.getElementById('treatment-id').value = '';
+    document.getElementById('modal').style.display = 'flex';
+}
+
+function editTreatment(id) {
+    fetch(`/api/treatments/${id}`)
+        .then(res => res.json())
+        .then(t => {
+            document.getElementById('modal-title').textContent = '编辑疗程';
+            document.getElementById('treatment-id').value = t.id;
+            document.getElementById('name').value = t.name;
+            document.getElementById('category').value = t.category || '';
+            document.getElementById('price').value = t.price;
+            document.getElementById('duration_minutes').value = t.duration_minutes;
+            document.getElementById('total_sessions').value = t.total_sessions;
+            document.getElementById('status-select').value = t.status;
+            document.getElementById('sort_order').value = t.sort_order;
+            document.getElementById('description').value = t.description || '';
+            document.getElementById('modal').style.display = 'flex';
+        });
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('treatment-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('treatment-id').value;
+    const data = {
+        name: document.getElementById('name').value,
+        category: document.getElementById('category').value,
+        price: parseFloat(document.getElementById('price').value),
+        duration_minutes: parseInt(document.getElementById('duration_minutes').value),
+        total_sessions: parseInt(document.getElementById('total_sessions').value),
+        status: document.getElementById('status-select').value,
+        sort_order: parseInt(document.getElementById('sort_order').value),
+        description: document.getElementById('description').value
+    };
+
+    const url = id ? `/api/treatments/${id}` : '/api/treatments';
+    const method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(res => {
+        if (res.ok) {
+            showToast('保存成功', 'success');
+            closeModal();
+            loadTreatments();
+        } else {
+            res.json().then(d => showToast(d.detail || '保存失败', 'error'));
+        }
+    });
+});
+
+function deleteTreatment(id) {
+    if (confirm('确定要删除这个疗程吗？')) {
+        fetch(`/api/treatments/${id}`, {method: 'DELETE'})
+            .then(res => {
+                if (res.ok) {
+                    showToast('删除成功', 'success');
+                    loadTreatments();
+                }
+            });
+    }
+}
+
+loadTreatments();
+</script>
+{% endblock %}
