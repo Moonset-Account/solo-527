@@ -25,4 +25,12 @@ export class SearchDto extends PaginationDto {
   @IsOptional()
   @IsArray()
   statuses?: string[];
+
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsArray()
+  types?: string[];
 }

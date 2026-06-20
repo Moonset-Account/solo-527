@@ -168,11 +168,19 @@ export class RemindersService implements OnModuleInit {
   }
 
   async findByUserId(userId: string, searchDto: SearchDto): Promise<PaginatedResult<Reminder>> {
-    const { page = 1, pageSize = 20, sortBy = 'createdAt', sortOrder = 'desc' } = searchDto;
+    const { page = 1, pageSize = 20, sortBy = 'createdAt', sortOrder = 'desc', type, types } = searchDto;
 
     const filter: any = {
       userId: new Types.ObjectId(userId),
     };
+
+    if (type) {
+      filter.type = type;
+    }
+
+    if (types && types.length > 0) {
+      filter.type = { $in: types };
+    }
 
     const sort: any = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;

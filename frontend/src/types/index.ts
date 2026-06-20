@@ -28,6 +28,14 @@ export enum ReminderType {
   BLOCKING = 'blocking',
 }
 
+export enum ReminderTrigger {
+  TIME_BEFORE_INTERVIEW = 'time_before_interview',
+  DAILY_SCHEDULE = 'daily_schedule',
+  NO_CHECKIN = 'no_checkin',
+  NO_ASSESSMENT = 'no_assessment',
+  INTERVIEWER_QUOTA = 'interviewer_quota',
+}
+
 export enum QuestionType {
   SINGLE_CHOICE = 'single_choice',
   MULTIPLE_CHOICE = 'multiple_choice',
@@ -228,7 +236,17 @@ export interface SearchParams {
   statuses?: string[];
   interviewerId?: string;
   interviewId?: string;
+  type?: string;
+  types?: string[];
 }
+
+export const ReminderTriggerLabel: Record<ReminderTrigger, string> = {
+  [ReminderTrigger.TIME_BEFORE_INTERVIEW]: '面试前提醒',
+  [ReminderTrigger.DAILY_SCHEDULE]: '每日日程',
+  [ReminderTrigger.NO_CHECKIN]: '未签到',
+  [ReminderTrigger.NO_ASSESSMENT]: '未测评',
+  [ReminderTrigger.INTERVIEWER_QUOTA]: '讲师档期不足',
+};
 
 export const InterviewStatusLabel: Record<InterviewStatus, string> = {
   [InterviewStatus.PENDING]: '待处理',

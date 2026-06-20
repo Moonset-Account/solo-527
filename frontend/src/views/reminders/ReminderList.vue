@@ -12,7 +12,7 @@
       show-icon
     >
       <template #default>
-        <p>系统按讲师时间不足配置提醒规则。<strong>普通提示（INFO）</strong>用于日常通知，<strong>警告（WARNING）</strong>用于需要关注的事项，<strong>阻断告警（BLOCKING）</strong>是紧急重要事项，单独展示，不会与普通提示混在一起。</p>
+        <p>系统按讲师时间不足配置提醒规则。<strong>普通提示（INFO / WARNING）</strong>用于日常通知和需关注事项，<strong>阻断告警（BLOCKING）</strong>是紧急重要事项，单独展示，不会与普通提示混在一起。</p>
       </template>
     </el-alert>
 
@@ -21,10 +21,10 @@
         <el-card class="mb-20" shadow="never">
           <template #header>
             <div class="card-header">
-              <span>提醒配置列表</span>
+              <span>一、面试与日程提醒</span>
             </div>
           </template>
-          <el-table :data="configs" v-loading="loading" style="width: 100%" stripe>
+          <el-table :data="generalConfigs" v-loading="loading" style="width: 100%" stripe>
             <el-table-column label="规则名称" min-width="160">
               <template #default="{ row }">
                 <div class="rule-name">
@@ -33,17 +33,59 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="trigger" label="触发条件" width="180" />
-            <el-table-column label="阈值配置" width="200">
+            <el-table-column label="触发条件" width="140">
+              <template #default="{ row }">
+                {{ ReminderTriggerLabel[row.trigger as keyof typeof ReminderTriggerLabel] || row.trigger }}
+              </template>
+            </el-table-column>
+            <el-table-column label="阈值配置" width="180">
               <template #default="{ row }">
                 <span v-if="row.config.timeThresholdMinutes">{{ row.config.timeThresholdMinutes }}分钟前</span>
                 <span v-else-if="row.config.dailyTime">每日 {{ row.config.dailyTime }}</span>
                 <span v-else-if="row.config.checkInGraceMinutes">签到宽限 {{ row.config.checkInGraceMinutes }}分钟</span>
-                <span v-else-if="row.config.quotaWarningPercentage">使用率 {{ row.config.quotaWarningPercentage }}%</span>
+                <span v-else-if="row.config.assessmentDeadlineHours">超时 {{ row.config.assessmentDeadlineHours }}小时</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="目标角色" width="180">
+            <el-table-column label="目标角色" width="160">
+              <template #default="{ row }">
+                <el-tag v-for="role in row.targetRoles" :key="role" size="small" style="margin-right: 4px">
+                  {{ RoleLabel[role as keyof typeof RoleLabel] }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="description" label="说明" min-width="180" show-overflow-tooltip />
+            <el-table-column label="状态" width="70" align="center">
+              <template #default="{ row }">
+                <el-switch v-model="row.enabled" @change="toggleConfig(row)" />
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+
+        <el-card class="mb-20" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span>二、讲师档期不足 — 普通提示</span>
+              <el-tag type="warning" size="small">WARNING</el-tag>
+            </div>
+          </template>
+          <el-table :data="quotaWarningConfigs" v-loading="loading" style="width: 100%" stripe>
+            <el-table-column label="规则名称" min-width="180">
+              <template #default="{ row }">
+                <div class="rule-name">
+                  <el-tag :type="getReminderTagType(row.type)" effect="dark" size="small">{{ ReminderTypeLabel[row.type as keyof typeof ReminderTypeLabel] }}</el-tag>
+                  <span>{{ row.name }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="触发阈值" width="140">
+              <template #default="{ row }">
+                <span v-if="row.config.quotaWarningPercentage">使用率 ≥ {{ row.config.quotaWarningPercentage }}%</span>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="目标角色" width="160">
               <template #default="{ row }">
                 <el-tag v-for="role in row.targetRoles" :key="role" size="small" style="margin-right: 4px">
                   {{ RoleLabel[role as keyof typeof RoleLabel] }}
@@ -51,14 +93,47 @@
               </template>
             </el-table-column>
             <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
-            <el-table-column label="状态" width="80">
+            <el-table-column label="状态" width="70" align="center">
               <template #default="{ row }">
                 <el-switch v-model="row.enabled" @change="toggleConfig(row)" />
               </template>
             </el-table-column>
-            <el-table-column label="排序" width="80">
+          </el-table>
+        </el-card>
+
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span>三、讲师档期不足 — 阻断告警</span>
+              <el-tag type="danger" size="small">BLOCKING</el-tag>
+            </div>
+          </template>
+          <el-table :data="quotaBlockingConfigs" v-loading="loading" style="width: 100%" stripe>
+            <el-table-column label="规则名称" min-width="180">
               <template #default="{ row }">
-                {{ row.sortOrder }}
+                <div class="rule-name">
+                  <el-tag :type="getReminderTagType(row.type)" effect="dark" size="small">{{ ReminderTypeLabel[row.type as keyof typeof ReminderTypeLabel] }}</el-tag>
+                  <span>{{ row.name }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="触发阈值" width="140">
+              <template #default="{ row }">
+                <span v-if="row.config.quotaWarningPercentage">使用率 ≥ {{ row.config.quotaWarningPercentage }}%</span>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="目标角色" width="160">
+              <template #default="{ row }">
+                <el-tag v-for="role in row.targetRoles" :key="role" size="small" style="margin-right: 4px">
+                  {{ RoleLabel[role as keyof typeof RoleLabel] }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
+            <el-table-column label="状态" width="70" align="center">
+              <template #default="{ row }">
+                <el-switch v-model="row.enabled" @change="toggleConfig(row)" />
               </template>
             </el-table-column>
           </el-table>
@@ -98,7 +173,7 @@
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
-              <span>普通提示</span>
+              <span>普通提示（含 INFO 和 WARNING）</span>
               <el-tag type="info" size="small">{{ unreadInfoCount }} 条未读</el-tag>
             </div>
           </template>
@@ -107,12 +182,14 @@
               v-for="item in infoReminders"
               :key="item._id"
               class="info-item"
-              :class="{ 'is-read': item.isRead }"
+              :class="{ 'is-read': item.isRead, 'is-warning': item.type === 'warning' }"
               @click="markInfoAsRead(item._id)"
             >
-              <el-icon color="#409eff" class="info-icon"><InfoFilled /></el-icon>
+              <el-icon :color="item.type === 'warning' ? '#e6a23c' : '#409eff'" class="info-icon">
+                <component :is="item.type === 'warning' ? WarningFilled : InfoFilled" />
+              </el-icon>
               <div class="info-content">
-                <div class="info-title">{{ item.title }}</div>
+                <div class="info-title" :style="{ color: item.type === 'warning' ? '#e6a23c' : '#409eff' }">{{ item.title }}</div>
                 <div class="info-time">{{ item.createdAt }}</div>
               </div>
             </div>
@@ -129,12 +206,36 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { WarningFilled, InfoFilled } from '@element-plus/icons-vue';
 import * as remindersApi from '../../api/reminders';
-import { ReminderTypeLabel, RoleLabel, type ReminderConfig, type Reminder } from '../../types';
+import {
+  ReminderTypeLabel,
+  ReminderTriggerLabel,
+  ReminderTrigger,
+  ReminderType,
+  RoleLabel,
+  type ReminderConfig,
+  type Reminder,
+} from '../../types';
 
 const loading = ref(false);
 const configs = ref<ReminderConfig[]>([]);
 const blockingReminders = ref<Reminder[]>([]);
 const infoReminders = ref<Reminder[]>([]);
+
+const generalConfigs = computed(() =>
+  configs.value.filter(c => c.trigger !== ReminderTrigger.INTERVIEWER_QUOTA),
+);
+
+const quotaWarningConfigs = computed(() =>
+  configs.value.filter(
+    c => c.trigger === ReminderTrigger.INTERVIEWER_QUOTA && c.type !== ReminderType.BLOCKING,
+  ),
+);
+
+const quotaBlockingConfigs = computed(() =>
+  configs.value.filter(
+    c => c.trigger === ReminderTrigger.INTERVIEWER_QUOTA && c.type === ReminderType.BLOCKING,
+  ),
+);
 
 const blockingCount = computed(() => blockingReminders.value.filter(r => !r.isRead).length);
 const unreadInfoCount = computed(() => infoReminders.value.filter(r => !r.isRead).length);
@@ -160,12 +261,17 @@ async function fetchConfigs() {
 
 async function fetchReminders() {
   try {
-    const [blocking, info] = await Promise.all([
+    const [blocking, infoResult] = await Promise.all([
       remindersApi.getBlockingReminders(),
-      remindersApi.getMyReminders({ type: 'info', pageSize: 10 } as any),
+      remindersApi.getMyReminders({
+        types: [ReminderType.INFO, ReminderType.WARNING],
+        pageSize: 20,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      }),
     ]);
     blockingReminders.value = blocking;
-    infoReminders.value = info.data;
+    infoReminders.value = infoResult.data;
   } catch (e) {
     console.error('Failed to fetch reminders:', e);
   }
@@ -270,14 +376,19 @@ onMounted(() => {
   border: 1px solid #fde2e2;
 }
 
-.blocking-item.is-read,
-.info-item.is-read {
-  opacity: 0.6;
-}
-
 .info-item {
   background: #ecf5ff;
   border: 1px solid #d9ecff;
+}
+
+.info-item.is-warning {
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+}
+
+.blocking-item.is-read,
+.info-item.is-read {
+  opacity: 0.6;
 }
 
 .blocking-item:hover,

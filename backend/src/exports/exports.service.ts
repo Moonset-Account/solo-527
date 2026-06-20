@@ -254,14 +254,18 @@ export class ExportsService {
       ip: 'localhost',
     });
 
+    const filename = `面试明细报表_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+
     res.setHeader(
       'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8',
     );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=面试明细报表_${new Date().toISOString().split('T')[0]}.xlsx`,
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
     );
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -382,14 +386,18 @@ export class ExportsService {
       ip: 'localhost',
     });
 
+    const filename = `面试质量分析_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+
     res.setHeader(
       'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8',
     );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=面试质量分析_${new Date().toISOString().split('T')[0]}.xlsx`,
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
     );
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
     await workbook.xlsx.write(res);
     res.end();

@@ -12,10 +12,23 @@ function extractFilename(contentDisposition: string): string {
   if (!contentDisposition) return '';
   const matches = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
   if (matches && matches[1]) {
-    return decodeURIComponent(matches[1]);
+    try {
+      return decodeURIComponent(matches[1]);
+    } catch (e) {
+      return matches[1];
+    }
   }
   const fallback = /filename="?([^";]+)"?/i.exec(contentDisposition);
   return fallback ? fallback[1] : '';
+}
+
+function getHeader(response: any, name: string): string {
+  if (!response || !response.headers) return '';
+  const headers = response.headers;
+  if (typeof headers.get === 'function') {
+    return headers.get(name) || '';
+  }
+  return headers[name] || headers[name.toLowerCase()] || '';
 }
 
 export const exportInterviewDetails = async (params: ExportParams): Promise<void> => {
@@ -30,9 +43,11 @@ export const exportInterviewDetails = async (params: ExportParams): Promise<void
     params: queryParams,
     responseType: 'blob',
   });
-  const filename = extractFilename(response.headers?.['content-disposition']) 
+  const contentDisposition = getHeader(response, 'content-disposition');
+  const filename = extractFilename(contentDisposition)
     || `面试明细报表_${new Date().toISOString().split('T')[0]}.xlsx`;
-  downloadBlob(response.data, filename);
+  const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
+  downloadBlob(blob, filename);
 };
 
 export const exportAssessmentStats = async (params: Omit<ExportParams, 'status' | 'keyword'>): Promise<void> => {
@@ -45,13 +60,15 @@ export const exportAssessmentStats = async (params: Omit<ExportParams, 'status' 
     params: queryParams,
     responseType: 'blob',
   });
-  const filename = extractFilename(response.headers?.['content-disposition']) 
+  const contentDisposition = getHeader(response, 'content-disposition');
+  const filename = extractFilename(contentDisposition)
     || `面试质量分析_${new Date().toISOString().split('T')[0]}.xlsx`;
-  downloadBlob(response.data, filename);
+  const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
+  downloadBlob(blob, filename);
 };
 
 export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(new Blob([blob]));
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', filename);
