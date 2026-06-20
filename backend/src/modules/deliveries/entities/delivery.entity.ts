@@ -1,9 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { DeliveryStatus, DeliveryType } from '../../common/enums/delivery.enum';
-import { Order } from '../../modules/orders/entities/order.entity';
-import { User } from '../../modules/users/entities/user.entity';
-import { Attachment } from '../../modules/attachments/entities/attachment.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { DeliveryStatus, DeliveryType } from '../../../common/enums/delivery.enum';
+import { Order } from '../../orders/entities/order.entity';
+import { User } from '../../users/entities/user.entity';
+import { Attachment } from '../../attachments/entities/attachment.entity';
 
 @Entity('deliveries')
 export class Delivery extends BaseEntity {

@@ -1,8 +1,8 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { LicenseType } from '../../common/enums/material.enum';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { LicenseType } from '../../../common/enums/material.enum';
 import { Order } from './order.entity';
-import { Material } from '../../modules/materials/entities/material.entity';
+import { Material } from '../../materials/entities/material.entity';
 
 @Entity('order_items')
 export class OrderItem extends BaseEntity {

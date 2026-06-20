@@ -1,12 +1,12 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { OrderStatus, SatisfactionLevel, PaymentMethod } from '../../common/enums/order.enum';
-import { User } from '../../modules/users/entities/user.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { OrderStatus, SatisfactionLevel, PaymentMethod } from '../../../common/enums/order.enum';
+import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
-import { Delivery } from '../../modules/deliveries/entities/delivery.entity';
-import { Settlement } from '../../modules/settlements/entities/settlement.entity';
-import { ExceptionRecord } from '../../modules/exceptions/entities/exception-record.entity';
-import { Timeline } from '../../modules/timelines/entities/timeline.entity';
+import { Delivery } from '../../deliveries/entities/delivery.entity';
+import { Settlement } from '../../settlements/entities/settlement.entity';
+import { ExceptionRecord } from '../../exceptions/entities/exception-record.entity';
+import { Timeline } from '../../timelines/entities/timeline.entity';
 
 @Entity('orders')
 export class Order extends BaseEntity {

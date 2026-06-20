@@ -1,8 +1,8 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { SettlementStatus, SettlementType } from '../../common/enums/settlement.enum';
-import { User } from '../../modules/users/entities/user.entity';
-import { Order } from '../../modules/orders/entities/order.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { SettlementStatus, SettlementType } from '../../../common/enums/settlement.enum';
+import { User } from '../../users/entities/user.entity';
+import { Order } from '../../orders/entities/order.entity';
 
 @Entity('settlements')
 export class Settlement extends BaseEntity {

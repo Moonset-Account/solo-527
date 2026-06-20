@@ -80,7 +80,8 @@ export class AttachmentsService {
   }
 
   async findByIds(ids: string[]): Promise<Attachment[]> {
-    return this.attachmentsRepository.findByIds(ids);
+    if (ids.length === 0) return [];
+    return this.attachmentsRepository.findBy({ id: In(ids) });
   }
 
   async findByMaterial(materialId: string) {

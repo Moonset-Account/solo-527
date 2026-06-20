@@ -1,9 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { AttachmentType, AttachmentCategory } from '../../common/enums/attachment.enum';
-import { Material } from '../../modules/materials/entities/material.entity';
-import { Delivery } from '../../modules/deliveries/entities/delivery.entity';
-import { ExceptionRecord } from '../../modules/exceptions/entities/exception-record.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { AttachmentType, AttachmentCategory } from '../../../common/enums/attachment.enum';
+import { Material } from '../../materials/entities/material.entity';
+import { Delivery } from '../../deliveries/entities/delivery.entity';
+import { ExceptionRecord } from '../../exceptions/entities/exception-record.entity';
 
 @Entity('attachments')
 export class Attachment extends BaseEntity {

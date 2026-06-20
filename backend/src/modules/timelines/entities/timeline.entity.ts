@@ -1,8 +1,8 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { TimelineEventType } from '../../common/enums/timeline.enum';
-import { Order } from '../../modules/orders/entities/order.entity';
-import { User } from '../../modules/users/entities/user.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { TimelineEventType } from '../../../common/enums/timeline.enum';
+import { Order } from '../../orders/entities/order.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('timelines')
 export class Timeline extends BaseEntity {

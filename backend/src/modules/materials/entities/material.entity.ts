@@ -1,9 +1,9 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { MaterialStatus, LicenseType, MaterialCategory } from '../../common/enums/material.enum';
-import { User } from '../../modules/users/entities/user.entity';
-import { OrderItem } from '../../modules/orders/entities/order-item.entity';
-import { Attachment } from '../../modules/attachments/entities/attachment.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { MaterialStatus, LicenseType, MaterialCategory } from '../../../common/enums/material.enum';
+import { User } from '../../users/entities/user.entity';
+import { OrderItem } from '../../orders/entities/order-item.entity';
+import { Attachment } from '../../attachments/entities/attachment.entity';
 
 @Entity('materials')
 export class Material extends BaseEntity {

@@ -1,10 +1,10 @@
 import { Entity, Column, OneToMany } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { UserRole, UserStatus } from '../../common/enums/user.enum';
-import { Material } from '../../modules/materials/entities/material.entity';
-import { Order } from '../../modules/orders/entities/order.entity';
-import { Settlement } from '../../modules/settlements/entities/settlement.entity';
-import { ExceptionRecord } from '../../modules/exceptions/entities/exception-record.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { UserRole, UserStatus } from '../../../common/enums/user.enum';
+import { Material } from '../../materials/entities/material.entity';
+import { Order } from '../../orders/entities/order.entity';
+import { Settlement } from '../../settlements/entities/settlement.entity';
+import { ExceptionRecord } from '../../exceptions/entities/exception-record.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
