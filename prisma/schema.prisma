@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MANAGER
+  AGENT
+  ADMIN
+}
+
+enum KnowledgeType {
+  ANSWER
+  TUTORIAL
+}
+
+enum KnowledgeStatus {
+  ACTIVE
+  PENDING_INVALID
+  INVALID
+}
+
+enum HitStatus {
+  PENDING
+  VALID
+  FALSE_POSITIVE
+}
+
+enum TrajectoryActionType {
+  CREATE
+  STATUS_CHANGE
+  SLA_CHANGE
+  IMPROVEMENT
+  RESOLVE
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole
+  createdAt DateTime @default(now())
+
+  knowledge     Knowledge[]
+  slaRules      SLARule[]
+  slaVersions   SLARuleVersion[]
+  trajectories  Trajectory[]
+  screenedHits  KnowledgeHit[]  @relation("ScreenedHits")
+  exports       ExportRecord[]
+}
+
+model Knowledge {
+  id            String          @id @default(uuid())
+  title         String
+  content       String
+  category      String
+  tags          String[]
+  type          KnowledgeType
+  status        KnowledgeStatus @default(ACTIVE)
+  viewCount     Int             @default(0)
+  usefulCount   Int             @default(0)
+  version       Int             @default(1)
+  invalidNote   String?
+  invalidResult String?
+  createdBy     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  creator      User             @relation(fields: [createdBy], references: [id])
+  hits         KnowledgeHit[]
+  satisfactions Satisfaction[]
+}
+
+model SLARule {
+  id                String             @id @default(uuid())
+  name              String
+  description       String
+  category          String
+  conditions        Json
+  responseTime      Int
+  resolutionTime    Int
+  escalationLevels  Json
+  version           Int                @default(1)
+  isActive          Boolean            @default(true)
+  createdBy         String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  creator      User               @relation(fields: [createdBy], references: [id])
+  versions     SLARuleVersion[]
+  tickets      Ticket[]
+  trajectories Trajectory[]
+}
+
+model SLARuleVersion {
+  id            String   @id @default(uuid())
+  slaRuleId     String
+  ruleSnapshot  Json
+  version       Int
+  changeReason  String
+  changedBy     String
+  createdAt     DateTime @default(now())
+
+  rule    SLARule @relation(fields: [slaRuleId], references: [id], onDelete: Cascade)
+  changer User    @relation(fields: [changedBy], references: [id])
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String
+  priority    String
+  slaRuleId   String?
+  customerId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slaRule       SLARule?         @relation(fields: [slaRuleId], references: [id])
+  trajectories  Trajectory[]
+  hits          KnowledgeHit[]
+  satisfactions Satisfaction[]
+}
+
+model Trajectory {
+  id                String                @id @default(uuid())
+  ticketId          String
+  actionType        TrajectoryActionType
+  description       String
+  improvementAction String?
+  beforeState       Json
+  afterState        Json
+  slaRuleId         String?
+  slaRuleSnapshot   Json?
+  operatorId        String
+  createdAt         DateTime              @default(now())
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  slaRule   SLARule? @relation(fields: [slaRuleId], references: [id])
+  operator  User     @relation(fields: [operatorId], references: [id])
+}
+
+model KnowledgeHit {
+  id            String    @id @default(uuid())
+  knowledgeId   String
+  ticketId      String
+  matchScore    Decimal
+  matchKeywords String[]
+  status        HitStatus @default(PENDING)
+  screenedBy    String?
+  screenedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  ticket    Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  screener  User?     @relation("ScreenedHits", fields: [screenedBy], references: [id])
+}
+
+model Satisfaction {
+  id          String   @id @default(uuid())
+  knowledgeId String?
+  ticketId    String
+  score       Int
+  feedback    String
+  keywords    String[]
+  createdAt   DateTime @default(now())
+
+  knowledge Knowledge? @relation(fields: [knowledgeId], references: [id])
+  ticket    Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model ExportRecord {
+  id               String   @id @default(uuid())
+  exportType       String
+  filterConditions Json
+  totalCount       Int
+  fileUrl          String
+  exportedBy       String
+  createdAt        DateTime @default(now())
+
+  exporter User @relation(fields: [exportedBy], references: [id])
+}
