@@ -14,8 +14,7 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not self.request.user.is_admin:
-            qs = qs.filter(organization=self.request.user.organization)
+        qs = qs.filter(organization=self.request.user.organization)
         return qs
 
     def perform_create(self, serializer):

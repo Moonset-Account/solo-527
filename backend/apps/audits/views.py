@@ -15,8 +15,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if not self.request.user.is_admin:
-            qs = qs.filter(organization=self.request.user.organization)
+        qs = qs.filter(organization=self.request.user.organization)
         status = self.request.query_params.get('status')
         if status == 'success':
             qs = qs.filter(status_code__gte=200, status_code__lt=400)

@@ -22,8 +22,6 @@ class OrganizationScopedPermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if not request.user.is_authenticated:
             return False
-        if request.user.is_admin:
-            return True
         if hasattr(obj, 'organization'):
             return obj.organization_id == request.user.organization_id
         return True
