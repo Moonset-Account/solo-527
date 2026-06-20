@@ -402,14 +402,32 @@ class CommentCreate(BaseModel):
 
 @router.get("/comments")
 def list_comments(
+    request: Request,
     status: Optional[CommentStatus] = None,
+    filter_status: Optional[str] = None,
     work_id: Optional[int] = None,
     keyword: Optional[str] = None,
+    page: Optional[int] = None,
+    limit: Optional[int] = None,
     skip: int = 0,
-    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_all)
 ):
+    if page is None:
+        page = get_page(request)
+    if limit is None:
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except:
+            limit = 10
+    if page < 1:
+        page = 1
+    skip = (page - 1) * limit
+    if filter_status and not status:
+        try:
+            status = CommentStatus(filter_status)
+        except Exception:
+            pass
     query = db.query(Comment)
     if status:
         query = query.filter(Comment.status == status)
@@ -432,6 +450,22 @@ def list_comments(
             "reply_content": c.reply_content,
             "created_at": c.created_at,
             "reviewed_at": c.reviewed_at
+        })
+    total_pages = (total + limit - 1) // limit
+    query_params = {
+        "filter_status": status.value if status else "",
+        "work_id": work_id or "",
+        "keyword": keyword or "",
+        "limit": limit
+    }
+    if is_htmx(request):
+        return templates.TemplateResponse("partials/comment_list.html", {
+            "request": request,
+            "items": items,
+            "total": total,
+            "current_page": page,
+            "total_pages": total_pages,
+            "query_params": query_params
         })
     return {"total": total, "items": items}
 
@@ -462,24 +496,52 @@ async def review_comment(
     comment_id: int,
     status: Optional[CommentStatus] = None,
     reply_content: str = "",
+    page: Optional[int] = None,
+    limit: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(allow_admin)
 ):
     content_type = request.headers.get("content-type", "")
+    form_data_cache = None
+    json_body_cache = None
     if content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
-        form = await request.form()
-        if form.get("status"):
-            status = CommentStatus(form.get("status"))
-        if form.get("reply_content"):
-            reply_content = form.get("reply_content")
+        form_data_cache = await request.form()
+        if form_data_cache.get("status"):
+            try:
+                status = CommentStatus(form_data_cache.get("status"))
+            except Exception:
+                pass
+        if form_data_cache.get("reply_content"):
+            reply_content = form_data_cache.get("reply_content")
+        if form_data_cache.get("page"):
+            try:
+                page = int(form_data_cache.get("page"))
+            except Exception:
+                pass
+        if form_data_cache.get("limit"):
+            try:
+                limit = int(form_data_cache.get("limit"))
+            except Exception:
+                pass
     elif content_type.startswith("application/json"):
         try:
-            body = await request.json()
-            status = body.get("status", status)
-            reply_content = body.get("reply_content", reply_content)
+            json_body_cache = await request.json()
+            if json_body_cache.get("status"):
+                try:
+                    status = CommentStatus(json_body_cache.get("status"))
+                except Exception:
+                    pass
+            reply_content = json_body_cache.get("reply_content", reply_content)
         except Exception:
             pass
-    
+    if page is None:
+        page = get_page(request)
+    if limit is None:
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except:
+            limit = 10
+
     from datetime import datetime
     comment = db.query(Comment).filter(Comment.id == comment_id).first()
     if not comment:
@@ -496,4 +558,59 @@ async def review_comment(
     comment.reviewed_by = current_user.id
     db.commit()
     db.refresh(comment)
+
+    if is_htmx(request):
+        filter_status_str = request.query_params.get("filter_status", "")
+        if not filter_status_str and form_data_cache is not None:
+            filter_status_str = form_data_cache.get("filter_status", "")
+        filter_status = None
+        if filter_status_str:
+            try:
+                filter_status = CommentStatus(filter_status_str)
+            except Exception:
+                pass
+        keyword_val = request.query_params.get("keyword", "") or None
+        if not keyword_val and form_data_cache is not None:
+            keyword_val = form_data_cache.get("keyword", "") or None
+        work_id_param = request.query_params.get("work_id", "")
+        work_id_filter = int(work_id_param) if work_id_param else None
+        skip = (page - 1) * limit
+        query = db.query(Comment)
+        if filter_status:
+            query = query.filter(Comment.status == filter_status)
+        if work_id_filter:
+            query = query.filter(Comment.work_id == work_id_filter)
+        if keyword_val:
+            query = query.filter(Comment.content.contains(keyword_val))
+        total = query.count()
+        comments = query.order_by(desc(Comment.created_at)).offset(skip).limit(limit).all()
+        items = []
+        for c in comments:
+            items.append({
+                "id": c.id,
+                "work_id": c.work_id,
+                "work_title": c.work.title if c.work else "",
+                "customer_name": c.customer_name or (c.customer.name if c.customer else "匿名用户"),
+                "content": c.content,
+                "rating": c.rating,
+                "status": c.status.value,
+                "reply_content": c.reply_content,
+                "created_at": c.created_at,
+                "reviewed_at": c.reviewed_at
+            })
+        total_pages = (total + limit - 1) // limit
+        query_params = {
+            "filter_status": filter_status.value if filter_status else "",
+            "work_id": work_id_filter or "",
+            "keyword": keyword_val or "",
+            "limit": limit
+        }
+        return templates.TemplateResponse("partials/comment_list.html", {
+            "request": request,
+            "items": items,
+            "total": total,
+            "current_page": page,
+            "total_pages": total_pages,
+            "query_params": query_params
+        })
     return comment

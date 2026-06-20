@@ -22,16 +22,22 @@
         </div>
         <div>
             {% if c.status == 'pending' %}
-            <button class="btn btn-sm btn-success"
-                    hx-post="/api/comments/{{ c.id }}/approve"
-                    hx-target="#comments-container"
-                    hx-swap="innerHTML"
-                    hx-include="#comments-filters">通过</button>
-            <button class="btn btn-sm btn-danger"
-                    hx-post="/api/comments/{{ c.id }}/reject"
-                    hx-target="#comments-container"
-                    hx-swap="innerHTML"
-                    hx-include="#comments-filters">拒绝</button>
+            <form style="display: inline;"
+                  hx-post="/api/comments/{{ c.id }}/review"
+                  hx-target="#comments-container"
+                  hx-swap="innerHTML"
+                  hx-include="#comments-filters">
+                <input type="hidden" name="status" value="approved">
+                <button type="submit" class="btn btn-sm btn-success">通过</button>
+            </form>
+            <form style="display: inline;"
+                  hx-post="/api/comments/{{ c.id }}/review"
+                  hx-target="#comments-container"
+                  hx-swap="innerHTML"
+                  hx-include="#comments-filters">
+                <input type="hidden" name="status" value="rejected">
+                <button type="submit" class="btn btn-sm btn-danger">拒绝</button>
+            </form>
             {% endif %}
         </div>
     </div>
@@ -42,21 +48,18 @@
 </div>
 <div class="pagination">
     {% if total_pages > 1 %}
-    <button hx-get="/api/comments?page={{ current_page - 1 }}&limit=10"
+    <button hx-get="/api/comments?page={{ current_page - 1 }}&limit=10&filter_status={{ query_params.filter_status }}&keyword={{ query_params.keyword }}"
             hx-target="#comments-container"
-            hx-include="#comments-filters"
             hx-swap="innerHTML"
             {% if current_page == 1 %}disabled{% endif %}>上一页</button>
     {% for i in range(1, total_pages + 1) %}
-    <button hx-get="/api/comments?page={{ i }}&limit=10"
+    <button hx-get="/api/comments?page={{ i }}&limit=10&filter_status={{ query_params.filter_status }}&keyword={{ query_params.keyword }}"
             hx-target="#comments-container"
-            hx-include="#comments-filters"
             hx-swap="innerHTML"
             class="{{ 'active' if i == current_page else '' }}">{{ i }}</button>
     {% endfor %}
-    <button hx-get="/api/comments?page={{ current_page + 1 }}&limit=10"
+    <button hx-get="/api/comments?page={{ current_page + 1 }}&limit=10&filter_status={{ query_params.filter_status }}&keyword={{ query_params.keyword }}"
             hx-target="#comments-container"
-            hx-include="#comments-filters"
             hx-swap="innerHTML"
             {% if current_page == total_pages %}disabled{% endif %}>下一页</button>
     {% endif %}
