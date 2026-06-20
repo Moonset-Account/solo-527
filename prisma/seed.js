@@ -441,7 +441,7 @@ async function main() {
 
   console.log('Seeding billing report...')
   const reportNo = `RPT202506`
-  await prisma.billingReport.upsert({
+  const report = await prisma.billingReport.upsert({
     where: { reportNo },
     update: {},
     create: {
@@ -457,6 +457,20 @@ async function main() {
       remark: '2025年6月收费汇总报表'
     }
   })
+
+  await prisma.billingRecord.updateMany({
+    where: {
+      createdAt: {
+        gte: new Date(2025, 5, 1),
+        lt: new Date(2025, 6, 1)
+      }
+    },
+    data: {
+      reportId: report.id
+    }
+  })
+
+  console.log('Updated billing records reportId for June 2025')
 
   console.log('Seeding monthly summary archives...')
   const monthSummary = `M202506`

@@ -45,8 +45,11 @@ export default defineEventHandler(async (event) => {
       operationType: 'CREATE',
       sourceType: 'MEDICAL_RECORD',
       sourceId: record.id,
+      sourceNo: record.recordNo,
       newValue: record,
-      changeReason: '创建病历'
+      changeReason: '创建病历',
+      patientId: data.patientId,
+      medicalRecordId: record.id
     })
 
     await createDataSource(
@@ -67,17 +70,19 @@ export default defineEventHandler(async (event) => {
       }
     })
 
+    const archiveNo = `ARC-MR-${Date.now()}`
     await prisma.patientArchive.create({
       data: {
+        archiveNo,
         patientId: data.patientId,
-        archiveType: 'MEDICAL_RECORD',
-        sourceType: 'MEDICAL_RECORD',
-        sourceId: record.id,
+        archiveType: 'MANUAL',
+        medicalRecordId: record.id,
         summary: `就诊记录：${data.diagnosis}`,
         content: {
           chiefComplaint: data.chiefComplaint,
           diagnosis: data.diagnosis,
-          visitDate: data.visitDate
+          visitDate: data.visitDate,
+          recordNo: record.recordNo
         }
       }
     })

@@ -141,7 +141,7 @@
               <button
                 v-if="task.status !== 'COMPLETED' && task.status !== 'CANCELLED'"
                 class="text-green-600 hover:underline"
-                @click="showRecordModal(task)"
+                @click="openRecordModal(task)"
               >
                 记录随访
               </button>
@@ -291,11 +291,11 @@
       </div>
     </div>
 
-    <div v-if="showRecordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showRecordFormModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg w-full max-w-lg">
         <div class="p-6 border-b flex justify-between items-center">
           <h3 class="text-xl font-bold">记录随访</h3>
-          <button @click="showRecordModal = false" class="text-gray-500 hover:text-gray-700">
+          <button @click="showRecordFormModal = false" class="text-gray-500 hover:text-gray-700">
             ✕
           </button>
         </div>
@@ -332,7 +332,7 @@
           </div>
           <div class="flex justify-end gap-3">
             <button
-              @click="showRecordModal = false"
+              @click="showRecordFormModal = false"
               class="px-4 py-2 border rounded hover:bg-gray-50"
             >
               取消
@@ -467,7 +467,7 @@ const filters = ref({
 const tasks = ref<any[]>([])
 const selectedIds = ref<number[]>([])
 const showDetailModal = ref(false)
-const showRecordModal = ref(false)
+const showRecordFormModal = ref(false)
 const showBatchModal = ref(false)
 const selectedTask = ref<any>(null)
 const submitting = ref(false)
@@ -593,14 +593,14 @@ const viewHistory = (task: any) => {
   viewDetail(task)
 }
 
-const showRecordModal = (task: any) => {
+const openRecordModal = (task: any) => {
   selectedTask.value = task
   followUpForm.value = {
     content: '',
     contactResult: '',
     nextFollowUp: ''
   }
-  showRecordModal.value = true
+  showRecordFormModal.value = true
 }
 
 const submitFollowUpRecord = async () => {
@@ -613,7 +613,7 @@ const submitFollowUpRecord = async () => {
   try {
     const res = await post(`/api/follow-up/${selectedTask.value.id}/record`, followUpForm.value)
     alert(res.message)
-    showRecordModal.value = false
+    showRecordFormModal.value = false
     loadData()
   } catch (e: any) {
     alert(e.message || '提交失败')

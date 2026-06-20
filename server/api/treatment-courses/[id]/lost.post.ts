@@ -50,9 +50,12 @@ export default defineEventHandler(async (event) => {
       operationType: 'MARK_LOST',
       sourceType: 'TREATMENT_COURSE',
       sourceId: courseId,
+      sourceNo: course.courseNo,
       oldValue: oldCourse,
       newValue: course,
-      changeReason: `标记流失：${lostReason}`
+      changeReason: `标记流失：${lostReason}`,
+      patientId: course.patientId,
+      courseId: courseId
     })
 
     await createDataSource(
@@ -66,18 +69,20 @@ export default defineEventHandler(async (event) => {
       `疗程[${course.name}]标记流失，患者状态更新为流失`
     )
 
+    const archiveNo = `ARC-LOST-${Date.now()}`
     await prisma.patientArchive.create({
       data: {
+        archiveNo,
         patientId: course.patientId,
-        archiveType: 'LOST_RECORD',
-        sourceType: 'TREATMENT_COURSE',
-        sourceId: courseId,
+        archiveType: 'PATIENT_LOST',
+        treatmentCourseId: courseId,
         summary: `疗程流失：${lostReason}`,
         content: {
           lostReason,
           lostDate: new Date(),
           handler: user.name,
-          courseName: course.name
+          courseName: course.name,
+          courseNo: course.courseNo
         }
       }
     })

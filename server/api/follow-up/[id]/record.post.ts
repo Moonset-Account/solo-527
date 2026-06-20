@@ -54,8 +54,12 @@ export default defineEventHandler(async (event) => {
       operationType: 'ADD_RECORD',
       sourceType: 'FOLLOW_UP_TASK',
       sourceId: taskId,
+      sourceNo: task.taskNo,
       newValue: record,
-      changeReason: '添加随访记录'
+      changeReason: '添加随访记录',
+      patientId: task.patientId,
+      followUpId: taskId,
+      courseId: task.courseId || undefined
     })
 
     await createDataSource(
@@ -69,17 +73,20 @@ export default defineEventHandler(async (event) => {
       `随访任务历史记录，操作者：${user.name}`
     )
 
+    const archiveNo = `ARC-FOLLOW-${Date.now()}`
     await prisma.patientArchive.create({
       data: {
+        archiveNo,
         patientId: task.patientId,
-        archiveType: 'FOLLOW_UP',
-        sourceType: 'FOLLOW_UP_RECORD',
-        sourceId: record.id,
+        archiveType: 'FOLLOW_UP_SUMMARY',
+        followUpTaskId: taskId,
+        treatmentCourseId: task.courseId || undefined,
         summary: `随访记录：${data.contactResult}`,
         content: {
           content: data.content,
           contactResult: data.contactResult,
-          nextFollowUp: data.nextFollowUp
+          nextFollowUp: data.nextFollowUp,
+          taskNo: task.taskNo
         }
       }
     })

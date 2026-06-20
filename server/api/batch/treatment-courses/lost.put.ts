@@ -70,9 +70,12 @@ export default defineEventHandler(async (event) => {
           operationType: 'BATCH_MARK_LOST',
           sourceType: 'TREATMENT_COURSE',
           sourceId: id,
+          sourceNo: course.courseNo,
           oldValue: oldCourse,
           newValue: course,
-          changeReason: lostReason
+          changeReason: lostReason,
+          patientId: course.patientId,
+          courseId: id
         })
 
         await createDataSource(
@@ -85,6 +88,25 @@ export default defineEventHandler(async (event) => {
           'PATIENT_LOST',
           `疗程[${course.name}]标记流失`
         )
+
+        const archiveNo = `ARC-LOST-BATCH-${id}-${Date.now()}`
+        await prisma.patientArchive.create({
+          data: {
+            archiveNo,
+            patientId: course.patientId,
+            archiveType: 'PATIENT_LOST',
+            treatmentCourseId: id,
+            summary: `批量标记流失：${lostReason}`,
+            content: {
+              lostReason,
+              lostDate: new Date(),
+              handler: user.name,
+              courseName: course.name,
+              courseNo: course.courseNo,
+              batchNo: batchOp.batchNo
+            }
+          }
+        })
 
         successCount++
       } catch (err: any) {
