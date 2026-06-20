@@ -51,7 +51,8 @@ class ReportExportController extends Controller
 
         $export = new ReportExport(
             $this->buildContractRows($contracts),
-            $this->buildMetadata($data, $generator)
+            $this->buildMetadata($data, $generator),
+            '合同报表'
         );
 
         app(OperationLogService::class)->log(
@@ -88,7 +89,8 @@ class ReportExportController extends Controller
 
         $export = new ReportExport(
             $this->buildBillRows($bills),
-            $this->buildMetadata($data, $generator)
+            $this->buildMetadata($data, $generator),
+            '账单报表'
         );
 
         app(OperationLogService::class)->log(
