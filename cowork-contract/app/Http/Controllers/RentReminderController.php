@@ -56,7 +56,7 @@ class RentReminderController extends Controller
             ->orderBy('due_date')
             ->get();
 
-        $notificationService->sendRentReminder($user, $upcoming->toArray(), $overdue->toArray());
+        $notification = $notificationService->sendRentReminder($user, $upcoming->toArray(), $overdue->toArray());
 
         Cache::store('redis')->forget('rent_reminder:' . $user->id);
 
@@ -72,6 +72,7 @@ class RentReminderController extends Controller
             'message' => '收租提醒已发送',
             'upcoming_count' => $upcoming->count(),
             'overdue_count' => $overdue->count(),
+            'notification' => $notification,
         ]);
     }
 }

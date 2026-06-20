@@ -3,10 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Notification extends Model
 {
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
+        'id',
         'notifiable_type',
         'notifiable_id',
         'type',
@@ -16,6 +21,15 @@ class Notification extends Model
         'data',
         'read_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $notification) {
+            if (empty($notification->id)) {
+                $notification->id = (string) Str::uuid();
+            }
+        });
+    }
 
     protected function casts(): array
     {

@@ -23,7 +23,7 @@ class NotificationController extends Controller
             }
         }
 
-        $notifications = $query->orderByDesc('id')->paginate(request()->input('per_page', 15));
+        $notifications = $query->orderByDesc('created_at')->paginate(request()->input('per_page', 15));
 
         if (request()->expectsJson() || request()->is('api/*')) {
             return response()->json([
@@ -46,21 +46,19 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function markAsRead(Notification $notification): RedirectResponse|JsonResponse
+    public function markAsRead(string $notification): RedirectResponse|JsonResponse
     {
-        if ($notification->notifiable_id !== request()->user()->id) {
-            if (request()->expectsJson() || request()->is('api/*')) {
-                return response()->json(['message' => '无权操作此通知'], 403);
-            }
-            abort(403);
-        }
+        $notification = Notification::where('id', $notification)
+            ->where('notifiable_type', 'App\\Models\\User')
+            ->where('notifiable_id', request()->user()->id)
+            ->firstOrFail();
 
         $notification->update(['read_at' => $notification->read_at ?? now()]);
 
         if (request()->expectsJson() || request()->is('api/*')) {
             return response()->json([
                 'message' => '通知已标记为已读',
-                'notification' => $notification,
+                'notification' => $notification->fresh(),
             ]);
         }
 
