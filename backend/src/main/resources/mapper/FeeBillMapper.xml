@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.property.workorder.mapper.FeeBillMapper">
+
+    <resultMap id="BaseResultMap" type="com.property.workorder.entity.FeeBill">
+        <id column="id" property="id"/>
+        <result column="bill_no" property="billNo"/>
+        <result column="resident_id" property="residentId"/>
+        <result column="building_no" property="buildingNo"/>
+        <result column="room_no" property="roomNo"/>
+        <result column="fee_type" property="feeType"/>
+        <result column="bill_period" property="billPeriod"/>
+        <result column="bill_date" property="billDate"/>
+        <result column="due_date" property="dueDate"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="paid_amount" property="paidAmount"/>
+        <result column="status" property="status"/>
+        <result column="details" property="details"/>
+        <result column="remark" property="remark"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectPaymentProgress" resultType="java.util.Map">
+        SELECT
+            COALESCE(building_no, '总计') AS buildingNo,
+            fee_type AS feeType,
+            bill_period AS billPeriod,
+            COUNT(*) AS totalBills,
+            SUM(total_amount) AS totalAmount,
+            SUM(paid_amount) AS paidAmount,
+            SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END) AS paidCount,
+            SUM(CASE WHEN status != 'PAID' THEN 1 ELSE 0 END) AS unpaidCount,
+            ROUND(SUM(paid_amount)::numeric / NULLIF(SUM(total_amount), 0)::numeric * 100, 2) AS paymentRate
+        FROM fee_bill
+        WHERE deleted = 0
+        <if test="params.buildingNo != null and params.buildingNo != ''">
+            AND building_no = #{params.buildingNo}
+        </if>
+        <if test="params.feeType != null and params.feeType != ''">
+            AND fee_type = #{params.feeType}
+        </if>
+        <if test="params.billPeriod != null and params.billPeriod != ''">
+            AND bill_period = #{params.billPeriod}
+        </if>
+        GROUP BY GROUPING SETS ((building_no, fee_type, bill_period), (fee_type, bill_period))
+        ORDER BY building_no NULLS LAST, bill_period DESC, fee_type
+    </select>
+
+</mapper>
