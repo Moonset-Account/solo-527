@@ -6,7 +6,11 @@ from apps.serializers import BaseModelSerializer
 class NotificationRuleSerializer(BaseModelSerializer):
     trigger_display = serializers.CharField(source='get_trigger_display', read_only=True)
     method_display = serializers.CharField(source='get_method_display', read_only=True)
-    event_type = serializers.CharField(source='trigger', read_only=True)
+    event_type = serializers.ChoiceField(
+        choices=NotificationRule.TRIGGER_CHOICES,
+        source='trigger',
+        required=False,
+    )
     event_type_display = serializers.CharField(source='get_trigger_display', read_only=True)
     recipient_count = serializers.IntegerField(read_only=True)
 
@@ -20,22 +24,20 @@ class NotificationRuleSerializer(BaseModelSerializer):
             'recipients', 'recipient_count', 'recipient_emails',
             'template', 'is_active', 'is_enabled', 'description'
         ]
+        extra_kwargs = {
+            'trigger': {'required': False},
+        }
 
-    def validate_event_type(self, value):
-        valid = [c[0] for c in NotificationRule.TRIGGER_CHOICES]
-        if value not in valid:
-            raise serializers.ValidationError(f'无效的事件类型: {value}')
-        return value
-
-    def create(self, validated_data):
-        if 'event_type' in self.initial_data and 'trigger' not in validated_data:
-            validated_data['trigger'] = self.initial_data['event_type']
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        if 'event_type' in self.initial_data and 'trigger' not in validated_data:
-            validated_data['trigger'] = self.initial_data['event_type']
-        return super().update(instance, validated_data)
+    def validate(self, attrs):
+        trigger_in_raw = 'trigger' in self.initial_data
+        event_type_in_raw = 'event_type' in self.initial_data
+        if not trigger_in_raw and not event_type_in_raw:
+            if not self.instance:
+                raise serializers.ValidationError('必须提供 trigger 或 event_type')
+        if trigger_in_raw and event_type_in_raw:
+            if self.initial_data['trigger'] != self.initial_data['event_type']:
+                raise serializers.ValidationError('trigger 与 event_type 值不一致')
+        return attrs
 
 
 class NotificationSerializer(BaseModelSerializer):
