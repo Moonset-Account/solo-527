@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Target, Bell, Download, Check, X, Filter, Search, Eye, Tag, Clock, User, ChevronDown, Trash2, AlertCircle, CheckCircle2, FileSpreadsheet } from 'lucide-react';
-import PageWrapper from '@/components/layout/PageWrapper';
+import { useState, useMemo, useCallback } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { Target, Bell, Download, Check, X, Filter, Search, Eye, Tag, Clock, User, ChevronDown, Trash2, AlertCircle, CheckCircle2, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -159,6 +160,7 @@ export default function HitsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedHits, setSelectedHits] = useState<string[]>([]);
   const [showNotification, setShowNotification] = useState(true);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const filteredHits = useMemo(() => {
     return mockHits.filter(hit => {
@@ -195,17 +197,111 @@ export default function HitsPage() {
     }
   };
 
+  const screenMutation = useMutation({
+    mutationFn: async (status: 'VALID' | 'FALSE_POSITIVE') => {
+      const response = await fetch('/api/hits/screen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hitIds: selectedHits,
+          status,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '筛查失败');
+      }
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      setToast({
+        type: 'success',
+        message: `已成功将 ${data.data.updatedCount} 条记录标记为 ${getStatusText(variables)}`,
+      });
+      setSelectedHits([]);
+      setTimeout(() => setToast(null), 3000);
+    },
+    onError: (error: Error) => {
+      setToast({
+        type: 'error',
+        message: error.message,
+      });
+      setTimeout(() => setToast(null), 3000);
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async (format: 'xlsx' | 'csv') => {
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'hits',
+          format,
+          filters: {
+            category: selectedCategory === '全部分类' ? undefined : selectedCategory,
+            status: selectedStatus === 'all' ? undefined : selectedStatus,
+            search: searchQuery || undefined,
+          },
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '导出失败');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = new Date().toISOString().slice(0, 10);
+      a.download = `知识命中记录_${timestamp}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      return true;
+    },
+    onSuccess: () => {
+      setToast({
+        type: 'success',
+        message: '导出成功！文件已下载',
+      });
+      setTimeout(() => setToast(null), 3000);
+    },
+    onError: (error: Error) => {
+      setToast({
+        type: 'error',
+        message: error.message,
+      });
+      setTimeout(() => setToast(null), 3000);
+    },
+  });
+
   const handleBatchScreen = (status: 'VALID' | 'FALSE_POSITIVE') => {
-    alert(`已将 ${selectedHits.length} 条记录标记为 ${getStatusText(status)}`);
-    setSelectedHits([]);
+    if (selectedHits.length === 0) return;
+    screenMutation.mutate(status);
   };
 
   const handleExport = (format: 'xlsx' | 'csv') => {
-    alert(`正在导出 ${filteredHits.length} 条记录，格式: ${format}`);
+    exportMutation.mutate(format);
   };
 
   return (
-    <PageWrapper>
+    <PageWrapper title="知识命中管理" description="管理知识命中记录，筛查审核后批量导出">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 ${
+          toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        }`}>
+          {toast.type === 'success' ? (
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600" />
+          )}
+          <span className={`text-sm font-medium ${toast.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+            {toast.message}
+          </span>
+        </div>
+      )}
       <div className="space-y-6">
         {showNotification && (
           <Card className="border-amber-200 bg-amber-50/50">
@@ -354,15 +450,35 @@ export default function HitsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="default" size="sm" className="gap-2 bg-green-600 hover:bg-green-700" onClick={() => handleBatchScreen('VALID')}>
-                  <Check className="h-4 w-4" />
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleBatchScreen('VALID')}
+                  disabled={screenMutation.isPending}
+                >
+                  {screenMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
                   标记有效
                 </Button>
-                <Button variant="default" size="sm" className="gap-2 bg-red-600 hover:bg-red-700" onClick={() => handleBatchScreen('FALSE_POSITIVE')}>
-                  <X className="h-4 w-4" />
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2 bg-red-600 hover:bg-red-700"
+                  onClick={() => handleBatchScreen('FALSE_POSITIVE')}
+                  disabled={screenMutation.isPending}
+                >
+                  {screenMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
                   标记误报
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedHits([])}>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedHits([])} disabled={screenMutation.isPending}>
                   取消选择
                 </Button>
               </div>

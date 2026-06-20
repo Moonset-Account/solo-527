@@ -66,6 +66,8 @@ model Knowledge {
   version       Int             @default(1)
   invalidNote   String?
   invalidResult String?
+  processedBy   String?
+  processedAt   DateTime?
   createdBy     String
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -78,7 +80,7 @@ model Knowledge {
 model SLARule {
   id                String             @id @default(uuid())
   name              String
-  description       String
+  description       String?
   category          String
   conditions        Json
   responseTime      Int
@@ -165,7 +167,7 @@ model Satisfaction {
   knowledgeId String?
   ticketId    String
   score       Int
-  feedback    String
+  feedback    String?
   keywords    String[]
   createdAt   DateTime @default(now())
 
@@ -176,9 +178,9 @@ model Satisfaction {
 model ExportRecord {
   id               String   @id @default(uuid())
   exportType       String
-  filterConditions Json
+  filterConditions Json?
   totalCount       Int
-  fileUrl          String
+  fileUrl          String?
   exportedBy       String
   createdAt        DateTime @default(now())
 

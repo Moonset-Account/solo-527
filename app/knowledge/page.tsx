@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Search, BookOpen, FileText, Tag, Eye, ThumbsUp, Clock, Filter, ChevronRight, X } from 'lucide-react';
-import PageWrapper from '@/components/layout/PageWrapper';
+import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -148,7 +148,7 @@ export default function KnowledgePage() {
   const tutorialCount = filteredKnowledge.filter(k => k.type === 'TUTORIAL').length;
 
   return (
-    <PageWrapper>
+    <PageWrapper title="知识库" description="搜索答案和教程，快速解决客户问题">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Shield, Plus, Clock, AlertTriangle, Users, Edit, Trash2, Eye, History, ToggleLeft, ToggleRight, ChevronRight, Settings, AlertCircle, CheckCircle2 } from 'lucide-react';
-import PageWrapper from '@/components/layout/PageWrapper';
+import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,7 +171,7 @@ export default function SLAPage() {
     : 0;
 
   return (
-    <PageWrapper>
+    <PageWrapper title="SLA 规则管理" description="配置和管理售后服务的SLA规则">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

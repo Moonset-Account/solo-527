@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, FileText, Tag, Eye, ThumbsUp, ThumbsDown, Clock, User, AlertTriangle, CheckCircle, Star, MessageSquare, TrendingUp, Share2 } from 'lucide-react';
-import PageWrapper from '@/components/layout/PageWrapper';
+import { useMutation } from '@tanstack/react-query';
+import { ArrowLeft, BookOpen, FileText, Tag, Eye, ThumbsUp, ThumbsDown, Clock, User, AlertTriangle, CheckCircle, Star, MessageSquare, TrendingUp, Share2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -118,24 +119,81 @@ export default function KnowledgeDetailPage() {
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const knowledge = mockKnowledgeDetail;
   const avgScore = 4.7;
   const totalFeedbacks = 294;
 
-  const handleSubmitFeedback = () => {
-    if (userRating > 0) {
+  const submitFeedbackMutation = useMutation({
+    mutationFn: async () => {
+      if (userRating <= 0) {
+        throw new Error('请先选择评分');
+      }
+      const keywords = feedback
+        .split(/[，。！？、\s]+/)
+        .filter(word => word.length >= 2)
+        .slice(0, 5);
+
+      const response = await fetch('/api/satisfaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          knowledgeId: params.id as string,
+          ticketId: 'TK000000',
+          score: userRating,
+          feedback: feedback || undefined,
+          keywords,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '提交失败');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
       setIsFeedbackSubmitted(true);
+      setToast({
+        type: 'success',
+        message: '感谢您的评价！您的反馈将帮助我们不断改进知识库质量。',
+      });
       setTimeout(() => {
         setIsFeedbackSubmitted(false);
         setFeedback('');
         setUserRating(0);
+        setToast(null);
       }, 2000);
-    }
+    },
+    onError: (error: Error) => {
+      setToast({
+        type: 'error',
+        message: error.message,
+      });
+      setTimeout(() => setToast(null), 3000);
+    },
+  });
+
+  const handleSubmitFeedback = () => {
+    submitFeedbackMutation.mutate();
   };
 
   return (
-    <PageWrapper>
+    <PageWrapper title="知识详情" description="查看知识内容并提交满意度评价">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 ${
+          toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        }`}>
+          {toast.type === 'success' ? (
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600" />
+          )}
+          <span className={`text-sm font-medium ${toast.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+            {toast.message}
+          </span>
+        </div>
+      )}
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-2">
@@ -339,8 +397,16 @@ export default function KnowledgeDetailPage() {
                         className="min-h-[100px]"
                       />
                     </div>
-                    <Button onClick={handleSubmitFeedback} disabled={userRating === 0} className="gap-2">
-                      <CheckCircle className="h-4 w-4" />
+                    <Button
+                      onClick={handleSubmitFeedback}
+                      disabled={userRating === 0 || submitFeedbackMutation.isPending}
+                      className="gap-2"
+                    >
+                      {submitFeedbackMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4" />
+                      )}
                       提交评价
                     </Button>
                   </div>

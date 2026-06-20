@@ -18,6 +18,8 @@ export async function addTrajectory(data: TrajectoryInput, operatorId: string) {
   const trajectory = await prisma.trajectory.create({
     data: {
       ...data,
+      beforeState: data.beforeState as any,
+      afterState: data.afterState as any,
       operatorId,
     },
   });

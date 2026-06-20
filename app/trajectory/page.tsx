@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Route, Search, Clock, User, Shield, Wrench, CheckCircle, FileText, AlertTriangle, ChevronRight, Filter, Eye, Download, Plus, ArrowRight } from 'lucide-react';
-import PageWrapper from '@/components/layout/PageWrapper';
+import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -257,47 +257,47 @@ export default function TrajectoryPage() {
   }, [selectedTicketId]);
 
   const renderDiff = (before: Record<string, any>, after: Record<string, any>) => {
-  const allKeys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
-  
-  return (
-    <div className="space-y-2">
-      {allKeys.map(key => {
-        const beforeVal = before[key];
-        const afterVal = after[key];
-        const hasChange = JSON.stringify(beforeVal) !== JSON.stringify(afterVal);
-        
-        if (!hasChange) return null;
-        
-        return (
-          <div key={key} className="flex items-start gap-4 p-2 bg-slate-50 rounded">
-            <span className="text-sm font-medium text-slate-700 min-w-[120px]">{key}:</span>
-            <div className="flex-1">
-              {beforeVal !== undefined && beforeVal !== null && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">变更前</span>
-                  <span className="text-sm text-red-600 line-through">
-                    {typeof beforeVal === 'boolean' ? (beforeVal ? '是' : '否') : String(beforeVal)}
-                  </span>
-                </div>
-              )}
-              {afterVal !== undefined && afterVal !== null && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">变更后</span>
-                  <span className="text-sm text-green-600 font-medium">
-                    {typeof afterVal === 'boolean' ? (afterVal ? '是' : '否') : String(afterVal)}
-                  </span>
-                </div>
-              )}
+    const allKeys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+    
+    return (
+      <div className="space-y-2">
+        {allKeys.map(key => {
+          const beforeVal = before[key];
+          const afterVal = after[key];
+          const hasChange = JSON.stringify(beforeVal) !== JSON.stringify(afterVal);
+          
+          if (!hasChange) return null;
+          
+          return (
+            <div key={key} className="flex items-start gap-4 p-2 bg-slate-50 rounded">
+              <span className="text-sm font-medium text-slate-700 min-w-[120px]">{key}:</span>
+              <div className="flex-1">
+                {beforeVal !== undefined && beforeVal !== null && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">变更前</span>
+                    <span className="text-sm text-red-600 line-through">
+                      {typeof beforeVal === 'boolean' ? (beforeVal ? '是' : '否') : String(beforeVal)}
+                    </span>
+                  </div>
+                )}
+                {afterVal !== undefined && afterVal !== null && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">变更后</span>
+                    <span className="text-sm text-green-600 font-medium">
+                      {typeof afterVal === 'boolean' ? (afterVal ? '是' : '否') : String(afterVal)}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+          );
+        })}
+      </div>
+    );
+  };
 
-return (
-    <PageWrapper>
+  return (
+    <PageWrapper title="处理轨迹与复盘" description="完整记录每一个工单的处理全过程">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -352,18 +352,19 @@ return (
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-mono text-slate-500">{selectedTicket.id}</span>
-                      <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                        {selectedTicket.category}
-                      </Badge>
-                      <Badge className={getStatusColor(selectedTicket.status)}>
-                        {getStatusText(selectedTicket.status)}
-                      </Badge>
-                    </div>
+                        <span className="text-sm font-mono text-slate-500">{selectedTicket.id}</span>
+                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                          {selectedTicket.category}
+                        </Badge>
+                        <Badge className={getStatusColor(selectedTicket.status)}>
+                          {getStatusText(selectedTicket.status)}
+                        </Badge>
+                      </div>
                       <h2 className="text-xl font-bold text-slate-900">{selectedTicket.title}</h2>
-                    <p className="text-slate-500 mt-1">
-                      客户：{selectedTicket.customerName} · 创建于 {formatDate(selectedTicket.createdAt)}
-                    </p>
+                      <p className="text-slate-500 mt-1">
+                        客户：{selectedTicket.customerName} · 创建于 {formatDate(selectedTicket.createdAt)}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 mt-3">
                     <div className="flex items-center gap-2">

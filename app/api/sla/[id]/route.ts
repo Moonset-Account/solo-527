@@ -19,6 +19,7 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           include: {
             changer: { select: { id: true, name: true } },
+          },
         },
       },
     });
@@ -59,7 +60,8 @@ export async function PUT(
     const data = updateSLARuleSchema.parse(body);
 
     const existingRule = await prisma.sLARule.findUnique({
-      where: { id } });
+      where: { id },
+    });
 
     if (!existingRule) {
       return NextResponse.json(
@@ -133,7 +135,8 @@ export async function DELETE(
     const { id } = params;
 
     await prisma.sLARule.delete({
-      where: { id } });
+      where: { id },
+    });
 
     await cacheDel('sla:list:*');
 

@@ -7,7 +7,7 @@ interface MetricCardProps {
   value: string | number;
   change?: number;
   icon: LucideIcon;
-  variant?: "default" | "success" | "warning" | "danger";
+  variant?: "default" | "success" | "warning" | "danger" | "info";
   trend?: "up" | "down";
 }
 
@@ -16,6 +16,7 @@ const gradientVariants = {
   success: "from-green-50 to-emerald-50",
   warning: "from-amber-50 to-orange-50",
   danger: "from-red-50 to-rose-50",
+  info: "from-blue-50 to-indigo-50",
 };
 
 const iconVariants = {
@@ -23,6 +24,7 @@ const iconVariants = {
   success: "bg-green-500/10 text-green-600",
   warning: "bg-amber-500/10 text-amber-600",
   danger: "bg-red-500/10 text-red-600",
+  info: "bg-blue-500/10 text-blue-600",
 };
 
 export function MetricCard({

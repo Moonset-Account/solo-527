@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { AlertTriangle, Clock, User, Eye, CheckCircle, XCircle, Star, TrendingUp, MessageSquare, Search, Filter, Download, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
-import PageWrapper from '@/components/layout/PageWrapper';
+import { useMutation } from '@tanstack/react-query';
+import { AlertTriangle, Clock, User, Eye, CheckCircle, XCircle, Star, TrendingUp, MessageSquare, Search, Filter, Download, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react';
+import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -194,6 +195,7 @@ export default function InvalidKnowledgePage() {
   const [selectedKnowledge, setSelectedKnowledge] = useState<typeof mockInvalidKnowledge[0] | null>(null);
   const [invalidNote, setInvalidNote] = useState('');
   const [invalidResult, setInvalidResult] = useState('');
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const filteredKnowledge = useMemo(() => {
     return mockInvalidKnowledge.filter(item => {
@@ -211,24 +213,102 @@ export default function InvalidKnowledgePage() {
   const avgSatisfaction = 4.5;
   const totalFeedbacks = 294;
 
-  const handleConfirmInvalid = () => {
-    if (invalidNote && invalidResult && selectedKnowledge) {
-      alert(`已确认失效：${selectedKnowledge.title}`);
+  const confirmInvalidMutation = useMutation({
+    mutationFn: async () => {
+      if (!invalidNote || !invalidResult || !selectedKnowledge) {
+        throw new Error('请填写失效备注和处理结果');
+      }
+      const response = await fetch('/api/knowledge/invalid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          knowledgeId: selectedKnowledge.id,
+          invalidNote,
+          invalidResult,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '标记失效失败');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setToast({
+        type: 'success',
+        message: `已成功标记失效：${selectedKnowledge?.title}`,
+      });
       setSelectedKnowledge(null);
       setInvalidNote('');
       setInvalidResult('');
-    }
+      setTimeout(() => setToast(null), 3000);
+    },
+    onError: (error: Error) => {
+      setToast({
+        type: 'error',
+        message: error.message,
+      });
+      setTimeout(() => setToast(null), 3000);
+    },
+  });
+
+  const keepActiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedKnowledge) return null;
+      const response = await fetch(`/api/knowledge/${selectedKnowledge.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'ACTIVE',
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '保留失败');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setToast({
+        type: 'success',
+        message: `已保留：${selectedKnowledge?.title}`,
+      });
+      setSelectedKnowledge(null);
+      setTimeout(() => setToast(null), 3000);
+    },
+    onError: (error: Error) => {
+      setToast({
+        type: 'error',
+        message: error.message,
+      });
+      setTimeout(() => setToast(null), 3000);
+    },
+  });
+
+  const handleConfirmInvalid = () => {
+    confirmInvalidMutation.mutate();
   };
 
   const handleKeepActive = () => {
-    if (selectedKnowledge) {
-      alert(`已保留：${selectedKnowledge.title}`);
-      setSelectedKnowledge(null);
-    }
+    keepActiveMutation.mutate();
   };
 
   return (
-    <PageWrapper>
+    <PageWrapper title="知识失效管理" description="管理失效知识，分析客户满意度">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 ${
+          toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        }`}>
+          {toast.type === 'success' ? (
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600" />
+          )}
+          <span className={`text-sm font-medium ${toast.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+            {toast.message}
+          </span>
+        </div>
+      )}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -480,17 +560,26 @@ export default function InvalidKnowledgePage() {
                             <Button
                               className="w-full gap-2 bg-red-600 hover:bg-red-700"
                               onClick={handleConfirmInvalid}
-                              disabled={!invalidNote || !invalidResult}
+                              disabled={!invalidNote || !invalidResult || confirmInvalidMutation.isPending || keepActiveMutation.isPending}
                             >
-                              <XCircle className="h-4 w-4" />
+                              {confirmInvalidMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <XCircle className="h-4 w-4" />
+                              )}
                               确认失效
                             </Button>
                             <Button
                               variant="outline"
                               className="w-full gap-2"
                               onClick={handleKeepActive}
+                              disabled={confirmInvalidMutation.isPending || keepActiveMutation.isPending}
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              {keepActiveMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
                               保留继续使用
                             </Button>
                           </div>
@@ -512,7 +601,7 @@ export default function InvalidKnowledgePage() {
                             </p>
                           </div>
                           <div className="text-sm text-slate-500">
-                            由 {selectedKnowledge.processedBy} 于 {formatDate(selectedKnowledge.processedAt)} 处理
+                            由 {selectedKnowledge.processedBy} 于 {formatDate(selectedKnowledge.processedAt || null)} 处理
                           </div>
                         </div>
                       )}

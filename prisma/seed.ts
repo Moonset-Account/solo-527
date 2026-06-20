@@ -87,13 +87,10 @@ async function main() {
     },
   ];
 
-  for (const k of knowledgeData) {
-    await prisma.knowledge.upsert({
-      where: { title: k.title },
-      update: {},
-      create: k,
-    });
-  }
+  await prisma.knowledge.createMany({
+    data: knowledgeData,
+    skipDuplicates: true,
+  });
 
   const slaRules = [
     {
@@ -137,13 +134,10 @@ async function main() {
     },
   ];
 
-  for (const rule of slaRules) {
-    await prisma.sLARule.upsert({
-      where: { name: rule.name },
-      update: {},
-      create: rule,
-    });
-  }
+  await prisma.sLARule.createMany({
+    data: slaRules,
+    skipDuplicates: true,
+  });
 
   const tickets = [
     {
@@ -183,15 +177,11 @@ async function main() {
     },
   ];
 
-  const createdTickets = [];
-  for (const t of tickets) {
-    const ticket = await prisma.ticket.upsert({
-      where: { title: t.title },
-      update: {},
-      create: t,
-    });
-    createdTickets.push(ticket);
-  }
+  await prisma.ticket.createMany({
+    data: tickets,
+    skipDuplicates: true,
+  });
+  const createdTickets = await prisma.ticket.findMany({ take: 5, orderBy: { createdAt: 'desc' } });
 
   const allKnowledge = await prisma.knowledge.findMany();
   const allSlaRules = await prisma.sLARule.findMany();

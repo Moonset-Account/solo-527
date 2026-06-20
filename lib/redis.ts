@@ -12,8 +12,7 @@ export const redis =
     maxRetriesPerRequest: 3,
     enableReadyCheck: false,
     lazyConnect: true,
-    retryDelayOnFailover: 100,
-    retryDelay: (attempt) => Math.min(attempt * 100, 2000),
+    showFriendlyErrorStack: process.env.NODE_ENV !== 'production',
   });
 
 if (process.env.NODE_ENV !== 'production') globalForRedis.redis = redis;

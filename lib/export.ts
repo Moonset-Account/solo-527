@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import type { KnowledgeHit, Knowledge, SLARule, Trajectory } from '@prisma/client';
 
-type ExportData = {
+export type ExportData = {
   hits?: (KnowledgeHit & { knowledge?: { title: string }; ticket?: { title: string } })[];
   knowledge?: Knowledge[];
   sla?: SLARule[];
